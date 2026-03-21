@@ -12,28 +12,30 @@ type Question = {
   id: string;
   text: string;
   textChinese?: string;
+  textKorean?: string;
   type: string;
   options?: string[];
   optionsChinese?: string[];
+  optionsKorean?: string[];
   domain: string;
   required?: boolean;
   conditionalOn?: string;
   conditionalValue?: string;
   note?: string;
   noteChinese?: string;
+  noteKorean?: string;
 };
 
-function useText(q: { text: string; textChinese?: string; note?: string; noteChinese?: string }, language: string) {
-  const isChinese = language === "mandarin" || language === "cantonese";
-  return {
-    label: isChinese && q.textChinese ? q.textChinese : q.text,
-    note: isChinese && q.noteChinese ? q.noteChinese : q.note,
-  };
+function useText(q: { text: string; textChinese?: string; textKorean?: string; note?: string; noteChinese?: string; noteKorean?: string }, language: string) {
+  if (language === "korean") return { label: q.textKorean ?? q.text, note: q.noteKorean ?? q.note };
+  if (language === "mandarin") return { label: q.textChinese ?? q.text, note: q.noteChinese ?? q.note };
+  return { label: q.text, note: q.note };
 }
 
-function useOption(opts: string[], optsCn: string[] | undefined, language: string) {
-  const isChinese = language === "mandarin" || language === "cantonese";
-  return isChinese && optsCn ? optsCn : opts;
+function useOption(opts: string[], optsCn: string[] | undefined, language: string, optsKo?: string[]) {
+  if (language === "korean" && optsKo) return optsKo;
+  if (language === "mandarin" && optsCn) return optsCn;
+  return opts;
 }
 
 function SectionHeader({ q, language }: { q: Question; language: string }) {
@@ -73,7 +75,7 @@ function TextareaField({ q, language, value, onChange }: { q: Question; language
 
 function RadioGroupField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
-  const opts = useOption(q.options ?? [], q.optionsChinese, language);
+  const opts = useOption(q.options ?? [], q.optionsChinese, language, q.optionsKorean);
   const srcOpts = q.options ?? [];
   return (
     <div className="space-y-3">
@@ -98,7 +100,7 @@ function RadioGroupField({ q, language, value, onChange }: { q: Question; langua
 
 function CheckboxGroupField({ q, language, value, onChange }: { q: Question; language: string; value: string[]; onChange: (v: string[]) => void }) {
   const { label } = useText(q, language);
-  const opts = useOption(q.options ?? [], q.optionsChinese, language);
+  const opts = useOption(q.options ?? [], q.optionsChinese, language, q.optionsKorean);
   const srcOpts = q.options ?? [];
   const toggle = (srcVal: string) => {
     if (value.includes(srcVal)) onChange(value.filter(v => v !== srcVal));
@@ -165,17 +167,19 @@ function SignatureField({ q, language, value, onChange }: { q: Question; languag
 
 function ConsentItem({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
+  const yesLabel = language === "korean" ? "예" : language === "mandarin" ? "是" : "Yes";
+  const noLabel = language === "korean" ? "아니오" : language === "mandarin" ? "否" : "No";
   return (
     <div className="border-2 border-slate-200 rounded-xl p-5 space-y-4 bg-slate-50">
       <p className="text-sm text-slate-700 leading-relaxed">{label}</p>
       <div className="flex gap-3">
-        {["Yes", "No"].map(opt => (
-          <button key={opt} onClick={() => onChange(opt)}
+        {[{ val: "Yes", label: yesLabel }, { val: "No", label: noLabel }].map(opt => (
+          <button key={opt.val} onClick={() => onChange(opt.val)}
             className={cn("flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all",
-              value === opt
-                ? opt === "Yes" ? "border-emerald-500 bg-emerald-500 text-white" : "border-red-400 bg-red-400 text-white"
+              value === opt.val
+                ? opt.val === "Yes" ? "border-emerald-500 bg-emerald-500 text-white" : "border-red-400 bg-red-400 text-white"
                 : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")}>
-            {opt}
+            {opt.label}
           </button>
         ))}
       </div>
@@ -185,7 +189,7 @@ function ConsentItem({ q, language, value, onChange }: { q: Question; language: 
 
 function LikertField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
-  const opts = useOption(q.options ?? ["Never", "Rarely", "Sometimes", "Often", "Very Often"], q.optionsChinese, language);
+  const opts = useOption(q.options ?? ["Never", "Rarely", "Sometimes", "Often", "Very Often"], q.optionsChinese, language, q.optionsKorean);
   const srcOpts = q.options ?? ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
   return (
     <div className="space-y-3">
@@ -246,11 +250,16 @@ function FormIcon({ formType }: { formType: string }) {
 }
 
 function getSubtitle(formType: string, studentName: string, language: string) {
-  const zh = language === "mandarin" || language === "cantonese";
-  if (formType === "REFERRAL") return zh ? "学生转介表格" : "Student Referral Form";
-  if (formType === "CONSENT") return zh ? `关于: ${studentName}` : `Regarding: ${studentName}`;
-  if (formType === "INTAKE") return zh ? `关于: ${studentName}` : `Regarding: ${studentName}`;
-  return zh ? `关于: ${studentName}` : `Regarding: ${studentName}`;
+  if (language === "korean") {
+    if (formType === "REFERRAL") return "학생 의뢰 양식";
+    return `대상: ${studentName}`;
+  }
+  if (language === "mandarin") {
+    if (formType === "REFERRAL") return "学生转介表格";
+    return `关于: ${studentName}`;
+  }
+  if (formType === "REFERRAL") return "Student Referral Form";
+  return `Regarding: ${studentName}`;
 }
 
 function getSubmitLabel(formType: string) {
@@ -363,11 +372,11 @@ export default function ExternalFormView() {
           <span className="font-display font-bold tracking-tight text-base">ReMynd</span>
         </div>
         <div className="flex bg-slate-100 p-1 rounded-lg">
-          {["english", "mandarin", "cantonese"].map(lang => (
-            <button key={lang} onClick={() => setLanguage(lang)}
+          {[{ id: "english", label: "En" }, { id: "mandarin", label: "中" }, { id: "korean", label: "한" }].map(lang => (
+            <button key={lang.id} onClick={() => setLanguage(lang.id)}
               className={cn("px-3 py-1.5 text-xs rounded-md font-medium transition-colors",
-                language === lang ? "bg-white shadow-sm text-primary" : "text-slate-500")}>
-              {lang === "english" ? "En" : lang === "mandarin" ? "普" : "粤"}
+                language === lang.id ? "bg-white shadow-sm text-primary" : "text-slate-500")}>
+              {lang.label}
             </button>
           ))}
         </div>

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useListAssessmentTools } from "@workspace/api-client-react";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Layers, CheckCircle2, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
+import { Search, Layers, CheckCircle2, Clock, Eye } from "lucide-react";
 
 const categoryColors: Record<string, string> = {
   "admin": "bg-slate-100 text-slate-700",
@@ -123,6 +124,7 @@ export default function AssessmentTools() {
 }
 
 function ToolCard({ tool }: { tool: any }) {
+  const [, setLocation] = useLocation();
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 hover:border-slate-300 hover:shadow-sm transition-all">
       <div className="flex items-start justify-between gap-2">
@@ -160,6 +162,19 @@ function ToolCard({ tool }: { tool: any }) {
       {tool.respondentTypes?.length > 0 && (
         <div className="text-xs text-slate-400">
           Respondents: {tool.respondentTypes.join(", ")}
+        </div>
+      )}
+
+      {tool.isRemyndOwned && (
+        <div className="pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 text-xs h-8"
+            onClick={() => setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`)}
+          >
+            <Eye className="w-3.5 h-3.5" /> View Form
+          </Button>
         </div>
       )}
     </div>
