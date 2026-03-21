@@ -18,6 +18,7 @@ import ScoringView from "@/pages/cases/[id]/scoring";
 import ReportEditor from "@/pages/cases/[id]/report";
 import GuidedSelfReport from "@/pages/cases/[id]/self-report";
 import ExternalFormView from "@/pages/external/[token]";
+import AssessmentTools from "@/pages/tools";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,9 @@ function Router() {
       </Route>
       <Route path="/cases/:id/self-report">
         {() => <ProtectedRoute component={GuidedSelfReport} />}
+      </Route>
+      <Route path="/tools">
+        {() => <ProtectedRoute component={AssessmentTools} />}
       </Route>
       
       <Route component={NotFound} />
