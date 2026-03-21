@@ -331,6 +331,9 @@ export const CreateAssignmentRequestRespondentType = {
   teacher2: "teacher2",
   student: "student",
   self: "self",
+  school_counselor: "school_counselor",
+  special_needs_teacher: "special_needs_teacher",
+  referring_teacher: "referring_teacher",
 } as const;
 
 export interface CreateAssignmentRequest {

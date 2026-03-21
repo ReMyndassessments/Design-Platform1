@@ -332,6 +332,9 @@ export default function CaseDetail() {
                 <option value="parent">Parent</option>
                 <option value="teacher1">Teacher 1</option>
                 <option value="teacher2">Teacher 2</option>
+                <option value="referring_teacher">Referring Teacher</option>
+                <option value="school_counselor">School Counselor</option>
+                <option value="special_needs_teacher">Special Needs Teacher</option>
                 <option value="student">Student (Independent)</option>
                 <option value="self">Self-Report (Guided)</option>
               </select>
