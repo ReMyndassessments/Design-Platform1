@@ -58,38 +58,38 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-50">
-      {/* Left side - Branding */}
-      <div className="hidden md:flex flex-col justify-center items-center w-1/2 bg-slate-900 text-white p-12 relative overflow-hidden">
-        {/* Abstract background blobs */}
+    <div className="min-h-screen w-full flex flex-col md:flex-row">
+      {/* Mobile top / Desktop left — dark branding panel */}
+      <div className="md:w-1/2 bg-slate-900 text-white relative overflow-hidden flex flex-col justify-center items-center p-10 md:p-12 py-14 md:py-0">
+        {/* Background blobs */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-3xl" />
-        
-        <div className="z-10 text-center max-w-md">
-          <div className="mb-8 mx-auto w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-20 h-20 object-contain" />
+
+        <div className="z-10 text-center max-w-md w-full">
+          <div className="mb-6 mx-auto w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-16 h-16 md:w-20 md:h-20 object-contain" />
           </div>
-          <h1 className="text-3xl lg:text-4xl font-bold mb-6 tracking-tight text-white">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 tracking-tight text-white">
             ReMynd Assessment Operating System
           </h1>
-          <p className="text-lg text-slate-300 leading-relaxed">
+          {/* Subtitle shown on desktop only */}
+          <p className="hidden md:block text-lg text-slate-300 leading-relaxed">
             The intelligent operating system for psychoeducational assessments. Streamline forms, scoring, and report generation in one secure platform.
           </p>
+          {/* Welcome text shown on mobile only */}
+          <div className="md:hidden mt-4">
+            <p className="text-2xl font-bold text-white">Welcome back</p>
+            <p className="text-slate-400 mt-1 text-sm">Please sign in to your account.</p>
+          </div>
         </div>
       </div>
 
-      {/* Right side - Form */}
+      {/* Mobile bottom / Desktop right — form panel */}
       <div className="flex-1 flex items-center justify-center p-8 bg-white md:rounded-l-3xl shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)] z-10 relative">
         <div className="w-full max-w-md animate-slide-up">
-          <div className="md:hidden flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-slate-200/80 border border-slate-100">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-12 h-12 object-contain" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight text-center">ReMynd Assessment<br/>Operating System</h1>
-          </div>
-
-          <div className="mb-8">
-            <h2 className="text-3xl font-display font-bold text-slate-900">Welcome back</h2>
+          {/* Welcome text shown on desktop only */}
+          <div className="hidden md:block mb-8">
+            <h2 className="text-3xl font-bold text-slate-900">Welcome back</h2>
             <p className="text-slate-500 mt-2 text-sm">Please sign in to your account.</p>
           </div>
 
@@ -105,11 +105,9 @@ export default function Login() {
                 className="h-12"
               />
             </div>
-            
+
             <div className="space-y-1">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-medium text-slate-700">Password</label>
-              </div>
+              <label className="text-sm font-medium text-slate-700 ml-1">Password</label>
               <Input
                 type="password"
                 placeholder="••••••••"
@@ -120,15 +118,15 @@ export default function Login() {
               />
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-12 text-base mt-4 group"
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? "Signing in..." : "Sign In"}
               {!loginMutation.isPending && <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />}
             </Button>
-            
+
             {!import.meta.env.PROD && (
               <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600">
                 <p className="font-semibold mb-1 text-slate-800">Demo Accounts:</p>
