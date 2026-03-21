@@ -137,6 +137,11 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
+  if (!name?.trim() && !role) {
+    res.status(400).json({ error: "bad_request", message: "Provide at least name or role to update" });
+    return;
+  }
+
   if (role && !["assessment_lead", "psychometrician"].includes(role)) {
     res.status(400).json({ error: "bad_request", message: "Role must be assessment_lead or psychometrician" });
     return;

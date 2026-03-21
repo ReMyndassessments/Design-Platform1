@@ -76,6 +76,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
+          qc.invalidateQueries({ queryKey: ["/api/users/assignable"] });
           onClose();
         },
         onError: (err: Error) => {
@@ -200,6 +201,7 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
+          qc.invalidateQueries({ queryKey: ["/api/users/assignable"] });
           onClose();
         },
         onError: () => setError("Failed to update. Please try again."),
@@ -287,6 +289,7 @@ function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () =
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
+          qc.invalidateQueries({ queryKey: ["/api/users/assignable"] });
           onClose();
         },
       }
