@@ -145,6 +145,36 @@ async function seed() {
       scoringType: "manual",
       domains: ["attention", "emotional_regulation", "social_communication", "academic_persistence"],
     },
+    {
+      id: "REFERRAL",
+      name: "ReMynd Referral Form",
+      category: "ReMynd Admin Forms",
+      description: "Initial referral form for schools and parents to initiate an assessment request",
+      isRemyndOwned: true,
+      respondentTypes: ["parent", "school"],
+      scoringType: "manual",
+      domains: [],
+    },
+    {
+      id: "CONSENT",
+      name: "Parental Consent Form",
+      category: "ReMynd Admin Forms",
+      description: "Bilingual parental consent form covering assessment, data privacy, and AI usage",
+      isRemyndOwned: true,
+      respondentTypes: ["parent"],
+      scoringType: "manual",
+      domains: [],
+    },
+    {
+      id: "INTAKE",
+      name: "Assessment Intake Form — Parent",
+      category: "ReMynd Admin Forms",
+      description: "Comprehensive bilingual parent intake form covering developmental, family, academic, and health history",
+      isRemyndOwned: true,
+      respondentTypes: ["parent"],
+      scoringType: "manual",
+      domains: [],
+    },
   ]).onConflictDoNothing();
 
   console.log("Seed complete!");

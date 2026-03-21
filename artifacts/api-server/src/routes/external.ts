@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 
+const FORM_TYPES = ["REFERRAL", "CONSENT", "INTAKE"];
+
 const router = Router();
 
 router.get("/external/form/:token", async (req, res) => {
@@ -22,10 +24,14 @@ router.get("/external/form/:token", async (req, res) => {
   const responseRows = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id)).limit(1);
   const alreadySubmitted = responseRows.length > 0;
 
-  const questions = SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"];
+  const toolId = assignment.toolId;
+  const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
+  const questions = SAMPLE_QUESTIONS[toolId] ?? SAMPLE_QUESTIONS["default"];
 
   res.json({
     assignmentId: assignment.id,
+    toolId,
+    formType,
     toolName: assignment.toolName,
     respondentLabel: assignment.respondentLabel,
     studentName: caseData?.studentName ?? "the student",

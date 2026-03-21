@@ -20,7 +20,8 @@ export default function Login() {
     if (user) {
       setLocation("/");
     }
-  }, [user, setLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const loginMutation = useLogin();
 
