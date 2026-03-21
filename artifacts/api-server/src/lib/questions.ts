@@ -42,6 +42,7 @@ export const REFERRAL_FORM: FormQuestion[] = [
     textKorean: "ReMynd™ 네트워크 학교 이름",
     type: "select",
     options: [
+      "Not a Network School",
       "Malvern College Chengdu",
       "Chengdu Montpellier International School (MIS)",
       "BASIS International & Bilingual School Chengdu",

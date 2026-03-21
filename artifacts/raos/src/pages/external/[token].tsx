@@ -131,21 +131,50 @@ function CheckboxGroupField({ q, language, value, onChange }: { q: Question; lan
   );
 }
 
+const NOT_NETWORK_VALUE = "Not a Network School";
+
 function SelectField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
+  const allOptions = q.options ?? [];
+  const hasNotNetwork = allOptions[0] === NOT_NETWORK_VALUE;
+  const isOther = hasNotNetwork && (value === NOT_NETWORK_VALUE || (value !== "" && !allOptions.includes(value)));
+  const selectValue = isOther ? NOT_NETWORK_VALUE : value;
+
+  const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value;
+    if (v === NOT_NETWORK_VALUE) {
+      onChange(NOT_NETWORK_VALUE);
+    } else {
+      onChange(v);
+    }
+  };
+
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-slate-700">
         {label}{q.required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <div className="relative">
-        <select value={value} onChange={e => onChange(e.target.value)}
+        <select value={selectValue} onChange={handleSelect}
           className="w-full appearance-none border-2 border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-700 focus:outline-none focus:border-primary pr-10">
           <option value="">Select...</option>
-          {(q.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+          {allOptions.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
       </div>
+      {isOther && (
+        <div className="mt-1 space-y-1.5">
+          <p className="text-xs text-slate-500">Please enter your school name below:</p>
+          <input
+            type="text"
+            autoFocus
+            placeholder="Enter your school name..."
+            value={value === NOT_NETWORK_VALUE ? "" : value}
+            onChange={e => onChange(e.target.value || NOT_NETWORK_VALUE)}
+            className="w-full border-2 border-primary/40 rounded-lg px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-primary bg-white"
+          />
+        </div>
+      )}
     </div>
   );
 }
