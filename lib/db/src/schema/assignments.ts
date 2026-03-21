@@ -15,6 +15,9 @@ export const respondentTypeEnum = pgEnum("respondent_type", [
   "teacher2",
   "student",
   "self",
+  "school_counselor",
+  "special_needs_teacher",
+  "referring_teacher",
 ]);
 
 export const assignmentsTable = pgTable("assignments", {
