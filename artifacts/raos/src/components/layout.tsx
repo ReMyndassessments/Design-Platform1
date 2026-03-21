@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useGetCurrentUser, useLogout } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -17,11 +18,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   
   const { data: user } = useGetCurrentUser();
   const logoutMutation = useLogout();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         localStorage.removeItem("raos_token");
+        queryClient.clear();
         setLocation("/login");
       }
     });

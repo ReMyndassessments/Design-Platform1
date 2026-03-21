@@ -13,7 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser({
-    query: { retry: false, refetchOnWindowFocus: false }
+    query: { retry: false, refetchOnWindowFocus: false, staleTime: 0, gcTime: 0 }
   });
 
   const loginMutation = useLogin();
