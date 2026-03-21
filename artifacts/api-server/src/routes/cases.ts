@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -92,12 +92,16 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   const c = rows[0];
+  const [assignments, scores] = await Promise.all([
+    db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId)),
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
+  ]);
   res.json({
     ...formatCase(c),
     intakeData: c.intakeData,
     intakeAnalysis: c.intakeAnalysis,
-    assignments: [],
-    scores: [],
+    assignments,
+    scores,
   });
 });
 
