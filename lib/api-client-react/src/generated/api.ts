@@ -2329,3 +2329,140 @@ export function useGetDashboardStats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+// ── Assessment Tool: Update ──────────────────────────────────────────────────
+
+export type UpdateAssessmentToolBody = {
+  name?: string;
+  description?: string;
+  category?: string;
+  scoringType?: "auto" | "manual";
+  domains?: string[];
+  respondentTypes?: string[];
+};
+
+export const updateAssessmentTool = async (
+  toolId: string,
+  updateAssessmentToolBody: UpdateAssessmentToolBody,
+  options?: RequestInit,
+): Promise<AssessmentTool> => {
+  return customFetch<AssessmentTool>(`/api/assessment-tools/${toolId}`, {
+    ...options,
+    method: "PUT",
+    body: JSON.stringify(updateAssessmentToolBody),
+  });
+};
+
+export const getUpdateAssessmentToolMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAssessmentTool>>,
+    TError,
+    { toolId: string; data: UpdateAssessmentToolBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAssessmentTool>>,
+  TError,
+  { toolId: string; data: UpdateAssessmentToolBody },
+  TContext
+> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationKey = ["updateAssessmentTool"];
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAssessmentTool>>,
+    { toolId: string; data: UpdateAssessmentToolBody }
+  > = ({ toolId, data }) => updateAssessmentTool(toolId, data, requestOptions);
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type UpdateAssessmentToolMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAssessmentTool>>
+>;
+export type UpdateAssessmentToolMutationError = ErrorType<unknown>;
+
+export function useUpdateAssessmentTool<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAssessmentTool>>,
+    TError,
+    { toolId: string; data: UpdateAssessmentToolBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAssessmentTool>>,
+  TError,
+  { toolId: string; data: UpdateAssessmentToolBody },
+  TContext
+> {
+  return useMutation(getUpdateAssessmentToolMutationOptions(options));
+}
+
+// ── Assessment Tool: Delete ──────────────────────────────────────────────────
+
+export const deleteAssessmentTool = async (
+  toolId: string,
+  options?: RequestInit,
+): Promise<{ success: boolean }> => {
+  return customFetch<{ success: boolean }>(`/api/assessment-tools/${toolId}`, {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAssessmentToolMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssessmentTool>>,
+    TError,
+    { toolId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAssessmentTool>>,
+  TError,
+  { toolId: string },
+  TContext
+> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationKey = ["deleteAssessmentTool"];
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAssessmentTool>>,
+    { toolId: string }
+  > = ({ toolId }) => deleteAssessmentTool(toolId, requestOptions);
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type DeleteAssessmentToolMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAssessmentTool>>
+>;
+export type DeleteAssessmentToolMutationError = ErrorType<unknown>;
+
+export function useDeleteAssessmentTool<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssessmentTool>>,
+    TError,
+    { toolId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAssessmentTool>>,
+  TError,
+  { toolId: string },
+  TContext
+> {
+  return useMutation(getDeleteAssessmentToolMutationOptions(options));
+}
