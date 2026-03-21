@@ -137,9 +137,14 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
+  if (role && !["assessment_lead", "psychometrician"].includes(role)) {
+    res.status(400).json({ error: "bad_request", message: "Role must be assessment_lead or psychometrician" });
+    return;
+  }
+
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (name?.trim()) updates.name = name.trim();
-  if (role && ["assessment_lead", "psychometrician"].includes(role)) updates.role = role;
+  if (role) updates.role = role;
 
   const updated = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
   res.json(formatUser(updated[0]));

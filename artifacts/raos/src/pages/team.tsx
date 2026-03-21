@@ -394,8 +394,9 @@ function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamPage() {
-  const { data: users, isLoading } = useListUsers();
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
+  const isAdmin = !userLoading && currentUser?.role === "admin";
+  const { data: users, isLoading } = useListUsers({ query: { enabled: isAdmin } });
   const [, navigate] = useLocation();
   const [adding, setAdding] = useState(false);
 
