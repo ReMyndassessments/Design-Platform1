@@ -3,6 +3,8 @@ import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
   useDeleteAssessmentTool,
+  useCreateAssessmentTool,
+  useGetCurrentUser,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import {
   X,
   AlertTriangle,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +43,7 @@ const categoryColors: Record<string, string> = {
 
 const ALL_RESPONDENT_TYPES = [
   "parent", "teacher1", "teacher2", "student", "self",
-  "school_counselor", "special_needs_teacher", "referring_teacher",
+  "school", "school_counselor", "special_needs_teacher", "referring_teacher",
 ];
 
 function categoryBadge(cat: string) {
@@ -52,7 +55,208 @@ function categoryBadge(cat: string) {
   );
 }
 
-// ── Edit Modal ────────────────────────────────────────────────────────────────
+// ── Add Tool Modal ─────────────────────────────────────────────────────────────
+
+function AddToolModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const createMut = useCreateAssessmentTool();
+
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [scoringType, setScoringType] = useState<"auto" | "manual">("manual");
+  const [domainsRaw, setDomainsRaw] = useState("");
+  const [respondents, setRespondents] = useState<string[]>([]);
+  const [isRemyndOwned, setIsRemyndOwned] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggleRespondent = (r: string) => {
+    setRespondents(prev =>
+      prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+    );
+  };
+
+  const handleCreate = () => {
+    if (!id.trim()) { setError("Tool ID is required."); return; }
+    if (!name.trim()) { setError("Name is required."); return; }
+    if (!category.trim()) { setError("Category is required."); return; }
+    const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
+    createMut.mutate(
+      {
+        id: id.trim().toUpperCase(),
+        name: name.trim(),
+        description: description.trim(),
+        category: category.trim(),
+        scoringType,
+        domains,
+        respondentTypes: respondents,
+        isRemyndOwned,
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
+          onClose();
+        },
+        onError: (err: any) => {
+          const msg = err?.message ?? "";
+          if (msg.includes("409") || msg.includes("conflict")) {
+            setError("A tool with this ID already exists. Please use a different ID.");
+          } else {
+            setError("Failed to create tool. Please try again.");
+          }
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Plus size={16} className="text-primary" />
+            <h2 className="font-bold text-slate-900 text-base">Add Assessment Tool</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Tool ID <span className="text-red-500">*</span></label>
+            <Input
+              value={id}
+              onChange={e => setId(e.target.value)}
+              className="h-10 font-mono"
+              placeholder="e.g. RASR, RCS-80, BRIEF"
+            />
+            <p className="text-xs text-slate-400">Short unique identifier — will be uppercased automatically</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Name <span className="text-red-500">*</span></label>
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="h-10"
+              placeholder="Full tool name..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Description</label>
+            <Textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="min-h-[80px] resize-none text-sm"
+              placeholder="Brief description of this assessment tool..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Category <span className="text-red-500">*</span></label>
+            <Input
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="h-10"
+              placeholder="e.g. ReMynd Core, External — Standardized, ReMynd Admin Forms"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Scoring Type</label>
+              <div className="relative">
+                <select
+                  value={scoringType}
+                  onChange={e => setScoringType(e.target.value as "auto" | "manual")}
+                  className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="manual">Manual scoring</option>
+                  <option value="auto">Auto-scored</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">ReMynd Owned?</label>
+              <button
+                type="button"
+                onClick={() => setIsRemyndOwned(prev => !prev)}
+                className={cn(
+                  "w-full h-10 rounded-md border text-sm font-medium transition-all",
+                  isRemyndOwned
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-slate-200 text-slate-500 hover:border-slate-300"
+                )}
+              >
+                {isRemyndOwned ? "Yes — ReMynd" : "No — Third-Party"}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Domains</label>
+            <Input
+              value={domainsRaw}
+              onChange={e => setDomainsRaw(e.target.value)}
+              placeholder="attention, memory, executive_function  (comma-separated)"
+              className="h-10 text-sm"
+            />
+            <p className="text-xs text-slate-400">Separate multiple domains with commas</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Respondent Types</label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_RESPONDENT_TYPES.map(r => {
+                const selected = respondents.includes(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => toggleRespondent(r)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-slate-200 text-slate-600 hover:border-primary/40"
+                    )}
+                  >
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <AlertTriangle size={14} /> {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleCreate} disabled={createMut.isPending}>
+            {createMut.isPending ? "Creating..." : "Add Tool"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit Modal ─────────────────────────────────────────────────────────────────
 
 function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
   const qc = useQueryClient();
@@ -122,36 +326,27 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Category <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  {["admin", "behavior", "cognitive", "achievement", "language", "social-emotional", "executive-function", "memory", "processing", "adaptive"].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Category <span className="text-red-500">*</span></label>
+            <Input
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="h-10"
+            />
+          </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Scoring Type</label>
-              <div className="relative">
-                <select
-                  value={scoringType}
-                  onChange={e => setScoringType(e.target.value as "auto" | "manual")}
-                  className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  <option value="auto">Auto-scored</option>
-                  <option value="manual">Manual scoring</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">Scoring Type</label>
+            <div className="relative">
+              <select
+                value={scoringType}
+                onChange={e => setScoringType(e.target.value as "auto" | "manual")}
+                className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="auto">Auto-scored</option>
+                <option value="manual">Manual scoring</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
           </div>
 
@@ -261,7 +456,7 @@ function DeleteConfirmDialog({ tool, onClose }: { tool: any; onClose: () => void
 
 // ── Tool Card ─────────────────────────────────────────────────────────────────
 
-function ToolCard({ tool }: { tool: any }) {
+function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
   const [, setLocation] = useLocation();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -283,21 +478,25 @@ function ToolCard({ tool }: { tool: any }) {
                 ReMynd
               </span>
             )}
-            {/* Action buttons — always visible */}
-            <button
-              onClick={() => setEditing(true)}
-              title="Edit"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              onClick={() => setDeleting(true)}
-              title="Delete"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
+            {/* Admin-only action buttons */}
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => setEditing(true)}
+                  title="Edit"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={() => setDeleting(true)}
+                  title="Delete"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -358,8 +557,11 @@ function ToolCard({ tool }: { tool: any }) {
 
 export default function AssessmentTools() {
   const { data: tools, isLoading } = useListAssessmentTools();
+  const { data: user } = useGetCurrentUser();
+  const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [adding, setAdding] = useState(false);
 
   const categories = tools
     ? ["all", ...Array.from(new Set(tools.map(t => t.category))).sort()]
@@ -381,9 +583,20 @@ export default function AssessmentTools() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Assessment Tools</h1>
-        <p className="text-slate-500 mt-1">All available instruments and forms in the ReMynd system.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Assessment Tools</h1>
+          <p className="text-slate-500 mt-1">All available instruments and forms in the ReMynd system.</p>
+        </div>
+        {isAdmin && (
+          <Button
+            onClick={() => setAdding(true)}
+            className="gap-2 flex-shrink-0"
+          >
+            <Plus size={16} />
+            Add Tool
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -429,7 +642,7 @@ export default function AssessmentTools() {
                 ReMynd Forms ({remyndTools.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {remyndTools.map(tool => <ToolCard key={tool.id} tool={tool} />)}
+                {remyndTools.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
               </div>
             </section>
           )}
@@ -441,12 +654,14 @@ export default function AssessmentTools() {
                 Third-Party Instruments ({thirdPartyTools.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {thirdPartyTools.map(tool => <ToolCard key={tool.id} tool={tool} />)}
+                {thirdPartyTools.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
               </div>
             </section>
           )}
         </div>
       )}
+
+      {adding && <AddToolModal onClose={() => setAdding(false)} />}
     </div>
   );
 }

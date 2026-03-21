@@ -2520,3 +2520,50 @@ export function useDeleteAssignment<
 > {
   return useMutation(getDeleteAssignmentMutationOptions(options));
 }
+
+export type CreateAssessmentToolBody = {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  scoringType?: "auto" | "manual";
+  domains?: string[];
+  respondentTypes?: string[];
+  isRemyndOwned?: boolean;
+};
+
+export const createAssessmentTool = async (
+  createAssessmentToolBody: CreateAssessmentToolBody,
+  options?: RequestInit,
+): Promise<AssessmentTool> => {
+  return customFetch<AssessmentTool>(`/api/assessment-tools`, {
+    ...options,
+    method: "POST",
+    body: JSON.stringify(createAssessmentToolBody),
+  });
+};
+
+export function useCreateAssessmentTool<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAssessmentTool>>,
+    TError,
+    CreateAssessmentToolBody,
+    TContext
+  >;
+  request?: RequestInit;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAssessmentTool>>,
+  TError,
+  CreateAssessmentToolBody,
+  TContext
+> {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAssessmentTool>>,
+    CreateAssessmentToolBody
+  > = (data) => createAssessmentTool(data, requestOptions);
+  return useMutation({ mutationKey: ["createAssessmentTool"], mutationFn, ...mutationOptions });
+}

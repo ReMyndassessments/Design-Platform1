@@ -58,6 +58,38 @@ router.delete("/assessment-tools/:id", authMiddleware, async (req, res) => {
   res.json({ success: true });
 });
 
+router.post("/assessment-tools", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can add new tools" });
+    return;
+  }
+
+  const { id, name, description, category, scoringType, domains, respondentTypes, isRemyndOwned } = req.body;
+  if (!id?.trim() || !name?.trim() || !category?.trim()) {
+    res.status(400).json({ error: "bad_request", message: "id, name, and category are required" });
+    return;
+  }
+
+  const existing = await db.select().from(assessmentToolsTable).where(eq(assessmentToolsTable.id, id.trim()));
+  if (existing.length > 0) {
+    res.status(409).json({ error: "conflict", message: "A tool with this ID already exists" });
+    return;
+  }
+
+  const newTool = await db.insert(assessmentToolsTable).values({
+    id: id.trim(),
+    name: name.trim(),
+    description: (description ?? "").trim(),
+    category: category.trim(),
+    scoringType: scoringType ?? "manual",
+    domains: domains ?? [],
+    respondentTypes: respondentTypes ?? [],
+    isRemyndOwned: isRemyndOwned ?? false,
+  }).returning();
+
+  res.status(201).json(newTool[0]);
+});
+
 router.post("/assessment-tools/recommend", authMiddleware, async (req, res) => {
   const { caseId, domains, riskLevel } = req.body;
   const allTools = await db.select().from(assessmentToolsTable);
