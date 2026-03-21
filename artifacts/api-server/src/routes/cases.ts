@@ -202,6 +202,10 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
+  if (req.userRole === "psychometrician") {
+    res.status(403).json({ error: "forbidden", message: "Psychometricians cannot access intake data" });
+    return;
+  }
   const c = rows[0];
   const analysis = await analyzeIntakeWithAI({
     studentName: c.studentName,

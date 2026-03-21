@@ -20,7 +20,21 @@ function getBaseUrl(req: { headers: Record<string, string | string[] | undefined
   return `${proto}://${host}`;
 }
 
+async function checkCaseAccess(role: string, userId: string, caseId: string): Promise<boolean> {
+  if (role === "admin") return true;
+  const rows = await db.select({ assignedLeadId: casesTable.assignedLeadId, assignedPsychId: casesTable.assignedPsychId })
+    .from(casesTable)
+    .where(eq(casesTable.id, caseId))
+    .limit(1);
+  if (!rows[0]) return false;
+  return rows[0].assignedLeadId === userId || rows[0].assignedPsychId === userId;
+}
+
 router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
   res.json(assignments);
 });
@@ -73,6 +87,10 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
 });
 
 router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const updates: Partial<typeof assignmentsTable.$inferInsert> = {};
   if (req.body.status) updates.status = req.body.status;
   if (req.body.assignedToName) updates.assignedToName = req.body.assignedToName;
@@ -88,6 +106,10 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
 });
 
 router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const rows = await db.delete(assignmentsTable).where(eq(assignmentsTable.id, req.params.assignmentId)).returning();
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
