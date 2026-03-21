@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { assignmentsTable, casesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
@@ -97,7 +97,9 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
   if (req.body.assignedToEmail) updates.assignedToEmail = req.body.assignedToEmail;
   if (req.body.dueDate) updates.dueDate = new Date(req.body.dueDate);
 
-  const rows = await db.update(assignmentsTable).set(updates).where(eq(assignmentsTable.id, req.params.assignmentId)).returning();
+  const rows = await db.update(assignmentsTable).set(updates)
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
+    .returning();
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -110,7 +112,9 @@ router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async 
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  const rows = await db.delete(assignmentsTable).where(eq(assignmentsTable.id, req.params.assignmentId)).returning();
+  const rows = await db.delete(assignmentsTable)
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
+    .returning();
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
     return;
