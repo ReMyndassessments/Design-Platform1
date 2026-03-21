@@ -49,7 +49,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-6 flex items-center space-x-3 mb-6">
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-10 h-10 object-contain flex-shrink-0" />
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+          </div>
           <div>
             <h1 className="font-display font-bold text-xl tracking-tight leading-none text-white">RAOS</h1>
             <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">ReMynd Assessment</span>

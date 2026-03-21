@@ -58,8 +58,8 @@ export default function Login() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-3xl" />
         
         <div className="z-10 text-center max-w-md">
-          <div className="mb-8 mx-auto w-24 h-24 flex items-center justify-center">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-24 h-24 object-contain" />
+          <div className="mb-8 mx-auto w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-4xl lg:text-5xl font-display font-bold mb-6 tracking-tight">
             ReMynd Assessment
