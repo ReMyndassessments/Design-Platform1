@@ -2567,3 +2567,89 @@ export function useCreateAssessmentTool<
   > = (data) => createAssessmentTool(data, requestOptions);
   return useMutation({ mutationKey: ["createAssessmentTool"], mutationFn, ...mutationOptions });
 }
+
+// ── User Management ───────────────────────────────────────────────────────────
+
+export type CreateUserBody = {
+  name: string;
+  email: string;
+  password: string;
+  role: "assessment_lead" | "psychometrician";
+};
+
+export const createUser = async (
+  body: CreateUserBody,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(`/api/users`, {
+    ...options,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+export function useCreateUser<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof createUser>>, TError, CreateUserBody, TContext>;
+  request?: RequestInit;
+}): UseMutationResult<Awaited<ReturnType<typeof createUser>>, TError, CreateUserBody, TContext> {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createUser>>, CreateUserBody> =
+    (data) => createUser(data, requestOptions);
+  return useMutation({ mutationKey: ["createUser"], mutationFn, ...mutationOptions });
+}
+
+export type UpdateUserBody = {
+  name?: string;
+  role?: "assessment_lead" | "psychometrician";
+};
+
+export const updateUser = async (
+  userId: string,
+  body: UpdateUserBody,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(`/api/users/${userId}`, {
+    ...options,
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+};
+
+export function useUpdateUser<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateUser>>, TError, { userId: string; data: UpdateUserBody }, TContext>;
+  request?: RequestInit;
+}): UseMutationResult<Awaited<ReturnType<typeof updateUser>>, TError, { userId: string; data: UpdateUserBody }, TContext> {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUser>>, { userId: string; data: UpdateUserBody }> =
+    ({ userId, data }) => updateUser(userId, data, requestOptions);
+  return useMutation({ mutationKey: ["updateUser"], mutationFn, ...mutationOptions });
+}
+
+export const deleteUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(`/api/users/${userId}`, {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export function useDeleteUser<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteUser>>, TError, { userId: string }, TContext>;
+  request?: RequestInit;
+}): UseMutationResult<Awaited<ReturnType<typeof deleteUser>>, TError, { userId: string }, TContext> {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteUser>>, { userId: string }> =
+    ({ userId }) => deleteUser(userId, requestOptions);
+  return useMutation({ mutationKey: ["deleteUser"], mutationFn, ...mutationOptions });
+}

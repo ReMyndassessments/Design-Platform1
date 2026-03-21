@@ -6,7 +6,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 import { useGetCurrentUser, useLogout } from "@workspace/api-client-react";
@@ -34,6 +35,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cases", label: "Cases", icon: Users },
     { href: "/tools", label: "Assessment Tools", icon: Settings },
+    ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
   ];
 
   return (
