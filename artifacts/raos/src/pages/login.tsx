@@ -129,15 +129,17 @@ export default function Login() {
               {!loginMutation.isPending && <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />}
             </Button>
             
-            <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600">
-              <p className="font-semibold mb-1 text-slate-800">Demo Accounts:</p>
-              <ul className="space-y-1">
-                <li>admin@remynd.com</li>
-                <li>hayley@remynd.com</li>
-                <li>abegail@remynd.com</li>
-                <li className="italic text-xs mt-2 text-slate-400">Password: password</li>
-              </ul>
-            </div>
+            {!import.meta.env.PROD && (
+              <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600">
+                <p className="font-semibold mb-1 text-slate-800">Demo Accounts:</p>
+                <ul className="space-y-1">
+                  <li>admin@remynd.com</li>
+                  <li>hayley@remynd.com</li>
+                  <li>abegail@remynd.com</li>
+                  <li className="italic text-xs mt-2 text-slate-400">Password: password</li>
+                </ul>
+              </div>
+            )}
           </form>
         </div>
       </div>
