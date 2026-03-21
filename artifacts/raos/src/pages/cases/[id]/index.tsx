@@ -62,7 +62,7 @@ export default function CaseDetail() {
     advancePhaseMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Phase advanced" });
-        queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       }
     });
   };
@@ -71,7 +71,7 @@ export default function CaseDetail() {
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
-        queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       }
     });
   };
@@ -82,7 +82,8 @@ export default function CaseDetail() {
       onSuccess: () => {
         toast({ title: "Assignment removed" });
         setDeleteAssignmentTarget(null);
-        queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
       },
       onError: () => toast({ title: "Failed to remove assignment", variant: "destructive" })
     });
@@ -94,7 +95,7 @@ export default function CaseDetail() {
       onSuccess: () => {
         toast({ title: "Assignment added" });
         setAddAssignmentModalOpen(false);
-        queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       }
     });
   };
