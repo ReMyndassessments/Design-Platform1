@@ -32,11 +32,16 @@ export default function NewCase() {
     assignedPsychId: ""
   });
 
+  const isPsych = currentUser?.role === "psychometrician";
+
   useEffect(() => {
-    if (isLead && currentUser?.id) {
+    if (!currentUser?.id) return;
+    if (isLead) {
       setFormData(prev => ({ ...prev, assignedLeadId: currentUser.id }));
+    } else if (isPsych) {
+      setFormData(prev => ({ ...prev, assignedPsychId: currentUser.id }));
     }
-  }, [isLead, currentUser?.id]);
+  }, [isLead, isPsych, currentUser?.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

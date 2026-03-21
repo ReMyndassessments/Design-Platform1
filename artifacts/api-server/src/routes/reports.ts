@@ -1,14 +1,28 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { reportsTable, casesTable, scoresTable, responsesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { reportsTable, casesTable, scoresTable, assignmentsTable } from "@workspace/db/schema";
+import { eq, or } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { generateReportWithAI } from "../lib/ai.js";
 
 const router = Router();
 
+async function canAccessCase(role: string, userId: string, caseId: string): Promise<boolean> {
+  if (role === "admin") return true;
+  const rows = await db.select({ assignedLeadId: casesTable.assignedLeadId, assignedPsychId: casesTable.assignedPsychId })
+    .from(casesTable)
+    .where(eq(casesTable.id, caseId))
+    .limit(1);
+  if (!rows[0]) return false;
+  return rows[0].assignedLeadId === userId || rows[0].assignedPsychId === userId;
+}
+
 router.get("/cases/:caseId/report", authMiddleware, async (req, res) => {
+  if (!await canAccessCase(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const rows = await db.select().from(reportsTable).where(eq(reportsTable.caseId, req.params.caseId)).limit(1);
   if (!rows[0]) {
     res.status(404).json({ error: "not_found", message: "No report generated yet" });
@@ -18,6 +32,10 @@ router.get("/cases/:caseId/report", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) => {
+  if (!await canAccessCase(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!caseRows[0]) {
     res.status(404).json({ error: "not_found" });
@@ -56,6 +74,10 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
 });
 
 router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) => {
+  if (!await canAccessCase(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const allowed = ["backgroundSummary", "domainAnalysis", "strengths", "areasOfConcern", "crossSettingComparison", "recommendations", "adminNotes"];
   const updates: Partial<typeof reportsTable.$inferInsert> = {};
   for (const key of allowed) {

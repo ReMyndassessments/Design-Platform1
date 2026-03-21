@@ -14,6 +14,7 @@ export default function CasesList() {
   const { data: cases, isLoading } = useListCases();
   const { data: currentUser } = useGetCurrentUser();
   const isAdmin = currentUser?.role === "admin";
+  const canCreateCase = currentUser?.role === "admin" || currentUser?.role === "assessment_lead";
 
   const filteredCases = cases?.filter(c => 
     c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -45,11 +46,13 @@ export default function CasesList() {
           <h1 className="text-3xl font-bold font-display text-slate-900">Cases</h1>
           <p className="text-slate-500 mt-1">Manage and track all assessment cases</p>
         </div>
-        <Link href="/cases/new">
-          <Button className="shrink-0 shadow-lg shadow-primary/25">
-            <Plus size={18} className="mr-2" /> New Case
-          </Button>
-        </Link>
+        {canCreateCase && (
+          <Link href="/cases/new">
+            <Button className="shrink-0 shadow-lg shadow-primary/25">
+              <Plus size={18} className="mr-2" /> New Case
+            </Button>
+          </Link>
+        )}
       </div>
 
       <Card className="border-none shadow-md overflow-hidden">

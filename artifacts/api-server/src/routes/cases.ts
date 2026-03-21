@@ -116,10 +116,11 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
   ]);
+  const isPsychometrician = req.userRole === "psychometrician";
   res.json({
     ...formatCase(c),
-    intakeData: c.intakeData,
-    intakeAnalysis: c.intakeAnalysis,
+    intakeData: isPsychometrician ? undefined : c.intakeData,
+    intakeAnalysis: isPsychometrician ? undefined : c.intakeAnalysis,
     assignments,
     scores,
   });
@@ -137,7 +138,9 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
   }
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
-  const allowed = ["studentName", "school", "grade", "languagePreference", "caseStatus", "currentPhase", "riskLevel", "parentName", "parentEmail", "parentPhone", "assignedLeadId", "assignedPsychId", "consentObtained"];
+  const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
+  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained"];
+  const allowed = req.userRole === "admin" ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {
     if (req.body[key] !== undefined) {
