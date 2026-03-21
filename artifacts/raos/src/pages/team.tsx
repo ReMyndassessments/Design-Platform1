@@ -5,9 +5,11 @@ import {
   useUpdateUser,
   useDeleteUser,
   useGetCurrentUser,
+  type ListUsersQueryResult,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +23,8 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type StaffUser = ListUsersQueryResult[number];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +82,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
           onClose();
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           const msg = err?.message ?? "";
           if (msg.includes("409") || msg.includes("conflict")) {
             setError("A staff member with this email already exists.");
@@ -185,7 +189,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
 
 // ── Edit Staff Modal ──────────────────────────────────────────────────────────
 
-function EditStaffModal({ user, onClose }: { user: any; onClose: () => void }) {
+function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => void }) {
   const qc = useQueryClient();
   const updateMut = useUpdateUser();
 
@@ -281,7 +285,7 @@ function EditStaffModal({ user, onClose }: { user: any; onClose: () => void }) {
 
 // ── Delete Confirm ────────────────────────────────────────────────────────────
 
-function DeleteConfirmDialog({ user, onClose }: { user: any; onClose: () => void }) {
+function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () => void }) {
   const qc = useQueryClient();
   const deleteMut = useDeleteUser();
 
@@ -322,7 +326,7 @@ function DeleteConfirmDialog({ user, onClose }: { user: any; onClose: () => void
 
 // ── Staff Row ─────────────────────────────────────────────────────────────────
 
-function StaffRow({ user, isSelf }: { user: any; isSelf: boolean }) {
+function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
