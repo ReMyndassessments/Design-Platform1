@@ -26,8 +26,6 @@ import { cn } from "@/lib/utils";
 
 type StaffUser = ListUsersQueryResult[number];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   assessment_lead: "Invigilator",
@@ -56,8 +54,6 @@ function formatDate(dateStr: string) {
     month: "short", day: "numeric", year: "numeric",
   });
 }
-
-// ── Add Staff Modal ───────────────────────────────────────────────────────────
 
 function AddStaffModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
@@ -187,8 +183,6 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ── Edit Staff Modal ──────────────────────────────────────────────────────────
-
 function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => void }) {
   const qc = useQueryClient();
   const updateMut = useUpdateUser();
@@ -283,8 +277,6 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
   );
 }
 
-// ── Delete Confirm ────────────────────────────────────────────────────────────
-
 function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () => void }) {
   const qc = useQueryClient();
   const deleteMut = useDeleteUser();
@@ -323,8 +315,6 @@ function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () =
     </div>
   );
 }
-
-// ── Staff Row ─────────────────────────────────────────────────────────────────
 
 function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
   const [editing, setEditing] = useState(false);
@@ -390,8 +380,6 @@ function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
     </>
   );
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamPage() {
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();

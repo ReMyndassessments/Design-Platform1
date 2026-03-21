@@ -45,6 +45,7 @@ import type {
   UpdateCaseRequest,
   UpdateReportRequest,
   User,
+  UserRole,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -2015,12 +2016,10 @@ export function useListUsers<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-// ── Assignable Users (non-admin accessible, minimal data for dropdowns) ──────
-
 export type AssignableUser = {
   id: string;
   name: string;
-  role: string;
+  role: UserRole;
 };
 
 export const getAssignableUsersUrl = () => `/api/users/assignable`;
@@ -2616,8 +2615,6 @@ export function useCreateAssessmentTool<
   > = (data) => createAssessmentTool(data, requestOptions);
   return useMutation({ mutationKey: ["createAssessmentTool"], mutationFn, ...mutationOptions });
 }
-
-// ── User Management ───────────────────────────────────────────────────────────
 
 export type CreateUserBody = {
   name: string;
