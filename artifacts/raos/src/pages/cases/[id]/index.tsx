@@ -93,7 +93,7 @@ export default function CaseDetail() {
 
   if (!c) return <div>Case not found</div>;
 
-  const role = currentUser?.role ?? "admin";
+  const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(c.currentPhase);
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
 

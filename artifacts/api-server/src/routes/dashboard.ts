@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, or, sql } from "drizzle-orm";
+import { eq, or, sql, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -19,10 +19,9 @@ router.get("/dashboard/stats", authMiddleware, async (req, res) => {
   const completedCases = allCases.filter(c => c.caseStatus === "completed" || c.currentPhase === "complete").length;
 
   const caseIds = allCases.map(c => c.id);
-  const allAssignments = caseIds.length > 0
-    ? await db.select().from(assignmentsTable)
+  const relevantAssignments = caseIds.length > 0
+    ? await db.select().from(assignmentsTable).where(inArray(assignmentsTable.caseId, caseIds))
     : [];
-  const relevantAssignments = allAssignments.filter(a => caseIds.includes(a.caseId));
   const pendingForms = relevantAssignments.filter(a => a.status === "not_started" || a.status === "in_progress").length;
   const overdueForms = relevantAssignments.filter(a => a.status === "overdue").length;
 
