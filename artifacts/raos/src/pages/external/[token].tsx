@@ -348,7 +348,7 @@ function FormIcon({ formType }: { formType: string }) {
   if (formType === "REFERRAL") return <ClipboardList size={26} className={cls} />;
   if (formType === "CONSENT")  return <ShieldCheck size={26} className={cls} />;
   if (formType === "INTAKE")   return <FileText size={26} className={cls} />;
-  return <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />;
+  return <img src="/images/remynd-logo.png" alt="ReMynd" className="w-9 h-9 object-contain" />;
 }
 
 function getFormLabel(formType: string) {
@@ -540,7 +540,12 @@ export default function ExternalFormView() {
 
         {/* Form Header Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 flex items-start gap-4">
-          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className={cn(
+            "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+            formType === "REFERRAL" || formType === "CONSENT" || formType === "INTAKE"
+              ? "bg-primary/10"
+              : "bg-slate-900"
+          )}>
             <FormIcon formType={formType} />
           </div>
           <div className="flex-1 min-w-0">
