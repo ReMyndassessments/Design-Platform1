@@ -36,6 +36,10 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
+  if (req.userRole === "assessment_lead") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators cannot generate reports" });
+    return;
+  }
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!caseRows[0]) {
     res.status(404).json({ error: "not_found" });
@@ -76,6 +80,10 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
 router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) => {
   if (!await canAccessCase(req.userRole!, req.userId!, req.params.caseId)) {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+  if (req.userRole === "assessment_lead") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators cannot edit reports" });
     return;
   }
   const allowed = ["backgroundSummary", "domainAnalysis", "strengths", "areasOfConcern", "crossSettingComparison", "recommendations", "adminNotes"];

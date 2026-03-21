@@ -180,12 +180,12 @@ export default function CaseDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {c.currentPhase === 'scoring' && (
+          {c.currentPhase === 'scoring' && role !== "assessment_lead" && (
             <Link href={`/cases/${c.id}/scoring`}>
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['report', 'debrief', 'complete'].includes(c.currentPhase) && (
+          {['report', 'debrief', 'complete'].includes(c.currentPhase) && role !== "assessment_lead" && (
             <Link href={`/cases/${c.id}/report`}>
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
@@ -242,6 +242,12 @@ export default function CaseDetail() {
             <div>
               <p className="text-sm text-slate-400">Current Phase</p>
               <h3 className="text-xl font-bold font-display capitalize text-white">{c.currentPhase.replace('_', ' ')}</h3>
+              {role === "assessment_lead" && !isPhaseVisible(role, c.currentPhase) && (
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Lock size={10}/> This phase is managed by the Psychometrician</p>
+              )}
+              {role === "psychometrician" && !isPhaseVisible(role, c.currentPhase) && (
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Lock size={10}/> This phase is managed by the Invigilator</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Progress</p>

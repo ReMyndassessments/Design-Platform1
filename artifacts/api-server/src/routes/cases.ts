@@ -77,7 +77,17 @@ router.get("/cases", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases", authMiddleware, async (req, res) => {
-  const { studentName, dob, school, grade, languagePreference, referralReason, parentName, parentEmail, parentPhone, assignedLeadId, assignedPsychId } = req.body;
+  const { studentName, dob, school, grade, languagePreference, referralReason, parentName, parentEmail, parentPhone } = req.body;
+  const { userId, userRole } = req;
+
+  let assignedLeadId = req.body.assignedLeadId ?? null;
+  let assignedPsychId = req.body.assignedPsychId ?? null;
+
+  if (userRole === "assessment_lead") {
+    assignedLeadId = userId!;
+  } else if (userRole === "psychometrician") {
+    assignedPsychId = userId!;
+  }
 
   const newCase = await db.insert(casesTable).values({
     id: nanoid(),
