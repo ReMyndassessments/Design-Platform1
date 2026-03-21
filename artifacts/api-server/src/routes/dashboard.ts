@@ -1,21 +1,30 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
 router.get("/dashboard/stats", authMiddleware, async (req, res) => {
-  const allCases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
+  const { userId, userRole } = req;
+  const allCases = userRole === "admin"
+    ? await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`)
+    : await db.select().from(casesTable)
+        .where(or(eq(casesTable.assignedLeadId, userId!), eq(casesTable.assignedPsychId, userId!)))
+        .orderBy(sql`${casesTable.updatedAt} DESC`);
 
   const totalCases = allCases.length;
   const activeCases = allCases.filter(c => c.caseStatus === "active").length;
   const completedCases = allCases.filter(c => c.caseStatus === "completed" || c.currentPhase === "complete").length;
 
-  const allAssignments = await db.select().from(assignmentsTable);
-  const pendingForms = allAssignments.filter(a => a.status === "not_started" || a.status === "in_progress").length;
-  const overdueForms = allAssignments.filter(a => a.status === "overdue").length;
+  const caseIds = allCases.map(c => c.id);
+  const allAssignments = caseIds.length > 0
+    ? await db.select().from(assignmentsTable)
+    : [];
+  const relevantAssignments = allAssignments.filter(a => caseIds.includes(a.caseId));
+  const pendingForms = relevantAssignments.filter(a => a.status === "not_started" || a.status === "in_progress").length;
+  const overdueForms = relevantAssignments.filter(a => a.status === "overdue").length;
 
   const casesByPhase: Record<string, number> = {};
   for (const c of allCases) {

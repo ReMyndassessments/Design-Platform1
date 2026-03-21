@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetCaseReport, useGenerateReport, useUpdateReport, useApproveReport, useGetCase } from "@workspace/api-client-react";
+import { useGetCaseReport, useGenerateReport, useUpdateReport, useApproveReport, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,9 @@ export default function ReportEditor() {
   const caseId = params.id as string;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   const { data: caseData } = useGetCase(caseId);
   const { data: report, isLoading } = useGetCaseReport(caseId, { query: { retry: false }});
@@ -98,9 +101,11 @@ export default function ReportEditor() {
               <Button variant="outline" onClick={handleSave} disabled={updateMut.isPending || report.status === 'approved'} className="bg-white">
                 <Save size={16} className="mr-2" /> Save Draft
               </Button>
-              <Button onClick={handleApprove} disabled={approveMut.isPending || report.status === 'approved'} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20">
-                <Check size={16} className="mr-2" /> Approve Final
-              </Button>
+              {isAdmin && (
+                <Button onClick={handleApprove} disabled={approveMut.isPending || report.status === 'approved'} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20">
+                  <Check size={16} className="mr-2" /> Approve Final
+                </Button>
+              )}
             </>
           )}
         </div>

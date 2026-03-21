@@ -8,6 +8,8 @@ import crypto from "crypto";
 
 const router = Router();
 
+const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
+
 function generateQRData(link: string): string {
   return link;
 }
@@ -29,6 +31,21 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!caseRows[0]) {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  const { userRole, userId } = req;
+  const isAssigned = caseRows[0].assignedLeadId === userId || caseRows[0].assignedPsychId === userId;
+  if (userRole !== "admin" && !isAssigned) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+  if (userRole === "assessment_lead" && !INTAKE_TOOL_IDS.has(toolId)) {
+    res.status(403).json({ error: "forbidden", message: "Invigilators can only deploy Referral, Consent, and Intake forms" });
+    return;
+  }
+  if (userRole === "psychometrician" && INTAKE_TOOL_IDS.has(toolId)) {
+    res.status(403).json({ error: "forbidden", message: "Psychometricians cannot deploy intake-stage forms" });
     return;
   }
 

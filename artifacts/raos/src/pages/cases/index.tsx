@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListCases } from "@workspace/api-client-react";
+import { useListCases, useGetCurrentUser } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 export default function CasesList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: cases, isLoading } = useListCases();
+  const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   const filteredCases = cases?.filter(c => 
     c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -111,7 +113,7 @@ export default function CasesList() {
                 {filteredCases?.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-slate-500">
-                      No cases found matching your search.
+                      {searchTerm ? "No cases found matching your search." : isAdmin ? "No cases yet." : "No cases assigned to you yet."}
                     </TableCell>
                   </TableRow>
                 )}

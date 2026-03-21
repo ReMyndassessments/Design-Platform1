@@ -8,7 +8,6 @@ import {
   type ListUsersQueryResult,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
   ChevronDown,
   Shield,
   Users,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -388,22 +388,20 @@ export default function TeamPage() {
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const isAdmin = !userLoading && currentUser?.role === "admin";
   const { data: users, isLoading } = useListUsers({ query: { enabled: isAdmin } });
-  const [, navigate] = useLocation();
   const [adding, setAdding] = useState(false);
-
-  React.useEffect(() => {
-    if (!userLoading && currentUser && currentUser.role !== "admin") {
-      navigate("/");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userLoading, currentUser]);
 
   if (userLoading || !currentUser) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   }
 
   if (currentUser.role !== "admin") {
-    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center p-8">
+        <ShieldAlert size={40} className="text-red-500" />
+        <h2 className="text-2xl font-bold text-slate-900">Access Denied</h2>
+        <p className="text-slate-500 max-w-sm">You don't have permission to view this page. This area is restricted to administrators.</p>
+      </div>
+    );
   }
 
   const sorted = (users ?? []).slice().sort((a, b) => {

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, scoresTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
@@ -31,6 +31,11 @@ function nextPhase(current: string): string {
   return PHASE_ORDER[idx + 1];
 }
 
+function canAccessCase(role: string, userId: string, c: typeof casesTable.$inferSelect): boolean {
+  if (role === "admin") return true;
+  return c.assignedLeadId === userId || c.assignedPsychId === userId;
+}
+
 function formatCase(c: typeof casesTable.$inferSelect) {
   return {
     id: c.id,
@@ -56,7 +61,18 @@ function formatCase(c: typeof casesTable.$inferSelect) {
 }
 
 router.get("/cases", authMiddleware, async (req, res) => {
-  const cases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
+  const { userId, userRole } = req;
+  let cases;
+  if (userRole === "admin") {
+    cases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
+  } else {
+    cases = await db.select().from(casesTable)
+      .where(or(
+        eq(casesTable.assignedLeadId, userId!),
+        eq(casesTable.assignedPsychId, userId!)
+      ))
+      .orderBy(sql`${casesTable.updatedAt} DESC`);
+  }
   res.json(cases.map(formatCase));
 });
 
@@ -92,6 +108,10 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   const c = rows[0];
+  if (!canAccessCase(req.userRole!, req.userId!, c)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const [assignments, scores] = await Promise.all([
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
@@ -106,6 +126,16 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
 });
 
 router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
+  const existing = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!existing[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (!canAccessCase(req.userRole!, req.userId!, existing[0])) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const allowed = ["studentName", "school", "grade", "languagePreference", "caseStatus", "currentPhase", "riskLevel", "parentName", "parentEmail", "parentPhone", "assignedLeadId", "assignedPsychId", "consentObtained"];
 
@@ -134,7 +164,22 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+  const { userRole } = req;
   const current = rows[0].currentPhase;
+  const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
+  const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
+  if (userRole === "assessment_lead" && !LEAD_PHASES.has(current)) {
+    res.status(403).json({ error: "forbidden", message: "Invigilators can only advance Pre-Commitment and Intake phases" });
+    return;
+  }
+  if (userRole === "psychometrician" && !PSYCH_PHASES.has(current)) {
+    res.status(403).json({ error: "forbidden", message: "Psychometricians can only advance Setup through Debrief phases" });
+    return;
+  }
   const next = nextPhase(current);
   const updated = await db.update(casesTable).set({
     currentPhase: next as typeof casesTable.$inferSelect["currentPhase"],
@@ -148,6 +193,10 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
   const c = rows[0];

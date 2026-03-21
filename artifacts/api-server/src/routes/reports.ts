@@ -72,6 +72,10 @@ router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) =>
 });
 
 router.post("/cases/:caseId/report/approve", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can approve reports" });
+    return;
+  }
   const rows = await db.update(reportsTable).set({
     status: "approved",
     approvedAt: new Date(),

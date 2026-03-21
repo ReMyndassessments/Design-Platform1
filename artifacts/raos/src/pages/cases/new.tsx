@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useCreateCase, useGetAssignableUsers } from "@workspace/api-client-react";
+import { useCreateCase, useGetAssignableUsers, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ export default function NewCase() {
   const { toast } = useToast();
   const createCaseMut = useCreateCase();
   const { data: users } = useGetAssignableUsers();
+  const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
+  const isLead = currentUser?.role === "assessment_lead";
 
   const [formData, setFormData] = useState({
     studentName: "",
@@ -28,6 +31,12 @@ export default function NewCase() {
     assignedLeadId: "",
     assignedPsychId: ""
   });
+
+  useEffect(() => {
+    if (isLead && currentUser?.id) {
+      setFormData(prev => ({ ...prev, assignedLeadId: currentUser.id }));
+    }
+  }, [isLead, currentUser?.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -129,36 +138,42 @@ export default function NewCase() {
 
             <hr className="my-8" />
             <h3 className="text-lg font-display font-semibold mb-4 text-slate-800">Team Assignment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Assessment Lead</label>
-                <select 
-                  name="assignedLeadId" 
-                  value={formData.assignedLeadId} 
-                  onChange={handleChange}
-                  className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
-                >
-                  <option value="">Unassigned</option>
-                  {users?.filter(u => u.role === 'assessment_lead' || u.role === 'admin').map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
+            {isAdmin ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Assessment Lead</label>
+                  <select 
+                    name="assignedLeadId" 
+                    value={formData.assignedLeadId} 
+                    onChange={handleChange}
+                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
+                  >
+                    <option value="">Unassigned</option>
+                    {users?.filter(u => u.role === 'assessment_lead' || u.role === 'admin').map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Psychometrician</label>
+                  <select 
+                    name="assignedPsychId" 
+                    value={formData.assignedPsychId} 
+                    onChange={handleChange}
+                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
+                  >
+                    <option value="">Unassigned</option>
+                    {users?.filter(u => u.role === 'psychometrician' || u.role === 'admin').map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Psychometrician</label>
-                <select 
-                  name="assignedPsychId" 
-                  value={formData.assignedPsychId} 
-                  onChange={handleChange}
-                  className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
-                >
-                  <option value="">Unassigned</option>
-                  {users?.filter(u => u.role === 'psychometrician' || u.role === 'admin').map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                {isLead ? "You will be assigned as Assessment Lead for this case." : "Your administrator will assign team members to this case."}
+              </p>
+            )}
             
             <div className="pt-6 flex justify-end gap-3">
               <Link href="/cases">

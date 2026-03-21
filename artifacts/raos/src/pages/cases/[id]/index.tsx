@@ -6,6 +6,7 @@ import {
   useListAssessmentTools,
   useCreateAssignment,
   useDeleteAssignment,
+  useGetCurrentUser,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, BrainCircuit, CheckCircle2, ChevronRight, 
-  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2
+  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -27,13 +28,32 @@ const PHASES = [
   "pre_commitment", "intake", "setup", "forms", "assessment", "scoring", "report", "debrief", "complete"
 ];
 
+const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
+const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
+const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
+
+function canAdvancePhase(role: string, currentPhase: string): boolean {
+  if (role === "admin") return true;
+  if (role === "assessment_lead") return LEAD_PHASES.has(currentPhase);
+  if (role === "psychometrician") return PSYCH_PHASES.has(currentPhase);
+  return false;
+}
+
+function isPhaseVisible(role: string, phase: string): boolean {
+  if (role === "admin") return true;
+  if (role === "assessment_lead") return LEAD_PHASES.has(phase);
+  if (role === "psychometrician") return PSYCH_PHASES.has(phase) || phase === "complete";
+  return true;
+}
+
 export default function CaseDetail() {
   const params = useParams();
   const caseId = params.id as string;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: c, isLoading } = useGetCase(caseId);
+  const { data: currentUser } = useGetCurrentUser();
+  const { data: c, isLoading, isError, error } = useGetCase(caseId);
   const advancePhaseMut = useAdvanceCasePhase();
   const analyzeIntakeMut = useAnalyzeIntake();
   const { data: tools } = useListAssessmentTools();
@@ -54,16 +74,43 @@ export default function CaseDetail() {
   });
 
   if (isLoading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+
+  const isForbidden = isError && (error as { status?: number })?.status === 403;
+  if (isForbidden) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+          <ShieldAlert size={40} className="text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900">Access Denied</h2>
+        <p className="text-slate-500 max-w-sm">You are not assigned to this case and cannot view its details.</p>
+        <Link href="/cases">
+          <Button variant="outline"><ArrowLeft size={16} className="mr-2" /> Back to Cases</Button>
+        </Link>
+      </div>
+    );
+  }
+
   if (!c) return <div>Case not found</div>;
 
+  const role = currentUser?.role ?? "admin";
   const currentPhaseIndex = PHASES.indexOf(c.currentPhase);
+  const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
+
+  const filteredTools = tools?.filter(t => {
+    if (role === "admin") return true;
+    if (role === "assessment_lead") return INTAKE_TOOL_IDS.has(t.id);
+    if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
+    return true;
+  });
 
   const handleAdvancePhase = () => {
     advancePhaseMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Phase advanced" });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-      }
+      },
+      onError: () => toast({ title: "Cannot advance this phase", description: "Your role does not allow advancing the current phase.", variant: "destructive" })
     });
   };
 
@@ -96,7 +143,8 @@ export default function CaseDetail() {
         toast({ title: "Assignment added" });
         setAddAssignmentModalOpen(false);
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-      }
+      },
+      onError: () => toast({ title: "Cannot add this assignment", description: "Your role does not allow deploying this form type.", variant: "destructive" })
     });
   };
 
@@ -142,7 +190,12 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
           )}
-          <Button onClick={handleAdvancePhase} disabled={advancePhaseMut.isPending || c.currentPhase === 'complete'} className="shadow-lg shadow-primary/20">
+          <Button 
+            onClick={handleAdvancePhase} 
+            disabled={advancePhaseMut.isPending || !canAdvance}
+            title={!canAdvance && c.currentPhase !== "complete" ? "Your role cannot advance the current phase" : undefined}
+            className="shadow-lg shadow-primary/20"
+          >
             {advancePhaseMut.isPending ? "Advancing..." : "Advance Phase"} <ChevronRight size={18} className="ml-1"/>
           </Button>
         </div>
@@ -162,15 +215,20 @@ export default function CaseDetail() {
               {PHASES.map((phase, idx) => {
                 const isPast = idx < currentPhaseIndex;
                 const isActive = idx === currentPhaseIndex;
+                const visible = isPhaseVisible(role, phase);
                 return (
                   <div key={phase} className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 transition-colors duration-500 ${
+                      !visible ? 'bg-slate-600 text-slate-500' :
                       isActive ? 'bg-primary ring-4 ring-primary/30 text-white' : 
                       isPast ? 'bg-primary text-white' : 'bg-slate-700 text-slate-400'
                     }`}>
-                      {isPast ? <CheckCircle2 size={16} /> : <span className="text-xs font-bold">{idx + 1}</span>}
+                      {!visible ? <Lock size={12} /> :
+                       isPast ? <CheckCircle2 size={16} /> : 
+                       <span className="text-xs font-bold">{idx + 1}</span>}
                     </div>
                     <span className={`text-[10px] uppercase font-bold mt-2 tracking-wider absolute top-10 whitespace-nowrap text-center ${
+                      !visible ? 'text-slate-600' :
                       isActive ? 'text-white' : 'text-slate-400'
                     }`}>
                       {phase.replace('_', ' ')}
@@ -208,46 +266,48 @@ export default function CaseDetail() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center text-blue-900">
-                <BrainCircuit className="text-primary mr-2" size={20} />
-                AI Intake Analysis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {c.intakeAnalysis ? (
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estimated Risk</span>
-                    <div className="mt-1">
-                      {c.intakeAnalysis.riskLevel === 'high' ? <Badge variant="destructive" className="px-3 py-1">High Risk</Badge> : 
-                       c.intakeAnalysis.riskLevel === 'moderate' ? <Badge variant="warning" className="px-3 py-1">Moderate Risk</Badge> : 
-                       <Badge variant="success" className="px-3 py-1">Low Risk</Badge>}
+          {isPhaseVisible(role, "intake") && (
+            <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center text-blue-900">
+                  <BrainCircuit className="text-primary mr-2" size={20} />
+                  AI Intake Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {c.intakeAnalysis ? (
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estimated Risk</span>
+                      <div className="mt-1">
+                        {c.intakeAnalysis.riskLevel === 'high' ? <Badge variant="destructive" className="px-3 py-1">High Risk</Badge> : 
+                         c.intakeAnalysis.riskLevel === 'moderate' ? <Badge variant="warning" className="px-3 py-1">Moderate Risk</Badge> : 
+                         <Badge variant="success" className="px-3 py-1">Low Risk</Badge>}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recommended Domains</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {c.intakeAnalysis.recommendedDomains.map((d: string) => (
+                          <Badge key={d} variant="outline" className="bg-white">{d}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-700 bg-white/60 p-3 rounded-lg border border-blue-100/50">
+                      {c.intakeAnalysis.summary}
                     </div>
                   </div>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recommended Domains</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {c.intakeAnalysis.recommendedDomains.map(d => (
-                        <Badge key={d} variant="outline" className="bg-white">{d}</Badge>
-                      ))}
-                    </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-slate-500 mb-4">No AI analysis run yet for this case.</p>
+                    <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
+                      {analyzeIntakeMut.isPending ? "Analyzing..." : "Run AI Intake Analysis"}
+                    </Button>
                   </div>
-                  <div className="text-sm text-slate-700 bg-white/60 p-3 rounded-lg border border-blue-100/50">
-                    {c.intakeAnalysis.summary}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-sm text-slate-500 mb-4">No AI analysis run yet for this case.</p>
-                  <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
-                    {analyzeIntakeMut.isPending ? "Analyzing..." : "Run AI Intake Analysis"}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Col: Assignments */}
@@ -322,7 +382,6 @@ export default function CaseDetail() {
       </div>
 
       {/* Modals */}
-      {/* Delete Assignment Confirm */}
       <Dialog open={!!deleteAssignmentTarget} onOpenChange={open => { if (!open) setDeleteAssignmentTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -363,6 +422,12 @@ export default function CaseDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Assignment</DialogTitle>
+            {role === "assessment_lead" && (
+              <DialogDescription>As an invigilator, you can deploy Referral, Consent, and Intake forms.</DialogDescription>
+            )}
+            {role === "psychometrician" && (
+              <DialogDescription>As a psychometrician, you can deploy assessment instruments (not intake forms).</DialogDescription>
+            )}
           </DialogHeader>
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
@@ -370,13 +435,13 @@ export default function CaseDetail() {
               <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={newAssignment.toolId} onChange={e => setNewAssignment({...newAssignment, toolId: e.target.value})}>
                 <option value="">Select tool...</option>
-                {tools?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {filteredTools?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type</label>
               <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={newAssignment.respondentType} onChange={e => setNewAssignment({...newAssignment, respondentType: e.target.value as any})}>
+                value={newAssignment.respondentType} onChange={e => setNewAssignment({...newAssignment, respondentType: e.target.value as CreateAssignmentRequestRespondentType})}>
                 <option value="parent">Parent</option>
                 <option value="teacher1">Teacher 1</option>
                 <option value="teacher2">Teacher 2</option>
