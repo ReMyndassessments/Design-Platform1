@@ -188,3 +188,121 @@ This is a SCREENING report only — NOT a diagnostic report. Use appropriate lan
     };
   }
 }
+
+async function callDeepSeekMultimodal(
+  textPrompt: string,
+  imageBase64?: string,
+  mimeType?: string,
+): Promise<string> {
+  if (!API_KEY) throw new Error("DEEPSEEK_API_KEY is not configured");
+
+  type ContentBlock =
+    | { type: "text"; text: string }
+    | { type: "image_url"; image_url: { url: string } };
+
+  const content: ContentBlock[] = [];
+  if (imageBase64 && mimeType) {
+    content.push({ type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } });
+  }
+  content.push({ type: "text", text: textPrompt });
+
+  const response = await fetch(`${BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: imageBase64 ? "deepseek-chat" : MODEL,
+      messages: [{ role: "user", content }],
+      temperature: 0.3,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`DeepSeek API error: ${response.status} - ${text}`);
+  }
+
+  const data = await response.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+export type AnalyzedFormResult = {
+  suggestedId: string;
+  name: string;
+  description: string;
+  category: string;
+  scoringType: "auto" | "manual";
+  domains: string[];
+  respondentTypes: string[];
+  formItems: Array<{
+    id: string;
+    text: string;
+    type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+    options?: string[];
+    domain?: string;
+  }>;
+};
+
+export async function analyzeFormWithAI(params: {
+  formText?: string;
+  imageBase64?: string;
+  mimeType?: string;
+}): Promise<AnalyzedFormResult> {
+  const prompt = `You are a psychoeducational assessment expert. Analyze the provided assessment form and extract structured information.
+
+${params.formText ? `FORM CONTENT:\n${params.formText}\n` : ""}${params.imageBase64 ? "Please analyze the assessment form shown in the image." : ""}
+
+Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
+{
+  "suggestedId": "SHORT_UPPERCASE_ID (max 10 chars, e.g. BRIEF, BASC, RASR)",
+  "name": "Full official name of the assessment tool",
+  "description": "1-2 sentence description of what the tool measures and who it is for",
+  "category": "One of: cognitive, behavior, language, social-emotional, executive-function, achievement, adaptive, memory, processing, admin",
+  "scoringType": "auto or manual",
+  "domains": ["array", "of", "psychological_domains", "being_assessed"],
+  "respondentTypes": ["array from: parent, teacher1, teacher2, student, self, school, school_counselor, special_needs_teacher, referring_teacher"],
+  "formItems": [
+    {
+      "id": "q1",
+      "text": "Exact question or item text",
+      "type": "likert | text | checkbox | radio | multiple_choice | scale",
+      "options": ["response options if applicable"],
+      "domain": "which domain this item measures"
+    }
+  ]
+}
+
+Rules:
+- Extract ALL items/questions from the form. Do not skip any.
+- For Likert-scale items (e.g. Never/Sometimes/Often/Always), use type "likert"
+- Keep question text exact as written in the form
+- If a section header exists, use it to infer the domain for items in that section
+- respondentTypes should reflect who fills out this form
+- Provide at least the first 20 items if the form is long; include all if fewer than 50 items
+
+Return ONLY the JSON object, nothing else.`;
+
+  const raw = await callDeepSeekMultimodal(prompt, params.imageBase64, params.mimeType);
+
+  const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1) throw new Error("AI did not return valid JSON");
+  const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as AnalyzedFormResult;
+
+  return {
+    suggestedId: (parsed.suggestedId ?? "TOOL").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10),
+    name: parsed.name ?? "",
+    description: parsed.description ?? "",
+    category: parsed.category ?? "behavior",
+    scoringType: parsed.scoringType === "auto" ? "auto" : "manual",
+    domains: Array.isArray(parsed.domains) ? parsed.domains : [],
+    respondentTypes: Array.isArray(parsed.respondentTypes) ? parsed.respondentTypes : [],
+    formItems: Array.isArray(parsed.formItems) ? parsed.formItems : [],
+  };
+}

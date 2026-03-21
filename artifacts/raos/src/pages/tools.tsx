@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
@@ -22,7 +22,13 @@ import {
   X,
   AlertTriangle,
   ChevronDown,
+  ChevronUp,
   Plus,
+  Sparkles,
+  Upload,
+  FileText,
+  Loader2,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,9 +63,18 @@ function categoryBadge(cat: string) {
 
 // ── Add Tool Modal ─────────────────────────────────────────────────────────────
 
+type ImportedFormItem = {
+  id: string;
+  text: string;
+  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  options?: string[];
+  domain?: string;
+};
+
 function AddToolModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const createMut = useCreateAssessmentTool();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [id, setId] = useState("");
   const [name, setName] = useState("");
@@ -71,11 +86,92 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [isRemyndOwned, setIsRemyndOwned] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [aiImportOpen, setAiImportOpen] = useState(true);
+  const [aiTab, setAiTab] = useState<"paste" | "upload">("paste");
+  const [pasteText, setPasteText] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; base64: string; mimeType: string } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
+  const [itemsExpanded, setItemsExpanded] = useState(false);
+
   const toggleRespondent = (r: string) => {
-    setRespondents(prev =>
-      prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
-    );
+    setRespondents(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    if (file.type.startsWith("image/")) {
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        setUploadedFile({ name: file.name, base64, mimeType: file.type });
+        setAiError(null);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = () => {
+        const text = reader.result as string;
+        setPasteText(text);
+        setAiTab("paste");
+        setUploadedFile(null);
+        setAiError(null);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const token = localStorage.getItem("raos_token");
+      const body: Record<string, string> = {};
+      if (aiTab === "paste" && pasteText.trim()) {
+        body.formText = pasteText.trim();
+      } else if (aiTab === "upload" && uploadedFile) {
+        body.imageBase64 = uploadedFile.base64;
+        body.mimeType = uploadedFile.mimeType;
+      }
+      const res = await fetch("/api/assessment-tools/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(data.message ?? `Server error ${res.status}`);
+      }
+      const data = await res.json() as {
+        suggestedId: string;
+        name: string;
+        description: string;
+        category: string;
+        scoringType: "auto" | "manual";
+        domains: string[];
+        respondentTypes: string[];
+        formItems: ImportedFormItem[];
+      };
+      setId(data.suggestedId ?? "");
+      setName(data.name ?? "");
+      setDescription(data.description ?? "");
+      setCategory(data.category ?? "");
+      setScoringType(data.scoringType ?? "manual");
+      setDomainsRaw((data.domains ?? []).join(", "));
+      setRespondents(data.respondentTypes ?? []);
+      setFormItems(data.formItems ?? []);
+      if ((data.formItems ?? []).length > 0) setItemsExpanded(true);
+      setAiImportOpen(false);
+    } catch (err: unknown) {
+      setAiError(err instanceof Error ? err.message : "AI analysis failed. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const canAnalyze = (aiTab === "paste" && pasteText.trim().length > 0)
+    || (aiTab === "upload" && uploadedFile !== null);
 
   const handleCreate = () => {
     if (!id.trim()) { setError("Tool ID is required."); return; }
@@ -92,14 +188,15 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         domains,
         respondentTypes: respondents,
         isRemyndOwned,
-      },
+        formItems: formItems.length > 0 ? formItems : undefined,
+      } as Parameters<typeof createMut.mutate>[0],
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
           onClose();
         },
-        onError: (err: any) => {
-          const msg = err?.message ?? "";
+        onError: (err: unknown) => {
+          const msg = (err as { message?: string })?.message ?? "";
           if (msg.includes("409") || msg.includes("conflict")) {
             setError("A tool with this ID already exists. Please use a different ID.");
           } else {
@@ -113,7 +210,6 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Plus size={16} className="text-primary" />
@@ -124,8 +220,116 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* AI Import Section */}
+          <div className="rounded-xl border border-violet-200 bg-violet-50 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAiImportOpen(prev => !prev)}
+              className="flex items-center justify-between w-full px-4 py-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles size={15} className="text-violet-600" />
+                <span className="text-sm font-semibold text-violet-800">Smart Import with AI</span>
+                {formItems.length > 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-violet-600 text-white px-2 py-0.5 rounded-full">
+                    <List size={10} /> {formItems.length} items extracted
+                  </span>
+                )}
+              </div>
+              {aiImportOpen ? <ChevronUp size={15} className="text-violet-500" /> : <ChevronDown size={15} className="text-violet-500" />}
+            </button>
+
+            {aiImportOpen && (
+              <div className="px-4 pb-4 space-y-3 border-t border-violet-200">
+                <p className="text-xs text-violet-600 pt-3">
+                  Paste or upload a form and AI will auto-fill all fields and extract every item.
+                </p>
+
+                <div className="flex border border-violet-200 rounded-lg overflow-hidden text-xs font-medium">
+                  {(["paste", "upload"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setAiTab(tab)}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors",
+                        aiTab === tab
+                          ? "bg-violet-600 text-white"
+                          : "text-violet-600 hover:bg-violet-100"
+                      )}
+                    >
+                      {tab === "paste" ? <FileText size={12} /> : <Upload size={12} />}
+                      {tab === "paste" ? "Paste Text" : "Upload File"}
+                    </button>
+                  ))}
+                </div>
+
+                {aiTab === "paste" ? (
+                  <Textarea
+                    value={pasteText}
+                    onChange={e => setPasteText(e.target.value)}
+                    className="min-h-[120px] resize-none text-xs bg-white border-violet-200 focus:border-violet-400"
+                    placeholder="Paste the full text of the assessment form here — questions, instructions, response scales, everything..."
+                  />
+                ) : (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={cn(
+                        "w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg text-xs transition-colors",
+                        uploadedFile
+                          ? "border-violet-400 bg-violet-100 text-violet-700"
+                          : "border-violet-200 text-violet-400 hover:border-violet-400 hover:bg-violet-100"
+                      )}
+                    >
+                      {uploadedFile ? (
+                        <>
+                          <FileText size={20} className="text-violet-600" />
+                          <span className="font-medium">{uploadedFile.name}</span>
+                          <span className="text-violet-500">Click to replace</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={20} />
+                          <span>Click to upload image or text file</span>
+                          <span className="text-violet-300">.txt, .png, .jpg supported</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {aiError && (
+                  <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {aiError}
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleAnalyze}
+                  disabled={!canAnalyze || aiLoading}
+                  className="w-full bg-violet-600 hover:bg-violet-700 text-white gap-2"
+                >
+                  {aiLoading ? (
+                    <><Loader2 size={14} className="animate-spin" /> Analyzing...</>
+                  ) : (
+                    <><Sparkles size={14} /> Analyze with AI</>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Form Fields */}
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-slate-700">Tool ID <span className="text-red-500">*</span></label>
             <Input
@@ -163,7 +367,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
               value={category}
               onChange={e => setCategory(e.target.value)}
               className="h-10"
-              placeholder="e.g. ReMynd Core, External — Standardized, ReMynd Admin Forms"
+              placeholder="e.g. behavior, cognitive, social-emotional"
             />
           </div>
 
@@ -235,6 +439,42 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          {/* Extracted Form Items Preview */}
+          {formItems.length > 0 && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setItemsExpanded(prev => !prev)}
+                className="flex items-center justify-between w-full px-4 py-3 bg-slate-50 text-left"
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <List size={14} />
+                  Extracted Form Items
+                  <span className="text-xs font-normal text-slate-500">({formItems.length} items)</span>
+                </div>
+                {itemsExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+              </button>
+              {itemsExpanded && (
+                <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                  {formItems.map((item, idx) => (
+                    <div key={item.id} className="flex gap-3 px-4 py-2.5">
+                      <span className="text-xs text-slate-400 font-mono w-6 shrink-0 pt-0.5">{idx + 1}.</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-700 leading-snug">{item.text}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-slate-400 italic">{item.type}</span>
+                          {item.domain && (
+                            <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{item.domain}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               <AlertTriangle size={14} /> {error}
@@ -242,7 +482,6 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Cancel

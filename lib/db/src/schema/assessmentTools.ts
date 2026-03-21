@@ -4,6 +4,14 @@ import { z } from "zod/v4";
 
 export const scoringTypeEnum = pgEnum("scoring_type", ["auto", "manual"]);
 
+export type FormItem = {
+  id: string;
+  text: string;
+  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  options?: string[];
+  domain?: string;
+};
+
 export const assessmentToolsTable = pgTable("assessment_tools", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -13,6 +21,7 @@ export const assessmentToolsTable = pgTable("assessment_tools", {
   respondentTypes: jsonb("respondent_types").notNull().$type<string[]>(),
   scoringType: scoringTypeEnum("scoring_type").notNull().default("auto"),
   domains: jsonb("domains").notNull().$type<string[]>(),
+  formItems: jsonb("form_items").$type<FormItem[]>(),
 });
 
 export const insertAssessmentToolSchema = createInsertSchema(assessmentToolsTable);

@@ -2569,6 +2569,14 @@ export function useDeleteAssignment<
   return useMutation(getDeleteAssignmentMutationOptions(options));
 }
 
+export type FormItem = {
+  id: string;
+  text: string;
+  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  options?: string[];
+  domain?: string;
+};
+
 export type CreateAssessmentToolBody = {
   id: string;
   name: string;
@@ -2578,6 +2586,7 @@ export type CreateAssessmentToolBody = {
   domains?: string[];
   respondentTypes?: string[];
   isRemyndOwned?: boolean;
+  formItems?: FormItem[];
 };
 
 export const createAssessmentTool = async (

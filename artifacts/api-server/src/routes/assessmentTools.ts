@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assessmentToolsTable } from "@workspace/db/schema";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { recommendToolsWithAI } from "../lib/ai.js";
+import { recommendToolsWithAI, analyzeFormWithAI } from "../lib/ai.js";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
 
@@ -64,7 +64,7 @@ router.post("/assessment-tools", authMiddleware, async (req, res) => {
     return;
   }
 
-  const { id, name, description, category, scoringType, domains, respondentTypes, isRemyndOwned } = req.body;
+  const { id, name, description, category, scoringType, domains, respondentTypes, isRemyndOwned, formItems } = req.body;
   if (!id?.trim() || !name?.trim() || !category?.trim()) {
     res.status(400).json({ error: "bad_request", message: "id, name, and category are required" });
     return;
@@ -85,9 +85,28 @@ router.post("/assessment-tools", authMiddleware, async (req, res) => {
     domains: domains ?? [],
     respondentTypes: respondentTypes ?? [],
     isRemyndOwned: isRemyndOwned ?? false,
+    formItems: Array.isArray(formItems) ? formItems : null,
   }).returning();
 
   res.status(201).json(newTool[0]);
+});
+
+router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can analyze forms" });
+    return;
+  }
+  const { formText, imageBase64, mimeType } = req.body as {
+    formText?: string;
+    imageBase64?: string;
+    mimeType?: string;
+  };
+  if (!formText && !imageBase64) {
+    res.status(400).json({ error: "bad_request", message: "formText or imageBase64 is required" });
+    return;
+  }
+  const result = await analyzeFormWithAI({ formText, imageBase64, mimeType });
+  res.json(result);
 });
 
 router.post("/assessment-tools/recommend", authMiddleware, async (req, res) => {
