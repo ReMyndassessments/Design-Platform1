@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useState } from "react";
+import { useLocation, Redirect } from "wouter";
 import { useLogin, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,6 @@ export default function Login() {
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser({
     query: { retry: false, refetchOnWindowFocus: false }
   });
-
-  useEffect(() => {
-    if (user) {
-      setLocation("/");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   const loginMutation = useLogin();
 
@@ -50,6 +43,10 @@ export default function Login() {
 
   if (isCheckingUser) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+  }
+
+  if (user) {
+    return <Redirect to="/" />;
   }
 
   return (
