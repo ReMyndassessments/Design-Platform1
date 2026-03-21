@@ -2472,11 +2472,11 @@ export function useDeleteAssessmentTool<
 export const deleteAssignment = async (
   caseId: string,
   assignmentId: string,
-  options?: SecondParameter<typeof customFetch>,
+  options?: RequestInit,
 ) => {
   return customFetch<{ success: boolean }>(
-    { url: `/api/cases/${caseId}/assignments/${assignmentId}`, method: "DELETE" },
-    options,
+    `/api/cases/${caseId}/assignments/${assignmentId}`,
+    { ...options, method: "DELETE" },
   );
 };
 
@@ -2490,7 +2490,7 @@ export const getDeleteAssignmentMutationOptions = <
     { caseId: string; assignmentId: string },
     TContext
   >;
-  request?: SecondParameter<typeof customFetch>;
+  request?: RequestInit;
 }) => {
   const { mutation: mutationOptions, request: requestOptions } = options ?? {};
   const mutationKey = mutationOptions?.mutationKey ?? ["deleteAssignment"];
@@ -2511,7 +2511,7 @@ export function useDeleteAssignment<
     { caseId: string; assignmentId: string },
     TContext
   >;
-  request?: SecondParameter<typeof customFetch>;
+  request?: RequestInit;
 }): UseMutationResult<
   Awaited<ReturnType<typeof deleteAssignment>>,
   TError,
