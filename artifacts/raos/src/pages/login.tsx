@@ -70,7 +70,7 @@ export default function Login() {
             <img src="/images/remynd-logo.png" alt="ReMynd" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-4xl lg:text-5xl font-display font-bold mb-6 tracking-tight">
-            ReMynd Assessment
+            ReMynd Assessment Operating System
           </h1>
           <p className="text-lg text-slate-300 leading-relaxed">
             The intelligent operating system for psychoeducational assessments. Streamline forms, scoring, and report generation in one secure platform.
