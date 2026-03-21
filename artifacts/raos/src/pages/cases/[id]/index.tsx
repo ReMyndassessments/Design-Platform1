@@ -5,6 +5,7 @@ import {
   useAnalyzeIntake, 
   useListAssessmentTools,
   useCreateAssignment,
+  useDeleteAssignment,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, BrainCircuit, CheckCircle2, ChevronRight, 
-  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play
+  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -37,10 +38,12 @@ export default function CaseDetail() {
   const analyzeIntakeMut = useAnalyzeIntake();
   const { data: tools } = useListAssessmentTools();
   const createAssignmentMut = useCreateAssignment();
+  const deleteAssignmentMut = useDeleteAssignment();
 
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
+  const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<{ id: string; name: string } | null>(null);
   
   const [newAssignment, setNewAssignment] = useState({
     toolId: "",
@@ -70,6 +73,18 @@ export default function CaseDetail() {
         toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
         queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
       }
+    });
+  };
+
+  const handleDeleteAssignment = () => {
+    if (!deleteAssignmentTarget) return;
+    deleteAssignmentMut.mutate({ caseId, assignmentId: deleteAssignmentTarget.id }, {
+      onSuccess: () => {
+        toast({ title: "Assignment removed" });
+        setDeleteAssignmentTarget(null);
+        queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+      },
+      onError: () => toast({ title: "Failed to remove assignment", variant: "destructive" })
     });
   };
 
@@ -287,6 +302,14 @@ export default function CaseDetail() {
                             </Button>
                           </Link>
                         )}
+                        <Button
+                          variant="outline" size="sm"
+                          className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
+                          title="Remove assignment"
+                          onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -298,6 +321,30 @@ export default function CaseDetail() {
       </div>
 
       {/* Modals */}
+      {/* Delete Assignment Confirm */}
+      <Dialog open={!!deleteAssignmentTarget} onOpenChange={open => { if (!open) setDeleteAssignmentTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove Assignment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <span className="font-semibold text-slate-900">{deleteAssignmentTarget?.name}</span>? The link will stop working and any responses already collected will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteAssignmentTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive" className="flex-1"
+              disabled={deleteAssignmentMut.isPending}
+              onClick={handleDeleteAssignment}
+            >
+              {deleteAssignmentMut.isPending ? "Removing..." : "Remove"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
         <DialogContent className="sm:max-w-md text-center flex flex-col items-center">
           <DialogHeader>

@@ -70,4 +70,13 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
   res.json(rows[0]);
 });
 
+router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {
+  const rows = await db.delete(assignmentsTable).where(eq(assignmentsTable.id, req.params.assignmentId)).returning();
+  if (!rows[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({ success: true });
+});
+
 export default router;

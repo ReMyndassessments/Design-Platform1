@@ -2466,3 +2466,57 @@ export function useDeleteAssessmentTool<
 > {
   return useMutation(getDeleteAssessmentToolMutationOptions(options));
 }
+
+// ── Delete Assignment ──────────────────────────────────────────────────────
+
+export const deleteAssignment = async (
+  caseId: string,
+  assignmentId: string,
+  options?: SecondParameter<typeof customFetch>,
+) => {
+  return customFetch<{ success: boolean }>(
+    { url: `/api/cases/${caseId}/assignments/${assignmentId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getDeleteAssignmentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    TError,
+    { caseId: string; assignmentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationKey = mutationOptions?.mutationKey ?? ["deleteAssignment"];
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    { caseId: string; assignmentId: string }
+  > = ({ caseId, assignmentId }) => deleteAssignment(caseId, assignmentId, requestOptions);
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export function useDeleteAssignment<
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssignment>>,
+    TError,
+    { caseId: string; assignmentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAssignment>>,
+  TError,
+  { caseId: string; assignmentId: string },
+  TContext
+> {
+  return useMutation(getDeleteAssignmentMutationOptions(options));
+}
