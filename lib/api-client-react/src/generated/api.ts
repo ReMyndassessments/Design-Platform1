@@ -2015,6 +2015,55 @@ export function useListUsers<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
+// ── Assignable Users (non-admin accessible, minimal data for dropdowns) ──────
+
+export type AssignableUser = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+export const getAssignableUsersUrl = () => `/api/users/assignable`;
+
+export const getAssignableUsers = async (options?: RequestInit): Promise<AssignableUser[]> => {
+  return customFetch<AssignableUser[]>(getAssignableUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAssignableUsersQueryKey = () => [`/api/users/assignable`] as const;
+
+export const getAssignableUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAssignableUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getAssignableUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getAssignableUsersQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssignableUsers>>> = ({ signal }) =>
+    getAssignableUsers({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAssignableUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetAssignableUsers<
+  TData = Awaited<ReturnType<typeof getAssignableUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getAssignableUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAssignableUsersQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
 /**
  * @summary Get current user
  */

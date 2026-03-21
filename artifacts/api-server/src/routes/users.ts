@@ -57,12 +57,25 @@ router.get("/users/me", authMiddleware, async (req, res) => {
 });
 
 router.get("/users", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can list staff accounts" });
+    return;
+  }
   const users = await db.select({
     id: usersTable.id,
     name: usersTable.name,
     email: usersTable.email,
     role: usersTable.role,
     createdAt: usersTable.createdAt,
+  }).from(usersTable);
+  res.json(users);
+});
+
+router.get("/users/assignable", authMiddleware, async (req, res) => {
+  const users = await db.select({
+    id: usersTable.id,
+    name: usersTable.name,
+    role: usersTable.role,
   }).from(usersTable);
   res.json(users);
 });

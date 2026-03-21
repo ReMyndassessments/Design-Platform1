@@ -7,6 +7,7 @@ import {
   useGetCurrentUser,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -390,8 +391,24 @@ function StaffRow({ user, isSelf }: { user: any; isSelf: boolean }) {
 
 export default function TeamPage() {
   const { data: users, isLoading } = useListUsers();
-  const { data: currentUser } = useGetCurrentUser();
+  const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
+  const [, navigate] = useLocation();
   const [adding, setAdding] = useState(false);
+
+  React.useEffect(() => {
+    if (!userLoading && currentUser && currentUser.role !== "admin") {
+      navigate("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLoading, currentUser]);
+
+  if (userLoading || !currentUser) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
+
+  if (currentUser.role !== "admin") {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  }
 
   const sorted = (users ?? []).slice().sort((a, b) => {
     const order = { admin: 0, assessment_lead: 1, psychometrician: 2 };

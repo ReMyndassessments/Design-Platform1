@@ -55,6 +55,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   );
 }
 
+
 function Router() {
   return (
     <Switch>
