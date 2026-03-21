@@ -11,8 +11,20 @@ export default function Dashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (isError || !stats) return <div className="text-destructive p-4 bg-destructive/10 rounded-xl">Failed to load dashboard data.</div>;
 
+  const phaseLabels: Record<string, string> = {
+    pre_commitment: "Pre-Commitment",
+    intake: "Intake",
+    setup: "Setup",
+    forms: "Forms",
+    assessment: "Assessment",
+    scoring: "Scoring",
+    report: "Report",
+    debrief: "Debrief",
+    complete: "Complete",
+  };
+
   const chartData = Object.entries(stats.casesByPhase || {}).map(([phase, count]) => ({
-    name: phase.replace('_', ' '),
+    name: phaseLabels[phase] ?? phase.replace(/_/g, ' '),
     count
   }));
 
@@ -57,10 +69,10 @@ export default function Dashboard() {
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} angle={-45} textAnchor="end" />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} angle={-35} textAnchor="end" interval={0} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} />
                   <Tooltip 
                     cursor={{fill: '#F1F5F9'}} 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
