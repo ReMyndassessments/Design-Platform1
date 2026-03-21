@@ -3,7 +3,7 @@ import { useLocation, Redirect } from "wouter";
 import { useLogin, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BrainCircuit, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -58,8 +58,8 @@ export default function Login() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-3xl" />
         
         <div className="z-10 text-center max-w-md">
-          <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white mb-8 mx-auto shadow-2xl border border-white/20">
-            <BrainCircuit size={48} strokeWidth={2} />
+          <div className="mb-8 mx-auto w-24 h-24 flex items-center justify-center">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-24 h-24 object-contain" />
           </div>
           <h1 className="text-4xl lg:text-5xl font-display font-bold mb-6 tracking-tight">
             ReMynd Assessment
@@ -74,8 +74,8 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white md:rounded-l-3xl shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)] z-10 relative">
         <div className="w-full max-w-md animate-slide-up">
           <div className="md:hidden flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center text-white mb-4 shadow-lg shadow-primary/30">
-              <BrainCircuit size={32} />
+            <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-slate-900/30">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-12 h-12 object-contain" />
             </div>
             <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">RAOS</h1>
           </div>

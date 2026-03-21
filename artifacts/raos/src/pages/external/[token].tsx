@@ -4,7 +4,7 @@ import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { BrainCircuit, CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Question = {
@@ -348,7 +348,7 @@ function FormIcon({ formType }: { formType: string }) {
   if (formType === "REFERRAL") return <ClipboardList size={26} className={cls} />;
   if (formType === "CONSENT")  return <ShieldCheck size={26} className={cls} />;
   if (formType === "INTAKE")   return <FileText size={26} className={cls} />;
-  return <BrainCircuit size={26} className={cls} />;
+  return <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />;
 }
 
 function getFormLabel(formType: string) {
@@ -463,7 +463,7 @@ export default function ExternalFormView() {
           <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
           <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired. Please contact the assessment team for assistance.</p>
           <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <BrainCircuit size={14} /> ReMynd Assessment System
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
           </div>
         </div>
       </div>
@@ -484,7 +484,7 @@ export default function ExternalFormView() {
             {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "You may safely close this page"}
           </div>
           <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
-            <BrainCircuit size={14} className="text-primary" />
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
             <span>ReMynd Assessment System</span>
           </div>
         </div>
@@ -499,9 +499,11 @@ export default function ExternalFormView() {
 
       {/* ── Top Navigation Bar ── */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-5 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2 text-primary">
-          <BrainCircuit size={20} strokeWidth={2.5} />
-          <span className="font-display font-bold text-sm tracking-tight">ReMynd</span>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-slate-900 rounded-md flex items-center justify-center flex-shrink-0">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
+          </div>
+          <span className="font-display font-bold text-sm tracking-tight text-primary">ReMynd</span>
         </div>
         <div className="flex items-center gap-3">
           {requiredQuestions.length > 0 && (
