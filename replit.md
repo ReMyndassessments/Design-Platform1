@@ -1,8 +1,8 @@
-# Workspace
+# ReMynd Assessment Operating System (RAOS)
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Full-stack psychoeducational assessment management platform built as a pnpm monorepo. The system manages the complete lifecycle of student assessment cases through 9 phases, from parent intake to final debrief.
 
 ## Stack
 
@@ -10,87 +10,86 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
+- **Frontend**: React + Vite (artifacts/raos)
+- **API framework**: Express 5 (artifacts/api-server)
 - **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
+- **Validation**: Zod (zod/v4), drizzle-zod
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Auth**: JWT Bearer token (stored in localStorage), SHA-256 password hashing
+- **AI**: Gemini via Replit AI Integrations (intake analysis, tool recommendations, report generation)
+- **Charts**: Recharts (radar charts, bar charts for scoring)
+- **QR codes**: qrcode.react
 
 ## Structure
 
-```text
+```
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server
+│   └── raos/               # React + Vite frontend
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/
+│   └── src/seed.ts         # Database seed script
+└── pnpm-workspace.yaml
 ```
 
-## TypeScript & Composite Projects
+## Roles
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- **Admin (Noel)** — admin@remynd.com / password — Full access, case creation, report approval
+- **Assessment Lead (Hayley)** — hayley@remynd.com / password — Communication, scheduling, self-report administration
+- **Psychometrician (Abegail)** — abegail@remynd.com / password — Scoring queue
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## System Modules
 
-## Root Scripts
+1. **Case Creation** — Admin creates student cases with team assignment
+2. **Consent + Parent Intake** — Digital forms via QR/link
+3. **AI Intake Analysis** — Gemini analyzes referral data, recommends domains and risk level
+4. **Assessment Builder** — Select from ReMynd tools (RCS-80, RASR, RARI, REFI, RERMS, RSCP, RARPS, RFII) or external standardized tools (Conners, BRIEF, BASC)
+5. **Multi-Respondent Deployment** — Generate unique tokenized links + QR codes for Parent, Teacher 1, Teacher 2, Student
+6. **Form Completion Monitor** — Dashboard with status tracking (not_started, in_progress, completed, overdue)
+7. **Self-Report Admin** — Guided administration mode with language toggle (English/Mandarin/Cantonese)
+8. **Scoring Engine** — Auto-scoring for ReMynd tools, manual entry for external tools, teacher agreement index
+9. **AI Report Generator** — Gemini generates full Educational Profile & Support Plan
+10. **Admin Review Panel** — Edit report sections, add notes, approve
+11. **Export** — PDF/DOCX export
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+## Case Phases (9 phases)
 
-## Packages
+pre_commitment → intake → setup → forms → assessment → scoring → report → debrief → complete
 
-### `artifacts/api-server` (`@workspace/api-server`)
+## Database Schema
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+- **users** — Internal staff (admin, assessment_lead, psychometrician)
+- **cases** — Student case records with phase tracking
+- **assessment_tools** — Tool catalog (ReMynd + external)
+- **assignments** — Per-respondent assignments with unique tokens + QR codes
+- **responses** — Form submissions from respondents
+- **scores** — Domain scores + cross-informant aggregation
+- **reports** — AI-generated report sections with approval workflow
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+## External Respondent Access
 
-### `lib/db` (`@workspace/db`)
+- No login required
+- Access via: `/external/:token`
+- Token stored in `assignments.unique_token`
+- Mobile-friendly form with language toggle
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+## Key Commands
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
+```bash
+pnpm --filter @workspace/api-spec run codegen    # Regenerate API client
+pnpm --filter @workspace/db run push             # Push DB schema changes
+pnpm --filter @workspace/scripts run seed        # Seed initial data
+pnpm --filter @workspace/api-server run build    # Build API server
+```
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+## AI Integration
 
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- Gemini via Replit AI Integrations (no own API key needed)
+- Environment variables: AI_INTEGRATIONS_GEMINI_BASE_URL, AI_INTEGRATIONS_GEMINI_API_KEY
+- Used for: intake analysis, tool recommendations, report generation
+- Fallback responses if AI fails (no hard crash)

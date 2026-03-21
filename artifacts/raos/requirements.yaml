@@ -1,0 +1,21 @@
+packages:
+  "recharts": "For scoring and dashboard data visualization"
+  "qrcode.react": "For generating assignment QR codes"
+  "framer-motion": "For smooth page transitions and interactive elements"
+  "date-fns": "For formatting dates in the UI"
+  "clsx": "For conditional tailwind class merging"
+  "tailwind-merge": "For conditional tailwind class merging"
+  "react-hook-form": "For robust form state management"
+  "@hookform/resolvers": "For zod validation integration with react-hook-form"
+
+images:
+  - path: "artifacts/raos/public/images/logo-icon.png"
+    description: "A minimal, modern abstract icon representing a brain or neural network forming a checkmark, clean lines, trustworthy teal and navy colors on transparent background, suitable for a healthcare platform logo"
+    aspect_ratio: "1:1"
+  - path: "artifacts/raos/public/images/auth-bg.png"
+    description: "Abstract, soft, out-of-focus background with gentle waves of deep blue, soft teal, and clean white, creating a calming, professional, trust-inspiring atmosphere"
+    aspect_ratio: "16:9"
+
+notes:
+  - API hooks are imported directly from the generated @workspace/api-client-react package.
+  - The external form page uses no authentication and a separate layout.

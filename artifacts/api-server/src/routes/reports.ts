@@ -1,0 +1,88 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { reportsTable, casesTable, scoresTable, responsesTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { nanoid } from "nanoid";
+import { generateReportWithAI } from "../lib/gemini.js";
+
+const router = Router();
+
+router.get("/cases/:caseId/report", authMiddleware, async (req, res) => {
+  const rows = await db.select().from(reportsTable).where(eq(reportsTable.caseId, req.params.caseId)).limit(1);
+  if (!rows[0]) {
+    res.status(404).json({ error: "not_found", message: "No report generated yet" });
+    return;
+  }
+  res.json(rows[0]);
+});
+
+router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) => {
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!caseRows[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const caseData = caseRows[0];
+  const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
+
+  const reportContent = await generateReportWithAI({
+    caseData,
+    scores,
+    intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
+  });
+
+  const existingReport = await db.select().from(reportsTable).where(eq(reportsTable.caseId, req.params.caseId)).limit(1);
+
+  let report;
+  if (existingReport[0]) {
+    report = await db.update(reportsTable).set({
+      ...reportContent,
+      status: "draft",
+      generatedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(reportsTable.caseId, req.params.caseId)).returning();
+  } else {
+    report = await db.insert(reportsTable).values({
+      id: nanoid(),
+      caseId: req.params.caseId,
+      ...reportContent,
+      status: "draft",
+      generatedAt: new Date(),
+    }).returning();
+  }
+
+  res.json(report[0]);
+});
+
+router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) => {
+  const allowed = ["backgroundSummary", "domainAnalysis", "strengths", "areasOfConcern", "crossSettingComparison", "recommendations", "adminNotes"];
+  const updates: Partial<typeof reportsTable.$inferInsert> = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) (updates as Record<string, unknown>)[key] = req.body[key];
+  }
+  updates.updatedAt = new Date();
+
+  const rows = await db.update(reportsTable).set(updates).where(eq(reportsTable.caseId, req.params.caseId)).returning();
+  if (!rows[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(rows[0]);
+});
+
+router.post("/cases/:caseId/report/approve", authMiddleware, async (req, res) => {
+  const rows = await db.update(reportsTable).set({
+    status: "approved",
+    approvedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(reportsTable.caseId, req.params.caseId)).returning();
+
+  if (!rows[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(rows[0]);
+});
+
+export default router;

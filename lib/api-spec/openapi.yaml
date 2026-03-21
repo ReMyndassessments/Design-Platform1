@@ -1,22 +1,37 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ReMynd Assessment Operating System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: cases
+    description: Case management
+  - name: assessments
+    description: Assessment tools
+  - name: assignments
+    description: Assessment assignments
+  - name: responses
+    description: Form responses
+  - name: scores
+    description: Scoring operations
+  - name: reports
+    description: AI report generation
+  - name: users
+    description: User management
+  - name: external
+    description: External respondent (no login required)
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +39,566 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Cases ───────────────────────────────────────────────────────────────
+  /cases:
+    get:
+      operationId: listCases
+      tags: [cases]
+      summary: List all cases
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: phase
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of cases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Case"
+    post:
+      operationId: createCase
+      tags: [cases]
+      summary: Create a new case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCaseRequest"
+      responses:
+        "201":
+          description: Case created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+
+  /cases/{caseId}:
+    get:
+      operationId: getCase
+      tags: [cases]
+      summary: Get case details
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCase
+      tags: [cases]
+      summary: Update a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCaseRequest"
+      responses:
+        "200":
+          description: Updated case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+
+  /cases/{caseId}/advance:
+    post:
+      operationId: advanceCasePhase
+      tags: [cases]
+      summary: Advance case to next phase
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+
+  /cases/{caseId}/intake-analysis:
+    post:
+      operationId: analyzeIntake
+      tags: [cases]
+      summary: Run AI intake analysis
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Intake analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeAnalysis"
+
+  # ─── Assessment Tools ─────────────────────────────────────────────────────
+  /assessment-tools:
+    get:
+      operationId: listAssessmentTools
+      tags: [assessments]
+      summary: List assessment tools
+      responses:
+        "200":
+          description: List of assessment tools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssessmentTool"
+
+  /assessment-tools/recommend:
+    post:
+      operationId: recommendTools
+      tags: [assessments]
+      summary: AI-recommend tools based on intake analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendToolsRequest"
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolRecommendations"
+
+  # ─── Assignments ──────────────────────────────────────────────────────────
+  /cases/{caseId}/assignments:
+    get:
+      operationId: listAssignments
+      tags: [assignments]
+      summary: List assignments for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assignment"
+    post:
+      operationId: createAssignment
+      tags: [assignments]
+      summary: Create assignment(s) for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssignmentRequest"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  /cases/{caseId}/assignments/{assignmentId}:
+    patch:
+      operationId: updateAssignment
+      tags: [assignments]
+      summary: Update assignment status
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAssignmentRequest"
+      responses:
+        "200":
+          description: Updated assignment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  # ─── External Respondent ─────────────────────────────────────────────────
+  /external/form/{token}:
+    get:
+      operationId: getExternalForm
+      tags: [external]
+      summary: Get form for external respondent (no auth)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Form data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalForm"
+        "404":
+          description: Token not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /external/form/{token}/submit:
+    post:
+      operationId: submitExternalForm
+      tags: [external]
+      summary: Submit form response (no auth)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitFormRequest"
+      responses:
+        "200":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitFormResponse"
+
+  # ─── Self-Report Admin ────────────────────────────────────────────────────
+  /cases/{caseId}/self-report:
+    post:
+      operationId: submitSelfReport
+      tags: [responses]
+      summary: Submit guided self-report
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelfReportRequest"
+      responses:
+        "201":
+          description: Self-report submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+
+  # ─── Scores ───────────────────────────────────────────────────────────────
+  /cases/{caseId}/scores:
+    get:
+      operationId: getCaseScores
+      tags: [scores]
+      summary: Get all scores for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Score"
+
+  /cases/{caseId}/scores/calculate:
+    post:
+      operationId: calculateScores
+      tags: [scores]
+      summary: Calculate/recalculate scores for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calculated scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Score"
+
+  /cases/{caseId}/scores/manual:
+    post:
+      operationId: submitManualScore
+      tags: [scores]
+      summary: Submit manual score (external tools)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualScoreRequest"
+      responses:
+        "201":
+          description: Score submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Score"
+
+  # ─── Reports ──────────────────────────────────────────────────────────────
+  /cases/{caseId}/report:
+    get:
+      operationId: getCaseReport
+      tags: [reports]
+      summary: Get the report for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: No report yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{caseId}/report/generate:
+    post:
+      operationId: generateReport
+      tags: [reports]
+      summary: AI-generate report
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Generated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /cases/{caseId}/report/update:
+    patch:
+      operationId: updateReport
+      tags: [reports]
+      summary: Admin edits to the report
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReportRequest"
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /cases/{caseId}/report/approve:
+    post:
+      operationId: approveReport
+      tags: [reports]
+      summary: Admin approves report
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  # ─── Users ────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List internal users
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      tags: [users]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/login:
+    post:
+      operationId: login
+      tags: [users]
+      summary: Login with email/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/logout:
+    post:
+      operationId: logout
+      tags: [users]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # ─── Dashboard ────────────────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [cases]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +606,629 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success]
+
+    # ─── User ────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, assessment_lead, psychometrician]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, role, createdAt]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required: [user, token]
+
+    # ─── Case ────────────────────────────────────────────────────────────────
+    Case:
+      type: object
+      properties:
+        id:
+          type: string
+        studentName:
+          type: string
+        dob:
+          type: string
+        school:
+          type: string
+        grade:
+          type: string
+        languagePreference:
+          type: string
+          enum: [english, mandarin, cantonese]
+        referralReason:
+          type: string
+        caseStatus:
+          type: string
+          enum: [active, on_hold, completed, archived]
+        currentPhase:
+          type: string
+          enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, debrief, complete]
+        progressPercentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          type: string
+          enum: [low, moderate, high]
+          nullable: true
+        assignedLeadId:
+          type: string
+          nullable: true
+        assignedPsychId:
+          type: string
+          nullable: true
+        parentName:
+          type: string
+          nullable: true
+        parentEmail:
+          type: string
+          nullable: true
+        parentPhone:
+          type: string
+          nullable: true
+        consentObtained:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - studentName
+        - dob
+        - school
+        - languagePreference
+        - caseStatus
+        - currentPhase
+        - progressPercentage
+        - consentObtained
+        - createdAt
+        - updatedAt
+
+    CaseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Case"
+        - type: object
+          properties:
+            assignments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Assignment"
+            scores:
+              type: array
+              items:
+                $ref: "#/components/schemas/Score"
+            intakeData:
+              type: object
+              nullable: true
+            intakeAnalysis:
+              $ref: "#/components/schemas/IntakeAnalysis"
+              nullable: true
+
+    CreateCaseRequest:
+      type: object
+      properties:
+        studentName:
+          type: string
+        dob:
+          type: string
+        school:
+          type: string
+        grade:
+          type: string
+        languagePreference:
+          type: string
+          enum: [english, mandarin, cantonese]
+        referralReason:
+          type: string
+        parentName:
+          type: string
+        parentEmail:
+          type: string
+        parentPhone:
+          type: string
+        assignedLeadId:
+          type: string
+        assignedPsychId:
+          type: string
+      required: [studentName, dob, school, languagePreference, referralReason]
+
+    UpdateCaseRequest:
+      type: object
+      properties:
+        studentName:
+          type: string
+        school:
+          type: string
+        grade:
+          type: string
+        languagePreference:
+          type: string
+          enum: [english, mandarin, cantonese]
+        caseStatus:
+          type: string
+          enum: [active, on_hold, completed, archived]
+        currentPhase:
+          type: string
+          enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, debrief, complete]
+        riskLevel:
+          type: string
+          enum: [low, moderate, high]
+        parentName:
+          type: string
+        parentEmail:
+          type: string
+        parentPhone:
+          type: string
+        assignedLeadId:
+          type: string
+        assignedPsychId:
+          type: string
+        consentObtained:
+          type: boolean
+
+    IntakeAnalysis:
+      type: object
+      properties:
+        recommendedDomains:
+          type: array
+          items:
+            type: string
+        riskLevel:
+          type: string
+          enum: [low, moderate, high]
+        summary:
+          type: string
+        flags:
+          type: array
+          items:
+            type: string
+      required: [recommendedDomains, riskLevel, summary]
+
+    # ─── Assessment Tool ──────────────────────────────────────────────────────
+    AssessmentTool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        isRemyndOwned:
+          type: boolean
+        respondentTypes:
+          type: array
+          items:
+            type: string
+            enum: [parent, teacher1, teacher2, student, self]
+        scoringType:
+          type: string
+          enum: [auto, manual]
+        domains:
+          type: array
+          items:
+            type: string
+      required: [id, name, category, isRemyndOwned, respondentTypes, scoringType, domains]
+
+    RecommendToolsRequest:
+      type: object
+      properties:
+        caseId:
+          type: string
+        domains:
+          type: array
+          items:
+            type: string
+        riskLevel:
+          type: string
+      required: [caseId, domains, riskLevel]
+
+    ToolRecommendations:
+      type: object
+      properties:
+        recommended:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentTool"
+        rationale:
+          type: string
+      required: [recommended, rationale]
+
+    # ─── Assignment ───────────────────────────────────────────────────────────
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        toolId:
+          type: string
+        toolName:
+          type: string
+        respondentType:
+          type: string
+          enum: [parent, teacher1, teacher2, student, self]
+        respondentLabel:
+          type: string
+        assignedToName:
+          type: string
+          nullable: true
+        assignedToEmail:
+          type: string
+          nullable: true
+        uniqueToken:
+          type: string
+        uniqueLink:
+          type: string
+        qrCodeData:
+          type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, overdue]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - caseId
+        - toolId
+        - toolName
+        - respondentType
+        - respondentLabel
+        - uniqueToken
+        - uniqueLink
+        - qrCodeData
+        - status
+        - createdAt
+
+    CreateAssignmentRequest:
+      type: object
+      properties:
+        toolId:
+          type: string
+        respondentType:
+          type: string
+          enum: [parent, teacher1, teacher2, student, self]
+        respondentLabel:
+          type: string
+        assignedToName:
+          type: string
+        assignedToEmail:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+      required: [toolId, respondentType, respondentLabel]
+
+    UpdateAssignmentRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, overdue]
+        assignedToName:
+          type: string
+        assignedToEmail:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+
+    # ─── Response ─────────────────────────────────────────────────────────────
+    Response:
+      type: object
+      properties:
+        id:
+          type: string
+        assignmentId:
+          type: string
+        answers:
+          type: object
+          additionalProperties: true
+        language:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+      required: [id, assignmentId, answers, language, submittedAt]
+
+    ExternalForm:
+      type: object
+      properties:
+        assignmentId:
+          type: string
+        toolName:
+          type: string
+        respondentLabel:
+          type: string
+        studentName:
+          type: string
+        language:
+          type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormQuestion"
+        alreadySubmitted:
+          type: boolean
+      required: [assignmentId, toolName, respondentLabel, studentName, language, questions, alreadySubmitted]
+
+    FormQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        textMandarin:
+          type: string
+          nullable: true
+        textCantonese:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [likert, yes_no, text, scale]
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+        domain:
+          type: string
+      required: [id, text, type, domain]
+
+    SubmitFormRequest:
+      type: object
+      properties:
+        answers:
+          type: object
+          additionalProperties: true
+        language:
+          type: string
+      required: [answers, language]
+
+    SubmitFormResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
+
+    SelfReportRequest:
+      type: object
+      properties:
+        toolId:
+          type: string
+        answers:
+          type: object
+          additionalProperties: true
+        language:
+          type: string
+        administeredBy:
+          type: string
+      required: [toolId, answers, language]
+
+    # ─── Score ────────────────────────────────────────────────────────────────
+    Score:
+      type: object
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        toolId:
+          type: string
+        toolName:
+          type: string
+        respondentType:
+          type: string
+        rawScore:
+          type: number
+          nullable: true
+        domainScores:
+          type: object
+          additionalProperties:
+            type: number
+        normalizedScores:
+          type: object
+          additionalProperties:
+            type: number
+        agreementIndex:
+          type: number
+          nullable: true
+        hasHighDiscrepancy:
+          type: boolean
+        isManual:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - caseId
+        - toolId
+        - toolName
+        - respondentType
+        - domainScores
+        - normalizedScores
+        - hasHighDiscrepancy
+        - isManual
+        - generatedAt
+
+    ManualScoreRequest:
+      type: object
+      properties:
+        toolId:
+          type: string
+        toolName:
+          type: string
+        respondentType:
+          type: string
+        rawScore:
+          type: number
+        domainScores:
+          type: object
+          additionalProperties:
+            type: number
+        notes:
+          type: string
+      required: [toolId, toolName, respondentType, rawScore, domainScores]
+
+    # ─── Report ───────────────────────────────────────────────────────────────
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        status:
+          type: string
+          enum: [draft, approved, exported]
+        backgroundSummary:
+          type: string
+        domainAnalysis:
+          type: string
+        strengths:
+          type: string
+        areasOfConcern:
+          type: string
+        crossSettingComparison:
+          type: string
+        recommendations:
+          type: string
+        adminNotes:
+          type: string
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - caseId
+        - status
+        - backgroundSummary
+        - domainAnalysis
+        - strengths
+        - areasOfConcern
+        - crossSettingComparison
+        - recommendations
+        - generatedAt
+
+    UpdateReportRequest:
+      type: object
+      properties:
+        backgroundSummary:
+          type: string
+        domainAnalysis:
+          type: string
+        strengths:
+          type: string
+        areasOfConcern:
+          type: string
+        crossSettingComparison:
+          type: string
+        recommendations:
+          type: string
+        adminNotes:
+          type: string
+
+    # ─── Dashboard ────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      properties:
+        totalCases:
+          type: integer
+        activeCases:
+          type: integer
+        completedCases:
+          type: integer
+        pendingForms:
+          type: integer
+        overdueForms:
+          type: integer
+        casesByPhase:
+          type: object
+          additionalProperties:
+            type: integer
+        recentCases:
+          type: array
+          items:
+            $ref: "#/components/schemas/Case"
+      required:
+        - totalCases
+        - activeCases
+        - completedCases
+        - pendingForms
+        - overdueForms
+        - casesByPhase
+        - recentCases
