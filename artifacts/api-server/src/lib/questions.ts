@@ -1102,8 +1102,75 @@ export const INTAKE_FORM: FormQuestion[] = [
   { id: "additional_notes", text: "Please use the space below to discuss any topic you feel is important that has not yet been covered", textChinese: "请在此写下其他此表格并没提及的重要事项", textKorean: "아직 다루지 않은 중요한 사항이 있다면 아래에 기재해 주세요", type: "textarea", domain: "health" },
 ];
 
-// ─── EXISTING SCREENER QUESTIONS ────────────────────────────────────────────────
+// ─── RASR – Student Self-Report (40 items, 5 subscales) ─────────────────────────
+const RASR_SCALE_OPTIONS    = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
+const RASR_SCALE_OPTIONS_ZH = ["从不", "很少", "有时", "经常", "非常频繁"];
+const RASR_SCALE_OPTIONS_KO = ["전혀 없음", "거의 없음", "때때로", "자주", "매우 자주"];
+
+export const RASR_FORM: FormQuestion[] = [
+  // ── Subscale 1: Sustained Attention ──────────────────────────────────────
+  { id: "rasr_sec1", text: "Sustained Attention", textChinese: "持续注意力", textKorean: "지속적 주의집중", type: "section_header", domain: "sustained_attention",
+    note: "Rate how often each statement applies to you.", noteChinese: "请评估以下每项说法适用于您的频率。", noteKorean: "각 진술이 본인에게 해당되는 빈도를 평가해 주세요." },
+  { id: "sa1", text: "I lose focus when tasks take a long time.", textChinese: "当任务需要较长时间时，我会失去专注。", textKorean: "과제가 오래 걸리면 집중력을 잃습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa2", text: "My mind wanders during lessons or conversations.", textChinese: "上课或交谈时，我的思绪容易游荡。", textKorean: "수업이나 대화 중에 딴생각을 합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa3", text: "I need reminders to stay focused on work.", textChinese: "我需要提醒才能保持专注工作。", textKorean: "집중력을 유지하려면 상기시켜줘야 합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa4", text: "I find it hard to pay attention during group instruction.", textChinese: "在小组教学时，我很难集中注意力。", textKorean: "그룹 수업 중 집중하기가 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa5", text: "I get mentally tired when I have to concentrate.", textChinese: "需要集中注意力时，我会感到精神疲劳。", textKorean: "집중해야 할 때 정신적으로 피로합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa6", text: "I switch between tasks without finishing them.", textChinese: "我会在未完成任务的情况下切换到其他任务。", textKorean: "과제를 끝내지 않고 다른 일로 넘어갑니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa7", text: "My concentration changes throughout the day.", textChinese: "我的注意力在一天中会有所变化。", textKorean: "하루 동안 집중력이 달라집니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+  { id: "sa8", text: "I struggle to focus when work feels difficult.", textChinese: "当工作感觉困难时，我很难集中注意力。", textKorean: "과제가 어렵게 느껴지면 집중하기 힘듭니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "sustained_attention", required: true },
+
+  // ── Subscale 2: Distractibility ───────────────────────────────────────────
+  { id: "rasr_sec2", text: "Distractibility", textChinese: "注意力分散", textKorean: "산만함", type: "section_header", domain: "distractibility" },
+  { id: "di1", text: "Small noises or movements distract me easily.", textChinese: "小的噪音或动作很容易让我分心。", textKorean: "작은 소음이나 움직임에 쉽게 산만해집니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di2", text: "I notice things around me that pull my attention away.", textChinese: "我会注意到周围让我分心的事物。", textKorean: "주변의 것들이 제 주의를 끌어당깁니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di3", text: "I find it hard to ignore background activity.", textChinese: "我很难忽视周围的背景活动。", textKorean: "주변에서 일어나는 일을 무시하기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di4", text: "I get sidetracked by things happening nearby.", textChinese: "附近发生的事情会让我偏离方向。", textKorean: "근처에서 일어나는 일에 주의가 분산됩니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di5", text: "I look around instead of focusing on my work.", textChinese: "我会四处张望，而不是专注于我的工作。", textKorean: "일에 집중하기보다 주위를 둘러봅니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di6", text: "I find it hard to get back on task after being distracted.", textChinese: "分心后，我很难重新回到任务上。", textKorean: "산만해진 후 다시 과제로 돌아오기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di7", text: "I get distracted by conversations around me.", textChinese: "周围的对话会让我分心。", textKorean: "주변 대화에 의해 산만해집니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+  { id: "di8", text: "I respond quickly to things happening around me, even if I shouldn't.", textChinese: "即使不应该，我也会迅速对周围发生的事情做出反应。", textKorean: "그러면 안 될 때도 주변 상황에 즉각 반응합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "distractibility", required: true },
+
+  // ── Subscale 3: Impulse Regulation ────────────────────────────────────────
+  { id: "rasr_sec3", text: "Impulse Regulation", textChinese: "冲动控制", textKorean: "충동 조절", type: "section_header", domain: "impulse_regulation" },
+  { id: "ir1", text: "I act before thinking things through.", textChinese: "我会在深思熟虑之前就采取行动。", textKorean: "충분히 생각하기 전에 행동합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir2", text: "I interrupt people without meaning to.", textChinese: "我会无意中打断别人。", textKorean: "의도치 않게 다른 사람의 말을 끊습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir3", text: "I find it hard to wait my turn.", textChinese: "我很难等待轮到我。", textKorean: "제 차례를 기다리기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir4", text: "I answer before hearing the whole question.", textChinese: "我会在听完整个问题之前就回答。", textKorean: "질문을 다 듣기 전에 대답합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir5", text: "I speak out without raising my hand.", textChinese: "我会不举手就说话。", textKorean: "손을 들지 않고 말합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir6", text: "I start doing something before checking instructions.", textChinese: "我会在查看说明之前就开始做某事。", textKorean: "지시사항을 확인하기 전에 시작합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir7", text: "I react quickly without pausing.", textChinese: "我会不加思索地迅速做出反应。", textKorean: "멈추지 않고 빠르게 반응합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+  { id: "ir8", text: "I find it hard to stop myself once I start something.", textChinese: "一旦开始做某事，我很难停下来。", textKorean: "시작하면 스스로 멈추기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "impulse_regulation", required: true },
+
+  // ── Subscale 4: Task Initiation & Completion ──────────────────────────────
+  { id: "rasr_sec4", text: "Task Initiation & Completion", textChinese: "任务启动与完成", textKorean: "과제 시작 및 완료", type: "section_header", domain: "task_initiation" },
+  { id: "ti1", text: "I delay starting tasks even when I know what to do.", textChinese: "即使知道该怎么做，我也会拖延开始任务。", textKorean: "무엇을 해야 할지 알면서도 시작을 미룹니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti2", text: "I need reminders to begin my work.", textChinese: "我需要提醒才能开始工作。", textKorean: "일을 시작하려면 상기시켜줘야 합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti3", text: "I leave tasks unfinished.", textChinese: "我会将任务留在未完成的状态。", textKorean: "과제를 완성하지 않고 남겨둡니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti4", text: "I avoid work that feels mentally hard.", textChinese: "我会回避感觉精神上困难的工作。", textKorean: "정신적으로 어렵다고 느끼는 일은 피합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti5", text: "I need help breaking big tasks into smaller steps.", textChinese: "我需要帮助将大任务分解成小步骤。", textKorean: "큰 과제를 작은 단계로 나누는 데 도움이 필요합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti6", text: "I struggle to switch from one task to another.", textChinese: "我很难从一项任务切换到另一项任务。", textKorean: "한 과제에서 다른 과제로 전환하기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti7", text: "I forget to complete routine responsibilities.", textChinese: "我会忘记完成日常任务。", textKorean: "일상적인 책임을 완수하는 것을 잊습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+  { id: "ti8", text: "I have trouble finishing what I start.", textChinese: "我在完成所开始的事情时遇到困难。", textKorean: "시작한 것을 끝내는 데 어려움이 있습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "task_initiation", required: true },
+
+  // ── Subscale 5: Behavioral Modulation ────────────────────────────────────
+  { id: "rasr_sec5", text: "Behavioral Modulation", textChinese: "行为调节", textKorean: "행동 조절", type: "section_header", domain: "behavioral_modulation" },
+  { id: "bm1", text: "I feel restless when I need to sit still.", textChinese: "需要静坐时，我会感到坐立不安。", textKorean: "가만히 앉아 있어야 할 때 불안합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm2", text: "I move more than others during class.", textChinese: "上课期间，我比其他人动得更多。", textKorean: "수업 중 다른 사람들보다 더 많이 움직입니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm3", text: "I find it hard to stay seated.", textChinese: "我很难保持坐着不动。", textKorean: "자리에 앉아 있기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm4", text: "My energy level feels hard to control.", textChinese: "我的精力水平感觉难以控制。", textKorean: "에너지 수준을 조절하기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm5", text: "I struggle to adjust my behavior depending on where I am.", textChinese: "我很难根据所处环境调整自己的行为。", textKorean: "있는 곳에 따라 행동을 조절하기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm6", text: "My activity level changes a lot during the day.", textChinese: "我的活动水平在一天中变化很大。", textKorean: "하루 동안 활동 수준이 많이 변합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm7", text: "I find it hard to match my energy to what is expected.", textChinese: "我很难将我的精力与期望相匹配。", textKorean: "기대되는 것에 맞게 에너지를 조절하기 어렵습니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+  { id: "bm8", text: "I need reminders to stay calm or still.", textChinese: "我需要提醒才能保持冷静或静止。", textKorean: "진정하거나 가만히 있으려면 상기시켜줘야 합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
+];
+
+// ─── QUESTION REGISTRY ───────────────────────────────────────────────────────────
 export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
+  REFERRAL: REFERRAL_FORM,
+  CONSENT:  CONSENT_FORM,
+  INTAKE:   INTAKE_FORM,
+  RASR:     RASR_FORM,
   default: [
     { id: "q1", text: "Has difficulty sustaining attention in tasks or play activities", textChinese: "在任务或游戏活动中难以持续注意力", textKorean: "과제나 놀이 활동에서 주의를 지속하기 어려움", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "attention" },
     { id: "q2", text: "Often loses things necessary for tasks", textChinese: "经常遗失任务所需的物品", textKorean: "과제에 필요한 물건을 자주 잃어버림", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "attention" },
@@ -1221,7 +1288,4 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
     { id: "rcs79", text: "Difficulties have increased over time", textChinese: "困难随时间推移而加重", textKorean: "어려움이 시간이 지남에 따라 증가함", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "functional_impact", required: true },
     { id: "rcs80", text: "Concerns significantly impact overall functioning", textChinese: "问题对整体功能有重大影响", textKorean: "어려움이 전반적인 기능에 상당한 영향을 미침", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "functional_impact", required: true },
   ],
-  REFERRAL: REFERRAL_FORM,
-  CONSENT: CONSENT_FORM,
-  INTAKE: INTAKE_FORM,
 };
