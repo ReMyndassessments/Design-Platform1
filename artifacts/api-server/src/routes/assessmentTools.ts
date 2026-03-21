@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assessmentToolsTable } from "@workspace/db/schema";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { recommendToolsWithAI } from "../lib/gemini.js";
+import { recommendToolsWithAI } from "../lib/ai.js";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
 

@@ -4,7 +4,7 @@ import { reportsTable, casesTable, scoresTable, responsesTable } from "@workspac
 import { eq } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
-import { generateReportWithAI } from "../lib/gemini.js";
+import { generateReportWithAI } from "../lib/ai.js";
 
 const router = Router();
 

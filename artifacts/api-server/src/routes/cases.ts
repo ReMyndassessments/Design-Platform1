@@ -4,7 +4,7 @@ import { casesTable, assignmentsTable, scoresTable } from "@workspace/db/schema"
 import { eq, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
-import { analyzeIntakeWithAI } from "../lib/gemini.js";
+import { analyzeIntakeWithAI } from "../lib/ai.js";
 
 const router = Router();
 
