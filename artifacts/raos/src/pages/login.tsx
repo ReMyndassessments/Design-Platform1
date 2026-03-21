@@ -82,10 +82,10 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white md:rounded-l-3xl shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)] z-10 relative">
         <div className="w-full max-w-md animate-slide-up">
           <div className="md:hidden flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-slate-900/30">
+            <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-slate-200/80 border border-slate-100">
               <img src="/images/remynd-logo.png" alt="ReMynd" className="w-12 h-12 object-contain" />
             </div>
-            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">RAOS</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight text-center">ReMynd Assessment<br/>Operating System</h1>
           </div>
 
           <div className="mb-8">
