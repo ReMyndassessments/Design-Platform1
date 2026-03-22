@@ -1,4 +1,4 @@
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { 
   useGetCase, 
   useAdvanceCasePhase, 
@@ -6,6 +6,7 @@ import {
   useListAssessmentTools,
   useCreateAssignment,
   useDeleteAssignment,
+  useUpdateCase,
   useGetCurrentUser,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
@@ -52,10 +53,12 @@ export default function CaseDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  const [, setLocation] = useLocation();
   const { data: currentUser } = useGetCurrentUser();
   const { data: c, isLoading, isError, error } = useGetCase(caseId);
   const advancePhaseMut = useAdvanceCasePhase();
   const analyzeIntakeMut = useAnalyzeIntake();
+  const updateCaseMut = useUpdateCase();
   const { data: tools } = useListAssessmentTools();
   const createAssignmentMut = useCreateAssignment();
   const deleteAssignmentMut = useDeleteAssignment();
@@ -64,6 +67,10 @@ export default function CaseDetail() {
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
   const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editCaseOpen, setEditCaseOpen] = useState(false);
+  const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "" });
   
   const [newAssignment, setNewAssignment] = useState({
     toolId: "",
@@ -121,6 +128,53 @@ export default function CaseDetail() {
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       }
     });
+  };
+
+  const handleOpenEdit = () => {
+    setEditFields({
+      studentName: c.studentName ?? "",
+      school: c.school ?? "",
+      grade: c.grade ?? "",
+      languagePreference: c.languagePreference ?? "english",
+      referralReason: c.referralReason ?? "",
+      parentName: c.parentName ?? "",
+      parentEmail: c.parentEmail ?? "",
+      parentPhone: c.parentPhone ?? "",
+      caseStatus: c.caseStatus ?? "active",
+    });
+    setEditCaseOpen(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateCaseMut.mutate({ caseId, data: editFields }, {
+      onSuccess: () => {
+        toast({ title: "Case updated" });
+        setEditCaseOpen(false);
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      },
+      onError: () => toast({ title: "Failed to update case", variant: "destructive" }),
+    });
+  };
+
+  const handleDeleteCase = async () => {
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem("raos_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/cases/${caseId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      toast({ title: "Case deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      setLocation("/cases");
+    } catch {
+      toast({ title: "Failed to delete case", variant: "destructive" });
+      setDeleteLoading(false);
+      setDeleteCaseOpen(false);
+    }
   };
 
   const handleDeleteAssignment = () => {
@@ -189,6 +243,16 @@ export default function CaseDetail() {
             <Link href={`/cases/${c.id}/report`}>
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
+          )}
+          {role === "admin" && (
+            <>
+              <Button variant="outline" className="bg-white gap-2" onClick={handleOpenEdit}>
+                <Edit size={16} /> Edit
+              </Button>
+              <Button variant="outline" className="bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 gap-2" onClick={() => setDeleteCaseOpen(true)}>
+                <Trash2 size={16} /> Delete
+              </Button>
+            </>
           )}
           <Button 
             onClick={handleAdvancePhase} 
@@ -470,6 +534,94 @@ export default function CaseDetail() {
               {createAssignmentMut.isPending ? "Adding..." : "Add Assignment"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Case Dialog */}
+      <Dialog open={editCaseOpen} onOpenChange={setEditCaseOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Case</DialogTitle>
+            <DialogDescription>Update the case details below.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveEdit} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Student Name</label>
+              <Input value={editFields.studentName} onChange={e => setEditFields(f => ({ ...f, studentName: e.target.value }))} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">School</label>
+              <Input value={editFields.school} onChange={e => setEditFields(f => ({ ...f, school: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Grade</label>
+                <Input value={editFields.grade} onChange={e => setEditFields(f => ({ ...f, grade: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Language</label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.languagePreference} onChange={e => setEditFields(f => ({ ...f, languagePreference: e.target.value }))}>
+                  <option value="english">English</option>
+                  <option value="mandarin">Mandarin</option>
+                  <option value="korean">Korean</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Referral Reason</label>
+              <Input value={editFields.referralReason} onChange={e => setEditFields(f => ({ ...f, referralReason: e.target.value }))} />
+            </div>
+            <div className="border-t pt-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Parent / Guardian</p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Name</label>
+                <Input value={editFields.parentName} onChange={e => setEditFields(f => ({ ...f, parentName: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input type="email" value={editFields.parentEmail} onChange={e => setEditFields(f => ({ ...f, parentEmail: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input value={editFields.parentPhone} onChange={e => setEditFields(f => ({ ...f, parentPhone: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Case Status</label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.caseStatus} onChange={e => setEditFields(f => ({ ...f, caseStatus: e.target.value }))}>
+                <option value="active">Active</option>
+                <option value="on_hold">On Hold</option>
+                <option value="closed">Closed</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditCaseOpen(false)}>Cancel</Button>
+              <Button type="submit" className="flex-1" disabled={updateCaseMut.isPending}>
+                {updateCaseMut.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Case Confirmation */}
+      <Dialog open={deleteCaseOpen} onOpenChange={open => { if (!open) setDeleteCaseOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Case?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete <span className="font-semibold text-slate-900">{c.studentName}</span>'s case along with all assignments and scores. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteCaseOpen(false)} disabled={deleteLoading}>Cancel</Button>
+            <Button variant="destructive" className="flex-1" onClick={handleDeleteCase} disabled={deleteLoading}>
+              {deleteLoading ? "Deleting..." : "Delete Case"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

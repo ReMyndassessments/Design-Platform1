@@ -901,43 +901,10 @@ function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
 export default function AssessmentTools() {
   const { data: tools, isLoading } = useListAssessmentTools();
   const { data: user } = useGetCurrentUser();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [adding, setAdding] = useState(false);
-
-  const [quickQuery, setQuickQuery] = useState("");
-  const [quickLoading, setQuickLoading] = useState(false);
-  const [quickError, setQuickError] = useState<string | null>(null);
-
-  const handleQuickAdd = async () => {
-    if (!quickQuery.trim()) return;
-    setQuickError(null);
-    setQuickLoading(true);
-    try {
-      const token = localStorage.getItem("raos_token");
-      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/assessment-tools/quick-add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ query: quickQuery.trim() }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { message?: string };
-        throw new Error(data.message ?? `Server error ${res.status}`);
-      }
-      const tool = await res.json() as { name: string };
-      setQuickQuery("");
-      queryClient.invalidateQueries({ queryKey: ["listAssessmentTools"] });
-      toast({ title: `"${tool.name}" added to the library` });
-    } catch (err: unknown) {
-      setQuickError(err instanceof Error ? err.message : "Could not add tool. Please try again.");
-    } finally {
-      setQuickLoading(false);
-    }
-  };
 
   const categories = tools
     ? ["all", ...Array.from(new Set(tools.map(t => t.category))).sort()]
@@ -972,38 +939,6 @@ export default function AssessmentTools() {
           </Button>
         )}
       </div>
-
-      {isAdmin && (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400" />
-              <Input
-                className="pl-9 border-violet-200 focus-visible:ring-violet-400"
-                placeholder="Type a tool name to add instantly... (e.g. BASC-3, Conners 4, SDQ)"
-                value={quickQuery}
-                onChange={e => { setQuickQuery(e.target.value); setQuickError(null); }}
-                onKeyDown={e => e.key === "Enter" && handleQuickAdd()}
-                disabled={quickLoading}
-              />
-            </div>
-            <Button
-              onClick={handleQuickAdd}
-              disabled={quickLoading || !quickQuery.trim()}
-              className="bg-violet-600 hover:bg-violet-700 text-white gap-2 flex-shrink-0"
-            >
-              {quickLoading
-                ? <><Loader2 size={15} className="animate-spin" /> Adding...</>
-                : <><Sparkles size={15} /> Add to Library</>}
-            </Button>
-          </div>
-          {quickError && (
-            <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              <AlertTriangle size={13} className="shrink-0" /> {quickError}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">

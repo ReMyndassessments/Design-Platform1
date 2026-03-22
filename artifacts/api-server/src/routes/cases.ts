@@ -202,6 +202,22 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
   res.json(formatCase(updated[0]));
 });
 
+router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can delete cases" });
+    return;
+  }
+  const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!rows[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  await db.delete(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
+  await db.delete(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
+  await db.delete(casesTable).where(eq(casesTable.id, req.params.caseId));
+  res.status(204).send();
+});
+
 router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) => {
   const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!rows[0]) {
