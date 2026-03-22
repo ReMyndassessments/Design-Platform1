@@ -13,7 +13,6 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Search,
-  Layers,
   CheckCircle2,
   Clock,
   Eye,
@@ -918,8 +917,6 @@ export default function AssessmentTools() {
     return matchSearch && matchCat;
   });
 
-  const remyndTools = filtered.filter(t => t.isRemyndOwned);
-  const thirdPartyTools = filtered.filter(t => !t.isRemyndOwned);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -974,30 +971,8 @@ export default function AssessmentTools() {
       )}
 
       {!isLoading && filtered.length > 0 && (
-        <div className="space-y-8">
-          {remyndTools.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                ReMynd Forms ({remyndTools.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {remyndTools.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
-              </div>
-            </section>
-          )}
-
-          {thirdPartyTools.length > 0 && (
-            <section>
-              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-slate-400" />
-                Third-Party Instruments ({thirdPartyTools.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {thirdPartyTools.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
-              </div>
-            </section>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filtered.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
         </div>
       )}
 
