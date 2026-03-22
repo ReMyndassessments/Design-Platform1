@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
@@ -71,10 +71,13 @@ type ImportedFormItem = {
   domain?: string;
 };
 
+type UploadedFileState =
+  | { name: string; kind: "text"; content: string }
+  | { name: string; kind: "image"; base64: string; mimeType: string };
+
 function AddToolModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const createMut = useCreateAssessmentTool();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [id, setId] = useState("");
   const [name, setName] = useState("");
@@ -89,7 +92,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [aiImportOpen, setAiImportOpen] = useState(true);
   const [aiTab, setAiTab] = useState<"paste" | "upload">("paste");
   const [pasteText, setPasteText] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; base64: string; mimeType: string } | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
@@ -102,24 +105,25 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
+    setAiError(null);
+
     if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
       reader.onload = () => {
         const base64 = (reader.result as string).split(",")[1];
-        setUploadedFile({ name: file.name, base64, mimeType: file.type });
-        setAiError(null);
+        setUploadedFile({ name: file.name, kind: "image", base64, mimeType: file.type });
       };
       reader.readAsDataURL(file);
-    } else {
+    } else if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+      const reader = new FileReader();
       reader.onload = () => {
-        const text = reader.result as string;
-        setPasteText(text);
-        setAiTab("paste");
-        setUploadedFile(null);
-        setAiError(null);
+        setUploadedFile({ name: file.name, kind: "text", content: reader.result as string });
       };
       reader.readAsText(file);
+    } else {
+      setAiError(`"${file.name}" is not supported. Please upload a .txt file or an image (.png, .jpg), or paste the form text directly.`);
     }
+    e.target.value = "";
   };
 
   const handleAnalyze = async () => {
@@ -131,8 +135,12 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       if (aiTab === "paste" && pasteText.trim()) {
         body.formText = pasteText.trim();
       } else if (aiTab === "upload" && uploadedFile) {
-        body.imageBase64 = uploadedFile.base64;
-        body.mimeType = uploadedFile.mimeType;
+        if (uploadedFile.kind === "image") {
+          body.imageBase64 = uploadedFile.base64;
+          body.mimeType = uploadedFile.mimeType;
+        } else {
+          body.formText = uploadedFile.content;
+        }
       }
       const res = await fetch("/api/assessment-tools/analyze", {
         method: "POST",
@@ -273,39 +281,36 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
                     placeholder="Paste the full text of the assessment form here — questions, instructions, response scales, everything..."
                   />
                 ) : (
-                  <div>
+                  <label
+                    htmlFor="ai-form-file-input"
+                    className={cn(
+                      "w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg text-xs transition-colors cursor-pointer",
+                      uploadedFile
+                        ? "border-violet-400 bg-violet-100 text-violet-700"
+                        : "border-violet-200 text-violet-400 hover:border-violet-400 hover:bg-violet-100"
+                    )}
+                  >
                     <input
-                      ref={fileInputRef}
+                      id="ai-form-file-input"
                       type="file"
                       accept=".txt,image/png,image/jpeg,image/jpg"
-                      className="hidden"
+                      className="sr-only"
                       onChange={handleFileChange}
                     />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={cn(
-                        "w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg text-xs transition-colors",
-                        uploadedFile
-                          ? "border-violet-400 bg-violet-100 text-violet-700"
-                          : "border-violet-200 text-violet-400 hover:border-violet-400 hover:bg-violet-100"
-                      )}
-                    >
-                      {uploadedFile ? (
-                        <>
-                          <FileText size={20} className="text-violet-600" />
-                          <span className="font-medium">{uploadedFile.name}</span>
-                          <span className="text-violet-500">Click to replace</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={20} />
-                          <span>Click to upload image or text file</span>
-                          <span className="text-violet-300">.txt, .png, .jpg supported</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                    {uploadedFile ? (
+                      <>
+                        <FileText size={20} className="text-violet-600" />
+                        <span className="font-medium">{uploadedFile.name}</span>
+                        <span className="text-violet-500">Click to replace</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={20} />
+                        <span>Click to select an image or text file</span>
+                        <span className="text-violet-300">.txt · .png · .jpg supported</span>
+                      </>
+                    )}
+                  </label>
                 )}
 
                 {aiError && (
