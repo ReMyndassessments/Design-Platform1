@@ -190,6 +190,8 @@ This is a SCREENING report only — NOT a diagnostic report. Use appropriate lan
 }
 
 export type ToolMetadata = {
+  suggestedId: string;
+  name: string;
   description: string;
   category: string;
   scoringType: "auto" | "manual";
@@ -197,15 +199,18 @@ export type ToolMetadata = {
   respondentTypes: string[];
 };
 
-export async function lookupToolWithAI(toolId: string, toolName: string): Promise<ToolMetadata> {
+export async function lookupToolWithAI(query: string): Promise<ToolMetadata> {
   const prompt = `You are a psychoeducational assessment expert with comprehensive knowledge of standardized assessment instruments used internationally.
 
-Provide metadata for the following assessment tool:
-Tool ID / Abbreviation: ${toolId}
-Full Name: ${toolName}
+The user has entered the following query to look up an assessment tool:
+Query: "${query}"
+
+Identify the instrument they are referring to and return its metadata.
 
 Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
 {
+  "suggestedId": "SHORT_UPPERCASE_ID (max 10 chars, e.g. BRIEF, BASC3, RCADS, CONNERS3)",
+  "name": "Full official name of the instrument",
   "description": "2-3 sentence description of what this tool measures, age range, and who it is designed for",
   "category": "One of: cognitive, behavior, language, social-emotional, executive-function, achievement, adaptive, memory, processing, admin",
   "scoringType": "auto or manual",
@@ -220,6 +225,7 @@ Rules:
 - If it measures both anxiety and depression, list both as separate domains
 - scoringType is "auto" for standardized scales with fixed scoring keys, "manual" for clinical judgment tools
 - Be specific with domains (e.g. "separation_anxiety", "social_anxiety", "generalized_anxiety", "depression", "ocd" rather than just "anxiety")
+- If the query specifies a version (e.g. "parent", "teacher", "self-report"), reflect that in the name and respondentTypes
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -231,6 +237,8 @@ Return ONLY the JSON object, nothing else.`;
   const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as ToolMetadata;
 
   return {
+    suggestedId: (parsed.suggestedId ?? query.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)),
+    name: parsed.name ?? query,
     description: parsed.description ?? "",
     category: parsed.category ?? "behavior",
     scoringType: parsed.scoringType === "auto" ? "auto" : "manual",

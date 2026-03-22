@@ -143,12 +143,58 @@ router.post("/assessment-tools/lookup", authMiddleware, async (req, res) => {
     return;
   }
   const { toolId, toolName } = req.body as { toolId?: string; toolName?: string };
-  if (!toolId?.trim() || !toolName?.trim()) {
-    res.status(400).json({ error: "bad_request", message: "toolId and toolName are required" });
+  if (!toolId?.trim() && !toolName?.trim()) {
+    res.status(400).json({ error: "bad_request", message: "toolId or toolName is required" });
     return;
   }
-  const result = await lookupToolWithAI(toolId.trim(), toolName.trim());
+  const query = [toolId, toolName].filter(Boolean).join(" – ");
+  const result = await lookupToolWithAI(query);
   res.json(result);
+});
+
+router.post("/assessment-tools/quick-add", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can add tools" });
+    return;
+  }
+  const { query } = req.body as { query?: string };
+  if (!query?.trim()) {
+    res.status(400).json({ error: "bad_request", message: "query is required" });
+    return;
+  }
+
+  const meta = await lookupToolWithAI(query.trim());
+
+  let toolId = meta.suggestedId;
+  const existing = await db.select({ id: assessmentToolsTable.id })
+    .from(assessmentToolsTable)
+    .where(eq(assessmentToolsTable.id, toolId));
+
+  if (existing.length > 0) {
+    let suffix = 2;
+    while (true) {
+      const candidate = `${toolId.slice(0, 8)}${suffix}`;
+      const dupe = await db.select({ id: assessmentToolsTable.id })
+        .from(assessmentToolsTable)
+        .where(eq(assessmentToolsTable.id, candidate));
+      if (!dupe.length) { toolId = candidate; break; }
+      suffix++;
+    }
+  }
+
+  const newTool = await db.insert(assessmentToolsTable).values({
+    id: toolId,
+    name: meta.name,
+    description: meta.description,
+    category: meta.category,
+    scoringType: meta.scoringType,
+    domains: meta.domains,
+    respondentTypes: meta.respondentTypes,
+    isRemyndOwned: false,
+    formItems: null,
+  }).returning();
+
+  res.status(201).json(newTool[0]);
 });
 
 router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
