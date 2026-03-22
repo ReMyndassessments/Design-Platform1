@@ -38,6 +38,29 @@ router.get("/assessment-tools", authMiddleware, async (req, res) => {
 
 router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res) => {
   const { id } = req.params;
+
+  const rows = await db.select().from(assessmentToolsTable).where(eq(assessmentToolsTable.id, id));
+  const tool = rows[0];
+
+  if (tool?.formItems && Array.isArray(tool.formItems) && tool.formItems.length > 0) {
+    type StoredItem = { id: string; text: string; type: string; options?: string[]; domain?: string };
+    const typeMap: Record<string, string> = {
+      checkbox: "checkbox_group",
+      radio: "radio_group",
+      multiple_choice: "radio_group",
+    };
+    const questions = (tool.formItems as StoredItem[]).map(item => ({
+      id: item.id,
+      text: item.text,
+      type: typeMap[item.type] ?? item.type,
+      options: item.options,
+      domain: item.domain ?? "",
+      required: true,
+    }));
+    res.json({ toolId: id, questions });
+    return;
+  }
+
   const questions = SAMPLE_QUESTIONS[id] ?? SAMPLE_QUESTIONS["default"];
   res.json({ toolId: id, questions });
 });

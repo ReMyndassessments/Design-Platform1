@@ -266,7 +266,7 @@ async function callDeepSeekMultimodal(
       model: imageBase64 ? "deepseek-chat" : MODEL,
       messages: [{ role: "user", content }],
       temperature: 0.3,
-      max_tokens: 4096,
+      max_tokens: 8192,
     }),
   });
 
@@ -333,7 +333,7 @@ Rules:
 - Keep question text exact as written in the form
 - If a section header exists, use it to infer the domain for items in that section
 - respondentTypes should reflect who fills out this form
-- Provide at least the first 20 items if the form is long; include all if fewer than 50 items
+- Extract ALL items/questions from the form — do not truncate, skip, or stop early regardless of how many items there are
 
 Return ONLY the JSON object, nothing else.`;
 

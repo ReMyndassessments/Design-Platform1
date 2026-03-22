@@ -35,7 +35,7 @@ function useOpts(q: Question, language: string) {
   return q.options ?? [];
 }
 
-function PreviewQuestion({ q, language }: { q: Question; language: string }) {
+function PreviewQuestion({ q, language, itemNumber }: { q: Question; language: string; itemNumber?: number }) {
   const { label, note } = useText(q, language);
   const opts = useOpts(q, language);
 
@@ -52,6 +52,9 @@ function PreviewQuestion({ q, language }: { q: Question; language: string }) {
   return (
     <div className="space-y-1.5 py-3 border-b border-slate-100 last:border-0">
       <p className="text-sm font-medium text-slate-700">
+        {itemNumber !== undefined && (
+          <span className="text-slate-400 font-normal mr-2">{itemNumber}.</span>
+        )}
         {label}
         {q.required && <span className="text-red-400 ml-1">*</span>}
       </p>
@@ -194,9 +197,20 @@ export default function FormPreviewPage() {
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 pb-4">
-              {visibleQuestions.map(q => (
-                <PreviewQuestion key={q.id} q={q} language={language} />
-              ))}
+              {(() => {
+                let counter = 0;
+                return visibleQuestions.map(q => {
+                  if (q.type !== "section_header") counter++;
+                  return (
+                    <PreviewQuestion
+                      key={q.id}
+                      q={q}
+                      language={language}
+                      itemNumber={q.type !== "section_header" ? counter : undefined}
+                    />
+                  );
+                });
+              })()}
             </div>
           </>
         )}
