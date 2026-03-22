@@ -73,7 +73,24 @@ type ImportedFormItem = {
 
 type UploadedFileState =
   | { name: string; kind: "text"; content: string }
+  | { name: string; kind: "document"; base64: string }
   | { name: string; kind: "image"; base64: string; mimeType: string };
+
+const ACCEPTED_EXTS = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg";
+
+function fileKind(file: File): "image" | "document" | "text" | "unsupported" {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type === "text/plain" || file.name.endsWith(".txt")) return "text";
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith(".pdf") || lower.endsWith(".doc") || lower.endsWith(".docx")) return "document";
+  return "unsupported";
+}
+
+function fileIcon(kind: UploadedFileState["kind"]) {
+  if (kind === "image") return "🖼️";
+  if (kind === "document") return "📄";
+  return "📋";
+}
 
 function AddToolModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
@@ -107,21 +124,37 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
     if (!file) return;
     setAiError(null);
 
-    if (file.type.startsWith("image/")) {
+    const kind = fileKind(file);
+
+    if (kind === "unsupported") {
+      setAiError(`"${file.name}" is not supported. Please use PDF, Word (.docx), .txt, or an image file.`);
+      e.target.value = "";
+      return;
+    }
+
+    if (kind === "image") {
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = (reader.result as string).split(",")[1];
         setUploadedFile({ name: file.name, kind: "image", base64, mimeType: file.type });
       };
       reader.readAsDataURL(file);
-    } else if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+    } else if (kind === "text") {
       const reader = new FileReader();
       reader.onload = () => {
         setUploadedFile({ name: file.name, kind: "text", content: reader.result as string });
       };
       reader.readAsText(file);
     } else {
-      setAiError(`"${file.name}" is not supported. Please upload a .txt file or an image (.png, .jpg), or paste the form text directly.`);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const bytes = new Uint8Array(reader.result as ArrayBuffer);
+        let binary = "";
+        bytes.forEach(b => { binary += String.fromCharCode(b); });
+        const base64 = btoa(binary);
+        setUploadedFile({ name: file.name, kind: "document", base64 });
+      };
+      reader.readAsArrayBuffer(file);
     }
     e.target.value = "";
   };
@@ -138,6 +171,9 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         if (uploadedFile.kind === "image") {
           body.imageBase64 = uploadedFile.base64;
           body.mimeType = uploadedFile.mimeType;
+        } else if (uploadedFile.kind === "document") {
+          body.fileBase64 = uploadedFile.base64;
+          body.fileName = uploadedFile.name;
         } else {
           body.formText = uploadedFile.content;
         }
@@ -179,7 +215,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   };
 
   const canAnalyze = (aiTab === "paste" && pasteText.trim().length > 0)
-    || (aiTab === "upload" && uploadedFile !== null);
+    || (aiTab === "upload" && uploadedFile !== null && uploadedFile.kind !== undefined);
 
   const handleCreate = () => {
     if (!id.trim()) { setError("Tool ID is required."); return; }
@@ -281,36 +317,37 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
                     placeholder="Paste the full text of the assessment form here — questions, instructions, response scales, everything..."
                   />
                 ) : (
-                  <label
-                    htmlFor="ai-form-file-input"
+                  <div
                     className={cn(
-                      "w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg text-xs transition-colors cursor-pointer",
+                      "relative w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg text-xs transition-colors overflow-hidden",
                       uploadedFile
                         ? "border-violet-400 bg-violet-100 text-violet-700"
                         : "border-violet-200 text-violet-400 hover:border-violet-400 hover:bg-violet-100"
                     )}
                   >
                     <input
-                      id="ai-form-file-input"
                       type="file"
-                      accept=".txt,image/png,image/jpeg,image/jpg"
-                      className="sr-only"
+                      accept={ACCEPTED_EXTS}
                       onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      title=""
                     />
-                    {uploadedFile ? (
-                      <>
-                        <FileText size={20} className="text-violet-600" />
-                        <span className="font-medium">{uploadedFile.name}</span>
-                        <span className="text-violet-500">Click to replace</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={20} />
-                        <span>Click to select an image or text file</span>
-                        <span className="text-violet-300">.txt · .png · .jpg supported</span>
-                      </>
-                    )}
-                  </label>
+                    <div className="pointer-events-none flex flex-col items-center gap-2">
+                      {uploadedFile ? (
+                        <>
+                          <span className="text-2xl">{fileIcon(uploadedFile.kind)}</span>
+                          <span className="font-medium text-violet-700">{uploadedFile.name}</span>
+                          <span className="text-violet-500">Click to replace</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={20} />
+                          <span className="font-medium">Click to select a file</span>
+                          <span className="text-violet-300">PDF · Word (.docx) · .txt · PNG · JPG</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {aiError && (
