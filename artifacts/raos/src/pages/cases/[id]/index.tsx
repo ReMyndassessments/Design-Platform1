@@ -272,7 +272,7 @@ export default function CaseDetail() {
             </CardContent>
           </Card>
 
-          {isPhaseVisible(role, "intake") && (
+          {isPhaseVisible(role, "intake") && PHASES.indexOf(c.currentPhase) > PHASES.indexOf("intake") && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">

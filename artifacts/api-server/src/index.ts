@@ -81,11 +81,15 @@ async function syncTools() {
       });
     }
 
-    const allTools = await db.select({ id: assessmentToolsTable.id }).from(assessmentToolsTable);
-    const extraIds = allTools.map(t => t.id).filter(id => !CANONICAL_IDS.includes(id));
+    const allTools = await db
+      .select({ id: assessmentToolsTable.id, isRemyndOwned: assessmentToolsTable.isRemyndOwned })
+      .from(assessmentToolsTable);
+    const extraIds = allTools
+      .filter(t => t.isRemyndOwned && !CANONICAL_IDS.includes(t.id))
+      .map(t => t.id);
     if (extraIds.length > 0) {
       await db.delete(assessmentToolsTable).where(inArray(assessmentToolsTable.id, extraIds));
-      logger.info({ removed: extraIds }, "Removed non-canonical assessment tools");
+      logger.info({ removed: extraIds }, "Removed non-canonical Remynd-owned tools");
     }
 
     logger.info({ count: CANONICAL_TOOLS.length }, "Assessment tools synced");
