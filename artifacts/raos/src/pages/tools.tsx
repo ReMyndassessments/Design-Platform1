@@ -115,6 +115,43 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
   const [itemsExpanded, setItemsExpanded] = useState(false);
 
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const handleLookup = async () => {
+    if (!id.trim() || !name.trim()) return;
+    setLookupError(null);
+    setLookupLoading(true);
+    try {
+      const token = localStorage.getItem("raos_token");
+      const res = await fetch("/api/assessment-tools/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ toolId: id.trim().toUpperCase(), toolName: name.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(data.message ?? `Server error ${res.status}`);
+      }
+      const data = await res.json() as {
+        description: string;
+        category: string;
+        scoringType: "auto" | "manual";
+        domains: string[];
+        respondentTypes: string[];
+      };
+      if (data.description) setDescription(data.description);
+      if (data.category) setCategory(data.category);
+      if (data.scoringType) setScoringType(data.scoringType);
+      if (data.domains?.length) setDomainsRaw(data.domains.join(", "));
+      if (data.respondentTypes?.length) setRespondents(data.respondentTypes);
+    } catch (err: unknown) {
+      setLookupError(err instanceof Error ? err.message : "AI lookup failed. Please try again.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   const toggleRespondent = (r: string) => {
     setRespondents(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
   };
@@ -392,6 +429,28 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
               placeholder="Full tool name..."
             />
           </div>
+
+          {id.trim() && name.trim() && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                onClick={handleLookup}
+                disabled={lookupLoading}
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white gap-2 h-9 text-sm"
+              >
+                {lookupLoading ? (
+                  <><Loader2 size={14} className="animate-spin" /> Filling fields with AI...</>
+                ) : (
+                  <><Sparkles size={14} /> Fill remaining fields with AI</>
+                )}
+              </Button>
+              {lookupError && (
+                <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {lookupError}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-slate-700">Description</label>

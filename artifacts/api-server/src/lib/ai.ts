@@ -189,6 +189,56 @@ This is a SCREENING report only — NOT a diagnostic report. Use appropriate lan
   }
 }
 
+export type ToolMetadata = {
+  description: string;
+  category: string;
+  scoringType: "auto" | "manual";
+  domains: string[];
+  respondentTypes: string[];
+};
+
+export async function lookupToolWithAI(toolId: string, toolName: string): Promise<ToolMetadata> {
+  const prompt = `You are a psychoeducational assessment expert with comprehensive knowledge of standardized assessment instruments used internationally.
+
+Provide metadata for the following assessment tool:
+Tool ID / Abbreviation: ${toolId}
+Full Name: ${toolName}
+
+Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
+{
+  "description": "2-3 sentence description of what this tool measures, age range, and who it is designed for",
+  "category": "One of: cognitive, behavior, language, social-emotional, executive-function, achievement, adaptive, memory, processing, admin",
+  "scoringType": "auto or manual",
+  "domains": ["array", "of", "specific_psychological_domains_assessed"],
+  "respondentTypes": ["array from: parent, teacher1, teacher2, student, self, school, school_counselor, special_needs_teacher, referring_teacher"]
+}
+
+Rules:
+- Use your knowledge of this specific instrument to give accurate metadata
+- If this is a parent-report version, include only "parent" in respondentTypes
+- If this is a teacher-report version, include "teacher1"
+- If it measures both anxiety and depression, list both as separate domains
+- scoringType is "auto" for standardized scales with fixed scoring keys, "manual" for clinical judgment tools
+- Be specific with domains (e.g. "separation_anxiety", "social_anxiety", "generalized_anxiety", "depression", "ocd" rather than just "anxiety")
+
+Return ONLY the JSON object, nothing else.`;
+
+  const raw = await callDeepSeek(prompt);
+  const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1) throw new Error("AI did not return valid JSON");
+  const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as ToolMetadata;
+
+  return {
+    description: parsed.description ?? "",
+    category: parsed.category ?? "behavior",
+    scoringType: parsed.scoringType === "auto" ? "auto" : "manual",
+    domains: Array.isArray(parsed.domains) ? parsed.domains : [],
+    respondentTypes: Array.isArray(parsed.respondentTypes) ? parsed.respondentTypes : [],
+  };
+}
+
 async function callDeepSeekMultimodal(
   textPrompt: string,
   imageBase64?: string,

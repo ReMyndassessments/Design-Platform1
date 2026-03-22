@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assessmentToolsTable } from "@workspace/db/schema";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { recommendToolsWithAI, analyzeFormWithAI } from "../lib/ai.js";
+import { recommendToolsWithAI, analyzeFormWithAI, lookupToolWithAI } from "../lib/ai.js";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
 import { createRequire } from "module";
@@ -112,6 +112,20 @@ router.post("/assessment-tools", authMiddleware, async (req, res) => {
   }).returning();
 
   res.status(201).json(newTool[0]);
+});
+
+router.post("/assessment-tools/lookup", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can look up tool metadata" });
+    return;
+  }
+  const { toolId, toolName } = req.body as { toolId?: string; toolName?: string };
+  if (!toolId?.trim() || !toolName?.trim()) {
+    res.status(400).json({ error: "bad_request", message: "toolId and toolName are required" });
+    return;
+  }
+  const result = await lookupToolWithAI(toolId.trim(), toolName.trim());
+  res.json(result);
 });
 
 router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
