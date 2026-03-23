@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { scoresTable, responsesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 
@@ -119,6 +119,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
 
   const responseRows = await db.select().from(responsesTable)
     .where(eq(responsesTable.assignmentId, assignmentId))
+    .orderBy(desc(responsesTable.submittedAt))
     .limit(1);
   if (!responseRows[0]) {
     res.status(404).json({ error: "not_found", message: "No response submitted yet" });
