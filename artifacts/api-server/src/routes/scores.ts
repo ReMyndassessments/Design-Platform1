@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { scoresTable, responsesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 
@@ -103,6 +103,82 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
   }).returning();
 
   res.status(201).json(score[0]);
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, async (req, res) => {
+  const { caseId, assignmentId } = req.params;
+
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+    .limit(1);
+  if (!assignmentRows[0]) {
+    res.status(404).json({ error: "not_found", message: "Assignment not found" });
+    return;
+  }
+  const assignment = assignmentRows[0];
+
+  const responseRows = await db.select().from(responsesTable)
+    .where(eq(responsesTable.assignmentId, assignmentId))
+    .limit(1);
+  if (!responseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "No response submitted yet" });
+    return;
+  }
+
+  const answers = responseRows[0].answers as Record<string, unknown>;
+  const domainScores = computeDomainScores(answers);
+  const normalizedScores = normalize(domainScores);
+  const domainValues = Object.values(domainScores);
+  const rawScore = domainValues.length > 0
+    ? domainValues.reduce((a, b) => a + b, 0) / domainValues.length
+    : 0;
+
+  const existing = await db.select().from(scoresTable)
+    .where(and(
+      eq(scoresTable.caseId, caseId),
+      eq(scoresTable.toolId, assignment.toolId),
+      eq(scoresTable.respondentType, assignment.respondentType)
+    ))
+    .limit(1);
+
+  let score;
+  if (existing[0]) {
+    const rows = await db.update(scoresTable)
+      .set({ domainScores, normalizedScores, rawScore, isManual: false })
+      .where(eq(scoresTable.id, existing[0].id))
+      .returning();
+    score = rows[0];
+  } else {
+    const rows = await db.insert(scoresTable).values({
+      id: nanoid(),
+      caseId,
+      toolId: assignment.toolId,
+      toolName: assignment.toolName,
+      respondentType: assignment.respondentType,
+      rawScore,
+      domainScores,
+      normalizedScores,
+      hasHighDiscrepancy: false,
+      isManual: false,
+    }).returning();
+    score = rows[0];
+  }
+
+  const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
+  const teacher1 = allScores.find(s => s.respondentType === "teacher1");
+  const teacher2 = allScores.find(s => s.respondentType === "teacher2");
+  if (teacher1 && teacher2 && teacher1.rawScore != null && teacher2.rawScore != null) {
+    const agreementIndex = Math.abs(teacher1.rawScore - teacher2.rawScore);
+    const hasHighDiscrepancy = agreementIndex > 1.5;
+    await db.update(scoresTable).set({ agreementIndex, hasHighDiscrepancy }).where(eq(scoresTable.id, teacher1.id));
+    await db.update(scoresTable).set({ agreementIndex, hasHighDiscrepancy }).where(eq(scoresTable.id, teacher2.id));
+    if (score && (score.id === teacher1.id || score.id === teacher2.id)) {
+      const refreshed = await db.select().from(scoresTable).where(eq(scoresTable.id, score.id)).limit(1);
+      if (refreshed[0]) score = refreshed[0];
+    }
+  }
+
+  res.json(score);
 });
 
 export default router;

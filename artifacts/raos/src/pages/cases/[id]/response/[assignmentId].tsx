@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp } from "lucide-react";
 
 interface FormQuestion {
   id: string;
@@ -18,6 +18,20 @@ interface FormQuestion {
   domain: string;
   required?: boolean;
   note?: string;
+}
+
+interface ScoreRecord {
+  id: string;
+  caseId: string;
+  toolId: string;
+  toolName: string;
+  respondentType: string;
+  rawScore: number | null;
+  domainScores: Record<string, number>;
+  normalizedScores: Record<string, number>;
+  isManual: boolean;
+  notes: string | null;
+  generatedAt: string;
 }
 
 interface ResponseData {
@@ -40,6 +54,9 @@ interface ResponseData {
   studentName: string;
   school: string;
   grade: string;
+  scoringType: "auto" | "manual" | null;
+  toolDomains: string[];
+  existingScore: ScoreRecord | null;
 }
 
 const LIKERT_LABELS: Record<number, string> = {
@@ -142,6 +159,10 @@ function getRespondentTypeLabel(type: string) {
   return map[type] ?? type;
 }
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function fetchResponse(caseId: string, assignmentId: string): Promise<ResponseData> {
@@ -217,9 +238,18 @@ export default function ResponseViewer() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
 
+  const [score, setScore] = useState<ScoreRecord | null>(null);
+  const [isScoring, setIsScoring] = useState(false);
+  const [scoreError, setScoreError] = useState<string | null>(null);
+  const scoreRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (data?.response.summary) setSummary(data.response.summary);
   }, [data?.response.summary]);
+
+  useEffect(() => {
+    if (data?.existingScore) setScore(data.existingScore);
+  }, [data?.existingScore]);
 
   useEffect(() => {
     if (!data) return;
@@ -251,10 +281,39 @@ export default function ResponseViewer() {
     }
   }
 
+  async function handleCalculateScore() {
+    setIsScoring(true);
+    setScoreError(null);
+    try {
+      const token = localStorage.getItem("raos_token");
+      const res = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/score`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message ?? "Failed to calculate score");
+      }
+      const json = await res.json() as ScoreRecord;
+      setScore(json);
+      setTimeout(() => scoreRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch (e) {
+      setScoreError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setIsScoring(false);
+    }
+  }
+
   function handlePrintSummaryOnly() {
     document.body.classList.add("print-summary-only");
     window.print();
     document.body.classList.remove("print-summary-only");
+  }
+
+  function handlePrintScoreOnly() {
+    document.body.classList.add("print-score-only");
+    window.print();
+    document.body.classList.remove("print-score-only");
   }
 
   if (isLoading) {
@@ -273,8 +332,9 @@ export default function ResponseViewer() {
     );
   }
 
-  const { assignment, response, questions, studentName, school, grade } = data;
+  const { assignment, response, questions, studentName, school, grade, scoringType } = data;
   const lang = response.language;
+  const isAutoScored = scoringType === "auto";
 
   itemCounter = 0;
 
@@ -288,12 +348,18 @@ export default function ResponseViewer() {
         }
         @media print {
           body.print-summary-only .print-qa-card { display: none !important; }
+          body.print-summary-only .print-score-card { display: none !important; }
           body.print-summary-only .print-hide { display: none !important; }
+        }
+        @media print {
+          body.print-score-only .print-qa-card { display: none !important; }
+          body.print-score-only .print-summary-card { display: none !important; }
+          body.print-score-only .print-hide { display: none !important; }
         }
       `}</style>
 
       <div className="max-w-3xl mx-auto space-y-6 pb-16">
-        {/* Toolbar — hidden when printing */}
+        {/* Toolbar */}
         <div className="flex items-center justify-between print-hide">
           <Link href={`/cases/${caseId}`}>
             <Button variant="ghost" size="sm" className="gap-2 text-slate-600">
@@ -301,6 +367,7 @@ export default function ResponseViewer() {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
+            {/* AI Summary shortcuts — INTAKE only */}
             {assignment.toolId === "INTAKE" && summary && (
               <Button
                 variant="ghost"
@@ -325,6 +392,33 @@ export default function ResponseViewer() {
                 }
               </Button>
             )}
+
+            {/* Scoring — auto-scored tools only */}
+            {isAutoScored && score && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => scoreRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="gap-2 text-indigo-600 hover:text-indigo-700"
+              >
+                <TrendingUp size={14} /> View Score
+              </Button>
+            )}
+            {isAutoScored && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCalculateScore}
+                disabled={isScoring}
+                className="gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                {isScoring
+                  ? <><RefreshCw size={14} className="animate-spin" /> Calculating…</>
+                  : <><BarChart2 size={14} /> {score ? "Recalculate" : "Calculate Score"}</>
+                }
+              </Button>
+            )}
+
             <Button onClick={() => window.print()} className="gap-2 shadow-md shadow-primary/20">
               <Printer size={16} /> Print / Download PDF
             </Button>
@@ -395,16 +489,21 @@ export default function ResponseViewer() {
           </div>
         </div>
 
-        {/* Generate error */}
+        {/* Error states */}
         {generateError && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-5 py-3 rounded-xl print-hide">
             {generateError}
           </div>
         )}
+        {scoreError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-5 py-3 rounded-xl print-hide">
+            {scoreError}
+          </div>
+        )}
 
         {/* AI-Generated Summary */}
         {summary && (
-          <div ref={summaryRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page">
+          <div ref={summaryRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-summary-card">
             <div className="bg-gradient-to-r from-violet-900 to-violet-800 px-8 py-5">
               <div className="flex items-center gap-3">
                 <Sparkles size={18} className="text-violet-300" />
@@ -438,6 +537,82 @@ export default function ResponseViewer() {
                 className="print-hide gap-2 text-xs h-8 border-violet-200 text-violet-700 hover:bg-violet-50"
               >
                 <Printer size={13} /> Download Summary PDF
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Score Card — auto-scored tools */}
+        {isAutoScored && score && (
+          <div ref={scoreRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-score-card">
+            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 px-8 py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <BarChart2 size={18} className="text-indigo-300" />
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Score Report</h2>
+                    <p className="text-indigo-300 text-xs mt-0.5">
+                      {assignment.toolName} — {studentName} · {getRespondentTypeLabel(assignment.respondentType)}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-indigo-300 text-xs uppercase tracking-wider mb-0.5">Raw Score</p>
+                  <p className="text-white text-3xl font-bold leading-none">
+                    {score.rawScore != null ? score.rawScore.toFixed(1) : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-8 py-6">
+              {Object.keys(score.domainScores).length === 0 ? (
+                <p className="text-slate-400 text-sm italic text-center py-4">
+                  No numeric domain scores could be computed from this response. Ensure the form contains scored items.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Domain Breakdown</p>
+                  <div className="space-y-3">
+                    {Object.entries(score.domainScores).map(([domain, val]) => {
+                      const normalized = score.normalizedScores[domain] ?? 0;
+                      return (
+                        <div key={domain}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-slate-700">{capitalize(domain)}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400">{val.toFixed(1)} avg</span>
+                              <span className="text-sm font-bold text-indigo-700 w-10 text-right">{normalized}</span>
+                            </div>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 rounded-full transition-all"
+                              style={{ width: `${Math.min(normalized, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-4">
+                    Scores shown as domain average (left) and normalized 0–100 scale (right).
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                Scored {formatDate(score.generatedAt)} · ReMynd Assessment Operating System
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handlePrintScoreOnly}
+                className="print-hide gap-2 text-xs h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <Printer size={13} /> Download Score PDF
               </Button>
             </div>
           </div>

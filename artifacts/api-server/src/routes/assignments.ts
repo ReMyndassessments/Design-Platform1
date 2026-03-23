@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable } from "@workspace/db/schema";
+import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -128,8 +128,18 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
-  const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
-    .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1);
+  const [toolRows, existingScoreRows] = await Promise.all([
+    db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains })
+      .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
+    db.select().from(scoresTable)
+      .where(and(
+        eq(scoresTable.caseId, req.params.caseId),
+        eq(scoresTable.toolId, assignment.toolId),
+        eq(scoresTable.respondentType, assignment.respondentType)
+      ))
+      .limit(1),
+  ]);
+
   const questions = toolRows[0]?.formItems ?? SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? [];
 
   res.json({
@@ -146,6 +156,9 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
+    scoringType: toolRows[0]?.scoringType ?? null,
+    toolDomains: toolRows[0]?.domains ?? [],
+    existingScore: existingScoreRows[0] ?? null,
   });
 });
 

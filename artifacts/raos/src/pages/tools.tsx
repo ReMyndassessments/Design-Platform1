@@ -484,8 +484,8 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
                   onChange={e => setScoringType(e.target.value as "auto" | "manual")}
                   className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 >
-                  <option value="manual">Manual scoring</option>
-                  <option value="auto">Auto-scored</option>
+                  <option value="auto">System Scored</option>
+                  <option value="manual">Externally Scored</option>
                 </select>
                 <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
@@ -686,8 +686,8 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
                 onChange={e => setScoringType(e.target.value as "auto" | "manual")}
                 className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               >
-                <option value="auto">Auto-scored</option>
-                <option value="manual">Manual scoring</option>
+                <option value="auto">System Scored</option>
+                <option value="manual">Externally Scored</option>
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
@@ -853,7 +853,7 @@ function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
               : "bg-amber-50 text-amber-700"
           )}>
             {tool.scoringType === "auto" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-            {tool.scoringType === "auto" ? "Auto-scored" : "Manual scoring"}
+            {tool.scoringType === "auto" ? "System Scored" : "Externally Scored"}
           </span>
         </div>
 
