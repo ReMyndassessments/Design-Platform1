@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, scoresTable } from "@workspace/db/schema";
-import { eq, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
@@ -31,9 +31,8 @@ function nextPhase(current: string): string {
   return PHASE_ORDER[idx + 1];
 }
 
-function canAccessCase(role: string, userId: string, c: typeof casesTable.$inferSelect): boolean {
-  if (role === "admin") return true;
-  return c.assignedLeadId === userId || c.assignedPsychId === userId;
+function canAccessCase(_role: string, _userId: string, _c: typeof casesTable.$inferSelect): boolean {
+  return true;
 }
 
 function formatCase(c: typeof casesTable.$inferSelect) {
@@ -61,33 +60,12 @@ function formatCase(c: typeof casesTable.$inferSelect) {
 }
 
 router.get("/cases", authMiddleware, async (req, res) => {
-  const { userId, userRole } = req;
-  let cases;
-  if (userRole === "admin") {
-    cases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
-  } else {
-    cases = await db.select().from(casesTable)
-      .where(or(
-        eq(casesTable.assignedLeadId, userId!),
-        eq(casesTable.assignedPsychId, userId!)
-      ))
-      .orderBy(sql`${casesTable.updatedAt} DESC`);
-  }
+  const cases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
   res.json(cases.map(formatCase));
 });
 
 router.post("/cases", authMiddleware, async (req, res) => {
   const { studentName, dob, school, grade, languagePreference, referralReason, parentName, parentEmail, parentPhone } = req.body;
-  const { userId, userRole } = req;
-
-  let assignedLeadId = req.body.assignedLeadId ?? null;
-  let assignedPsychId = req.body.assignedPsychId ?? null;
-
-  if (userRole === "assessment_lead") {
-    assignedLeadId = userId!;
-  } else if (userRole === "psychometrician") {
-    assignedPsychId = userId!;
-  }
 
   const newCase = await db.insert(casesTable).values({
     id: nanoid(),
@@ -100,8 +78,6 @@ router.post("/cases", authMiddleware, async (req, res) => {
     parentName,
     parentEmail,
     parentPhone,
-    assignedLeadId,
-    assignedPsychId,
     caseStatus: "active",
     currentPhase: "pre_commitment",
     progressPercentage: PHASE_PROGRESS["pre_commitment"],
@@ -126,11 +102,10 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
   ]);
-  const isPsychometrician = req.userRole === "psychometrician";
   res.json({
     ...formatCase(c),
-    intakeData: isPsychometrician ? undefined : c.intakeData,
-    intakeAnalysis: isPsychometrician ? undefined : c.intakeAnalysis,
+    intakeData: c.intakeData,
+    intakeAnalysis: c.intakeAnalysis,
     assignments,
     scores,
   });

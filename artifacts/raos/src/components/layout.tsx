@@ -34,7 +34,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cases", label: "Cases", icon: Users },
-    { href: "/tools", label: "Assessment Tools", icon: Settings },
+    ...(user?.role !== "assessment_lead" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
     ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
   ];
 

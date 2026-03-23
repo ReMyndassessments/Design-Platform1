@@ -22,14 +22,12 @@ function getBaseUrl(req: { headers: Record<string, string | string[] | undefined
   return `${proto}://${host}`;
 }
 
-async function checkCaseAccess(role: string, userId: string, caseId: string): Promise<boolean> {
-  if (role === "admin") return true;
-  const rows = await db.select({ assignedLeadId: casesTable.assignedLeadId, assignedPsychId: casesTable.assignedPsychId })
+async function checkCaseAccess(_role: string, _userId: string, caseId: string): Promise<boolean> {
+  const rows = await db.select({ id: casesTable.id })
     .from(casesTable)
     .where(eq(casesTable.id, caseId))
     .limit(1);
-  if (!rows[0]) return false;
-  return rows[0].assignedLeadId === userId || rows[0].assignedPsychId === userId;
+  return !!rows[0];
 }
 
 router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
