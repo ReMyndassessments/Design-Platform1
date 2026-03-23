@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
-  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye
+  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye, X
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -546,9 +546,14 @@ export default function CaseDetail() {
       {/* Edit Case Dialog */}
       <Dialog open={editCaseOpen} onOpenChange={setEditCaseOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Case</DialogTitle>
-            <DialogDescription>Update the case details below.</DialogDescription>
+          <DialogHeader className="flex flex-row items-start justify-between gap-2">
+            <div>
+              <DialogTitle>Edit Case</DialogTitle>
+              <DialogDescription>Update the case details below.</DialogDescription>
+            </div>
+            <button onClick={() => setEditCaseOpen(false)} className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none flex-shrink-0 mt-0.5" aria-label="Close">
+              <X size={18} />
+            </button>
           </DialogHeader>
           <form onSubmit={handleSaveEdit} className="space-y-4 mt-2">
             <div className="space-y-1">
