@@ -108,6 +108,7 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
       eq(scoresTable.toolId, toolId),
       eq(scoresTable.respondentType, respondentType)
     ))
+    .orderBy(desc(scoresTable.generatedAt))
     .limit(1);
 
   let score;
@@ -177,6 +178,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
       eq(scoresTable.toolId, assignment.toolId),
       eq(scoresTable.respondentType, assignment.respondentType)
     ))
+    .orderBy(desc(scoresTable.generatedAt))
     .limit(1);
 
   let score;
