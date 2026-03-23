@@ -17,6 +17,7 @@ import CaseDetail from "@/pages/cases/[id]/index";
 import ScoringView from "@/pages/cases/[id]/scoring";
 import ReportEditor from "@/pages/cases/[id]/report";
 import GuidedSelfReport from "@/pages/cases/[id]/self-report";
+import ResponseViewer from "@/pages/cases/[id]/response/[assignmentId]";
 import ExternalFormView from "@/pages/external/[token]";
 import AssessmentTools from "@/pages/tools";
 import FormPreviewPage from "@/pages/tools/[id]/preview";
@@ -82,6 +83,9 @@ function Router() {
       </Route>
       <Route path="/cases/:id/self-report">
         {() => <ProtectedRoute component={GuidedSelfReport} />}
+      </Route>
+      <Route path="/cases/:id/response/:assignmentId">
+        {() => <ProtectedRoute component={ResponseViewer} />}
       </Route>
       <Route path="/tools">
         {() => <ProtectedRoute component={AssessmentTools} />}

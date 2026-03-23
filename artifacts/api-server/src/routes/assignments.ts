@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable, casesTable } from "@workspace/db/schema";
+import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
+import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 
 const router = Router();
 
@@ -105,6 +106,53 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
     return;
   }
   res.json(rows[0]);
+});
+
+router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
+    .limit(1);
+  const assignment = assignmentRows[0];
+  if (!assignment) {
+    res.status(404).json({ error: "not_found", message: "Assignment not found" });
+    return;
+  }
+
+  const responseRows = await db.select().from(responsesTable)
+    .where(eq(responsesTable.assignmentId, assignment.id))
+    .limit(1);
+  if (!responseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "No response submitted yet" });
+    return;
+  }
+
+  const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
+    .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+
+  const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
+    .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1);
+  const questions = toolRows[0]?.formItems ?? SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? [];
+
+  res.json({
+    assignment: {
+      id: assignment.id,
+      toolId: assignment.toolId,
+      toolName: assignment.toolName,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel,
+      assignedToName: assignment.assignedToName,
+    },
+    response: responseRows[0],
+    questions,
+    studentName: caseRows[0]?.studentName ?? "Unknown Student",
+    school: caseRows[0]?.school ?? "",
+    grade: caseRows[0]?.grade ?? "",
+  });
 });
 
 router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {

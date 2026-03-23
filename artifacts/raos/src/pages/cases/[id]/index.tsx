@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
-  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert
+  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -410,8 +410,14 @@ export default function CaseDetail() {
                         </div>
                       </div>
                       
-                      <div className="flex gap-2">
-                        {a.status !== 'completed' && (
+                      <div className="flex gap-2 flex-wrap">
+                        {a.status === 'completed' ? (
+                          <Link href={`/cases/${caseId}/response/${a.id}`}>
+                            <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                              <Eye size={14} /> View Response
+                            </Button>
+                          </Link>
+                        ) : (
                           <>
                             <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" title="Show QR Code">
                               <QrCode size={16} />
