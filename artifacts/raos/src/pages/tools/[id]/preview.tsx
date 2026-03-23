@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { BrainCircuit, ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -158,7 +158,7 @@ export default function FormPreviewPage() {
             ))}
           </div>
           <div className="flex items-center text-primary">
-            <BrainCircuit size={20} className="mr-1.5" />
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain mr-1.5" />
             <span className="font-bold text-sm">ReMynd</span>
           </div>
         </div>

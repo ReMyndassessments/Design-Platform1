@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
-  ArrowLeft, BrainCircuit, CheckCircle2, ChevronRight, 
+  ArrowLeft, CheckCircle2, ChevronRight, 
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -340,7 +340,7 @@ export default function CaseDetail() {
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">
-                  <BrainCircuit className="text-primary mr-2" size={20} />
+                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain mr-2" />
                   AI Intake Analysis
                 </CardTitle>
               </CardHeader>
