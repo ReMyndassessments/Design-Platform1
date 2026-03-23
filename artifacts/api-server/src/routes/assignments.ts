@@ -6,6 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
+import { generateIntakeSummary } from "../lib/ai.js";
 
 const router = Router();
 
@@ -153,6 +154,50 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
   });
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
+    .limit(1);
+  const assignment = assignmentRows[0];
+  if (!assignment) {
+    res.status(404).json({ error: "not_found", message: "Assignment not found" });
+    return;
+  }
+  if (assignment.toolId !== "INTAKE") {
+    res.status(400).json({ error: "not_supported", message: "Summary generation is only available for the Parent Intake form" });
+    return;
+  }
+
+  const responseRows = await db.select().from(responsesTable)
+    .where(eq(responsesTable.assignmentId, assignment.id))
+    .limit(1);
+  if (!responseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "No response submitted yet" });
+    return;
+  }
+
+  const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
+    .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+
+  const summary = await generateIntakeSummary({
+    studentName: caseRows[0]?.studentName ?? "Unknown Student",
+    school: caseRows[0]?.school ?? "",
+    grade: caseRows[0]?.grade ?? "",
+    answers: responseRows[0].answers,
+  });
+
+  await db.update(responsesTable)
+    .set({ summary })
+    .where(eq(responsesTable.id, responseRows[0].id));
+
+  res.json({ summary });
 });
 
 router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {

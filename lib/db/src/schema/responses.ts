@@ -8,6 +8,7 @@ export const responsesTable = pgTable("responses", {
   answers: jsonb("answers").notNull().$type<Record<string, unknown>>(),
   language: text("language").notNull().default("english"),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  summary: text("summary"),
 });
 
 export const insertResponseSchema = createInsertSchema(responsesTable).omit({

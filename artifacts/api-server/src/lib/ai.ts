@@ -364,3 +364,82 @@ Return ONLY the JSON object, nothing else.`;
     formItems: Array.isArray(parsed.formItems) ? parsed.formItems : [],
   };
 }
+
+function formatAnswersForPrompt(answers: Record<string, unknown>): string {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(answers)) {
+    if (value === null || value === undefined || value === "") continue;
+    const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    if (Array.isArray(value)) {
+      if (value.length > 0) lines.push(`${label}: ${value.join(", ")}`);
+    } else {
+      lines.push(`${label}: ${String(value)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export async function generateIntakeSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  answers: Record<string, unknown>;
+}): Promise<string> {
+  const { studentName, school, grade, answers } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+  const formattedAnswers = formatAnswersForPrompt(answers);
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical narrative for a student's assessment file. You have been given raw Parent Intake form responses. Generate a professional narrative summary strictly following the structure and style shown below.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+
+INTAKE FORM RESPONSES:
+${formattedAnswers}
+
+---
+Write the summary now, following this EXACT structure and formatting. Use professional, clinical third-person prose throughout. Use the student's first name ("${firstName}") naturally. Base ALL content solely on the intake data provided — do not invent or assume details not present in the responses. If a subsection has limited data, write what can be reasonably inferred and note that information was not fully reported. Do NOT use bullet points inside sections — write cohesive prose paragraphs.
+
+PERSONAL HISTORY - PARENT
+
+Developmental and Medical History
+
+[Write a paragraph covering: birth circumstances and delivery method, anesthesia used, any complications during pregnancy or delivery, birth weight or condition, birth problems if any, early developmental milestones (motor, speech/language, self-help/toilet training), infant temperament and early behavioral characteristics, medical history, current medications, any prior diagnoses and who made them, early personality descriptions by parents.]
+
+Family History
+
+[Write a paragraph covering: who the child currently lives with, parents' marital status, custody arrangements if parents are divorced, whether the child is adopted, siblings and their relationships, presence of babysitter/caregiver, which parent administers discipline and how, languages spoken at home, home environment description, any relevant family mental health history.]
+
+Academic History
+
+[Write a paragraph covering: current school, grade level, language of instruction, overall academic performance level, favorite and least-favorite subjects, academic difficulties reported (attention, organization, written output, etc.), special education services or IEP, after-school tutoring, attitude toward school and teacher, extracurricular interests.]
+
+SUMMARY OF PRESENTING STRENGTHS & CONCERNS
+
+Presenting Strengths:
+
+[Write a paragraph describing the child's cognitive strengths, positive personality traits, skills, and protective factors as reported by parents. Draw from the strengths question and positive behavioral checklist items.]
+
+Cognitive and Academic Problems:
+
+[Write a paragraph describing attentional, executive functioning, organizational, or academic difficulties. Draw from academic difficulties, behavioral checklist, and presenting issues reported.]
+
+Emotional Difficulties:
+
+[Write a paragraph describing emotional regulation challenges, emotional temperament, and any emotional behavioral checklist items (e.g., quick to anger, easily frustrated, overly sensitive, anxious, volatile).]
+
+Behavioral issues:
+
+[Write a paragraph describing behavioral patterns at home and school, including any ADHD-related behaviors, impulsivity, compliance difficulties, electronic device use if noted.]
+
+Social Deficits:
+
+[Write a paragraph describing the child's social functioning, peer relationships, and any social difficulties or strengths noted.]
+
+[Write a final closing paragraph that synthesizes the overall profile, acknowledges both strengths and areas of concern, and frames the need for assessment in a balanced, strengths-based way.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
