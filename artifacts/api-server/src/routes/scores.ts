@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { scoresTable, responsesTable, assignmentsTable } from "@workspace/db/schema";
+import { scoresTable, responsesTable, assignmentsTable, casesTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -87,26 +87,57 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
 router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => {
   const { toolId, toolName, respondentType, rawScore, domainScores, notes } = req.body;
   const normalizedScores = normalize(domainScores ?? {});
+  const caseId = req.params.caseId;
 
-  const score = await db.insert(scoresTable).values({
-    id: nanoid(),
-    caseId: req.params.caseId,
-    toolId,
-    toolName,
-    respondentType,
-    rawScore,
-    domainScores: domainScores ?? {},
-    normalizedScores,
-    hasHighDiscrepancy: false,
-    isManual: true,
-    notes,
-  }).returning();
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "Case not found" });
+    return;
+  }
 
-  res.status(201).json(score[0]);
+  const existing = await db.select().from(scoresTable)
+    .where(and(
+      eq(scoresTable.caseId, caseId),
+      eq(scoresTable.toolId, toolId),
+      eq(scoresTable.respondentType, respondentType)
+    ))
+    .limit(1);
+
+  let score;
+  if (existing[0]) {
+    const rows = await db.update(scoresTable)
+      .set({ rawScore, domainScores: domainScores ?? {}, normalizedScores, notes, isManual: true })
+      .where(eq(scoresTable.id, existing[0].id))
+      .returning();
+    score = rows[0];
+    res.json(score);
+  } else {
+    const rows = await db.insert(scoresTable).values({
+      id: nanoid(),
+      caseId,
+      toolId,
+      toolName,
+      respondentType,
+      rawScore,
+      domainScores: domainScores ?? {},
+      normalizedScores,
+      hasHighDiscrepancy: false,
+      isManual: true,
+      notes,
+    }).returning();
+    score = rows[0];
+    res.status(201).json(score);
+  }
 });
 
 router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, async (req, res) => {
   const { caseId, assignmentId } = req.params;
+
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "Case not found" });
+    return;
+  }
 
   const assignmentRows = await db.select().from(assignmentsTable)
     .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
