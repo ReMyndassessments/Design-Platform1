@@ -66,6 +66,8 @@ router.get("/cases", authMiddleware, async (req, res) => {
 
 router.post("/cases", authMiddleware, async (req, res) => {
   const { studentName, dob, school, grade, languagePreference, referralReason, parentName, parentEmail, parentPhone } = req.body;
+  const assignedLeadId = req.body.assignedLeadId ?? null;
+  const assignedPsychId = req.body.assignedPsychId ?? null;
 
   const newCase = await db.insert(casesTable).values({
     id: nanoid(),
@@ -78,6 +80,8 @@ router.post("/cases", authMiddleware, async (req, res) => {
     parentName,
     parentEmail,
     parentPhone,
+    assignedLeadId,
+    assignedPsychId,
     caseStatus: "active",
     currentPhase: "pre_commitment",
     progressPercentage: PHASE_PROGRESS["pre_commitment"],
