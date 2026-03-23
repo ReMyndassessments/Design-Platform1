@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw } from "lucide-react";
@@ -215,6 +215,7 @@ export default function ResponseViewer() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (data?.response.summary) setSummary(data.response.summary);
@@ -242,11 +243,18 @@ export default function ResponseViewer() {
       }
       const json = await res.json() as { summary: string };
       setSummary(json.summary);
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (e) {
       setGenerateError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  function handlePrintSummaryOnly() {
+    document.body.classList.add("print-summary-only");
+    window.print();
+    document.body.classList.remove("print-summary-only");
   }
 
   if (isLoading) {
@@ -278,6 +286,10 @@ export default function ResponseViewer() {
           .print-page { box-shadow: none !important; border: none !important; }
           body { background: white !important; }
         }
+        @media print {
+          body.print-summary-only .print-qa-card { display: none !important; }
+          body.print-summary-only .print-hide { display: none !important; }
+        }
       `}</style>
 
       <div className="max-w-3xl mx-auto space-y-6 pb-16">
@@ -289,6 +301,16 @@ export default function ResponseViewer() {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
+            {assignment.toolId === "INTAKE" && summary && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="gap-2 text-violet-600 hover:text-violet-700"
+              >
+                <Sparkles size={14} /> View Summary
+              </Button>
+            )}
             {assignment.toolId === "INTAKE" && (
               <Button
                 variant="outline"
@@ -299,7 +321,7 @@ export default function ResponseViewer() {
               >
                 {isGenerating
                   ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                  : <><Sparkles size={14} /> {summary ? "Regenerate Summary" : "Generate Summary"}</>
+                  : <><Sparkles size={14} /> {summary ? "Regenerate" : "Generate Summary"}</>
                 }
               </Button>
             )}
@@ -310,7 +332,7 @@ export default function ResponseViewer() {
         </div>
 
         {/* Report Card */}
-        <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-qa-card">
 
           {/* Header */}
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-7 print:bg-slate-900">
@@ -382,7 +404,7 @@ export default function ResponseViewer() {
 
         {/* AI-Generated Summary */}
         {summary && (
-          <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page">
+          <div ref={summaryRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page">
             <div className="bg-gradient-to-r from-violet-900 to-violet-800 px-8 py-5">
               <div className="flex items-center gap-3">
                 <Sparkles size={18} className="text-violet-300" />
@@ -407,9 +429,16 @@ export default function ResponseViewer() {
                 })}
               </div>
             </div>
-            <div className="border-t border-slate-100 px-8 py-3 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
-              <span>AI-assisted narrative — for clinical use only</span>
-              <span>ReMynd Assessment Operating System</span>
+            <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
+              <span className="text-xs text-slate-400">AI-assisted narrative — for clinical use only</span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handlePrintSummaryOnly}
+                className="print-hide gap-2 text-xs h-8 border-violet-200 text-violet-700 hover:bg-violet-50"
+              >
+                <Printer size={13} /> Download Summary PDF
+              </Button>
             </div>
           </div>
         )}
