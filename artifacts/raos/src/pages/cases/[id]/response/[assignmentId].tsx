@@ -1,5 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, User, Calendar, Globe, FileText } from "lucide-react";
@@ -229,6 +230,12 @@ export default function ResponseViewer() {
   const { assignment, response, questions, studentName, school, grade } = data;
   const lang = response.language;
 
+  useEffect(() => {
+    const prev = document.title;
+    document.title = `${assignment.toolName} — ${studentName} — ReMynd`;
+    return () => { document.title = prev; };
+  }, [assignment.toolName, studentName]);
+
   itemCounter = 0;
 
   return (
@@ -258,17 +265,19 @@ export default function ResponseViewer() {
         <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page">
 
           {/* Header */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-6 print:bg-slate-900">
+          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-7 print:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
-                  <span className="text-slate-300 text-sm font-medium">ReMynd Assessment System</span>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold font-display leading-tight mb-1">{assignment.toolName}</h1>
+                <p className="text-slate-300 text-base mb-4">
+                  {getRespondentTypeLabel(assignment.respondentType)} — {studentName}
+                </p>
+                <div className="flex items-center gap-2">
+                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain opacity-70" />
+                  <span className="text-slate-400 text-xs font-medium tracking-wide">ReMynd Assessment System · Completed Response</span>
                 </div>
-                <h1 className="text-2xl font-bold font-display">{assignment.toolName}</h1>
-                <p className="text-slate-300 mt-1">Completed Response</p>
               </div>
-              <Badge className="bg-emerald-500 text-white border-0 text-xs px-3 py-1">Submitted</Badge>
+              <Badge className="bg-emerald-500 text-white border-0 text-xs px-3 py-1 flex-shrink-0">Submitted</Badge>
             </div>
           </div>
 
