@@ -48,12 +48,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     return;
   }
 
-  const { userRole, userId } = req;
-  const isAssigned = caseRows[0].assignedLeadId === userId || caseRows[0].assignedPsychId === userId;
-  if (userRole !== "admin" && !isAssigned) {
-    res.status(403).json({ error: "forbidden", message: "Access denied" });
-    return;
-  }
+  const { userRole } = req;
   if (userRole === "assessment_lead" && !INTAKE_TOOL_IDS.has(toolId)) {
     res.status(403).json({ error: "forbidden", message: "Invigilators can only deploy Referral, Consent, and Intake forms" });
     return;
