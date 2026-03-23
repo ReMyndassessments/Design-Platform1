@@ -211,6 +211,13 @@ export default function ResponseViewer() {
     queryFn: () => fetchResponse(caseId, assignmentId),
   });
 
+  useEffect(() => {
+    if (!data) return;
+    const prev = document.title;
+    document.title = `${data.assignment.toolName} — ${data.studentName} — ReMynd`;
+    return () => { document.title = prev; };
+  }, [data]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -229,12 +236,6 @@ export default function ResponseViewer() {
 
   const { assignment, response, questions, studentName, school, grade } = data;
   const lang = response.language;
-
-  useEffect(() => {
-    const prev = document.title;
-    document.title = `${assignment.toolName} — ${studentName} — ReMynd`;
-    return () => { document.title = prev; };
-  }, [assignment.toolName, studentName]);
 
   itemCounter = 0;
 
