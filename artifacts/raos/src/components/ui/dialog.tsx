@@ -10,15 +10,26 @@ export interface DialogProps {
 
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!open) return null
-  
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" 
-        onClick={() => onOpenChange?.(false)} 
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={() => onOpenChange?.(false)}
       />
-      <div className="relative z-50 w-full max-w-lg p-6 bg-background rounded-2xl shadow-2xl animate-slide-up border border-border/50 mx-4 max-h-[90vh] overflow-y-auto">
-        {children}
+      <div className="relative z-50 w-full max-w-lg mx-4">
+        {onOpenChange && (
+          <button
+            onClick={() => onOpenChange(false)}
+            className="absolute top-4 right-4 z-10 rounded-full p-1 opacity-60 hover:opacity-100 focus:outline-none transition-opacity"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        )}
+        <div className="p-6 bg-background rounded-2xl shadow-2xl animate-slide-up border border-border/50 max-h-[90vh] overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   )
