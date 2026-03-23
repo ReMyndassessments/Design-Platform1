@@ -269,7 +269,7 @@ export default function ResponseViewer() {
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-7 print:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold font-display leading-tight mb-1">{assignment.toolName}</h1>
+                <h1 className="text-3xl font-bold leading-tight mb-1 text-white">{assignment.toolName}</h1>
                 <p className="text-slate-300 text-base mb-4">
                   {getRespondentTypeLabel(assignment.respondentType)} — {studentName}
                 </p>
