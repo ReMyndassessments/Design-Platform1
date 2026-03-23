@@ -7,8 +7,12 @@ export const scoringTypeEnum = pgEnum("scoring_type", ["auto", "manual"]);
 export type FormItem = {
   id: string;
   text: string;
+  textChinese?: string;
+  textKorean?: string;
   type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
   options?: string[];
+  optionsChinese?: string[];
+  optionsKorean?: string[];
   domain?: string;
 };
 

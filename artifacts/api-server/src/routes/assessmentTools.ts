@@ -43,7 +43,17 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
   const tool = rows[0];
 
   if (tool?.formItems && Array.isArray(tool.formItems) && tool.formItems.length > 0) {
-    type StoredItem = { id: string; text: string; type: string; options?: string[]; domain?: string };
+    type StoredItem = {
+      id: string;
+      text: string;
+      textChinese?: string;
+      textKorean?: string;
+      type: string;
+      options?: string[];
+      optionsChinese?: string[];
+      optionsKorean?: string[];
+      domain?: string;
+    };
     const typeMap: Record<string, string> = {
       checkbox: "checkbox_group",
       radio: "radio_group",
@@ -52,8 +62,12 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
     const questions = (tool.formItems as StoredItem[]).map(item => ({
       id: item.id,
       text: item.text,
+      textChinese: item.textChinese,
+      textKorean: item.textKorean,
       type: typeMap[item.type] ?? item.type,
       options: item.options,
+      optionsChinese: item.optionsChinese,
+      optionsKorean: item.optionsKorean,
       domain: item.domain ?? "",
       required: true,
     }));

@@ -300,8 +300,12 @@ export type AnalyzedFormResult = {
   formItems: Array<{
     id: string;
     text: string;
+    textChinese?: string;
+    textKorean?: string;
     type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
     options?: string[];
+    optionsChinese?: string[];
+    optionsKorean?: string[];
     domain?: string;
   }>;
 };
@@ -327,9 +331,13 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
   "formItems": [
     {
       "id": "q1",
-      "text": "Exact question or item text",
+      "text": "Exact question or item text in English",
+      "textChinese": "Simplified Chinese translation of the question text",
+      "textKorean": "Korean translation of the question text",
       "type": "likert | text | checkbox | radio | multiple_choice | scale",
-      "options": ["response options if applicable"],
+      "options": ["response options in English if applicable"],
+      "optionsChinese": ["Simplified Chinese translations of each option, same order"],
+      "optionsKorean": ["Korean translations of each option, same order"],
       "domain": "which domain this item measures"
     }
   ]
@@ -338,7 +346,9 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
 Rules:
 - Extract ALL items/questions from the form. Do not skip any.
 - For Likert-scale items (e.g. Never/Sometimes/Often/Always), use type "likert"
-- Keep question text exact as written in the form
+- Keep English question text exact as written in the form
+- Provide accurate Simplified Chinese (textChinese) and Korean (textKorean) translations for every question
+- If options are present, also provide optionsChinese and optionsKorean arrays (same length as options)
 - If a section header exists, use it to infer the domain for items in that section
 - respondentTypes should reflect who fills out this form
 - Extract ALL items/questions from the form — do not truncate, skip, or stop early regardless of how many items there are

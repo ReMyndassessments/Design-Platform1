@@ -66,8 +66,12 @@ function categoryBadge(cat: string) {
 type ImportedFormItem = {
   id: string;
   text: string;
+  textChinese?: string;
+  textKorean?: string;
   type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
   options?: string[];
+  optionsChinese?: string[];
+  optionsKorean?: string[];
   domain?: string;
 };
 
