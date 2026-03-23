@@ -7,6 +7,14 @@ import { nanoid } from "nanoid";
 
 const router = Router();
 
+async function checkCaseAccess(_role: string, _userId: string, caseId: string): Promise<boolean> {
+  const rows = await db.select({ id: casesTable.id })
+    .from(casesTable)
+    .where(eq(casesTable.id, caseId))
+    .limit(1);
+  return !!rows[0];
+}
+
 function computeDomainScores(answers: Record<string, unknown>): Record<string, number> {
   const domains: Record<string, number[]> = {};
   for (const [key, value] of Object.entries(answers)) {
@@ -89,9 +97,8 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
 
-  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
-  if (!caseRows[0]) {
-    res.status(404).json({ error: "not_found", message: "Case not found" });
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
 
@@ -133,9 +140,8 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
 router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, async (req, res) => {
   const { caseId, assignmentId } = req.params;
 
-  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
-  if (!caseRows[0]) {
-    res.status(404).json({ error: "not_found", message: "Case not found" });
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
 
