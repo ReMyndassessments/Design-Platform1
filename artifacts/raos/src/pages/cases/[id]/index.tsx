@@ -50,7 +50,21 @@ const TOOLS_BY_RESPONDENT: Record<string, string[]> = {
   teacher1:          ["RCS-80"],
   teacher2:          ["RCS-80"],
   referring_teacher: ["REFERRAL", "RCS-80"],
+  boarding_staff:    ["RCS-80"],
   self:              ["RASR"],
+};
+
+const RESPONDENT_TYPES_IN_MODAL = [
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
+] as const;
+
+const RESPONDENT_TYPE_LABELS: Record<string, string> = {
+  parent:            "Parent",
+  teacher1:          "Teacher 1",
+  teacher2:          "Teacher 2",
+  referring_teacher: "Referring Teacher",
+  boarding_staff:    "Boarding Staff",
+  self:              "Self-Report (Guided)",
 };
 
 function canAdvancePhase(role: string, currentPhase: string): boolean {
@@ -95,7 +109,7 @@ export default function CaseDetail() {
   
   const [newAssignment, setNewAssignment] = useState({
     toolIds: [] as string[],
-    respondentType: "parent" as CreateAssignmentRequestRespondentType,
+    respondentTypes: [] as string[],
     respondentLabel: "",
     assignedToName: "",
     assignedToEmail: ""
@@ -277,18 +291,35 @@ export default function CaseDetail() {
 
   const handleAddAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newAssignment.respondentTypes.length === 0) {
+      toast({ title: "Select at least one respondent type.", variant: "destructive" });
+      return;
+    }
     if (newAssignment.toolIds.length === 0) {
       toast({ title: "Select at least one form to assign.", variant: "destructive" });
       return;
     }
     setIsSubmittingAssignments(true);
     try {
-      for (const toolId of newAssignment.toolIds) {
-        await createAssignmentMut.mutateAsync({ caseId, data: { ...newAssignment, toolId } });
+      let count = 0;
+      for (const respondentType of newAssignment.respondentTypes) {
+        for (const toolId of newAssignment.toolIds) {
+          await createAssignmentMut.mutateAsync({
+            caseId,
+            data: {
+              toolId,
+              respondentType: respondentType as CreateAssignmentRequestRespondentType,
+              respondentLabel: newAssignment.respondentLabel,
+              assignedToName: newAssignment.assignedToName,
+              assignedToEmail: newAssignment.assignedToEmail,
+            }
+          });
+          count++;
+        }
       }
-      toast({ title: newAssignment.toolIds.length === 1 ? "Assignment added" : `${newAssignment.toolIds.length} assignments added` });
+      toast({ title: count === 1 ? "Assignment added" : `${count} assignments added` });
       setAddAssignmentModalOpen(false);
-      setNewAssignment({ toolIds: [], respondentType: "parent", respondentLabel: "", assignedToName: "", assignedToEmail: "" });
+      setNewAssignment({ toolIds: [], respondentTypes: [], respondentLabel: "", assignedToName: "", assignedToEmail: "" });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
     } catch {
       toast({ title: "Cannot add assignment", description: "Your role may not allow deploying one of the selected form types.", variant: "destructive" });
@@ -507,7 +538,7 @@ export default function CaseDetail() {
                           {getStatusBadge(a.status)}
                         </div>
                         <div className="flex items-center text-sm text-slate-500 gap-4 flex-wrap">
-                          <span className="capitalize font-medium text-slate-700">{a.respondentType}: {a.respondentLabel}</span>
+                          <span className="font-medium text-slate-700">{RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType}{a.respondentLabel ? `: ${a.respondentLabel}` : ""}</span>
                           <span>Assigned to: {a.assignedToName || 'Unspecified'}</span>
                           {a.assignedToEmail && (
                             <span className="text-slate-400">{a.assignedToEmail}</span>
@@ -612,46 +643,68 @@ export default function CaseDetail() {
           </DialogHeader>
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Respondent Type</label>
-              <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={newAssignment.respondentType}
-                onChange={e => setNewAssignment({ ...newAssignment, respondentType: e.target.value as CreateAssignmentRequestRespondentType, toolIds: [] })}>
-                <option value="parent">Parent</option>
-                <option value="teacher1">Teacher 1</option>
-                <option value="teacher2">Teacher 2</option>
-                <option value="referring_teacher">Referring Teacher</option>
-                <option value="self">Self-Report (Guided)</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
-              <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
-                {filteredTools
-                  ?.filter(t => (TOOLS_BY_RESPONDENT[newAssignment.respondentType] ?? []).includes(t.id))
-                  .map(t => {
-                    const checked = newAssignment.toolIds.includes(t.id);
-                    return (
-                      <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
-                          checked={checked}
-                          onChange={e => {
-                            const ids = e.target.checked
-                              ? [...newAssignment.toolIds, t.id]
-                              : newAssignment.toolIds.filter(id => id !== t.id);
-                            setNewAssignment({ ...newAssignment, toolIds: ids });
-                          }}
-                        />
-                        <span className="text-sm text-slate-800">{t.name}</span>
-                      </label>
-                    );
-                  })}
+              <label className="text-sm font-medium">Respondent Type <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+              <div className="border border-input rounded-md divide-y">
+                {RESPONDENT_TYPES_IN_MODAL.map(rt => {
+                  const checked = newAssignment.respondentTypes.includes(rt);
+                  return (
+                    <label key={rt} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
+                        checked={checked}
+                        onChange={e => {
+                          const types = e.target.checked
+                            ? [...newAssignment.respondentTypes, rt]
+                            : newAssignment.respondentTypes.filter(t => t !== rt);
+                          setNewAssignment({ ...newAssignment, respondentTypes: types, toolIds: [] });
+                        }}
+                      />
+                      <span className="text-sm text-slate-800">{RESPONDENT_TYPE_LABELS[rt]}</span>
+                    </label>
+                  );
+                })}
               </div>
-              {newAssignment.toolIds.length > 0 && (
-                <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
+              {newAssignment.respondentTypes.length > 0 && (
+                <p className="text-xs text-primary font-medium">{newAssignment.respondentTypes.length} respondent type{newAssignment.respondentTypes.length > 1 ? "s" : ""} selected</p>
               )}
             </div>
+            {newAssignment.respondentTypes.length > 0 && (() => {
+              const availableToolIds = new Set(newAssignment.respondentTypes.flatMap(rt => TOOLS_BY_RESPONDENT[rt] ?? []));
+              const availableTools = filteredTools?.filter(t => availableToolIds.has(t.id)) ?? [];
+              return (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+                  <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
+                    {availableTools.length === 0 && (
+                      <p className="px-3 py-3 text-sm text-slate-400">No forms available for the selected respondent type(s).</p>
+                    )}
+                    {availableTools.map(t => {
+                      const checked = newAssignment.toolIds.includes(t.id);
+                      return (
+                        <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
+                            checked={checked}
+                            onChange={e => {
+                              const ids = e.target.checked
+                                ? [...newAssignment.toolIds, t.id]
+                                : newAssignment.toolIds.filter(id => id !== t.id);
+                              setNewAssignment({ ...newAssignment, toolIds: ids });
+                            }}
+                          />
+                          <span className="text-sm text-slate-800">{t.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {newAssignment.toolIds.length > 0 && (
+                    <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
+                  )}
+                </div>
+              );
+            })()}
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Label <span className="text-slate-400 font-normal">(optional — e.g., 'Mom', 'Math Teacher')</span></label>
               <Input placeholder="e.g. Mom, Mr. Santos" value={newAssignment.respondentLabel} onChange={e => setNewAssignment({...newAssignment, respondentLabel: e.target.value})} />
@@ -665,7 +718,11 @@ export default function CaseDetail() {
               <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
             </div>
             <Button type="submit" className="w-full mt-4" disabled={isSubmittingAssignments}>
-              {isSubmittingAssignments ? "Adding…" : newAssignment.toolIds.length > 1 ? "Add Assignments" : "Add Assignment"}
+              {isSubmittingAssignments
+                ? "Adding…"
+                : newAssignment.respondentTypes.length > 1 || newAssignment.toolIds.length > 1
+                  ? "Add Assignments"
+                  : "Add Assignment"}
             </Button>
           </form>
         </DialogContent>

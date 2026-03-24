@@ -15,7 +15,8 @@ export const CreateAssignmentRequestRespondentType = {
   teacher2: "teacher2",
   student: "student",
   self: "self",
+  referring_teacher: "referring_teacher",
+  boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
-  referring_teacher: "referring_teacher",
 } as const;

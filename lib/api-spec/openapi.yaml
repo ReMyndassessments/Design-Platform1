@@ -849,7 +849,7 @@ components:
           type: array
           items:
             type: string
-            enum: [parent, teacher1, teacher2, student, self]
+            enum: [parent, teacher1, teacher2, student, self, referring_teacher, boarding_staff, school_counselor, special_needs_teacher]
         scoringType:
           type: string
           enum: [auto, manual]
@@ -897,7 +897,7 @@ components:
           type: string
         respondentType:
           type: string
-          enum: [parent, teacher1, teacher2, student, self]
+          enum: [parent, teacher1, teacher2, student, self, referring_teacher, boarding_staff, school_counselor, special_needs_teacher]
         respondentLabel:
           type: string
         assignedToName:
@@ -946,7 +946,7 @@ components:
           type: string
         respondentType:
           type: string
-          enum: [parent, teacher1, teacher2, student, self]
+          enum: [parent, teacher1, teacher2, student, self, referring_teacher, boarding_staff, school_counselor, special_needs_teacher]
         respondentLabel:
           type: string
         assignedToName:

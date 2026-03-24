@@ -126,6 +126,10 @@ export const AssignmentRespondentType = {
   teacher2: "teacher2",
   student: "student",
   self: "self",
+  referring_teacher: "referring_teacher",
+  boarding_staff: "boarding_staff",
+  school_counselor: "school_counselor",
+  special_needs_teacher: "special_needs_teacher",
 } as const;
 
 export type AssignmentStatus =
@@ -290,6 +294,10 @@ export const AssessmentToolRespondentTypesItem = {
   teacher2: "teacher2",
   student: "student",
   self: "self",
+  referring_teacher: "referring_teacher",
+  boarding_staff: "boarding_staff",
+  school_counselor: "school_counselor",
+  special_needs_teacher: "special_needs_teacher",
 } as const;
 
 export type AssessmentToolScoringType =
@@ -331,9 +339,10 @@ export const CreateAssignmentRequestRespondentType = {
   teacher2: "teacher2",
   student: "student",
   self: "self",
+  referring_teacher: "referring_teacher",
+  boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
-  referring_teacher: "referring_teacher",
 } as const;
 
 export interface CreateAssignmentRequest {
@@ -409,16 +418,9 @@ export interface SubmitFormRequest {
   language: string;
 }
 
-export interface SubmitFormNextForm {
-  toolName: string;
-  uniqueToken: string;
-  respondentLabel: string;
-}
-
 export interface SubmitFormResponse {
   success: boolean;
   message: string;
-  nextForms?: SubmitFormNextForm[];
 }
 
 export type SelfReportRequestAnswers = { [key: string]: unknown };
