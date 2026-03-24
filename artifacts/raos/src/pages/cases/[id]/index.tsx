@@ -646,11 +646,7 @@ export default function CaseDetail() {
               <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
             </div>
             <Button type="submit" className="w-full mt-4" disabled={isSubmittingAssignments}>
-              {isSubmittingAssignments
-                ? `Adding ${newAssignment.toolIds.length} form${newAssignment.toolIds.length > 1 ? "s" : ""}…`
-                : newAssignment.toolIds.length > 1
-                  ? `Add ${newAssignment.toolIds.length} Assignments`
-                  : "Add Assignment"}
+              {isSubmittingAssignments ? "Adding…" : newAssignment.toolIds.length > 1 ? "Add Assignments" : "Add Assignment"}
             </Button>
           </form>
         </DialogContent>
