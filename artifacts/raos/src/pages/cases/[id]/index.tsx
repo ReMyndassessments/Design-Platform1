@@ -34,6 +34,14 @@ const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
 
+const TOOLS_BY_RESPONDENT: Record<string, string[]> = {
+  parent:            ["CONSENT", "INTAKE"],
+  teacher1:          ["RCS-80"],
+  teacher2:          ["RCS-80"],
+  referring_teacher: ["REFERRAL", "RCS-80"],
+  self:              ["RASR"],
+};
+
 function canAdvancePhase(role: string, currentPhase: string): boolean {
   if (role === "admin") return true;
   if (role === "assessment_lead") return LEAD_PHASES.has(currentPhase);
@@ -593,42 +601,45 @@ export default function CaseDetail() {
           </DialogHeader>
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
-              <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
-                {filteredTools?.map(t => {
-                  const checked = newAssignment.toolIds.includes(t.id);
-                  return (
-                    <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
-                        checked={checked}
-                        onChange={e => {
-                          const ids = e.target.checked
-                            ? [...newAssignment.toolIds, t.id]
-                            : newAssignment.toolIds.filter(id => id !== t.id);
-                          setNewAssignment({ ...newAssignment, toolIds: ids });
-                        }}
-                      />
-                      <span className="text-sm text-slate-800">{t.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {newAssignment.toolIds.length > 0 && (
-                <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
-              )}
-            </div>
-            <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type</label>
               <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={newAssignment.respondentType} onChange={e => setNewAssignment({...newAssignment, respondentType: e.target.value as CreateAssignmentRequestRespondentType})}>
+                value={newAssignment.respondentType}
+                onChange={e => setNewAssignment({ ...newAssignment, respondentType: e.target.value as CreateAssignmentRequestRespondentType, toolIds: [] })}>
                 <option value="parent">Parent</option>
                 <option value="teacher1">Teacher 1</option>
                 <option value="teacher2">Teacher 2</option>
                 <option value="referring_teacher">Referring Teacher</option>
                 <option value="self">Self-Report (Guided)</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+              <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
+                {filteredTools
+                  ?.filter(t => (TOOLS_BY_RESPONDENT[newAssignment.respondentType] ?? []).includes(t.id))
+                  .map(t => {
+                    const checked = newAssignment.toolIds.includes(t.id);
+                    return (
+                      <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
+                          checked={checked}
+                          onChange={e => {
+                            const ids = e.target.checked
+                              ? [...newAssignment.toolIds, t.id]
+                              : newAssignment.toolIds.filter(id => id !== t.id);
+                            setNewAssignment({ ...newAssignment, toolIds: ids });
+                          }}
+                        />
+                        <span className="text-sm text-slate-800">{t.name}</span>
+                      </label>
+                    );
+                  })}
+              </div>
+              {newAssignment.toolIds.length > 0 && (
+                <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Label <span className="text-slate-400 font-normal">(optional — e.g., 'Mom', 'Math Teacher')</span></label>
