@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 
@@ -115,7 +115,27 @@ router.post("/external/form/:token/submit", async (req, res) => {
     submittedAt: new Date(),
   }).where(eq(assignmentsTable.id, assignment.id));
 
-  res.json({ success: true, message: "Thank you! Your response has been submitted." });
+  let nextForms: { toolName: string; uniqueToken: string; respondentLabel: string }[] = [];
+  if (assignment.assignedToEmail) {
+    const siblings = await db
+      .select({
+        toolName: assignmentsTable.toolName,
+        uniqueToken: assignmentsTable.uniqueToken,
+        respondentLabel: assignmentsTable.respondentLabel,
+      })
+      .from(assignmentsTable)
+      .where(
+        and(
+          eq(assignmentsTable.caseId, assignment.caseId),
+          eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail),
+          ne(assignmentsTable.id, assignment.id),
+          ne(assignmentsTable.status, "completed"),
+        )
+      );
+    nextForms = siblings;
+  }
+
+  res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms });
 });
 
 export default router;

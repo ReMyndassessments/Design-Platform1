@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams } from "wouter";
-import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
+import { useGetExternalForm, useSubmitExternalForm, SubmitFormNextForm } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -395,6 +395,7 @@ export default function ExternalFormView() {
   const [language, setLanguage] = useState("english");
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [nextForms, setNextForms] = useState<SubmitFormNextForm[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const setAnswer = (id: string, val: string | string[]) => {
@@ -438,7 +439,10 @@ export default function ExternalFormView() {
     const serialized: Record<string, string> = {};
     Object.entries(answers).forEach(([k, v]) => { serialized[k] = Array.isArray(v) ? v.join(", ") : v; });
     submitMut.mutate({ token: token as string, data: { answers: serialized, language } }, {
-      onSuccess: () => setSubmitted(true),
+      onSuccess: (data) => {
+        setNextForms(data?.nextForms ?? []);
+        setSubmitted(true);
+      },
     });
   };
 
@@ -470,8 +474,72 @@ export default function ExternalFormView() {
     );
   }
 
-  // ── Already Submitted ──
-  if (form.alreadySubmitted || submitted) {
+  // ── Shared branding footer (rendered in all success screens) ──
+  const ReMyndFooter = () => (
+    <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
+      <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+      <span>ReMynd Assessment System</span>
+    </div>
+  );
+
+  // ── Already Submitted (revisiting old link) ──
+  if (form.alreadySubmitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
+        <div className="w-full max-w-md text-center">
+          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-100">
+            <CheckCircle2 size={44} />
+          </div>
+          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Already Submitted</h2>
+          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">This form has already been completed. Thank you for your time.</p>
+          <button onClick={() => window.close()} className="mt-5 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors">
+            Close this page
+          </button>
+          <ReMyndFooter />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Just submitted — more forms remaining ──
+  if (submitted && nextForms.length > 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-100">
+              <CheckCircle2 size={38} />
+            </div>
+            <h2 className="text-2xl font-display font-bold text-slate-900">Form Submitted</h2>
+            <p className="text-slate-500 text-sm mt-1">{getSuccessMessage(form.formType ?? "screener")}</p>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4">
+            <p className="text-sm font-semibold text-amber-800 mb-1">
+              You have {nextForms.length} more form{nextForms.length > 1 ? "s" : ""} to complete
+            </p>
+            <p className="text-xs text-amber-700">Please complete the remaining forms before closing this page.</p>
+          </div>
+          <div className="space-y-3">
+            {nextForms.map(nf => (
+              <a key={nf.uniqueToken} href={`/external/${nf.uniqueToken}`} className="block">
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm">
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">{nf.toolName}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{nf.respondentLabel}</p>
+                  </div>
+                  <Button size="sm" className="text-xs shrink-0">Start Form →</Button>
+                </div>
+              </a>
+            ))}
+          </div>
+          <ReMyndFooter />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Just submitted — all done ──
+  if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
         <div className="w-full max-w-md text-center">
@@ -480,13 +548,10 @@ export default function ExternalFormView() {
           </div>
           <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Thank You</h2>
           <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">{getSuccessMessage(form.formType ?? "screener")}</p>
-          <div className="mt-3 text-xs text-slate-400">
-            {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "You may safely close this page"}
-          </div>
-          <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
-            <span>ReMynd Assessment System</span>
-          </div>
+          <button onClick={() => window.close()} className="mt-4 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors block mx-auto">
+            {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "Close this page"}
+          </button>
+          <ReMyndFooter />
         </div>
       </div>
     );

@@ -409,9 +409,16 @@ export interface SubmitFormRequest {
   language: string;
 }
 
+export interface SubmitFormNextForm {
+  toolName: string;
+  uniqueToken: string;
+  respondentLabel: string;
+}
+
 export interface SubmitFormResponse {
   success: boolean;
   message: string;
+  nextForms?: SubmitFormNextForm[];
 }
 
 export type SelfReportRequestAnswers = { [key: string]: unknown };
