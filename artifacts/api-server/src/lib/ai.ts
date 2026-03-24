@@ -216,7 +216,7 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
   "category": "One of: cognitive, behavior, language, social-emotional, executive-function, achievement, adaptive, memory, processing, admin",
   "scoringType": "auto or manual",
   "domains": ["array", "of", "specific_psychological_domains_assessed"],
-  "respondentTypes": ["array from: parent, teacher1, teacher2, student, self, school, school_counselor, special_needs_teacher, referring_teacher"]
+  "respondentTypes": ["array from: parent, teacher1, teacher2, boarding_staff, referring_teacher, self"]
 }
 
 Rules:
@@ -286,7 +286,7 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
   "category": "One of: cognitive, behavior, language, social-emotional, executive-function, achievement, adaptive, memory, processing, admin",
   "scoringType": "auto or manual",
   "domains": ["array", "of", "psychological_domains", "being_assessed"],
-  "respondentTypes": ["array from: parent, teacher1, teacher2, student, self, school, school_counselor, special_needs_teacher, referring_teacher"],
+  "respondentTypes": ["array from: parent, teacher1, teacher2, boarding_staff, referring_teacher, self"],
   "formItems": [
     {
       "id": "q1",
