@@ -172,13 +172,12 @@ async function fetchResponse(caseId: string, assignmentId: string): Promise<Resp
   return res.json();
 }
 
-let itemCounter = 0;
-
-function QuestionRow({ question, answers, language, depth = 0 }: {
+function QuestionRow({ question, answers, language, depth = 0, itemNumber }: {
   question: FormQuestion;
   answers: Record<string, unknown>;
   language: string;
   depth?: number;
+  itemNumber?: number;
 }) {
   if (question.type === "section_header") {
     return (
@@ -187,8 +186,7 @@ function QuestionRow({ question, answers, language, depth = 0 }: {
       </div>
     );
   }
-  itemCounter += 1;
-  const num = itemCounter;
+  const num = itemNumber;
   const answer = answers[question.id];
   const displayAnswer = formatAnswer(question, answer, language);
   const unanswered = !answer && answer !== 0 && answer !== false;
@@ -268,7 +266,11 @@ export default function ResponseViewer() {
         setManualNotes(data.existingScore.notes ?? "");
       }
     }
-  }, [data?.existingScore]);
+    // Use the score ID (a stable primitive) as the dependency so this only
+    // runs when a genuinely different score record arrives, not on every
+    // background refetch that creates a new object reference.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.existingScore?.id]);
 
   useEffect(() => {
     if (!data) return;
@@ -394,8 +396,6 @@ export default function ResponseViewer() {
   const lang = response.language;
   const isAutoScored = scoringType === "auto";
   const isManuallyScored = scoringType === "manual";
-
-  itemCounter = 0;
 
   return (
     <>
@@ -552,9 +552,22 @@ export default function ResponseViewer() {
               <p className="text-slate-400 text-sm italic py-8 text-center">No question data available for this tool.</p>
             ) : (
               <div>
-                {questions.map(q => (
-                  <QuestionRow key={q.id} question={q} answers={response.answers} language={lang} />
-                ))}
+                {(() => {
+                  let n = 0;
+                  return questions.map(q => {
+                    const isHeader = q.type === "section_header";
+                    if (!isHeader) n++;
+                    return (
+                      <QuestionRow
+                        key={q.id}
+                        question={q}
+                        answers={response.answers}
+                        language={lang}
+                        itemNumber={isHeader ? undefined : n}
+                      />
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
