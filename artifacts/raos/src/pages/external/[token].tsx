@@ -467,7 +467,9 @@ export default function ExternalFormView() {
           <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
           <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired. Please contact the assessment team for assistance.</p>
           <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
+            <a href="/" className="flex items-center gap-2 hover:text-slate-600 transition-colors">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
+            </a>
           </div>
         </div>
       </div>
@@ -476,9 +478,11 @@ export default function ExternalFormView() {
 
   // ── Shared branding footer (rendered in all success screens) ──
   const ReMyndFooter = () => (
-    <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
-      <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
-      <span>ReMynd Assessment System</span>
+    <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
+      <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
+        <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+        <span>ReMynd Assessment System</span>
+      </a>
     </div>
   );
 
