@@ -80,7 +80,7 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
   res.json({ toolId: id, questions });
 });
 
-router.put("/assessment-tools/:id", authMiddleware, async (req, res) => {
+router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { name, description, category, scoringType, domains, respondentTypes, formItems, scoringConfig } = req.body;
 

@@ -971,7 +971,7 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
     const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
     updateMut.mutate(
       {
-        toolId: tool.id,
+        id: tool.id,
         data: {
           name: name.trim(),
           description: description.trim(),
@@ -1124,7 +1124,7 @@ function DeleteConfirmDialog({ tool, onClose }: { tool: any; onClose: () => void
 
   const handleDelete = () => {
     deleteMut.mutate(
-      { toolId: tool.id },
+      { id: tool.id },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
