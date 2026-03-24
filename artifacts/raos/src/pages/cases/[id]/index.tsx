@@ -631,8 +631,8 @@ export default function CaseDetail() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Respondent Label (e.g., 'Mom', 'Math Teacher')</label>
-              <Input required value={newAssignment.respondentLabel} onChange={e => setNewAssignment({...newAssignment, respondentLabel: e.target.value})} />
+              <label className="text-sm font-medium">Respondent Label <span className="text-red-500">*</span> <span className="text-slate-400 font-normal">(e.g., 'Mom', 'Math Teacher')</span></label>
+              <Input required placeholder="e.g. Mom, Mr. Santos" value={newAssignment.respondentLabel} onChange={e => setNewAssignment({...newAssignment, respondentLabel: e.target.value})} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Assigned To Name</label>
