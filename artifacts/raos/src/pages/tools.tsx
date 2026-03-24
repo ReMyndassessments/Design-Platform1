@@ -74,13 +74,10 @@ const categoryColors: Record<string, string> = {
 };
 
 const ALL_RESPONDENT_TYPES = [
-  "parent", "teacher1", "teacher2", "student", "self",
-  "school", "school_counselor", "special_needs_teacher", "referring_teacher", "boarding_staff",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
 ];
 
-const FILTER_RESPONDENT_TYPES = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
-] as const;
+const FILTER_RESPONDENT_TYPES = ALL_RESPONDENT_TYPES as readonly string[];
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   parent:            "Parent",
