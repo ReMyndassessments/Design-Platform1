@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
 
 interface FormQuestion {
   id: string;
@@ -156,6 +157,229 @@ function getRespondentTypeLabel(type: string) {
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ─── Domain Configuration ─────────────────────────────────────────────────────
+
+interface DomainInfo {
+  label: string;
+  shortLabel: string;
+  description: string;
+  color: string;
+  narratives: { max: number; text: string }[];
+}
+
+const DOMAIN_CONFIG: Record<string, DomainInfo> = {
+  // RASR subscales
+  sustained_attention: {
+    label: "Sustained Attention",
+    shortLabel: "Attention",
+    description: "Ability to maintain focus over extended periods",
+    color: "#6366f1",
+    narratives: [
+      { max: 25, text: "Demonstrates strong ability to sustain attention across extended tasks with minimal difficulty." },
+      { max: 50, text: "Shows mild challenges with sustaining attention, particularly during longer or repetitive activities." },
+      { max: 65, text: "Experiences moderate difficulty maintaining focus over time, often requiring redirection and support." },
+      { max: 100, text: "Significant challenges with sustained attention that substantially impact academic and daily functioning." },
+    ],
+  },
+  distractibility: {
+    label: "Distractibility",
+    shortLabel: "Distractibility",
+    description: "Tendency to be pulled away by environmental stimuli",
+    color: "#f59e0b",
+    narratives: [
+      { max: 25, text: "Shows good ability to filter out irrelevant stimuli and maintain focus in varied environments." },
+      { max: 50, text: "Occasionally drawn off-task by environmental factors; generally able to refocus with minimal support." },
+      { max: 65, text: "Moderately susceptible to environmental distractions, often requiring a structured setting to stay on task." },
+      { max: 100, text: "Highly distractible; even minor environmental changes significantly disrupt concentration and task completion." },
+    ],
+  },
+  impulse_regulation: {
+    label: "Impulse Regulation",
+    shortLabel: "Impulse",
+    description: "Capacity to pause and think before acting or speaking",
+    color: "#ef4444",
+    narratives: [
+      { max: 25, text: "Demonstrates good impulse control; typically thinks before acting and waits appropriately for turn-taking." },
+      { max: 50, text: "Mild impulsivity noted in some situations; generally manageable with reminders or low-level support." },
+      { max: 65, text: "Moderate impulse control challenges observed; frequently acts or speaks before thinking, impacting social and academic settings." },
+      { max: 100, text: "Significant impulsivity that is pervasive across settings, creating frequent disruptions and social difficulties." },
+    ],
+  },
+  task_initiation: {
+    label: "Task Initiation & Completion",
+    shortLabel: "Task Init.",
+    description: "Ability to start, sustain, and complete work",
+    color: "#10b981",
+    narratives: [
+      { max: 25, text: "Initiates and completes tasks independently with strong follow-through across most settings." },
+      { max: 50, text: "Mild difficulties with starting or completing tasks; may procrastinate occasionally but generally self-corrects." },
+      { max: 65, text: "Moderate challenges with task initiation and completion; often requires prompting and structured support." },
+      { max: 100, text: "Substantial difficulties getting started and finishing tasks, often leaving work incomplete without intensive support." },
+    ],
+  },
+  behavioral_modulation: {
+    label: "Behavioral Modulation",
+    shortLabel: "Behavior",
+    description: "Ability to regulate activity level and behavior across contexts",
+    color: "#8b5cf6",
+    narratives: [
+      { max: 25, text: "Demonstrates appropriate behavioral regulation across settings with ability to match energy to context." },
+      { max: 50, text: "Mild challenges with behavioral regulation; generally manages activity level with occasional reminders." },
+      { max: 65, text: "Moderate behavioral modulation difficulties; activity level and behavior vary considerably across contexts." },
+      { max: 100, text: "Significant challenges regulating behavior and activity level, with pronounced hyperactivity or restlessness noted across settings." },
+    ],
+  },
+  // RCS-80 / generic attention subscales
+  attention: {
+    label: "Attention",
+    shortLabel: "Attention",
+    description: "Overall attentional functioning",
+    color: "#6366f1",
+    narratives: [
+      { max: 25, text: "Attention skills appear age-appropriate with minimal signs of difficulty." },
+      { max: 50, text: "Mild attentional concerns noted; generally functioning within expected range." },
+      { max: 65, text: "Moderate attentional difficulties present; impacts functioning in structured settings." },
+      { max: 100, text: "Significant attentional difficulties that substantially impact academic and social functioning." },
+    ],
+  },
+  hyperactivity: {
+    label: "Hyperactivity",
+    shortLabel: "Hyperactivity",
+    description: "Excess motor activity and restlessness",
+    color: "#ef4444",
+    narratives: [
+      { max: 25, text: "Activity level appears appropriate for age and setting." },
+      { max: 50, text: "Mild hyperactive behaviors noted occasionally; generally within manageable range." },
+      { max: 65, text: "Moderate hyperactivity present; frequently off-seat or physically restless across settings." },
+      { max: 100, text: "Significant hyperactivity that is pervasive and impacts learning and social environments." },
+    ],
+  },
+  impulsivity: {
+    label: "Impulsivity",
+    shortLabel: "Impulsivity",
+    description: "Acting without adequate forethought",
+    color: "#f59e0b",
+    narratives: [
+      { max: 25, text: "Impulse control appears age-appropriate; typically waits and thinks before acting." },
+      { max: 50, text: "Mild impulsive behaviors noted; manageable with standard classroom supports." },
+      { max: 65, text: "Moderate impulsivity with frequent blurting out, interrupting, or acting without thinking." },
+      { max: 100, text: "Severe impulsivity that significantly disrupts classroom, social, and home environments." },
+    ],
+  },
+  opposition: {
+    label: "Oppositional Behavior",
+    shortLabel: "Opposition",
+    description: "Non-compliance and oppositional patterns",
+    color: "#dc2626",
+    narratives: [
+      { max: 25, text: "Compliant and cooperative; oppositional behaviors are minimal or absent." },
+      { max: 50, text: "Occasional non-compliance; generally responds to redirection." },
+      { max: 65, text: "Moderate oppositional patterns; frequent refusal or arguing noted." },
+      { max: 100, text: "Significant oppositional behaviors that substantially challenge authority and classroom management." },
+    ],
+  },
+};
+
+const FALLBACK_DOMAIN: DomainInfo = {
+  label: "",
+  shortLabel: "",
+  description: "",
+  color: "#64748b",
+  narratives: [
+    { max: 25, text: "Scores in the low range suggest minimal difficulty in this area." },
+    { max: 50, text: "Scores in the low-moderate range suggest some difficulty; monitoring recommended." },
+    { max: 65, text: "Scores in the moderate range indicate notable difficulty in this area." },
+    { max: 100, text: "Scores in the elevated range indicate significant difficulty warranting clinical attention." },
+  ],
+};
+
+// Map old individual question-ID keys (from legacy scoring bug) → proper domain
+const QUESTION_TO_DOMAIN: Record<string, string> = {
+  bm1: "behavioral_modulation", bm2: "behavioral_modulation", bm3: "behavioral_modulation",
+  bm4: "behavioral_modulation", bm5: "behavioral_modulation", bm6: "behavioral_modulation",
+  bm7: "behavioral_modulation", bm8: "behavioral_modulation",
+  di1: "distractibility", di2: "distractibility", di3: "distractibility",
+  di4: "distractibility", di5: "distractibility", di6: "distractibility",
+  di7: "distractibility", di8: "distractibility",
+  ir1: "impulse_regulation", ir2: "impulse_regulation", ir3: "impulse_regulation",
+  ir4: "impulse_regulation", ir5: "impulse_regulation", ir6: "impulse_regulation",
+  ir7: "impulse_regulation", ir8: "impulse_regulation",
+  ti1: "task_initiation", ti2: "task_initiation", ti3: "task_initiation",
+  ti4: "task_initiation", ti5: "task_initiation", ti6: "task_initiation",
+  ti7: "task_initiation", ti8: "task_initiation",
+  sa1: "sustained_attention", sa2: "sustained_attention", sa3: "sustained_attention",
+  sa4: "sustained_attention", sa5: "sustained_attention", sa6: "sustained_attention",
+  sa7: "sustained_attention", sa8: "sustained_attention",
+};
+
+/** Re-groups legacy per-question domain scores into proper subscale averages. */
+function resolveDomainScores(
+  domainScores: Record<string, number | null>,
+  normalizedScores: Record<string, number | null>,
+): { domains: Record<string, number>; normalized: Record<string, number> } {
+  const resolved: Record<string, number[]> = {};
+  const resolvedNorm: Record<string, number[]> = {};
+
+  for (const [key, val] of Object.entries(domainScores)) {
+    const norm = normalizedScores[key];
+    // Canonical domain key (known proper name) — use directly
+    if (DOMAIN_CONFIG[key]) {
+      if (!resolved[key]) { resolved[key] = []; resolvedNorm[key] = []; }
+      if (typeof val === "number" && isFinite(val)) resolved[key].push(val);
+      if (typeof norm === "number" && isFinite(norm)) resolvedNorm[key].push(norm);
+    } else {
+      // Try to map via QUESTION_TO_DOMAIN (legacy per-question keys like "bm1")
+      const lowerKey = key.toLowerCase();
+      const mapped = QUESTION_TO_DOMAIN[lowerKey];
+      if (mapped) {
+        if (!resolved[mapped]) { resolved[mapped] = []; resolvedNorm[mapped] = []; }
+        if (typeof val === "number" && isFinite(val)) resolved[mapped].push(val);
+        if (typeof norm === "number" && isFinite(norm)) resolvedNorm[mapped].push(norm);
+      } else {
+        // Unknown key — keep as-is
+        if (!resolved[key]) { resolved[key] = []; resolvedNorm[key] = []; }
+        if (typeof val === "number" && isFinite(val)) resolved[key].push(val);
+        if (typeof norm === "number" && isFinite(norm)) resolvedNorm[key].push(norm);
+      }
+    }
+  }
+
+  const domains: Record<string, number> = {};
+  const normalized: Record<string, number> = {};
+  for (const [d, vals] of Object.entries(resolved)) {
+    if (vals.length > 0) {
+      domains[d] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+    }
+  }
+  for (const [d, vals] of Object.entries(resolvedNorm)) {
+    if (vals.length > 0) {
+      normalized[d] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+  }
+  return { domains, normalized };
+}
+
+function getDomainInfo(key: string): DomainInfo {
+  if (DOMAIN_CONFIG[key]) return DOMAIN_CONFIG[key];
+  // Fallback: convert snake_case to Title Case
+  const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return { ...FALLBACK_DOMAIN, label, shortLabel: label };
+}
+
+function getSeverity(normalized: number): { label: string; color: string; bg: string; border: string } {
+  if (normalized <= 25) return { label: "Low", color: "text-emerald-700", bg: "bg-emerald-500", border: "border-emerald-200" };
+  if (normalized <= 50) return { label: "Mild", color: "text-sky-700", bg: "bg-sky-500", border: "border-sky-200" };
+  if (normalized <= 65) return { label: "Moderate", color: "text-amber-700", bg: "bg-amber-500", border: "border-amber-200" };
+  return { label: "Elevated", color: "text-red-700", bg: "bg-red-500", border: "border-red-200" };
+}
+
+function getNarrative(info: DomainInfo, normalized: number): string {
+  for (const n of info.narratives) {
+    if (normalized <= n.max) return n.text;
+  }
+  return info.narratives[info.narratives.length - 1]?.text ?? "";
 }
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -709,97 +933,271 @@ export default function ResponseViewer() {
           </div>
         )}
 
-        {/* Score Card — shown for both auto and manual scored tools */}
-        {score && (
-          <div ref={scoreRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-score-card">
-            <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 px-8 py-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <BarChart2 size={18} className="text-indigo-300" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-white">Score Report</h2>
-                      {score.isManual && (
-                        <span className="text-xs bg-amber-400/20 text-amber-200 border border-amber-400/30 px-2 py-0.5 rounded-full font-medium">
-                          Manual Entry
-                        </span>
-                      )}
+        {/* Score Card — rich report with charts and narratives */}
+        {score && (() => {
+          const { domains: resolvedDomains, normalized: resolvedNorm } = resolveDomainScores(
+            score.domainScores as Record<string, number | null>,
+            score.normalizedScores as Record<string, number | null>,
+          );
+          const domainEntries = Object.entries(resolvedDomains);
+          const hasDomains = domainEntries.length > 0;
+
+          // Radar chart data
+          const radarData = domainEntries.map(([key]) => ({
+            domain: getDomainInfo(key).shortLabel || capitalize(key.replace(/_/g, " ")),
+            score: resolvedNorm[key] ?? 0,
+            fullMark: 100,
+          }));
+
+          // Bar chart data
+          const barData = domainEntries.map(([key, val]) => ({
+            key,
+            label: getDomainInfo(key).label || capitalize(key.replace(/_/g, " ")),
+            short: getDomainInfo(key).shortLabel || capitalize(key.replace(/_/g, " ")),
+            score: resolvedNorm[key] ?? 0,
+            raw: val,
+            color: getDomainInfo(key).color,
+          }));
+
+          // Overall interpretation
+          const avgNorm = hasDomains
+            ? Math.round(Object.values(resolvedNorm).reduce((a, b) => a + b, 0) / Object.values(resolvedNorm).length)
+            : null;
+          const overallSeverity = avgNorm !== null ? getSeverity(avgNorm) : null;
+
+          return (
+            <div ref={scoreRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-score-card">
+              {/* Header */}
+              <div className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-8 py-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <BarChart2 size={20} className="text-indigo-300 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-xl font-bold text-white">Score Report</h2>
+                        {score.isManual && (
+                          <span className="text-xs bg-amber-400/20 text-amber-200 border border-amber-400/30 px-2 py-0.5 rounded-full font-medium">
+                            Manual Entry
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-indigo-300 text-sm mt-0.5">
+                        {assignment.toolName} — {studentName} · {getRespondentTypeLabel(assignment.respondentType)}
+                      </p>
                     </div>
-                    <p className="text-indigo-300 text-xs mt-0.5">
-                      {assignment.toolName} — {studentName} · {getRespondentTypeLabel(assignment.respondentType)}
-                    </p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-indigo-300 text-xs uppercase tracking-wider mb-0.5">Raw Score</p>
-                  <p className="text-white text-3xl font-bold leading-none">
-                    {score.rawScore != null ? score.rawScore.toFixed(1) : "—"}
-                  </p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-indigo-400 text-xs uppercase tracking-wider mb-1">Overall Average</p>
+                    <p className="text-white text-4xl font-bold leading-none">
+                      {avgNorm !== null ? avgNorm : score.rawScore != null ? score.rawScore.toFixed(1) : "—"}
+                    </p>
+                    {avgNorm !== null && (
+                      <p className="text-indigo-300 text-xs mt-1">/ 100</p>
+                    )}
+                    {overallSeverity && (
+                      <span className={`inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full ${
+                        avgNorm! <= 25 ? "bg-emerald-500/20 text-emerald-300" :
+                        avgNorm! <= 50 ? "bg-sky-500/20 text-sky-300" :
+                        avgNorm! <= 65 ? "bg-amber-500/20 text-amber-300" :
+                        "bg-red-500/20 text-red-300"
+                      }`}>
+                        {overallSeverity.label} Range
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="px-8 py-6">
-              {Object.keys(score.domainScores).length === 0 ? (
-                <p className="text-slate-400 text-sm italic text-center py-4">
-                  No domain scores recorded. {score.isManual ? "Edit scores to add domain data." : "Ensure the form contains scored items."}
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Domain Breakdown</p>
-                  <div className="space-y-3">
-                    {Object.entries(score.domainScores).map(([domain, val]) => {
-                      const safeVal = typeof val === "number" && isFinite(val) ? val : null;
-                      const rawNorm = score.normalizedScores[domain];
-                      const normalized = typeof rawNorm === "number" && isFinite(rawNorm) ? rawNorm : 0;
-                      return (
-                        <div key={domain}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-slate-700">{capitalize(domain.replace(/_/g, " "))}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-400">{safeVal !== null ? safeVal.toFixed(1) : "—"} avg</span>
-                              <span className="text-sm font-bold text-indigo-700 w-10 text-right">{normalized}</span>
-                            </div>
-                          </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-500 rounded-full transition-all"
-                              style={{ width: `${Math.min(normalized, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-4">
-                    Scores shown as domain average (left) and normalized 0–100 scale (right).
+              <div className="p-8 space-y-8">
+                {!hasDomains ? (
+                  <p className="text-slate-400 text-sm italic text-center py-4">
+                    No domain scores recorded. {score.isManual ? "Edit scores to add domain data." : "Resubmit the form to generate scores."}
                   </p>
-                </>
-              )}
+                ) : (
+                  <>
+                    {/* Severity Legend */}
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                      <span className="text-slate-500 font-medium mr-1">Severity:</span>
+                      {[
+                        { label: "Low (0–25)", bg: "bg-emerald-500" },
+                        { label: "Mild (26–50)", bg: "bg-sky-500" },
+                        { label: "Moderate (51–65)", bg: "bg-amber-500" },
+                        { label: "Elevated (66+)", bg: "bg-red-500" },
+                      ].map(({ label, bg }) => (
+                        <span key={label} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">
+                          <span className={`w-2 h-2 rounded-full ${bg}`} />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
 
-              {score.notes && (
-                <div className="mt-5 pt-4 border-t border-slate-100">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Clinician Notes</p>
-                  <p className="text-sm text-slate-700">{score.notes}</p>
-                </div>
-              )}
-            </div>
+                    {/* Charts row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Radar chart */}
+                      {radarData.length >= 3 && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Profile Overview</p>
+                          <ResponsiveContainer width="100%" height={280}>
+                            <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                              <PolarGrid stroke="#e2e8f0" />
+                              <PolarAngleAxis
+                                dataKey="domain"
+                                tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
+                              />
+                              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                              <Radar
+                                name="Score"
+                                dataKey="score"
+                                stroke="#6366f1"
+                                fill="#6366f1"
+                                fillOpacity={0.2}
+                                strokeWidth={2}
+                              />
+                              <ReTooltip
+                                formatter={(value: number) => [`${value}/100`, "Score"]}
+                                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
 
-            <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                {score.isManual ? "Manually recorded" : "Scored"} {formatDate(score.generatedAt)} · ReMynd Assessment Operating System
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handlePrintScoreOnly}
-                className="print-hide gap-2 text-xs h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-              >
-                <Printer size={13} /> Download Score PDF
-              </Button>
+                      {/* Bar chart */}
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Domain Scores</p>
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart
+                            data={barData}
+                            layout="vertical"
+                            margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                            <YAxis
+                              type="category"
+                              dataKey="short"
+                              width={90}
+                              tick={{ fontSize: 11, fill: "#475569", fontWeight: 500 }}
+                            />
+                            <ReTooltip
+                              formatter={(value: number, _name: string, props: { payload?: { label: string; raw: number } }) => [
+                                `${value}/100 (avg ${props.payload?.raw?.toFixed(1) ?? "—"})`,
+                                props.payload?.label ?? "",
+                              ]}
+                              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                            />
+                            <Bar dataKey="score" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                              {barData.map((entry) => (
+                                <Cell
+                                  key={entry.key}
+                                  fill={
+                                    entry.score <= 25 ? "#10b981" :
+                                    entry.score <= 50 ? "#0ea5e9" :
+                                    entry.score <= 65 ? "#f59e0b" :
+                                    "#ef4444"
+                                  }
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Domain detail rows */}
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Domain Breakdown & Interpretation</p>
+                      <div className="space-y-5">
+                        {domainEntries.map(([key, rawVal]) => {
+                          const norm = resolvedNorm[key] ?? 0;
+                          const info = getDomainInfo(key);
+                          const sev = getSeverity(norm);
+                          const narrative = getNarrative(info, norm);
+                          return (
+                            <div key={key} className={`rounded-xl border p-4 ${sev.border} bg-white`}>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-bold text-slate-800">{info.label || capitalize(key.replace(/_/g, " "))}</span>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${sev.border} ${sev.color} bg-white`}>
+                                      {sev.label}
+                                    </span>
+                                  </div>
+                                  {info.description && (
+                                    <p className="text-xs text-slate-400 mt-0.5">{info.description}</p>
+                                  )}
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <span className={`text-2xl font-bold ${sev.color}`}>{norm}</span>
+                                  <span className="text-xs text-slate-400 ml-0.5">/100</span>
+                                  <p className="text-xs text-slate-400 mt-0.5">avg {rawVal.toFixed(1)}</p>
+                                </div>
+                              </div>
+                              {/* Progress bar */}
+                              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+                                <div
+                                  className={`h-full rounded-full transition-all ${sev.bg}`}
+                                  style={{ width: `${Math.min(norm, 100)}%` }}
+                                />
+                              </div>
+                              {/* Narrative */}
+                              {narrative && (
+                                <p className="text-xs text-slate-600 leading-relaxed">{narrative}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Overall interpretation */}
+                    {avgNorm !== null && overallSeverity && (
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-2">Overall Interpretation</p>
+                        <p className="text-sm text-indigo-900 leading-relaxed">
+                          {studentName}'s overall profile falls in the{" "}
+                          <strong>{overallSeverity.label.toLowerCase()} range</strong> with a composite score of{" "}
+                          <strong>{avgNorm}/100</strong> across {domainEntries.length} domain{domainEntries.length !== 1 ? "s" : ""}.{" "}
+                          {avgNorm <= 25
+                            ? "Results suggest minimal clinical concerns at this time; continued monitoring is recommended."
+                            : avgNorm <= 50
+                            ? "Results indicate mild-level concerns in some areas. Targeted support strategies and monitoring are advisable."
+                            : avgNorm <= 65
+                            ? "Results indicate moderate-level concerns across multiple areas. Comprehensive support planning and possible further evaluation are recommended."
+                            : "Results indicate elevated concerns across multiple domains. Comprehensive assessment and multidisciplinary intervention planning are strongly recommended."}
+                        </p>
+                        <p className="text-xs text-indigo-400 mt-3 italic">
+                          Note: Scores reflect self-report data and should be interpreted alongside other assessment sources and clinical judgment.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {score.notes && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Clinician Notes</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{score.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                  {score.isManual ? "Manually recorded" : "Scored"} {formatDate(score.generatedAt)} · ReMynd Assessment Operating System
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handlePrintScoreOnly}
+                  className="print-hide gap-2 text-xs h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  <Printer size={13} /> Download Score PDF
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </>
   );
