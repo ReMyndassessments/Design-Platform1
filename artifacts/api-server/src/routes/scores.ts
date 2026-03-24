@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { scoresTable, responsesTable, assignmentsTable, casesTable } from "@workspace/db/schema";
+import { scoresTable, responsesTable, assignmentsTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
+import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 
 const router = Router();
 
@@ -15,13 +16,29 @@ async function checkCaseAccess(_role: string, _userId: string, caseId: string): 
   return !!rows[0];
 }
 
-function computeDomainScores(answers: Record<string, unknown>): Record<string, number> {
+/** Build a questionId → domain lookup from the tool's canonical or DB-stored question list. */
+async function buildDomainMap(toolId: string): Promise<Record<string, string>> {
+  const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
+    .from(assessmentToolsTable)
+    .where(eq(assessmentToolsTable.id, toolId))
+    .limit(1);
+  const stored = toolRows[0]?.formItems;
+  const questions = (stored && Array.isArray(stored) && stored.length > 0)
+    ? (stored as { id: string; domain?: string }[])
+    : (SAMPLE_QUESTIONS[toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+  const map: Record<string, string> = {};
+  for (const q of questions) {
+    if (q.id && q.domain) map[q.id] = q.domain;
+  }
+  return map;
+}
+
+function computeDomainScores(answers: Record<string, unknown>, domainMap: Record<string, string>): Record<string, number> {
   const domains: Record<string, number[]> = {};
   for (const [key, value] of Object.entries(answers)) {
-    const parts = key.split("_");
-    const domain = parts[parts.length - 1] ?? "general";
+    const domain = domainMap[key] ?? "general";
     if (!domains[domain]) domains[domain] = [];
-    const numVal = typeof value === "number" ? value : parseInt(String(value), 10);
+    const numVal = typeof value === "number" ? value : parseFloat(String(value));
     if (!isNaN(numVal)) domains[domain].push(numVal);
   }
   const result: Record<string, number> = {};
@@ -59,7 +76,8 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
     if (responses.length === 0) continue;
 
     const latestResponse = responses[responses.length - 1];
-    const domainScores = computeDomainScores(latestResponse.answers as Record<string, unknown>);
+    const domainMap = await buildDomainMap(assignment.toolId);
+    const domainScores = computeDomainScores(latestResponse.answers as Record<string, unknown>, domainMap);
     const normalizedScores = normalize(domainScores);
     const rawScore = Object.values(domainScores).reduce((a, b) => a + b, 0) / Object.keys(domainScores).length;
 
@@ -165,7 +183,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
   }
 
   const answers = responseRows[0].answers as Record<string, unknown>;
-  const domainScores = computeDomainScores(answers);
+  const domainMap = await buildDomainMap(assignment.toolId);
+  const domainScores = computeDomainScores(answers, domainMap);
   const normalizedScores = normalize(domainScores);
   const domainValues = Object.values(domainScores);
   const rawScore = domainValues.length > 0
