@@ -1085,27 +1085,107 @@ export default function ResponseViewer() {
                       </div>
                     </div>
 
-                    {/* Overall interpretation */}
-                    {avgNorm !== null && overallSeverity && (
-                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-2">Overall Interpretation</p>
-                        <p className="text-sm text-indigo-900 leading-relaxed">
-                          {studentName}'s overall profile falls in the{" "}
-                          <strong>{overallSeverity.label.toLowerCase()} range</strong> with a composite score of{" "}
-                          <strong>{avgNorm}/100</strong> across {domainEntries.length} domain{domainEntries.length !== 1 ? "s" : ""}.{" "}
-                          {avgNorm <= (thresholds?.low ?? 25)
-                            ? "Results suggest minimal clinical concerns at this time; continued monitoring is recommended."
-                            : avgNorm <= (thresholds?.mild ?? 50)
-                            ? "Results indicate mild-level concerns in some areas. Targeted support strategies and monitoring are advisable."
-                            : avgNorm <= (thresholds?.moderate ?? 65)
-                            ? "Results indicate moderate-level concerns across multiple areas. Comprehensive support planning and possible further evaluation are recommended."
-                            : "Results indicate elevated concerns across multiple domains. Comprehensive assessment and multidisciplinary intervention planning are strongly recommended."}
-                        </p>
-                        <p className="text-xs text-indigo-400 mt-3 italic">
-                          Note: Scores reflect self-report data and should be interpreted alongside other assessment sources and clinical judgment.
-                        </p>
-                      </div>
-                    )}
+                    {/* Interpretive Report */}
+                    {avgNorm !== null && overallSeverity && (() => {
+                      const low = thresholds?.low ?? 25;
+                      const mild = thresholds?.mild ?? 50;
+                      const moderate = thresholds?.moderate ?? 65;
+
+                      const overallNarrative = avgNorm <= low
+                        ? `Overall, ${studentName}'s profile reflects scores in the Low range across most domains assessed. The pattern of responses does not indicate widespread areas of concern at this time. While continued monitoring is always appropriate, these results suggest the student is generally meeting developmental and behavioral expectations as rated by this informant.`
+                        : avgNorm <= mild
+                        ? `Overall, ${studentName}'s profile reflects scores primarily in the Mild range. The pattern of results suggests some areas of emerging concern that may benefit from additional attention, targeted skill-building, or classroom accommodations. A follow-up conversation with the educational team is recommended to determine whether a more formal evaluation or tiered support plan is warranted.`
+                        : avgNorm <= moderate
+                        ? `Overall, ${studentName}'s profile reflects scores in the Moderate range across multiple domains. This pattern of results suggests that the student is experiencing meaningful challenges that are likely impacting their daily functioning in school. A comprehensive evaluation and the development of a structured support plan are strongly recommended. Results should be interpreted in the context of additional data sources, including direct observation, academic records, and family input.`
+                        : `Overall, ${studentName}'s profile reflects scores in the Elevated range, indicating significant concerns across multiple functional domains. This pattern suggests the student may be experiencing substantial difficulties that require immediate attention, comprehensive evaluation, and the implementation of intensive, individualized supports. Results should be reviewed by a multidisciplinary team and integrated with all available data before conclusions are drawn or recommendations are finalized.`;
+
+                      const elevatedDomains = domainEntries
+                        .filter(([key]) => (resolvedNorm[key] ?? 0) > moderate)
+                        .map(([key], idx) => getDomainInfo(key, scoringConfig, idx).label || capitalize(key.replace(/_/g, " ")));
+                      const moderateDomains = domainEntries
+                        .filter(([key]) => { const n = resolvedNorm[key] ?? 0; return n > mild && n <= moderate; })
+                        .map(([key], idx) => getDomainInfo(key, scoringConfig, idx).label || capitalize(key.replace(/_/g, " ")));
+
+                      const recommendationLines: string[] = [];
+                      if (elevatedDomains.length > 0) {
+                        recommendationLines.push(`Priority areas for evaluation and intervention include: ${elevatedDomains.join(", ")}. These domains show Elevated scores and may require the most immediate attention in planning.`);
+                      }
+                      if (moderateDomains.length > 0) {
+                        recommendationLines.push(`Areas showing Moderate concern — including ${moderateDomains.join(", ")} — should also be addressed through targeted monitoring and structured supports.`);
+                      }
+                      recommendationLines.push("All findings should be interpreted within the broader context of the student's educational history, developmental background, and existing supports. This screening profile is not a diagnostic instrument and should be used as one component of a comprehensive evaluation process.");
+                      recommendationLines.push("Next steps may include sharing these results with the student's educational team, obtaining consent for additional formal evaluation if warranted, and scheduling a collaborative debriefing to review findings and determine appropriate next steps.");
+
+                      return (
+                        <div className="space-y-4 border-t border-slate-100 pt-6 mt-2">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Interpretive Report</p>
+
+                          {/* Overall Profile Summary */}
+                          <div className={`rounded-xl border p-5 ${
+                            avgNorm <= low ? "bg-emerald-50 border-emerald-200" :
+                            avgNorm <= mild ? "bg-sky-50 border-sky-200" :
+                            avgNorm <= moderate ? "bg-amber-50 border-amber-200" :
+                            "bg-red-50 border-red-200"
+                          }`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className={`text-xs font-bold uppercase tracking-widest ${
+                                avgNorm <= low ? "text-emerald-600" :
+                                avgNorm <= mild ? "text-sky-600" :
+                                avgNorm <= moderate ? "text-amber-600" :
+                                "text-red-600"
+                              }`}>Overall Profile Summary</p>
+                              <span className={`text-xs font-semibold px-3 py-0.5 rounded-full border ${
+                                avgNorm <= low ? "text-emerald-700 border-emerald-300 bg-white" :
+                                avgNorm <= mild ? "text-sky-700 border-sky-300 bg-white" :
+                                avgNorm <= moderate ? "text-amber-700 border-amber-300 bg-white" :
+                                "text-red-700 border-red-300 bg-white"
+                              }`}>
+                                {overallSeverity.label} Concern · {avgNorm}/100
+                              </span>
+                            </div>
+                            <p className="text-sm leading-relaxed text-slate-700">{overallNarrative}</p>
+                          </div>
+
+                          {/* Domain Priority Summary */}
+                          {(elevatedDomains.length > 0 || moderateDomains.length > 0) && (
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Clinical Considerations & Priority Areas</p>
+                              <div className="space-y-3">
+                                {elevatedDomains.length > 0 && (
+                                  <div className="flex gap-3">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                      <strong>Elevated concern:</strong> {elevatedDomains.join(", ")}. These domains show the highest scores in this profile and are recommended priority areas for evaluation and intervention planning.
+                                    </p>
+                                  </div>
+                                )}
+                                {moderateDomains.length > 0 && (
+                                  <div className="flex gap-3">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                      <strong>Moderate concern:</strong> {moderateDomains.join(", ")}. These domains warrant targeted monitoring and structured supports, even if not requiring the most intensive level of intervention at this time.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Recommended Next Steps */}
+                          <div className="rounded-xl border border-slate-200 bg-white p-5">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Recommended Next Steps</p>
+                            <div className="space-y-2">
+                              {recommendationLines.map((line, i) => (
+                                <p key={i} className="text-sm text-slate-700 leading-relaxed">{line}</p>
+                              ))}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-4 italic border-t border-slate-100 pt-3">
+                              This interpretive report was generated automatically based on scored assessment data and is intended to support — not replace — clinical judgment. All findings should be interpreted by a qualified professional in the context of a comprehensive evaluation.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 
