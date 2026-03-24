@@ -43,6 +43,7 @@ function computeDomainScores(answers: Record<string, unknown>, domainMap: Record
   }
   const result: Record<string, number> = {};
   for (const [domain, vals] of Object.entries(domains)) {
+    if (vals.length === 0) continue;
     result[domain] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
   }
   return result;

@@ -6,6 +6,39 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout";
 import { useGetCurrentUser, setAuthTokenGetter } from "@workspace/api-client-react";
 
+class PageErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[PageErrorBoundary] Render error:", error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-2xl mx-auto mt-16 p-6 bg-red-50 border border-red-200 rounded-xl text-red-800">
+          <h2 className="text-base font-bold mb-2">Something went wrong loading this page.</h2>
+          <p className="text-sm font-mono break-all">{this.state.error.message}</p>
+          <button
+            className="mt-4 text-sm underline text-red-700"
+            onClick={() => { this.setState({ error: null }); window.history.back(); }}
+          >
+            ← Go back
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 setAuthTokenGetter(() => localStorage.getItem("raos_token"));
 
 // Pages
@@ -54,7 +87,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   return (
     <AppLayout>
-      <Component />
+      <PageErrorBoundary>
+        <Component />
+      </PageErrorBoundary>
     </AppLayout>
   );
 }

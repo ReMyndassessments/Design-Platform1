@@ -282,12 +282,13 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
       <div className="flex gap-1.5">
         {opts.map((opt, i) => {
           const srcVal = srcOpts[i] ?? opt;
-          const selected = value === srcVal;
+          const numericVal = String(i);
+          const selected = value === numericVal || value === srcVal;
           const score = LIKERT_SCORE_LABELS[i] ?? String(i + 1);
           return (
             <button
               key={srcVal}
-              onClick={() => onChange(srcVal)}
+              onClick={() => onChange(numericVal)}
               className={cn(
                 "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-center transition-all",
                 selected

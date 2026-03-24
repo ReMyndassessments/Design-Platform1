@@ -749,13 +749,15 @@ export default function ResponseViewer() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Domain Breakdown</p>
                   <div className="space-y-3">
                     {Object.entries(score.domainScores).map(([domain, val]) => {
-                      const normalized = score.normalizedScores[domain] ?? 0;
+                      const safeVal = typeof val === "number" && isFinite(val) ? val : null;
+                      const rawNorm = score.normalizedScores[domain];
+                      const normalized = typeof rawNorm === "number" && isFinite(rawNorm) ? rawNorm : 0;
                       return (
                         <div key={domain}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-slate-700">{capitalize(domain)}</span>
+                            <span className="text-sm font-medium text-slate-700">{capitalize(domain.replace(/_/g, " "))}</span>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-400">{val.toFixed(1)} avg</span>
+                              <span className="text-xs text-slate-400">{safeVal !== null ? safeVal.toFixed(1) : "—"} avg</span>
                               <span className="text-sm font-bold text-indigo-700 w-10 text-right">{normalized}</span>
                             </div>
                           </div>
