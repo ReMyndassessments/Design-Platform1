@@ -159,12 +159,14 @@ function FormItemsEditor({
 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded(prev => !prev)}
-        className="flex items-center justify-between w-full px-4 py-3 bg-slate-50 text-left"
-      >
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+      <div className="flex items-center justify-between w-full px-4 py-3 bg-slate-50">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setExpanded(prev => !prev)}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setExpanded(prev => !prev); }}
+          className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer select-none flex-1"
+        >
           <List size={14} />
           Form Items
           <span className="text-xs font-normal text-slate-500">({items.length} item{items.length !== 1 ? "s" : ""})</span>
@@ -177,9 +179,17 @@ function FormItemsEditor({
           >
             <Plus size={12} /> Add Item
           </button>
-          {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setExpanded(prev => !prev)}
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setExpanded(prev => !prev); }}
+            className="cursor-pointer"
+          >
+            {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+          </div>
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">

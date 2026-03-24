@@ -1,22 +1,28 @@
 import { AssessmentTool } from "@workspace/db/schema";
+import OpenAI from "openai";
 
-const API_KEY = process.env.DEEPSEEK_API_KEY;
-const BASE_URL = "https://api.deepseek.com";
-const MODEL = "deepseek-chat";
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const DEEPSEEK_MODEL = "deepseek-chat";
+
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "placeholder",
+});
 
 async function callDeepSeek(prompt: string): Promise<string> {
-  if (!API_KEY) {
+  if (!DEEPSEEK_API_KEY) {
     throw new Error("DEEPSEEK_API_KEY is not configured");
   }
 
-  const response = await fetch(`${BASE_URL}/v1/chat/completions`, {
+  const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
+      "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: DEEPSEEK_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
       max_tokens: 2048,
@@ -32,6 +38,33 @@ async function callDeepSeek(prompt: string): Promise<string> {
     choices?: Array<{ message?: { content?: string } }>;
   };
   return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function callOpenAI(
+  prompt: string,
+  imageBase64?: string,
+  mimeType?: string,
+): Promise<string> {
+  type ContentPart =
+    | OpenAI.Chat.ChatCompletionContentPartText
+    | OpenAI.Chat.ChatCompletionContentPartImage;
+
+  const content: ContentPart[] = [];
+  if (imageBase64 && mimeType) {
+    content.push({
+      type: "image_url",
+      image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+    });
+  }
+  content.push({ type: "text", text: prompt });
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_completion_tokens: 8192,
+  });
+
+  return response.choices[0]?.message?.content ?? "";
 }
 
 export async function analyzeIntakeWithAI(intake: {
@@ -229,7 +262,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callDeepSeek(prompt);
+  const raw = await callOpenAI(prompt);
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");
   const jsonEnd = cleaned.lastIndexOf("}");
@@ -245,48 +278,6 @@ Return ONLY the JSON object, nothing else.`;
     domains: Array.isArray(parsed.domains) ? parsed.domains : [],
     respondentTypes: Array.isArray(parsed.respondentTypes) ? parsed.respondentTypes : [],
   };
-}
-
-async function callDeepSeekMultimodal(
-  textPrompt: string,
-  imageBase64?: string,
-  mimeType?: string,
-): Promise<string> {
-  if (!API_KEY) throw new Error("DEEPSEEK_API_KEY is not configured");
-
-  type ContentBlock =
-    | { type: "text"; text: string }
-    | { type: "image_url"; image_url: { url: string } };
-
-  const content: ContentBlock[] = [];
-  if (imageBase64 && mimeType) {
-    content.push({ type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } });
-  }
-  content.push({ type: "text", text: textPrompt });
-
-  const response = await fetch(`${BASE_URL}/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: imageBase64 ? "deepseek-chat" : MODEL,
-      messages: [{ role: "user", content }],
-      temperature: 0.3,
-      max_tokens: 8192,
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`DeepSeek API error: ${response.status} - ${text}`);
-  }
-
-  const data = await response.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  return data.choices?.[0]?.message?.content ?? "";
 }
 
 export type AnalyzedFormResult = {
@@ -355,7 +346,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callDeepSeekMultimodal(prompt, params.imageBase64, params.mimeType);
+  const raw = await callOpenAI(prompt, params.imageBase64, params.mimeType);
 
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");
