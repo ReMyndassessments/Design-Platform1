@@ -1,14 +1,8 @@
 import { AssessmentTool } from "@workspace/db/schema";
-import OpenAI from "openai";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_MODEL = "deepseek-chat";
-
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "placeholder",
-});
 
 async function callDeepSeek(prompt: string): Promise<string> {
   if (!DEEPSEEK_API_KEY) {
@@ -40,33 +34,6 @@ async function callDeepSeek(prompt: string): Promise<string> {
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function callOpenAI(
-  prompt: string,
-  imageBase64?: string,
-  mimeType?: string,
-  model: string = "gpt-4o",
-): Promise<string> {
-  type ContentPart =
-    | OpenAI.Chat.ChatCompletionContentPartText
-    | OpenAI.Chat.ChatCompletionContentPartImage;
-
-  const content: ContentPart[] = [];
-  if (imageBase64 && mimeType) {
-    content.push({
-      type: "image_url",
-      image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-    });
-  }
-  content.push({ type: "text", text: prompt });
-
-  const response = await openai.chat.completions.create({
-    model,
-    messages: [{ role: "user", content }],
-    max_completion_tokens: 8192,
-  });
-
-  return response.choices[0]?.message?.content ?? "";
-}
 
 export async function analyzeIntakeWithAI(intake: {
   studentName: string;
@@ -263,7 +230,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callOpenAI(prompt);
+  const raw = await callDeepSeek(prompt);
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");
   const jsonEnd = cleaned.lastIndexOf("}");
@@ -341,7 +308,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callOpenAI(prompt, params.imageBase64, params.mimeType, "gpt-4o-mini");
+  const raw = await callDeepSeek(prompt);
 
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");
