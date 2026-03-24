@@ -880,18 +880,16 @@ function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
         )}
 
         {/* View Form button */}
-        {tool.isRemyndOwned && (
-          <div className="pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-1.5 text-xs h-8"
-              onClick={() => setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`)}
-            >
-              <Eye className="w-3.5 h-3.5" /> View Form
-            </Button>
-          </div>
-        )}
+        <div className="pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 text-xs h-8"
+            onClick={() => setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`)}
+          >
+            <Eye className="w-3.5 h-3.5" /> View Form
+          </Button>
+        </div>
       </div>
 
       {editing && <EditToolModal tool={tool} onClose={() => setEditing(false)} />}
