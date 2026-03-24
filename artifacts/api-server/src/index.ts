@@ -177,6 +177,17 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: [],
   },
+  {
+    id: "RASR-OBS",
+    name: "ReMynd Attention & Self-Regulation Scale (RASR) — Observer Version",
+    category: "ReMynd Self-Report",
+    description: "Non-diagnostic functional profiling tool for profiling patterns of attention regulation and behavioral self-control across settings. Observer-rated (third-person) version for parents and teachers. 40 items across 5 subscales.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher1", "teacher2"],
+    scoringType: "auto",
+    domains: ["sustained_attention", "distractibility", "impulse_regulation", "task_initiation", "behavioral_modulation"],
+    scoringConfig: RASR_SCORING_CONFIG,
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
