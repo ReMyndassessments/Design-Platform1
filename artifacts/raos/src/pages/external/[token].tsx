@@ -482,7 +482,7 @@ export default function ExternalFormView() {
     </div>
   );
 
-  // ── Already Submitted (revisiting old link) ──
+  // ── Already Submitted (revisiting old link) — standard thank-you, no next-forms ──
   if (form.alreadySubmitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
@@ -490,10 +490,10 @@ export default function ExternalFormView() {
           <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-100">
             <CheckCircle2 size={44} />
           </div>
-          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Already Submitted</h2>
-          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">This form has already been completed. Thank you for your time.</p>
-          <button onClick={() => window.close()} className="mt-5 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors">
-            Close this page
+          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Thank You</h2>
+          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">{getSuccessMessage(form.formType ?? "screener")}</p>
+          <button onClick={() => window.close()} className="mt-4 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors block mx-auto">
+            {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "Close this page"}
           </button>
           <ReMyndFooter />
         </div>
