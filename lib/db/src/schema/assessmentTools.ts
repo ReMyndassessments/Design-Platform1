@@ -14,6 +14,17 @@ export type FormItem = {
   optionsChinese?: string[];
   optionsKorean?: string[];
   domain?: string;
+  required?: boolean;
+};
+
+export type ScoringConfig = {
+  max: number;
+  thresholds: { low: number; mild: number; moderate: number };
+  domains: Record<string, {
+    label: string;
+    shortLabel: string;
+    narratives: { low: string; mild: string; moderate: string; elevated: string };
+  }>;
 };
 
 export const assessmentToolsTable = pgTable("assessment_tools", {
@@ -26,6 +37,7 @@ export const assessmentToolsTable = pgTable("assessment_tools", {
   scoringType: scoringTypeEnum("scoring_type").notNull().default("auto"),
   domains: jsonb("domains").notNull().$type<string[]>(),
   formItems: jsonb("form_items").$type<FormItem[]>(),
+  scoringConfig: jsonb("scoring_config").$type<ScoringConfig>(),
 });
 
 export const insertAssessmentToolSchema = createInsertSchema(assessmentToolsTable);

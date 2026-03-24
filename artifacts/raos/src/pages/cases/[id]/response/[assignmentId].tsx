@@ -35,6 +35,18 @@ interface ScoreRecord {
   generatedAt: string;
 }
 
+interface ScoringConfigDomain {
+  label: string;
+  shortLabel: string;
+  narratives: { low: string; mild: string; moderate: string; elevated: string };
+}
+
+interface ScoringConfig {
+  max: number;
+  thresholds: { low: number; mild: number; moderate: number };
+  domains: Record<string, ScoringConfigDomain>;
+}
+
 interface ResponseData {
   assignment: {
     id: string;
@@ -57,6 +69,7 @@ interface ResponseData {
   grade: string;
   scoringType: "auto" | "manual" | null;
   toolDomains: string[];
+  scoringConfig: ScoringConfig | null;
   existingScore: ScoreRecord | null;
 }
 
@@ -169,131 +182,11 @@ interface DomainInfo {
   narratives: { max: number; text: string }[];
 }
 
-const DOMAIN_CONFIG: Record<string, DomainInfo> = {
-  // RASR subscales
-  sustained_attention: {
-    label: "Sustained Attention",
-    shortLabel: "Attention",
-    description: "Ability to maintain focus over extended periods",
-    color: "#6366f1",
-    narratives: [
-      { max: 25, text: "Demonstrates strong ability to sustain attention across extended tasks with minimal difficulty." },
-      { max: 50, text: "Shows mild challenges with sustaining attention, particularly during longer or repetitive activities." },
-      { max: 65, text: "Experiences moderate difficulty maintaining focus over time, often requiring redirection and support." },
-      { max: 100, text: "Significant challenges with sustained attention that substantially impact academic and daily functioning." },
-    ],
-  },
-  distractibility: {
-    label: "Distractibility",
-    shortLabel: "Distractibility",
-    description: "Tendency to be pulled away by environmental stimuli",
-    color: "#f59e0b",
-    narratives: [
-      { max: 25, text: "Shows good ability to filter out irrelevant stimuli and maintain focus in varied environments." },
-      { max: 50, text: "Occasionally drawn off-task by environmental factors; generally able to refocus with minimal support." },
-      { max: 65, text: "Moderately susceptible to environmental distractions, often requiring a structured setting to stay on task." },
-      { max: 100, text: "Highly distractible; even minor environmental changes significantly disrupt concentration and task completion." },
-    ],
-  },
-  impulse_regulation: {
-    label: "Impulse Regulation",
-    shortLabel: "Impulse",
-    description: "Capacity to pause and think before acting or speaking",
-    color: "#ef4444",
-    narratives: [
-      { max: 25, text: "Demonstrates good impulse control; typically thinks before acting and waits appropriately for turn-taking." },
-      { max: 50, text: "Mild impulsivity noted in some situations; generally manageable with reminders or low-level support." },
-      { max: 65, text: "Moderate impulse control challenges observed; frequently acts or speaks before thinking, impacting social and academic settings." },
-      { max: 100, text: "Significant impulsivity that is pervasive across settings, creating frequent disruptions and social difficulties." },
-    ],
-  },
-  task_initiation: {
-    label: "Task Initiation & Completion",
-    shortLabel: "Task Init.",
-    description: "Ability to start, sustain, and complete work",
-    color: "#10b981",
-    narratives: [
-      { max: 25, text: "Initiates and completes tasks independently with strong follow-through across most settings." },
-      { max: 50, text: "Mild difficulties with starting or completing tasks; may procrastinate occasionally but generally self-corrects." },
-      { max: 65, text: "Moderate challenges with task initiation and completion; often requires prompting and structured support." },
-      { max: 100, text: "Substantial difficulties getting started and finishing tasks, often leaving work incomplete without intensive support." },
-    ],
-  },
-  behavioral_modulation: {
-    label: "Behavioral Modulation",
-    shortLabel: "Behavior",
-    description: "Ability to regulate activity level and behavior across contexts",
-    color: "#8b5cf6",
-    narratives: [
-      { max: 25, text: "Demonstrates appropriate behavioral regulation across settings with ability to match energy to context." },
-      { max: 50, text: "Mild challenges with behavioral regulation; generally manages activity level with occasional reminders." },
-      { max: 65, text: "Moderate behavioral modulation difficulties; activity level and behavior vary considerably across contexts." },
-      { max: 100, text: "Significant challenges regulating behavior and activity level, with pronounced hyperactivity or restlessness noted across settings." },
-    ],
-  },
-  // RCS-80 / generic attention subscales
-  attention: {
-    label: "Attention",
-    shortLabel: "Attention",
-    description: "Overall attentional functioning",
-    color: "#6366f1",
-    narratives: [
-      { max: 25, text: "Attention skills appear age-appropriate with minimal signs of difficulty." },
-      { max: 50, text: "Mild attentional concerns noted; generally functioning within expected range." },
-      { max: 65, text: "Moderate attentional difficulties present; impacts functioning in structured settings." },
-      { max: 100, text: "Significant attentional difficulties that substantially impact academic and social functioning." },
-    ],
-  },
-  hyperactivity: {
-    label: "Hyperactivity",
-    shortLabel: "Hyperactivity",
-    description: "Excess motor activity and restlessness",
-    color: "#ef4444",
-    narratives: [
-      { max: 25, text: "Activity level appears appropriate for age and setting." },
-      { max: 50, text: "Mild hyperactive behaviors noted occasionally; generally within manageable range." },
-      { max: 65, text: "Moderate hyperactivity present; frequently off-seat or physically restless across settings." },
-      { max: 100, text: "Significant hyperactivity that is pervasive and impacts learning and social environments." },
-    ],
-  },
-  impulsivity: {
-    label: "Impulsivity",
-    shortLabel: "Impulsivity",
-    description: "Acting without adequate forethought",
-    color: "#f59e0b",
-    narratives: [
-      { max: 25, text: "Impulse control appears age-appropriate; typically waits and thinks before acting." },
-      { max: 50, text: "Mild impulsive behaviors noted; manageable with standard classroom supports." },
-      { max: 65, text: "Moderate impulsivity with frequent blurting out, interrupting, or acting without thinking." },
-      { max: 100, text: "Severe impulsivity that significantly disrupts classroom, social, and home environments." },
-    ],
-  },
-  opposition: {
-    label: "Oppositional Behavior",
-    shortLabel: "Opposition",
-    description: "Non-compliance and oppositional patterns",
-    color: "#dc2626",
-    narratives: [
-      { max: 25, text: "Compliant and cooperative; oppositional behaviors are minimal or absent." },
-      { max: 50, text: "Occasional non-compliance; generally responds to redirection." },
-      { max: 65, text: "Moderate oppositional patterns; frequent refusal or arguing noted." },
-      { max: 100, text: "Significant oppositional behaviors that substantially challenge authority and classroom management." },
-    ],
-  },
-};
-
-const FALLBACK_DOMAIN: DomainInfo = {
-  label: "",
-  shortLabel: "",
-  description: "",
-  color: "#64748b",
-  narratives: [
-    { max: 25, text: "Scores in the low range suggest minimal difficulty in this area." },
-    { max: 50, text: "Scores in the low-moderate range suggest some difficulty; monitoring recommended." },
-    { max: 65, text: "Scores in the moderate range indicate notable difficulty in this area." },
-    { max: 100, text: "Scores in the elevated range indicate significant difficulty warranting clinical attention." },
-  ],
-};
+// Palette for dynamic domain colors (cycles through if more domains than colors)
+const DOMAIN_COLORS = [
+  "#6366f1", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6",
+  "#0ea5e9", "#f97316", "#14b8a6", "#ec4899", "#84cc16",
+];
 
 // Map old individual question-ID keys (from legacy scoring bug) → proper domain
 const QUESTION_TO_DOMAIN: Record<string, string> = {
@@ -314,23 +207,24 @@ const QUESTION_TO_DOMAIN: Record<string, string> = {
   sa7: "sustained_attention", sa8: "sustained_attention",
 };
 
-/** Re-groups legacy per-question domain scores into proper subscale averages. */
+/** Re-groups legacy per-question domain scores into proper subscale averages.
+ *  If a scoringConfig is provided, uses its domain keys as canonical names. */
 function resolveDomainScores(
   domainScores: Record<string, number | null>,
   normalizedScores: Record<string, number | null>,
+  scoringConfig?: ScoringConfig | null,
 ): { domains: Record<string, number>; normalized: Record<string, number> } {
+  const canonicalDomains = scoringConfig ? Object.keys(scoringConfig.domains) : [];
   const resolved: Record<string, number[]> = {};
   const resolvedNorm: Record<string, number[]> = {};
 
   for (const [key, val] of Object.entries(domainScores)) {
     const norm = normalizedScores[key];
-    // Canonical domain key (known proper name) — use directly
-    if (DOMAIN_CONFIG[key]) {
+    if (canonicalDomains.includes(key) || (!scoringConfig && !QUESTION_TO_DOMAIN[key.toLowerCase()])) {
       if (!resolved[key]) { resolved[key] = []; resolvedNorm[key] = []; }
       if (typeof val === "number" && isFinite(val)) resolved[key].push(val);
       if (typeof norm === "number" && isFinite(norm)) resolvedNorm[key].push(norm);
     } else {
-      // Try to map via QUESTION_TO_DOMAIN (legacy per-question keys like "bm1")
       const lowerKey = key.toLowerCase();
       const mapped = QUESTION_TO_DOMAIN[lowerKey];
       if (mapped) {
@@ -338,7 +232,6 @@ function resolveDomainScores(
         if (typeof val === "number" && isFinite(val)) resolved[mapped].push(val);
         if (typeof norm === "number" && isFinite(norm)) resolvedNorm[mapped].push(norm);
       } else {
-        // Unknown key — keep as-is
         if (!resolved[key]) { resolved[key] = []; resolvedNorm[key] = []; }
         if (typeof val === "number" && isFinite(val)) resolved[key].push(val);
         if (typeof norm === "number" && isFinite(norm)) resolvedNorm[key].push(norm);
@@ -361,17 +254,51 @@ function resolveDomainScores(
   return { domains, normalized };
 }
 
-function getDomainInfo(key: string): DomainInfo {
-  if (DOMAIN_CONFIG[key]) return DOMAIN_CONFIG[key];
+function getDomainInfo(key: string, scoringConfig?: ScoringConfig | null, colorIndex?: number): DomainInfo {
+  const cfgDomain = scoringConfig?.domains[key];
+  if (cfgDomain) {
+    const thresholds = scoringConfig!.thresholds;
+    const color = DOMAIN_COLORS[(colorIndex ?? 0) % DOMAIN_COLORS.length];
+    return {
+      label: cfgDomain.label,
+      shortLabel: cfgDomain.shortLabel,
+      description: "",
+      color,
+      narratives: [
+        { max: thresholds.low, text: cfgDomain.narratives.low },
+        { max: thresholds.mild, text: cfgDomain.narratives.mild },
+        { max: thresholds.moderate, text: cfgDomain.narratives.moderate },
+        { max: 100, text: cfgDomain.narratives.elevated },
+      ],
+    };
+  }
   // Fallback: convert snake_case to Title Case
   const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  return { ...FALLBACK_DOMAIN, label, shortLabel: label };
+  const color = DOMAIN_COLORS[(colorIndex ?? 0) % DOMAIN_COLORS.length];
+  return {
+    label,
+    shortLabel: label,
+    description: "",
+    color,
+    narratives: [
+      { max: 25, text: "Scores in the low range suggest minimal difficulty in this area." },
+      { max: 50, text: "Scores in the low-moderate range suggest some difficulty; monitoring recommended." },
+      { max: 65, text: "Scores in the moderate range indicate notable difficulty in this area." },
+      { max: 100, text: "Scores in the elevated range indicate significant difficulty warranting clinical attention." },
+    ],
+  };
 }
 
-function getSeverity(normalized: number): { label: string; color: string; bg: string; border: string } {
-  if (normalized <= 25) return { label: "Low", color: "text-emerald-700", bg: "bg-emerald-500", border: "border-emerald-200" };
-  if (normalized <= 50) return { label: "Mild", color: "text-sky-700", bg: "bg-sky-500", border: "border-sky-200" };
-  if (normalized <= 65) return { label: "Moderate", color: "text-amber-700", bg: "bg-amber-500", border: "border-amber-200" };
+function getSeverity(
+  normalized: number,
+  thresholds?: { low: number; mild: number; moderate: number },
+): { label: string; color: string; bg: string; border: string } {
+  const low = thresholds?.low ?? 25;
+  const mild = thresholds?.mild ?? 50;
+  const moderate = thresholds?.moderate ?? 65;
+  if (normalized <= low) return { label: "Low", color: "text-emerald-700", bg: "bg-emerald-500", border: "border-emerald-200" };
+  if (normalized <= mild) return { label: "Mild", color: "text-sky-700", bg: "bg-sky-500", border: "border-sky-200" };
+  if (normalized <= moderate) return { label: "Moderate", color: "text-amber-700", bg: "bg-amber-500", border: "border-amber-200" };
   return { label: "Elevated", color: "text-red-700", bg: "bg-red-500", border: "border-red-200" };
 }
 
@@ -616,7 +543,7 @@ export default function ResponseViewer() {
     );
   }
 
-  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains } = data;
+  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig } = data;
   const lang = response.language;
   const isAutoScored = scoringType === "auto";
   const isManuallyScored = scoringType === "manual";
@@ -938,32 +865,34 @@ export default function ResponseViewer() {
           const { domains: resolvedDomains, normalized: resolvedNorm } = resolveDomainScores(
             score.domainScores as Record<string, number | null>,
             score.normalizedScores as Record<string, number | null>,
+            scoringConfig,
           );
           const domainEntries = Object.entries(resolvedDomains);
           const hasDomains = domainEntries.length > 0;
 
           // Radar chart data
-          const radarData = domainEntries.map(([key]) => ({
-            domain: getDomainInfo(key).shortLabel || capitalize(key.replace(/_/g, " ")),
+          const radarData = domainEntries.map(([key], idx) => ({
+            domain: getDomainInfo(key, scoringConfig, idx).shortLabel || capitalize(key.replace(/_/g, " ")),
             score: resolvedNorm[key] ?? 0,
             fullMark: 100,
           }));
 
           // Bar chart data
-          const barData = domainEntries.map(([key, val]) => ({
+          const barData = domainEntries.map(([key, val], idx) => ({
             key,
-            label: getDomainInfo(key).label || capitalize(key.replace(/_/g, " ")),
-            short: getDomainInfo(key).shortLabel || capitalize(key.replace(/_/g, " ")),
+            label: getDomainInfo(key, scoringConfig, idx).label || capitalize(key.replace(/_/g, " ")),
+            short: getDomainInfo(key, scoringConfig, idx).shortLabel || capitalize(key.replace(/_/g, " ")),
             score: resolvedNorm[key] ?? 0,
             raw: val,
-            color: getDomainInfo(key).color,
+            color: getDomainInfo(key, scoringConfig, idx).color,
           }));
 
           // Overall interpretation
           const avgNorm = hasDomains
             ? Math.round(Object.values(resolvedNorm).reduce((a, b) => a + b, 0) / Object.values(resolvedNorm).length)
             : null;
-          const overallSeverity = avgNorm !== null ? getSeverity(avgNorm) : null;
+          const thresholds = scoringConfig?.thresholds;
+          const overallSeverity = avgNorm !== null ? getSeverity(avgNorm, thresholds) : null;
 
           return (
             <div ref={scoreRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-score-card">
@@ -996,9 +925,9 @@ export default function ResponseViewer() {
                     )}
                     {overallSeverity && (
                       <span className={`inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full ${
-                        avgNorm! <= 25 ? "bg-emerald-500/20 text-emerald-300" :
-                        avgNorm! <= 50 ? "bg-sky-500/20 text-sky-300" :
-                        avgNorm! <= 65 ? "bg-amber-500/20 text-amber-300" :
+                        avgNorm! <= (thresholds?.low ?? 25) ? "bg-emerald-500/20 text-emerald-300" :
+                        avgNorm! <= (thresholds?.mild ?? 50) ? "bg-sky-500/20 text-sky-300" :
+                        avgNorm! <= (thresholds?.moderate ?? 65) ? "bg-amber-500/20 text-amber-300" :
                         "bg-red-500/20 text-red-300"
                       }`}>
                         {overallSeverity.label} Range
@@ -1018,17 +947,20 @@ export default function ResponseViewer() {
                     {/* Severity Legend */}
                     <div className="flex items-center gap-1.5 flex-wrap text-xs">
                       <span className="text-slate-500 font-medium mr-1">Severity:</span>
-                      {[
-                        { label: "Low (0–25)", bg: "bg-emerald-500" },
-                        { label: "Mild (26–50)", bg: "bg-sky-500" },
-                        { label: "Moderate (51–65)", bg: "bg-amber-500" },
-                        { label: "Elevated (66+)", bg: "bg-red-500" },
-                      ].map(({ label, bg }) => (
-                        <span key={label} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">
-                          <span className={`w-2 h-2 rounded-full ${bg}`} />
-                          {label}
-                        </span>
-                      ))}
+                      {(() => {
+                        const t = scoringConfig?.thresholds ?? { low: 25, mild: 50, moderate: 65 };
+                        return [
+                          { label: `Low (0–${t.low})`, bg: "bg-emerald-500" },
+                          { label: `Mild (${t.low + 1}–${t.mild})`, bg: "bg-sky-500" },
+                          { label: `Moderate (${t.mild + 1}–${t.moderate})`, bg: "bg-amber-500" },
+                          { label: `Elevated (${t.moderate + 1}+)`, bg: "bg-red-500" },
+                        ].map(({ label, bg }) => (
+                          <span key={label} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">
+                            <span className={`w-2 h-2 rounded-full ${bg}`} />
+                            {label}
+                          </span>
+                        ));
+                      })()}
                     </div>
 
                     {/* Charts row */}
@@ -1087,17 +1019,20 @@ export default function ResponseViewer() {
                               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
                             />
                             <Bar dataKey="score" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                              {barData.map((entry) => (
-                                <Cell
-                                  key={entry.key}
-                                  fill={
-                                    entry.score <= 25 ? "#10b981" :
-                                    entry.score <= 50 ? "#0ea5e9" :
-                                    entry.score <= 65 ? "#f59e0b" :
-                                    "#ef4444"
-                                  }
-                                />
-                              ))}
+                              {barData.map((entry) => {
+                                const t = scoringConfig?.thresholds ?? { low: 25, mild: 50, moderate: 65 };
+                                return (
+                                  <Cell
+                                    key={entry.key}
+                                    fill={
+                                      entry.score <= t.low ? "#10b981" :
+                                      entry.score <= t.mild ? "#0ea5e9" :
+                                      entry.score <= t.moderate ? "#f59e0b" :
+                                      "#ef4444"
+                                    }
+                                  />
+                                );
+                              })}
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
@@ -1108,10 +1043,10 @@ export default function ResponseViewer() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Domain Breakdown & Interpretation</p>
                       <div className="space-y-5">
-                        {domainEntries.map(([key, rawVal]) => {
+                        {domainEntries.map(([key, rawVal], idx) => {
                           const norm = resolvedNorm[key] ?? 0;
-                          const info = getDomainInfo(key);
-                          const sev = getSeverity(norm);
+                          const info = getDomainInfo(key, scoringConfig, idx);
+                          const sev = getSeverity(norm, thresholds);
                           const narrative = getNarrative(info, norm);
                           return (
                             <div key={key} className={`rounded-xl border p-4 ${sev.border} bg-white`}>
@@ -1158,11 +1093,11 @@ export default function ResponseViewer() {
                           {studentName}'s overall profile falls in the{" "}
                           <strong>{overallSeverity.label.toLowerCase()} range</strong> with a composite score of{" "}
                           <strong>{avgNorm}/100</strong> across {domainEntries.length} domain{domainEntries.length !== 1 ? "s" : ""}.{" "}
-                          {avgNorm <= 25
+                          {avgNorm <= (thresholds?.low ?? 25)
                             ? "Results suggest minimal clinical concerns at this time; continued monitoring is recommended."
-                            : avgNorm <= 50
+                            : avgNorm <= (thresholds?.mild ?? 50)
                             ? "Results indicate mild-level concerns in some areas. Targeted support strategies and monitoring are advisable."
-                            : avgNorm <= 65
+                            : avgNorm <= (thresholds?.moderate ?? 65)
                             ? "Results indicate moderate-level concerns across multiple areas. Comprehensive support planning and possible further evaluation are recommended."
                             : "Results indicate elevated concerns across multiple domains. Comprehensive assessment and multidisciplinary intervention planning are strongly recommended."}
                         </p>

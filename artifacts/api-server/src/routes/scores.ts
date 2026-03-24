@@ -33,6 +33,16 @@ async function buildDomainMap(toolId: string): Promise<Record<string, string>> {
   return map;
 }
 
+/** Fetch the scale max from the tool's scoringConfig (fallback to 5). */
+async function getScaleMax(toolId: string): Promise<number> {
+  const toolRows = await db.select({ scoringConfig: assessmentToolsTable.scoringConfig })
+    .from(assessmentToolsTable)
+    .where(eq(assessmentToolsTable.id, toolId))
+    .limit(1);
+  const cfg = toolRows[0]?.scoringConfig as { max?: number } | null | undefined;
+  return cfg?.max ?? 5;
+}
+
 function computeDomainScores(answers: Record<string, unknown>, domainMap: Record<string, string>): Record<string, number> {
   const domains: Record<string, number[]> = {};
   for (const [key, value] of Object.entries(answers)) {
@@ -78,8 +88,9 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
 
     const latestResponse = responses[responses.length - 1];
     const domainMap = await buildDomainMap(assignment.toolId);
+    const scaleMax = await getScaleMax(assignment.toolId);
     const domainScores = computeDomainScores(latestResponse.answers as Record<string, unknown>, domainMap);
-    const normalizedScores = normalize(domainScores);
+    const normalizedScores = normalize(domainScores, scaleMax);
     const rawScore = Object.values(domainScores).reduce((a, b) => a + b, 0) / Object.keys(domainScores).length;
 
     const score = await db.insert(scoresTable).values({
@@ -185,8 +196,9 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
 
   const answers = responseRows[0].answers as Record<string, unknown>;
   const domainMap = await buildDomainMap(assignment.toolId);
+  const scaleMax = await getScaleMax(assignment.toolId);
   const domainScores = computeDomainScores(answers, domainMap);
-  const normalizedScores = normalize(domainScores);
+  const normalizedScores = normalize(domainScores, scaleMax);
   const domainValues = Object.values(domainScores);
   const rawScore = domainValues.length > 0
     ? domainValues.reduce((a, b) => a + b, 0) / domainValues.length

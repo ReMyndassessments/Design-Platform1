@@ -129,7 +129,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
   const [toolRows, existingScoreRows] = await Promise.all([
-    db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains })
+    db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
     db.select().from(scoresTable)
       .where(and(
@@ -172,6 +172,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     grade: caseRows[0]?.grade ?? "",
     scoringType: toolRows[0]?.scoringType ?? null,
     toolDomains: toolRows[0]?.domains ?? [],
+    scoringConfig: toolRows[0]?.scoringConfig ?? null,
     existingScore: existingScoreRows[0] ?? null,
   });
 });

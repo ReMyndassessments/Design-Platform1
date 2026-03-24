@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 import {
   Search,
   CheckCircle2,
@@ -29,8 +28,35 @@ import {
   FileText,
   Loader2,
   List,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type ScoringConfigDomain = {
+  label: string;
+  shortLabel: string;
+  narratives: { low: string; mild: string; moderate: string; elevated: string };
+};
+
+type ScoringConfig = {
+  max: number;
+  thresholds: { low: number; mild: number; moderate: number };
+  domains: Record<string, ScoringConfigDomain>;
+};
+
+function emptyDomainConfig(): ScoringConfigDomain {
+  return { label: "", shortLabel: "", narratives: { low: "", mild: "", moderate: "", elevated: "" } };
+}
+
+function buildScoringConfig(
+  scaleMax: number,
+  thresholds: { low: number; mild: number; moderate: number },
+  domainConfigs: Record<string, ScoringConfigDomain>,
+): ScoringConfig {
+  return { max: scaleMax, thresholds, domains: domainConfigs };
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +99,7 @@ type ImportedFormItem = {
   optionsChinese?: string[];
   optionsKorean?: string[];
   domain?: string;
+  required?: boolean;
 };
 
 type UploadedFileState =
@@ -96,6 +123,313 @@ function fileIcon(kind: UploadedFileState["kind"]) {
   return "📋";
 }
 
+// ── Shared Editable Form Items Component ──────────────────────────────────────
+
+const ITEM_TYPE_OPTIONS: ImportedFormItem["type"][] = [
+  "likert", "text", "checkbox", "radio", "multiple_choice", "scale",
+];
+
+function FormItemsEditor({
+  items,
+  onChange,
+}: {
+  items: ImportedFormItem[];
+  onChange: (items: ImportedFormItem[]) => void;
+}) {
+  const [expanded, setExpanded] = useState(items.length > 0);
+
+  function addItem() {
+    const newItem: ImportedFormItem = {
+      id: `item_${Date.now()}`,
+      text: "",
+      type: "likert",
+      domain: "",
+    };
+    onChange([...items, newItem]);
+    if (!expanded) setExpanded(true);
+  }
+
+  function removeItem(idx: number) {
+    onChange(items.filter((_, i) => i !== idx));
+  }
+
+  function updateItem(idx: number, patch: Partial<ImportedFormItem>) {
+    onChange(items.map((item, i) => i === idx ? { ...item, ...patch } : item));
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="flex items-center justify-between w-full px-4 py-3 bg-slate-50 text-left"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <List size={14} />
+          Form Items
+          <span className="text-xs font-normal text-slate-500">({items.length} item{items.length !== 1 ? "s" : ""})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); addItem(); }}
+            className="flex items-center gap-1 text-xs text-primary font-medium hover:text-primary/80 transition-colors px-2 py-1 rounded hover:bg-primary/10"
+          >
+            <Plus size={12} /> Add Item
+          </button>
+          {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+          {items.length === 0 && (
+            <div className="px-4 py-5 text-center text-xs text-slate-400">
+              No items yet. Click "Add Item" to add a question.
+            </div>
+          )}
+          {items.map((item, idx) => (
+            <div key={item.id} className="px-4 py-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="text-xs text-slate-400 font-mono w-6 shrink-0 pt-2">{idx + 1}.</span>
+                <div className="flex-1 space-y-2">
+                  <Input
+                    value={item.text}
+                    onChange={e => updateItem(idx, { text: e.target.value })}
+                    placeholder="Question text..."
+                    className="h-8 text-xs"
+                  />
+                  <div className="flex gap-2 flex-wrap">
+                    <div className="relative">
+                      <select
+                        value={item.type}
+                        onChange={e => updateItem(idx, { type: e.target.value as ImportedFormItem["type"] })}
+                        className="h-7 text-xs appearance-none border border-input rounded-md px-2 pr-6 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary"
+                      >
+                        {ITEM_TYPE_OPTIONS.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                    <Input
+                      value={item.domain ?? ""}
+                      onChange={e => updateItem(idx, { domain: e.target.value })}
+                      placeholder="domain (e.g. attention)"
+                      className="h-7 text-xs flex-1 min-w-24"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateItem(idx, { required: !item.required })}
+                      className={cn(
+                        "h-7 px-2 text-xs rounded-md border transition-colors",
+                        item.required !== false
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-slate-200 text-slate-500"
+                      )}
+                      title="Toggle required"
+                    >
+                      {item.required !== false ? "Required" : "Optional"}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(idx)}
+                  className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors mt-1"
+                  title="Remove item"
+                >
+                  <Minus size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {items.length > 0 && (
+            <div className="px-4 py-2 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={addItem}
+                className="flex items-center gap-1 text-xs text-primary font-medium hover:text-primary/80 transition-colors"
+              >
+                <Plus size={12} /> Add another item
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shared Scoring Criteria Editor ────────────────────────────────────────────
+
+function ScoringCriteriaEditor({
+  scoringConfig,
+  onChange,
+  formItems,
+}: {
+  scoringConfig: ScoringConfig;
+  onChange: (cfg: ScoringConfig) => void;
+  formItems: ImportedFormItem[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Derive domain keys from form items (unique non-empty domain values)
+  const derivedDomains = Array.from(
+    new Set(formItems.map(i => i.domain?.trim()).filter(Boolean) as string[])
+  );
+
+  // Ensure all derivedDomains have entries in domainConfigs
+  function getDomainsWithDefaults(): Record<string, ScoringConfigDomain> {
+    const result: Record<string, ScoringConfigDomain> = { ...scoringConfig.domains };
+    for (const d of derivedDomains) {
+      if (!result[d]) result[d] = emptyDomainConfig();
+    }
+    return result;
+  }
+
+  const domainKeys = derivedDomains.length > 0
+    ? derivedDomains
+    : Object.keys(scoringConfig.domains);
+
+  function updateDomain(key: string, patch: Partial<ScoringConfigDomain>) {
+    const domains = getDomainsWithDefaults();
+    onChange({ ...scoringConfig, domains: { ...domains, [key]: { ...domains[key] ?? emptyDomainConfig(), ...patch } } });
+  }
+
+  function updateNarrative(key: string, band: keyof ScoringConfigDomain["narratives"], value: string) {
+    const domains = getDomainsWithDefaults();
+    const existing = domains[key] ?? emptyDomainConfig();
+    onChange({
+      ...scoringConfig,
+      domains: { ...domains, [key]: { ...existing, narratives: { ...existing.narratives, [band]: value } } },
+    });
+  }
+
+  const BANDS: { key: keyof ScoringConfigDomain["narratives"]; label: string; color: string }[] = [
+    { key: "low", label: "Low", color: "text-emerald-700" },
+    { key: "mild", label: "Mild", color: "text-sky-700" },
+    { key: "moderate", label: "Moderate", color: "text-amber-700" },
+    { key: "elevated", label: "Elevated", color: "text-red-700" },
+  ];
+
+  return (
+    <div className="rounded-xl border border-indigo-200 bg-indigo-50/30 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(prev => !prev)}
+        className="flex items-center justify-between w-full px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold text-indigo-800">
+          <BarChart2Icon size={14} />
+          Scoring Criteria
+        </div>
+        {expanded ? <ChevronUp size={14} className="text-indigo-400" /> : <ChevronDown size={14} className="text-indigo-400" />}
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-indigo-200">
+          {/* Scale max */}
+          <div className="pt-3 space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Scale Maximum</label>
+            <p className="text-xs text-slate-400">The highest possible value on the response scale (e.g. 4 for 0–4 Likert)</p>
+            <Input
+              type="number"
+              min={1}
+              max={20}
+              value={scoringConfig.max}
+              onChange={e => onChange({ ...scoringConfig, max: Number(e.target.value) || 4 })}
+              className="h-8 w-28 text-sm"
+            />
+          </div>
+
+          {/* Thresholds */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Severity Thresholds (0–100 normalized scale)</label>
+            <p className="text-xs text-slate-400">Upper boundary for each severity band</p>
+            <div className="flex gap-3 flex-wrap">
+              {(["low", "mild", "moderate"] as const).map(band => (
+                <div key={band} className="space-y-1">
+                  <label className="text-xs text-slate-500 capitalize">{band} ≤</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={scoringConfig.thresholds[band]}
+                    onChange={e => onChange({ ...scoringConfig, thresholds: { ...scoringConfig.thresholds, [band]: Number(e.target.value) || 0 } })}
+                    className="h-7 w-16 text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Domain configs */}
+          {domainKeys.length === 0 && (
+            <p className="text-xs text-slate-400 italic">
+              Add form items with domain assignments to configure per-domain labels and narratives.
+            </p>
+          )}
+          {domainKeys.map(key => {
+            const cfg = getDomainsWithDefaults()[key] ?? emptyDomainConfig();
+            return (
+              <div key={key} className="rounded-lg border border-indigo-200 bg-white p-3 space-y-3">
+                <p className="text-xs font-bold text-indigo-800 font-mono">{key}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500">Label</label>
+                    <Input
+                      value={cfg.label}
+                      onChange={e => updateDomain(key, { label: e.target.value })}
+                      placeholder="Full label"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500">Short Label</label>
+                    <Input
+                      value={cfg.shortLabel}
+                      onChange={e => updateDomain(key, { shortLabel: e.target.value })}
+                      placeholder="Short label"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {BANDS.map(({ key: band, label, color }) => (
+                    <div key={band} className="space-y-0.5">
+                      <label className={`text-xs font-semibold ${color}`}>{label} narrative</label>
+                      <Textarea
+                        value={cfg.narratives[band]}
+                        onChange={e => updateNarrative(key, band, e.target.value)}
+                        placeholder={`Narrative for ${label} range...`}
+                        className="min-h-[52px] resize-none text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline icon for Scoring Criteria button (BarChart2 equivalent)
+function BarChart2Icon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+// ── Add Tool Modal ─────────────────────────────────────────────────────────────
+
 function AddToolModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const createMut = useCreateAssessmentTool();
@@ -117,7 +451,9 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
-  const [itemsExpanded, setItemsExpanded] = useState(false);
+
+  const defaultScoringConfig: ScoringConfig = { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} };
+  const [scoringConfig, setScoringConfig] = useState<ScoringConfig>(defaultScoringConfig);
 
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -249,7 +585,6 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       setDomainsRaw((data.domains ?? []).join(", "));
       setRespondents(data.respondentTypes ?? []);
       setFormItems(data.formItems ?? []);
-      if ((data.formItems ?? []).length > 0) setItemsExpanded(true);
       setAiImportOpen(false);
     } catch (err: unknown) {
       setAiError(err instanceof Error ? err.message : "AI analysis failed. Please try again.");
@@ -277,6 +612,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         respondentTypes: respondents,
         isRemyndOwned,
         formItems: formItems.length > 0 ? formItems : undefined,
+        ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
       } as Parameters<typeof createMut.mutate>[0],
       {
         onSuccess: () => {
@@ -547,40 +883,16 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Extracted Form Items Preview */}
-          {formItems.length > 0 && (
-            <div className="rounded-xl border border-slate-200 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setItemsExpanded(prev => !prev)}
-                className="flex items-center justify-between w-full px-4 py-3 bg-slate-50 text-left"
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <List size={14} />
-                  Extracted Form Items
-                  <span className="text-xs font-normal text-slate-500">({formItems.length} items)</span>
-                </div>
-                {itemsExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
-              </button>
-              {itemsExpanded && (
-                <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                  {formItems.map((item, idx) => (
-                    <div key={item.id} className="flex gap-3 px-4 py-2.5">
-                      <span className="text-xs text-slate-400 font-mono w-6 shrink-0 pt-0.5">{idx + 1}.</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-700 leading-snug">{item.text}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-slate-400 italic">{item.type}</span>
-                          {item.domain && (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{item.domain}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Editable Form Items */}
+          <FormItemsEditor items={formItems} onChange={setFormItems} />
+
+          {/* Scoring Criteria — only for auto-scored tools */}
+          {scoringType === "auto" && (
+            <ScoringCriteriaEditor
+              scoringConfig={scoringConfig}
+              onChange={setScoringConfig}
+              formItems={formItems}
+            />
           )}
 
           {error && (
@@ -615,6 +927,11 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
   const [scoringType, setScoringType] = useState<"auto" | "manual">(tool.scoringType ?? "auto");
   const [domainsRaw, setDomainsRaw] = useState((tool.domains ?? []).join(", "));
   const [respondents, setRespondents] = useState<string[]>(tool.respondentTypes ?? []);
+  const [formItems, setFormItems] = useState<ImportedFormItem[]>((tool.formItems ?? []) as ImportedFormItem[]);
+  const defaultScoringConfig: ScoringConfig = { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} };
+  const [scoringConfig, setScoringConfig] = useState<ScoringConfig>(
+    tool.scoringConfig ? (tool.scoringConfig as ScoringConfig) : defaultScoringConfig
+  );
   const [error, setError] = useState<string | null>(null);
 
   const toggleRespondent = (r: string) => {
@@ -630,7 +947,16 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
     updateMut.mutate(
       {
         toolId: tool.id,
-        data: { name: name.trim(), description: description.trim(), category: category.trim(), scoringType, domains, respondentTypes: respondents },
+        data: {
+          name: name.trim(),
+          description: description.trim(),
+          category: category.trim(),
+          scoringType,
+          domains,
+          respondentTypes: respondents,
+          formItems: formItems.length > 0 ? formItems : null,
+          ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
+        } as Parameters<typeof updateMut.mutate>[0]["data"],
       },
       {
         onSuccess: () => {
@@ -731,6 +1057,18 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
               })}
             </div>
           </div>
+
+          {/* Editable Form Items */}
+          <FormItemsEditor items={formItems} onChange={setFormItems} />
+
+          {/* Scoring Criteria — only for auto-scored tools */}
+          {scoringType === "auto" && (
+            <ScoringCriteriaEditor
+              scoringConfig={scoringConfig}
+              onChange={setScoringConfig}
+              formItems={formItems}
+            />
+          )}
 
           {error && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">

@@ -53,6 +53,7 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       optionsChinese?: string[];
       optionsKorean?: string[];
       domain?: string;
+      required?: boolean;
     };
     const typeMap: Record<string, string> = {
       checkbox: "checkbox_group",
@@ -69,7 +70,7 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       optionsChinese: item.optionsChinese,
       optionsKorean: item.optionsKorean,
       domain: item.domain ?? "",
-      required: true,
+      required: item.required ?? true,
     }));
     res.json({ toolId: id, questions });
     return;
@@ -81,7 +82,7 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
 
 router.put("/assessment-tools/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name, description, category, scoringType, domains, respondentTypes } = req.body;
+  const { name, description, category, scoringType, domains, respondentTypes, formItems, scoringConfig } = req.body;
 
   const existing = await db.select().from(assessmentToolsTable).where(eq(assessmentToolsTable.id, id));
   if (!existing.length) {
@@ -98,6 +99,8 @@ router.put("/assessment-tools/:id", authMiddleware, async (req, res) => {
       ...(scoringType !== undefined && { scoringType }),
       ...(domains !== undefined && { domains }),
       ...(respondentTypes !== undefined && { respondentTypes }),
+      ...(formItems !== undefined && { formItems: Array.isArray(formItems) ? formItems : null }),
+      ...(scoringConfig !== undefined && { scoringConfig: scoringConfig ?? null }),
     })
     .where(eq(assessmentToolsTable.id, id))
     .returning();
@@ -124,7 +127,7 @@ router.post("/assessment-tools", authMiddleware, async (req, res) => {
     return;
   }
 
-  const { id, name, description, category, scoringType, domains, respondentTypes, isRemyndOwned, formItems } = req.body;
+  const { id, name, description, category, scoringType, domains, respondentTypes, isRemyndOwned, formItems, scoringConfig } = req.body;
   if (!id?.trim() || !name?.trim() || !category?.trim()) {
     res.status(400).json({ error: "bad_request", message: "id, name, and category are required" });
     return;
@@ -146,6 +149,7 @@ router.post("/assessment-tools", authMiddleware, async (req, res) => {
     respondentTypes: respondentTypes ?? [],
     isRemyndOwned: isRemyndOwned ?? false,
     formItems: Array.isArray(formItems) ? formItems : null,
+    scoringConfig: scoringConfig ?? null,
   }).returning();
 
   res.status(201).json(newTool[0]);
