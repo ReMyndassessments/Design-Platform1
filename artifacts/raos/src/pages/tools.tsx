@@ -78,6 +78,19 @@ const ALL_RESPONDENT_TYPES = [
   "school", "school_counselor", "special_needs_teacher", "referring_teacher", "boarding_staff",
 ];
 
+const FILTER_RESPONDENT_TYPES = [
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
+] as const;
+
+const RESPONDENT_TYPE_LABELS: Record<string, string> = {
+  parent:            "Parent",
+  teacher1:          "Teacher 1",
+  teacher2:          "Teacher 2",
+  referring_teacher: "Referring Teacher",
+  boarding_staff:    "Boarding Staff",
+  self:              "Self-Report",
+};
+
 function categoryBadge(cat: string) {
   const cls = categoryColors[cat.toLowerCase()] ?? "bg-slate-100 text-slate-600";
   return (
@@ -1255,12 +1268,8 @@ export default function AssessmentTools() {
   const { data: user } = useGetCurrentUser();
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterRespondent, setFilterRespondent] = useState("all");
   const [adding, setAdding] = useState(false);
-
-  const categories = tools
-    ? ["all", ...Array.from(new Set(tools.map(t => t.category))).sort()]
-    : ["all"];
 
   const filtered = (tools ?? []).filter(t => {
     const q = search.toLowerCase();
@@ -1269,8 +1278,9 @@ export default function AssessmentTools() {
       t.name.toLowerCase().includes(q) ||
       t.description.toLowerCase().includes(q) ||
       t.domains.some(d => d.toLowerCase().includes(q));
-    const matchCat = filterCategory === "all" || t.category === filterCategory;
-    return matchSearch && matchCat;
+    const matchRespondent =
+      filterRespondent === "all" || (t.respondentTypes ?? []).includes(filterRespondent);
+    return matchSearch && matchRespondent;
   });
 
 
@@ -1304,12 +1314,13 @@ export default function AssessmentTools() {
         </div>
         <div className="relative">
           <select
-            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-48 appearance-none pr-8"
-            value={filterCategory}
-            onChange={e => setFilterCategory(e.target.value)}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-52 appearance-none pr-8"
+            value={filterRespondent}
+            onChange={e => setFilterRespondent(e.target.value)}
           >
-            {categories.map(c => (
-              <option key={c} value={c}>{c === "all" ? "All Categories" : c}</option>
+            <option value="all">All Respondent Types</option>
+            {FILTER_RESPONDENT_TYPES.map(rt => (
+              <option key={rt} value={rt}>{RESPONDENT_TYPE_LABELS[rt] ?? rt}</option>
             ))}
           </select>
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
