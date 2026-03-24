@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
-  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye
+  Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
+  Send, Mail, Link2
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -79,6 +80,7 @@ export default function CaseDetail() {
     assignedToName: "",
     assignedToEmail: ""
   });
+  const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
 
   if (isLoading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
@@ -110,6 +112,69 @@ export default function CaseDetail() {
     if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
     return true;
   });
+
+  type AssignmentItem = NonNullable<typeof c.assignments>[number];
+  type RespondentGroup = {
+    key: string;
+    assignedToName: string | null | undefined;
+    assignedToEmail: string | null | undefined;
+    respondentLabel: string;
+    assignments: AssignmentItem[];
+  };
+  const respondentGroups: RespondentGroup[] = (() => {
+    if (!c.assignments?.length) return [];
+    const map = new Map<string, RespondentGroup>();
+    for (const a of c.assignments) {
+      const key = a.assignedToEmail ?? `${a.respondentType}::${a.respondentLabel}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          assignedToName: a.assignedToName,
+          assignedToEmail: a.assignedToEmail,
+          respondentLabel: a.respondentLabel,
+          assignments: [],
+        });
+      }
+      map.get(key)!.assignments.push(a);
+    }
+    return Array.from(map.values()).filter(g => g.assignments.some(a => a.status !== "completed"));
+  })();
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: `${label} copied to clipboard` });
+    }).catch(() => {
+      toast({ title: "Copy failed", description: "Please copy the text manually.", variant: "destructive" });
+    });
+  };
+
+  const buildEmailTemplate = (group: RespondentGroup): string => {
+    const name = group.assignedToName || group.respondentLabel;
+    const pending = group.assignments.filter(a => a.status !== "completed");
+    const formLines = pending.map((a, i) => `${i + 1}. ${a.toolName}\n   ${a.uniqueLink}`).join("\n\n");
+    return [
+      `Subject: Assessment Forms for ${c.studentName}`,
+      "",
+      `Dear ${name},`,
+      "",
+      `We hope this message finds you well. As part of the psychoeducational assessment for ${c.studentName}, we kindly ask you to complete the following form(s) at your earliest convenience:`,
+      "",
+      formLines,
+      "",
+      "Each form can be completed online using the link provided above. If you have any questions, please do not hesitate to reach out.",
+      "",
+      "Thank you for your time and support.",
+      "",
+      "ReMynd Assessment Team",
+    ].join("\n");
+  };
+
+  const buildLinksText = (group: RespondentGroup): string => {
+    return group.assignments
+      .filter(a => a.status !== "completed")
+      .map(a => `${a.toolName}: ${a.uniqueLink}`)
+      .join("\n");
+  };
 
   const handleAdvancePhase = () => {
     advancePhaseMut.mutate({ caseId }, {
@@ -385,7 +450,14 @@ export default function CaseDetail() {
           <Card className="border-none shadow-md h-full">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle>Assessment Forms & Assignments</CardTitle>
-              <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
+              <div className="flex gap-2">
+                {respondentGroups.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => setDistributeFormsOpen(true)}>
+                    <Send size={13} className="mr-1.5" /> Distribute Forms
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {(!c.assignments || c.assignments.length === 0) ? (
@@ -617,6 +689,99 @@ export default function CaseDetail() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Distribute Forms Modal */}
+      <Dialog open={distributeFormsOpen} onOpenChange={setDistributeFormsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send size={18} className="text-primary" /> Distribute Forms
+            </DialogTitle>
+            <DialogDescription>
+              Copy links or email templates for each respondent. Groups with all forms completed are not shown.
+            </DialogDescription>
+          </DialogHeader>
+
+          {respondentGroups.length === 0 ? (
+            <div className="py-10 text-center text-slate-500 text-sm">
+              No pending assignments to distribute.
+            </div>
+          ) : (
+            <div className="space-y-5 mt-2">
+              {respondentGroups.map(group => {
+                const pendingCount = group.assignments.filter(a => a.status !== "completed").length;
+                const hasEmail = !!group.assignedToEmail;
+                return (
+                  <div key={group.key} className="border border-slate-200 rounded-xl overflow-hidden">
+                    {/* Respondent header */}
+                    <div className="bg-slate-50 px-4 py-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">
+                          {group.assignedToName || group.respondentLabel}
+                        </p>
+                        {hasEmail ? (
+                          <p className="text-xs text-slate-500 mt-0.5">{group.assignedToEmail}</p>
+                        ) : (
+                          <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                            <span>⚠</span> No email captured — share link manually
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        {hasEmail && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="text-xs gap-1.5"
+                            onClick={() => copyToClipboard(buildEmailTemplate(group), "Email template")}
+                          >
+                            <Mail size={12} /> Copy Email
+                          </Button>
+                        )}
+                        {pendingCount > 0 && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="text-xs gap-1.5"
+                            onClick={() => copyToClipboard(buildLinksText(group), "Links")}
+                          >
+                            <Link2 size={12} /> Copy Links
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Form list */}
+                    <div className="divide-y divide-slate-100">
+                      {group.assignments.map(a => {
+                        const done = a.status === "completed";
+                        return (
+                          <div key={a.id} className={`px-4 py-2.5 flex items-center justify-between gap-3 ${done ? "opacity-50" : ""}`}>
+                            <div className="flex items-center gap-2 min-w-0">
+                              {done
+                                ? <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                                : <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                              }
+                              <span className="text-sm text-slate-700 font-medium truncate">{a.toolName}</span>
+                              {done && <span className="text-xs text-emerald-600 font-medium flex-shrink-0">Completed</span>}
+                            </div>
+                            {!done && (
+                              <Button
+                                size="sm" variant="ghost"
+                                className="text-xs h-7 gap-1 text-slate-500 hover:text-primary flex-shrink-0"
+                                onClick={() => copyToClipboard(a.uniqueLink, `Link for ${a.toolName}`)}
+                              >
+                                <Copy size={11} /> Copy Link
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
