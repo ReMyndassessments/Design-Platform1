@@ -116,24 +116,28 @@ router.post("/external/form/:token/submit", async (req, res) => {
   }).where(eq(assignmentsTable.id, assignment.id));
 
   let nextForms: { toolName: string; uniqueToken: string; respondentLabel: string }[] = [];
-  if (assignment.assignedToEmail) {
-    const siblings = await db
-      .select({
-        toolName: assignmentsTable.toolName,
-        uniqueToken: assignmentsTable.uniqueToken,
-        respondentLabel: assignmentsTable.respondentLabel,
-      })
-      .from(assignmentsTable)
-      .where(
-        and(
-          eq(assignmentsTable.caseId, assignment.caseId),
-          eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail),
-          ne(assignmentsTable.id, assignment.id),
-          ne(assignmentsTable.status, "completed"),
-        )
-      );
-    nextForms = siblings;
-  }
+  const groupByEmail = !!assignment.assignedToEmail;
+  const siblings = await db
+    .select({
+      toolName: assignmentsTable.toolName,
+      uniqueToken: assignmentsTable.uniqueToken,
+      respondentLabel: assignmentsTable.respondentLabel,
+    })
+    .from(assignmentsTable)
+    .where(
+      and(
+        eq(assignmentsTable.caseId, assignment.caseId),
+        groupByEmail
+          ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
+          : and(
+              eq(assignmentsTable.respondentType, assignment.respondentType),
+              eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
+            ),
+        ne(assignmentsTable.id, assignment.id),
+        ne(assignmentsTable.status, "completed"),
+      )
+    );
+  nextForms = siblings;
 
   res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms });
 });
