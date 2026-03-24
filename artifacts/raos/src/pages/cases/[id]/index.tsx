@@ -404,9 +404,12 @@ export default function CaseDetail() {
                           <h4 className="font-semibold text-slate-900">{a.toolName}</h4>
                           {getStatusBadge(a.status)}
                         </div>
-                        <div className="flex items-center text-sm text-slate-500 gap-4">
+                        <div className="flex items-center text-sm text-slate-500 gap-4 flex-wrap">
                           <span className="capitalize font-medium text-slate-700">{a.respondentType}: {a.respondentLabel}</span>
                           <span>Assigned to: {a.assignedToName || 'Unspecified'}</span>
+                          {a.assignedToEmail && (
+                            <span className="text-slate-400">{a.assignedToEmail}</span>
+                          )}
                         </div>
                       </div>
                       
@@ -535,6 +538,10 @@ export default function CaseDetail() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Assigned To Name</label>
               <Input value={newAssignment.assignedToName} onChange={e => setNewAssignment({...newAssignment, assignedToName: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email Address <span className="text-slate-400 font-normal">(optional)</span></label>
+              <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
             </div>
             <Button type="submit" className="w-full mt-4" disabled={createAssignmentMut.isPending}>
               {createAssignmentMut.isPending ? "Adding..." : "Add Assignment"}
