@@ -4,7 +4,7 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_MODEL = "deepseek-chat";
 
-async function callDeepSeek(prompt: string): Promise<string> {
+async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<string> {
   if (!DEEPSEEK_API_KEY) {
     throw new Error("DEEPSEEK_API_KEY is not configured");
   }
@@ -19,7 +19,7 @@ async function callDeepSeek(prompt: string): Promise<string> {
       model: DEEPSEEK_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 2048,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -308,7 +308,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callDeepSeek(prompt);
+  const raw = await callDeepSeek(prompt, 8192);
 
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");

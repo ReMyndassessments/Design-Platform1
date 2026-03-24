@@ -252,7 +252,7 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
   }
 
   try {
-    const TIMEOUT_MS = 90_000;
+    const TIMEOUT_MS = 180_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("AI analysis timed out. Please try again or use a shorter form.")), TIMEOUT_MS)
     );
