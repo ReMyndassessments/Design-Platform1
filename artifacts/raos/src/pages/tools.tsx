@@ -647,10 +647,12 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* AI Import Section */}
           <div className="rounded-xl border border-violet-200 bg-violet-50 overflow-hidden">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setAiImportOpen(prev => !prev)}
-              className="flex items-center justify-between w-full px-4 py-3 text-left"
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setAiImportOpen(prev => !prev); }}
+              className="flex items-center justify-between w-full px-4 py-3 text-left cursor-pointer select-none"
             >
               <div className="flex items-center gap-2">
                 <Sparkles size={15} className="text-violet-600" />
@@ -662,7 +664,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               {aiImportOpen ? <ChevronUp size={15} className="text-violet-500" /> : <ChevronDown size={15} className="text-violet-500" />}
-            </button>
+            </div>
 
             {aiImportOpen && (
               <div className="px-4 pb-4 space-y-3 border-t border-violet-200">

@@ -235,15 +235,32 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
 
   let resolvedText = formText;
   if (fileBase64 && fileName && !imageBase64) {
-    resolvedText = await extractTextFromFile(fileBase64, fileName);
+    try {
+      resolvedText = await extractTextFromFile(fileBase64, fileName);
+    } catch {
+      res.status(422).json({ error: "extract_failed", message: "Could not read this file. Try copy-pasting the content instead." });
+      return;
+    }
     if (!resolvedText?.trim()) {
       res.status(422).json({ error: "extract_failed", message: "Could not extract text from this file. Try copy-pasting the content instead." });
       return;
     }
   }
 
-  const result = await analyzeFormWithAI({ formText: resolvedText, imageBase64, mimeType });
-  res.json(result);
+  try {
+    const TIMEOUT_MS = 90_000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("AI analysis timed out. Please try again or use a shorter form.")), TIMEOUT_MS)
+    );
+    const result = await Promise.race([
+      analyzeFormWithAI({ formText: resolvedText, imageBase64, mimeType }),
+      timeoutPromise,
+    ]);
+    res.json(result);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "AI analysis failed. Please try again.";
+    res.status(502).json({ error: "ai_failed", message: msg });
+  }
 });
 
 router.post("/assessment-tools/recommend", authMiddleware, async (req, res) => {
