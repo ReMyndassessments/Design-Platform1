@@ -29,6 +29,17 @@ import { useQueryClient } from "@tanstack/react-query";
 const PHASES = [
   "pre_commitment", "intake", "setup", "forms", "assessment", "scoring", "report", "debrief", "complete"
 ];
+const PHASE_LABELS: Record<string, string> = {
+  pre_commitment: "Referral",
+  intake: "Intake",
+  setup: "Setup",
+  forms: "Forms",
+  assessment: "Assessment",
+  scoring: "Scoring",
+  report: "Report",
+  debrief: "Debrief",
+  complete: "Complete",
+};
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
@@ -379,7 +390,7 @@ export default function CaseDetail() {
                       !visible ? 'text-slate-600' :
                       isActive ? 'text-white' : 'text-slate-400'
                     }`}>
-                      {phase.replace('_', ' ')}
+                      {PHASE_LABELS[phase] ?? phase.replace('_', ' ')}
                     </span>
                   </div>
                 );
@@ -389,7 +400,7 @@ export default function CaseDetail() {
           <div className="mt-12 flex justify-between items-end">
             <div>
               <p className="text-sm text-slate-400">Current Phase</p>
-              <h3 className="text-xl font-bold font-display capitalize text-white">{c.currentPhase.replace('_', ' ')}</h3>
+              <h3 className="text-xl font-bold font-display capitalize text-white">{PHASE_LABELS[c.currentPhase] ?? c.currentPhase.replace('_', ' ')}</h3>
               {role === "assessment_lead" && !isPhaseVisible(role, c.currentPhase) && (
                 <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Lock size={10}/> This phase is managed by the Psychometrician</p>
               )}
