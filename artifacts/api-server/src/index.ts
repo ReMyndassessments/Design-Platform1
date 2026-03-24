@@ -3,7 +3,6 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { inArray } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -208,17 +207,6 @@ async function syncTools() {
           scoringConfig: tool.scoringConfig ?? null,
         },
       });
-    }
-
-    const allTools = await db
-      .select({ id: assessmentToolsTable.id, isRemyndOwned: assessmentToolsTable.isRemyndOwned })
-      .from(assessmentToolsTable);
-    const extraIds = allTools
-      .filter(t => t.isRemyndOwned && !CANONICAL_IDS.includes(t.id))
-      .map(t => t.id);
-    if (extraIds.length > 0) {
-      await db.delete(assessmentToolsTable).where(inArray(assessmentToolsTable.id, extraIds));
-      logger.info({ removed: extraIds }, "Removed non-canonical Remynd-owned tools");
     }
 
     logger.info({ count: CANONICAL_TOOLS.length }, "Assessment tools synced");
