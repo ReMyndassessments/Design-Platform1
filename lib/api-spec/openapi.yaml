@@ -183,6 +183,61 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AssessmentTool"
+    post:
+      operationId: createAssessmentTool
+      tags: [assessments]
+      summary: Create a new assessment tool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssessmentToolRequest"
+      responses:
+        "201":
+          description: Created tool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentTool"
+
+  /assessment-tools/{id}:
+    patch:
+      operationId: updateAssessmentTool
+      tags: [assessments]
+      summary: Update an assessment tool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAssessmentToolRequest"
+      responses:
+        "200":
+          description: Updated tool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentTool"
+    delete:
+      operationId: deleteAssessmentTool
+      tags: [assessments]
+      summary: Delete an assessment tool
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
 
   /assessment-tools/recommend:
     post:
@@ -277,6 +332,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Assignment"
+    delete:
+      operationId: deleteAssignment
+      tags: [assignments]
+      summary: Delete an assignment
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
 
   # ─── External Respondent ─────────────────────────────────────────────────
   /external/form/{token}:
@@ -527,6 +600,61 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
 
   /users/me:
     get:
@@ -643,6 +771,33 @@ components:
           type: string
           format: date-time
       required: [id, name, email, role, createdAt]
+
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, assessment_lead, psychometrician]
+      required: [name, email, password, role]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, assessment_lead, psychometrician]
 
     LoginRequest:
       type: object
@@ -858,6 +1013,69 @@ components:
           items:
             type: string
       required: [id, name, category, isRemyndOwned, respondentTypes, scoringType, domains]
+
+    CreateAssessmentToolRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        scoringType:
+          type: string
+          enum: [auto, manual]
+        domains:
+          type: array
+          items:
+            type: string
+        respondentTypes:
+          type: array
+          items:
+            type: string
+        isRemyndOwned:
+          type: boolean
+        formItems:
+          type: array
+          items:
+            type: object
+        scoringConfig:
+          type: object
+          nullable: true
+      required: [id, name, category]
+
+    UpdateAssessmentToolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        scoringType:
+          type: string
+          enum: [auto, manual]
+        domains:
+          type: array
+          items:
+            type: string
+        respondentTypes:
+          type: array
+          items:
+            type: string
+        isRemyndOwned:
+          type: boolean
+        formItems:
+          type: array
+          items:
+            type: object
+        scoringConfig:
+          type: object
+          nullable: true
 
     RecommendToolsRequest:
       type: object

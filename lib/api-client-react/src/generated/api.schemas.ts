@@ -35,6 +35,38 @@ export interface User {
   createdAt: string;
 }
 
+export type CreateUserRequestRole =
+  (typeof CreateUserRequestRole)[keyof typeof CreateUserRequestRole];
+
+export const CreateUserRequestRole = {
+  admin: "admin",
+  assessment_lead: "assessment_lead",
+  psychometrician: "psychometrician",
+} as const;
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role: CreateUserRequestRole;
+}
+
+export type UpdateUserRequestRole =
+  (typeof UpdateUserRequestRole)[keyof typeof UpdateUserRequestRole];
+
+export const UpdateUserRequestRole = {
+  admin: "admin",
+  assessment_lead: "assessment_lead",
+  psychometrician: "psychometrician",
+} as const;
+
+export interface UpdateUserRequest {
+  name?: string;
+  email?: string;
+  password?: string;
+  role?: UpdateUserRequestRole;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -317,6 +349,63 @@ export interface AssessmentTool {
   respondentTypes: AssessmentToolRespondentTypesItem[];
   scoringType: AssessmentToolScoringType;
   domains: string[];
+}
+
+export type CreateAssessmentToolRequestScoringType =
+  (typeof CreateAssessmentToolRequestScoringType)[keyof typeof CreateAssessmentToolRequestScoringType];
+
+export const CreateAssessmentToolRequestScoringType = {
+  auto: "auto",
+  manual: "manual",
+} as const;
+
+export type CreateAssessmentToolRequestFormItemsItem = {
+  [key: string]: unknown;
+};
+
+export type CreateAssessmentToolRequestScoringConfig = {
+  [key: string]: unknown;
+} | null;
+
+export interface CreateAssessmentToolRequest {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  scoringType?: CreateAssessmentToolRequestScoringType;
+  domains?: string[];
+  respondentTypes?: string[];
+  isRemyndOwned?: boolean;
+  formItems?: CreateAssessmentToolRequestFormItemsItem[];
+  scoringConfig?: CreateAssessmentToolRequestScoringConfig;
+}
+
+export type UpdateAssessmentToolRequestScoringType =
+  (typeof UpdateAssessmentToolRequestScoringType)[keyof typeof UpdateAssessmentToolRequestScoringType];
+
+export const UpdateAssessmentToolRequestScoringType = {
+  auto: "auto",
+  manual: "manual",
+} as const;
+
+export type UpdateAssessmentToolRequestFormItemsItem = {
+  [key: string]: unknown;
+};
+
+export type UpdateAssessmentToolRequestScoringConfig = {
+  [key: string]: unknown;
+} | null;
+
+export interface UpdateAssessmentToolRequest {
+  name?: string;
+  description?: string;
+  category?: string;
+  scoringType?: UpdateAssessmentToolRequestScoringType;
+  domains?: string[];
+  respondentTypes?: string[];
+  isRemyndOwned?: boolean;
+  formItems?: UpdateAssessmentToolRequestFormItemsItem[];
+  scoringConfig?: UpdateAssessmentToolRequestScoringConfig;
 }
 
 export interface RecommendToolsRequest {

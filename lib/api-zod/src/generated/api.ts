@@ -356,6 +356,71 @@ export const ListAssessmentToolsResponse = zod.array(
 );
 
 /**
+ * @summary Create a new assessment tool
+ */
+export const CreateAssessmentToolBody = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string().optional(),
+  category: zod.string(),
+  scoringType: zod.enum(["auto", "manual"]).optional(),
+  domains: zod.array(zod.string()).optional(),
+  respondentTypes: zod.array(zod.string()).optional(),
+  isRemyndOwned: zod.boolean().optional(),
+  formItems: zod.array(zod.object({}).passthrough()).optional(),
+  scoringConfig: zod.object({}).passthrough().nullish(),
+});
+
+/**
+ * @summary Update an assessment tool
+ */
+export const UpdateAssessmentToolParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateAssessmentToolBody = zod.object({
+  name: zod.string().optional(),
+  description: zod.string().optional(),
+  category: zod.string().optional(),
+  scoringType: zod.enum(["auto", "manual"]).optional(),
+  domains: zod.array(zod.string()).optional(),
+  respondentTypes: zod.array(zod.string()).optional(),
+  isRemyndOwned: zod.boolean().optional(),
+  formItems: zod.array(zod.object({}).passthrough()).optional(),
+  scoringConfig: zod.object({}).passthrough().nullish(),
+});
+
+export const UpdateAssessmentToolResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  category: zod.string(),
+  description: zod.string().optional(),
+  isRemyndOwned: zod.boolean(),
+  respondentTypes: zod.array(
+    zod.enum([
+      "parent",
+      "teacher1",
+      "teacher2",
+      "student",
+      "self",
+      "referring_teacher",
+      "boarding_staff",
+      "school_counselor",
+      "special_needs_teacher",
+    ]),
+  ),
+  scoringType: zod.enum(["auto", "manual"]),
+  domains: zod.array(zod.string()),
+});
+
+/**
+ * @summary Delete an assessment tool
+ */
+export const DeleteAssessmentToolParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary AI-recommend tools based on intake analysis
  */
 export const RecommendToolsBody = zod.object({
@@ -497,6 +562,14 @@ export const UpdateAssignmentResponse = zod.object({
   dueDate: zod.date().nullish(),
   submittedAt: zod.date().nullish(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete an assignment
+ */
+export const DeleteAssignmentParams = zod.object({
+  caseId: zod.coerce.string(),
+  assignmentId: zod.coerce.string(),
 });
 
 /**
@@ -730,6 +803,45 @@ export const ListUsersResponseItem = zod.object({
   createdAt: zod.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary Create a new user
+ */
+export const CreateUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+});
+
+/**
+ * @summary Update a user
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateUserBody = zod.object({
+  name: zod.string().optional(),
+  email: zod.string().optional(),
+  password: zod.string().optional(),
+  role: zod.enum(["admin", "assessment_lead", "psychometrician"]).optional(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a user
+ */
+export const DeleteUserParams = zod.object({
+  id: zod.coerce.string(),
+});
 
 /**
  * @summary Get current user
