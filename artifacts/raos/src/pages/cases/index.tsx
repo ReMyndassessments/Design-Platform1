@@ -22,7 +22,7 @@ export default function CasesList() {
 
   const getPhaseBadge = (phase: string) => {
     switch(phase) {
-      case 'pre_commitment': return <Badge variant="secondary">Pre-Commitment</Badge>;
+      case 'pre_commitment': return <Badge variant="secondary">Referral</Badge>;
       case 'complete': return <Badge variant="success">Complete</Badge>;
       default: return <Badge variant="default" className="capitalize">{phase.replace('_', ' ')}</Badge>;
     }

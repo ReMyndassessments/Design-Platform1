@@ -12,7 +12,7 @@ export default function Dashboard() {
   if (isError || !stats) return <div className="text-destructive p-4 bg-destructive/10 rounded-xl">Failed to load dashboard data.</div>;
 
   const phaseLabels: Record<string, string> = {
-    pre_commitment: "Pre-Commitment",
+    pre_commitment: "Referral",
     intake: "Intake",
     setup: "Setup",
     forms: "Forms",
