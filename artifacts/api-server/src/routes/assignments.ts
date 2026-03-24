@@ -140,7 +140,21 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
       .limit(1),
   ]);
 
-  const questions = toolRows[0]?.formItems ?? SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? [];
+  const ITEM_TYPE_MAP: Record<string, string> = {
+    checkbox: "checkbox_group",
+    radio: "radio_group",
+    multiple_choice: "radio_group",
+  };
+  type StoredItem = { id: string; text: string; textChinese?: string; textKorean?: string; type: string; options?: string[]; optionsChinese?: string[]; optionsKorean?: string[]; domain?: string; required?: boolean; note?: string; noteChinese?: string; noteKorean?: string };
+  const rawItems = toolRows[0]?.formItems;
+  const questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
+    ? (rawItems as StoredItem[]).map(item => ({
+        ...item,
+        type: ITEM_TYPE_MAP[item.type] ?? item.type,
+        domain: item.domain ?? "",
+        required: item.required ?? true,
+      }))
+    : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
 
   res.json({
     assignment: {
