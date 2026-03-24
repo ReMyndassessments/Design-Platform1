@@ -45,14 +45,6 @@ const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
 
-const TOOLS_BY_RESPONDENT: Record<string, string[]> = {
-  parent:            ["CONSENT", "INTAKE"],
-  teacher1:          ["RCS-80"],
-  teacher2:          ["RCS-80"],
-  referring_teacher: ["REFERRAL", "RCS-80"],
-  boarding_staff:    ["RCS-80"],
-  self:              ["RASR"],
-};
 
 const RESPONDENT_TYPES_IN_MODAL = [
   "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
@@ -670,8 +662,9 @@ export default function CaseDetail() {
               )}
             </div>
             {newAssignment.respondentTypes.length > 0 && (() => {
-              const availableToolIds = new Set(newAssignment.respondentTypes.flatMap(rt => TOOLS_BY_RESPONDENT[rt] ?? []));
-              const availableTools = filteredTools?.filter(t => availableToolIds.has(t.id)) ?? [];
+              const availableTools = filteredTools?.filter(t =>
+                newAssignment.respondentTypes.some(rt => (t.respondentTypes ?? []).includes(rt))
+              ) ?? [];
               return (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
