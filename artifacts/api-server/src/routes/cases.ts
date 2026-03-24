@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { casesTable, assignmentsTable, scoresTable, responsesTable } from "@workspace/db/schema";
+import { eq, sql, and, or } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
@@ -195,6 +195,72 @@ router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
   await db.delete(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
   await db.delete(casesTable).where(eq(casesTable.id, req.params.caseId));
   res.status(204).send();
+});
+
+router.post("/cases/:caseId/self-report", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "Case not found" });
+    return;
+  }
+
+  const { toolId: rawToolId, answers, language, administeredBy } = req.body as {
+    toolId?: string;
+    answers?: Record<string, string>;
+    language?: string;
+    administeredBy?: string;
+  };
+
+  const toolId = (rawToolId ?? "RASR").replace(/_v\d+$/, "");
+
+  const existing = await db.select().from(assignmentsTable).where(
+    and(
+      eq(assignmentsTable.caseId, caseId),
+      eq(assignmentsTable.toolId, toolId),
+      or(
+        eq(assignmentsTable.respondentType, "self"),
+        eq(assignmentsTable.respondentType, "student"),
+      ),
+    )
+  );
+
+  const pending = existing.find(a => a.status !== "completed");
+  let assignmentId: string;
+
+  if (pending) {
+    assignmentId = pending.id;
+  } else {
+    assignmentId = nanoid();
+    const token = nanoid(32);
+    await db.insert(assignmentsTable).values({
+      id: assignmentId,
+      caseId,
+      toolId,
+      toolName: "ReMynd Assessment Self-Report (RASR)",
+      respondentType: "self",
+      respondentLabel: administeredBy ?? "Self (In-Office)",
+      uniqueToken: token,
+      uniqueLink: `/external/${token}`,
+      qrCodeData: token,
+      status: "not_started",
+    });
+  }
+
+  await db.insert(responsesTable).values({
+    id: nanoid(),
+    assignmentId,
+    answers: answers ?? {},
+    language: language ?? "english",
+  });
+
+  await db.update(assignmentsTable).set({
+    status: "completed",
+    submittedAt: new Date(),
+  }).where(eq(assignmentsTable.id, assignmentId));
+
+  res.json({ success: true, message: "Self-report submitted successfully." });
 });
 
 router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) => {
