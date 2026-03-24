@@ -44,6 +44,7 @@ async function callOpenAI(
   prompt: string,
   imageBase64?: string,
   mimeType?: string,
+  model: string = "gpt-4o",
 ): Promise<string> {
   type ContentPart =
     | OpenAI.Chat.ChatCompletionContentPartText
@@ -59,7 +60,7 @@ async function callOpenAI(
   content.push({ type: "text", text: prompt });
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages: [{ role: "user", content }],
     max_completion_tokens: 8192,
   });
@@ -340,7 +341,7 @@ Rules:
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callOpenAI(prompt, params.imageBase64, params.mimeType);
+  const raw = await callOpenAI(prompt, params.imageBase64, params.mimeType, "gpt-4o-mini");
 
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");

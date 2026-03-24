@@ -233,6 +233,7 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
     return;
   }
 
+  const MAX_CHARS = 20_000;
   let resolvedText = formText;
   if (fileBase64 && fileName && !imageBase64) {
     try {
@@ -245,6 +246,9 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
       res.status(422).json({ error: "extract_failed", message: "Could not extract text from this file. Try copy-pasting the content instead." });
       return;
     }
+  }
+  if (resolvedText && resolvedText.length > MAX_CHARS) {
+    resolvedText = resolvedText.slice(0, MAX_CHARS);
   }
 
   try {
