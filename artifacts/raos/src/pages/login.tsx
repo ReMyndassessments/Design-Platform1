@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,13 @@ export default function Login() {
     query: { retry: false, refetchOnWindowFocus: false }
   });
 
+  const hasRedirected = useRef(false);
   useEffect(() => {
-    if (!isCheckingUser && user) {
+    if (!isCheckingUser && user && !hasRedirected.current) {
+      hasRedirected.current = true;
       setLocation("/");
     }
-    // setLocation is stable in wouter; intentionally excluded from deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCheckingUser, user]);
+  }, [isCheckingUser, user, setLocation]);
 
   const loginMutation = useLogin();
 
