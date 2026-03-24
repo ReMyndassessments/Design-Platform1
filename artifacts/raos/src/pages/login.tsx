@@ -22,7 +22,10 @@ export default function Login() {
       hasRedirected.current = true;
       setLocation("/");
     }
-  }, [isCheckingUser, user, setLocation]);
+    // setLocation is intentionally excluded — it is not stable across renders
+    // and including it causes an infinite redirect loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCheckingUser, user]);
 
   const loginMutation = useLogin();
 

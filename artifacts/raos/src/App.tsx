@@ -29,23 +29,26 @@ const queryClient = new QueryClient();
 // Protected Route Wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [, navigate] = useLocation();
-  const { data: user, isLoading, isError } = useGetCurrentUser({
-    query: { retry: false }
+  const { data: user, isLoading } = useGetCurrentUser({
+    query: {
+      retry: false,
+      staleTime: 5 * 60 * 1000,
+    }
   });
 
   React.useEffect(() => {
-    if (!isLoading && (isError || !user)) {
+    if (!isLoading && !user) {
       navigate("/login");
     }
     // navigate is stable in wouter; intentionally excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isError, user]);
+  }, [isLoading, user]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   }
 
-  if (isError || !user) {
+  if (!user) {
     return null;
   }
 
