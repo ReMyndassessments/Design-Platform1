@@ -72,7 +72,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
     if (!password.trim() || password.length < 6) { setError("Password must be at least 6 characters."); return; }
 
     createMut.mutate(
-      { name: name.trim(), email: email.trim().toLowerCase(), password, role },
+      { data: { name: name.trim(), email: email.trim().toLowerCase(), password, role } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });

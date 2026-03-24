@@ -626,17 +626,19 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
     const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
     createMut.mutate(
       {
-        id: id.trim().toUpperCase(),
-        name: name.trim(),
-        description: description.trim(),
-        category: category.trim(),
-        scoringType,
-        domains,
-        respondentTypes: respondents,
-        isRemyndOwned,
-        formItems: formItems.length > 0 ? formItems : undefined,
-        ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
-      } as Parameters<typeof createMut.mutate>[0],
+        data: {
+          id: id.trim().toUpperCase(),
+          name: name.trim(),
+          description: description.trim(),
+          category: category.trim(),
+          scoringType,
+          domains,
+          respondentTypes: respondents,
+          isRemyndOwned,
+          formItems: formItems.length > 0 ? formItems : undefined,
+          ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
+        },
+      },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
