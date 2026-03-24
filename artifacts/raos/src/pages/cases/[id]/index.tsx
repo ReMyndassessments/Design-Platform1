@@ -67,6 +67,7 @@ export default function CaseDetail() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
+  const [isSubmittingAssignments, setIsSubmittingAssignments] = useState(false);
   const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<{ id: string; name: string } | null>(null);
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
@@ -74,7 +75,7 @@ export default function CaseDetail() {
   const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "" });
   
   const [newAssignment, setNewAssignment] = useState({
-    toolId: "",
+    toolIds: [] as string[],
     respondentType: "parent" as CreateAssignmentRequestRespondentType,
     respondentLabel: "",
     assignedToName: "",
@@ -255,16 +256,26 @@ export default function CaseDetail() {
     });
   };
 
-  const handleAddAssignment = (e: React.FormEvent) => {
+  const handleAddAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    createAssignmentMut.mutate({ caseId, data: newAssignment }, {
-      onSuccess: () => {
-        toast({ title: "Assignment added" });
-        setAddAssignmentModalOpen(false);
-        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-      },
-      onError: () => toast({ title: "Cannot add this assignment", description: "Your role does not allow deploying this form type.", variant: "destructive" })
-    });
+    if (newAssignment.toolIds.length === 0) {
+      toast({ title: "Select at least one form to assign.", variant: "destructive" });
+      return;
+    }
+    setIsSubmittingAssignments(true);
+    try {
+      for (const toolId of newAssignment.toolIds) {
+        await createAssignmentMut.mutateAsync({ caseId, data: { ...newAssignment, toolId } });
+      }
+      toast({ title: newAssignment.toolIds.length === 1 ? "Assignment added" : `${newAssignment.toolIds.length} assignments added` });
+      setAddAssignmentModalOpen(false);
+      setNewAssignment({ toolIds: [], respondentType: "parent", respondentLabel: "", assignedToName: "", assignedToEmail: "" });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    } catch {
+      toast({ title: "Cannot add assignment", description: "Your role may not allow deploying one of the selected form types.", variant: "destructive" });
+    } finally {
+      setIsSubmittingAssignments(false);
+    }
   };
 
   const copyLink = (link: string) => {
@@ -582,12 +593,31 @@ export default function CaseDetail() {
           </DialogHeader>
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assessment Tool</label>
-              <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={newAssignment.toolId} onChange={e => setNewAssignment({...newAssignment, toolId: e.target.value})}>
-                <option value="">Select tool...</option>
-                {filteredTools?.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+              <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
+                {filteredTools?.map(t => {
+                  const checked = newAssignment.toolIds.includes(t.id);
+                  return (
+                    <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
+                        checked={checked}
+                        onChange={e => {
+                          const ids = e.target.checked
+                            ? [...newAssignment.toolIds, t.id]
+                            : newAssignment.toolIds.filter(id => id !== t.id);
+                          setNewAssignment({ ...newAssignment, toolIds: ids });
+                        }}
+                      />
+                      <span className="text-sm text-slate-800">{t.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {newAssignment.toolIds.length > 0 && (
+                <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type</label>
@@ -615,8 +645,12 @@ export default function CaseDetail() {
               <label className="text-sm font-medium">Email Address <span className="text-slate-400 font-normal">(optional)</span></label>
               <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
             </div>
-            <Button type="submit" className="w-full mt-4" disabled={createAssignmentMut.isPending}>
-              {createAssignmentMut.isPending ? "Adding..." : "Add Assignment"}
+            <Button type="submit" className="w-full mt-4" disabled={isSubmittingAssignments}>
+              {isSubmittingAssignments
+                ? `Adding ${newAssignment.toolIds.length} form${newAssignment.toolIds.length > 1 ? "s" : ""}…`
+                : newAssignment.toolIds.length > 1
+                  ? `Add ${newAssignment.toolIds.length} Assignments`
+                  : "Add Assignment"}
             </Button>
           </form>
         </DialogContent>
