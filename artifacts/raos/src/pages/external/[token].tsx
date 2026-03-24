@@ -560,20 +560,32 @@ export default function ExternalFormView() {
 
         {/* Questions */}
         <div className="space-y-5">
-          {(form.questions as Question[]).map(q => {
-            const isSection = q.type === "section_header";
-            return (
-              <div key={q.id} id={`q-${q.id}`}>
-                {isSection ? (
-                  <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
-                ) : (
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          {(() => {
+            let counter = 0;
+            return (form.questions as Question[]).map(q => {
+              const isSection = q.type === "section_header";
+              if (!isSection) counter++;
+              const num = isSection ? undefined : counter;
+              return (
+                <div key={q.id} id={`q-${q.id}`}>
+                  {isSection ? (
                     <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  ) : (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                      <div className="flex gap-3">
+                        <span className="text-sm font-bold text-slate-400 font-mono w-7 flex-shrink-0 mt-0.5 select-none">
+                          {num}.
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* Validation Error */}
