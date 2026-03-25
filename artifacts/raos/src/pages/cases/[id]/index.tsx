@@ -554,11 +554,11 @@ export default function CaseDetail() {
                             <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
                               <Copy size={16} />
                             </Button>
-                            <Link href={`/external/${a.uniqueToken}`} target="_blank">
+                            <a href={`/external/${a.uniqueToken}`} target="_blank" rel="noopener noreferrer">
                               <Button variant="outline" size="sm" className="bg-white" title="Open Form">
                                 <ExternalLink size={16} />
                               </Button>
-                            </Link>
+                            </a>
                           </>
                         )}
                         {a.respondentType === 'self' && a.status !== 'completed' && (
