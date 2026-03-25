@@ -49,16 +49,56 @@ type PortalData = {
 // ── Phase config ──────────────────────────────────────────────────────────────
 
 const PHASES = [
-  { key: "pre_commitment", label: "Referral" },
-  { key: "intake",         label: "Intake" },
-  { key: "setup",          label: "Setup" },
-  { key: "forms",          label: "Forms" },
-  { key: "assessment",     label: "Assessment" },
-  { key: "scoring",        label: "Scoring" },
-  { key: "report",         label: "Report" },
-  { key: "debrief",        label: "Debrief" },
-  { key: "complete",       label: "Complete" },
+  { key: "pre_commitment", label: "Referral",   labelZh: "推荐",   labelKo: "의뢰" },
+  { key: "intake",         label: "Intake",     labelZh: "接收",   labelKo: "접수" },
+  { key: "setup",          label: "Setup",      labelZh: "设置",   labelKo: "설정" },
+  { key: "forms",          label: "Forms",      labelZh: "表格",   labelKo: "양식" },
+  { key: "assessment",     label: "Assessment", labelZh: "评估",   labelKo: "평가" },
+  { key: "scoring",        label: "Scoring",    labelZh: "评分",   labelKo: "채점" },
+  { key: "report",         label: "Report",     labelZh: "报告",   labelKo: "보고서" },
+  { key: "debrief",        label: "Debrief",    labelZh: "汇报",   labelKo: "결과설명" },
+  { key: "complete",       label: "Complete",   labelZh: "完成",   labelKo: "완료" },
 ];
+
+function phaseLabel(phase: typeof PHASES[0], language: string) {
+  if (language === "mandarin") return phase.labelZh;
+  if (language === "korean")   return phase.labelKo;
+  return phase.label;
+}
+
+// ── Portal translations ────────────────────────────────────────────────────────
+
+type Lang = "english" | "mandarin" | "korean";
+
+const PT = {
+  portalSubtitle:    { english: "Assessment Portal",         mandarin: "评估门户",         korean: "평가 포털" },
+  respondent:        { english: "Respondent",                mandarin: "受访者",           korean: "응답자" },
+  assessmentProgress:{ english: "Assessment Progress",       mandarin: "评估进度",         korean: "평가 진행 상황" },
+  currentPhase:      { english: "Current Phase",             mandarin: "当前阶段",         korean: "현재 단계" },
+  overallProgress:   { english: "Overall Progress",          mandarin: "整体进度",         korean: "전체 진행률" },
+  yourForms:         { english: "Your Assigned Forms",       mandarin: "您的指定表格",     korean: "배정된 양식" },
+  allDone:           { english: "All forms completed — thank you!", mandarin: "所有表格已完成——谢谢！", korean: "모든 양식 완료 — 감사합니다!" },
+  completed:         { english: "Completed",                 mandarin: "已完成",           korean: "완료" },
+  pending:           { english: "Pending",                   mandarin: "待完成",           korean: "대기 중" },
+  completeNow:       { english: "Complete Now",              mandarin: "立即完成",         korean: "지금 완료" },
+  secureTitle:       { english: "Your responses are secure", mandarin: "您的回复是安全的", korean: "귀하의 응답은 안전합니다" },
+  secureBody:        {
+    english:  "All information submitted through this portal is encrypted and shared only with the authorised assessment team. You can return to this page at any time using your original link.",
+    mandarin: "通过此门户提交的所有信息均已加密，仅与授权评估团队共享。您可以随时使用原始链接返回此页面。",
+    korean:   "이 포털을 통해 제출된 모든 정보는 암호화되어 승인된 평가팀과만 공유됩니다. 원래 링크를 사용하여 언제든지 이 페이지로 돌아올 수 있습니다.",
+  },
+} satisfies Record<string, Record<Lang, string>>;
+
+function t(key: keyof typeof PT, language: string): string {
+  const lang = (["english","mandarin","korean"].includes(language) ? language : "english") as Lang;
+  return PT[key][lang];
+}
+
+function formsRemainingLabel(pending: number, completed: number, language: string): string {
+  if (language === "mandarin") return `${pending} 份表格待完成 · ${completed} 已完成`;
+  if (language === "korean")   return `${pending}개 양식 남음 · ${completed}개 완료`;
+  return `${pending} form${pending !== 1 ? "s" : ""} remaining · ${completed} completed`;
+}
 
 function phaseIndex(key: string) {
   return PHASES.findIndex(p => p.key === key);
@@ -450,19 +490,20 @@ function getSuccessMessage(formType: string) {
 
 const FORMS_IDX = phaseIndex("forms");
 
-function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
+function PhaseTracker({ currentPhase, progressPercentage, studentName, language }: {
   currentPhase: string;
   progressPercentage: number;
   studentName: string;
+  language: string;
 }) {
   const rawIdx = phaseIndex(currentPhase);
   const currentIdx = Math.max(rawIdx, FORMS_IDX);
-  const currentLabel = PHASES[currentIdx]?.label ?? currentPhase;
+  const currentLabel = phaseLabel(PHASES[currentIdx] ?? PHASES[FORMS_IDX], language);
 
   return (
     <div className="bg-[#111827] rounded-2xl p-5 md:p-6 text-white shadow-xl">
       <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
-        Assessment Progress — {studentName}
+        {t("assessmentProgress", language)} — {studentName}
       </p>
 
       {/* Steps row */}
@@ -470,18 +511,15 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
         {PHASES.map((phase, idx) => {
           const isCompleted = idx < currentIdx;
           const isCurrent = idx === currentIdx;
-          const isUpcoming = idx > currentIdx;
 
           return (
             <div key={phase.key} className="flex-1 flex flex-col items-center relative">
-              {/* Connector line before (skip for first) */}
               {idx > 0 && (
                 <div className={cn(
                   "absolute left-0 right-1/2 top-[15px] h-0.5 -translate-y-1/2",
                   isCompleted || isCurrent ? "bg-primary" : "bg-slate-700"
                 )} />
               )}
-              {/* Connector line after (skip for last) */}
               {idx < PHASES.length - 1 && (
                 <div className={cn(
                   "absolute left-1/2 right-0 top-[15px] h-0.5 -translate-y-1/2",
@@ -489,7 +527,6 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
                 )} />
               )}
 
-              {/* Circle */}
               <div className={cn(
                 "relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all",
                 isCompleted ? "bg-primary border-primary text-white" :
@@ -505,28 +542,26 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
                 )}
               </div>
 
-              {/* Label */}
               <span className={cn(
                 "mt-2 text-[9px] font-semibold uppercase tracking-wide text-center leading-tight hidden sm:block",
                 isCurrent ? "text-primary" :
                 isCompleted ? "text-slate-400" :
                 "text-slate-600"
               )}>
-                {phase.label}
+                {phaseLabel(phase, language)}
               </span>
             </div>
           );
         })}
       </div>
 
-      {/* Bottom summary */}
       <div className="mt-4 pt-4 border-t border-slate-700/60 flex items-end justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current Phase</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("currentPhase", language)}</p>
           <p className="text-base font-bold text-white mt-0.5">{currentLabel}</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Overall Progress</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("overallProgress", language)}</p>
           <p className="text-base font-bold text-primary mt-0.5">{progressPercentage}%</p>
         </div>
       </div>
@@ -536,11 +571,21 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
 
 // ── Portal View ───────────────────────────────────────────────────────────────
 
+const LANG_OPTIONS = [
+  { id: "english",  label: "En" },
+  { id: "mandarin", label: "中" },
+  { id: "korean",   label: "한" },
+];
+
 function PortalView({
   portal,
+  language,
+  setLanguage,
   onStartForm,
 }: {
   portal: PortalData;
+  language: string;
+  setLanguage: (l: string) => void;
   onStartForm: (token: string) => void;
 }) {
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
@@ -556,14 +601,29 @@ function PortalView({
         </div>
         <div>
           <span className="font-display font-bold text-sm tracking-tight text-primary block leading-none">ReMynd</span>
-          <span className="text-[10px] text-slate-400 font-medium">Assessment Portal</span>
+          <span className="text-[10px] text-slate-400 font-medium">{t("portalSubtitle", language)}</span>
         </div>
-        {portal.respondentLabel && (
-          <div className="ml-auto text-right">
-            <p className="text-xs font-semibold text-slate-700">{portal.respondentLabel}</p>
-            <p className="text-[10px] text-slate-400">Respondent</p>
+        <div className="ml-auto flex items-center gap-3">
+          {portal.respondentLabel && (
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-semibold text-slate-700">{portal.respondentLabel}</p>
+              <p className="text-[10px] text-slate-400">{t("respondent", language)}</p>
+            </div>
+          )}
+          <div className="flex bg-slate-100 p-0.5 rounded-lg">
+            {LANG_OPTIONS.map(lang => (
+              <button
+                key={lang.id}
+                onClick={() => setLanguage(lang.id)}
+                className={cn(
+                  "px-3 py-1.5 text-xs rounded-md font-semibold transition-all",
+                  language === lang.id ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+                )}>
+                {lang.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 space-y-5">
@@ -573,17 +633,18 @@ function PortalView({
           currentPhase={portal.currentPhase}
           progressPercentage={portal.progressPercentage}
           studentName={portal.studentName}
+          language={language}
         />
 
         {/* Forms Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Your Assigned Forms</h2>
+              <h2 className="text-sm font-bold text-slate-900">{t("yourForms", language)}</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {allDone
-                  ? "All forms completed — thank you!"
-                  : `${pendingCount} form${pendingCount !== 1 ? "s" : ""} remaining · ${completedCount} completed`}
+                  ? t("allDone", language)
+                  : formsRemainingLabel(pendingCount, completedCount, language)}
               </p>
             </div>
             {allDone && (
@@ -616,7 +677,7 @@ function PortalView({
                       isDone ? "text-emerald-600" : "text-amber-600"
                     )}>
                       <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : "bg-amber-500")} />
-                      {isDone ? "Completed" : "Pending"}
+                      {isDone ? t("completed", language) : t("pending", language)}
                     </span>
                   </div>
                   {isDone ? (
@@ -629,7 +690,7 @@ function PortalView({
                       onClick={() => onStartForm(f.uniqueToken)}
                       className="text-xs shrink-0 gap-1"
                     >
-                      Complete Now
+                      {t("completeNow", language)}
                       <ChevronRight size={13} />
                     </Button>
                   )}
@@ -645,9 +706,9 @@ function PortalView({
             <Lock size={14} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-700">Your responses are secure</p>
+            <p className="text-xs font-semibold text-slate-700">{t("secureTitle", language)}</p>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-              All information submitted through this portal is encrypted and shared only with the authorised assessment team. You can return to this page at any time using your original link.
+              {t("secureBody", language)}
             </p>
           </div>
         </div>
@@ -999,6 +1060,8 @@ export default function ExternalFormView() {
   return (
     <PortalView
       portal={portal}
+      language={language}
+      setLanguage={setLanguage}
       onStartForm={handleStartForm}
     />
   );
