@@ -55,7 +55,7 @@ const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
 
 
 const RESPONDENT_TYPES_IN_MODAL = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator",
 ] as const;
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
@@ -65,6 +65,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   referring_teacher: "Referring Teacher",
   boarding_staff:    "Boarding Staff",
   self:              "Self-Report (Guided)",
+  invigilator:       "Invigilator",
 };
 
 function canAdvancePhase(role: string, currentPhase: string): boolean {

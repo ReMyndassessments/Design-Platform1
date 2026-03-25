@@ -162,6 +162,7 @@ export const AssignmentRespondentType = {
   boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
+  invigilator: "invigilator",
 } as const;
 
 export type AssignmentStatus =
@@ -330,6 +331,7 @@ export const AssessmentToolRespondentTypesItem = {
   boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
+  invigilator: "invigilator",
 } as const;
 
 export type AssessmentToolScoringType =
@@ -432,6 +434,7 @@ export const CreateAssignmentRequestRespondentType = {
   boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
+  invigilator: "invigilator",
 } as const;
 
 export interface CreateAssignmentRequest {

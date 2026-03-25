@@ -19,4 +19,5 @@ export const CreateAssignmentRequestRespondentType = {
   boarding_staff: "boarding_staff",
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
+  invigilator: "invigilator",
 } as const;

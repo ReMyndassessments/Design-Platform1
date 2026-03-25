@@ -74,7 +74,7 @@ const categoryColors: Record<string, string> = {
 };
 
 const ALL_RESPONDENT_TYPES = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator",
 ];
 
 const FILTER_RESPONDENT_TYPES = ALL_RESPONDENT_TYPES as readonly string[];
@@ -86,6 +86,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   referring_teacher: "Referring Teacher",
   boarding_staff:    "Boarding Staff",
   self:              "Self-Report",
+  invigilator:       "Invigilator",
 };
 
 function categoryBadge(cat: string) {
