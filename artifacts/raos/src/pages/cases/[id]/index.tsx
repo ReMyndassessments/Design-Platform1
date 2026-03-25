@@ -27,12 +27,12 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const PHASES = [
-  "pre_commitment", "intake", "setup", "forms", "assessment", "scoring", "report", "debrief", "complete"
+  "intake", "forms", "assessment", "scoring", "report", "debrief", "complete"
 ];
 const PHASE_LABELS: Record<string, string> = {
-  pre_commitment: "Referral",
+  pre_commitment: "Intake",
   intake: "Intake",
-  setup: "Setup",
+  setup: "Forms",
   forms: "Forms",
   assessment: "Assessment",
   scoring: "Scoring",
@@ -40,6 +40,14 @@ const PHASE_LABELS: Record<string, string> = {
   debrief: "Debrief",
   complete: "Complete",
 };
+// Map hidden internal phases to their nearest visible display phase
+const PHASE_DISPLAY_MAP: Record<string, string> = {
+  pre_commitment: "intake",
+  setup: "forms",
+};
+function displayPhase(phase: string): string {
+  return PHASE_DISPLAY_MAP[phase] ?? phase;
+}
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
@@ -130,7 +138,7 @@ export default function CaseDetail() {
   if (!c) return <div>Case not found</div>;
 
   const role = currentUser?.role ?? "psychometrician";
-  const currentPhaseIndex = PHASES.indexOf(c.currentPhase);
+  const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
 
   const filteredTools = tools?.filter(t => {
@@ -455,7 +463,7 @@ export default function CaseDetail() {
             </CardContent>
           </Card>
 
-          {isPhaseVisible(role, "intake") && PHASES.indexOf(c.currentPhase) > PHASES.indexOf("intake") && (
+          {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">
