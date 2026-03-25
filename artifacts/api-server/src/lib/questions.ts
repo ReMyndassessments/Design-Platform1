@@ -1224,6 +1224,109 @@ export const RASR_OBS_FORM: FormQuestion[] = [
   { id: "obs_bm8", text: "Requires reminders to maintain appropriate behavior.", textChinese: "需要提醒才能保持适当的行为。", textKorean: "적절한 행동을 유지하기 위해 상기가 필요합니다.", type: "likert", options: RASR_SCALE_OPTIONS, optionsChinese: RASR_SCALE_OPTIONS_ZH, optionsKorean: RASR_SCALE_OPTIONS_KO, domain: "behavioral_modulation", required: true },
 ];
 
+// ─── RCEP-CORE FORM ────────────────────────────────────────────────────────────
+
+const RCEP_SCALE_OPTIONS    = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
+const RCEP_SCALE_OPTIONS_ZH = ["从不", "很少", "有时", "经常", "非常频繁"];
+const RCEP_SCALE_OPTIONS_KO = ["전혀 없음", "거의 없음", "때때로", "자주", "매우 자주"];
+
+export const RCEP_CORE_FORM: FormQuestion[] = [
+
+  // ── Domain 1: Attention Regulation ──────────────────────────────────────────
+  { id: "rcep_sec1", text: "Domain 1: Attention Regulation", textChinese: "领域一：注意力调节", textKorean: "영역 1: 주의력 조절",
+    type: "section_header", domain: "attention_regulation",
+    note: "Rate how often you observe the following. 0 = Never, 1 = Rarely, 2 = Sometimes, 3 = Often, 4 = Very Often.",
+    noteChinese: "请评估您观察到以下行为的频率。0=从不，1=很少，2=有时，3=经常，4=非常频繁。",
+    noteKorean: "다음 행동을 얼마나 자주 관찰하는지 평가해 주세요. 0=전혀 없음, 1=거의 없음, 2=때때로, 3=자주, 4=매우 자주." },
+  { id: "rcep_d1_1", text: "Has difficulty sustaining attention during tasks.", textChinese: "在任务期间难以持续注意力。", textKorean: "과제 수행 중 주의를 지속하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_2", text: "Misses important details due to inattention.", textChinese: "因注意力不集中而遗漏重要细节。", textKorean: "부주의로 인해 중요한 세부사항을 놓침.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_3", text: "Appears distracted even without obvious external triggers.", textChinese: "即使没有明显的外部刺激，也显得分心。", textKorean: "명백한 외부 자극이 없어도 산만해 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_4", text: "Requires frequent redirection.", textChinese: "需要频繁引导。", textKorean: "자주 재지시가 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_5", text: "Struggles to complete tasks without reminders.", textChinese: "没有提醒时难以完成任务。", textKorean: "상기 없이 과제를 완료하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_6", text: "Acts before thinking.", textChinese: "不经思考便行动。", textKorean: "생각하기 전에 행동함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_7", text: "Has difficulty waiting during structured activities.", textChinese: "在有组织的活动中难以等待。", textKorean: "구조화된 활동 중 기다리기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_8", text: "Appears restless during seated tasks.", textChinese: "在需要坐着的任务中显得坐立不安。", textKorean: "앉아서 하는 과제 중 안절부절못해 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+  { id: "rcep_d1_9", text: "Avoids tasks requiring sustained mental effort.", textChinese: "回避需要持续脑力努力的任务。", textKorean: "지속적인 정신적 노력이 필요한 과제를 회피함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "attention_regulation", required: true },
+
+  // ── Domain 2: Executive Functioning ─────────────────────────────────────────
+  { id: "rcep_sec2", text: "Domain 2: Executive Functioning", textChinese: "领域二：执行功能", textKorean: "영역 2: 실행 기능", type: "section_header", domain: "executive_functioning" },
+  { id: "rcep_d2_1", text: "Has difficulty organizing materials.", textChinese: "难以整理材料。", textKorean: "자료를 정리하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_2", text: "Struggles to plan ahead for assignments.", textChinese: "难以提前规划作业。", textKorean: "과제를 미리 계획하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_3", text: "Underestimates time needed for tasks.", textChinese: "低估完成任务所需时间。", textKorean: "과제에 필요한 시간을 과소평가함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_4", text: "Has difficulty shifting between tasks.", textChinese: "难以在任务之间切换。", textKorean: "과제 전환에 어려움이 있음.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_5", text: "Gets stuck on one way of solving problems.", textChinese: "陷入一种解决问题的方式而无法改变。", textKorean: "문제 해결의 한 방법에 고착됨.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_6", text: "Does not notice mistakes without prompting.", textChinese: "没有提示时不注意自己的错误。", textKorean: "촉구 없이는 실수를 알아채지 못함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_7", text: "Has difficulty prioritizing tasks.", textChinese: "难以确定任务的优先级。", textKorean: "과제 우선순위를 정하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_8", text: "Requires help breaking large tasks into steps.", textChinese: "需要帮助将大型任务分解成步骤。", textKorean: "큰 과제를 단계로 나누는 데 도움이 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+  { id: "rcep_d2_9", text: "Repeats ineffective strategies.", textChinese: "重复使用无效的策略。", textKorean: "효과 없는 전략을 반복함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "executive_functioning", required: true },
+
+  // ── Domain 3: Emotional Regulation ──────────────────────────────────────────
+  { id: "rcep_sec3", text: "Domain 3: Emotional Regulation", textChinese: "领域三：情绪调节", textKorean: "영역 3: 정서 조절", type: "section_header", domain: "emotional_regulation" },
+  { id: "rcep_d3_1", text: "Reacts strongly to minor setbacks.", textChinese: "对轻微的挫折反应强烈。", textKorean: "사소한 좌절에 강하게 반응함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_2", text: "Has difficulty calming down after becoming upset.", textChinese: "情绪激动后难以平静下来。", textKorean: "화가 난 후 진정하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_3", text: "Appears anxious about performance.", textChinese: "对表现感到焦虑。", textKorean: "수행에 대해 불안해 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_4", text: "Avoids tasks due to worry.", textChinese: "因担忧而回避任务。", textKorean: "걱정으로 인해 과제를 회피함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_5", text: "Mood changes noticeably during the day.", textChinese: "情绪在一天中明显变化。", textKorean: "하루 동안 기분 변화가 눈에 띔.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_6", text: "Appears overwhelmed easily.", textChinese: "容易感到不知所措。", textKorean: "쉽게 압도되어 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_7", text: "Requires adult support to regulate emotions.", textChinese: "需要成人支持来调节情绪。", textKorean: "감정 조절을 위해 어른의 지원이 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_8", text: "Becomes discouraged quickly.", textChinese: "很快气馁。", textKorean: "빠르게 낙담함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+  { id: "rcep_d3_9", text: "Remains upset longer than peers.", textChinese: "比同伴保持沮丧状态更长时间。", textKorean: "또래보다 더 오래 화가 나 있음.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "emotional_regulation", required: true },
+
+  // ── Domain 4: Social Communication ──────────────────────────────────────────
+  { id: "rcep_sec4", text: "Domain 4: Social Communication", textChinese: "领域四：社交沟通", textKorean: "영역 4: 사회적 의사소통", type: "section_header", domain: "social_communication" },
+  { id: "rcep_d4_1", text: "Has difficulty initiating interaction with peers.", textChinese: "难以主动与同伴互动。", textKorean: "또래와의 상호작용을 시작하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_2", text: "Struggles to sustain back-and-forth conversation.", textChinese: "难以维持来回对话。", textKorean: "주고받는 대화를 유지하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_3", text: "Misinterprets peer social cues.", textChinese: "误解同伴的社交线索。", textKorean: "또래의 사회적 단서를 잘못 해석함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_4", text: "Has difficulty adjusting behavior to group expectations.", textChinese: "难以根据群体期望调整行为。", textKorean: "집단 기대에 맞게 행동을 조정하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_5", text: "Appears isolated during unstructured time.", textChinese: "在非结构化时间内显得孤立。", textKorean: "비구조화된 시간 동안 고립되어 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_6", text: "Has difficulty understanding others' perspectives.", textChinese: "难以理解他人的观点。", textKorean: "타인의 관점을 이해하기 어려움.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_7", text: "Struggles with group collaboration.", textChinese: "在群体合作中有困难。", textKorean: "집단 협력에 어려움이 있음.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_8", text: "Appears rigid in social situations.", textChinese: "在社交场合中显得刻板。", textKorean: "사회적 상황에서 경직되어 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+  { id: "rcep_d4_9", text: "Requires adult mediation in peer conflict.", textChinese: "在同伴冲突中需要成人调解。", textKorean: "또래 갈등에서 어른의 중재가 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "social_communication", required: true },
+
+  // ── Domain 5: Academic Persistence ──────────────────────────────────────────
+  { id: "rcep_sec5", text: "Domain 5: Academic Persistence", textChinese: "领域五：学业坚持", textKorean: "영역 5: 학업 지속성", type: "section_header", domain: "academic_persistence",
+    note: "Items marked (R) are reverse scored — higher ratings indicate a strength.",
+    noteChinese: "标有（R）的项目为反向计分——评分越高代表该方面越强。",
+    noteKorean: "(R)로 표시된 항목은 역채점 항목으로 — 높은 점수일수록 강점을 나타냅니다." },
+  { id: "rcep_d5_1", text: "Gives up quickly when work becomes difficult.", textChinese: "当工作变难时很快放弃。", textKorean: "과제가 어려워지면 빠르게 포기함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_2", text: "Maintains effort during challenging tasks. (R)", textChinese: "在具有挑战性的任务中保持努力。（R）", textKorean: "도전적인 과제 중 노력을 유지함. (R)", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_3", text: "Recovers after academic setbacks. (R)", textChinese: "在学业挫折后能够恢复。（R）", textKorean: "학업 좌절 후 회복함. (R)", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_4", text: "Avoids tasks perceived as difficult.", textChinese: "回避被认为困难的任务。", textKorean: "어렵다고 인식되는 과제를 회피함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_5", text: "Demonstrates belief in ability to improve. (R)", textChinese: "表现出对提高能力的信念。（R）", textKorean: "향상 능력에 대한 믿음을 보임. (R)", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_6", text: "Requires external motivation to complete work.", textChinese: "需要外部激励才能完成工作。", textKorean: "과제를 완료하기 위해 외부 동기가 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_7", text: "Does not finish assignments independently.", textChinese: "不能独立完成作业。", textKorean: "독립적으로 과제를 완료하지 못함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_8", text: "Uses feedback constructively. (R)", textChinese: "建设性地利用反馈。（R）", textKorean: "피드백을 건설적으로 활용함. (R)", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+  { id: "rcep_d5_9", text: "Appears disengaged from academic tasks.", textChinese: "对学业任务显得不投入。", textKorean: "학업 과제에 무관심해 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "academic_persistence", required: true },
+
+  // ── Domain 6: Functional Impact ─────────────────────────────────────────────
+  { id: "rcep_sec6", text: "Domain 6: Functional Impact", textChinese: "领域六：功能影响", textKorean: "영역 6: 기능적 영향", type: "section_header", domain: "functional_impact" },
+  { id: "rcep_d6_1", text: "Difficulties interfere with classroom performance.", textChinese: "困难干扰课堂表现。", textKorean: "어려움이 수업 수행에 방해가 됨.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_2", text: "Difficulties interfere with peer relationships.", textChinese: "困难干扰同伴关系。", textKorean: "어려움이 또래 관계에 방해가 됨.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_3", text: "Difficulties affect homework completion.", textChinese: "困难影响作业完成。", textKorean: "어려움이 숙제 완성에 영향을 미침.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_4", text: "Requires more support than peers.", textChinese: "需要比同伴更多的支持。", textKorean: "또래보다 더 많은 지원이 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_5", text: "Difficulties impact confidence.", textChinese: "困难影响自信心。", textKorean: "어려움이 자신감에 영향을 미침.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_6", text: "Difficulties affect participation.", textChinese: "困难影响参与度。", textKorean: "어려움이 참여에 영향을 미침.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_7", text: "Requires consistent adult monitoring.", textChinese: "需要持续的成人监督。", textKorean: "지속적인 어른의 모니터링이 필요함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_8", text: "Difficulties affect daily routines.", textChinese: "困难影响日常例行活动。", textKorean: "어려움이 일상 루틴에 영향을 미침.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+  { id: "rcep_d6_9", text: "Concerns have persisted over time.", textChinese: "问题已持续一段时间。", textKorean: "우려 사항이 시간이 지남에 따라 지속됨.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "functional_impact", required: true },
+
+  // ── Domain 7: Protective Factors ────────────────────────────────────────────
+  { id: "rcep_sec7", text: "Domain 7: Protective Factors", textChinese: "领域七：保护因素", textKorean: "영역 7: 보호 요인", type: "section_header", domain: "protective_factors",
+    note: "Higher scores indicate stronger protective resources. Rate how often you observe the following.",
+    noteChinese: "评分越高表示保护性资源越强。请评估您观察到以下行为的频率。",
+    noteKorean: "높은 점수는 더 강한 보호적 자원을 나타냅니다. 다음 행동을 얼마나 자주 관찰하는지 평가해 주세요." },
+  { id: "rcep_d7_1", text: "Demonstrates strengths in specific areas.", textChinese: "在特定领域展现出优势。", textKorean: "특정 영역에서 강점을 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_2", text: "Has at least one strong peer relationship.", textChinese: "至少有一段稳固的同伴关系。", textKorean: "최소한 하나의 강한 또래 관계가 있음.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_3", text: "Seeks help appropriately.", textChinese: "适当地寻求帮助。", textKorean: "적절하게 도움을 구함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_4", text: "Demonstrates problem-solving strengths.", textChinese: "展现出问题解决的优势。", textKorean: "문제 해결 강점을 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_5", text: "Shows persistence in preferred areas.", textChinese: "在感兴趣的领域表现出坚持。", textKorean: "선호하는 영역에서 지속성을 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_6", text: "Responds well to encouragement.", textChinese: "对鼓励反应良好。", textKorean: "격려에 잘 반응함.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_7", text: "Has positive adult connection at school.", textChinese: "在学校与成人有积极的联系。", textKorean: "학교에서 어른과 긍정적인 연결이 있음.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_8", text: "Shows curiosity in learning.", textChinese: "在学习中表现出好奇心。", textKorean: "학습에서 호기심을 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+  { id: "rcep_d7_9", text: "Demonstrates adaptability when supported.", textChinese: "在获得支持时表现出适应能力。", textKorean: "지원받을 때 적응력을 보임.", type: "likert", options: RCEP_SCALE_OPTIONS, optionsChinese: RCEP_SCALE_OPTIONS_ZH, optionsKorean: RCEP_SCALE_OPTIONS_KO, domain: "protective_factors", required: true },
+];
+
 // ─── QUESTION REGISTRY ───────────────────────────────────────────────────────────
 export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   REFERRAL:  REFERRAL_FORM,
@@ -1231,6 +1334,7 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   INTAKE:    INTAKE_FORM,
   RASR:      RASR_FORM,
   "RASR-OBS": RASR_OBS_FORM,
+  "RCEP-CORE": RCEP_CORE_FORM,
   default: [
     { id: "q1", text: "Has difficulty sustaining attention in tasks or play activities", textChinese: "在任务或游戏活动中难以持续注意力", textKorean: "과제나 놀이 활동에서 주의를 지속하기 어려움", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "attention" },
     { id: "q2", text: "Often loses things necessary for tasks", textChinese: "经常遗失任务所需的物品", textKorean: "과제에 필요한 물건을 자주 잃어버림", type: "likert", options: LIKERT_OPTIONS, optionsChinese: LIKERT_OPTIONS_ZH, optionsKorean: LIKERT_OPTIONS_KO, domain: "attention" },

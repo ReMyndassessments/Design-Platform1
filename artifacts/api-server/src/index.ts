@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
+import { RCEP_CORE_FORM } from "./lib/questions.js";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -123,6 +124,85 @@ const RCS80_SCORING_CONFIG: ScoringConfig = {
   },
 };
 
+const RCEP_CORE_SCORING_CONFIG: ScoringConfig = {
+  max: 4,
+  // Bands: 0–25% = Minimal, 26–50% = Mild, 51–75% = Moderate, 76–100% = Elevated
+  // Per domain max = 36 (9 items × 4); bands: 0–9 Minimal, 10–18 Mild, 19–27 Moderate, 28–36 Elevated
+  thresholds: { low: 25, mild: 50, moderate: 75 },
+  domains: {
+    attention_regulation: {
+      label: "Attention Regulation",
+      shortLabel: "Attention",
+      narratives: {
+        low: "Attention regulation appears within age-expected limits. No significant concerns were endorsed in this domain.",
+        mild: "Mild attentional regulation difficulties noted. Student may occasionally require redirection but generally manages adequately across settings.",
+        moderate: "Moderate attention regulation challenges present. Difficulties sustaining focus, controlling impulses, and completing tasks without support are impacting functioning.",
+        elevated: "Significant attention regulation difficulties observed across settings. Persistent inattention, impulsivity, and restlessness are substantially impacting academic and daily functioning.",
+      },
+    },
+    executive_functioning: {
+      label: "Executive Functioning",
+      shortLabel: "Executive Fn.",
+      narratives: {
+        low: "Executive functioning skills appear well-developed. Student demonstrates adequate planning, organization, and cognitive flexibility.",
+        mild: "Mild executive functioning challenges noted. Occasional difficulty with planning or task management; generally manageable with minimal support.",
+        moderate: "Moderate executive functioning difficulties present. Challenges with organization, task prioritization, flexibility, and self-monitoring are impacting academic performance.",
+        elevated: "Significant executive functioning deficits observed. Pervasive difficulties with planning, organization, cognitive flexibility, and error monitoring require structured and intensive support.",
+      },
+    },
+    emotional_regulation: {
+      label: "Emotional Regulation",
+      shortLabel: "Emotional",
+      narratives: {
+        low: "Emotional regulation appears within typical limits. Student manages feelings and emotional responses adequately across contexts.",
+        mild: "Mild emotional regulation difficulties noted. Occasional mood variability or anxious reactions observed; generally recovers with minimal support.",
+        moderate: "Moderate emotional regulation challenges present. Frequent difficulties managing emotional responses, including anxiety, discouragement, and prolonged upset, are impacting daily functioning.",
+        elevated: "Significant emotional dysregulation observed. Persistent and intense emotional reactions substantially interfere with academic engagement, peer relationships, and daily functioning.",
+      },
+    },
+    social_communication: {
+      label: "Social Communication",
+      shortLabel: "Social",
+      narratives: {
+        low: "Social communication skills are well-developed. Student initiates and sustains interactions appropriately and demonstrates social perspective-taking.",
+        mild: "Mild social communication difficulties noted. Occasional challenges with peer interaction or social flexibility; generally participates in social contexts adequately.",
+        moderate: "Moderate social communication challenges present. Difficulties initiating interactions, interpreting social cues, and collaborating with peers are impacting social participation.",
+        elevated: "Significant social communication deficits observed. Persistent difficulties with peer interaction, social cue interpretation, and group participation substantially limit social engagement.",
+      },
+    },
+    academic_persistence: {
+      label: "Academic Persistence",
+      shortLabel: "Persistence",
+      narratives: {
+        low: "Academic persistence appears adequate. Student generally maintains effort during challenging tasks and recovers from setbacks with minimal support.",
+        mild: "Mild academic persistence difficulties noted. Occasional avoidance or discouragement observed; student generally re-engages with encouragement.",
+        moderate: "Moderate academic persistence challenges present. Frequent avoidance, early disengagement, and reliance on external motivation are impacting academic progress.",
+        elevated: "Significant academic persistence deficits observed. Student consistently avoids challenge, disengages rapidly, and requires intensive external support to sustain academic effort.",
+      },
+    },
+    functional_impact: {
+      label: "Functional Impact",
+      shortLabel: "Impact",
+      narratives: {
+        low: "Minimal functional impact reported. Difficulties, if present, do not appear to significantly interfere with classroom performance, peer relationships, or daily routines.",
+        mild: "Mild functional impact noted. Some areas of daily functioning are affected, but the student generally manages with low-level support.",
+        moderate: "Moderate functional impact present. Difficulties are interfering with classroom performance, homework completion, confidence, and participation across multiple areas.",
+        elevated: "Significant functional impact observed. Difficulties are substantially interfering with academic functioning, peer relationships, daily routines, and overall confidence. Comprehensive support planning is indicated.",
+      },
+    },
+    protective_factors: {
+      label: "Protective Factors",
+      shortLabel: "Protective",
+      narratives: {
+        low: "Limited protective factors identified at this time. Targeted efforts to build supportive adult connections, leverage areas of strength, and foster help-seeking behaviour are recommended.",
+        mild: "Some protective factors present. The student demonstrates emerging strengths and connections that can be built upon to support resilience.",
+        moderate: "Moderate protective factors observed. The student demonstrates a meaningful range of strengths, positive relationships, and adaptive capacities that can buffer against identified risks.",
+        elevated: "Strong protective factors observed. The student demonstrates significant strengths, resilience, and positive connections that provide a solid foundation for intervention and support.",
+      },
+    },
+  },
+};
+
 const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
   {
     id: "RCS-80",
@@ -186,6 +266,18 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "auto",
     domains: ["sustained_attention", "distractibility", "impulse_regulation", "task_initiation", "behavioral_modulation"],
     scoringConfig: RASR_SCORING_CONFIG,
+  },
+  {
+    id: "RCEP-CORE",
+    name: "ReMynd Comprehensive Educational Profile — Tier 2 Core (RCEP-Core)",
+    category: "ReMynd Core",
+    description: "Whole-child Tier 2 screening tool. 63 items across 7 domains: Attention Regulation, Executive Functioning, Emotional Regulation, Social Communication, Academic Persistence, Functional Impact, and Protective Factors. Multi-informant (Teacher / Parent / Student). Completion time: 8–12 minutes per respondent.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher1", "teacher2", "self"],
+    scoringType: "auto",
+    domains: ["attention_regulation", "executive_functioning", "emotional_regulation", "social_communication", "academic_persistence", "functional_impact", "protective_factors"],
+    scoringConfig: RCEP_CORE_SCORING_CONFIG,
+    formItems: RCEP_CORE_FORM,
   },
 ];
 
