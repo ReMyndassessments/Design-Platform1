@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM } from "./lib/questions.js";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -279,6 +279,87 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringConfig: RCEP_CORE_SCORING_CONFIG,
     formItems: RCEP_CORE_FORM,
   },
+  {
+    id: "BYI2",
+    name: "Beck Youth Inventories 2nd Edition",
+    category: "social-emotional",
+    description: "Self-report measure of emotional and social impairment in children and adolescents. 100 items across 5 scales: Self-Concept, Anxiety, Depression, Anger, and Disruptive Behavior.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["depression", "anxiety", "anger", "disruptive_behavior", "self_concept"],
+    formItems: BYI2_FORM,
+  },
+  {
+    id: "RCADS",
+    name: "Revised Child Anxiety and Depression Scale",
+    category: "social-emotional",
+    description: "Measures symptoms of anxiety and depression in children and adolescents. 47 items across 6 subscales: Separation Anxiety, Social Anxiety, Generalized Anxiety, Panic Disorder, Obsessive-Compulsive Disorder, and Major Depressive Disorder.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "auto",
+    domains: ["separation_anxiety", "social_anxiety", "generalized_anxiety", "panic_disorder", "obsessive_compulsive", "depression"],
+    scoringConfig: { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} },
+    formItems: RCADS_FORM,
+  },
+  {
+    id: "SCAS",
+    name: "Spence Children's Anxiety Scale",
+    category: "social-emotional",
+    description: "Measures the severity of anxiety symptoms in children and adolescents across 6 domains: Generalized Anxiety, Panic/Agoraphobia, Social Phobia, Separation Anxiety, Obsessive-Compulsive, and Physical Injury Fears.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "auto",
+    domains: ["generalized_anxiety", "panic_agoraphobia", "social_phobia", "separation_anxiety", "obsessive_compulsive", "physical_injury_fears"],
+    scoringConfig: { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} },
+    formItems: SCAS_FORM,
+  },
+  {
+    id: "RSCA",
+    name: "Resiliency Scales for Children and Adolescents",
+    category: "social-emotional",
+    description: "Measures resilience across three domains: Sense of Mastery, Sense of Relatedness, and Emotional Reactivity. 20 items rated on a 5-point frequency scale.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["sense_of_mastery", "sense_of_relatedness", "emotional_reactivity", "resiliency_index"],
+    formItems: RSCA_FORM,
+  },
+  {
+    id: "REFI",
+    name: "ReMynd Executive Function Inventory (REFI)",
+    category: "executive-function",
+    description: "Multi-informant measure of executive functioning. 45 items across 6 domains: Working Memory, Planning & Organization, Cognitive Flexibility, Inhibitory Control, Time Management, and Task Monitoring & Self-Correction.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher1", "self", "teacher2"],
+    scoringType: "auto",
+    domains: ["inhibition", "shifting", "emotional_control", "initiation", "working_memory", "planning_organization", "organization_of_materials", "monitoring"],
+    scoringConfig: { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} },
+    formItems: REFI_FORM,
+  },
+  {
+    id: "RERMS",
+    name: "ReMynd Emotional Regulation & Mood Scale",
+    category: "social-emotional",
+    description: "Observer-rated measure of emotional regulation and mood. 42 items across 6 domains: Emotional Intensity, Recovery & Regulation, Anxiety Features, Avoidance Patterns, Mood Variability, and Frustration Tolerance.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher1", "self", "teacher2"],
+    scoringType: "auto",
+    domains: ["emotional_dysregulation", "depression", "irritability", "anxiety", "mood_lability"],
+    scoringConfig: { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} },
+    formItems: RERMS_FORM,
+  },
+  {
+    id: "BSPP",
+    name: "REMYND Boarding Pastoral Care and Support Profile",
+    category: "social-emotional",
+    description: "Boarding staff profile of student wellbeing, adjustment, social functioning, safety, and daily living skills. 54 items across 6 domains.",
+    isRemyndOwned: true,
+    respondentTypes: ["boarding_staff", "teacher1"],
+    scoringType: "manual",
+    domains: ["boarding_adjustment", "emotional_distress", "social_functioning", "risk_behaviors", "strengths_and_resilience"],
+    formItems: BSPP_FORM,
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
@@ -297,6 +378,7 @@ async function syncTools() {
           scoringType: tool.scoringType,
           domains: tool.domains,
           scoringConfig: tool.scoringConfig ?? null,
+          formItems: tool.formItems ?? null,
         },
       });
     }
