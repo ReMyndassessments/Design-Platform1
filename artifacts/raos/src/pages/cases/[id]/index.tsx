@@ -107,6 +107,7 @@ export default function CaseDetail() {
     assignedToEmail: ""
   });
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
+  const [showAllTools, setShowAllTools] = useState(false);
 
   if (isLoading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
@@ -650,6 +651,7 @@ export default function CaseDetail() {
                             ? [...newAssignment.respondentTypes, rt]
                             : newAssignment.respondentTypes.filter(t => t !== rt);
                           setNewAssignment({ ...newAssignment, respondentTypes: types, toolIds: [] });
+                          setShowAllTools(false);
                         }}
                       />
                       <span className="text-sm text-slate-800">{RESPONDENT_TYPE_LABELS[rt]}</span>
@@ -662,12 +664,22 @@ export default function CaseDetail() {
               )}
             </div>
             {newAssignment.respondentTypes.length > 0 && (() => {
-              const availableTools = filteredTools?.filter(t =>
+              const matchedTools = filteredTools?.filter(t =>
                 newAssignment.respondentTypes.some(rt => (t.respondentTypes ?? []).includes(rt))
               ) ?? [];
+              const availableTools = showAllTools ? (filteredTools ?? []) : matchedTools;
               return (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+                    <button
+                      type="button"
+                      className="text-xs text-primary underline underline-offset-2 hover:opacity-70"
+                      onClick={() => setShowAllTools(v => !v)}
+                    >
+                      {showAllTools ? "Show matched only" : "Show all tools"}
+                    </button>
+                  </div>
                   <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
                     {availableTools.length === 0 && (
                       <p className="px-3 py-3 text-sm text-slate-400">No forms available for the selected respondent type(s).</p>
