@@ -448,12 +448,15 @@ function getSuccessMessage(formType: string) {
 
 // ── Phase Tracker Component ───────────────────────────────────────────────────
 
+const FORMS_IDX = phaseIndex("forms");
+
 function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
   currentPhase: string;
   progressPercentage: number;
   studentName: string;
 }) {
-  const currentIdx = phaseIndex(currentPhase);
+  const rawIdx = phaseIndex(currentPhase);
+  const currentIdx = Math.max(rawIdx, FORMS_IDX);
   const currentLabel = PHASES[currentIdx]?.label ?? currentPhase;
 
   return (
