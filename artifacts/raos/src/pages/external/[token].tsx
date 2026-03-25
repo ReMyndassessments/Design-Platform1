@@ -51,7 +51,6 @@ type PortalData = {
 const PHASES = [
   { key: "pre_commitment", label: "Referral",   labelZh: "推荐",   labelKo: "의뢰" },
   { key: "intake",         label: "Intake",     labelZh: "接收",   labelKo: "접수" },
-  { key: "setup",          label: "Setup",      labelZh: "设置",   labelKo: "설정" },
   { key: "forms",          label: "Forms",      labelZh: "表格",   labelKo: "양식" },
   { key: "assessment",     label: "Assessment", labelZh: "评估",   labelKo: "평가" },
   { key: "scoring",        label: "Scoring",    labelZh: "评分",   labelKo: "채점" },
