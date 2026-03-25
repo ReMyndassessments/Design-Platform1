@@ -654,10 +654,10 @@ function PortalView({
 
         {/* Footer */}
         <div className="pt-2 pb-8 flex items-center justify-center">
-          <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
             <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
             <span>ReMynd Assessment System</span>
-          </a>
+          </div>
         </div>
       </main>
     </div>
@@ -735,10 +735,10 @@ function FormView({
 
   const ReMyndFooter = () => (
     <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
-      <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
+      <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
         <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
         <span>ReMynd Assessment System</span>
-      </a>
+      </div>
     </div>
   );
 
@@ -976,9 +976,8 @@ export default function ExternalFormView() {
             This link is invalid or has expired. Please contact the assessment team for a new link.
           </p>
           <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <a href="/" className="flex items-center gap-2 hover:text-slate-600 transition-colors">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
-            </a>
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+            <span>ReMynd Assessment System</span>
           </div>
         </div>
       </div>
