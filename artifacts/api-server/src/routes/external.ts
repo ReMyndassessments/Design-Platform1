@@ -60,6 +60,55 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
 
 const router = Router();
 
+router.get("/external/portal/:token", async (req, res) => {
+  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, req.params.token)).limit(1);
+  const assignment = rows[0];
+  if (!assignment) {
+    res.status(404).json({ error: "not_found", message: "Form link not found" });
+    return;
+  }
+
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+  const caseData = caseRows[0];
+
+  const groupByEmail = !!assignment.assignedToEmail;
+  const siblings = await db
+    .select({
+      toolId: assignmentsTable.toolId,
+      toolName: assignmentsTable.toolName,
+      status: assignmentsTable.status,
+      uniqueToken: assignmentsTable.uniqueToken,
+      respondentLabel: assignmentsTable.respondentLabel,
+      respondentType: assignmentsTable.respondentType,
+    })
+    .from(assignmentsTable)
+    .where(
+      and(
+        eq(assignmentsTable.caseId, assignment.caseId),
+        groupByEmail
+          ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
+          : and(
+              eq(assignmentsTable.respondentType, assignment.respondentType),
+              eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
+            ),
+      )
+    );
+
+  res.json({
+    studentName: caseData?.studentName ?? "the student",
+    currentPhase: caseData?.currentPhase ?? "pre_commitment",
+    progressPercentage: caseData?.progressPercentage ?? 0,
+    respondentLabel: assignment.respondentLabel,
+    respondentType: assignment.respondentType,
+    forms: siblings.map(s => ({
+      toolId: s.toolId,
+      toolName: s.toolName,
+      status: s.status,
+      uniqueToken: s.uniqueToken,
+    })),
+  });
+});
+
 router.get("/external/form/:token", async (req, res) => {
   const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, req.params.token)).limit(1);
   const assignment = rows[0];

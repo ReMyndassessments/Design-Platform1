@@ -1,11 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
-import { useGetExternalForm, useSubmitExternalForm, SubmitFormNextForm } from "@workspace/api-client-react";
+import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock } from "lucide-react";
+import {
+  CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock,
+  ArrowLeft, ChevronRight, ClipboardCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type Question = {
   id: string;
@@ -24,6 +29,63 @@ type Question = {
   noteChinese?: string;
   noteKorean?: string;
 };
+
+type PortalForm = {
+  toolId: string;
+  toolName: string;
+  status: string;
+  uniqueToken: string;
+};
+
+type PortalData = {
+  studentName: string;
+  currentPhase: string;
+  progressPercentage: number;
+  respondentLabel: string | null;
+  respondentType: string | null;
+  forms: PortalForm[];
+};
+
+// ── Phase config ──────────────────────────────────────────────────────────────
+
+const PHASES = [
+  { key: "pre_commitment", label: "Referral" },
+  { key: "intake",         label: "Intake" },
+  { key: "setup",          label: "Setup" },
+  { key: "forms",          label: "Forms" },
+  { key: "assessment",     label: "Assessment" },
+  { key: "scoring",        label: "Scoring" },
+  { key: "report",         label: "Report" },
+  { key: "debrief",        label: "Debrief" },
+  { key: "complete",       label: "Complete" },
+];
+
+function phaseIndex(key: string) {
+  return PHASES.findIndex(p => p.key === key);
+}
+
+// ── Portal data hook ──────────────────────────────────────────────────────────
+
+function usePortalData(token: string, refreshKey: number) {
+  const [data, setData] = useState<PortalData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/external/portal/${token}`)
+      .then(r => {
+        if (!r.ok) throw new Error("not found");
+        return r.json() as Promise<PortalData>;
+      })
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
+  }, [token, refreshKey]);
+
+  return { data, loading, error };
+}
+
+// ── Text helpers ──────────────────────────────────────────────────────────────
 
 function useText(q: { text: string; textChinese?: string; textKorean?: string; note?: string; noteChinese?: string; noteKorean?: string }, language: string) {
   if (language === "korean") return { label: q.textKorean ?? q.text, note: q.noteKorean ?? q.note };
@@ -46,9 +108,7 @@ function FieldLabel({ label, required, note }: { label: string; required?: boole
         {label}
         {required && <span className="text-red-500 ml-1 font-normal">*</span>}
       </p>
-      {note && (
-        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{note}</p>
-      )}
+      {note && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{note}</p>}
     </div>
   );
 }
@@ -309,7 +369,7 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
   );
 }
 
-// ── Question Dispatcher ────────────────────────────────────────────────────────
+// ── Question Dispatcher ───────────────────────────────────────────────────────
 
 const CONSENT_IDS = ["consent_1", "consent_2", "consent_3", "consent_4"];
 
@@ -386,17 +446,241 @@ function getSuccessMessage(formType: string) {
   return "Your responses have been securely submitted to the assessment team. Thank you for your time.";
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Phase Tracker Component ───────────────────────────────────────────────────
 
-export default function ExternalFormView() {
-  const { token } = useParams();
-  const { data: form, isLoading, isError } = useGetExternalForm(token as string, { query: { retry: false } });
+function PhaseTracker({ currentPhase, progressPercentage, studentName }: {
+  currentPhase: string;
+  progressPercentage: number;
+  studentName: string;
+}) {
+  const currentIdx = phaseIndex(currentPhase);
+  const currentLabel = PHASES[currentIdx]?.label ?? currentPhase;
+
+  return (
+    <div className="bg-[#111827] rounded-2xl p-5 md:p-6 text-white shadow-xl">
+      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+        Assessment Progress — {studentName}
+      </p>
+
+      {/* Steps row */}
+      <div className="relative flex items-center gap-0">
+        {PHASES.map((phase, idx) => {
+          const isCompleted = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          const isUpcoming = idx > currentIdx;
+
+          return (
+            <div key={phase.key} className="flex-1 flex flex-col items-center relative">
+              {/* Connector line before (skip for first) */}
+              {idx > 0 && (
+                <div className={cn(
+                  "absolute left-0 right-1/2 top-[15px] h-0.5 -translate-y-1/2",
+                  isCompleted || isCurrent ? "bg-primary" : "bg-slate-700"
+                )} />
+              )}
+              {/* Connector line after (skip for last) */}
+              {idx < PHASES.length - 1 && (
+                <div className={cn(
+                  "absolute left-1/2 right-0 top-[15px] h-0.5 -translate-y-1/2",
+                  isCompleted ? "bg-primary" : "bg-slate-700"
+                )} />
+              )}
+
+              {/* Circle */}
+              <div className={cn(
+                "relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all",
+                isCompleted ? "bg-primary border-primary text-white" :
+                isCurrent   ? "bg-primary border-primary text-white ring-4 ring-primary/20" :
+                              "bg-[#1f2937] border-slate-600 text-slate-500"
+              )}>
+                {isCompleted ? (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <span>{idx + 1}</span>
+                )}
+              </div>
+
+              {/* Label */}
+              <span className={cn(
+                "mt-2 text-[9px] font-semibold uppercase tracking-wide text-center leading-tight hidden sm:block",
+                isCurrent ? "text-primary" :
+                isCompleted ? "text-slate-400" :
+                "text-slate-600"
+              )}>
+                {phase.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom summary */}
+      <div className="mt-4 pt-4 border-t border-slate-700/60 flex items-end justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current Phase</p>
+          <p className="text-base font-bold text-white mt-0.5">{currentLabel}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Overall Progress</p>
+          <p className="text-base font-bold text-primary mt-0.5">{progressPercentage}%</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Portal View ───────────────────────────────────────────────────────────────
+
+function PortalView({
+  portal,
+  onStartForm,
+}: {
+  portal: PortalData;
+  onStartForm: (token: string) => void;
+}) {
+  const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
+  const completedCount = portal.forms.filter(f => f.status === "completed").length;
+  const allDone = pendingCount === 0;
+
+  return (
+    <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-5 py-3 flex items-center gap-3 shadow-sm">
+        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain mix-blend-multiply" />
+        </div>
+        <div>
+          <span className="font-display font-bold text-sm tracking-tight text-primary block leading-none">ReMynd</span>
+          <span className="text-[10px] text-slate-400 font-medium">Assessment Portal</span>
+        </div>
+        {portal.respondentLabel && (
+          <div className="ml-auto text-right">
+            <p className="text-xs font-semibold text-slate-700">{portal.respondentLabel}</p>
+            <p className="text-[10px] text-slate-400">Respondent</p>
+          </div>
+        )}
+      </header>
+
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 space-y-5">
+
+        {/* Phase Tracker */}
+        <PhaseTracker
+          currentPhase={portal.currentPhase}
+          progressPercentage={portal.progressPercentage}
+          studentName={portal.studentName}
+        />
+
+        {/* Forms Card */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Your Assigned Forms</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {allDone
+                  ? "All forms completed — thank you!"
+                  : `${pendingCount} form${pendingCount !== 1 ? "s" : ""} remaining · ${completedCount} completed`}
+              </p>
+            </div>
+            {allDone && (
+              <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 size={18} className="text-emerald-600" />
+              </div>
+            )}
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {portal.forms.map(f => {
+              const isDone = f.status === "completed";
+              return (
+                <div key={f.uniqueToken} className={cn(
+                  "flex items-center gap-4 px-5 py-4 transition-colors",
+                  !isDone && "hover:bg-slate-50/60"
+                )}>
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                    isDone ? "bg-emerald-100" : "bg-primary/10"
+                  )}>
+                    {isDone
+                      ? <ClipboardCheck size={20} className="text-emerald-600" />
+                      : <ClipboardList size={20} className="text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{f.toolName}</p>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide mt-0.5",
+                      isDone ? "text-emerald-600" : "text-amber-600"
+                    )}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : "bg-amber-500")} />
+                      {isDone ? "Completed" : "Pending"}
+                    </span>
+                  </div>
+                  {isDone ? (
+                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => onStartForm(f.uniqueToken)}
+                      className="text-xs shrink-0 gap-1"
+                    >
+                      Complete Now
+                      <ChevronRight size={13} />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Info notice */}
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 flex gap-3 items-start">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Lock size={14} className="text-blue-500" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-700">Your responses are secure</p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              All information submitted through this portal is encrypted and shared only with the authorised assessment team. You can return to this page at any time using your original link.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="pt-2 pb-8 flex items-center justify-center">
+          <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+            <span>ReMynd Assessment System</span>
+          </a>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ── Form View (inline) ────────────────────────────────────────────────────────
+
+function FormView({
+  activeToken,
+  language,
+  setLanguage,
+  onBack,
+  onSubmitted,
+}: {
+  activeToken: string;
+  language: string;
+  setLanguage: (l: string) => void;
+  onBack: () => void;
+  onSubmitted: () => void;
+}) {
+  const { data: form, isLoading, isError } = useGetExternalForm(activeToken, { query: { retry: false } });
   const submitMut = useSubmitExternalForm();
 
-  const [language, setLanguage] = useState("english");
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [nextForms, setNextForms] = useState<SubmitFormNextForm[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const setAnswer = (id: string, val: string | string[]) => {
@@ -439,15 +723,22 @@ export default function ExternalFormView() {
     }
     const serialized: Record<string, string> = {};
     Object.entries(answers).forEach(([k, v]) => { serialized[k] = Array.isArray(v) ? v.join(", ") : v; });
-    submitMut.mutate({ token: token as string, data: { answers: serialized, language } }, {
-      onSuccess: (data) => {
-        setNextForms(data?.nextForms ?? []);
+    submitMut.mutate({ token: activeToken, data: { answers: serialized, language } }, {
+      onSuccess: () => {
         setSubmitted(true);
       },
     });
   };
 
-  // ── Loading ──
+  const ReMyndFooter = () => (
+    <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
+      <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
+        <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+        <span>ReMynd Assessment System</span>
+      </a>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-slate-50">
@@ -459,102 +750,39 @@ export default function ExternalFormView() {
     );
   }
 
-  // ── Error ──
   if (isError || !form) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-slate-50 p-6">
         <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-slate-100">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">🔗</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
-          <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired. Please contact the assessment team for assistance.</p>
-          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <a href="/" className="flex items-center gap-2 hover:text-slate-600 transition-colors">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Shared branding footer (rendered in all success screens) ──
-  const ReMyndFooter = () => (
-    <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
-      <a href="/" className="flex items-center gap-2 text-xs text-slate-400 font-medium hover:text-slate-600 transition-colors">
-        <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
-        <span>ReMynd Assessment System</span>
-      </a>
-    </div>
-  );
-
-  // ── Already Submitted (revisiting old link) — standard thank-you, no next-forms ──
-  if (form.alreadySubmitted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
-        <div className="w-full max-w-md text-center">
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-100">
-            <CheckCircle2 size={44} />
-          </div>
-          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Thank You</h2>
-          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">{getSuccessMessage(form.formType ?? "screener")}</p>
-          <button onClick={() => window.close()} className="mt-4 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors block mx-auto">
-            {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "Close this page"}
-          </button>
+          <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired.</p>
+          <button onClick={onBack} className="mt-6 text-sm text-primary underline">← Back to portal</button>
           <ReMyndFooter />
         </div>
       </div>
     );
   }
 
-  // ── Just submitted — more forms remaining ──
-  if (submitted && nextForms.length > 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-100">
-              <CheckCircle2 size={38} />
-            </div>
-            <h2 className="text-2xl font-display font-bold text-slate-900">Form Submitted</h2>
-            <p className="text-slate-500 text-sm mt-1">{getSuccessMessage(form.formType ?? "screener")}</p>
-          </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4">
-            <p className="text-sm font-semibold text-amber-800 mb-1">
-              You have {nextForms.length} more form{nextForms.length > 1 ? "s" : ""} to complete
-            </p>
-            <p className="text-xs text-amber-700">Please complete the remaining forms before closing this page.</p>
-          </div>
-          <div className="space-y-3">
-            {nextForms.map(nf => (
-              <a key={nf.uniqueToken} href={`/external/${nf.uniqueToken}`} className="block">
-                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm">
-                  <div>
-                    <p className="font-semibold text-slate-800 text-sm">{nf.toolName}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{nf.respondentLabel}</p>
-                  </div>
-                  <Button size="sm" className="text-xs shrink-0">Start Form →</Button>
-                </div>
-              </a>
-            ))}
-          </div>
-          <ReMyndFooter />
-        </div>
-      </div>
-    );
-  }
-
-  // ── Just submitted — all done ──
-  if (submitted) {
+  // Already submitted — show thank you and back button
+  if (form.alreadySubmitted || submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
         <div className="w-full max-w-md text-center">
           <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-100">
             <CheckCircle2 size={44} />
           </div>
-          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">Thank You</h2>
-          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">{getSuccessMessage(form.formType ?? "screener")}</p>
-          <button onClick={() => window.close()} className="mt-4 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors block mx-auto">
-            {language === "korean" ? "이 페이지를 닫으셔도 됩니다" : language === "mandarin" ? "您可以关闭此页面" : "Close this page"}
+          <h2 className="text-3xl font-display font-bold mb-3 text-slate-900">
+            {submitted ? "Submitted!" : "Thank You"}
+          </h2>
+          <p className="text-slate-600 leading-relaxed max-w-xs mx-auto">
+            {getSuccessMessage(form.formType ?? "screener")}
+          </p>
+          <button
+            onClick={onSubmitted}
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors"
+          >
+            ← Back to My Forms
           </button>
           <ReMyndFooter />
         </div>
@@ -566,14 +794,23 @@ export default function ExternalFormView() {
 
   return (
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
-
-      {/* ── Top Navigation Bar ── */}
+      {/* Nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-5 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain mix-blend-multiply" />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">My Forms</span>
+          </button>
+          <div className="h-4 w-px bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+            </div>
+            <span className="font-display font-bold text-sm tracking-tight text-primary">ReMynd</span>
           </div>
-          <span className="font-display font-bold text-sm tracking-tight text-primary">ReMynd</span>
         </div>
         <div className="flex items-center gap-3">
           {requiredQuestions.length > 0 && (
@@ -597,7 +834,7 @@ export default function ExternalFormView() {
         </div>
       </header>
 
-      {/* ── Progress Bar ── */}
+      {/* Progress bar */}
       <div className="w-full h-1 bg-slate-200">
         <div
           className="h-full bg-primary transition-all duration-500 ease-out"
@@ -605,9 +842,8 @@ export default function ExternalFormView() {
         />
       </div>
 
-      {/* ── Form Body ── */}
+      {/* Form body */}
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 pb-32">
-
         {/* Form Header Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 flex items-start gap-4">
           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -658,7 +894,6 @@ export default function ExternalFormView() {
           })()}
         </div>
 
-        {/* Validation Error */}
         {validationError && (
           <div className="mt-5 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <span className="font-semibold">⚠</span>
@@ -666,7 +901,6 @@ export default function ExternalFormView() {
           </div>
         )}
 
-        {/* Submit */}
         <div className="mt-8 pt-6 border-t border-slate-200">
           <Button
             size="lg"
@@ -682,5 +916,88 @@ export default function ExternalFormView() {
         </div>
       </main>
     </div>
+  );
+}
+
+// ── Main Controller ───────────────────────────────────────────────────────────
+
+export default function ExternalFormView() {
+  const { token } = useParams();
+  const portalToken = token as string;
+
+  const [mode, setMode] = useState<"portal" | "form">("portal");
+  const [activeFormToken, setActiveFormToken] = useState<string>(portalToken);
+  const [language, setLanguage] = useState("english");
+  const [portalRefreshKey, setPortalRefreshKey] = useState(0);
+
+  const { data: portal, loading: portalLoading, error: portalError } = usePortalData(portalToken, portalRefreshKey);
+
+  const handleStartForm = useCallback((formToken: string) => {
+    setActiveFormToken(formToken);
+    setMode("form");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setMode("portal");
+    setPortalRefreshKey(k => k + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleSubmitted = useCallback(() => {
+    setMode("portal");
+    setPortalRefreshKey(k => k + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // Portal loading state
+  if (portalLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="text-sm text-slate-500">Loading your portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Portal error state
+  if (portalError || !portal) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-slate-50 p-6">
+        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-slate-100">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">🔗</div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            This link is invalid or has expired. Please contact the assessment team for a new link.
+          </p>
+          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
+            <a href="/" className="flex items-center gap-2 hover:text-slate-600 transition-colors">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" /> ReMynd Assessment System
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "form") {
+    return (
+      <FormView
+        activeToken={activeFormToken}
+        language={language}
+        setLanguage={setLanguage}
+        onBack={handleBack}
+        onSubmitted={handleSubmitted}
+      />
+    );
+  }
+
+  return (
+    <PortalView
+      portal={portal}
+      onStartForm={handleStartForm}
+    />
   );
 }
