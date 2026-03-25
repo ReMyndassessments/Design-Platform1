@@ -5,24 +5,23 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { recommendToolsWithAI, analyzeFormWithAI, lookupToolWithAI } from "../lib/ai.js";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
+import { logger } from "../lib/logger.js";
 
 async function extractTextFromFile(fileBase64: string, fileName: string): Promise<string> {
   const buffer = Buffer.from(fileBase64, "base64");
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".pdf")) {
-    const pdfParse = require("pdf-parse");
-    const result = await pdfParse(buffer) as { text: string };
+    const pdfParseModule = await import("pdf-parse");
+    const pdfParse = (pdfParseModule.default ?? pdfParseModule) as (buf: Buffer) => Promise<{ text: string }>;
+    const result = await pdfParse(buffer);
     return result.text;
   }
 
   if (lower.endsWith(".docx") || lower.endsWith(".doc")) {
-    const mammoth = require("mammoth");
-    const result = await (mammoth as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> })
-      .extractRawText({ buffer });
+    const mammothModule = await import("mammoth");
+    const mammoth = (mammothModule.default ?? mammothModule) as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
+    const result = await mammoth.extractRawText({ buffer });
     return result.value;
   }
 
@@ -238,7 +237,8 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
   if (fileBase64 && fileName && !imageBase64) {
     try {
       resolvedText = await extractTextFromFile(fileBase64, fileName);
-    } catch {
+    } catch (extractErr) {
+      logger.error({ err: extractErr, fileName }, "PDF/file extraction failed");
       res.status(422).json({ error: "extract_failed", message: "Could not read this file. Try copy-pasting the content instead." });
       return;
     }
