@@ -538,6 +538,11 @@ export default function CaseDetail() {
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="font-semibold text-slate-900">{a.toolName}</h4>
                           {getStatusBadge(a.status)}
+                          {a.respondentType === "invigilator" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 uppercase tracking-wide">
+                              Post-Assessment
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center text-sm text-slate-500 gap-4 flex-wrap">
                           <span className="font-medium text-slate-700">{RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType}{a.respondentLabel ? `: ${a.respondentLabel}` : ""}</span>

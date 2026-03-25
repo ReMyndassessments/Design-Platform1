@@ -1,10 +1,20 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { eq, sql, and, or } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
+import crypto from "crypto";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
+
+const INVIGILATOR_EMAIL = "hayley@remynd.com";
+const INVIGILATOR_NAME  = "Hayley";
+
+function getBaseUrl(req: { headers: Record<string, string | string[] | undefined> }): string {
+  const host = req.headers.host as string ?? "localhost";
+  const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
+  return `${proto}://${host}`;
+}
 
 const router = Router();
 
@@ -87,6 +97,35 @@ router.post("/cases", authMiddleware, async (req, res) => {
     progressPercentage: PHASE_PROGRESS["pre_commitment"],
     consentObtained: false,
   }).returning();
+
+  // Auto-assign all invigilator tools to Hayley for every new case
+  try {
+    const allTools = await db.select().from(assessmentToolsTable);
+    const invigilatorTools = allTools.filter(t =>
+      Array.isArray(t.respondentTypes) && t.respondentTypes.includes("invigilator")
+    );
+    const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
+    for (const tool of invigilatorTools) {
+      const token = crypto.randomBytes(24).toString("hex");
+      const uniqueLink = `${baseUrl}/external/${token}`;
+      await db.insert(assignmentsTable).values({
+        id: nanoid(),
+        caseId: newCase[0].id,
+        toolId: tool.id,
+        toolName: tool.name,
+        respondentType: "invigilator",
+        respondentLabel: "Post-Assessment",
+        assignedToName: INVIGILATOR_NAME,
+        assignedToEmail: INVIGILATOR_EMAIL,
+        uniqueToken: token,
+        uniqueLink,
+        qrCodeData: uniqueLink,
+        status: "not_started",
+      });
+    }
+  } catch {
+    // Non-fatal: case is still created; assignments can be added manually
+  }
 
   res.status(201).json(formatCase(newCase[0]));
 });
