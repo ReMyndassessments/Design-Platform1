@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
@@ -472,6 +472,8 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
+  const [translating, setTranslating] = useState(false);
+  const savedToolIdRef = useRef<string | null>(null);
 
   const defaultScoringConfig: ScoringConfig = { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} };
   const [scoringConfig, setScoringConfig] = useState<ScoringConfig>(defaultScoringConfig);
@@ -610,8 +612,10 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       setFormItems(extractedItems);
       setAiImportOpen(false);
 
-      // Fire translation in the background — non-blocking, updates items silently
+      // Fire translation in the background — non-blocking
+      // If the tool is saved before this returns, we PATCH it automatically.
       if (extractedItems.length > 0) {
+        setTranslating(true);
         fetch(`${base}/api/assessment-tools/translate`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -619,9 +623,23 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         })
           .then(r => r.ok ? r.json() : null)
           .then((result: { items?: ImportedFormItem[] } | null) => {
-            if (result?.items?.length) setFormItems(result.items);
+            setTranslating(false);
+            if (result?.items?.length) {
+              const translated = result.items;
+              if (savedToolIdRef.current) {
+                // Tool was already saved — patch it silently with translations
+                fetch(`${base}/api/assessment-tools/${savedToolIdRef.current}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ formItems: translated }),
+                }).catch(() => {/* non-fatal */});
+              } else {
+                // Tool not yet saved — update form state so it saves with translations
+                setFormItems(translated);
+              }
+            }
           })
-          .catch(() => {/* non-fatal */});
+          .catch(() => { setTranslating(false); });
       }
     } catch (err: unknown) {
       setAiError(err instanceof Error ? err.message : "AI analysis failed. Please try again.");
@@ -655,6 +673,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       },
       {
         onSuccess: () => {
+          savedToolIdRef.current = id.trim().toUpperCase();
           qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
           onClose();
         },
@@ -942,6 +961,13 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </div>
+
+        {translating && (
+          <div className="mx-6 mb-1 flex items-center gap-2 text-xs text-sky-600 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+            <div className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-transparent animate-spin shrink-0" />
+            Translating form items into Chinese and Korean — you can save now and translations will be applied automatically when ready.
+          </div>
+        )}
 
         <div className="flex gap-3 px-6 py-4 border-t border-slate-100">
           <Button variant="outline" className="flex-1" onClick={onClose}>
