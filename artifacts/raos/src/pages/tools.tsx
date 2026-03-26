@@ -105,7 +105,7 @@ type ImportedFormItem = {
   text: string;
   textChinese?: string;
   textKorean?: string;
-  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  type: "likert" | "text" | "textarea" | "checkbox" | "radio" | "multiple_choice" | "scale" | "section_header";
   options?: string[];
   optionsChinese?: string[];
   optionsKorean?: string[];
@@ -137,7 +137,7 @@ function fileIcon(kind: UploadedFileState["kind"]) {
 // ── Shared Editable Form Items Component ──────────────────────────────────────
 
 const ITEM_TYPE_OPTIONS: ImportedFormItem["type"][] = [
-  "likert", "text", "checkbox", "radio", "multiple_choice", "scale",
+  "likert", "text", "textarea", "checkbox", "radio", "multiple_choice", "scale", "section_header",
 ];
 
 function FormItemsEditor({

@@ -261,7 +261,7 @@ export type AnalyzedFormResult = {
     text: string;
     textChinese?: string;
     textKorean?: string;
-    type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+    type: "likert" | "text" | "textarea" | "checkbox" | "radio" | "multiple_choice" | "scale" | "section_header";
     options?: string[];
     optionsChinese?: string[];
     optionsKorean?: string[];
@@ -274,7 +274,7 @@ type RawFormItem = {
   text: string;
   textChinese?: string;
   textKorean?: string;
-  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  type: "likert" | "text" | "textarea" | "checkbox" | "radio" | "multiple_choice" | "scale" | "section_header";
   options?: string[];
   optionsChinese?: string[];
   optionsKorean?: string[];
@@ -348,19 +348,30 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
     {
       "id": "q1",
       "text": "Exact question or item text in English",
-      "type": "likert | text | checkbox | radio | multiple_choice | scale",
+      "type": "section_header | likert | text | textarea | checkbox | radio | multiple_choice | scale",
       "options": ["response options in English if applicable, else empty array"],
       "domain": "which domain this item measures"
     }
   ]
 }
 
-Rules:
+TYPE RULES — choose the correct type for every item:
+- "section_header": A section title, heading, or domain label that introduces a group of items (no response required). options must be [].
+- "likert": A rated item with a fixed scale (e.g. Never/Sometimes/Often/Always, 0–3, Strongly Disagree–Strongly Agree). Always include the scale options.
+- "text": A SHORT open-ended field expecting a single-line written answer (e.g. Name:, Date:, Age:, School:, Diagnosis:, Person completing form:). options must be [].
+- "textarea": A LONG open-ended field expecting a multi-line written response (e.g. "Additional Comments:", "Please describe...", "Explain any concerns:", "Notes:", "Describe the student's strengths:"). options must be [].
+- "radio": A single-choice question where EXACTLY ONE option is selected (e.g. Yes/No, Male/Female, or a short list of mutually exclusive choices). Include the options.
+- "checkbox": A multi-select question where the respondent can choose MULTIPLE options. Include the options.
+- "scale": A numeric slider or rating scale (e.g. rate 1–10). Include numeric options.
+- "multiple_choice": A question with labeled choices but not a Likert scale. Include the options.
+
+EXTRACTION RULES:
 - Extract ALL items/questions from the form — do not skip, truncate, or stop early
-- For Likert-scale items (e.g. Never/Sometimes/Often/Always), use type "likert"
-- Keep English question text exact as written in the form
-- If a section header exists, use it to infer the domain for items in that section
-- respondentTypes should reflect who fills out this form
+- Keep question text EXACTLY as written in the form
+- ALWAYS produce a "section_header" item for each section title or domain heading found in the form
+- ALWAYS produce a "textarea" item for any open-ended comment/notes/description field
+- ALWAYS produce a "text" item for fill-in-the-blank fields like name, date, age, school
+- If a section header exists, use it to infer the domain for all items in that section
 
 Return ONLY the JSON object, nothing else.`;
 
