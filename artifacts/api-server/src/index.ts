@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM } from "./lib/questions.js";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -398,6 +398,18 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
       { id: "q25", text: "Tests Valid:*",                     textChinese: "测试结果有效:*",                textKorean: "검사 유효성:*",            type: "radio",    domain: "admin",                  options: ["Yes", "No", "Not sure"],                                                           optionsChinese: ["是", "否", "不确定"],                                                                                optionsKorean: ["예", "아니오", "확실하지 않음"] },
       { id: "q26", text: "Additional or test-specific observations:", textChinese: "其他或针对特定测试的观察:", textKorean: "추가 또는 검사별 관찰:", type: "text",  domain: "behavioral_observation", options: [], optionsChinese: [], optionsKorean: [] },
     ],
+  },
+  {
+    id: "EFA",
+    name: "Executive Functioning Assessment",
+    category: "executive-function",
+    description: "Self-report measure of executive functioning skills across 11 domains: Planning, Time Management, Task Initiation, Organization, Problem-Solving, Flexibility, Working Memory, Emotional Control, Impulse Control, Attentional Control, and Self-Monitoring. 77 items, 5-point scale (Never–Always). Suitable for pre- and post-assessment of EF coaching programs.",
+    isRemyndOwned: true,
+    respondentTypes: ["self"],
+    scoringType: "auto",
+    domains: ["planning", "time_management", "task_initiation", "organization", "problem_solving", "flexibility", "working_memory", "emotional_control", "impulse_control", "attentional_control", "self_monitoring"],
+    scoringConfig: { max: 4, thresholds: { low: 30, mild: 57, moderate: 71 }, domains: {} },
+    formItems: EFA_FORM,
   },
 ];
 
