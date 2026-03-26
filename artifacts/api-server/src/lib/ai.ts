@@ -269,12 +269,68 @@ export type AnalyzedFormResult = {
   }>;
 };
 
+type RawFormItem = {
+  id: string;
+  text: string;
+  textChinese?: string;
+  textKorean?: string;
+  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  options?: string[];
+  optionsChinese?: string[];
+  optionsKorean?: string[];
+  domain?: string;
+};
+
+async function translateBatch(items: RawFormItem[]): Promise<void> {
+  if (items.length === 0) return;
+  const translatePrompt = `You are a clinical psychologist specialising in multilingual psychoeducational assessments.
+Translate each item below into Simplified Chinese and Korean.
+Return a JSON array with this structure per item:
+[{"id":"<id>","textChinese":"...","textKorean":"...","optionsChinese":[...],"optionsKorean":[...]}]
+Rules:
+- Use clinically appropriate terminology
+- optionsChinese / optionsKorean must be the same length as the original options array
+- If options is empty or absent, use empty arrays []
+- Return ONLY the JSON array, no markdown, no extra text
+
+Items:
+${JSON.stringify(items.map(it => ({ id: it.id, text: it.text, options: it.options ?? [] })))}`;
+
+  try {
+    const tRaw = await callDeepSeek(translatePrompt, 8192);
+    const tCleaned = tRaw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const arrStart = tCleaned.indexOf("[");
+    const arrEnd = tCleaned.lastIndexOf("]");
+    if (arrStart === -1 || arrEnd === -1) return;
+    const translations = JSON.parse(tCleaned.slice(arrStart, arrEnd + 1)) as Array<{
+      id: string;
+      textChinese?: string;
+      textKorean?: string;
+      optionsChinese?: string[];
+      optionsKorean?: string[];
+    }>;
+    const byId = Object.fromEntries(translations.map(t => [t.id, t]));
+    for (const item of items) {
+      if (byId[item.id]) {
+        item.textChinese    = item.textChinese    ?? byId[item.id].textChinese;
+        item.textKorean     = item.textKorean     ?? byId[item.id].textKorean;
+        if (!item.optionsChinese?.length) item.optionsChinese = byId[item.id].optionsChinese;
+        if (!item.optionsKorean?.length)  item.optionsKorean  = byId[item.id].optionsKorean;
+      }
+    }
+  } catch {
+    // Non-fatal — English-only items still work
+  }
+}
+
 export async function analyzeFormWithAI(params: {
   formText?: string;
   imageBase64?: string;
   mimeType?: string;
 }): Promise<AnalyzedFormResult> {
-  const prompt = `You are a psychoeducational assessment expert. Analyze the provided assessment form and extract structured information.
+
+  // ─── Phase 1: Extract structure + all items in English only (fast) ───────
+  const extractPrompt = `You are a psychoeducational assessment expert. Analyze the provided assessment form and extract structured information.
 
 ${params.formText ? `FORM CONTENT:\n${params.formText}\n` : ""}${params.imageBase64 ? "Please analyze the assessment form shown in the image." : ""}
 
@@ -291,91 +347,38 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
     {
       "id": "q1",
       "text": "Exact question or item text in English",
-      "textChinese": "Simplified Chinese translation of the question text",
-      "textKorean": "Korean translation of the question text",
       "type": "likert | text | checkbox | radio | multiple_choice | scale",
-      "options": ["response options in English if applicable"],
-      "optionsChinese": ["Simplified Chinese translations of each response option, in same order"],
-      "optionsKorean": ["Korean translations of each response option, in same order"],
+      "options": ["response options in English if applicable, else empty array"],
       "domain": "which domain this item measures"
     }
   ]
 }
 
 Rules:
-- Extract ALL items/questions from the form. Do not skip any.
+- Extract ALL items/questions from the form — do not skip, truncate, or stop early
 - For Likert-scale items (e.g. Never/Sometimes/Often/Always), use type "likert"
 - Keep English question text exact as written in the form
-- Provide accurate Simplified Chinese (textChinese) and Korean (textKorean) translations for every item
-- Provide optionsChinese and optionsKorean for every item that has options — must be the same length as options array
-- Use clinically appropriate terminology in translations
 - If a section header exists, use it to infer the domain for items in that section
 - respondentTypes should reflect who fills out this form
-- Extract ALL items/questions from the form — do not truncate, skip, or stop early regardless of how many items there are
 
 Return ONLY the JSON object, nothing else.`;
 
-  const raw = await callDeepSeek(prompt, 8192);
-
+  const raw = await callDeepSeek(extractPrompt, 8192);
   const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   const jsonStart = cleaned.indexOf("{");
   const jsonEnd = cleaned.lastIndexOf("}");
   if (jsonStart === -1 || jsonEnd === -1) throw new Error("AI did not return valid JSON");
   const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as AnalyzedFormResult;
 
-  const formItems = Array.isArray(parsed.formItems) ? parsed.formItems : [];
+  const formItems: RawFormItem[] = Array.isArray(parsed.formItems) ? parsed.formItems : [];
 
-  // If any items are missing translations (can happen when form is large),
-  // run a dedicated translation pass to fill in the gaps.
-  const needsTranslation = formItems.some(item => !item.textChinese || !item.textKorean);
-  if (needsTranslation && formItems.length > 0) {
-    const BATCH = 40;
-    for (let i = 0; i < formItems.length; i += BATCH) {
-      const batch = formItems.slice(i, i + BATCH);
-      const missing = batch.filter(item => !item.textChinese || !item.textKorean);
-      if (missing.length === 0) continue;
-
-      const translatePrompt = `You are a clinical psychologist specialising in multilingual psychoeducational assessments.
-Translate each item below into Simplified Chinese and Korean.
-Return a JSON array — same length and order as the input — with this structure per item:
-[{"id":"<id>","textChinese":"...","textKorean":"...","optionsChinese":[...],"optionsKorean":[...]}]
-Rules:
-- Use clinically appropriate terminology
-- optionsChinese / optionsKorean must be the same length as the original options array
-- If options is empty or absent, use empty arrays []
-- Return ONLY the JSON array, no markdown, no extra text
-
-Items to translate:
-${JSON.stringify(missing.map(it => ({ id: it.id, text: it.text, options: it.options ?? [] })))}`;
-
-      try {
-        const tRaw = await callDeepSeek(translatePrompt, 8192);
-        const tCleaned = tRaw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const arrStart = tCleaned.indexOf("[");
-        const arrEnd = tCleaned.lastIndexOf("]");
-        if (arrStart !== -1 && arrEnd !== -1) {
-          const translations = JSON.parse(tCleaned.slice(arrStart, arrEnd + 1)) as Array<{
-            id: string;
-            textChinese?: string;
-            textKorean?: string;
-            optionsChinese?: string[];
-            optionsKorean?: string[];
-          }>;
-          const byId = Object.fromEntries(translations.map(t => [t.id, t]));
-          for (const item of formItems) {
-            if (byId[item.id]) {
-              item.textChinese = item.textChinese ?? byId[item.id].textChinese;
-              item.textKorean  = item.textKorean  ?? byId[item.id].textKorean;
-              if (!item.optionsChinese?.length) item.optionsChinese = byId[item.id].optionsChinese;
-              if (!item.optionsKorean?.length)  item.optionsKorean  = byId[item.id].optionsKorean;
-            }
-          }
-        }
-      } catch {
-        // Translation pass failed — English-only items will still work
-      }
-    }
+  // ─── Phase 2: Translate all items in parallel batches (fast) ─────────────
+  const BATCH_SIZE = 40;
+  const batches: RawFormItem[][] = [];
+  for (let i = 0; i < formItems.length; i += BATCH_SIZE) {
+    batches.push(formItems.slice(i, i + BATCH_SIZE));
   }
+  await Promise.all(batches.map(batch => translateBatch(batch)));
 
   return {
     suggestedId: (parsed.suggestedId ?? "TOOL").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10),
