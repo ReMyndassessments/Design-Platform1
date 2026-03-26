@@ -23,23 +23,197 @@ type Question = {
   noteKorean?: string;
 };
 
+function normalizeType(t: string): string {
+  if (t === "radio" || t === "multiple_choice") return "radio_group";
+  if (t === "checkbox") return "checkbox_group";
+  return t;
+}
+
 function useText(q: Pick<Question, "text" | "textChinese" | "textKorean" | "note" | "noteChinese" | "noteKorean">, language: string) {
-  if (language === "korean") return { label: q.textKorean ?? q.text, note: q.noteKorean ?? q.note };
+  if (language === "korean")   return { label: q.textKorean  ?? q.text, note: q.noteKorean  ?? q.note };
   if (language === "mandarin") return { label: q.textChinese ?? q.text, note: q.noteChinese ?? q.note };
   return { label: q.text, note: q.note };
 }
 
-function useOpts(q: Question, language: string) {
-  if (language === "korean" && q.optionsKorean) return q.optionsKorean;
-  if (language === "mandarin" && q.optionsChinese) return q.optionsChinese;
-  return q.options ?? [];
+function useOpts(q: Question, language: string): { display: string; value: string }[] {
+  const src = q.options ?? [];
+  let display: string[] = src;
+  if (language === "korean"   && q.optionsKorean?.length)  display = q.optionsKorean;
+  if (language === "mandarin" && q.optionsChinese?.length) display = q.optionsChinese;
+  return src.map((v, i) => ({ value: v, display: display[i] ?? v }));
 }
 
-function PreviewQuestion({ q, language, itemNumber }: { q: Question; language: string; itemNumber?: number }) {
+function FieldLabel({ label, required, note }: { label: string; required?: boolean; note?: string }) {
+  return (
+    <div className="mb-2">
+      <p className="text-sm font-medium text-slate-700">
+        {label}
+        {required && <span className="text-red-400 ml-1">*</span>}
+      </p>
+      {note && <p className="text-xs text-slate-500 italic leading-relaxed mt-0.5">{note}</p>}
+    </div>
+  );
+}
+
+function RadioField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label, note } = useText(q, language);
   const opts = useOpts(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <div className="flex flex-wrap gap-2">
+        {opts.map(({ value: v, display }) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={cn(
+              "px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+              value === v
+                ? "border-primary bg-primary text-white shadow-sm"
+                : "border-slate-200 bg-white text-slate-700 hover:border-primary/50 hover:bg-primary/5"
+            )}
+          >
+            {display}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  if (q.type === "section_header") {
+function CheckboxField({ q, language, value, onChange }: { q: Question; language: string; value: string[]; onChange: (v: string[]) => void }) {
+  const { label, note } = useText(q, language);
+  const opts = useOpts(q, language);
+  const toggle = (v: string) => {
+    onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
+  };
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {opts.map(({ value: v, display }) => {
+          const checked = value.includes(v);
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => toggle(v)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-sm text-left transition-all",
+                checked
+                  ? "border-primary bg-primary/5 text-slate-800"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-primary/40 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                checked ? "border-primary bg-primary" : "border-slate-300 bg-white"
+              )}>
+                {checked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              </div>
+              <span className="leading-tight font-medium">{display}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function LikertField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
+  const { label, note } = useText(q, language);
+  const opts = useOpts(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <div className="flex flex-wrap gap-2">
+        {opts.map(({ value: v, display }) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={cn(
+              "px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+              value === v
+                ? "border-primary bg-primary text-white shadow-sm"
+                : "border-slate-100 bg-slate-50 text-slate-600 hover:border-primary/40 hover:bg-primary/5"
+            )}
+          >
+            {display}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TextField({ q, language, value, onChange, type = "text" }: { q: Question; language: string; value: string; onChange: (v: string) => void; type?: string }) {
+  const { label, note } = useText(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+      />
+    </div>
+  );
+}
+
+function TextareaField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
+  const { label, note } = useText(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={3}
+        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+      />
+    </div>
+  );
+}
+
+function SelectField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
+  const { label, note } = useText(q, language);
+  const opts = useOpts(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+      >
+        <option value="">Select…</option>
+        {opts.map(({ value: v, display }) => (
+          <option key={v} value={v}>{display}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function PreviewQuestion({
+  q, language, itemNumber, answers, setAnswer,
+}: {
+  q: Question;
+  language: string;
+  itemNumber?: number;
+  answers: Record<string, string | string[]>;
+  setAnswer: (id: string, v: string | string[]) => void;
+}) {
+  const type = normalizeType(q.type);
+  const strVal = (answers[q.id] as string) ?? "";
+  const arrVal = (answers[q.id] as string[]) ?? [];
+
+  const { label, note } = useText(q, language);
+
+  if (type === "section_header") {
     return (
       <div className="pt-6 pb-2">
         <div className="h-px bg-slate-200 mb-5" />
@@ -50,55 +224,24 @@ function PreviewQuestion({ q, language, itemNumber }: { q: Question; language: s
   }
 
   return (
-    <div className="space-y-1.5 py-3 border-b border-slate-100 last:border-0">
-      <p className="text-sm font-medium text-slate-700">
-        {itemNumber !== undefined && (
-          <span className="text-slate-400 font-normal mr-2">{itemNumber}.</span>
-        )}
-        {label}
-        {q.required && <span className="text-red-400 ml-1">*</span>}
-      </p>
-      {note && <p className="text-xs text-slate-500 italic leading-relaxed">{note}</p>}
-
-      {(q.type === "radio_group" || q.type === "checkbox_group") && opts.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {opts.map((opt, i) => (
-            <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
-              {opt}
-            </span>
-          ))}
-        </div>
+    <div className="space-y-1 py-4 border-b border-slate-100 last:border-0">
+      {itemNumber !== undefined && (
+        <p className="text-xs text-slate-400 font-normal mb-0.5">{itemNumber}.</p>
       )}
-
-      {q.type === "select" && q.options && (
-        <p className="text-xs text-slate-400 italic">{q.options.length} options available</p>
-      )}
-
-      {(q.type === "text" || q.type === "number") && (
-        <div className="h-8 bg-slate-50 border border-slate-200 rounded-md" />
-      )}
-
-      {q.type === "textarea" && (
-        <div className="h-16 bg-slate-50 border border-slate-200 rounded-md" />
-      )}
-
-      {q.type === "date" && (
-        <div className="h-8 w-40 bg-slate-50 border border-slate-200 rounded-md" />
-      )}
-
-      {q.type === "signature" && (
-        <div className="h-10 bg-slate-50 border border-dashed border-slate-300 rounded-md flex items-center px-3">
-          <span className="text-xs text-slate-400 italic">Signature field</span>
-        </div>
-      )}
-
-      {(q.type === "likert" || q.type === "scale") && opts.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap pt-1">
-          {opts.map((opt, i) => (
-            <span key={i} className="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg border border-blue-100">
-              {opt}
-            </span>
-          ))}
+      {type === "radio_group"    && <RadioField    q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "checkbox_group" && <CheckboxField  q={q} language={language} value={arrVal} onChange={v => setAnswer(q.id, v)} />}
+      {(type === "likert" || type === "scale") && <LikertField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "text"           && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "number"         && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} type="number" />}
+      {type === "date"           && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} type="date" />}
+      {type === "textarea"       && <TextareaField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "select"         && <SelectField   q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "signature"      && (
+        <div>
+          <FieldLabel label={label} required={q.required} />
+          <div className="h-10 bg-slate-50 border border-dashed border-slate-300 rounded-md flex items-center px-3">
+            <span className="text-xs text-slate-400 italic">Signature field</span>
+          </div>
         </div>
       )}
     </div>
@@ -119,6 +262,10 @@ export default function FormPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const [language, setLanguage] = useState("english");
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+
+  const setAnswer = (qid: string, val: string | string[]) =>
+    setAnswers(prev => ({ ...prev, [qid]: val }));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["form-preview", id],
@@ -132,7 +279,7 @@ export default function FormPreviewPage() {
   });
 
   const totalRequired = visibleQuestions.filter(q => q.required).length;
-  const totalFields = visibleQuestions.filter(q => q.type !== "section_header").length;
+  const totalFields   = visibleQuestions.filter(q => normalizeType(q.type) !== "section_header").length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -182,7 +329,7 @@ export default function FormPreviewPage() {
           <>
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-center gap-2 text-sm text-amber-800">
               <Eye size={15} />
-              <span>Preview mode — this form cannot be submitted here. Share a tokenized link to collect responses.</span>
+              <span>Preview mode — responses cannot be submitted here. Share a tokenized link to collect responses.</span>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
@@ -192,7 +339,7 @@ export default function FormPreviewPage() {
                 <span>·</span>
                 <span>{totalRequired} required</span>
                 <span>·</span>
-                <span>{visibleQuestions.filter(q => q.type === "section_header").length} sections</span>
+                <span>{visibleQuestions.filter(q => normalizeType(q.type) === "section_header").length} sections</span>
               </div>
             </div>
 
@@ -200,13 +347,16 @@ export default function FormPreviewPage() {
               {(() => {
                 let counter = 0;
                 return visibleQuestions.map(q => {
-                  if (q.type !== "section_header") counter++;
+                  const type = normalizeType(q.type);
+                  if (type !== "section_header") counter++;
                   return (
                     <PreviewQuestion
                       key={q.id}
                       q={q}
                       language={language}
-                      itemNumber={q.type !== "section_header" ? counter : undefined}
+                      itemNumber={type !== "section_header" ? counter : undefined}
+                      answers={answers}
+                      setAnswer={setAnswer}
                     />
                   );
                 });
