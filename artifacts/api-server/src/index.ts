@@ -408,7 +408,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     respondentTypes: ["self"],
     scoringType: "auto",
     domains: ["planning", "time_management", "task_initiation", "organization", "problem_solving", "flexibility", "working_memory", "emotional_control", "impulse_control", "attentional_control", "self_monitoring"],
-    scoringConfig: { max: 4, thresholds: { low: 30, mild: 57, moderate: 71 }, domains: {} },
+    scoringConfig: { max: 4, thresholds: { low: 40, mild: 60, moderate: 80 }, domains: {}, higherIsBetter: true },
     formItems: EFA_FORM,
   },
 ];
