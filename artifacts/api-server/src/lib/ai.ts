@@ -388,7 +388,7 @@ Return ONLY the JSON object, nothing else.`;
 export async function translateFormItemsWithAI(
   items: RawFormItem[]
 ): Promise<RawFormItem[]> {
-  const BATCH_SIZE = 40;
+  const BATCH_SIZE = 15;
   const batches: RawFormItem[][] = [];
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     batches.push(items.slice(i, i + BATCH_SIZE));

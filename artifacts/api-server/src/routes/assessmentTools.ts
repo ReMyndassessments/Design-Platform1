@@ -286,7 +286,7 @@ router.post("/assessment-tools/translate", authMiddleware, async (req, res) => {
     return;
   }
   try {
-    const TIMEOUT_MS = 120_000;
+    const TIMEOUT_MS = 300_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Translation timed out")), TIMEOUT_MS)
     );
