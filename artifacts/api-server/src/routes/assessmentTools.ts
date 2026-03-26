@@ -232,7 +232,7 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
     return;
   }
 
-  const MAX_CHARS = 20_000;
+  const MAX_CHARS = 14_000;
   let resolvedText = formText;
   if (fileBase64 && fileName && !imageBase64) {
     try {
@@ -247,12 +247,20 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
       return;
     }
   }
+  // Strip CJK characters — bilingual forms double the token count unnecessarily for English extraction
+  if (resolvedText) {
+    resolvedText = resolvedText
+      .replace(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/g, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
   if (resolvedText && resolvedText.length > MAX_CHARS) {
     resolvedText = resolvedText.slice(0, MAX_CHARS);
   }
 
   try {
-    const TIMEOUT_MS = 90_000;
+    const TIMEOUT_MS = 140_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("AI analysis timed out. Please try again or use a shorter form.")), TIMEOUT_MS)
     );
