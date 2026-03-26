@@ -295,7 +295,8 @@ router.post("/assessment-tools/translate", authMiddleware, async (req, res) => {
       timeoutPromise,
     ]);
     res.json({ items: translated });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "translate route error — returning original English items");
     res.status(200).json({ items });
   }
 });

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Eye } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Eye, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -263,6 +263,9 @@ export default function FormPreviewPage() {
   const [, setLocation] = useLocation();
   const [language, setLanguage] = useState("english");
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [retranslating, setRetranslating] = useState(false);
+  const [retranslateMsg, setRetranslateMsg] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const setAnswer = (qid: string, val: string | string[]) =>
     setAnswers(prev => ({ ...prev, [qid]: val }));
@@ -272,6 +275,42 @@ export default function FormPreviewPage() {
     queryFn: () => fetchFormPreview(id!),
     enabled: !!id,
   });
+
+  const handleRetranslate = async () => {
+    if (!data?.questions?.length || !id) return;
+    setRetranslating(true);
+    setRetranslateMsg(null);
+    const token = localStorage.getItem("raos_token");
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    try {
+      const transRes = await fetch(`${base}/api/assessment-tools/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ items: data.questions }),
+      });
+      if (!transRes.ok) { setRetranslateMsg("Translation failed — server error."); return; }
+      const translated = await transRes.json() as { items?: Question[] };
+      if (!translated.items?.length) { setRetranslateMsg("Translation returned empty — try again."); return; }
+      const hasChinese = translated.items.some(q => q.textChinese && q.textChinese !== q.text);
+      if (!hasChinese) { setRetranslateMsg("AI did not produce translations this time — try again."); return; }
+      const patchRes = await fetch(`${base}/api/assessment-tools/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ formItems: translated.items }),
+      });
+      if (!patchRes.ok) { setRetranslateMsg("Saved translations but couldn't update tool — try again."); return; }
+      await qc.invalidateQueries({ queryKey: ["form-preview", id] });
+      setRetranslateMsg("Translations applied successfully.");
+    } catch {
+      setRetranslateMsg("Translation failed — check your connection and try again.");
+    } finally {
+      setRetranslating(false);
+    }
+  };
+
+  const missingTranslations = (data?.questions ?? []).some(
+    q => normalizeType(q.type) !== "section_header" && (!q.textChinese || q.textChinese === q.text)
+  );
 
   const visibleQuestions = (data?.questions ?? []).filter(q => {
     if (!q.conditionalOn) return true;
@@ -293,6 +332,19 @@ export default function FormPreviewPage() {
             <Eye size={16} />
             <span className="text-sm font-medium">Form Preview</span>
           </div>
+          {data && missingTranslations && (
+            <Button variant="outline" size="sm" onClick={handleRetranslate} disabled={retranslating} className="gap-1.5 text-sky-600 border-sky-300 hover:bg-sky-50">
+              {retranslating
+                ? <><div className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" /> Translating…</>
+                : <><Languages size={14} /> Add Translations</>
+              }
+            </Button>
+          )}
+          {retranslateMsg && (
+            <span className={cn("text-xs", retranslateMsg.startsWith("Translations applied") ? "text-green-600" : "text-red-500")}>
+              {retranslateMsg}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-slate-100 p-1 rounded-lg">

@@ -318,8 +318,9 @@ ${JSON.stringify(items.map(it => ({ id: it.id, text: it.text, options: it.option
         if (!item.optionsKorean?.length)  item.optionsKorean  = byId[item.id].optionsKorean;
       }
     }
-  } catch {
+  } catch (err) {
     // Non-fatal — English-only items still work
+    console.error("[translateBatch] DeepSeek call failed:", err instanceof Error ? err.message : String(err));
   }
 }
 
