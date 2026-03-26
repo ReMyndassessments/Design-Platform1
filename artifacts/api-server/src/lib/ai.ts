@@ -329,7 +329,7 @@ export async function analyzeFormWithAI(params: {
   mimeType?: string;
 }): Promise<AnalyzedFormResult> {
 
-  // ─── Phase 1: Extract structure + all items in English only (fast) ───────
+  // Extract structure + all items in English only — no translation here
   const extractPrompt = `You are a psychoeducational assessment expert. Analyze the provided assessment form and extract structured information.
 
 ${params.formText ? `FORM CONTENT:\n${params.formText}\n` : ""}${params.imageBase64 ? "Please analyze the assessment form shown in the image." : ""}
@@ -372,14 +372,6 @@ Return ONLY the JSON object, nothing else.`;
 
   const formItems: RawFormItem[] = Array.isArray(parsed.formItems) ? parsed.formItems : [];
 
-  // ─── Phase 2: Translate all items in parallel batches (fast) ─────────────
-  const BATCH_SIZE = 40;
-  const batches: RawFormItem[][] = [];
-  for (let i = 0; i < formItems.length; i += BATCH_SIZE) {
-    batches.push(formItems.slice(i, i + BATCH_SIZE));
-  }
-  await Promise.all(batches.map(batch => translateBatch(batch)));
-
   return {
     suggestedId: (parsed.suggestedId ?? "TOOL").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10),
     name: parsed.name ?? "",
@@ -390,6 +382,18 @@ Return ONLY the JSON object, nothing else.`;
     respondentTypes: Array.isArray(parsed.respondentTypes) ? parsed.respondentTypes : [],
     formItems,
   };
+}
+
+export async function translateFormItemsWithAI(
+  items: RawFormItem[]
+): Promise<RawFormItem[]> {
+  const BATCH_SIZE = 40;
+  const batches: RawFormItem[][] = [];
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    batches.push(items.slice(i, i + BATCH_SIZE));
+  }
+  await Promise.all(batches.map(batch => translateBatch(batch)));
+  return items;
 }
 
 function formatAnswersForPrompt(answers: Record<string, unknown>): string {

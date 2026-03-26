@@ -579,7 +579,8 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
           body.formText = uploadedFile.content;
         }
       }
-      const res = await fetch("/api/assessment-tools/analyze", {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/assessment-tools/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -598,6 +599,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         respondentTypes: string[];
         formItems: ImportedFormItem[];
       };
+      const extractedItems = data.formItems ?? [];
       setId(data.suggestedId ?? "");
       setName(data.name ?? "");
       setDescription(data.description ?? "");
@@ -605,8 +607,22 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       setScoringType(data.scoringType ?? "manual");
       setDomainsRaw((data.domains ?? []).join(", "));
       setRespondents(data.respondentTypes ?? []);
-      setFormItems(data.formItems ?? []);
+      setFormItems(extractedItems);
       setAiImportOpen(false);
+
+      // Fire translation in the background — non-blocking, updates items silently
+      if (extractedItems.length > 0) {
+        fetch(`${base}/api/assessment-tools/translate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ items: extractedItems }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then((result: { items?: ImportedFormItem[] } | null) => {
+            if (result?.items?.length) setFormItems(result.items);
+          })
+          .catch(() => {/* non-fatal */});
+      }
     } catch (err: unknown) {
       setAiError(err instanceof Error ? err.message : "AI analysis failed. Please try again.");
     } finally {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assessmentToolsTable } from "@workspace/db/schema";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { recommendToolsWithAI, analyzeFormWithAI, lookupToolWithAI } from "../lib/ai.js";
+import { recommendToolsWithAI, analyzeFormWithAI, translateFormItemsWithAI, lookupToolWithAI } from "../lib/ai.js";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
@@ -252,7 +252,7 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
   }
 
   try {
-    const TIMEOUT_MS = 180_000;
+    const TIMEOUT_MS = 90_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("AI analysis timed out. Please try again or use a shorter form.")), TIMEOUT_MS)
     );
@@ -264,6 +264,31 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "AI analysis failed. Please try again.";
     res.status(502).json({ error: "ai_failed", message: msg });
+  }
+});
+
+router.post("/assessment-tools/translate", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can translate form items" });
+    return;
+  }
+  const { items } = req.body as { items?: unknown[] };
+  if (!Array.isArray(items) || items.length === 0) {
+    res.status(400).json({ error: "bad_request", message: "items array is required" });
+    return;
+  }
+  try {
+    const TIMEOUT_MS = 120_000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Translation timed out")), TIMEOUT_MS)
+    );
+    const translated = await Promise.race([
+      translateFormItemsWithAI(items as Parameters<typeof translateFormItemsWithAI>[0]),
+      timeoutPromise,
+    ]);
+    res.json({ items: translated });
+  } catch {
+    res.status(200).json({ items });
   }
 });
 
