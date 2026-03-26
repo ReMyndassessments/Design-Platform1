@@ -588,10 +588,26 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { message?: string };
-        throw new Error(data.message ?? `Server error ${res.status}`);
+        const errData = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(errData.message ?? `Server error ${res.status}`);
       }
-      const data = await res.json() as {
+      const { jobId } = await res.json() as { jobId: string };
+
+      // Poll until the job is done (proxy-safe — each poll is a short GET)
+      type JobResult = { status: "pending" } | { status: "done"; result: object } | { status: "error"; message: string };
+      let data: object | undefined;
+      for (;;) {
+        await new Promise(r => setTimeout(r, 4000));
+        const pollRes = await fetch(`${base}/api/assessment-tools/analyze/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!pollRes.ok) throw new Error(`Poll error ${pollRes.status}`);
+        const job = await pollRes.json() as JobResult;
+        if (job.status === "error") throw new Error(job.message);
+        if (job.status === "done") { data = job.result; break; }
+        // still pending — keep polling
+      }
+      const parsedData = data as {
         suggestedId: string;
         name: string;
         description: string;
@@ -601,14 +617,14 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         respondentTypes: string[];
         formItems: ImportedFormItem[];
       };
-      const extractedItems = data.formItems ?? [];
-      setId(data.suggestedId ?? "");
-      setName(data.name ?? "");
-      setDescription(data.description ?? "");
-      setCategory(data.category ?? "");
-      setScoringType(data.scoringType ?? "manual");
-      setDomainsRaw((data.domains ?? []).join(", "));
-      setRespondents(data.respondentTypes ?? []);
+      const extractedItems = parsedData.formItems ?? [];
+      setId(parsedData.suggestedId ?? "");
+      setName(parsedData.name ?? "");
+      setDescription(parsedData.description ?? "");
+      setCategory(parsedData.category ?? "");
+      setScoringType(parsedData.scoringType ?? "manual");
+      setDomainsRaw((parsedData.domains ?? []).join(", "));
+      setRespondents(parsedData.respondentTypes ?? []);
       setFormItems(extractedItems);
       setAiImportOpen(false);
 

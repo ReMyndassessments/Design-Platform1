@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { assessmentToolsTable } from "@workspace/db/schema";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
@@ -6,6 +7,15 @@ import { recommendToolsWithAI, analyzeFormWithAI, translateFormItemsWithAI, look
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+
+type AnalysisJob =
+  | { status: "pending" }
+  | { status: "done"; result: object }
+  | { status: "error"; message: string };
+
+const analysisJobs = new Map<string, AnalysisJob>();
+// Prevent unbounded growth — purge all jobs once we hit 500
+setInterval(() => { if (analysisJobs.size > 500) analysisJobs.clear(); }, 60 * 60 * 1000);
 
 async function extractTextFromFile(fileBase64: string, fileName: string): Promise<string> {
   const buffer = Buffer.from(fileBase64, "base64");
@@ -259,20 +269,37 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
     resolvedText = resolvedText.slice(0, MAX_CHARS);
   }
 
-  try {
-    const TIMEOUT_MS = 140_000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("AI analysis timed out. Please try again or use a shorter form.")), TIMEOUT_MS)
-    );
-    const result = await Promise.race([
-      analyzeFormWithAI({ formText: resolvedText, imageBase64, mimeType }),
-      timeoutPromise,
-    ]);
-    res.json(result);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "AI analysis failed. Please try again.";
-    res.status(502).json({ error: "ai_failed", message: msg });
+  // Start async job — return immediately so the proxy doesn't time out
+  const jobId = randomUUID();
+  analysisJobs.set(jobId, { status: "pending" });
+
+  const captured = { formText: resolvedText, imageBase64, mimeType };
+  (async () => {
+    try {
+      const result = await analyzeFormWithAI(captured);
+      analysisJobs.set(jobId, { status: "done", result });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "AI analysis failed. Please try again.";
+      logger.error({ err, jobId }, "analyze job failed");
+      analysisJobs.set(jobId, { status: "error", message: msg });
+    }
+  })();
+
+  res.status(202).json({ jobId });
+});
+
+// Poll the result of an async analyze job
+router.get("/assessment-tools/analyze/:jobId", authMiddleware, (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" });
+    return;
   }
+  const job = analysisJobs.get(req.params.jobId);
+  if (!job) {
+    res.status(404).json({ error: "not_found", message: "Analysis job not found or expired." });
+    return;
+  }
+  res.json(job);
 });
 
 router.post("/assessment-tools/translate", authMiddleware, async (req, res) => {
