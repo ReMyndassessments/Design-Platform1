@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM } from "./lib/questions.js";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -410,6 +410,27 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["planning", "time_management", "task_initiation", "organization", "problem_solving", "flexibility", "working_memory", "emotional_control", "impulse_control", "attentional_control", "self_monitoring"],
     scoringConfig: { max: 4, thresholds: { low: 40, mild: 60, moderate: 80 }, domains: {}, higherIsBetter: true },
     formItems: EFA_FORM,
+  },
+  {
+    id: "SPP",
+    name: "Sensory Processing Profile (SPP)",
+    category: "adaptive",
+    description: "Screening assessment of sensory processing differences across 20 subscales in 8 sensory domains: Tactile, Vestibular, Proprioceptive, Auditory, Oral-Sensory, Olfactory, Visual, and Regulation & Functional Impact. 72 items rated on a 0–3 frequency scale. Multi-informant (Self / Parent / Teacher). Higher scores indicate greater sensory processing dysfunction.",
+    isRemyndOwned: true,
+    respondentTypes: ["self", "parent", "teacher1", "teacher2"],
+    scoringType: "auto",
+    domains: [
+      "a1_tactile_hyper", "a2_tactile_hypo", "a3_tactile_discrimination",
+      "b1_vestibular_hyper", "b2_vestibular_seeking", "b3_coordination",
+      "c1_proprioceptive_seeking", "c2_force_regulation",
+      "d1_auditory_hyper", "d2_auditory_hypo",
+      "e1_oral_hyper", "e2_oral_hypo",
+      "f1_olfactory_hyper", "f2_olfactory_hypo",
+      "g1_visual_hyper", "g2_visual_processing",
+      "h1_social_functioning", "h2_emotional_regulation", "h3_self_regulation", "h4_interoception",
+    ],
+    scoringConfig: { max: 3, thresholds: { low: 17, mild: 43, moderate: 67 }, domains: {} },
+    formItems: SPP_FORM,
   },
 ];
 

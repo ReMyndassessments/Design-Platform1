@@ -1960,6 +1960,142 @@ export const EFA_FORM: FormQuestion[] = [
   { id: "efa_sm7", text: "I am open to making changes to do better.", textChinese: "我愿意做出改变以取得更好的结果。", textKorean: "나는 더 잘하기 위해 변화를 받아들이려 한다.", type: "likert", options: EFA_OPTIONS, optionsChinese: EFA_OPTIONS_ZH, optionsKorean: EFA_OPTIONS_KO, domain: "self_monitoring", required: true },
 ];
 
+// ─── SPP: Sensory Processing Profile ─────────────────────────────────────────
+const SPP_OPTIONS    = ["Not Observed", "Occasionally", "Frequently", "Almost Always"];
+const SPP_OPTIONS_ZH = ["未观察到", "偶尔", "经常", "几乎总是"];
+const SPP_OPTIONS_KO = ["관찰되지 않음", "가끔", "자주", "거의 항상"];
+
+export const SPP_FORM: FormQuestion[] = [
+  { id: "spp_name", text: "Name:", textChinese: "姓名：", textKorean: "이름:", type: "text", domain: "admin", required: true },
+  { id: "spp_date", text: "Date:", textChinese: "日期：", textKorean: "날짜:", type: "text", domain: "admin", required: true },
+  { id: "spp_age",  text: "Age:",  textChinese: "年龄：", textKorean: "나이:", type: "text", domain: "admin", required: true },
+  { id: "spp_rater", text: "Person Completing Form:", textChinese: "填表人：", textKorean: "양식 작성자:", type: "radio", domain: "admin", options: ["Self", "Parent", "Teacher", "Other"], optionsChinese: ["本人", "家长", "教师", "其他"], optionsKorean: ["본인", "부모", "교사", "기타"], required: true },
+
+  // ── A. TACTILE PROCESSING ──────────────────────────────────────────────────
+  { id: "spp_s_a1", text: "A1. TACTILE HYPERSENSITIVITY (Defensiveness)", textChinese: "A1. 触觉过敏（防御性）", textKorean: "A1. 촉각 과민성(방어적)", type: "section_header", domain: "a1_tactile_hyper" },
+  { id: "spp_a1_1", text: "Distressed by light or unexpected touch.", textChinese: "对轻微或意外触碰感到不安。", textKorean: "가볍거나 예상치 못한 접촉에 고통스러워한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+  { id: "spp_a1_2", text: "Avoids messy play (sand, glue, etc.).", textChinese: "避免凌乱的游戏（沙子、胶水等）。", textKorean: "지저분한 놀이(모래, 풀 등)를 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+  { id: "spp_a1_3", text: "Sensitive to clothing textures or seams.", textChinese: "对衣物质地或缝线敏感。", textKorean: "의류 질감이나 솔기에 민감하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+  { id: "spp_a1_4", text: "Dislikes grooming (haircuts, nail cutting).", textChinese: "不喜欢整理仪容（剪发、剪指甲）。", textKorean: "미용(이발, 손톱 자르기)을 싫어한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+  { id: "spp_a1_5", text: "Overreacts to minor injuries.", textChinese: "对轻微伤害过度反应。", textKorean: "사소한 부상에 과잉 반응한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+  { id: "spp_a1_6", text: "Picky eater based on food texture.", textChinese: "因食物质地而挑食。", textKorean: "음식 질감 때문에 편식한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a1_tactile_hyper", required: true },
+
+  { id: "spp_s_a2", text: "A2. TACTILE HYPOSENSITIVITY (Under-Responsive)", textChinese: "A2. 触觉低敏（反应不足）", textKorean: "A2. 촉각 저민감성(반응 부족)", type: "section_header", domain: "a2_tactile_hypo" },
+  { id: "spp_a2_1", text: "Seeks excessive touch.", textChinese: "寻求过多触碰。", textKorean: "과도한 접촉을 추구한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a2_tactile_hypo", required: true },
+  { id: "spp_a2_2", text: "Unaware of pain or mess (dirty hands/face).", textChinese: "不察觉疼痛或脏乱（手脏/脸脏）。", textKorean: "통증이나 지저분함(더러운 손/얼굴)을 인식하지 못한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a2_tactile_hypo", required: true },
+  { id: "spp_a2_3", text: "Mouths objects frequently.", textChinese: "频繁将物体放入口中。", textKorean: "물건을 자주 입에 넣는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a2_tactile_hypo", required: true },
+  { id: "spp_a2_4", text: "Enjoys intense sensory play.", textChinese: "喜欢强烈的感觉游戏。", textKorean: "강렬한 감각 놀이를 즐긴다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a2_tactile_hypo", required: true },
+  { id: "spp_a2_5", text: "Craves strong textures or flavors.", textChinese: "渴望强烈的质地或味道。", textKorean: "강한 질감이나 맛을 갈망한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a2_tactile_hypo", required: true },
+
+  { id: "spp_s_a3", text: "A3. TACTILE DISCRIMINATION DIFFICULTIES", textChinese: "A3. 触觉辨别困难", textKorean: "A3. 촉각 변별 어려움", type: "section_header", domain: "a3_tactile_discrimination" },
+  { id: "spp_a3_1", text: "Poor fine motor skills (buttons, zippers).", textChinese: "精细动作技能差（纽扣、拉链）。", textKorean: "세밀한 운동 능력 부족(단추, 지퍼).", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a3_tactile_discrimination", required: true },
+  { id: "spp_a3_2", text: "Difficulty identifying objects by touch.", textChinese: "通过触觉识别物体有困难。", textKorean: "촉각으로 물체를 식별하기 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a3_tactile_discrimination", required: true },
+  { id: "spp_a3_3", text: "Messy appearance (unaware of clothing position).", textChinese: "仪表凌乱（不察觉衣物位置）。", textKorean: "지저분한 외모(옷 위치를 인식하지 못함).", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a3_tactile_discrimination", required: true },
+  { id: "spp_a3_4", text: "Difficulty using tools (scissors, utensils).", textChinese: "使用工具（剪刀、餐具）有困难。", textKorean: "도구(가위, 식기) 사용이 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "a3_tactile_discrimination", required: true },
+
+  // ── B. VESTIBULAR PROCESSING ───────────────────────────────────────────────
+  { id: "spp_s_b1", text: "B1. MOVEMENT HYPERSENSITIVITY", textChinese: "B1. 前庭过敏（运动敏感）", textKorean: "B1. 움직임 과민성", type: "section_header", domain: "b1_vestibular_hyper" },
+  { id: "spp_b1_1", text: "Fearful of heights or movement.", textChinese: "对高处或运动感到恐惧。", textKorean: "높이나 움직임에 두려움을 느낀다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b1_vestibular_hyper", required: true },
+  { id: "spp_b1_2", text: "Avoids playground equipment.", textChinese: "避免使用游乐场设施。", textKorean: "놀이터 기구를 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b1_vestibular_hyper", required: true },
+  { id: "spp_b1_3", text: "Easily loses balance.", textChinese: "容易失去平衡。", textKorean: "쉽게 균형을 잃는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b1_vestibular_hyper", required: true },
+  { id: "spp_b1_4", text: "Fearful of stairs or uneven surfaces.", textChinese: "对楼梯或不平整地面感到恐惧。", textKorean: "계단이나 고르지 않은 표면에 두려움을 느낀다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b1_vestibular_hyper", required: true },
+
+  { id: "spp_s_b2", text: "B2. MOVEMENT SEEKING / HYPOSENSITIVITY", textChinese: "B2. 运动寻求／前庭低敏", textKorean: "B2. 움직임 추구 / 저민감성", type: "section_header", domain: "b2_vestibular_seeking" },
+  { id: "spp_b2_1", text: "Constant movement.", textChinese: "不停运动。", textKorean: "끊임없이 움직인다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b2_vestibular_seeking", required: true },
+  { id: "spp_b2_2", text: "Seeks spinning, jumping, or crashing.", textChinese: "寻求旋转、跳跃或碰撞。", textKorean: "회전, 점프, 충돌을 추구한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b2_vestibular_seeking", required: true },
+  { id: "spp_b2_3", text: "Thrill-seeking behavior.", textChinese: "寻求刺激的行为。", textKorean: "스릴을 추구하는 행동을 보인다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b2_vestibular_seeking", required: true },
+  { id: "spp_b2_4", text: "Difficulty sitting still.", textChinese: "难以静坐。", textKorean: "가만히 앉아 있기 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b2_vestibular_seeking", required: true },
+
+  { id: "spp_s_b3", text: "B3. COORDINATION & MUSCLE TONE", textChinese: "B3. 协调性与肌张力", textKorean: "B3. 협응력 & 근긴장도", type: "section_header", domain: "b3_coordination" },
+  { id: "spp_b3_1", text: "Poor posture or low muscle tone.", textChinese: "姿势不良或肌张力低下。", textKorean: "나쁜 자세 또는 낮은 근긴장도.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b3_coordination", required: true },
+  { id: "spp_b3_2", text: "Clumsiness, frequent falls.", textChinese: "笨拙，经常跌倒。", textKorean: "서투름, 자주 넘어짐.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b3_coordination", required: true },
+  { id: "spp_b3_3", text: "Difficulty with gross or fine motor skills.", textChinese: "粗/精细运动技能有困难。", textKorean: "대근육/소근육 운동 기술에 어려움이 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b3_coordination", required: true },
+  { id: "spp_b3_4", text: "Fatigues easily.", textChinese: "容易疲劳。", textKorean: "쉽게 피로해진다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "b3_coordination", required: true },
+
+  // ── C. PROPRIOCEPTIVE PROCESSING ──────────────────────────────────────────
+  { id: "spp_s_c1", text: "C1. SENSORY SEEKING (Deep Pressure / Input)", textChinese: "C1. 感觉寻求（深压觉／感觉输入）", textKorean: "C1. 감각 추구(심부 압각 / 입력)", type: "section_header", domain: "c1_proprioceptive_seeking" },
+  { id: "spp_c1_1", text: "Crashes into objects.", textChinese: "频繁撞击物体。", textKorean: "물체에 충돌한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c1_proprioceptive_seeking", required: true },
+  { id: "spp_c1_2", text: "Loves tight hugs or pressure.", textChinese: "喜爱紧抱或压力。", textKorean: "꽉 안기거나 압박을 좋아한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c1_proprioceptive_seeking", required: true },
+  { id: "spp_c1_3", text: "Chews objects or clothing.", textChinese: "咀嚼物体/衣物。", textKorean: "물건이나 옷을 씹는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c1_proprioceptive_seeking", required: true },
+  { id: "spp_c1_4", text: "Jumps excessively.", textChinese: "过度跳跃。", textKorean: "과도하게 뜀뛰기를 한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c1_proprioceptive_seeking", required: true },
+
+  { id: "spp_s_c2", text: "C2. POOR FORCE REGULATION (\"Grading\")", textChinese: "C2. 力量调节不良（分级）", textKorean: "C2. 불량한 힘 조절(\"등급 조절\")", type: "section_header", domain: "c2_force_regulation" },
+  { id: "spp_c2_1", text: "Uses too much or too little force.", textChinese: "使用力量过大或过小。", textKorean: "너무 많거나 너무 적은 힘을 사용한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c2_force_regulation", required: true },
+  { id: "spp_c2_2", text: "Breaks objects easily.", textChinese: "容易损坏物品。", textKorean: "물건을 쉽게 부순다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c2_force_regulation", required: true },
+  { id: "spp_c2_3", text: "Poor handwriting pressure.", textChinese: "书写压力控制差。", textKorean: "필기 압력 조절이 불량하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c2_force_regulation", required: true },
+  { id: "spp_c2_4", text: "Misjudges weight of objects.", textChinese: "错误判断物体重量。", textKorean: "물체의 무게를 잘못 판단한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "c2_force_regulation", required: true },
+
+  // ── D. AUDITORY PROCESSING ─────────────────────────────────────────────────
+  { id: "spp_s_d1", text: "D1. AUDITORY HYPERSENSITIVITY", textChinese: "D1. 听觉过敏", textKorean: "D1. 청각 과민성", type: "section_header", domain: "d1_auditory_hyper" },
+  { id: "spp_d1_1", text: "Distressed by loud or unexpected sounds.", textChinese: "对响亮或意外声音感到不安。", textKorean: "크거나 예상치 못한 소리에 고통스러워한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d1_auditory_hyper", required: true },
+  { id: "spp_d1_2", text: "Covers ears or avoids noisy places.", textChinese: "捂耳朵或避开嘈杂场所。", textKorean: "귀를 막거나 시끄러운 장소를 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d1_auditory_hyper", required: true },
+  { id: "spp_d1_3", text: "Easily distracted by background noise.", textChinese: "容易被背景噪音分心。", textKorean: "배경 소음에 쉽게 산만해진다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d1_auditory_hyper", required: true },
+
+  { id: "spp_s_d2", text: "D2. AUDITORY HYPOSENSITIVITY", textChinese: "D2. 听觉低敏", textKorean: "D2. 청각 저민감성", type: "section_header", domain: "d2_auditory_hypo" },
+  { id: "spp_d2_1", text: "Does not respond to name.", textChinese: "对呼唤名字无反应。", textKorean: "이름을 불러도 반응하지 않는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d2_auditory_hypo", required: true },
+  { id: "spp_d2_2", text: "Needs repetition of instructions.", textChinese: "需要重复指令。", textKorean: "지시 사항의 반복이 필요하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d2_auditory_hypo", required: true },
+  { id: "spp_d2_3", text: "Seeks loud sounds.", textChinese: "寻求响亮声音。", textKorean: "큰 소리를 추구한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d2_auditory_hypo", required: true },
+  { id: "spp_d2_4", text: "Appears unaware of sounds.", textChinese: "似乎对声音无察觉。", textKorean: "소리를 인식하지 못하는 것처럼 보인다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "d2_auditory_hypo", required: true },
+
+  // ── E. ORAL-SENSORY PROCESSING ─────────────────────────────────────────────
+  { id: "spp_s_e1", text: "E1. ORAL HYPERSENSITIVITY", textChinese: "E1. 口腔过敏", textKorean: "E1. 구강 과민성", type: "section_header", domain: "e1_oral_hyper" },
+  { id: "spp_e1_1", text: "Picky eater.", textChinese: "挑食。", textKorean: "편식한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e1_oral_hyper", required: true },
+  { id: "spp_e1_2", text: "Gags on textures.", textChinese: "对食物质地作呕。", textKorean: "음식 질감에 구역질을 한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e1_oral_hyper", required: true },
+  { id: "spp_e1_3", text: "Avoids dental care.", textChinese: "回避牙科护理。", textKorean: "치과 치료를 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e1_oral_hyper", required: true },
+  { id: "spp_e1_4", text: "Sensitive to taste or temperature.", textChinese: "对味道或温度敏感。", textKorean: "맛이나 온도에 민감하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e1_oral_hyper", required: true },
+
+  { id: "spp_s_e2", text: "E2. ORAL HYPOSENSITIVITY", textChinese: "E2. 口腔低敏", textKorean: "E2. 구강 저민감성", type: "section_header", domain: "e2_oral_hypo" },
+  { id: "spp_e2_1", text: "Chews non-food items.", textChinese: "咀嚼非食物物品。", textKorean: "비식품 물건을 씹는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e2_oral_hypo", required: true },
+  { id: "spp_e2_2", text: "Craves strong flavors.", textChinese: "渴望强烈口味。", textKorean: "강한 맛을 갈망한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e2_oral_hypo", required: true },
+  { id: "spp_e2_3", text: "Excess drooling.", textChinese: "过度流涎。", textKorean: "과도하게 침을 흘린다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e2_oral_hypo", required: true },
+  { id: "spp_e2_4", text: "Constant oral input seeking.", textChinese: "持续寻求口腔刺激。", textKorean: "지속적으로 구강 자극을 추구한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "e2_oral_hypo", required: true },
+
+  // ── F. OLFACTORY PROCESSING ────────────────────────────────────────────────
+  { id: "spp_s_f1", text: "F1. SMELL HYPERSENSITIVITY", textChinese: "F1. 嗅觉过敏", textKorean: "F1. 후각 과민성", type: "section_header", domain: "f1_olfactory_hyper" },
+  { id: "spp_f1_1", text: "Strong reactions to smells.", textChinese: "对气味反应强烈。", textKorean: "냄새에 강한 반응을 보인다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f1_olfactory_hyper", required: true },
+  { id: "spp_f1_2", text: "Avoids foods due to smell.", textChinese: "因气味而回避食物。", textKorean: "냄새 때문에 음식을 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f1_olfactory_hyper", required: true },
+  { id: "spp_f1_3", text: "Sensitive to perfumes or environmental odors.", textChinese: "对香水或环境气味敏感。", textKorean: "향수나 환경 냄새에 민감하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f1_olfactory_hyper", required: true },
+
+  { id: "spp_s_f2", text: "F2. SMELL HYPOSENSITIVITY", textChinese: "F2. 嗅觉低敏", textKorean: "F2. 후각 저민감성", type: "section_header", domain: "f2_olfactory_hypo" },
+  { id: "spp_f2_1", text: "Does not notice unpleasant smells.", textChinese: "不察觉不愉快的气味。", textKorean: "불쾌한 냄새를 알아채지 못한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f2_olfactory_hypo", required: true },
+  { id: "spp_f2_2", text: "Seeks out smells.", textChinese: "主动寻找气味。", textKorean: "냄새를 찾아다닌다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f2_olfactory_hypo", required: true },
+  { id: "spp_f2_3", text: "Poor odor discrimination.", textChinese: "嗅觉辨别能力差。", textKorean: "냄새 구별 능력이 낮다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "f2_olfactory_hypo", required: true },
+
+  // ── G. VISUAL PROCESSING ───────────────────────────────────────────────────
+  { id: "spp_s_g1", text: "G1. VISUAL HYPERSENSITIVITY", textChinese: "G1. 视觉过敏", textKorean: "G1. 시각 과민성", type: "section_header", domain: "g1_visual_hyper" },
+  { id: "spp_g1_1", text: "Sensitive to light.", textChinese: "对光线敏感。", textKorean: "빛에 민감하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g1_visual_hyper", required: true },
+  { id: "spp_g1_2", text: "Easily visually distracted.", textChinese: "容易被视觉刺激分心。", textKorean: "시각적 자극에 쉽게 산만해진다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g1_visual_hyper", required: true },
+  { id: "spp_g1_3", text: "Avoids eye contact.", textChinese: "回避眼神接触。", textKorean: "눈맞춤을 회피한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g1_visual_hyper", required: true },
+
+  { id: "spp_s_g2", text: "G2. VISUAL PROCESSING DIFFICULTIES", textChinese: "G2. 视觉加工困难", textKorean: "G2. 시각 처리 어려움", type: "section_header", domain: "g2_visual_processing" },
+  { id: "spp_g2_1", text: "Letter reversals (b/d, p/q).", textChinese: "字母反转（b/d，p/q）。", textKorean: "문자 반전(b/d, p/q).", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g2_visual_processing", required: true },
+  { id: "spp_g2_2", text: "Difficulty tracking.", textChinese: "追视困难。", textKorean: "시각 추적이 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g2_visual_processing", required: true },
+  { id: "spp_g2_3", text: "Poor visual organization.", textChinese: "视觉组织能力差。", textKorean: "시각적 구성 능력이 부족하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g2_visual_processing", required: true },
+  { id: "spp_g2_4", text: "Loses place when reading.", textChinese: "阅读时容易失去位置。", textKorean: "읽을 때 위치를 잃는다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "g2_visual_processing", required: true },
+
+  // ── H. REGULATION & FUNCTIONAL IMPACT ─────────────────────────────────────
+  { id: "spp_s_h1", text: "H1. SOCIAL FUNCTIONING", textChinese: "H1. 社交功能", textKorean: "H1. 사회적 기능", type: "section_header", domain: "h1_social_functioning" },
+  { id: "spp_h1_1", text: "Difficulty with peers.", textChinese: "与同伴相处困难。", textKorean: "또래와의 어려움이 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h1_social_functioning", required: true },
+  { id: "spp_h1_2", text: "Limited interaction.", textChinese: "互动有限。", textKorean: "상호작용이 제한되어 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h1_social_functioning", required: true },
+  { id: "spp_h1_3", text: "Poor social reciprocity.", textChinese: "社交互动性差。", textKorean: "사회적 상호성이 낮다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h1_social_functioning", required: true },
+
+  { id: "spp_s_h2", text: "H2. EMOTIONAL REGULATION", textChinese: "H2. 情绪调节", textKorean: "H2. 정서 조절", type: "section_header", domain: "h2_emotional_regulation" },
+  { id: "spp_h2_1", text: "Easily frustrated.", textChinese: "容易感到沮丧。", textKorean: "쉽게 좌절한다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h2_emotional_regulation", required: true },
+  { id: "spp_h2_2", text: "Mood swings.", textChinese: "情绪波动。", textKorean: "기분 변동이 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h2_emotional_regulation", required: true },
+  { id: "spp_h2_3", text: "Difficulty with change.", textChinese: "难以应对变化。", textKorean: "변화에 적응하기 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h2_emotional_regulation", required: true },
+
+  { id: "spp_s_h3", text: "H3. SELF-REGULATION", textChinese: "H3. 自我调节", textKorean: "H3. 자기 조절", type: "section_header", domain: "h3_self_regulation" },
+  { id: "spp_h3_1", text: "Difficulty calming.", textChinese: "难以平静。", textKorean: "진정하기 어렵다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h3_self_regulation", required: true },
+  { id: "spp_h3_2", text: "Sleep regulation issues.", textChinese: "睡眠调节问题。", textKorean: "수면 조절 문제가 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h3_self_regulation", required: true },
+  { id: "spp_h3_3", text: "High dependence on caregivers.", textChinese: "过度依赖照护者。", textKorean: "돌봄 제공자에 대한 의존도가 높다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h3_self_regulation", required: true },
+
+  { id: "spp_s_h4", text: "H4. INTERNAL REGULATION (Interoception)", textChinese: "H4. 内感觉调节（内感受）", textKorean: "H4. 내부 조절(내수용 감각)", type: "section_header", domain: "h4_interoception" },
+  { id: "spp_h4_1", text: "Poor hunger or thirst awareness.", textChinese: "饥渴感知能力差。", textKorean: "배고픔이나 갈증 인식 능력이 부족하다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h4_interoception", required: true },
+  { id: "spp_h4_2", text: "Temperature regulation issues.", textChinese: "体温调节问题。", textKorean: "체온 조절 문제가 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h4_interoception", required: true },
+  { id: "spp_h4_3", text: "Bowel or bladder awareness difficulties.", textChinese: "肠道或膀胱意识困难。", textKorean: "장·방광 인식에 어려움이 있다.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h4_interoception", required: true },
+  { id: "spp_h4_4", text: "Rapid mood or arousal shifts.", textChinese: "情绪或唤醒状态快速转变。", textKorean: "빠른 기분 또는 각성 상태 변화.", type: "likert", options: SPP_OPTIONS, optionsChinese: SPP_OPTIONS_ZH, optionsKorean: SPP_OPTIONS_KO, domain: "h4_interoception", required: true },
+];
+
 // ─── QUESTION REGISTRY ───────────────────────────────────────────────────────────
 export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   REFERRAL:   REFERRAL_FORM,
