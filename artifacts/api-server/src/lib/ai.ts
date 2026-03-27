@@ -400,7 +400,7 @@ export async function translateFormItemsWithAI(
   items: RawFormItem[],
   options: { sequential?: boolean } = {}
 ): Promise<RawFormItem[]> {
-  const BATCH_SIZE = 15;
+  const BATCH_SIZE = 50;
   const batches: RawFormItem[][] = [];
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     batches.push(items.slice(i, i + BATCH_SIZE));

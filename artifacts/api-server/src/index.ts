@@ -650,7 +650,7 @@ const BRIEF2_BATTERY_ID = "BRIEF2";
 async function autoTranslateCanonicalTool(toolId: string, formItems: any[]) {
   try {
     logger.info({ toolId }, "Auto-translating canonical tool");
-    const translated = await translateFormItemsWithAI(formItems as any, { sequential: true });
+    const translated = await translateFormItemsWithAI(formItems as any);
     if (!translated?.length) return;
     await db.update(assessmentToolsTable)
       .set({ formItems: translated as any })
@@ -719,19 +719,24 @@ async function syncTools() {
         },
       });
 
-      // Queue translation if any items are still missing Chinese/Korean
-      if (mergedItems && itemsMissingTranslations(mergedItems)) {
+      // Only auto-translate BRIEF-2 forms
+      if (
+        (tool.id as string).startsWith("BRIEF2") &&
+        mergedItems &&
+        itemsMissingTranslations(mergedItems)
+      ) {
         needsTranslation.push({ id: tool.id as string, items: mergedItems });
       }
     }
 
     logger.info({ count: CANONICAL_TOOLS.length }, "Assessment tools synced");
 
-    // Run translations in the background — one at a time to avoid rate limits
+    // Run translations in the background — all 3 BRIEF-2 forms at once
     if (needsTranslation.length > 0) {
       (async () => {
-        for (const { id, items } of needsTranslation) {
-          await autoTranslateCanonicalTool(id, items);
+        for (let i = 0; i < needsTranslation.length; i += 3) {
+          const chunk = needsTranslation.slice(i, i + 3);
+          await Promise.all(chunk.map(({ id, items }) => autoTranslateCanonicalTool(id, items)));
         }
       })().catch(() => {/* already logged inside */});
     }
