@@ -312,8 +312,8 @@ ${JSON.stringify(items.map(it => ({ id: it.id, text: it.text, options: it.option
     const byId = Object.fromEntries(translations.map(t => [t.id, t]));
     for (const item of items) {
       if (byId[item.id]) {
-        item.textChinese    = item.textChinese    ?? byId[item.id].textChinese;
-        item.textKorean     = item.textKorean     ?? byId[item.id].textKorean;
+        item.textChinese    = item.textChinese    || byId[item.id].textChinese;
+        item.textKorean     = item.textKorean     || byId[item.id].textKorean;
         if (!item.optionsChinese?.length) item.optionsChinese = byId[item.id].optionsChinese;
         if (!item.optionsKorean?.length)  item.optionsKorean  = byId[item.id].optionsKorean;
       }
