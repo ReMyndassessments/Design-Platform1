@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM } from "./lib/questions.js";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -431,6 +431,17 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     ],
     scoringConfig: { max: 3, thresholds: { low: 17, mild: 43, moderate: 67 }, domains: {} },
     formItems: SPP_FORM,
+  },
+  {
+    id: "RSSC",
+    name: "ReMynd Student Symptom Checklist (RSSC)",
+    category: "observation",
+    description: "Teacher-completed checklist for identifying learning, language, social, emotional and cognitive difficulties in students K–12. Covers 20 symptom domains across Social/Emotional and Cognitive/Physical areas, each with an open comments field.",
+    isRemyndOwned: true,
+    respondentTypes: ["teacher"],
+    scoringType: "manual",
+    domains: ["social_emotional", "cognitive_physical"],
+    formItems: RSSC_FORM,
   },
 ];
 
