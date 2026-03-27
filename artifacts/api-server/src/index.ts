@@ -612,7 +612,7 @@ const CDP_BATTERY_ID = "CDP";
 async function autoTranslateCanonicalTool(toolId: string, formItems: any[]) {
   try {
     logger.info({ toolId }, "Auto-translating canonical tool");
-    const translated = await translateFormItemsWithAI(formItems as any);
+    const translated = await translateFormItemsWithAI(formItems as any, { sequential: true });
     if (!translated?.length) return;
     await db.update(assessmentToolsTable)
       .set({ formItems: translated as any })

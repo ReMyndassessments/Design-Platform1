@@ -397,14 +397,21 @@ Return ONLY the JSON object, nothing else.`;
 }
 
 export async function translateFormItemsWithAI(
-  items: RawFormItem[]
+  items: RawFormItem[],
+  options: { sequential?: boolean } = {}
 ): Promise<RawFormItem[]> {
   const BATCH_SIZE = 15;
   const batches: RawFormItem[][] = [];
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     batches.push(items.slice(i, i + BATCH_SIZE));
   }
-  await Promise.all(batches.map(batch => translateBatch(batch)));
+  if (options.sequential) {
+    for (const batch of batches) {
+      await translateBatch(batch);
+    }
+  } else {
+    await Promise.all(batches.map(batch => translateBatch(batch)));
+  }
   return items;
 }
 
