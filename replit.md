@@ -65,8 +65,8 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 - **users** — Internal staff (admin, assessment_lead, psychometrician)
 - **cases** — Student case records with phase tracking
-- **assessment_tools** — Tool catalog (ReMynd + external). 28 canonical tools (22 original + 6 BASC-3 forms)
-- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery, BASC-3 battery)
+- **assessment_tools** — Tool catalog (ReMynd + external). 31 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2)
+- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery, BASC-3 battery, BRIEF-2 battery)
 - **assignments** — Per-respondent assignments with unique tokens + QR codes
 - **responses** — Form submissions from respondents
 - **scores** — Domain scores + cross-informant aggregation
@@ -96,6 +96,16 @@ CDP Profile page: `/cases/:id/cdp` — shows domain scores with severity bands p
 
 Chinese translations embedded in all items. Korean auto-translated by DeepSeek on first server start.
 Source: `artifacts/api-server/src/lib/basc3.ts`
+
+## BRIEF-2 Battery (Behavior Rating Inventory of Executive Function, 2nd Edition)
+
+3-form third-party battery (external scoring via BRIEF-2 software):
+- **BRIEF2-P** — Parent Form, Ages 5–18 (63 items, N/S/O scale)
+- **BRIEF2-SR** — Self-Report Form, Ages 11–18 (55 items, N/S/O scale)
+- **BRIEF2-T** — Teacher Form, Ages 5–18 (63 items, N/S/O scale)
+
+Chinese translations embedded in all items. Korean auto-translated by DeepSeek on first server start.
+Source: `artifacts/api-server/src/lib/brief2.ts`
 
 ## External Respondent Access
 
