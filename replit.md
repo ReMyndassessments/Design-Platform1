@@ -16,7 +16,7 @@ Full-stack psychoeducational assessment management platform built as a pnpm mono
 - **Validation**: Zod (zod/v4), drizzle-zod
 - **API codegen**: Orval (from OpenAPI spec)
 - **Auth**: JWT Bearer token (stored in localStorage), SHA-256 password hashing
-- **AI**: Gemini via Replit AI Integrations (intake analysis, tool recommendations, report generation)
+- **AI**: DeepSeek via DEEPSEEK_API_KEY (intake analysis, tool recommendations, report generation, Korean translations)
 - **Charts**: Recharts (radar charts, bar charts for scoring)
 - **QR codes**: qrcode.react
 
@@ -65,8 +65,8 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 - **users** — Internal staff (admin, assessment_lead, psychometrician)
 - **cases** — Student case records with phase tracking
-- **assessment_tools** — Tool catalog (ReMynd + external). 22 canonical tools including 4 CDP forms
-- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery = CDP-CL + CDP-SI + CDP-SR + CDP-CI)
+- **assessment_tools** — Tool catalog (ReMynd + external). 28 canonical tools (22 original + 6 BASC-3 forms)
+- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery, BASC-3 battery)
 - **assignments** — Per-respondent assignments with unique tokens + QR codes
 - **responses** — Form submissions from respondents
 - **scores** — Domain scores + cross-informant aggregation
@@ -83,6 +83,19 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 Scale: Always/Often/Rarely/Never = 3/2/1/0. Higher = better (ability-based).
 Thresholds: ≥75% Typical, 50–74% Mild Concern, 25–49% Moderate Concern, <25% Significant Concern.
 CDP Profile page: `/cases/:id/cdp` — shows domain scores with severity bands per form.
+
+## BASC-3 Battery (Behavior Assessment System for Children, 3rd Edition)
+
+6-form third-party battery (external scoring via BASC-3 ASSIST software):
+- **BASC3-TRS-A** — Teacher Rating Scales, Adolescent 12–21 (165 items, N/S/O/A scale)
+- **BASC3-PRS-A** — Parent Rating Scales, Adolescent 12–21 (173 items, N/S/O/A scale)
+- **BASC3-TRS-C** — Teacher Rating Scales, Child 6–11 (156 items, N/S/O/A scale)
+- **BASC3-PRS-C** — Parent Rating Scales, Child 6–11 (175 items, N/S/O/A scale)
+- **BASC3-SRP-A** — Self-Report of Personality, Adolescent 12–21 (189 items: 59 T/F + 130 N/S/O/A)
+- **BASC3-SRP-C** — Self-Report of Personality, Child 8–11 (137 items: 42 T/F + 95 N/S/O/A)
+
+Chinese translations embedded in all items. Korean auto-translated by DeepSeek on first server start.
+Source: `artifacts/api-server/src/lib/basc3.ts`
 
 ## External Respondent Access
 

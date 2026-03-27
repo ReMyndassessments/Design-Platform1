@@ -5,6 +5,7 @@ import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
+import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
@@ -528,6 +529,79 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
       conflict_resolution: { label: "Conflict Resolution", shortLabel: "Conflict", narratives: { low: "Strong conflict resolution skills.", mild: "Generally resolves conflict with some support.", moderate: "Developing conflict skills; mediation strategies recommended.", elevated: "Significant difficulties with conflict resolution." } },
     } },
   },
+  // ─── BASC-3 ────────────────────────────────────────────────────────────────
+  {
+    id: "BASC3-TRS-A",
+    name: "BASC-3 Teacher Rating Scales – Adolescent (Ages 12–21)",
+    category: "behavior",
+    description: "Teacher-completed behavior rating scale for adolescents aged 12–21. Assesses a broad range of behavioral and emotional dimensions including externalizing problems, internalizing problems, school problems, adaptive skills, and behavioral symptoms. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["teacher1", "teacher2"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_TRS_A_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "BASC3-PRS-A",
+    name: "BASC-3 Parent Rating Scales – Adolescent (Ages 12–21)",
+    category: "behavior",
+    description: "Parent-completed behavior rating scale for adolescents aged 12–21. Covers externalizing problems, internalizing problems, adaptive skills, and behavioral symptoms from a home context. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["parent"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_PRS_A_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "BASC3-TRS-C",
+    name: "BASC-3 Teacher Rating Scales – Child (Ages 6–11)",
+    category: "behavior",
+    description: "Teacher-completed behavior rating scale for children aged 6–11. Assesses externalizing problems, internalizing problems, school problems, adaptive skills, and behavioral symptoms in the classroom setting. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["teacher1", "teacher2"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_TRS_C_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "BASC3-PRS-C",
+    name: "BASC-3 Parent Rating Scales – Child (Ages 6–11)",
+    category: "behavior",
+    description: "Parent-completed behavior rating scale for children aged 6–11. Covers externalizing problems, internalizing problems, adaptive skills, and behavioral symptoms from a home context. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["parent"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_PRS_C_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "BASC3-SRP-A",
+    name: "BASC-3 Self-Report of Personality – Adolescent (Ages 12–21)",
+    category: "behavior",
+    description: "Self-report scale completed by adolescents aged 12–21. Items 1–59 use True/False format; items 60–189 use a frequency scale (Never–Almost always). Covers school maladjustment, clinical maladjustment, personal adjustment, and an emotional symptoms index. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_SRP_A_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "BASC3-SRP-C",
+    name: "BASC-3 Self-Report of Personality – Child (Ages 8–11)",
+    category: "behavior",
+    description: "Self-report scale completed by children aged 8–11. Items 1–42 use True/False format; items 43–137 use a frequency scale (Never–Almost always). Covers school maladjustment, clinical maladjustment, personal adjustment, and an emotional symptoms index. Part of the BASC-3 battery.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["behavior"],
+    formItems: BASC3_SRP_C_FORM,
+    scoringConfig: null,
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
@@ -648,6 +722,8 @@ async function seedIfEmpty() {
   }
 }
 
+const BASC3_BATTERY_ID = "BASC3";
+
 const CANONICAL_BATTERIES: (typeof batteriesTable.$inferInsert)[] = [
   {
     id: CDP_BATTERY_ID,
@@ -657,6 +733,15 @@ const CANONICAL_BATTERIES: (typeof batteriesTable.$inferInsert)[] = [
     isRemyndOwned: true,
     domains: ["cognition_learning", "social_interaction", "self_regulation", "communication_interaction"],
     scoringNotes: "Each domain is scored on a 0–3 scale (Never=0, Rarely=1, Often=2, Always=3). Domain scores are expressed as a percentage of maximum possible score. Higher scores indicate stronger functioning. Thresholds: Typical ≥75%, Mild Concern 50–74%, Moderate Concern 25–49%, Significant Concern <25%.",
+  },
+  {
+    id: BASC3_BATTERY_ID,
+    name: "Behavior Assessment System for Children, Third Edition (BASC-3)",
+    description: "A comprehensive, multi-method assessment system for evaluating the behavior and self-perceptions of children and adolescents aged 6–21. Includes Teacher Rating Scales (TRS), Parent Rating Scales (PRS), and Self-Report of Personality (SRP) forms for child (6–11) and adolescent (12–21) age bands. Scoring is completed externally using the BASC-3 ASSIST software.",
+    toolIds: ["BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BASC3-SRP-A", "BASC3-SRP-C"],
+    isRemyndOwned: false,
+    domains: ["behavior"],
+    scoringNotes: "BASC-3 scoring is performed externally using the BASC-3 ASSIST scoring software. Raw scores, T-scores, and percentile ranks are generated by ASSIST and entered into the case record manually. Rating scale forms (TRS/PRS) use a 4-point frequency scale: Never (N), Sometimes (S), Often (O), Almost Always (A). Self-Report forms (SRP) use True/False for the first set of items and the same 4-point frequency scale for the remainder.",
   },
 ];
 
