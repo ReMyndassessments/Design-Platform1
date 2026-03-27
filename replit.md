@@ -48,7 +48,7 @@ artifacts-monorepo/
 1. **Case Creation** — Admin creates student cases with team assignment
 2. **Consent + Parent Intake** — Digital forms via QR/link
 3. **AI Intake Analysis** — Gemini analyzes referral data, recommends domains and risk level
-4. **Assessment Builder** — Select from ReMynd tools (RCS-80, RASR, RARI, REFI, RERMS, RSCP, RARPS, RFII) or external standardized tools (Conners, BRIEF, BASC)
+4. **Assessment Builder** — Select from ReMynd tools (RCS-80, RASR, RARI, REFI, RERMS, RSCP, RARPS, RFII, CDP battery) or external standardized tools (Conners, BRIEF, BASC)
 5. **Multi-Respondent Deployment** — Generate unique tokenized links + QR codes for Parent, Teacher 1, Teacher 2, Student
 6. **Form Completion Monitor** — Dashboard with status tracking (not_started, in_progress, completed, overdue)
 7. **Self-Report Admin** — Guided administration mode with language toggle (English/Mandarin/Cantonese)
@@ -65,11 +65,24 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 - **users** — Internal staff (admin, assessment_lead, psychometrician)
 - **cases** — Student case records with phase tracking
-- **assessment_tools** — Tool catalog (ReMynd + external)
+- **assessment_tools** — Tool catalog (ReMynd + external). 22 canonical tools including 4 CDP forms
+- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery = CDP-CL + CDP-SI + CDP-SR + CDP-CI)
 - **assignments** — Per-respondent assignments with unique tokens + QR codes
 - **responses** — Form submissions from respondents
 - **scores** — Domain scores + cross-informant aggregation
 - **reports** — AI-generated report sections with approval workflow
+
+## CDP Battery (ReMynd Child Development Profile)
+
+4-form parent/teacher-completed battery:
+- **CDP-CL** — Cognition & Learning (98 items, 7 domains: organization_planning, working_memory, reasoning, applied_academic, time_measurement, social_cognitive, independence)
+- **CDP-SI** — Social Interaction & Awareness (74 items, 7 domains: peer_interaction, safety_awareness, empathy_emotions, social_norms, self_advocacy, friendship, conflict_resolution)
+- **CDP-SR** — Self-Regulation & Executive Function (67 items, 8 domains: managing_emotions, adaptive_behavior, managing_stress, coping_with_change, physical_wellness, social_interaction, executive_functioning, metacognition)
+- **CDP-CI** — Communication & Interaction (63 items, 8 domains: attention_listening, gestural_cues, comprehension, expressive_communication, social_skills, social_awareness, social_initiation, strengths)
+
+Scale: Always/Often/Rarely/Never = 3/2/1/0. Higher = better (ability-based).
+Thresholds: ≥75% Typical, 50–74% Mild Concern, 25–49% Moderate Concern, <25% Significant Concern.
+CDP Profile page: `/cases/:id/cdp` — shows domain scores with severity bands per form.
 
 ## External Respondent Access
 
@@ -89,7 +102,7 @@ pnpm --filter @workspace/api-server run build    # Build API server
 
 ## AI Integration
 
-- Gemini via Replit AI Integrations (no own API key needed)
-- Environment variables: AI_INTEGRATIONS_GEMINI_BASE_URL, AI_INTEGRATIONS_GEMINI_API_KEY
+- **CRITICAL: DeepSeek ONLY for all AI features** (never OpenAI or Gemini)
+- Environment variable: DEEPSEEK_API_KEY (available as secret)
 - Used for: intake analysis, tool recommendations, report generation
 - Fallback responses if AI fails (no hard crash)

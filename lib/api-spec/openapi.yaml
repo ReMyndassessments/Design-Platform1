@@ -25,6 +25,8 @@ tags:
     description: User management
   - name: external
     description: External respondent (no login required)
+  - name: batteries
+    description: Assessment battery management
 
 paths:
   /healthz:
@@ -726,6 +728,94 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DashboardStats"
+
+  # ─── Batteries ────────────────────────────────────────────────────────────
+  /batteries:
+    get:
+      operationId: listBatteries
+      tags: [batteries]
+      summary: List all assessment batteries
+      responses:
+        "200":
+          description: List of batteries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Battery"
+
+  /batteries/{id}:
+    get:
+      operationId: getBattery
+      tags: [batteries]
+      summary: Get a single battery with its tools
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Battery detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryDetail"
+        "404":
+          description: Not found
+
+  /cases/{caseId}/batteries/{batteryId}/assign:
+    post:
+      operationId: assignBattery
+      tags: [batteries]
+      summary: Assign all tools in a battery to a case (bulk create assignments)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: batteryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignBatteryRequest"
+      responses:
+        "201":
+          description: Assignments created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignBatteryResponse"
+        "404":
+          description: Battery or case not found
+
+  /cases/{caseId}/cdp/profile:
+    get:
+      operationId: getCdpProfile
+      tags: [batteries]
+      summary: Get CDP Battery composite profile for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CDP profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CdpProfile"
 
 components:
   schemas:
@@ -1450,3 +1540,181 @@ components:
         - overdueForms
         - casesByPhase
         - recentCases
+
+    # ─── Batteries ────────────────────────────────────────────────────────────
+    Battery:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        toolIds:
+          type: array
+          items:
+            type: string
+        isRemyndOwned:
+          type: boolean
+        domains:
+          type: array
+          items:
+            type: string
+        scoringNotes:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - description
+        - toolIds
+        - isRemyndOwned
+        - domains
+
+    BatteryTool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        domains:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - description
+        - domains
+
+    BatteryDetail:
+      allOf:
+        - $ref: "#/components/schemas/Battery"
+        - type: object
+          properties:
+            tools:
+              type: array
+              items:
+                $ref: "#/components/schemas/BatteryTool"
+          required:
+            - tools
+
+    AssignBatteryRequest:
+      type: object
+      properties:
+        respondentType:
+          type: string
+          default: parent
+        respondentLabel:
+          type: string
+        assignedToName:
+          type: string
+        assignedToEmail:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+
+    AssignBatteryResponse:
+      type: object
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Assignment"
+        batteryId:
+          type: string
+        count:
+          type: integer
+      required:
+        - assignments
+        - batteryId
+        - count
+
+    CdpFormScore:
+      type: object
+      properties:
+        rawScore:
+          type: number
+        domainScores:
+          type: object
+          additionalProperties:
+            type: number
+        normalizedScores:
+          type: object
+          additionalProperties:
+            type: number
+        scoredAt:
+          type: string
+          nullable: true
+      required:
+        - rawScore
+        - domainScores
+        - normalizedScores
+
+    CdpFormAssignmentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        respondentType:
+          type: string
+        respondentLabel:
+          type: string
+          nullable: true
+        assignedToName:
+          type: string
+          nullable: true
+        assignedToEmail:
+          type: string
+          nullable: true
+      required:
+        - id
+        - status
+        - respondentType
+
+    CdpFormResult:
+      type: object
+      properties:
+        toolId:
+          type: string
+        toolName:
+          type: string
+        status:
+          type: string
+          enum: [not_assigned, pending, completed]
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CdpFormAssignmentSummary"
+        score:
+          $ref: "#/components/schemas/CdpFormScore"
+          nullable: true
+        scoringConfig:
+          type: object
+          nullable: true
+      required:
+        - toolId
+        - toolName
+        - status
+        - assignments
+
+    CdpProfile:
+      type: object
+      properties:
+        caseId:
+          type: string
+        forms:
+          type: array
+          items:
+            $ref: "#/components/schemas/CdpFormResult"
+      required:
+        - caseId
+        - forms

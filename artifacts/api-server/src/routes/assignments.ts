@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable } from "@workspace/db/schema";
+import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -234,6 +234,62 @@ router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async 
     return;
   }
   res.json({ success: true });
+});
+
+// POST /cases/:caseId/batteries/:batteryId/assign
+// Creates one assignment per tool in the battery (bulk assign)
+router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
+  const [battery] = await db.select().from(batteriesTable).where(eq(batteriesTable.id, req.params.batteryId));
+  if (!battery) {
+    res.status(404).json({ error: "not_found", message: "Battery not found" });
+    return;
+  }
+
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!caseRows[0]) {
+    res.status(404).json({ error: "not_found", message: "Case not found" });
+    return;
+  }
+
+  const { respondentType = "parent", respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const toolIds = (battery.toolIds as string[]) ?? [];
+
+  // Fetch tool names for label
+  const tools = toolIds.length > 0
+    ? await db.select({ id: assessmentToolsTable.id, name: assessmentToolsTable.name })
+        .from(assessmentToolsTable)
+    : [];
+  const toolNameMap = new Map(tools.map(t => [t.id, t.name]));
+
+  const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
+  const created = [];
+  for (const toolId of toolIds) {
+    const token = crypto.randomBytes(24).toString("hex");
+    const uniqueLink = `${baseUrl}/external/${token}`;
+    const newAssignment = await db.insert(assignmentsTable).values({
+      id: nanoid(),
+      caseId: req.params.caseId,
+      toolId,
+      toolName: toolNameMap.get(toolId) ?? toolId,
+      respondentType,
+      respondentLabel: respondentLabel ?? respondentType,
+      assignedToName: assignedToName ?? null,
+      assignedToEmail: assignedToEmail ?? null,
+      status: "not_started",
+      uniqueToken: token,
+      uniqueLink,
+      qrCodeData: uniqueLink,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    }).returning();
+    created.push(newAssignment[0]);
+  }
+
+  res.status(201).json({ assignments: created, batteryId: battery.id, count: created.length });
 });
 
 export default router;

@@ -9,12 +9,13 @@ export type FormItem = {
   text: string;
   textChinese?: string;
   textKorean?: string;
-  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale";
+  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale" | "textarea" | "section_header" | "checkbox_group";
   options?: string[];
   optionsChinese?: string[];
   optionsKorean?: string[];
   domain?: string;
   required?: boolean;
+  reversed?: boolean;
 };
 
 export type ScoringConfig = {

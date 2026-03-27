@@ -1,9 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
+import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM } from "./lib/questions.js";
+import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
@@ -445,9 +446,93 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["social_emotional", "cognitive_physical"],
     formItems: RSSC_FORM,
   },
+  {
+    id: "CDP-SR",
+    name: "CDP — Self-Regulation and Executive Function",
+    category: "development",
+    description: "Parent/teacher-completed profile assessing self-regulation, adaptive behavior, stress management, coping with change, physical wellness, social interaction, executive functioning, and metacognition. Part of the ReMynd Child Development Profile (CDP) battery.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher"],
+    scoringType: "manual",
+    domains: ["managing_emotions", "adaptive_behavior", "managing_stress", "coping_with_change", "physical_wellness", "social_interaction", "executive_functioning", "metacognition"],
+    formItems: CDP_SR_FORM,
+    scoringConfig: { max: 3, thresholds: { low: 75, mild: 50, moderate: 25 }, domains: {
+      managing_emotions: { label: "Managing Emotions", shortLabel: "Emotions", narratives: { low: "Strong emotional recognition and regulation.", mild: "Generally manages emotions with some support needed.", moderate: "Emerging emotional regulation skills; consistent support recommended.", elevated: "Significant difficulties with emotional recognition and regulation." } },
+      adaptive_behavior: { label: "Adaptive Behavior", shortLabel: "Adaptive", narratives: { low: "Demonstrates consistent self-control and positive behavior.", mild: "Generally appropriate behavior with some support needed.", moderate: "Developing behavioral self-regulation; structured support recommended.", elevated: "Significant difficulties with adaptive and self-regulatory behaviors." } },
+      managing_stress: { label: "Managing Stress", shortLabel: "Stress", narratives: { low: "Effectively identifies and manages stress.", mild: "Manages stress with occasional adult support.", moderate: "Limited independent stress management; support strategies recommended.", elevated: "Significant difficulties managing stress and anxiety." } },
+      coping_with_change: { label: "Coping with Change", shortLabel: "Change", narratives: { low: "Adapts well to transitions and unexpected changes.", mild: "Generally copes with change with some preparation.", moderate: "Transitions challenging; visual supports and advance notice recommended.", elevated: "Significant difficulties with transitions and unexpected changes." } },
+      physical_wellness: { label: "Physical and Mental Wellness", shortLabel: "Wellness", narratives: { low: "Strong self-care and physical wellness habits.", mild: "Generally manages wellness needs with some support.", moderate: "Developing self-care independence; routine support recommended.", elevated: "Significant support needed for self-care and physical wellness." } },
+      social_interaction: { label: "Social Interaction", shortLabel: "Social", narratives: { low: "Initiates and maintains positive peer interactions.", mild: "Engages socially with some support.", moderate: "Limited social initiation; social skills support recommended.", elevated: "Significant difficulties with peer interaction and social engagement." } },
+      executive_functioning: { label: "Executive Functioning", shortLabel: "Executive", narratives: { low: "Strong planning, organization, and working memory skills.", mild: "Generally organized with some executive function support needed.", moderate: "Developing executive function skills; scaffolding recommended.", elevated: "Significant executive function difficulties across planning, memory, and flexibility." } },
+      metacognition: { label: "Metacognition", shortLabel: "Metacog", narratives: { low: "Demonstrates strong self-monitoring and reflective skills.", mild: "Can self-evaluate with adult guidance.", moderate: "Limited metacognitive awareness; explicit teaching recommended.", elevated: "Significant difficulties with self-monitoring and goal setting." } },
+    } },
+  },
+  {
+    id: "CDP-CL",
+    name: "CDP — Cognition & Learning",
+    category: "development",
+    description: "Parent/teacher-completed profile assessing executive function, working memory, reasoning, applied academic skills, time and measurement concepts, social-cognitive reasoning, and life skills. Part of the ReMynd Child Development Profile (CDP) battery.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher"],
+    scoringType: "manual",
+    domains: ["organization_planning", "working_memory", "reasoning", "applied_academic", "time_measurement", "social_cognitive", "independence"],
+    formItems: CDP_CL_FORM,
+    scoringConfig: { max: 3, thresholds: { low: 75, mild: 50, moderate: 25 }, domains: {
+      organization_planning: { label: "Organization, Planning & Task Initiation", shortLabel: "Planning", narratives: { low: "Strong organizational and planning skills.", mild: "Generally organized with some support needed.", moderate: "Developing planning skills; structured support recommended.", elevated: "Significant difficulties with organization and task initiation." } },
+      working_memory: { label: "Working Memory, Attention & Processing", shortLabel: "Memory", narratives: { low: "Strong working memory and attention.", mild: "Generally attentive with some processing support needed.", moderate: "Developing working memory; scaffolding strategies recommended.", elevated: "Significant working memory and attention difficulties." } },
+      reasoning: { label: "Reasoning, Problem Solving & Cognitive Flexibility", shortLabel: "Reasoning", narratives: { low: "Strong reasoning and flexible thinking.", mild: "Generally applies reasoning with some support.", moderate: "Developing problem-solving flexibility; targeted support recommended.", elevated: "Significant difficulties with reasoning and cognitive flexibility." } },
+      applied_academic: { label: "Applied Academic & Functional Skills", shortLabel: "Academic", narratives: { low: "Strong functional academic skills.", mild: "Generally applies academic skills with some support.", moderate: "Emerging applied skills; concrete and functional teaching recommended.", elevated: "Significant gaps in applied academic and functional skills." } },
+      time_measurement: { label: "Time, Measurement & Quantitative Concepts", shortLabel: "Numeracy", narratives: { low: "Strong numeracy and measurement skills.", mild: "Generally understands time and measurement with some support.", moderate: "Developing quantitative concepts; hands-on teaching recommended.", elevated: "Significant difficulties with time, measurement, and numeracy." } },
+      social_cognitive: { label: "Social-Cognitive Reasoning & Decision Making", shortLabel: "Decision Making", narratives: { low: "Strong social reasoning and decision making.", mild: "Generally applies social reasoning with some support.", moderate: "Developing social-cognitive skills; structured guidance recommended.", elevated: "Significant difficulties with social decision making." } },
+      independence: { label: "Independence, Responsibility & Life Skills", shortLabel: "Life Skills", narratives: { low: "Strong independence and life skills.", mild: "Generally responsible with some life skills support.", moderate: "Developing independence; structured skill-building recommended.", elevated: "Significant support needed for independence and life skills." } },
+    } },
+  },
+  {
+    id: "CDP-CI",
+    name: "CDP — Communication and Interaction",
+    category: "development",
+    description: "Parent/teacher-completed profile assessing attention, comprehension, expressive communication, social skills, social awareness, and social initiation. Includes strength items. Part of the ReMynd Child Development Profile (CDP) battery.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher"],
+    scoringType: "manual",
+    domains: ["attention_listening", "gestural_cues", "comprehension", "expressive_communication", "social_skills", "social_awareness", "social_initiation", "strengths"],
+    formItems: CDP_CI_FORM,
+    scoringConfig: { max: 3, thresholds: { low: 75, mild: 50, moderate: 25 }, domains: {
+      attention_listening: { label: "Attention and Listening", shortLabel: "Attention", narratives: { low: "Strong attention and listening skills.", mild: "Generally attentive with some support.", moderate: "Developing attention; structured routines recommended.", elevated: "Significant attention and listening difficulties." } },
+      gestural_cues: { label: "Contextual and Gestural Cues", shortLabel: "Gestural", narratives: { low: "Strong use and understanding of gestural cues.", mild: "Generally understands context with some support.", moderate: "Developing gestural awareness; explicit teaching recommended.", elevated: "Significant difficulties with gestural and contextual cues." } },
+      comprehension: { label: "Comprehension", shortLabel: "Comprehension", narratives: { low: "Strong language comprehension.", mild: "Generally understands language with some support.", moderate: "Developing comprehension; simplified language recommended.", elevated: "Significant comprehension difficulties." } },
+      expressive_communication: { label: "Expressive Communication", shortLabel: "Expressive", narratives: { low: "Strong expressive communication.", mild: "Generally communicates with some support.", moderate: "Developing expressive language; AAC supports may help.", elevated: "Significant expressive communication difficulties." } },
+      social_skills: { label: "Social Skills", shortLabel: "Social Skills", narratives: { low: "Strong social skills.", mild: "Generally socially skilled with some support.", moderate: "Developing social skills; structured social teaching recommended.", elevated: "Significant social skills difficulties." } },
+      social_awareness: { label: "Social Awareness", shortLabel: "Awareness", narratives: { low: "Strong social awareness.", mild: "Generally socially aware with some support.", moderate: "Developing social awareness; explicit instruction recommended.", elevated: "Significant social awareness difficulties." } },
+      social_initiation: { label: "Social Initiation", shortLabel: "Initiation", narratives: { low: "Initiates social interactions independently.", mild: "Generally initiates with some prompting.", moderate: "Limited social initiation; supported social opportunities recommended.", elevated: "Significant social initiation difficulties." } },
+      strengths: { label: "Strength Items", shortLabel: "Strengths", narratives: { low: "Demonstrates strong social strengths.", mild: "Shows emerging social strengths.", moderate: "Limited social strengths observed.", elevated: "Significant social support needs identified." } },
+    } },
+  },
+  {
+    id: "CDP-SI",
+    name: "CDP — Social Interaction and Social Awareness",
+    category: "development",
+    description: "Parent/teacher-completed profile assessing peer relationships, privacy, empathy, friendship, assertiveness, conflict resolution, social norms, independence, and safety awareness. Part of the ReMynd Child Development Profile (CDP) battery.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher"],
+    scoringType: "manual",
+    domains: ["peer_interaction", "safety_awareness", "empathy_emotions", "social_norms", "self_advocacy", "friendship", "conflict_resolution"],
+    formItems: CDP_SI_FORM,
+    scoringConfig: { max: 3, thresholds: { low: 75, mild: 50, moderate: 25 }, domains: {
+      peer_interaction: { label: "Peer Interaction", shortLabel: "Peers", narratives: { low: "Strong peer interaction skills.", mild: "Generally interacts with peers with some support.", moderate: "Developing peer skills; structured opportunities recommended.", elevated: "Significant difficulties with peer interaction." } },
+      safety_awareness: { label: "Safety and Privacy Awareness", shortLabel: "Safety", narratives: { low: "Strong safety and privacy awareness.", mild: "Generally safety aware with some support.", moderate: "Developing safety awareness; explicit teaching recommended.", elevated: "Significant safety awareness difficulties." } },
+      empathy_emotions: { label: "Empathy and Emotional Understanding", shortLabel: "Empathy", narratives: { low: "Strong empathy and emotional understanding.", mild: "Generally empathetic with some support.", moderate: "Developing empathy; social stories and role play recommended.", elevated: "Significant difficulties with empathy and emotional understanding." } },
+      social_norms: { label: "Social Norms and Behaviors", shortLabel: "Norms", narratives: { low: "Strong understanding of social norms.", mild: "Generally follows norms with some support.", moderate: "Developing social norms; explicit rule teaching recommended.", elevated: "Significant difficulties with social norms and expected behaviors." } },
+      self_advocacy: { label: "Self-Advocacy and Assertiveness", shortLabel: "Advocacy", narratives: { low: "Strong self-advocacy skills.", mild: "Generally advocates with some support.", moderate: "Developing self-advocacy; assertiveness coaching recommended.", elevated: "Significant self-advocacy difficulties." } },
+      friendship: { label: "Friendship and Relationships", shortLabel: "Friendship", narratives: { low: "Forms and maintains friendships independently.", mild: "Generally makes friends with some support.", moderate: "Developing friendship skills; structured social support recommended.", elevated: "Significant difficulties forming and maintaining friendships." } },
+      conflict_resolution: { label: "Conflict Resolution", shortLabel: "Conflict", narratives: { low: "Strong conflict resolution skills.", mild: "Generally resolves conflict with some support.", moderate: "Developing conflict skills; mediation strategies recommended.", elevated: "Significant difficulties with conflict resolution." } },
+    } },
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
+
+const CDP_BATTERY_ID = "CDP";
 
 // Silently translate a canonical tool and persist the result to the DB
 async function autoTranslateCanonicalTool(toolId: string, formItems: any[]) {
@@ -563,6 +648,39 @@ async function seedIfEmpty() {
   }
 }
 
+const CANONICAL_BATTERIES: (typeof batteriesTable.$inferInsert)[] = [
+  {
+    id: CDP_BATTERY_ID,
+    name: "ReMynd Child Development Profile (CDP)",
+    description: "A comprehensive parent/teacher-completed battery covering four developmental domains: Cognition & Learning, Social Interaction, Self-Regulation, and Communication & Interaction. Designed for children aged 5–18 to identify developmental profiles and intervention priorities.",
+    toolIds: ["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"],
+    isRemyndOwned: true,
+    domains: ["cognition_learning", "social_interaction", "self_regulation", "communication_interaction"],
+    scoringNotes: "Each domain is scored on a 0–3 scale (Never=0, Rarely=1, Often=2, Always=3). Domain scores are expressed as a percentage of maximum possible score. Higher scores indicate stronger functioning. Thresholds: Typical ≥75%, Mild Concern 50–74%, Moderate Concern 25–49%, Significant Concern <25%.",
+  },
+];
+
+async function syncBatteries() {
+  try {
+    for (const battery of CANONICAL_BATTERIES) {
+      await db.insert(batteriesTable).values(battery).onConflictDoUpdate({
+        target: batteriesTable.id,
+        set: {
+          name: battery.name,
+          description: battery.description,
+          toolIds: battery.toolIds,
+          isRemyndOwned: battery.isRemyndOwned,
+          domains: battery.domains,
+          scoringNotes: battery.scoringNotes ?? null,
+        },
+      });
+    }
+    logger.info({ count: CANONICAL_BATTERIES.length }, "Batteries synced");
+  } catch (err) {
+    logger.error({ err }, "Failed to sync batteries");
+  }
+}
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
@@ -577,7 +695,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-Promise.all([seedIfEmpty(), syncTools()]).then(() => {
+Promise.all([seedIfEmpty(), syncTools(), syncBatteries()]).then(() => {
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

@@ -18,9 +18,14 @@ import type {
 
 import type {
   AssessmentTool,
+  AssignBatteryRequest,
+  AssignBatteryResponse,
   Assignment,
+  Battery,
+  BatteryDetail,
   Case,
   CaseDetail,
+  CdpProfile,
   CreateAssessmentToolRequest,
   CreateAssignmentRequest,
   CreateCaseRequest,
@@ -2930,6 +2935,346 @@ export function useGetDashboardStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDashboardStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all assessment batteries
+ */
+export const getListBatteriesUrl = () => {
+  return `/api/batteries`;
+};
+
+export const listBatteries = async (
+  options?: RequestInit,
+): Promise<Battery[]> => {
+  return customFetch<Battery[]>(getListBatteriesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBatteriesQueryKey = () => {
+  return [`/api/batteries`] as const;
+};
+
+export const getListBatteriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBatteries>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBatteries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListBatteriesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBatteries>>> = ({
+    signal,
+  }) => listBatteries({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBatteries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBatteriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBatteries>>
+>;
+export type ListBatteriesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all assessment batteries
+ */
+
+export function useListBatteries<
+  TData = Awaited<ReturnType<typeof listBatteries>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBatteries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBatteriesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a single battery with its tools
+ */
+export const getGetBatteryUrl = (id: string) => {
+  return `/api/batteries/${id}`;
+};
+
+export const getBattery = async (
+  id: string,
+  options?: RequestInit,
+): Promise<BatteryDetail> => {
+  return customFetch<BatteryDetail>(getGetBatteryUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBatteryQueryKey = (id: string) => {
+  return [`/api/batteries/${id}`] as const;
+};
+
+export const getGetBatteryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBattery>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBattery>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBatteryQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBattery>>> = ({
+    signal,
+  }) => getBattery(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBattery>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBatteryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBattery>>
+>;
+export type GetBatteryQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single battery with its tools
+ */
+
+export function useGetBattery<
+  TData = Awaited<ReturnType<typeof getBattery>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBattery>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBatteryQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Assign all tools in a battery to a case (bulk create assignments)
+ */
+export const getAssignBatteryUrl = (caseId: string, batteryId: string) => {
+  return `/api/cases/${caseId}/batteries/${batteryId}/assign`;
+};
+
+export const assignBattery = async (
+  caseId: string,
+  batteryId: string,
+  assignBatteryRequest: AssignBatteryRequest,
+  options?: RequestInit,
+): Promise<AssignBatteryResponse> => {
+  return customFetch<AssignBatteryResponse>(
+    getAssignBatteryUrl(caseId, batteryId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(assignBatteryRequest),
+    },
+  );
+};
+
+export const getAssignBatteryMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignBattery>>,
+    TError,
+    { caseId: string; batteryId: string; data: BodyType<AssignBatteryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignBattery>>,
+  TError,
+  { caseId: string; batteryId: string; data: BodyType<AssignBatteryRequest> },
+  TContext
+> => {
+  const mutationKey = ["assignBattery"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignBattery>>,
+    { caseId: string; batteryId: string; data: BodyType<AssignBatteryRequest> }
+  > = (props) => {
+    const { caseId, batteryId, data } = props ?? {};
+
+    return assignBattery(caseId, batteryId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignBatteryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignBattery>>
+>;
+export type AssignBatteryMutationBody = BodyType<AssignBatteryRequest>;
+export type AssignBatteryMutationError = ErrorType<void>;
+
+/**
+ * @summary Assign all tools in a battery to a case (bulk create assignments)
+ */
+export const useAssignBattery = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignBattery>>,
+    TError,
+    { caseId: string; batteryId: string; data: BodyType<AssignBatteryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignBattery>>,
+  TError,
+  { caseId: string; batteryId: string; data: BodyType<AssignBatteryRequest> },
+  TContext
+> => {
+  return useMutation(getAssignBatteryMutationOptions(options));
+};
+
+/**
+ * @summary Get CDP Battery composite profile for a case
+ */
+export const getGetCdpProfileUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/cdp/profile`;
+};
+
+export const getCdpProfile = async (
+  caseId: string,
+  options?: RequestInit,
+): Promise<CdpProfile> => {
+  return customFetch<CdpProfile>(getGetCdpProfileUrl(caseId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCdpProfileQueryKey = (caseId: string) => {
+  return [`/api/cases/${caseId}/cdp/profile`] as const;
+};
+
+export const getGetCdpProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCdpProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCdpProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCdpProfileQueryKey(caseId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCdpProfile>>> = ({
+    signal,
+  }) => getCdpProfile(caseId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!caseId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCdpProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCdpProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCdpProfile>>
+>;
+export type GetCdpProfileQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get CDP Battery composite profile for a case
+ */
+
+export function useGetCdpProfile<
+  TData = Awaited<ReturnType<typeof getCdpProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCdpProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCdpProfileQueryOptions(caseId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -8,6 +8,8 @@ import {
   useDeleteAssignment,
   useUpdateCase,
   useGetCurrentUser,
+  useListBatteries,
+  useAssignBattery,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +119,39 @@ export default function CaseDetail() {
   });
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
+  const [cdpModalOpen, setCdpModalOpen] = useState(false);
+  const [cdpAssignee, setCdpAssignee] = useState({ name: "", email: "", respondentType: "parent" as string });
+  const [cdpAssigning, setCdpAssigning] = useState(false);
+
+  useListBatteries(); // preload batteries
+  const assignBatteryMut = useAssignBattery();
+
+  const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
+  const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
+
+  const handleAssignCDP = async () => {
+    setCdpAssigning(true);
+    try {
+      await assignBatteryMut.mutateAsync({
+        caseId,
+        batteryId: "CDP",
+        data: {
+          respondentType: cdpAssignee.respondentType,
+          respondentLabel: cdpAssignee.respondentType,
+          assignedToName: cdpAssignee.name || undefined,
+          assignedToEmail: cdpAssignee.email || undefined,
+        }
+      });
+      toast({ title: "CDP Battery assigned", description: "4 assessment forms have been added to this case." });
+      setCdpModalOpen(false);
+      setCdpAssignee({ name: "", email: "", respondentType: "parent" });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    } catch {
+      toast({ title: "Failed to assign CDP Battery", variant: "destructive" });
+    } finally {
+      setCdpAssigning(false);
+    }
+  };
 
   if (isLoading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
@@ -519,6 +554,19 @@ export default function CaseDetail() {
                     <Send size={13} className="mr-1.5" /> Distribute Forms
                   </Button>
                 )}
+                {hasCdpBattery ? (
+                  <Link href={`/cases/${caseId}/cdp`}>
+                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
+                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">CDP</span>
+                      View Profile
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setCdpModalOpen(true)} className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
+                    <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded mr-0.5">CDP</span>
+                    Assign Battery
+                  </Button>
+                )}
                 <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
               </div>
             </CardHeader>
@@ -538,6 +586,11 @@ export default function CaseDetail() {
                         <div className="flex items-center gap-3 mb-1">
                           <h4 className="font-semibold text-slate-900">{a.toolName}</h4>
                           {getStatusBadge(a.status)}
+                          {CDP_TOOL_IDS.has(a.toolId ?? "") && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-100 text-violet-700 border border-violet-200 uppercase tracking-wide">
+                              CDP
+                            </span>
+                          )}
                           {a.respondentType === "invigilator" && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 uppercase tracking-wide">
                               Post-Assessment
@@ -923,6 +976,69 @@ export default function CaseDetail() {
             <Button variant="outline" className="flex-1" onClick={() => setDeleteCaseOpen(false)} disabled={deleteLoading}>Cancel</Button>
             <Button variant="destructive" className="flex-1" onClick={handleDeleteCase} disabled={deleteLoading}>
               {deleteLoading ? "Deleting..." : "Delete Case"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CDP Battery Assignment Modal */}
+      <Dialog open={cdpModalOpen} onOpenChange={setCdpModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">CDP</span>
+              Assign ReMynd Child Development Profile
+            </DialogTitle>
+            <DialogDescription>
+              This will create 4 assessment forms for this case: Cognition &amp; Learning, Social Interaction, Self-Regulation, and Communication &amp; Interaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Type</label>
+              <select
+                value={cdpAssignee.respondentType}
+                onChange={e => setCdpAssignee(p => ({ ...p, respondentType: e.target.value }))}
+                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
+              >
+                <option value="parent">Parent / Guardian</option>
+                <option value="teacher1">Class Teacher</option>
+                <option value="teacher2">Support Teacher</option>
+                <option value="special_needs_teacher">Special Needs Teacher</option>
+                <option value="school_counselor">School Counselor</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Name <span className="text-slate-400 font-normal">(optional)</span></label>
+              <Input
+                placeholder="e.g., Ms. Sarah Chen"
+                value={cdpAssignee.name}
+                onChange={e => setCdpAssignee(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Email <span className="text-slate-400 font-normal">(optional)</span></label>
+              <Input
+                type="email"
+                placeholder="e.g., sarah@school.edu"
+                value={cdpAssignee.email}
+                onChange={e => setCdpAssignee(p => ({ ...p, email: e.target.value }))}
+              />
+            </div>
+            <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm text-violet-700">
+              <p className="font-medium mb-1">What will be created:</p>
+              <ul className="space-y-0.5 text-violet-600 text-[13px]">
+                <li>• CDP — Cognition &amp; Learning (98 items)</li>
+                <li>• CDP — Social Interaction &amp; Awareness (80 items)</li>
+                <li>• CDP — Self-Regulation &amp; Executive Function (68 items)</li>
+                <li>• CDP — Communication &amp; Interaction (68 items)</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setCdpModalOpen(false)} disabled={cdpAssigning}>Cancel</Button>
+            <Button onClick={handleAssignCDP} disabled={cdpAssigning} className="bg-violet-600 hover:bg-violet-700">
+              {cdpAssigning ? "Assigning..." : "Assign 4 Forms"}
             </Button>
           </div>
         </DialogContent>

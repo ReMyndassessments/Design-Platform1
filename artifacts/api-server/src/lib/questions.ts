@@ -15,6 +15,7 @@ export interface FormQuestion {
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
+  reversed?: boolean;
 }
 
 const LIKERT_OPTIONS = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];

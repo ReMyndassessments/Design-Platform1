@@ -580,6 +580,86 @@ export interface DashboardStats {
   recentCases: Case[];
 }
 
+export interface Battery {
+  id: string;
+  name: string;
+  description: string;
+  toolIds: string[];
+  isRemyndOwned: boolean;
+  domains: string[];
+  scoringNotes?: string | null;
+}
+
+export interface BatteryTool {
+  id: string;
+  name: string;
+  description: string;
+  domains: string[];
+}
+
+export type BatteryDetail = Battery & {
+  tools: BatteryTool[];
+};
+
+export interface AssignBatteryRequest {
+  respondentType?: string;
+  respondentLabel?: string;
+  assignedToName?: string;
+  assignedToEmail?: string;
+  dueDate?: string | null;
+}
+
+export interface AssignBatteryResponse {
+  assignments: Assignment[];
+  batteryId: string;
+  count: number;
+}
+
+export type CdpFormScoreDomainScores = { [key: string]: number };
+
+export type CdpFormScoreNormalizedScores = { [key: string]: number };
+
+export interface CdpFormScore {
+  rawScore: number;
+  domainScores: CdpFormScoreDomainScores;
+  normalizedScores: CdpFormScoreNormalizedScores;
+  scoredAt?: string | null;
+}
+
+export interface CdpFormAssignmentSummary {
+  id: string;
+  status: string;
+  respondentType: string;
+  respondentLabel?: string | null;
+  assignedToName?: string | null;
+  assignedToEmail?: string | null;
+}
+
+export type CdpFormResultStatus =
+  (typeof CdpFormResultStatus)[keyof typeof CdpFormResultStatus];
+
+export const CdpFormResultStatus = {
+  not_assigned: "not_assigned",
+  pending: "pending",
+  completed: "completed",
+} as const;
+
+export type CdpFormResultScoringConfig = { [key: string]: unknown } | null;
+
+export interface CdpFormResult {
+  toolId: string;
+  toolName: string;
+  status: CdpFormResultStatus;
+  assignments: CdpFormAssignmentSummary[];
+  score?: CdpFormScore | null;
+  scoringConfig?: CdpFormResultScoringConfig;
+}
+
+export interface CdpProfile {
+  caseId: string;
+  forms: CdpFormResult[];
+}
+
 export type ListCasesParams = {
   status?: string;
   phase?: string;

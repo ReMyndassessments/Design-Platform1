@@ -938,3 +938,102 @@ export const GetDashboardStatsResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary List all assessment batteries
+ */
+export const ListBatteriesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  toolIds: zod.array(zod.string()),
+  isRemyndOwned: zod.boolean(),
+  domains: zod.array(zod.string()),
+  scoringNotes: zod.string().nullish(),
+});
+export const ListBatteriesResponse = zod.array(ListBatteriesResponseItem);
+
+/**
+ * @summary Get a single battery with its tools
+ */
+export const GetBatteryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetBatteryResponse = zod
+  .object({
+    id: zod.string(),
+    name: zod.string(),
+    description: zod.string(),
+    toolIds: zod.array(zod.string()),
+    isRemyndOwned: zod.boolean(),
+    domains: zod.array(zod.string()),
+    scoringNotes: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      tools: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          description: zod.string(),
+          domains: zod.array(zod.string()),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Assign all tools in a battery to a case (bulk create assignments)
+ */
+export const AssignBatteryParams = zod.object({
+  caseId: zod.coerce.string(),
+  batteryId: zod.coerce.string(),
+});
+
+export const assignBatteryBodyRespondentTypeDefault = `parent`;
+
+export const AssignBatteryBody = zod.object({
+  respondentType: zod.string().default(assignBatteryBodyRespondentTypeDefault),
+  respondentLabel: zod.string().optional(),
+  assignedToName: zod.string().optional(),
+  assignedToEmail: zod.string().optional(),
+  dueDate: zod.date().nullish(),
+});
+
+/**
+ * @summary Get CDP Battery composite profile for a case
+ */
+export const GetCdpProfileParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const GetCdpProfileResponse = zod.object({
+  caseId: zod.string(),
+  forms: zod.array(
+    zod.object({
+      toolId: zod.string(),
+      toolName: zod.string(),
+      status: zod.enum(["not_assigned", "pending", "completed"]),
+      assignments: zod.array(
+        zod.object({
+          id: zod.string(),
+          status: zod.string(),
+          respondentType: zod.string(),
+          respondentLabel: zod.string().nullish(),
+          assignedToName: zod.string().nullish(),
+          assignedToEmail: zod.string().nullish(),
+        }),
+      ),
+      score: zod
+        .object({
+          rawScore: zod.number(),
+          domainScores: zod.record(zod.string(), zod.number()),
+          normalizedScores: zod.record(zod.string(), zod.number()),
+          scoredAt: zod.string().nullish(),
+        })
+        .nullish(),
+      scoringConfig: zod.object({}).passthrough().nullish(),
+    }),
+  ),
+});
