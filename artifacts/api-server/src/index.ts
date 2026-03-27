@@ -4,6 +4,8 @@ import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM } from "./lib/questions.js";
+import { translateFormItemsWithAI } from "./lib/ai.js";
+import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -447,9 +449,64 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
 
-async function syncTools() {
+// Silently translate a canonical tool and persist the result to the DB
+async function autoTranslateCanonicalTool(toolId: string, formItems: any[]) {
   try {
+    logger.info({ toolId }, "Auto-translating canonical tool");
+    const translated = await translateFormItemsWithAI(formItems as any);
+    if (!translated?.length) return;
+    await db.update(assessmentToolsTable)
+      .set({ formItems: translated as any })
+      .where(eq(assessmentToolsTable.id, toolId));
+    logger.info({ toolId }, "Canonical tool translations applied");
+  } catch (err) {
+    logger.error({ err, toolId }, "Auto-translation failed for canonical tool");
+  }
+}
+
+// Merge translations stored in the DB into the canonical English definition so
+// they are not lost when the server restarts with updated code.
+function mergeTranslations(canonical: any[], stored: any[]): any[] {
+  const byId = new Map(stored.map((item: any) => [item.id, item]));
+  return canonical.map(item => {
+    const s = byId.get(item.id) as any;
+    if (!s) return item;
+    return {
+      ...item,
+      textChinese:    s.textChinese    || item.textChinese    || "",
+      textKorean:     s.textKorean     || item.textKorean     || "",
+      optionsChinese: s.optionsChinese?.length ? s.optionsChinese : (item.optionsChinese ?? []),
+      optionsKorean:  s.optionsKorean?.length  ? s.optionsKorean  : (item.optionsKorean  ?? []),
+    };
+  });
+}
+
+function itemsMissingTranslations(items: any[]): boolean {
+  return items.some(item =>
+    (!item.textChinese || !item.textKorean) ||
+    (item.options?.length > 0 && (!item.optionsChinese?.length || !item.optionsKorean?.length))
+  );
+}
+
+async function syncTools() {
+  // Fetch all existing records once so we can preserve translations
+  const existing = await db.select().from(assessmentToolsTable);
+  const existingById = new Map(existing.map(r => [r.id, r]));
+
+  try {
+    const needsTranslation: Array<{ id: string; items: any[] }> = [];
+
     for (const tool of CANONICAL_TOOLS) {
+      const stored = existingById.get(tool.id as string);
+      const storedItems = stored?.formItems as any[] | null;
+
+      // Merge DB translations back into the canonical definition
+      const mergedItems = tool.formItems
+        ? storedItems?.length
+          ? mergeTranslations(tool.formItems as any[], storedItems)
+          : tool.formItems
+        : null;
+
       await db.insert(assessmentToolsTable).values(tool).onConflictDoUpdate({
         target: assessmentToolsTable.id,
         set: {
@@ -461,12 +518,26 @@ async function syncTools() {
           scoringType: tool.scoringType,
           domains: tool.domains,
           scoringConfig: tool.scoringConfig ?? null,
-          formItems: tool.formItems ?? null,
+          formItems: mergedItems ?? null,
         },
       });
+
+      // Queue translation if any items are still missing Chinese/Korean
+      if (mergedItems && itemsMissingTranslations(mergedItems)) {
+        needsTranslation.push({ id: tool.id as string, items: mergedItems });
+      }
     }
 
     logger.info({ count: CANONICAL_TOOLS.length }, "Assessment tools synced");
+
+    // Run translations in the background — one at a time to avoid rate limits
+    if (needsTranslation.length > 0) {
+      (async () => {
+        for (const { id, items } of needsTranslation) {
+          await autoTranslateCanonicalTool(id, items);
+        }
+      })().catch(() => {/* already logged inside */});
+    }
   } catch (err) {
     logger.error({ err }, "Failed to sync assessment tools");
   }
