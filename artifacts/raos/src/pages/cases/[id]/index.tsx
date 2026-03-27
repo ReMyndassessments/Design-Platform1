@@ -124,8 +124,8 @@ export default function CaseDetail() {
 
   const CDP_RESPONDENT_OPTIONS = [
     { value: "parent",               label: "Parent / Guardian" },
-    { value: "teacher1",             label: "Class Teacher" },
-    { value: "teacher2",             label: "Support Teacher" },
+    { value: "teacher1",             label: "Class Teacher 1" },
+    { value: "teacher2",             label: "Class Teacher 2" },
     { value: "special_needs_teacher",label: "Special Needs Teacher" },
     { value: "school_counselor",     label: "School Counselor" },
   ];
