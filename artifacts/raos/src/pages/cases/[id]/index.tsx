@@ -120,8 +120,25 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [cdpModalOpen, setCdpModalOpen] = useState(false);
-  const [cdpAssignee, setCdpAssignee] = useState({ name: "", email: "", respondentType: "parent" as string });
   const [cdpAssigning, setCdpAssigning] = useState(false);
+
+  const CDP_RESPONDENT_OPTIONS = [
+    { value: "parent",               label: "Parent / Guardian" },
+    { value: "teacher1",             label: "Class Teacher" },
+    { value: "teacher2",             label: "Support Teacher" },
+    { value: "special_needs_teacher",label: "Special Needs Teacher" },
+    { value: "school_counselor",     label: "School Counselor" },
+  ];
+  type CdpRespondentRow = { respondentType: string; name: string; email: string; selected: boolean };
+  const defaultCdpRespondents = (): CdpRespondentRow[] =>
+    CDP_RESPONDENT_OPTIONS.map(o => ({ respondentType: o.value, name: "", email: "", selected: o.value === "parent" }));
+  const [cdpRespondents, setCdpRespondents] = useState<CdpRespondentRow[]>(defaultCdpRespondents);
+
+  const toggleCdpRespondent = (value: string) =>
+    setCdpRespondents(prev => prev.map(r => r.respondentType === value ? { ...r, selected: !r.selected } : r));
+  const updateCdpRespondent = (value: string, field: "name" | "email", val: string) =>
+    setCdpRespondents(prev => prev.map(r => r.respondentType === value ? { ...r, [field]: val } : r));
+  const selectedCdpRespondents = cdpRespondents.filter(r => r.selected);
 
   useListBatteries(); // preload batteries
   const assignBatteryMut = useAssignBattery();
@@ -130,21 +147,25 @@ export default function CaseDetail() {
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
   const handleAssignCDP = async () => {
+    if (selectedCdpRespondents.length === 0) return;
     setCdpAssigning(true);
     try {
-      await assignBatteryMut.mutateAsync({
-        caseId,
-        batteryId: "CDP",
-        data: {
-          respondentType: cdpAssignee.respondentType,
-          respondentLabel: cdpAssignee.respondentType,
-          assignedToName: cdpAssignee.name || undefined,
-          assignedToEmail: cdpAssignee.email || undefined,
-        }
-      });
-      toast({ title: "CDP Battery assigned", description: "4 assessment forms have been added to this case." });
+      for (const r of selectedCdpRespondents) {
+        await assignBatteryMut.mutateAsync({
+          caseId,
+          batteryId: "CDP",
+          data: {
+            respondentType: r.respondentType,
+            respondentLabel: r.respondentType,
+            assignedToName: r.name || undefined,
+            assignedToEmail: r.email || undefined,
+          }
+        });
+      }
+      const total = selectedCdpRespondents.length * 4;
+      toast({ title: "CDP Battery assigned", description: `${total} assessment form${total > 1 ? "s" : ""} added for ${selectedCdpRespondents.length} respondent${selectedCdpRespondents.length > 1 ? "s" : ""}.` });
       setCdpModalOpen(false);
-      setCdpAssignee({ name: "", email: "", respondentType: "parent" });
+      setCdpRespondents(defaultCdpRespondents());
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
     } catch {
       toast({ title: "Failed to assign CDP Battery", variant: "destructive" });
@@ -982,63 +1003,96 @@ export default function CaseDetail() {
       </Dialog>
 
       {/* CDP Battery Assignment Modal */}
-      <Dialog open={cdpModalOpen} onOpenChange={setCdpModalOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog open={cdpModalOpen} onOpenChange={open => { if (!open) { setCdpRespondents(defaultCdpRespondents()); } setCdpModalOpen(open); }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">CDP</span>
               Assign ReMynd Child Development Profile
             </DialogTitle>
             <DialogDescription>
-              This will create 4 assessment forms for this case: Cognition &amp; Learning, Social Interaction, Self-Regulation, and Communication &amp; Interaction.
+              Select one or more respondents. Each respondent will receive all 4 CDP forms.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Type</label>
-              <select
-                value={cdpAssignee.respondentType}
-                onChange={e => setCdpAssignee(p => ({ ...p, respondentType: e.target.value }))}
-                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-300"
-              >
-                <option value="parent">Parent / Guardian</option>
-                <option value="teacher1">Class Teacher</option>
-                <option value="teacher2">Support Teacher</option>
-                <option value="special_needs_teacher">Special Needs Teacher</option>
-                <option value="school_counselor">School Counselor</option>
-              </select>
+          <div className="py-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Select Respondents</p>
+            <div className="space-y-2">
+              {cdpRespondents.map(r => {
+                const opt = CDP_RESPONDENT_OPTIONS.find(o => o.value === r.respondentType)!;
+                return (
+                  <div key={r.respondentType} className={`rounded-lg border transition-colors ${r.selected ? "border-violet-200 bg-violet-50/60" : "border-slate-100 bg-white"}`}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none"
+                      onClick={() => toggleCdpRespondent(r.respondentType)}
+                      onKeyDown={e => e.key === "Enter" && toggleCdpRespondent(r.respondentType)}
+                    >
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${r.selected ? "bg-violet-600 border-violet-600" : "border-slate-300 bg-white"}`}>
+                        {r.selected && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8">
+                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`text-sm font-medium ${r.selected ? "text-violet-900" : "text-slate-700"}`}>{opt.label}</span>
+                      {r.selected && (
+                        <span className="ml-auto text-[11px] text-violet-500">4 forms</span>
+                      )}
+                    </div>
+                    {r.selected && (
+                      <div className="px-3 pb-3 grid grid-cols-2 gap-2" onClick={e => e.stopPropagation()}>
+                        <div>
+                          <label className="text-[11px] text-slate-500 block mb-1">Name <span className="text-slate-400">(optional)</span></label>
+                          <Input
+                            className="h-7 text-xs"
+                            placeholder="e.g., Ms. Chen"
+                            value={r.name}
+                            onChange={e => updateCdpRespondent(r.respondentType, "name", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500 block mb-1">Email <span className="text-slate-400">(optional)</span></label>
+                          <Input
+                            className="h-7 text-xs"
+                            type="email"
+                            placeholder="e.g., chen@school.edu"
+                            value={r.email}
+                            onChange={e => updateCdpRespondent(r.respondentType, "email", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Name <span className="text-slate-400 font-normal">(optional)</span></label>
-              <Input
-                placeholder="e.g., Ms. Sarah Chen"
-                value={cdpAssignee.name}
-                onChange={e => setCdpAssignee(p => ({ ...p, name: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Respondent Email <span className="text-slate-400 font-normal">(optional)</span></label>
-              <Input
-                type="email"
-                placeholder="e.g., sarah@school.edu"
-                value={cdpAssignee.email}
-                onChange={e => setCdpAssignee(p => ({ ...p, email: e.target.value }))}
-              />
-            </div>
-            <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm text-violet-700">
-              <p className="font-medium mb-1">What will be created:</p>
-              <ul className="space-y-0.5 text-violet-600 text-[13px]">
-                <li>• CDP — Cognition &amp; Learning (98 items)</li>
-                <li>• CDP — Social Interaction &amp; Awareness (80 items)</li>
-                <li>• CDP — Self-Regulation &amp; Executive Function (68 items)</li>
-                <li>• CDP — Communication &amp; Interaction (68 items)</li>
-              </ul>
-            </div>
+
+            {selectedCdpRespondents.length > 0 && (
+              <div className="mt-3 bg-violet-50 border border-violet-100 rounded-lg p-3">
+                <p className="text-[12px] font-semibold text-violet-700 mb-1">
+                  {selectedCdpRespondents.length * 4} forms will be created
+                  <span className="font-normal text-violet-500"> ({selectedCdpRespondents.length} respondent{selectedCdpRespondents.length > 1 ? "s" : ""} × 4 forms each)</span>
+                </p>
+                <ul className="text-[11px] text-violet-500 space-y-0.5">
+                  <li>• CDP — Cognition &amp; Learning</li>
+                  <li>• CDP — Social Interaction &amp; Awareness</li>
+                  <li>• CDP — Self-Regulation &amp; Executive Function</li>
+                  <li>• CDP — Communication &amp; Interaction</li>
+                </ul>
+              </div>
+            )}
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={() => setCdpModalOpen(false)} disabled={cdpAssigning}>Cancel</Button>
-            <Button onClick={handleAssignCDP} disabled={cdpAssigning} className="bg-violet-600 hover:bg-violet-700">
-              {cdpAssigning ? "Assigning..." : "Assign 4 Forms"}
+            <Button
+              onClick={handleAssignCDP}
+              disabled={cdpAssigning || selectedCdpRespondents.length === 0}
+              className="bg-violet-600 hover:bg-violet-700"
+            >
+              {cdpAssigning
+                ? "Assigning..."
+                : `Assign ${selectedCdpRespondents.length > 0 ? `${selectedCdpRespondents.length * 4} Forms` : "Forms"}`}
             </Button>
           </div>
         </DialogContent>
