@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -448,6 +448,70 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["social_emotional", "cognitive_physical"],
     formItems: RSSC_FORM,
+  },
+  {
+    id: "RSCP",
+    name: "ReMynd Social Competency Profile (RSCP)",
+    category: "social-emotional",
+    description: "Multi-informant observer rating scale assessing social competency across five domains: Peer Relationships, Social Communication, Cooperative Behavior, Empathy & Perspective-Taking, and Conflict Resolution. 20 items on a 5-point frequency scale. Parent and teacher versions. Suitable for students K–12.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "teacher1", "teacher2"],
+    scoringType: "auto",
+    domains: ["peer_relationships", "social_communication", "cooperative_behavior", "empathy_perspective", "conflict_resolution"],
+    scoringConfig: {
+      max: 4,
+      thresholds: { low: 30, mild: 55, moderate: 75 },
+      domains: {
+        peer_relationships: { label: "Peer Relationships", shortLabel: "Peers", narratives: { low: "Demonstrates strong peer relationship skills and social inclusion.", mild: "Generally positive peer relationships with some areas for development.", moderate: "Peer relationship difficulties that benefit from targeted social support.", elevated: "Significant challenges forming and maintaining peer relationships." } },
+        social_communication: { label: "Social Communication", shortLabel: "Communication", narratives: { low: "Communicates effectively across a range of social contexts.", mild: "Mostly effective social communication with some situational challenges.", moderate: "Social communication difficulties impacting peer interaction and understanding.", elevated: "Significant social communication challenges requiring structured intervention." } },
+        cooperative_behavior: { label: "Cooperative Behavior", shortLabel: "Cooperation", narratives: { low: "Works cooperatively and follows group rules consistently.", mild: "Generally cooperative with occasional difficulties in group settings.", moderate: "Cooperation challenges in group contexts; targeted support recommended.", elevated: "Significant difficulties with cooperative group participation." } },
+        empathy_perspective: { label: "Empathy & Perspective-Taking", shortLabel: "Empathy", narratives: { low: "Shows strong empathy and perspective-taking across situations.", mild: "Generally empathic with some inconsistency in perspective-taking.", moderate: "Limited perspective-taking; social cognition support recommended.", elevated: "Significant difficulties recognizing and responding to others' emotional states." } },
+        conflict_resolution: { label: "Conflict Resolution", shortLabel: "Conflict", narratives: { low: "Resolves social conflicts calmly and constructively.", mild: "Generally manages conflicts with occasional escalation.", moderate: "Conflict resolution support recommended; struggles to self-regulate during disputes.", elevated: "Significant difficulties managing and recovering from social conflicts." } },
+      },
+    },
+    formItems: RSCP_FORM,
+  },
+  {
+    id: "RARPS",
+    name: "ReMynd Academic Resilience and Performance Scale (RARPS)",
+    category: "achievement",
+    description: "Multi-informant rating scale assessing academic resilience and performance across four domains: Academic Persistence, Response to Challenge and Setback, Academic Self-Efficacy, and Help-Seeking. 20 items on a 5-point frequency scale. Suitable for students age 8–18. Self-report and teacher versions.",
+    isRemyndOwned: true,
+    respondentTypes: ["self", "teacher1", "teacher2"],
+    scoringType: "auto",
+    domains: ["academic_persistence", "challenge_response", "academic_self_efficacy", "help_seeking"],
+    scoringConfig: {
+      max: 4,
+      thresholds: { low: 30, mild: 55, moderate: 75 },
+      domains: {
+        academic_persistence: { label: "Academic Persistence", shortLabel: "Persistence", narratives: { low: "Demonstrates strong persistence and sustained academic effort.", mild: "Generally persistent with some difficulty on extended or challenging tasks.", moderate: "Academic persistence challenges; structured task support recommended.", elevated: "Significant difficulty sustaining effort on academic tasks; intervention recommended." } },
+        challenge_response: { label: "Response to Challenge & Setback", shortLabel: "Challenge", narratives: { low: "Recovers quickly from academic setbacks and adapts strategies effectively.", mild: "Generally resilient with some difficulty recovering from repeated challenges.", moderate: "Setback response impacts motivation; resilience-building support recommended.", elevated: "Significant difficulty coping with academic failure and setbacks." } },
+        academic_self_efficacy: { label: "Academic Self-Efficacy", shortLabel: "Self-Efficacy", narratives: { low: "Strong belief in academic capability and effort-outcome connection.", mild: "Generally positive academic self-concept with some self-doubt.", moderate: "Self-efficacy challenges impacting academic engagement and risk-taking.", elevated: "Significant academic self-doubt requiring targeted confidence-building support." } },
+        help_seeking: { label: "Help-Seeking & Support Utilization", shortLabel: "Help-Seeking", narratives: { low: "Effectively recognizes need for support and accesses help appropriately.", mild: "Generally seeks help with some inconsistency in support utilization.", moderate: "Help-seeking barriers present; scaffolding for support access recommended.", elevated: "Significant difficulty seeking or accepting academic support." } },
+      },
+    },
+    formItems: RARPS_FORM,
+  },
+  {
+    id: "RFII",
+    name: "ReMynd Functional Impact Index (RFII)",
+    category: "adaptive",
+    description: "Multi-informant rating scale measuring the real-world functional impact of a student's difficulties across four life domains: Academic Functioning, Social Functioning, Daily Living, and Emotional & Behavioural Impact. 20 items on a 5-point frequency scale. Parent and self-report versions. Used to quantify severity and guide intervention priority.",
+    isRemyndOwned: true,
+    respondentTypes: ["parent", "self"],
+    scoringType: "auto",
+    domains: ["academic_impact", "social_impact", "daily_living_impact", "emotional_behavioral_impact"],
+    scoringConfig: {
+      max: 4,
+      thresholds: { low: 20, mild: 45, moderate: 70 },
+      domains: {
+        academic_impact: { label: "Academic Functioning Impact", shortLabel: "Academic", narratives: { low: "Minimal impact on academic functioning; performing within expectations.", mild: "Mild academic impact; some additional support may benefit performance.", moderate: "Moderate academic impact; targeted accommodations and support are recommended.", elevated: "Significant academic impact requiring formal accommodations and specialist involvement." } },
+        social_impact: { label: "Social Functioning Impact", shortLabel: "Social", narratives: { low: "Difficulties have minimal impact on social relationships and participation.", mild: "Mild social impact; peer relationships generally maintained.", moderate: "Moderate social impact; social support and skills intervention recommended.", elevated: "Significant impact on social functioning; social skills program and monitoring recommended." } },
+        daily_living_impact: { label: "Daily Living Impact", shortLabel: "Daily Living", narratives: { low: "Difficulties have minimal impact on daily routines and independence.", mild: "Mild daily living impact; manages routines with occasional support.", moderate: "Moderate impact on daily living; structured routines and support systems recommended.", elevated: "Significant daily living difficulties requiring consistent adult supervision and support." } },
+        emotional_behavioral_impact: { label: "Emotional & Behavioural Impact", shortLabel: "Emotional", narratives: { low: "Minimal emotional or behavioural impact reported across settings.", mild: "Mild emotional impact; generally coping with some stress or frustration evident.", moderate: "Moderate emotional impact; mental health monitoring and wellbeing support recommended.", elevated: "Significant emotional and behavioural impact; specialist mental health assessment recommended." } },
+      },
+    },
+    formItems: RFII_FORM,
   },
   {
     id: "CDP-SR",

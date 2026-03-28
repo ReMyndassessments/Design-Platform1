@@ -74,32 +74,32 @@ const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
     id: "school-snapshot",
     name: "School Wellbeing & Learning Snapshot",
     market: "schools",
-    toolIds: ["RCS-80", "RASR", "RERMS", "RSSC", "SDQ-P", "SDQ-T", "SDQ-SR", "PSC"],
+    toolIds: ["RCS-80", "RASR", "RERMS", "RSSC", "RSCP", "SDQ-P", "SDQ-T", "SDQ-SR", "PSC"],
   },
   {
     id: "focused-support",
     name: "Focused Student Support Assessment",
     market: "schools",
-    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RSCP", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
   },
   {
     id: "sen-learning-support",
     name: "Learning Support Decision System (SEN)",
     market: "schools",
-    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
   },
   {
     id: "boarding-wellbeing",
     name: "Boarding Student Adjustment & Wellbeing",
     market: "schools",
-    toolIds: ["BSPP", "RERMS", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
+    toolIds: ["BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
   },
   // ── Parents ───────────────────────────────────────────────────────────
   {
     id: "why-struggling",
     name: "Why Is My Child Struggling?",
     market: "parents",
-    toolIds: ["RCS-80", "RASR", "INTAKE", "RCADS", "BYI2"],
+    toolIds: ["RCS-80", "RASR", "RSCP", "RARPS", "RFII", "INTAKE", "RCADS", "BYI2"],
   },
   {
     id: "ef-coaching",
@@ -149,20 +149,20 @@ const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
     id: "academic-risk",
     name: "Academic Risk Early Warning System",
     market: "universities",
-    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RERMS", "RASR"],
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RERMS", "RASR"],
   },
   // ── Specialized ───────────────────────────────────────────────────────
   {
     id: "hidden-struggler",
     name: "Hidden Struggler Assessment",
     market: "specialized",
-    toolIds: ["REFI", "RSCA", "RERMS", "RCADS", "BYI2"],
+    toolIds: ["REFI", "RFII", "RSCA", "RERMS", "RCADS", "BYI2"],
   },
   {
     id: "underachievement",
     name: "Underachievement Profile",
     market: "specialized",
-    toolIds: ["RCS-80", "RCEP-CORE", "RASR", "REFI"],
+    toolIds: ["RCS-80", "RCEP-CORE", "RASR", "RARPS", "REFI", "RFII"],
   },
   {
     id: "digital-distraction",
