@@ -7,7 +7,7 @@ import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM,
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
-import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM } from "./lib/opentools.js";
+import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM, FASM_FORM } from "./lib/opentools.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
@@ -926,6 +926,18 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     formItems: CABS_FORM,
     scoringConfig: null,
   },
+  {
+    id: "FASM",
+    name: "Functional Assessment of Self-Mutilation (FASM)",
+    category: "risk",
+    description: "A clinician-administered self-report tool assessing non-suicidal self-injury (NSSI). Covers 9 behavior types with frequency ratings over the past 12 months (Section 1), characteristics of self-harm including age of onset, recency, context, and pain tolerance (Section 2), and 15 functional reasons for self-harm across internal/automatic and social/interpersonal domains using a 4-point frequency scale (Section 3).",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["risk", "mental-health"],
+    formItems: FASM_FORM,
+    scoringConfig: null,
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
@@ -938,7 +950,7 @@ const PRODUCT_TOOL_MAP: Record<string, string[]> = {
     "BASC3-PRS-A", "BASC3-PRS-C", "BRIEF2-P", "SDQ-P", "SDQ-P11", "RCADS", "SCDQPF",
     "BASC3-TRS-A", "BASC3-TRS-C", "BRIEF2-T", "SDQ-T", "SDQ-T11", "BSPP",
     "BASC3-SRP-A", "BASC3-SRP-C", "BRIEF2-SR", "BYI2", "RSCA",
-    "REFI", "RFII", "RSCP", "RARPS",
+    "REFI", "RFII", "RSCP", "RARPS", "FASM",
   ],
   "school-snapshot":   ["RCS-80", "RASR", "RERMS", "RSSC", "RSCP", "SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "PSC"],
   "focused-support":   ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RSCP", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],

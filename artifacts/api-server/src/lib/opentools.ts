@@ -58,6 +58,18 @@ const BULLY_EN = ["Never", "Once or twice", "2 or 3 times a month", "About once 
 const BULLY_ZH = ["从不", "一两次", "每月2-3次", "每周约一次", "每周几次"];
 const BULLY_KO = ["전혀 없다", "한두 번", "한 달에 2~3번", "약 일주일에 한 번", "일주일에 여러 번"];
 
+const FASM_FREQ_EN = ["Never", "1 time", "2–4 times", "5–10 times", "11+ times"];
+const FASM_FREQ_ZH = ["从不", "1次", "2–4次", "5–10次", "11次以上"];
+const FASM_FREQ_KO = ["전혀 없다", "1회", "2–4회", "5–10회", "11회 이상"];
+
+const FASM_REASON_EN = ["Never", "Rarely", "Sometimes", "Often"];
+const FASM_REASON_ZH = ["从不", "很少", "有时", "经常"];
+const FASM_REASON_KO = ["전혀 없다", "거의 없다", "때때로", "자주"];
+
+const FASM_PAIN_EN = ["None", "Mild", "Moderate", "Severe"];
+const FASM_PAIN_ZH = ["无", "轻微", "中等", "强烈"];
+const FASM_PAIN_KO = ["없다", "경미하다", "보통이다", "심하다"];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const q = (
@@ -756,4 +768,176 @@ export const CABS_FORM: FormQuestion[] = [
   q("cabs_p8",  "I ignored other students or refused to talk to them on purpose",    "我故意忽视其他同学或拒绝与他们说话", "나는 고의로 다른 학생들을 무시하거나 말하기를 거부했다",     BULLY_EN, BULLY_ZH, BULLY_KO, "bullying"),
   q("cabs_p9",  "I sent mean or hurtful messages to others online or by text",       "我通过网络或短信向他人发送恶意或伤害性消息", "나는 온라인이나 문자로 다른 사람에게 나쁘거나 상처 주는 메시지를 보냈다", BULLY_EN, BULLY_ZH, BULLY_KO, "bullying"),
   q("cabs_p10", "I shared photos or videos of someone without their permission",     "我未经许可分享了他人的照片或视频", "나는 허락 없이 다른 사람의 사진이나 영상을 공유했다",         BULLY_EN, BULLY_ZH, BULLY_KO, "bullying"),
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FASM – Functional Assessment of Self-Mutilation
+// 自我伤害功能评估量表
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const fq = (id: string, en: string, zh: string, ko: string, domain: string): FormQuestion => ({
+  id, text: en, textChinese: zh, textKorean: ko,
+  type: "likert", options: FASM_FREQ_EN, optionsChinese: FASM_FREQ_ZH, optionsKorean: FASM_FREQ_KO,
+  domain, required: true,
+});
+const rq = (id: string, en: string, zh: string, ko: string, domain: string): FormQuestion => ({
+  id, text: en, textChinese: zh, textKorean: ko,
+  type: "likert", options: FASM_REASON_EN, optionsChinese: FASM_REASON_ZH, optionsKorean: FASM_REASON_KO,
+  domain, required: true,
+});
+const fta = (id: string, en: string, zh: string, ko: string, domain: string, req = false): FormQuestion => ({
+  id, text: en, textChinese: zh, textKorean: ko,
+  type: "textarea", options: [], optionsChinese: [], optionsKorean: [],
+  domain, required: req,
+});
+const ftxt = (id: string, en: string, zh: string, ko: string, domain: string): FormQuestion => ({
+  id, text: en, textChinese: zh, textKorean: ko,
+  type: "text", options: [], optionsChinese: [], optionsKorean: [],
+  domain, required: true,
+});
+const fh = (id: string, en: string, zh: string, ko: string, domain: string): FormQuestion => ({
+  id, text: en, textChinese: zh, textKorean: ko,
+  type: "section_header", options: [], optionsChinese: [], optionsKorean: [],
+  domain, required: false,
+});
+
+export const FASM_FORM: FormQuestion[] = [
+  // ── Admin ──────────────────────────────────────────────────────────────────
+  ftxt("fasm_name", "Name 姓名",  "姓名", "이름",   "admin"),
+  ftxt("fasm_age",  "Age 年龄",   "年龄", "나이",   "admin"),
+  ftxt("fasm_date", "Date 日期",  "日期", "날짜",   "admin"),
+
+  // ── Section 1: Self-Harm Behaviors ────────────────────────────────────────
+  fh("fasm_s1_hdr",
+    "Section 1: Self-Harm Behaviors 自我伤害行为",
+    "第一部分：自我伤害行为",
+    "섹션 1: 자해 행동",
+    "behaviors"),
+  fh("fasm_s1_instr",
+    "Instructions: Please indicate how often you have done each behavior in the past 12 months. 请说明在过去12个月中，你进行以下行为的频率。",
+    "使用说明：请说明在过去12个月中，你进行以下行为的频率。",
+    "지침: 지난 12개월 동안 다음 각 행동을 얼마나 자주 했는지 표시해 주세요.",
+    "behaviors"),
+  fq("fasm_b1",  "Cut or carved your skin 割伤或刻划皮肤",                      "割伤或刻划皮肤",          "피부를 긁거나 새기기",                           "behaviors"),
+  fta("fasm_b1_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b2",  "Burned your skin 烧伤皮肤",                                    "烧伤皮肤",                "피부를 태우기",                                  "behaviors"),
+  fta("fasm_b2_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b3",  "Hit yourself on purpose 故意打自己",                            "故意打自己",              "고의로 자신을 때리기",                           "behaviors"),
+  fta("fasm_b3_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b4",  "Picked at wounds to prevent healing 反复抓伤口以阻止愈合",      "反复抓伤口以阻止愈合",    "상처가 낫지 않도록 건드리기",                    "behaviors"),
+  fta("fasm_b4_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b5",  "Pulled out your hair 拔自己的头发",                             "拔自己的头发",            "머리카락 뽑기",                                  "behaviors"),
+  fta("fasm_b5_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b6",  "Scratched yourself severely 严重抓伤自己",                      "严重抓伤自己",            "심하게 자신을 긁기",                             "behaviors"),
+  fta("fasm_b6_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b7",  "Bit yourself 咬自己",                                           "咬自己",                  "자신을 물기",                                    "behaviors"),
+  fta("fasm_b7_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b8",  "Inserted objects under skin or nails 将物体插入皮肤或指甲下",   "将物体插入皮肤或指甲下",  "피부나 손발톱 아래에 물체를 넣기",               "behaviors"),
+  fta("fasm_b8_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  fq("fasm_b9",  "Interfered with wound healing 故意干扰伤口愈合",                "故意干扰伤口愈合",        "상처 치유를 고의로 방해하기",                    "behaviors"),
+  fta("fasm_b9_details", "Details:",                                              "详细描述：",              "세부 사항:",                                     "behaviors"),
+  {
+    id: "fasm_b10",
+    text: "Other (please specify) 其他（请说明）",
+    textChinese: "其他（请说明）",
+    textKorean: "기타 (명시해 주세요)",
+    type: "likert",
+    options: FASM_FREQ_EN, optionsChinese: FASM_FREQ_ZH, optionsKorean: FASM_FREQ_KO,
+    domain: "behaviors", required: false,
+  },
+
+  // ── Section 2: Characteristics of Self-Harm ───────────────────────────────
+  fh("fasm_s2_hdr",
+    "Section 2: Characteristics of Self-Harm 行为特征",
+    "第二部分：行为特征",
+    "섹션 2: 자해의 특성",
+    "characteristics"),
+  ftxt("fasm_c11",
+    "How old were you when you first hurt yourself? 你第一次伤害自己时几岁？",
+    "你第一次伤害自己时几岁？",
+    "처음으로 자해를 한 것은 몇 살 때였나요?",
+    "characteristics"),
+  ftxt("fasm_c12",
+    "When was the last time you hurt yourself? 你最近一次伤害自己是什么时候？",
+    "你最近一次伤害自己是什么时候？",
+    "마지막으로 자해를 한 것은 언제였나요?",
+    "characteristics"),
+  {
+    id: "fasm_c13",
+    text: "Do you usually do this alone? 你通常是独自进行这些行为吗？",
+    textChinese: "你通常是独自进行这些行为吗？",
+    textKorean: "보통 혼자 합니까?",
+    type: "radio_group",
+    options: ["Yes 是", "No 否"],
+    optionsChinese: ["是", "否"],
+    optionsKorean: ["예", "아니요"],
+    domain: "characteristics", required: true,
+  },
+  fta("fasm_c13_notes", "Counselor Notes: (If needed)", "辅导员备注（如需要）", "상담사 노트 (필요시)", "characteristics"),
+  {
+    id: "fasm_c14",
+    text: "How much pain do you feel during self-harm? 在自我伤害时你感到多大程度的疼痛？",
+    textChinese: "在自我伤害时你感到多大程度的疼痛？",
+    textKorean: "자해 중 얼마나 많은 고통을 느끼나요?",
+    type: "likert",
+    options: FASM_PAIN_EN, optionsChinese: FASM_PAIN_ZH, optionsKorean: FASM_PAIN_KO,
+    domain: "characteristics", required: true,
+  },
+  fta("fasm_c14_notes", "Counselor Notes: (If needed)", "辅导员备注（如需要）", "상담사 노트 (필요시)", "characteristics"),
+
+  // ── Section 3: Reasons for Self-Harm ─────────────────────────────────────
+  fh("fasm_s3_hdr",
+    "Section 3: Reasons for Self-Harm 自我伤害原因（核心部分）",
+    "第三部分：自我伤害原因（核心部分）",
+    "섹션 3: 자해의 이유",
+    "internal"),
+  fh("fasm_s3_instr",
+    "Instructions: Please rate how often each reason applies to you. 请评价以下原因对你的适用程度。",
+    "使用说明：请评价以下原因对你的适用程度。",
+    "지침: 각 이유가 귀하에게 얼마나 해당되는지 평가해 주세요.",
+    "internal"),
+
+  // A. Internal (Automatic) Functions
+  fh("fasm_s3a_hdr",
+    "A. Internal (Automatic) Functions 内在功能",
+    "A. 内在功能",
+    "A. 내적(자동적) 기능",
+    "internal"),
+  rq("fasm_r15", "To stop bad feelings 为了停止不好的情绪",                                  "为了停止不好的情绪",                    "나쁜 감정을 멈추기 위해",                                "internal"),
+  fta("fasm_r15_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r16", "To relieve feeling numb or empty 为了缓解麻木或空虚感",                     "为了缓解麻木或空虚感",                  "무감각하거나 공허한 느낌을 완화하기 위해",               "internal"),
+  fta("fasm_r16_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r17", "To punish yourself 为了惩罚自己",                                           "为了惩罚自己",                          "자신을 벌주기 위해",                                     "internal"),
+  fta("fasm_r17_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r18", "To feel something (instead of nothing) 为了让自己有感觉",                   "为了让自己有感觉",                      "무언가를 느끼기 위해 (아무 것도 느끼지 못하는 대신)",    "internal"),
+  fta("fasm_r18_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r19", "To reduce anxiety or stress 为了减轻焦虑或压力",                            "为了减轻焦虑或压力",                    "불안이나 스트레스를 줄이기 위해",                        "internal"),
+  fta("fasm_r19_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r20", "To express anger toward yourself 为了表达对自己的愤怒",                     "为了表达对自己的愤怒",                  "자신을 향한 분노를 표현하기 위해",                       "internal"),
+  fta("fasm_r20_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r21", "To feel in control 为了感觉自己有掌控感",                                   "为了感觉自己有掌控感",                  "통제감을 느끼기 위해",                                   "internal"),
+  fta("fasm_r21_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+  rq("fasm_r22", "To distract yourself from problems 为了分散对问题的注意",                   "为了分散对问题的注意",                  "문제로부터 주의를 분산시키기 위해",                      "internal"),
+  fta("fasm_r22_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "internal"),
+
+  // B. Social (Interpersonal) Functions
+  fh("fasm_s3b_hdr",
+    "B. Social (Interpersonal) Functions 社会功能",
+    "B. 社会功能",
+    "B. 사회적(대인관계) 기능",
+    "social"),
+  rq("fasm_r23", "To get attention 为了获得他人关注",                                         "为了获得他人关注",                      "관심을 끌기 위해",                                       "social"),
+  fta("fasm_r23_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r24", "To show others how much you are hurting 为了让别人知道你的痛苦",            "为了让别人知道你的痛苦",                "다른 사람에게 얼마나 고통받고 있는지 보여주기 위해",     "social"),
+  fta("fasm_r24_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r25", "To get help from others 为了获得帮助",                                      "为了获得帮助",                          "다른 사람에게 도움을 받기 위해",                         "social"),
+  fta("fasm_r25_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r26", "To avoid doing something (e.g., school, tasks) 为了逃避某些事情（如上学）", "为了逃避某些事情（如上学）",            "무언가를 피하기 위해 (예: 학교, 과제)",                  "social"),
+  fta("fasm_r26_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r27", "To influence others 为了影响他人",                                          "为了影响他人",                          "다른 사람에게 영향을 미치기 위해",                       "social"),
+  fta("fasm_r27_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r28", "To feel part of a group 为了融入某个群体",                                  "为了融入某个群体",                      "집단에 속해 있다는 느낌을 받기 위해",                    "social"),
+  fta("fasm_r28_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
+  rq("fasm_r29", "To communicate feelings you cannot express 为了表达无法说出口的情绪",       "为了表达无法说出口的情绪",              "표현할 수 없는 감정을 전달하기 위해",                    "social"),
+  fta("fasm_r29_notes", "Counselor Notes: (If needed)",                                       "辅导员备注（如需要）",                  "상담사 노트 (필요시)",                                   "social"),
 ];

@@ -81,7 +81,7 @@ const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
       "BASC3-PRS-A", "BASC3-PRS-C", "BRIEF2-P", "SDQ-P", "SDQ-P11", "RCADS", "SCDQPF",
       "BASC3-TRS-A", "BASC3-TRS-C", "BRIEF2-T", "SDQ-T", "SDQ-T11", "BSPP",
       "BASC3-SRP-A", "BASC3-SRP-C", "BRIEF2-SR", "BYI2", "RSCA",
-      "REFI", "RFII", "RSCP", "RARPS",
+      "REFI", "RFII", "RSCP", "RARPS", "FASM",
     ],
   },
   {
