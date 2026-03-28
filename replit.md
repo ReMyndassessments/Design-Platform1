@@ -65,7 +65,7 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 - **users** — Internal staff (admin, assessment_lead, psychometrician)
 - **cases** — Student case records with phase tracking
-- **assessment_tools** — Tool catalog (ReMynd + external). 46 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2 + 15 open-domain screening)
+- **assessment_tools** — Tool catalog (ReMynd + external). 52 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2 + 18 open-domain screening + 3 ReMynd proprietary)
 - **batteries** — Assessment batteries grouping multiple tools (CDP, BASC-3, BRIEF-2, Screening & Wellbeing)
 - **assignments** — Per-respondent assignments with unique tokens + QR codes
 - **responses** — Form submissions from respondents
@@ -109,10 +109,13 @@ Source: `artifacts/api-server/src/lib/brief2.ts`
 
 ## Screening & Wellbeing Battery (Public Domain / Open-Access)
 
-15-tool collection of validated public-domain screening instruments (all trilingual EN/ZH/KO):
-- **SDQ-P** — Strengths & Difficulties Questionnaire, Parent (25 items, Ages 3–16)
-- **SDQ-T** — Strengths & Difficulties Questionnaire, Teacher (25 items, Ages 3–16)
-- **SDQ-SR** — Strengths & Difficulties Questionnaire, Self-Report (25 items, Ages 11–17)
+18-tool collection of validated public-domain screening instruments (all trilingual EN/ZH/KO):
+- **SDQ-P** — Strengths & Difficulties Questionnaire, Parent (25 items + impact, Ages 4–10, EN+ZH from official document)
+- **SDQ-P11** — Strengths & Difficulties Questionnaire, Parent (25 items + impact, Ages 11–18)
+- **SDQ-T** — Strengths & Difficulties Questionnaire, Teacher (25 items + impact, Ages 4–10, EN+ZH from official document)
+- **SDQ-T11** — Strengths & Difficulties Questionnaire, Teacher (25 items + impact, Ages 11–18, youth-adapted wording)
+- **SDQ-SR** — Strengths & Difficulties Questionnaire, Self-Report (25 items + impact, Ages 11–18)
+- **SDQ-SR18** — Strengths & Difficulties Questionnaire, Self-Report (25 items + impact, Ages 18+, adult impact section)
 - **GHQ-12** — General Health Questionnaire (12 items, self-report)
 - **SMFQ** — Short Mood and Feelings Questionnaire (13 items, depression, Ages 6–18)
 - **PSC** — Pediatric Symptom Checklist (35 items, parent-report, Ages 4–16)
