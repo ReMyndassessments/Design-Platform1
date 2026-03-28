@@ -50,6 +50,7 @@ import type {
   ToolRecommendations,
   UpdateAssessmentToolRequest,
   UpdateAssignmentRequest,
+  UpdateBatteryToolsRequest,
   UpdateCaseRequest,
   UpdateReportRequest,
   UpdateUserRequest,
@@ -3104,6 +3105,94 @@ export function useGetBattery<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update the tool list for a battery
+ */
+export const getUpdateBatteryToolsUrl = (id: string) => {
+  return `/api/batteries/${id}`;
+};
+
+export const updateBatteryTools = async (
+  id: string,
+  updateBatteryToolsRequest: UpdateBatteryToolsRequest,
+  options?: RequestInit,
+): Promise<Battery> => {
+  return customFetch<Battery>(getUpdateBatteryToolsUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateBatteryToolsRequest),
+  });
+};
+
+export const getUpdateBatteryToolsMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBatteryTools>>,
+    TError,
+    { id: string; data: BodyType<UpdateBatteryToolsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBatteryTools>>,
+  TError,
+  { id: string; data: BodyType<UpdateBatteryToolsRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateBatteryTools"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBatteryTools>>,
+    { id: string; data: BodyType<UpdateBatteryToolsRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateBatteryTools(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBatteryToolsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBatteryTools>>
+>;
+export type UpdateBatteryToolsMutationBody =
+  BodyType<UpdateBatteryToolsRequest>;
+export type UpdateBatteryToolsMutationError = ErrorType<void>;
+
+/**
+ * @summary Update the tool list for a battery
+ */
+export const useUpdateBatteryTools = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBatteryTools>>,
+    TError,
+    { id: string; data: BodyType<UpdateBatteryToolsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBatteryTools>>,
+  TError,
+  { id: string; data: BodyType<UpdateBatteryToolsRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateBatteryToolsMutationOptions(options));
+};
 
 /**
  * @summary Assign all tools in a battery to a case (bulk create assignments)

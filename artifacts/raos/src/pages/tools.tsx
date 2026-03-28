@@ -6,6 +6,7 @@ import {
   useCreateAssessmentTool,
   useGetCurrentUser,
   useListBatteries,
+  useUpdateBatteryTools,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1120,13 +1121,63 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
 
 // ── Edit Modal ─────────────────────────────────────────────────────────────────
 
+const TOOL_CATEGORIES = [
+  { value: "ReMynd Core",          label: "ReMynd Core" },
+  { value: "ReMynd Self-Report",   label: "ReMynd Self-Report" },
+  { value: "ReMynd Admin Forms",   label: "ReMynd Admin Forms" },
+  { value: "social-emotional",     label: "Social-Emotional" },
+  { value: "achievement",          label: "Achievement" },
+  { value: "adaptive",             label: "Adaptive / Functional" },
+  { value: "executive-function",   label: "Executive Function" },
+  { value: "observation",          label: "Observation / Checklist" },
+  { value: "development",          label: "Development" },
+  { value: "attention",            label: "Attention" },
+  { value: "behavior",             label: "Behavior" },
+  { value: "screening",            label: "Screening" },
+];
+
+const ALL_PRODUCTS_BY_MARKET: { market: string; items: { id: string; name: string }[] }[] = [
+  { market: "Schools", items: [
+    { id: "school-snapshot",    name: "School Wellbeing & Learning Snapshot" },
+    { id: "focused-support",    name: "Focused Student Support Assessment" },
+    { id: "sen-learning-support", name: "Learning Support Decision System (SEN)" },
+    { id: "boarding-wellbeing", name: "Boarding Student Adjustment & Wellbeing" },
+  ]},
+  { market: "Parents", items: [
+    { id: "why-struggling",     name: "Why Is My Child Struggling?" },
+    { id: "ef-coaching",        name: "Executive Function Coaching Assessment" },
+    { id: "emotional-wellbeing", name: "Emotional Wellbeing Check" },
+    { id: "school-readiness",   name: "School Readiness / Transition Assessment" },
+  ]},
+  { market: "Corporate", items: [
+    { id: "employee-wellbeing", name: "Employee Wellbeing & Burnout Screen" },
+    { id: "leadership-profiling", name: "Leadership / High-Performer Profiling" },
+    { id: "graduate-readiness", name: "Graduate / Intern Readiness Assessment" },
+  ]},
+  { market: "Universities", items: [
+    { id: "intl-student",       name: "International Student Adjustment Assessment" },
+    { id: "academic-risk",      name: "Academic Risk Early Warning System" },
+  ]},
+  { market: "Specialized", items: [
+    { id: "hidden-struggler",   name: "Hidden Struggler Assessment" },
+    { id: "underachievement",   name: "Underachievement Profile" },
+    { id: "digital-distraction", name: "Digital Distraction & Focus Assessment" },
+  ]},
+];
+
 function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
   const qc = useQueryClient();
   const updateMut = useUpdateAssessmentTool();
+  const updateBatteryMut = useUpdateBatteryTools();
+  const { data: batteriesData } = useListBatteries();
+  const batteries = batteriesData ?? [];
 
   const [name, setName] = useState(tool.name ?? "");
   const [description, setDescription] = useState(tool.description ?? "");
-  const [category, setCategory] = useState(tool.category ?? "");
+  const knownCategory = TOOL_CATEGORIES.find(c => c.value === (tool.category ?? ""));
+  const [categorySelect, setCategorySelect] = useState(knownCategory ? tool.category : "__custom__");
+  const [categoryCustom, setCategoryCustom] = useState(knownCategory ? "" : (tool.category ?? ""));
+  const category = categorySelect === "__custom__" ? categoryCustom : categorySelect;
   const [scoringType, setScoringType] = useState<"auto" | "manual">(tool.scoringType ?? "auto");
   const [domainsRaw, setDomainsRaw] = useState((tool.domains ?? []).join(", "));
   const [respondents, setRespondents] = useState<string[]>(tool.respondentTypes ?? []);
@@ -1135,20 +1186,45 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
   const [scoringConfig, setScoringConfig] = useState<ScoringConfig>(
     tool.scoringConfig ? (tool.scoringConfig as ScoringConfig) : defaultScoringConfig
   );
+
+  // Battery membership — computed from batteries list
+  const origBatteryIds = batteries
+    .filter((b: any) => ((b.toolIds as string[]) ?? []).includes(tool.id))
+    .map((b: any) => b.id as string);
+  const [selectedBatteries, setSelectedBatteries] = useState<string[]>(origBatteryIds);
+  // Re-sync if batteries data loads after mount
+  React.useEffect(() => {
+    setSelectedBatteries(
+      batteries
+        .filter((b: any) => ((b.toolIds as string[]) ?? []).includes(tool.id))
+        .map((b: any) => b.id as string)
+    );
+  }, [batteriesData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Product membership
+  const [selectedProducts, setSelectedProducts] = useState<string[]>((tool.productIds as string[]) ?? []);
+
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const toggleRespondent = (r: string) => {
     setRespondents(prev =>
       prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
     );
   };
+  const toggleBattery = (id: string) =>
+    setSelectedBatteries(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleProduct = (id: string) =>
+    setSelectedProducts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { setError("Name is required."); return; }
     if (!category.trim()) { setError("Category is required."); return; }
+    setSaving(true);
+    setError(null);
     const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
-    updateMut.mutate(
-      {
+    try {
+      await updateMut.mutateAsync({
         id: tool.id,
         data: {
           name: name.trim(),
@@ -1158,17 +1234,36 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           domains,
           respondentTypes: respondents,
           formItems: formItems.length > 0 ? formItems : null,
+          productIds: selectedProducts,
           ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
         } as Parameters<typeof updateMut.mutate>[0]["data"],
-      },
-      {
-        onSuccess: () => {
-          qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
-          onClose();
-        },
-        onError: () => setError("Failed to save changes. Please try again."),
-      }
-    );
+      });
+
+      // Update battery memberships for any changed batteries
+      const batteryChanges = batteries
+        .filter((b: any) => {
+          const wasIn = origBatteryIds.includes(b.id as string);
+          const isNowIn = selectedBatteries.includes(b.id as string);
+          return wasIn !== isNowIn;
+        })
+        .map((b: any) => {
+          const currentIds = ((b.toolIds as string[]) ?? []);
+          const isNowIn = selectedBatteries.includes(b.id as string);
+          const newIds = isNowIn
+            ? [...currentIds, tool.id]
+            : currentIds.filter((id: string) => id !== tool.id);
+          return updateBatteryMut.mutateAsync({ id: b.id as string, data: { toolIds: newIds } });
+        });
+      if (batteryChanges.length > 0) await Promise.all(batteryChanges);
+
+      qc.invalidateQueries({ queryKey: ["/api/assessment-tools"] });
+      qc.invalidateQueries({ queryKey: ["/api/batteries"] });
+      onClose();
+    } catch {
+      setError("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1204,11 +1299,27 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
 
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-slate-700">Category <span className="text-red-500">*</span></label>
-            <Input
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="h-10"
-            />
+            <div className="relative">
+              <select
+                value={categorySelect}
+                onChange={e => setCategorySelect(e.target.value)}
+                className="w-full h-10 appearance-none border border-input rounded-md px-3 pr-8 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                {TOOL_CATEGORIES.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+                <option value="__custom__">Custom...</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            {categorySelect === "__custom__" && (
+              <Input
+                value={categoryCustom}
+                onChange={e => setCategoryCustom(e.target.value)}
+                placeholder="Enter custom category"
+                className="h-10 mt-1.5"
+              />
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -1261,6 +1372,68 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
             </div>
           </div>
 
+          {/* Battery Membership */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Battery Membership</label>
+            <p className="text-xs text-slate-500">Select which assessment batteries include this tool.</p>
+            <div className="flex flex-wrap gap-2">
+              {batteries.length === 0 && (
+                <span className="text-xs text-slate-400 italic">Loading batteries…</span>
+              )}
+              {batteries.map((b: any) => {
+                const checked = selectedBatteries.includes(b.id as string);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => toggleBattery(b.id as string)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                      checked
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 text-slate-600 hover:border-indigo-300"
+                    )}
+                  >
+                    {checked ? "✓ " : ""}{b.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Product Membership */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Product Packages</label>
+            <p className="text-xs text-slate-500">Select which ReMynd product packages include this tool.</p>
+            <div className="space-y-2">
+              {ALL_PRODUCTS_BY_MARKET.map(group => (
+                <div key={group.market}>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{group.market}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map(p => {
+                      const checked = selectedProducts.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => toggleProduct(p.id)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md border text-xs font-medium transition-all",
+                            checked
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 text-slate-500 hover:border-emerald-300"
+                          )}
+                        >
+                          {checked ? "✓ " : ""}{p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Editable Form Items */}
           <FormItemsEditor items={formItems} onChange={setFormItems} />
 
@@ -1285,8 +1458,8 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="flex-1" onClick={handleSave} disabled={updateMut.isPending}>
-            {updateMut.isPending ? "Saving..." : "Save Changes"}
+          <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>

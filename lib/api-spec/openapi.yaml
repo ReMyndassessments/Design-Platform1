@@ -765,6 +765,31 @@ paths:
                 $ref: "#/components/schemas/BatteryDetail"
         "404":
           description: Not found
+    patch:
+      operationId: updateBatteryTools
+      tags: [batteries]
+      summary: Update the tool list for a battery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBatteryToolsRequest"
+      responses:
+        "200":
+          description: Updated battery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Battery"
+        "404":
+          description: Not found
 
   /cases/{caseId}/batteries/{batteryId}/assign:
     post:
@@ -1102,6 +1127,10 @@ components:
           type: array
           items:
             type: string
+        productIds:
+          type: array
+          items:
+            type: string
       required: [id, name, category, isRemyndOwned, respondentTypes, scoringType, domains]
 
     CreateAssessmentToolRequest:
@@ -1137,6 +1166,15 @@ components:
           nullable: true
       required: [id, name, category]
 
+    UpdateBatteryToolsRequest:
+      type: object
+      properties:
+        toolIds:
+          type: array
+          items:
+            type: string
+      required: [toolIds]
+
     UpdateAssessmentToolRequest:
       type: object
       properties:
@@ -1166,6 +1204,10 @@ components:
         scoringConfig:
           type: object
           nullable: true
+        productIds:
+          type: array
+          items:
+            type: string
 
     RecommendToolsRequest:
       type: object

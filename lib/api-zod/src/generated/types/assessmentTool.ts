@@ -17,4 +17,5 @@ export interface AssessmentTool {
   respondentTypes: AssessmentToolRespondentTypesItem[];
   scoringType: AssessmentToolScoringType;
   domains: string[];
+  productIds?: string[];
 }

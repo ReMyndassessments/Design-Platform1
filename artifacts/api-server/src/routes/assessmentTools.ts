@@ -91,7 +91,7 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
 
 router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name, description, category, scoringType, domains, respondentTypes, formItems, scoringConfig } = req.body;
+  const { name, description, category, scoringType, domains, respondentTypes, formItems, scoringConfig, productIds } = req.body;
 
   const existing = await db.select().from(assessmentToolsTable).where(eq(assessmentToolsTable.id, id));
   if (!existing.length) {
@@ -110,6 +110,7 @@ router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {
       ...(respondentTypes !== undefined && { respondentTypes }),
       ...(formItems !== undefined && { formItems: Array.isArray(formItems) ? formItems : null }),
       ...(scoringConfig !== undefined && { scoringConfig: scoringConfig ?? null }),
+      ...(productIds !== undefined && { productIds: Array.isArray(productIds) ? productIds : [] }),
     })
     .where(eq(assessmentToolsTable.id, id))
     .returning();

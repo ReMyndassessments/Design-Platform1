@@ -136,6 +136,16 @@ Source: `artifacts/api-server/src/lib/opentools.ts`
 - Token stored in `assignments.unique_token`
 - Mobile-friendly form with language toggle
 
+## Edit Assessment Tool Modal
+
+The Edit Tool modal (`EditToolModal` in `artifacts/raos/src/pages/tools.tsx`) supports runtime management of tool metadata:
+
+- **Category**: Dropdown with 12 predefined options (ReMynd Core, Social-Emotional, etc.) + "Custom…" free-text option
+- **Battery Membership**: Toggle buttons for each battery — uses `PATCH /api/batteries/:id` to add/remove the tool from a battery's `toolIds[]`
+- **Product Packages**: Toggle buttons grouped by market segment (Schools, Parents, Corporate, Universities, Specialized) — persisted as `productIds` on the tool record
+- On save: tool fields + productIds updated via `PATCH /api/assessment-tools/:id`; battery memberships updated atomically via `PATCH /api/batteries/:id` for each changed battery
+- Codegen must be run (`pnpm --filter @workspace/api-spec run codegen`) after any openapi.yaml changes
+
 ## Key Commands
 
 ```bash

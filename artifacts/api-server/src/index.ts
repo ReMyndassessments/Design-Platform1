@@ -889,6 +889,35 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
 
+// Product → tool membership map (mirrors ASSESSMENT_PRODUCTS in the frontend)
+const PRODUCT_TOOL_MAP: Record<string, string[]> = {
+  "school-snapshot":   ["RCS-80", "RASR", "RERMS", "RSSC", "RSCP", "SDQ-P", "SDQ-T", "SDQ-SR", "PSC"],
+  "focused-support":   ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RSCP", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
+  "sen-learning-support": ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
+  "boarding-wellbeing":   ["BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
+  "why-struggling":    ["RCS-80", "RASR", "RSCP", "RARPS", "RFII", "INTAKE", "RCADS", "BYI2"],
+  "ef-coaching":       ["REFI", "RASR", "BRIEF2-SR"],
+  "emotional-wellbeing": ["RERMS", "DASS-21", "GAD-7", "PHQ-9"],
+  "school-readiness":  ["RSSC", "RERMS", "REFI", "SDQ-SR", "WHO-5"],
+  "employee-wellbeing": ["PSS-10", "DASS-21", "RSES", "GHQ-12"],
+  "leadership-profiling": ["REFI", "RERMS", "RSES"],
+  "graduate-readiness": ["REFI", "RSCA", "RSES", "GHQ-12"],
+  "intl-student":      ["RERMS", "PSS-10", "DASS-21", "RSCA", "WHO-5", "RSES"],
+  "academic-risk":     ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RERMS", "RASR"],
+  "hidden-struggler":  ["REFI", "RFII", "RSCA", "RERMS", "RCADS", "BYI2"],
+  "underachievement":  ["RCS-80", "RCEP-CORE", "RASR", "RARPS", "REFI", "RFII"],
+  "digital-distraction": ["RASR", "REFI", "BYI2"],
+};
+
+// Reverse map: tool → [productId, ...]
+const TOOL_INITIAL_PRODUCT_IDS: Record<string, string[]> = {};
+for (const [productId, toolIds] of Object.entries(PRODUCT_TOOL_MAP)) {
+  for (const toolId of toolIds) {
+    if (!TOOL_INITIAL_PRODUCT_IDS[toolId]) TOOL_INITIAL_PRODUCT_IDS[toolId] = [];
+    TOOL_INITIAL_PRODUCT_IDS[toolId].push(productId);
+  }
+}
+
 const CDP_BATTERY_ID = "CDP";
 const BRIEF2_BATTERY_ID = "BRIEF2";
 
@@ -950,7 +979,8 @@ async function syncTools() {
           : tool.formItems
         : null;
 
-      await db.insert(assessmentToolsTable).values(tool).onConflictDoUpdate({
+      const initialProductIds = TOOL_INITIAL_PRODUCT_IDS[tool.id as string] ?? [];
+      await db.insert(assessmentToolsTable).values({ ...tool, productIds: initialProductIds }).onConflictDoUpdate({
         target: assessmentToolsTable.id,
         set: {
           name: tool.name,
@@ -962,6 +992,7 @@ async function syncTools() {
           domains: tool.domains,
           scoringConfig: tool.scoringConfig ?? null,
           formItems: mergedItems ?? null,
+          // productIds intentionally omitted — user edits must persist across restarts
         },
       });
 

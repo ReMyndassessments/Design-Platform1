@@ -352,6 +352,7 @@ export const ListAssessmentToolsResponseItem = zod.object({
   ),
   scoringType: zod.enum(["auto", "manual"]),
   domains: zod.array(zod.string()),
+  productIds: zod.array(zod.string()).optional(),
 });
 export const ListAssessmentToolsResponse = zod.array(
   ListAssessmentToolsResponseItem,
@@ -390,6 +391,7 @@ export const UpdateAssessmentToolBody = zod.object({
   isRemyndOwned: zod.boolean().optional(),
   formItems: zod.array(zod.object({}).passthrough()).optional(),
   scoringConfig: zod.object({}).passthrough().nullish(),
+  productIds: zod.array(zod.string()).optional(),
 });
 
 export const UpdateAssessmentToolResponse = zod.object({
@@ -414,6 +416,7 @@ export const UpdateAssessmentToolResponse = zod.object({
   ),
   scoringType: zod.enum(["auto", "manual"]),
   domains: zod.array(zod.string()),
+  productIds: zod.array(zod.string()).optional(),
 });
 
 /**
@@ -456,6 +459,7 @@ export const RecommendToolsResponse = zod.object({
       ),
       scoringType: zod.enum(["auto", "manual"]),
       domains: zod.array(zod.string()),
+      productIds: zod.array(zod.string()).optional(),
     }),
   ),
   rationale: zod.string(),
@@ -982,6 +986,27 @@ export const GetBatteryResponse = zod
       ),
     }),
   );
+
+/**
+ * @summary Update the tool list for a battery
+ */
+export const UpdateBatteryToolsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateBatteryToolsBody = zod.object({
+  toolIds: zod.array(zod.string()),
+});
+
+export const UpdateBatteryToolsResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  toolIds: zod.array(zod.string()),
+  isRemyndOwned: zod.boolean(),
+  domains: zod.array(zod.string()),
+  scoringNotes: zod.string().nullish(),
+});
 
 /**
  * @summary Assign all tools in a battery to a case (bulk create assignments)

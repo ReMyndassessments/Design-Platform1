@@ -39,6 +39,7 @@ export const assessmentToolsTable = pgTable("assessment_tools", {
   domains: jsonb("domains").notNull().$type<string[]>(),
   formItems: jsonb("form_items").$type<FormItem[]>(),
   scoringConfig: jsonb("scoring_config").$type<ScoringConfig>(),
+  productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
 });
 
 export const insertAssessmentToolSchema = createInsertSchema(assessmentToolsTable);

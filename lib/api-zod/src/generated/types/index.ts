@@ -77,6 +77,7 @@ export * from "./updateAssessmentToolRequestScoringConfig";
 export * from "./updateAssessmentToolRequestScoringType";
 export * from "./updateAssignmentRequest";
 export * from "./updateAssignmentRequestStatus";
+export * from "./updateBatteryToolsRequest";
 export * from "./updateCaseRequest";
 export * from "./updateCaseRequestCaseStatus";
 export * from "./updateCaseRequestCurrentPhase";

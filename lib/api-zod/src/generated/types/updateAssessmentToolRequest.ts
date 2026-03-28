@@ -19,4 +19,5 @@ export interface UpdateAssessmentToolRequest {
   isRemyndOwned?: boolean;
   formItems?: UpdateAssessmentToolRequestFormItemsItem[];
   scoringConfig?: UpdateAssessmentToolRequestScoringConfig;
+  productIds?: string[];
 }

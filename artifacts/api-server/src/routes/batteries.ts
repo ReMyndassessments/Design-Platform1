@@ -18,6 +18,23 @@ router.get("/batteries", async (_req, res) => {
   }
 });
 
+// PATCH /api/batteries/:id — update battery tool membership
+router.patch("/batteries/:id", authMiddleware, async (req, res) => {
+  try {
+    const { toolIds } = req.body as { toolIds: string[] };
+    if (!Array.isArray(toolIds)) return res.status(400).json({ error: "toolIds must be an array" });
+    const [updated] = await db
+      .update(batteriesTable)
+      .set({ toolIds })
+      .where(eq(batteriesTable.id, req.params.id))
+      .returning();
+    if (!updated) return res.status(404).json({ error: "Battery not found" });
+    return res.json(updated);
+  } catch {
+    return res.status(500).json({ error: "Failed to update battery" });
+  }
+});
+
 // GET /api/batteries/:id — get a single battery with its tools
 router.get("/batteries/:id", async (req, res) => {
   try {

@@ -351,6 +351,7 @@ export interface AssessmentTool {
   respondentTypes: AssessmentToolRespondentTypesItem[];
   scoringType: AssessmentToolScoringType;
   domains: string[];
+  productIds?: string[];
 }
 
 export type CreateAssessmentToolRequestScoringType =
@@ -382,6 +383,10 @@ export interface CreateAssessmentToolRequest {
   scoringConfig?: CreateAssessmentToolRequestScoringConfig;
 }
 
+export interface UpdateBatteryToolsRequest {
+  toolIds: string[];
+}
+
 export type UpdateAssessmentToolRequestScoringType =
   (typeof UpdateAssessmentToolRequestScoringType)[keyof typeof UpdateAssessmentToolRequestScoringType];
 
@@ -408,6 +413,7 @@ export interface UpdateAssessmentToolRequest {
   isRemyndOwned?: boolean;
   formItems?: UpdateAssessmentToolRequestFormItemsItem[];
   scoringConfig?: UpdateAssessmentToolRequestScoringConfig;
+  productIds?: string[];
 }
 
 export interface RecommendToolsRequest {
