@@ -5,6 +5,7 @@ import {
   useDeleteAssessmentTool,
   useCreateAssessmentTool,
   useGetCurrentUser,
+  useListBatteries,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1323,11 +1324,26 @@ function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
 
 export default function AssessmentTools() {
   const { data: tools, isLoading } = useListAssessmentTools();
+  const { data: batteries } = useListBatteries();
   const { data: user } = useGetCurrentUser();
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
   const [filterRespondent, setFilterRespondent] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterBattery, setFilterBattery] = useState("all");
+  const [filterOwnership, setFilterOwnership] = useState("all");
   const [adding, setAdding] = useState(false);
+
+  // Derive sorted category list from loaded tools
+  const categories = Array.from(
+    new Set((tools ?? []).map(t => t.category).filter(Boolean))
+  ).sort() as string[];
+
+  // Build a map of toolId -> battery name for fast lookup
+  const toolBatteryMap = new Map<string, string>();
+  (batteries ?? []).forEach(b => {
+    (b.toolIds ?? []).forEach((tid: string) => toolBatteryMap.set(tid, b.id));
+  });
 
   const filtered = (tools ?? []).filter(t => {
     const q = search.toLowerCase();
@@ -1338,30 +1354,52 @@ export default function AssessmentTools() {
       t.domains.some(d => d.toLowerCase().includes(q));
     const matchRespondent =
       filterRespondent === "all" || (t.respondentTypes ?? []).includes(filterRespondent);
-    return matchSearch && matchRespondent;
+    const matchCategory =
+      filterCategory === "all" || t.category === filterCategory;
+    const matchBattery =
+      filterBattery === "all" || toolBatteryMap.get(t.id) === filterBattery;
+    const matchOwnership =
+      filterOwnership === "all" ||
+      (filterOwnership === "remynd" && t.isRemyndOwned) ||
+      (filterOwnership === "open" && !t.isRemyndOwned);
+    return matchSearch && matchRespondent && matchCategory && matchBattery && matchOwnership;
   });
 
+  const hasActiveFilters =
+    search !== "" ||
+    filterRespondent !== "all" ||
+    filterCategory !== "all" ||
+    filterBattery !== "all" ||
+    filterOwnership !== "all";
+
+  function clearFilters() {
+    setSearch("");
+    setFilterRespondent("all");
+    setFilterCategory("all");
+    setFilterBattery("all");
+    setFilterOwnership("all");
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Assessment Tools</h1>
-          <p className="text-slate-500 mt-1">All available instruments and forms in the ReMynd system.</p>
+          <p className="text-slate-500 mt-1">
+            {tools ? `${filtered.length} of ${tools.length} tools` : "All available instruments and forms in the ReMynd system."}
+          </p>
         </div>
         {isAdmin && (
-          <Button
-            onClick={() => setAdding(true)}
-            className="gap-2 flex-shrink-0"
-          >
+          <Button onClick={() => setAdding(true)} className="gap-2 flex-shrink-0">
             <Plus size={16} />
             Add Tool
           </Button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* Search + filters */}
+      <div className="space-y-3">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
             className="pl-9"
@@ -1370,18 +1408,77 @@ export default function AssessmentTools() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="relative">
-          <select
-            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-52 appearance-none pr-8"
-            value={filterRespondent}
-            onChange={e => setFilterRespondent(e.target.value)}
-          >
-            <option value="all">All Respondent Types</option>
-            {FILTER_RESPONDENT_TYPES.map(rt => (
-              <option key={rt} value={rt}>{RESPONDENT_TYPE_LABELS[rt] ?? rt}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+
+        <div className="flex flex-wrap gap-2">
+          {/* Category */}
+          <div className="relative">
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm appearance-none pr-7 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Battery */}
+          <div className="relative">
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm appearance-none pr-7 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              value={filterBattery}
+              onChange={e => setFilterBattery(e.target.value)}
+            >
+              <option value="all">All Batteries</option>
+              {(batteries ?? []).map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Respondent type */}
+          <div className="relative">
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm appearance-none pr-7 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              value={filterRespondent}
+              onChange={e => setFilterRespondent(e.target.value)}
+            >
+              <option value="all">All Respondent Types</option>
+              {FILTER_RESPONDENT_TYPES.map(rt => (
+                <option key={rt} value={rt}>{RESPONDENT_TYPE_LABELS[rt] ?? rt}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Ownership */}
+          <div className="relative">
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm appearance-none pr-7 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              value={filterOwnership}
+              onChange={e => setFilterOwnership(e.target.value)}
+            >
+              <option value="all">All Tools</option>
+              <option value="remynd">ReMynd Tools</option>
+              <option value="open">Open Access</option>
+            </select>
+            <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Clear filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="h-9 px-3 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md border border-slate-200 transition-colors flex items-center gap-1.5"
+            >
+              <X size={13} />
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -1392,7 +1489,14 @@ export default function AssessmentTools() {
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="text-center py-16 text-slate-500">No tools match your search.</div>
+        <div className="text-center py-16 text-slate-500">
+          No tools match your filters.
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="block mx-auto mt-2 text-primary text-sm hover:underline">
+              Clear all filters
+            </button>
+          )}
+        </div>
       )}
 
       {!isLoading && filtered.length > 0 && (
