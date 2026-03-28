@@ -72,6 +72,19 @@ type AssessmentProduct = {
 const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
   // ── Schools ──────────────────────────────────────────────────────────
   {
+    id: "comprehensive-psych-profile",
+    name: "Comprehensive Psychoeducational Profile & Support Plan",
+    market: "schools",
+    toolIds: [
+      "REFERRAL", "INTAKE", "CONSENT",
+      "RCS-80", "BEHAVOBS",
+      "BASC3-PRS-A", "BASC3-PRS-C", "BRIEF2-P", "SDQ-P", "SDQ-P11", "RCADS", "SCDQPF",
+      "BASC3-TRS-A", "BASC3-TRS-C", "BRIEF2-T", "SDQ-T", "SDQ-T11", "BSPP",
+      "BASC3-SRP-A", "BASC3-SRP-C", "BRIEF2-SR", "BYI2", "RSCA",
+      "REFI", "RFII", "RSCP", "RARPS",
+    ],
+  },
+  {
     id: "school-snapshot",
     name: "School Wellbeing & Learning Snapshot",
     market: "schools",
@@ -1138,6 +1151,7 @@ const TOOL_CATEGORIES = [
 
 const ALL_PRODUCTS_BY_MARKET: { market: string; items: { id: string; name: string }[] }[] = [
   { market: "Schools", items: [
+    { id: "comprehensive-psych-profile", name: "Comprehensive Psychoeducational Profile & Support Plan" },
     { id: "school-snapshot",    name: "School Wellbeing & Learning Snapshot" },
     { id: "focused-support",    name: "Focused Student Support Assessment" },
     { id: "sen-learning-support", name: "Learning Support Decision System (SEN)" },

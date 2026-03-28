@@ -932,6 +932,14 @@ const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
 
 // Product → tool membership map (mirrors ASSESSMENT_PRODUCTS in the frontend)
 const PRODUCT_TOOL_MAP: Record<string, string[]> = {
+  "comprehensive-psych-profile": [
+    "REFERRAL", "INTAKE", "CONSENT",
+    "RCS-80", "BEHAVOBS",
+    "BASC3-PRS-A", "BASC3-PRS-C", "BRIEF2-P", "SDQ-P", "SDQ-P11", "RCADS", "SCDQPF",
+    "BASC3-TRS-A", "BASC3-TRS-C", "BRIEF2-T", "SDQ-T", "SDQ-T11", "BSPP",
+    "BASC3-SRP-A", "BASC3-SRP-C", "BRIEF2-SR", "BYI2", "RSCA",
+    "REFI", "RFII", "RSCP", "RARPS",
+  ],
   "school-snapshot":   ["RCS-80", "RASR", "RERMS", "RSSC", "RSCP", "SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "PSC"],
   "focused-support":   ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RSCP", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
   "sen-learning-support": ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
