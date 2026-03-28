@@ -22,10 +22,11 @@ import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
-  Send, Mail, Link2
+  Send, Mail, Link2, LayoutGrid
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
+import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient } from "@tanstack/react-query";
 
 const PHASES = [
@@ -145,6 +146,84 @@ export default function CaseDetail() {
 
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
+
+  // ── Product assignment state ─────────────────────────────────────────────────
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [productAssigning, setProductAssigning] = useState(false);
+
+  type ProductRespondentSlot = { respondentType: string; label: string; selected: boolean; name: string; email: string };
+  const [productRespondentSlots, setProductRespondentSlots] = useState<ProductRespondentSlot[]>([]);
+
+  const RT_ORDER = ["parent", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
+  const DEFAULT_SELECTED_RTS = new Set(["parent", "teacher1", "self"]);
+
+  function getProductRTInfo(productId: string, toolsList: typeof tools): Array<{ rt: string; formCount: number }> {
+    const product = ASSESSMENT_PRODUCTS.find(p => p.id === productId);
+    if (!product || !toolsList) return [];
+    const rtMap = new Map<string, number>();
+    for (const toolId of product.toolIds) {
+      const tool = toolsList.find(t => t.id === toolId);
+      if (!tool) continue;
+      for (const rt of (tool.respondentTypes ?? [])) {
+        rtMap.set(rt, (rtMap.get(rt) ?? 0) + 1);
+      }
+    }
+    return RT_ORDER.filter(rt => rtMap.has(rt)).map(rt => ({ rt, formCount: rtMap.get(rt)! }));
+  }
+
+  const handleProductChange = (productId: string) => {
+    setSelectedProductId(productId);
+    if (!productId) { setProductRespondentSlots([]); return; }
+    const rtInfos = getProductRTInfo(productId, tools);
+    setProductRespondentSlots(rtInfos.map(info => ({
+      respondentType: info.rt,
+      label: RESPONDENT_TYPE_LABELS[info.rt] ?? info.rt,
+      selected: DEFAULT_SELECTED_RTS.has(info.rt),
+      name: "",
+      email: "",
+    })));
+  };
+
+  const handleAssignProduct = async () => {
+    const product = ASSESSMENT_PRODUCTS.find(p => p.id === selectedProductId);
+    if (!product) return;
+    const selectedSlots = productRespondentSlots.filter(s => s.selected);
+    if (!selectedSlots.length) return;
+    setProductAssigning(true);
+    try {
+      const selectedRTs = new Set(selectedSlots.map(s => s.respondentType));
+      let totalCreated = 0;
+      for (const toolId of product.toolIds) {
+        const toolData = tools?.find(t => t.id === toolId);
+        if (!toolData) continue;
+        for (const rt of (toolData.respondentTypes ?? [])) {
+          if (!selectedRTs.has(rt)) continue;
+          const slot = selectedSlots.find(s => s.respondentType === rt)!;
+          await createAssignmentMut.mutateAsync({
+            caseId,
+            data: {
+              toolId,
+              respondentType: rt as CreateAssignmentRequestRespondentType,
+              respondentLabel: slot.name || (RESPONDENT_TYPE_LABELS[rt] ?? rt),
+              assignedToName: slot.name || undefined,
+              assignedToEmail: slot.email || undefined,
+            }
+          });
+          totalCreated++;
+        }
+      }
+      toast({ title: "Product assigned", description: `${totalCreated} form${totalCreated !== 1 ? "s" : ""} assigned across ${selectedSlots.length} respondent${selectedSlots.length !== 1 ? "s" : ""}.` });
+      setProductModalOpen(false);
+      setSelectedProductId("");
+      setProductRespondentSlots([]);
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    } catch {
+      toast({ title: "Failed to assign product", variant: "destructive" });
+    } finally {
+      setProductAssigning(false);
+    }
+  };
 
   const handleAssignCDP = async () => {
     if (selectedCdpRespondents.length === 0) return;
@@ -588,6 +667,9 @@ export default function CaseDetail() {
                     Assign Battery
                   </Button>
                 )}
+                <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
+                  <LayoutGrid size={13} /> Assign by Product
+                </Button>
                 <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
               </div>
             </CardHeader>
@@ -997,6 +1079,145 @@ export default function CaseDetail() {
             <Button variant="outline" className="flex-1" onClick={() => setDeleteCaseOpen(false)} disabled={deleteLoading}>Cancel</Button>
             <Button variant="destructive" className="flex-1" onClick={handleDeleteCase} disabled={deleteLoading}>
               {deleteLoading ? "Deleting..." : "Delete Case"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Assignment Modal */}
+      <Dialog open={productModalOpen} onOpenChange={open => { if (!open) { setSelectedProductId(""); setProductRespondentSlots([]); } setProductModalOpen(open); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutGrid size={18} className="text-primary" />
+              Assign by Product
+            </DialogTitle>
+            <DialogDescription>
+              Select a product. Forms will be automatically routed to the correct respondent type.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4">
+            {/* Product selector */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Product</p>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={selectedProductId}
+                onChange={e => handleProductChange(e.target.value)}
+              >
+                <option value="">— Select a product —</option>
+                {ALL_PRODUCTS_BY_MARKET.map(group => (
+                  <optgroup key={group.market} label={group.market}>
+                    {group.items.map(item => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            {/* Respondent slots — shown once a product is selected */}
+            {selectedProductId && productRespondentSlots.length > 0 && (
+              <>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Configure Respondents</p>
+                  {productRespondentSlots.map(slot => {
+                    const rtInfo = getProductRTInfo(selectedProductId, tools).find(r => r.rt === slot.respondentType);
+                    const formCount = rtInfo?.formCount ?? 0;
+                    return (
+                      <div key={slot.respondentType} className={`rounded-lg border transition-colors ${slot.selected ? "border-primary/30 bg-primary/5" : "border-slate-100 bg-white"}`}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none"
+                          onClick={() => setProductRespondentSlots(prev => prev.map(s => s.respondentType === slot.respondentType ? { ...s, selected: !s.selected } : s))}
+                          onKeyDown={e => e.key === "Enter" && setProductRespondentSlots(prev => prev.map(s => s.respondentType === slot.respondentType ? { ...s, selected: !s.selected } : s))}
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${slot.selected ? "bg-primary border-primary" : "border-slate-300 bg-white"}`}>
+                            {slot.selected && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 8">
+                                <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${slot.selected ? "text-slate-900" : "text-slate-600"}`}>{slot.label}</span>
+                          <span className="ml-auto text-[11px] text-slate-400">{formCount} form{formCount !== 1 ? "s" : ""}</span>
+                        </div>
+                        {slot.selected && slot.respondentType !== "self" && (
+                          <div className="px-3 pb-3 grid grid-cols-2 gap-2" onClick={e => e.stopPropagation()}>
+                            <div>
+                              <label className="text-[11px] text-slate-500 block mb-1">Name <span className="text-slate-400">(optional)</span></label>
+                              <Input
+                                className="h-7 text-xs"
+                                placeholder="e.g., Ms. Chen"
+                                value={slot.name}
+                                onChange={e => setProductRespondentSlots(prev => prev.map(s => s.respondentType === slot.respondentType ? { ...s, name: e.target.value } : s))}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] text-slate-500 block mb-1">Email <span className="text-slate-400">(optional)</span></label>
+                              <Input
+                                className="h-7 text-xs"
+                                type="email"
+                                placeholder="e.g., chen@school.edu"
+                                value={slot.email}
+                                onChange={e => setProductRespondentSlots(prev => prev.map(s => s.respondentType === slot.respondentType ? { ...s, email: e.target.value } : s))}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Summary */}
+                {productRespondentSlots.some(s => s.selected) && (() => {
+                  const selectedSlots = productRespondentSlots.filter(s => s.selected);
+                  const rtDetails = getProductRTInfo(selectedProductId, tools);
+                  const totalForms = selectedSlots.reduce((sum, slot) => {
+                    const info = rtDetails.find(r => r.rt === slot.respondentType);
+                    return sum + (info?.formCount ?? 0);
+                  }, 0);
+                  return (
+                    <div className="bg-primary/5 border border-primary/15 rounded-lg p-3 space-y-1">
+                      <p className="text-[12px] font-semibold text-primary">
+                        {totalForms} form{totalForms !== 1 ? "s" : ""} will be created
+                        <span className="font-normal text-primary/70"> ({selectedSlots.length} respondent{selectedSlots.length !== 1 ? "s" : ""})</span>
+                      </p>
+                      {selectedSlots.map(slot => {
+                        const info = rtDetails.find(r => r.rt === slot.respondentType);
+                        if (!info) return null;
+                        return (
+                          <p key={slot.respondentType} className="text-[11px] text-primary/60">
+                            • {slot.label}: {info.formCount} form{info.formCount !== 1 ? "s" : ""}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" onClick={() => setProductModalOpen(false)} disabled={productAssigning}>Cancel</Button>
+            <Button
+              onClick={handleAssignProduct}
+              disabled={productAssigning || !selectedProductId || !productRespondentSlots.some(s => s.selected)}
+            >
+              {productAssigning ? "Assigning..." : (() => {
+                const selectedSlots = productRespondentSlots.filter(s => s.selected);
+                if (!selectedSlots.length) return "Assign Forms";
+                const rtDetails = getProductRTInfo(selectedProductId, tools);
+                const totalForms = selectedSlots.reduce((sum, slot) => {
+                  const info = rtDetails.find(r => r.rt === slot.respondentType);
+                  return sum + (info?.formCount ?? 0);
+                }, 0);
+                return `Assign ${totalForms} Form${totalForms !== 1 ? "s" : ""}`;
+              })()}
             </Button>
           </div>
         </DialogContent>
