@@ -61,6 +61,125 @@ function buildScoringConfig(
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+type AssessmentProduct = {
+  id: string;
+  name: string;
+  market: "schools" | "parents" | "corporate" | "universities" | "specialized";
+  toolIds: string[];
+};
+
+const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
+  // ── Schools ──────────────────────────────────────────────────────────
+  {
+    id: "school-snapshot",
+    name: "School Wellbeing & Learning Snapshot",
+    market: "schools",
+    toolIds: ["RCS-80", "RASR", "RERMS", "RSSC", "SDQ-P", "SDQ-T", "SDQ-SR", "PSC"],
+  },
+  {
+    id: "focused-support",
+    name: "Focused Student Support Assessment",
+    market: "schools",
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
+  },
+  {
+    id: "sen-learning-support",
+    name: "Learning Support Decision System (SEN)",
+    market: "schools",
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
+  },
+  {
+    id: "boarding-wellbeing",
+    name: "Boarding Student Adjustment & Wellbeing",
+    market: "schools",
+    toolIds: ["BSPP", "RERMS", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
+  },
+  // ── Parents ───────────────────────────────────────────────────────────
+  {
+    id: "why-struggling",
+    name: "Why Is My Child Struggling?",
+    market: "parents",
+    toolIds: ["RCS-80", "RASR", "INTAKE", "RCADS", "BYI2"],
+  },
+  {
+    id: "ef-coaching",
+    name: "Executive Function Coaching Assessment",
+    market: "parents",
+    toolIds: ["REFI", "RASR", "BRIEF2-SR"],
+  },
+  {
+    id: "emotional-wellbeing",
+    name: "Emotional Wellbeing Check",
+    market: "parents",
+    toolIds: ["RERMS", "DASS-21", "GAD-7", "PHQ-9"],
+  },
+  {
+    id: "school-readiness",
+    name: "School Readiness / Transition Assessment",
+    market: "parents",
+    toolIds: ["RSSC", "RERMS", "REFI", "SDQ-SR", "WHO-5"],
+  },
+  // ── Corporate ─────────────────────────────────────────────────────────
+  {
+    id: "employee-wellbeing",
+    name: "Employee Wellbeing & Burnout Screen",
+    market: "corporate",
+    toolIds: ["PSS-10", "DASS-21", "RSES", "GHQ-12"],
+  },
+  {
+    id: "leadership-profiling",
+    name: "Leadership / High-Performer Profiling",
+    market: "corporate",
+    toolIds: ["REFI", "RERMS", "RSES"],
+  },
+  {
+    id: "graduate-readiness",
+    name: "Graduate / Intern Readiness Assessment",
+    market: "corporate",
+    toolIds: ["REFI", "RSCA", "RSES", "GHQ-12"],
+  },
+  // ── Universities ──────────────────────────────────────────────────────
+  {
+    id: "intl-student",
+    name: "International Student Adjustment Assessment",
+    market: "universities",
+    toolIds: ["RERMS", "PSS-10", "DASS-21", "RSCA", "WHO-5", "RSES"],
+  },
+  {
+    id: "academic-risk",
+    name: "Academic Risk Early Warning System",
+    market: "universities",
+    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RERMS", "RASR"],
+  },
+  // ── Specialized ───────────────────────────────────────────────────────
+  {
+    id: "hidden-struggler",
+    name: "Hidden Struggler Assessment",
+    market: "specialized",
+    toolIds: ["REFI", "RSCA", "RERMS", "RCADS", "BYI2"],
+  },
+  {
+    id: "underachievement",
+    name: "Underachievement Profile",
+    market: "specialized",
+    toolIds: ["RCS-80", "RCEP-CORE", "RASR", "REFI"],
+  },
+  {
+    id: "digital-distraction",
+    name: "Digital Distraction & Focus Assessment",
+    market: "specialized",
+    toolIds: ["RASR", "REFI", "BYI2"],
+  },
+];
+
+const MARKET_LABELS: Record<AssessmentProduct["market"], string> = {
+  schools: "Schools",
+  parents: "Parents",
+  corporate: "Corporate",
+  universities: "Universities",
+  specialized: "Specialized",
+};
+
 const categoryColors: Record<string, string> = {
   admin: "bg-slate-100 text-slate-700",
   behavior: "bg-blue-100 text-blue-700",
@@ -1370,6 +1489,7 @@ export default function AssessmentTools() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterBattery, setFilterBattery] = useState("all");
   const [filterOwnership, setFilterOwnership] = useState("all");
+  const [filterProduct, setFilterProduct] = useState("all");
   const [adding, setAdding] = useState(false);
 
   // Derive sorted category list from loaded tools
@@ -1400,7 +1520,10 @@ export default function AssessmentTools() {
       filterOwnership === "all" ||
       (filterOwnership === "remynd" && t.isRemyndOwned) ||
       (filterOwnership === "open" && !t.isRemyndOwned);
-    return matchSearch && matchRespondent && matchCategory && matchBattery && matchOwnership;
+    const matchProduct =
+      filterProduct === "all" ||
+      (ASSESSMENT_PRODUCTS.find(p => p.id === filterProduct)?.toolIds ?? []).includes(t.id);
+    return matchSearch && matchRespondent && matchCategory && matchBattery && matchOwnership && matchProduct;
   });
 
   const hasActiveFilters =
@@ -1408,7 +1531,8 @@ export default function AssessmentTools() {
     filterRespondent !== "all" ||
     filterCategory !== "all" ||
     filterBattery !== "all" ||
-    filterOwnership !== "all";
+    filterOwnership !== "all" ||
+    filterProduct !== "all";
 
   function clearFilters() {
     setSearch("");
@@ -1416,6 +1540,7 @@ export default function AssessmentTools() {
     setFilterCategory("all");
     setFilterBattery("all");
     setFilterOwnership("all");
+    setFilterProduct("all");
   }
 
   return (
@@ -1495,6 +1620,21 @@ export default function AssessmentTools() {
           {(batteries ?? []).map(b => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
+        </FilterSelect>
+
+        {/* Product dropdown */}
+        <FilterSelect value={filterProduct} onChange={setFilterProduct} active={filterProduct !== "all"}>
+          <option value="all">All Products</option>
+          {(["schools", "parents", "corporate", "universities", "specialized"] as const).map(market => {
+            const products = ASSESSMENT_PRODUCTS.filter(p => p.market === market);
+            return (
+              <optgroup key={market} label={MARKET_LABELS[market]}>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </optgroup>
+            );
+          })}
         </FilterSelect>
 
         {/* Respondent dropdown */}
