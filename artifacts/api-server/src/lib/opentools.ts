@@ -618,7 +618,7 @@ export const PHQ9_FORM: FormQuestion[] = [
 export const PHQ9A_FORM: FormQuestion[] = [
   h("phq9a_instr", "Over the last 2 weeks, how often have you been bothered by any of the following problems?", "在过去两周内，您受到以下任何问题困扰的频率如何？", "지난 2주 동안 다음과 같은 문제들로 얼마나 자주 괴로움을 겪었습니까?", "depression"),
   q("phq9a_1", "Little interest or pleasure in doing things",                       "对做事情几乎没有兴趣或乐趣",             "일을 하는 것에 대한 흥미나 즐거움이 거의 없음",                 FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
-  q("phq9a_2", "Feeling down, depressed, irritable, or hopeless? Having little interest or pleasure in doing things? Feeling that life is not worth living?", "感到情绪低落、抑郁、易怒或绝望？对事情几乎没有兴趣或乐趣？觉得生活没有意义？", "기분이 가라앉거나 우울하거나 짜증스럽거나 절망적인 느낌? 하는 일에 흥미나 즐거움이 거의 없음? 삶이 살 가치가 없다는 느낌?", FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
+  q("phq9a_2", "Feeling down, depressed, irritable, or hopeless", "感到情绪低落、抑郁、易怒或绝望", "기분이 가라앉거나 우울하거나 짜증스럽거나 절망적인 느낌", FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
   q("phq9a_3", "Trouble falling or staying asleep, or sleeping too much",           "难以入睡或保持睡眠，或睡眠过多",         "잠들기 어렵거나 잠을 유지하기 어렵거나 너무 많이 잠",           FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
   q("phq9a_4", "Feeling tired or having little energy",                             "感到疲倦或精力不足",                     "피곤함을 느끼거나 에너지가 거의 없음",                         FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
   q("phq9a_5", "Poor appetite or overeating",                                       "食欲不振或暴饮暴食",                     "식욕 부진 또는 과식",                                         FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
@@ -626,6 +626,7 @@ export const PHQ9A_FORM: FormQuestion[] = [
   q("phq9a_7", "Trouble concentrating on things, such as reading, school work, or watching TV", "难以集中注意力做事，例如阅读、学校作业或看电视", "독서, 학교 과제, TV 시청 같은 일에 집중하는 데 어려움",         FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
   q("phq9a_8", "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual", "行动或说话慢到他人注意，或相反——焦躁不安，比平时多动", "행동이나 말이 너무 느려 다른 사람이 알아챌 정도이거나, 반대로 너무 초조하거나 안절부절못해 평소보다 많이 돌아다님", FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
   q("phq9a_9", "Thoughts that you would be better off dead, or of hurting yourself or suicide", "想到自己死了会更好，或想伤害自己或自杀", "죽는 것이 낫겠다거나 자해 또는 자살에 대한 생각", FREQ4_EN, FREQ4_ZH, FREQ4_KO, "depression"),
+  { id: "phq9a_10", text: "If you checked off any problems, how difficult have these problems made it for you to do your schoolwork, take care of things at home, or get along with others?", textChinese: "如果您勾选了任何问题，这些问题使您完成学业、处理家务或与他人相处有多困难？", textKorean: "위의 문제들 중 하나라도 해당된다면, 이 문제들로 인해 학교 공부, 집안일 처리 또는 다른 사람들과 잘 지내는 것이 얼마나 어려웠습니까?", type: "radio_group", options: ["Not difficult at all", "Somewhat difficult", "Very difficult", "Extremely difficult"], optionsChinese: ["完全不困难", "有些困难", "非常困难", "极其困难"], optionsKorean: ["전혀 어렵지 않음", "약간 어려움", "매우 어려움", "극도로 어려움"], domain: "functional_impairment", required: false },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
