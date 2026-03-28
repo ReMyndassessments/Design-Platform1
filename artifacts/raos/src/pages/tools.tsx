@@ -1435,110 +1435,85 @@ export default function AssessmentTools() {
         )}
       </div>
 
-      {/* Search + filters */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+      {/* Search + filters — single row */}
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-2 flex-wrap">
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="relative flex-1 min-w-40">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <Input
-            className="pl-10 h-10 bg-slate-50 border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:bg-white"
-            placeholder="Search by name, description, or domain..."
+            className="pl-8 h-8 bg-slate-50 border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:bg-white"
+            placeholder="Search..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        {/* Filter row */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Ownership segmented toggle */}
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
-            {(["all", "remynd", "open"] as const).map((val) => {
-              const label = val === "all" ? "All" : val === "remynd" ? "ReMynd" : "Open Access";
-              const active = filterOwnership === val;
-              return (
-                <button
-                  key={val}
-                  onClick={() => setFilterOwnership(val)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                    active
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-6 bg-slate-200" />
-
-          {/* Category dropdown */}
-          <FilterSelect
-            value={filterCategory}
-            onChange={setFilterCategory}
-            active={filterCategory !== "all"}
-          >
-            <option value="all">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </FilterSelect>
-
-          {/* Battery dropdown */}
-          <FilterSelect
-            value={filterBattery}
-            onChange={setFilterBattery}
-            active={filterBattery !== "all"}
-          >
-            <option value="all">All Batteries</option>
-            {(batteries ?? []).map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </FilterSelect>
-
-          {/* Respondent dropdown */}
-          <FilterSelect
-            value={filterRespondent}
-            onChange={setFilterRespondent}
-            active={filterRespondent !== "all"}
-          >
-            <option value="all">All Respondents</option>
-            {FILTER_RESPONDENT_TYPES.map(rt => (
-              <option key={rt} value={rt}>{RESPONDENT_TYPE_LABELS[rt] ?? rt}</option>
-            ))}
-          </FilterSelect>
-
-          {/* Spacer + clear */}
-          <div className="flex-1" />
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-100"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
             >
               <X size={12} />
-              Clear all
             </button>
           )}
         </div>
 
-        {/* Active filter count */}
+        {/* Divider */}
+        <div className="w-px h-5 bg-slate-200 shrink-0" />
+
+        {/* Ownership segmented toggle */}
+        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5 shrink-0">
+          {(["all", "remynd", "open"] as const).map((val) => {
+            const label = val === "all" ? "All" : val === "remynd" ? "ReMynd" : "Open Access";
+            const active = filterOwnership === val;
+            return (
+              <button
+                key={val}
+                onClick={() => setFilterOwnership(val)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap",
+                  active
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category dropdown */}
+        <FilterSelect value={filterCategory} onChange={setFilterCategory} active={filterCategory !== "all"}>
+          <option value="all">All Categories</option>
+          {categories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </FilterSelect>
+
+        {/* Battery dropdown */}
+        <FilterSelect value={filterBattery} onChange={setFilterBattery} active={filterBattery !== "all"}>
+          <option value="all">All Batteries</option>
+          {(batteries ?? []).map(b => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </FilterSelect>
+
+        {/* Respondent dropdown */}
+        <FilterSelect value={filterRespondent} onChange={setFilterRespondent} active={filterRespondent !== "all"}>
+          <option value="all">All Respondents</option>
+          {FILTER_RESPONDENT_TYPES.map(rt => (
+            <option key={rt} value={rt}>{RESPONDENT_TYPE_LABELS[rt] ?? rt}</option>
+          ))}
+        </FilterSelect>
+
+        {/* Clear */}
         {hasActiveFilters && (
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <span className="text-xs text-slate-400">Showing</span>
-            <span className="text-xs font-semibold text-primary">{filtered.length}</span>
-            <span className="text-xs text-slate-400">of {tools?.length ?? 0} tools</span>
-          </div>
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700 transition-colors px-1.5 py-1 rounded-md hover:bg-slate-100 shrink-0"
+          >
+            <X size={11} />
+            Clear
+          </button>
         )}
       </div>
 
