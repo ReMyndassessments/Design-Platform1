@@ -16,7 +16,7 @@ Full-stack psychoeducational assessment management platform built as a pnpm mono
 - **Validation**: Zod (zod/v4), drizzle-zod
 - **API codegen**: Orval (from OpenAPI spec)
 - **Auth**: JWT Bearer token (stored in localStorage), SHA-256 password hashing
-- **AI**: DeepSeek via DEEPSEEK_API_KEY (intake analysis, tool recommendations, report generation, Korean translations)
+- **AI**: DeepSeek ONLY via DEEPSEEK_API_KEY (intake analysis, tool recommendations, report generation, Korean translations). max_tokens cap: 8192. Never use OpenAI/Gemini.
 - **Charts**: Recharts (radar charts, bar charts for scoring)
 - **QR codes**: qrcode.react
 
@@ -65,8 +65,8 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 - **users** — Internal staff (admin, assessment_lead, psychometrician)
 - **cases** — Student case records with phase tracking
-- **assessment_tools** — Tool catalog (ReMynd + external). 31 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2)
-- **batteries** — Assessment batteries grouping multiple tools (e.g., CDP battery, BASC-3 battery, BRIEF-2 battery)
+- **assessment_tools** — Tool catalog (ReMynd + external). 46 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2 + 15 open-domain screening)
+- **batteries** — Assessment batteries grouping multiple tools (CDP, BASC-3, BRIEF-2, Screening & Wellbeing)
 - **assignments** — Per-respondent assignments with unique tokens + QR codes
 - **responses** — Form submissions from respondents
 - **scores** — Domain scores + cross-informant aggregation
@@ -106,6 +106,28 @@ Source: `artifacts/api-server/src/lib/basc3.ts`
 
 Chinese translations embedded in all items. Korean auto-translated by DeepSeek on first server start.
 Source: `artifacts/api-server/src/lib/brief2.ts`
+
+## Screening & Wellbeing Battery (Public Domain / Open-Access)
+
+15-tool collection of validated public-domain screening instruments (all trilingual EN/ZH/KO):
+- **SDQ-P** — Strengths & Difficulties Questionnaire, Parent (25 items, Ages 3–16)
+- **SDQ-T** — Strengths & Difficulties Questionnaire, Teacher (25 items, Ages 3–16)
+- **SDQ-SR** — Strengths & Difficulties Questionnaire, Self-Report (25 items, Ages 11–17)
+- **GHQ-12** — General Health Questionnaire (12 items, self-report)
+- **SMFQ** — Short Mood and Feelings Questionnaire (13 items, depression, Ages 6–18)
+- **PSC** — Pediatric Symptom Checklist (35 items, parent-report, Ages 4–16)
+- **GAD-7** — Generalized Anxiety Disorder Scale (7 items, self-report)
+- **PHQ-9** — Patient Health Questionnaire, Adult (9 items, depression)
+- **PHQ-9A** — Patient Health Questionnaire, Adolescent (9 items, depression)
+- **PSS-10** — Perceived Stress Scale (10 items, self-report)
+- **DASS-21** — Depression Anxiety Stress Scales (21 items, self-report)
+- **RSES** — Rosenberg Self-Esteem Scale (10 items, self-report)
+- **WHO-5** — WHO Well-Being Index (5 items, self-report)
+- **AUDIT** — Alcohol Use Disorders Identification Test (10 items, self-report)
+- **CABS** — Child/Adolescent Bullying Scale (self-report)
+
+All translations hardcoded in source. No auto-translation triggered for these tools.
+Source: `artifacts/api-server/src/lib/opentools.ts`
 
 ## External Respondent Access
 
