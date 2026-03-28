@@ -63,6 +63,7 @@ const RESPONDENT_TYPES_IN_MODAL = [
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   parent:            "Parent",
+  teacher:           "Teacher",
   teacher1:          "Teacher 1",
   teacher2:          "Teacher 2",
   referring_teacher: "Referring Teacher",
@@ -155,7 +156,7 @@ export default function CaseDetail() {
   type ProductRespondentSlot = { respondentType: string; label: string; selected: boolean; name: string; email: string };
   const [productRespondentSlots, setProductRespondentSlots] = useState<ProductRespondentSlot[]>([]);
 
-  const RT_ORDER = ["parent", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
+  const RT_ORDER = ["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
   const DEFAULT_SELECTED_RTS = new Set(["parent", "teacher1", "self"]);
 
   function getProductRTInfo(productId: string, toolsList: typeof tools): Array<{ rt: string; formCount: number }> {

@@ -111,6 +111,12 @@ export const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
   },
   // ── Specialized ───────────────────────────────────────────────────────
   {
+    id: "cdp",
+    name: "ReMynd Child Development Profile (CDP)",
+    market: "specialized",
+    toolIds: ["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"],
+  },
+  {
     id: "hidden-struggler",
     name: "Hidden Struggler Assessment",
     market: "specialized",
@@ -154,6 +160,7 @@ export const ALL_PRODUCTS_BY_MARKET: { market: string; items: { id: string; name
     { id: "academic-risk",      name: "Academic Risk Early Warning System" },
   ]},
   { market: "Specialized", items: [
+    { id: "cdp",                name: "ReMynd Child Development Profile (CDP)" },
     { id: "hidden-struggler",   name: "Hidden Struggler Assessment" },
     { id: "underachievement",   name: "Underachievement Profile" },
     { id: "digital-distraction", name: "Digital Distraction & Focus Assessment" },
