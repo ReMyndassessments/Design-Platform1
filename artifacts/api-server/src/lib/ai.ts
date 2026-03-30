@@ -174,7 +174,7 @@ Write a professional psychoeducational report in JSON format (no markdown) with 
 This is a SCREENING report only — NOT a diagnostic report. Use appropriate language like "may benefit from", "demonstrates patterns consistent with", "warrants further evaluation".`;
 
   try {
-    const text = await callDeepSeek(prompt);
+    const text = await callDeepSeek(prompt, 8192);
     const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
     return JSON.parse(cleaned);
   } catch {
