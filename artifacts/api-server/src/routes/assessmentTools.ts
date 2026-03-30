@@ -22,9 +22,9 @@ async function extractTextFromFile(fileBase64: string, fileName: string): Promis
   const lower = fileName.toLowerCase();
 
   if (lower.endsWith(".pdf")) {
-    const pdfParseModule = await import("pdf-parse");
-    const pdfParse = (pdfParseModule.default ?? pdfParseModule) as (buf: Buffer) => Promise<{ text: string }>;
-    const result = await pdfParse(buffer);
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
     return result.text;
   }
 
