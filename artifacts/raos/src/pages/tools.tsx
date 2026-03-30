@@ -457,8 +457,11 @@ function BarChart2Icon({ size }: { size: number }) {
 function AddToolModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const createMut = useCreateAssessmentTool();
+  const { data: existingTools } = useListAssessmentTools();
 
   const [id, setId] = useState("");
+  const isDuplicate = !!(id.trim() && existingTools?.some(t => t.id === id.trim().toUpperCase()));
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -672,6 +675,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
 
   const handleCreate = () => {
     if (!id.trim()) { setError("Tool ID is required."); return; }
+    if (isDuplicate) { setError(`Tool ID "${id.trim().toUpperCase()}" already exists. Choose a different ID.`); return; }
     if (!name.trim()) { setError("Name is required."); return; }
     if (!category.trim()) { setError("Category is required."); return; }
     const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
@@ -836,10 +840,16 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
             <Input
               value={id}
               onChange={e => setId(e.target.value)}
-              className="h-10 font-mono"
+              className={`h-10 font-mono ${isDuplicate ? "border-amber-400 focus-visible:ring-amber-400" : ""}`}
               placeholder="e.g. RASR, RCS-80, BRIEF"
             />
-            <p className="text-xs text-slate-400">Short unique identifier — will be uppercased automatically</p>
+            {isDuplicate ? (
+              <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                ⚠ A tool with ID <span className="font-mono font-bold">{id.trim().toUpperCase()}</span> already exists. Adding it again will create a duplicate.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">Short unique identifier — will be uppercased automatically</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
