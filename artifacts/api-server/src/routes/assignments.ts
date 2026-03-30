@@ -10,7 +10,7 @@ import { generateIntakeSummary } from "../lib/ai.js";
 
 const router = Router();
 
-const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
+const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 
 function generateQRData(link: string): string {
   return link;

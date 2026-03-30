@@ -5,7 +5,7 @@ import { eq, and, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 
-const FORM_TYPES = ["REFERRAL", "CONSENT", "INTAKE"];
+const FORM_TYPES = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"];
 
 const ITEM_TYPE_MAP: Record<string, string> = {
   checkbox: "checkbox_group",

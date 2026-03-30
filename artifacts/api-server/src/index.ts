@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -241,6 +241,50 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     respondentTypes: ["parent", "referring_teacher"],
     scoringType: "manual",
     domains: [],
+  },
+  {
+    id: "REFERRAL-CORP",
+    name: "ReMynd Corporate Referral Form",
+    category: "ReMynd Admin Forms",
+    description: "Referral form for HR managers, line managers, or employees initiating a workplace assessment request",
+    isRemyndOwned: true,
+    respondentTypes: ["clinician"],
+    scoringType: "manual",
+    domains: [],
+    formItems: REFERRAL_CORP_FORM,
+  },
+  {
+    id: "REFERRAL-UNI",
+    name: "ReMynd University Student Referral Form",
+    category: "ReMynd Admin Forms",
+    description: "Referral form for academic staff, student services, or students initiating a university assessment request",
+    isRemyndOwned: true,
+    respondentTypes: ["referring_teacher"],
+    scoringType: "manual",
+    domains: [],
+    formItems: REFERRAL_UNI_FORM,
+  },
+  {
+    id: "REFERRAL-PARENT",
+    name: "ReMynd Parent Self-Referral Form",
+    category: "ReMynd Admin Forms",
+    description: "Self-referral form for parents or guardians initiating an assessment for their child outside the school pathway",
+    isRemyndOwned: true,
+    respondentTypes: ["parent"],
+    scoringType: "manual",
+    domains: [],
+    formItems: REFERRAL_PARENT_FORM,
+  },
+  {
+    id: "REFERRAL-BOARDING",
+    name: "ReMynd Boarding Pastoral Referral Form",
+    category: "ReMynd Admin Forms",
+    description: "Referral form for boarding house staff to refer a student for pastoral or psychoeducational assessment support",
+    isRemyndOwned: true,
+    respondentTypes: ["boarding_staff"],
+    scoringType: "manual",
+    domains: [],
+    formItems: REFERRAL_BOARDING_FORM,
   },
   {
     id: "CONSENT",

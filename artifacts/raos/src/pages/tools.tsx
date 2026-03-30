@@ -1404,7 +1404,7 @@ function DeleteConfirmDialog({ tool, onClose }: { tool: any; onClose: () => void
 // ── Library Sections ──────────────────────────────────────────────────────────
 
 const LIBRARY_SECTIONS: { label: string; ids: string[] }[] = [
-  { label: "ReMynd Administrative & Intake", ids: ["REFERRAL", "CONSENT", "INTAKE"] },
+  { label: "ReMynd Administrative & Intake", ids: ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"] },
   { label: "Executive Function", ids: ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR", "REFI", "EFA", "CFI", "RASR-OBS", "RASR"] },
   { label: "Attention & ADHD", ids: ["SNAPIV26", "ASRS-V11", "VADPRS", "VADTRS", "PSITER"] },
   { label: "Behavior & Broad Assessment", ids: ["BEHAVOBS", "BASC3-TRS-C", "BASC3-TRS-A", "BASC3-PRS-C", "BASC3-PRS-A", "BASC3-SRP-C", "BASC3-SRP-A", "ABC", "PSC"] },

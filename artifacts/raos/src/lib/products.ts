@@ -50,64 +50,64 @@ export const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
     id: "boarding-wellbeing",
     name: "Boarding Student Adjustment & Wellbeing",
     market: "schools",
-    toolIds: ["BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
+    toolIds: ["REFERRAL-BOARDING", "BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
   },
   // ── Parents ───────────────────────────────────────────────────────────
   {
     id: "why-struggling",
     name: "Why Is My Child Struggling?",
     market: "parents",
-    toolIds: ["RCS-80", "RASR", "RSCP", "RARPS", "RFII", "INTAKE", "RCADS", "BYI2"],
+    toolIds: ["REFERRAL-PARENT", "INTAKE", "RCS-80", "RASR", "RSCP", "RARPS", "RFII", "RCADS", "BYI2"],
   },
   {
     id: "ef-coaching",
     name: "Executive Function Coaching Assessment",
     market: "parents",
-    toolIds: ["REFI", "RASR", "BRIEF2-SR"],
+    toolIds: ["REFERRAL-PARENT", "REFI", "RASR", "BRIEF2-SR"],
   },
   {
     id: "emotional-wellbeing",
     name: "Emotional Wellbeing Check",
     market: "parents",
-    toolIds: ["RERMS", "DASS-21", "GAD-7", "PHQ-9"],
+    toolIds: ["REFERRAL-PARENT", "RERMS", "DASS-21", "GAD-7", "PHQ-9"],
   },
   {
     id: "school-readiness",
     name: "School Readiness / Transition Assessment",
     market: "parents",
-    toolIds: ["RSSC", "RERMS", "REFI", "SDQ-SR", "WHO-5"],
+    toolIds: ["REFERRAL-PARENT", "RSSC", "RERMS", "REFI", "SDQ-SR", "WHO-5"],
   },
   // ── Corporate ─────────────────────────────────────────────────────────
   {
     id: "employee-wellbeing",
     name: "Employee Wellbeing & Burnout Screen",
     market: "corporate",
-    toolIds: ["PSS-10", "DASS-21", "RSES", "GHQ-12"],
+    toolIds: ["REFERRAL-CORP", "PSS-10", "DASS-21", "RSES", "GHQ-12"],
   },
   {
     id: "leadership-profiling",
     name: "Leadership / High-Performer Profiling",
     market: "corporate",
-    toolIds: ["REFI", "RERMS", "RSES"],
+    toolIds: ["REFERRAL-CORP", "REFI", "RERMS", "RSES"],
   },
   {
     id: "graduate-readiness",
     name: "Graduate / Intern Readiness Assessment",
     market: "corporate",
-    toolIds: ["REFI", "RSCA", "RSES", "GHQ-12"],
+    toolIds: ["REFERRAL-CORP", "REFI", "RSCA", "RSES", "GHQ-12"],
   },
   // ── Universities ──────────────────────────────────────────────────────
   {
     id: "intl-student",
     name: "International Student Adjustment Assessment",
     market: "universities",
-    toolIds: ["RERMS", "PSS-10", "DASS-21", "RSCA", "WHO-5", "RSES"],
+    toolIds: ["REFERRAL-UNI", "RERMS", "PSS-10", "DASS-21", "RSCA", "WHO-5", "RSES"],
   },
   {
     id: "academic-risk",
     name: "Academic Risk Early Warning System",
     market: "universities",
-    toolIds: ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RERMS", "RASR"],
+    toolIds: ["REFERRAL-UNI", "RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RERMS", "RASR"],
   },
   // ── Specialized ───────────────────────────────────────────────────────
   {

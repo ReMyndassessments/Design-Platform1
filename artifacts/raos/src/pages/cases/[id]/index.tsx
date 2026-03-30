@@ -52,7 +52,7 @@ function displayPhase(phase: string): string {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
-const INTAKE_TOOL_IDS = new Set(["REFERRAL", "CONSENT", "INTAKE"]);
+const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 
 
 const RESPONDENT_TYPES_IN_MODAL = [
