@@ -938,6 +938,30 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     formItems: FASM_FORM,
     scoringConfig: null,
   },
+  {
+    id: "BFI-44",
+    name: "The Big Five Inventory",
+    category: "social-emotional",
+    description: "A 44-item self-report personality inventory measuring the five broad domains of personality (the Five-Factor Model) in adolescents and adults.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "auto",
+    domains: ["Extraversion", "Agreeableness", "Conscientiousness", "Neuroticism", "Openness to Experience"],
+    scoringConfig: null,
+    // formItems intentionally omitted — form items were added manually in production and are preserved by the upsert logic
+  },
+  {
+    id: "CHOCHI-RS",
+    name: "Children's Obsessional Compulsive Inventory-Revised-Self Report",
+    category: "behavior",
+    description: "A self-report questionnaire designed to assess the presence and severity of obsessive-compulsive symptoms in children and adolescents. It is intended for individuals aged 7 to 18 years and measures the frequency and distress associated with common OCD thoughts and behaviors.",
+    isRemyndOwned: false,
+    respondentTypes: ["self"],
+    scoringType: "auto",
+    domains: ["ocd", "obsessions", "compulsions"],
+    scoringConfig: null,
+    // formItems intentionally omitted — form items were added manually in production and are preserved by the upsert logic
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
@@ -1052,7 +1076,9 @@ async function syncTools() {
           scoringType: tool.scoringType,
           domains: tool.domains,
           scoringConfig: tool.scoringConfig ?? null,
-          formItems: mergedItems ?? null,
+          // Only overwrite formItems when the canonical definition includes them —
+          // tools added manually in production have their items preserved this way
+          ...(tool.formItems != null ? { formItems: mergedItems ?? null } : {}),
           // productIds intentionally omitted — user edits must persist across restarts
         },
       });
