@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetCaseScores, useCalculateScores, useGetCase } from "@workspace/api-client-react";
+import { useGetCaseScores, useCalculateScores, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, RefreshCw, AlertTriangle, FileText, TrendingUp, Users, ClipboardList } from "lucide-react";
@@ -663,7 +663,9 @@ export default function ScoringView() {
 
   const { data: scores, isLoading } = useGetCaseScores(caseId);
   const { data: caseData } = useGetCase(caseId);
+  const { data: currentUser } = useGetCurrentUser();
   const calcMut = useCalculateScores();
+  const isInvigilator = currentUser?.role === "assessment_invigilator";
 
   const handleRecalculate = () => {
     calcMut.mutate({ caseId }, {
@@ -706,9 +708,11 @@ export default function ScoringView() {
             <p className="text-slate-500 text-sm">Case: {studentName}</p>
           </div>
         </div>
-        <Button onClick={handleRecalculate} disabled={calcMut.isPending} variant="outline" className="bg-white">
-          <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
-        </Button>
+        {!isInvigilator && (
+          <Button onClick={handleRecalculate} disabled={calcMut.isPending} variant="outline" className="bg-white">
+            <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
+          </Button>
+        )}
       </div>
 
       {toolGroups.length === 0 ? (

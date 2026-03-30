@@ -73,6 +73,10 @@ router.get("/cases/:caseId/scores", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) => {
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators have view-only access" });
+    return;
+  }
   const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
   const completedAssignments = assignments.filter(a => a.status === "completed");
 
@@ -123,6 +127,10 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
 });
 
 router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => {
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators have view-only access" });
+    return;
+  }
   const { toolId, toolName, respondentType, rawScore, domainScores, notes } = req.body;
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
@@ -169,6 +177,10 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
 });
 
 router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, async (req, res) => {
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators have view-only access" });
+    return;
+  }
   const { caseId, assignmentId } = req.params;
 
   if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {

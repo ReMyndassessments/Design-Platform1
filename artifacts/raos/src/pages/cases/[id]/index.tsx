@@ -70,11 +70,9 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   invigilator:       "Invigilator",
 };
 
-const INVIGILATOR_PHASES = new Set(["assessment", "scoring", "report", "debrief"]);
-
 function canAdvancePhase(role: string, currentPhase: string): boolean {
   if (role === "admin") return true;
-  if (role === "assessment_invigilator") return INVIGILATOR_PHASES.has(currentPhase);
+  if (role === "assessment_invigilator") return false;
   if (role === "psychometrician") return PSYCH_PHASES.has(currentPhase);
   return false;
 }
@@ -605,10 +603,14 @@ export default function CaseDetail() {
                     </Button>
                   </Link>
                 )}
-                <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
-                  <LayoutGrid size={13} /> Assign by Product
-                </Button>
-                <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
+                {role === "admin" && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
+                      <LayoutGrid size={13} /> Assign by Product
+                    </Button>
+                    <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
+                  </>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -676,14 +678,16 @@ export default function CaseDetail() {
                             </Button>
                           </Link>
                         )}
-                        <Button
-                          variant="outline" size="sm"
-                          className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
-                          title="Remove assignment"
-                          onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+                        {role === "admin" && (
+                          <Button
+                            variant="outline" size="sm"
+                            className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
+                            title="Remove assignment"
+                            onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

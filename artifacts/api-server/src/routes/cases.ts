@@ -201,10 +201,9 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
   }
   const { userRole } = req;
   const current = rows[0].currentPhase;
-  const INVIGILATOR_PHASES = new Set(["assessment", "scoring", "report", "debrief"]);
   const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
-  if (userRole === "assessment_invigilator" && !INVIGILATOR_PHASES.has(current)) {
-    res.status(403).json({ error: "forbidden", message: "Assessment Invigilators can only advance from the Assessment stage onwards" });
+  if (userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators have view-only access and cannot advance phases" });
     return;
   }
   if (userRole === "psychometrician" && !PSYCH_PHASES.has(current)) {
