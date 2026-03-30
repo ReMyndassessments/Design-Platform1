@@ -270,11 +270,15 @@ router.post("/assessment-tools/analyze", authMiddleware, async (req, res) => {
     resolvedText = resolvedText.slice(0, MAX_CHARS);
   }
 
+  // Fetch existing tools so the AI can detect duplicates
+  const existingToolRows = await db.select({ id: assessmentToolsTable.id, name: assessmentToolsTable.name }).from(assessmentToolsTable);
+  const existingTools = existingToolRows.map(r => ({ id: r.id, name: r.name }));
+
   // Start async job — return immediately so the proxy doesn't time out
   const jobId = randomUUID();
   analysisJobs.set(jobId, { status: "pending" });
 
-  const captured = { formText: resolvedText, imageBase64, mimeType };
+  const captured = { formText: resolvedText, imageBase64, mimeType, existingTools };
   (async () => {
     try {
       const result = await analyzeFormWithAI(captured);

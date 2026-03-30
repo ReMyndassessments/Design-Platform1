@@ -479,6 +479,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [formItems, setFormItems] = useState<ImportedFormItem[]>([]);
   const [translating, setTranslating] = useState(false);
+  const [duplicateMatch, setDuplicateMatch] = useState<{ id: string; name: string } | null>(null);
   const savedToolIdRef = useRef<string | null>(null);
 
   const defaultScoringConfig: ScoringConfig = { max: 4, thresholds: { low: 25, mild: 50, moderate: 65 }, domains: {} };
@@ -621,6 +622,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
         scoringType: "auto" | "manual";
         domains: string[];
         respondentTypes: string[];
+        duplicateMatch?: { id: string; name: string } | null;
         formItems: ImportedFormItem[];
       };
       const extractedItems = parsedData.formItems ?? [];
@@ -632,6 +634,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
       setDomainsRaw((parsedData.domains ?? []).join(", "));
       setRespondents(parsedData.respondentTypes ?? []);
       setFormItems(extractedItems);
+      setDuplicateMatch(parsedData.duplicateMatch ?? null);
       setAiImportOpen(false);
 
       // Fire translation in the background — non-blocking
@@ -833,6 +836,26 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
               </div>
             )}
           </div>
+
+          {/* Duplicate match warning from AI analysis */}
+          {duplicateMatch && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 flex gap-3 items-start">
+              <span className="text-amber-500 text-lg leading-none mt-0.5">⚠</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800">Possible duplicate detected</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  This form appears to match <span className="font-mono font-bold">{duplicateMatch.id}</span> — <span className="font-medium">{duplicateMatch.name}</span>, which is already in the system. Review the fields below before saving.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDuplicateMatch(null)}
+                className="text-amber-400 hover:text-amber-600 text-xs shrink-0 mt-0.5"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* Form Fields */}
           <div className="space-y-1.5">

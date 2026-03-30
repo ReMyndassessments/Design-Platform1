@@ -256,6 +256,7 @@ export type AnalyzedFormResult = {
   scoringType: "auto" | "manual";
   domains: string[];
   respondentTypes: string[];
+  duplicateMatch?: { id: string; name: string } | null;
   formItems: Array<{
     id: string;
     text: string;
@@ -328,13 +329,18 @@ export async function analyzeFormWithAI(params: {
   formText?: string;
   imageBase64?: string;
   mimeType?: string;
+  existingTools?: Array<{ id: string; name: string }>;
 }): Promise<AnalyzedFormResult> {
+
+  const existingToolsSection = params.existingTools && params.existingTools.length > 0
+    ? `\nEXISTING TOOLS ALREADY IN THE SYSTEM (check for duplicates):\n${params.existingTools.map(t => `- ${t.id}: ${t.name}`).join("\n")}\n\nIf the form being analyzed matches any of the above tools (same tool, same or very similar version), set "duplicateMatch" to {"id": "<matching id>", "name": "<matching name>"}. Otherwise set "duplicateMatch" to null.\n`
+    : "";
 
   // Extract structure + all items in English only — no translation here
   const extractPrompt = `You are a psychoeducational assessment expert. Analyze the provided assessment form and extract structured information.
 
 ${params.formText ? `FORM CONTENT:\n${params.formText}\n` : ""}${params.imageBase64 ? "Please analyze the assessment form shown in the image." : ""}
-
+${existingToolsSection}
 Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
 {
   "suggestedId": "SHORT_UPPERCASE_ID (max 10 chars, e.g. BRIEF, BASC, RASR)",
@@ -344,6 +350,7 @@ Return a JSON object (no markdown, no code fences) with EXACTLY this structure:
   "scoringType": "auto or manual",
   "domains": ["array", "of", "psychological_domains", "being_assessed"],
   "respondentTypes": ["array from: parent, teacher1, teacher2, boarding_staff, referring_teacher, self, invigilator"],
+  "duplicateMatch": null,
   "formItems": [
     {
       "id": "q1",
@@ -384,6 +391,11 @@ Return ONLY the JSON object, nothing else.`;
 
   const formItems: RawFormItem[] = Array.isArray(parsed.formItems) ? parsed.formItems : [];
 
+  const duplicateMatch =
+    parsed.duplicateMatch && typeof parsed.duplicateMatch === "object" && parsed.duplicateMatch.id
+      ? { id: parsed.duplicateMatch.id, name: parsed.duplicateMatch.name ?? "" }
+      : null;
+
   return {
     suggestedId: (parsed.suggestedId ?? "TOOL").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10),
     name: parsed.name ?? "",
@@ -392,6 +404,7 @@ Return ONLY the JSON object, nothing else.`;
     scoringType: parsed.scoringType === "auto" ? "auto" : "manual",
     domains: Array.isArray(parsed.domains) ? parsed.domains : [],
     respondentTypes: Array.isArray(parsed.respondentTypes) ? parsed.respondentTypes : [],
+    duplicateMatch,
     formItems,
   };
 }
