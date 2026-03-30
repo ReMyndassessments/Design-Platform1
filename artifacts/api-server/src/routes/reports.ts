@@ -36,8 +36,8 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  if (req.userRole === "psychometrician") {
-    res.status(403).json({ error: "forbidden", message: "Psychometricians cannot generate AI reports directly" });
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Assessment Invigilators cannot generate reports" });
     return;
   }
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
@@ -82,8 +82,8 @@ router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) =>
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  if (req.userRole === "psychometrician") {
-    res.status(403).json({ error: "forbidden", message: "Psychometricians cannot edit reports directly" });
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Assessment Invigilators cannot edit reports" });
     return;
   }
   const allowed = ["backgroundSummary", "domainAnalysis", "strengths", "areasOfConcern", "crossSettingComparison", "recommendations", "adminNotes"];

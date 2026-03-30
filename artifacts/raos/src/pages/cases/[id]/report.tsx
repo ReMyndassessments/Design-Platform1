@@ -17,6 +17,7 @@ export default function ReportEditor() {
 
   const { data: currentUser } = useGetCurrentUser();
   const isAdmin = currentUser?.role === "admin";
+  const canEdit = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
 
   const { data: caseData } = useGetCase(caseId);
   const { data: report, isLoading } = useGetCaseReport(caseId, { query: { retry: false }});
@@ -92,11 +93,12 @@ export default function ReportEditor() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!report ? (
+          {!report && canEdit && (
             <Button onClick={handleGenerate} disabled={generateMut.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20">
               <Sparkles size={16} className="mr-2" /> {generateMut.isPending ? "Drafting..." : "AI Generate Draft"}
             </Button>
-          ) : (
+          )}
+          {report && canEdit && (
             <>
               <Button variant="outline" onClick={handleSave} disabled={updateMut.isPending || report.status === 'approved'} className="bg-white">
                 <Save size={16} className="mr-2" /> Save Draft
@@ -117,8 +119,14 @@ export default function ReportEditor() {
             <Sparkles size={40} />
           </div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">No Report Draft Yet</h3>
-          <p className="text-slate-500 max-w-md mx-auto mb-6">Click "AI Generate Draft" to have ReMynd's AI synthesize the intake data, scores, and high discrepancy flags into a starting draft.</p>
-          <Button onClick={handleGenerate} className="bg-indigo-600 hover:bg-indigo-700 text-white">Generate Now</Button>
+          {canEdit ? (
+            <>
+              <p className="text-slate-500 max-w-md mx-auto mb-6">Click "AI Generate Draft" to have ReMynd's AI synthesize the intake data, scores, and high discrepancy flags into a starting draft.</p>
+              <Button onClick={handleGenerate} className="bg-indigo-600 hover:bg-indigo-700 text-white">Generate Now</Button>
+            </>
+          ) : (
+            <p className="text-slate-500 max-w-md mx-auto">The psychometrician will generate this report once scoring is complete.</p>
+          )}
         </Card>
       )}
 
@@ -141,7 +149,7 @@ export default function ReportEditor() {
                   className="min-h-[200px] border-0 focus-visible:ring-0 rounded-none rounded-b-xl text-base leading-relaxed p-6 resize-y"
                   value={(formData as any)[section.key]}
                   onChange={e => setFormData({...formData, [section.key]: e.target.value})}
-                  disabled={report.status === 'approved'}
+                  disabled={report.status === 'approved' || !canEdit}
                 />
               </CardContent>
             </Card>
