@@ -63,7 +63,7 @@ pre_commitment → intake → setup → forms → assessment → scoring → rep
 
 ## Database Schema
 
-- **users** — Internal staff (admin, assessment_lead, psychometrician)
+- **users** — Internal staff (admin, assessment_invigilator, psychometrician)
 - **cases** — Student case records with phase tracking
 - **assessment_tools** — Tool catalog (ReMynd + external). 52 canonical tools (22 original + 6 BASC-3 + 3 BRIEF-2 + 18 open-domain screening + 3 ReMynd proprietary)
 - **batteries** — Assessment batteries grouping multiple tools (CDP, BASC-3, BRIEF-2, Screening & Wellbeing)

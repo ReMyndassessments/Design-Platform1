@@ -28,13 +28,13 @@ type StaffUser = ListUsersQueryResult[number];
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
-  assessment_lead: "Invigilator",
+  assessment_invigilator: "Invigilator",
   psychometrician: "Psychometrician",
 };
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-violet-100 text-violet-700 border-violet-200",
-  assessment_lead: "bg-blue-100 text-blue-700 border-blue-200",
+  assessment_invigilator: "bg-blue-100 text-blue-700 border-blue-200",
   psychometrician: "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
 
@@ -62,7 +62,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"assessment_lead" | "psychometrician">("assessment_lead");
+  const [role, setRole] = useState<"assessment_invigilator" | "psychometrician">("assessment_invigilator");
   const [error, setError] = useState<string | null>(null);
 
   const handleCreate = () => {
@@ -143,7 +143,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
             <label className="text-sm font-semibold text-slate-700">Role <span className="text-red-500">*</span></label>
             <div className="grid grid-cols-2 gap-3">
               {([
-                { value: "assessment_lead", label: "Invigilator", desc: "Pre-commitment & intake phases" },
+                { value: "assessment_invigilator", label: "Invigilator", desc: "Assessment, scoring & report phases" },
                 { value: "psychometrician", label: "Psychometrician", desc: "Scoring & report phases" },
               ] as const).map(opt => (
                 <button
@@ -189,7 +189,7 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
   const updateMut = useUpdateUser();
 
   const [name, setName] = useState(user.name ?? "");
-  const [role, setRole] = useState<"assessment_lead" | "psychometrician">(user.role);
+  const [role, setRole] = useState<"assessment_invigilator" | "psychometrician">(user.role as "assessment_invigilator" | "psychometrician");
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = () => {
@@ -238,7 +238,7 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
             <label className="text-sm font-semibold text-slate-700">Role</label>
             <div className="grid grid-cols-2 gap-3">
               {([
-                { value: "assessment_lead", label: "Invigilator", desc: "Pre-commitment & intake phases" },
+                { value: "assessment_invigilator", label: "Invigilator", desc: "Assessment, scoring & report phases" },
                 { value: "psychometrician", label: "Psychometrician", desc: "Scoring & report phases" },
               ] as const).map(opt => (
                 <button
@@ -405,7 +405,7 @@ export default function TeamPage() {
   }
 
   const sorted = (users ?? []).slice().sort((a, b) => {
-    const order = { admin: 0, assessment_lead: 1, psychometrician: 2 };
+    const order = { admin: 0, assessment_invigilator: 1, psychometrician: 2 };
     return (order[a.role as keyof typeof order] ?? 9) - (order[b.role as keyof typeof order] ?? 9);
   });
 
@@ -431,7 +431,7 @@ export default function TeamPage() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Total Staff", value: sorted.length, color: "text-slate-700" },
-            { label: "Invigilators", value: sorted.filter(u => u.role === "assessment_lead").length, color: "text-blue-600" },
+            { label: "Invigilators", value: sorted.filter(u => u.role === "assessment_invigilator").length, color: "text-blue-600" },
             { label: "Psychometricians", value: sorted.filter(u => u.role === "psychometrician").length, color: "text-emerald-600" },
           ].map(stat => (
             <div key={stat.label} className="bg-white border border-slate-200 rounded-xl p-4 text-center">

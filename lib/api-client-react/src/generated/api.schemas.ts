@@ -23,7 +23,7 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const UserRole = {
   admin: "admin",
-  assessment_lead: "assessment_lead",
+  assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
 } as const;
 
@@ -40,7 +40,7 @@ export type CreateUserRequestRole =
 
 export const CreateUserRequestRole = {
   admin: "admin",
-  assessment_lead: "assessment_lead",
+  assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
 } as const;
 
@@ -56,7 +56,7 @@ export type UpdateUserRequestRole =
 
 export const UpdateUserRequestRole = {
   admin: "admin",
-  assessment_lead: "assessment_lead",
+  assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
 } as const;
 

@@ -20,10 +20,10 @@ async function seed() {
     },
     {
       id: "user-hayley-002",
-      name: "Hayley (Assessment Lead)",
+      name: "Hayley (Assessment Invigilator)",
       email: "hayley@remynd.com",
       passwordHash: hashPassword("password"),
-      role: "assessment_lead",
+      role: "assessment_invigilator",
     },
     {
       id: "user-abegail-003",

@@ -881,7 +881,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_lead, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician]
         createdAt:
           type: string
           format: date-time
@@ -898,7 +898,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_lead, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician]
       required: [name, email, password, role]
 
     UpdateUserRequest:
@@ -912,7 +912,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_lead, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician]
 
     LoginRequest:
       type: object

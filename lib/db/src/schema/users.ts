@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 export const userRoleEnum = pgEnum("user_role", [
   "admin",
-  "assessment_lead",
+  "assessment_invigilator",
   "psychometrician",
 ]);
 
@@ -13,7 +13,7 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  role: userRoleEnum("role").notNull().default("assessment_lead"),
+  role: userRoleEnum("role").notNull().default("assessment_invigilator"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

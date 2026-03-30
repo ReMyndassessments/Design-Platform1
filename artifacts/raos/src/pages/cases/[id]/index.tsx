@@ -70,17 +70,16 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   invigilator:       "Invigilator",
 };
 
+const INVIGILATOR_PHASES = new Set(["assessment", "scoring", "report", "debrief"]);
+
 function canAdvancePhase(role: string, currentPhase: string): boolean {
   if (role === "admin") return true;
-  if (role === "assessment_lead") return LEAD_PHASES.has(currentPhase);
+  if (role === "assessment_invigilator") return INVIGILATOR_PHASES.has(currentPhase);
   if (role === "psychometrician") return PSYCH_PHASES.has(currentPhase);
   return false;
 }
 
-function isPhaseVisible(role: string, phase: string): boolean {
-  if (role === "admin") return true;
-  if (role === "assessment_lead") return LEAD_PHASES.has(phase);
-  if (role === "psychometrician") return PSYCH_PHASES.has(phase) || phase === "complete";
+function isPhaseVisible(_role: string, _phase: string): boolean {
   return true;
 }
 
@@ -226,7 +225,7 @@ export default function CaseDetail() {
 
   const filteredTools = tools?.filter(t => {
     if (role === "admin") return true;
-    if (role === "assessment_lead") return INTAKE_TOOL_IDS.has(t.id);
+    if (role === "assessment_invigilator") return true;
     if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
     return true;
   });
@@ -444,12 +443,12 @@ export default function CaseDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {c.currentPhase === 'scoring' && role !== "assessment_lead" && (
+          {c.currentPhase === 'scoring' && (
             <Link href={`/cases/${c.id}/scoring`}>
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['report', 'debrief', 'complete'].includes(c.currentPhase) && role !== "assessment_lead" && (
+          {['report', 'debrief', 'complete'].includes(c.currentPhase) && (
             <Link href={`/cases/${c.id}/report`}>
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
@@ -516,9 +515,6 @@ export default function CaseDetail() {
             <div>
               <p className="text-sm text-slate-400">Current Phase</p>
               <h3 className="text-xl font-bold font-display capitalize text-white">{PHASE_LABELS[c.currentPhase] ?? c.currentPhase.replace('_', ' ')}</h3>
-              {role === "assessment_lead" && !isPhaseVisible(role, c.currentPhase) && (
-                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Lock size={10}/> This phase is managed by the Psychometrician</p>
-              )}
               {role === "psychometrician" && !isPhaseVisible(role, c.currentPhase) && (
                 <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Lock size={10}/> This phase is managed by the Invigilator</p>
               )}
@@ -739,9 +735,6 @@ export default function CaseDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Assignment</DialogTitle>
-            {role === "assessment_lead" && (
-              <DialogDescription>As an invigilator, you can deploy Referral, Consent, and Intake forms.</DialogDescription>
-            )}
             {role === "psychometrician" && (
               <DialogDescription>As a psychometrician, you can deploy assessment instruments (not intake forms).</DialogDescription>
             )}

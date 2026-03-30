@@ -91,8 +91,8 @@ router.post("/users", authMiddleware, async (req, res) => {
     res.status(400).json({ error: "bad_request", message: "name, email, and password are required" });
     return;
   }
-  if (!["assessment_lead", "psychometrician"].includes(role)) {
-    res.status(400).json({ error: "bad_request", message: "Role must be assessment_lead or psychometrician" });
+  if (!["assessment_invigilator", "psychometrician"].includes(role)) {
+    res.status(400).json({ error: "bad_request", message: "Role must be assessment_invigilator or psychometrician" });
     return;
   }
 
@@ -142,8 +142,8 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
-  if (role && !["assessment_lead", "psychometrician"].includes(role)) {
-    res.status(400).json({ error: "bad_request", message: "Role must be assessment_lead or psychometrician" });
+  if (role && !["assessment_invigilator", "psychometrician"].includes(role)) {
+    res.status(400).json({ error: "bad_request", message: "Role must be assessment_invigilator or psychometrician" });
     return;
   }
 

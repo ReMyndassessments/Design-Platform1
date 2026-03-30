@@ -16,7 +16,7 @@ export default function NewCase() {
   const { data: users } = useListUsers();
   const { data: currentUser } = useGetCurrentUser();
   const isAdmin = currentUser?.role === "admin";
-  const isLead = currentUser?.role === "assessment_lead";
+  const isLead = currentUser?.role === "assessment_invigilator";
 
   const [formData, setFormData] = useState({
     studentName: "",
@@ -154,7 +154,7 @@ export default function NewCase() {
                     className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
                   >
                     <option value="">Unassigned</option>
-                    {users?.filter(u => u.role === 'assessment_lead' || u.role === 'admin').map(u => (
+                    {users?.filter(u => u.role === 'assessment_invigilator' || u.role === 'admin').map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
                     ))}
                   </select>

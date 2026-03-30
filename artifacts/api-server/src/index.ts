@@ -1164,7 +1164,7 @@ async function seedIfEmpty() {
     logger.info("Seeding demo users...");
     await db.insert(usersTable).values([
       { id: "user-admin-001", name: "Noel (Admin)", email: "admin@remynd.com", passwordHash: hashPassword("password"), role: "admin" },
-      { id: "user-hayley-002", name: "Hayley (Assessment Lead)", email: "hayley@remynd.com", passwordHash: hashPassword("password"), role: "assessment_lead" },
+      { id: "user-hayley-002", name: "Hayley (Assessment Invigilator)", email: "hayley@remynd.com", passwordHash: hashPassword("password"), role: "assessment_invigilator" },
       { id: "user-abegail-003", name: "Abegail (Psychometrician)", email: "abegail@remynd.com", passwordHash: hashPassword("password"), role: "psychometrician" },
     ]).onConflictDoNothing();
     logger.info("Demo users seeded successfully");

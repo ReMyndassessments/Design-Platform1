@@ -49,12 +49,8 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   }
 
   const { userRole } = req;
-  if (userRole === "assessment_lead" && !INTAKE_TOOL_IDS.has(toolId)) {
-    res.status(403).json({ error: "forbidden", message: "Invigilators can only deploy Referral, Consent, and Intake forms" });
-    return;
-  }
-  if (userRole === "psychometrician" && INTAKE_TOOL_IDS.has(toolId)) {
-    res.status(403).json({ error: "forbidden", message: "Psychometricians cannot deploy intake-stage forms" });
+  if (userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only administrators can assign forms" });
     return;
   }
 

@@ -810,7 +810,7 @@ export const ListUsersResponseItem = zod.object({
   id: zod.string(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]),
   createdAt: zod.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -822,7 +822,7 @@ export const CreateUserBody = zod.object({
   name: zod.string(),
   email: zod.string(),
   password: zod.string(),
-  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]),
 });
 
 /**
@@ -836,14 +836,14 @@ export const UpdateUserBody = zod.object({
   name: zod.string().optional(),
   email: zod.string().optional(),
   password: zod.string().optional(),
-  role: zod.enum(["admin", "assessment_lead", "psychometrician"]).optional(),
+  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]).optional(),
 });
 
 export const UpdateUserResponse = zod.object({
   id: zod.string(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]),
   createdAt: zod.date(),
 });
 
@@ -861,7 +861,7 @@ export const GetCurrentUserResponse = zod.object({
   id: zod.string(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]),
   createdAt: zod.date(),
 });
 
@@ -878,7 +878,7 @@ export const LoginResponse = zod.object({
     id: zod.string(),
     name: zod.string(),
     email: zod.string(),
-    role: zod.enum(["admin", "assessment_lead", "psychometrician"]),
+    role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]),
     createdAt: zod.date(),
   }),
   token: zod.string(),
