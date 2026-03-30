@@ -1401,100 +1401,220 @@ function DeleteConfirmDialog({ tool, onClose }: { tool: any; onClose: () => void
   );
 }
 
-// ── Tool Card ─────────────────────────────────────────────────────────────────
+// ── Library Sections ──────────────────────────────────────────────────────────
 
-function ToolCard({ tool, isAdmin }: { tool: any; isAdmin: boolean }) {
+const LIBRARY_SECTIONS: { label: string; ids: string[] }[] = [
+  { label: "ReMynd Administrative & Intake", ids: ["REFERRAL", "CONSENT", "INTAKE"] },
+  { label: "Executive Function", ids: ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR", "REFI", "EFA", "CFI", "RASR-OBS", "RASR"] },
+  { label: "Attention & ADHD", ids: ["SNAPIV26", "ASRS-V11", "VADPRS", "VADTRS", "PSITER"] },
+  { label: "Behavior & Broad Assessment", ids: ["BEHAVOBS", "BASC3-TRS-C", "BASC3-TRS-A", "BASC3-PRS-C", "BASC3-PRS-A", "BASC3-SRP-C", "BASC3-SRP-A", "ABC", "PSC"] },
+  { label: "Social-Emotional & Mental Health", ids: ["RERMS", "SEDQ", "BRIEFCOPE", "SCAS", "SCAS-P", "RCADS", "DASS-Y", "DASS-21", "DASS42", "PHQ-9", "PHQ-9A", "ZUNG", "GAD-7", "PSWQ", "PSS-10", "WHO-5", "SMFQ", "RSES", "DERS", "AAQ2", "RSCA", "BYI2", "CABS", "AUDIT", "EAT26", "FASM"] },
+  { label: "Autism & Social Communication", ids: ["ASRS 6-18", "SCQ", "SCDQPF", "AQ", "ASSQ", "CAT-Q", "RSCP", "BSPP"] },
+  { label: "Learning & Academic", ids: ["LASA", "DYSRISK", "RARPS", "SSITER", "RCS-80"] },
+  { label: "Sensory & Functional", ids: ["SPP", "RFII", "HIQ"] },
+  { label: "CDP — Developmental Profiles", ids: ["CDP-CL", "CDP-SR", "CDP-SI", "CDP-CI"] },
+  { label: "ReMynd Core Systems", ids: ["RCEP-CORE", "RSSC"] },
+  { label: "OCD & Clinical Symptom Tools", ids: ["CHOCHI-RS", "Y-BOCS-SC"] },
+  { label: "SDQ Battery", ids: ["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18"] },
+  { label: "General Mental Health Screeners", ids: ["GHQ-12"] },
+  { label: "Personality", ids: ["BFI-44"] },
+];
+
+// ── Tool Info Modal ────────────────────────────────────────────────────────────
+
+function ToolInfoModal({ tool, isAdmin, onClose }: { tool: any; isAdmin: boolean; onClose: () => void }) {
   const [, setLocation] = useLocation();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  if (editing) return <EditToolModal tool={tool} onClose={() => { setEditing(false); onClose(); }} />;
+  if (deleting) return <DeleteConfirmDialog tool={tool} onClose={() => { setDeleting(false); onClose(); }} />;
+
   return (
-    <>
-      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 hover:border-slate-300 hover:shadow-sm transition-all group">
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-slate-900 text-sm leading-tight">{tool.name}</h3>
-            {tool.description && (
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">{tool.description}</p>
-            )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex-1 min-w-0 pr-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-bold text-slate-900 text-base leading-snug">{tool.name}</h2>
+              {tool.isRemyndOwned && (
+                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-2 py-0.5 rounded-full border border-blue-100 shrink-0">
+                  ReMynd
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-mono text-slate-400 mt-0.5 block">{tool.id}</span>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {tool.isRemyndOwned && (
-              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-2 py-0.5 rounded-full border border-blue-100">
-                ReMynd
-              </span>
-            )}
-            {/* Admin-only action buttons */}
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => setEditing(true)}
-                  title="Edit"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  onClick={() => setDeleting(true)}
-                  title="Delete"
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Badges */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {categoryBadge(tool.category)}
-          <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium",
-            tool.scoringType === "auto"
-              ? "bg-green-50 text-green-700"
-              : "bg-amber-50 text-amber-700"
-          )}>
-            {tool.scoringType === "auto" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-            {tool.scoringType === "auto" ? "Auto-scored" : "Manual scoring"}
-          </span>
-        </div>
-
-        {/* Domains */}
-        {tool.domains?.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {tool.domains.map((d: string) => (
-              <span key={d} className="text-xs bg-slate-50 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-                {d}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Respondents */}
-        {tool.respondentTypes?.length > 0 && (
-          <div className="text-xs text-slate-400">
-            Respondents: {tool.respondentTypes.join(", ")}
-          </div>
-        )}
-
-        {/* View Form button */}
-        <div className="pt-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-1.5 text-xs h-8"
-            onClick={() => setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`)}
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
           >
-            <Eye className="w-3.5 h-3.5" /> View Form
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {tool.description && (
+            <p className="text-sm text-slate-600 leading-relaxed">{tool.description}</p>
+          )}
+
+          {/* Category + Scoring */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {categoryBadge(tool.category)}
+            <span className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium",
+              tool.scoringType === "auto"
+                ? "bg-green-50 text-green-700"
+                : "bg-amber-50 text-amber-700"
+            )}>
+              {tool.scoringType === "auto" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+              {tool.scoringType === "auto" ? "Auto-scored" : "Manual scoring"}
+            </span>
+          </div>
+
+          {/* Domains */}
+          {tool.domains?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Domains</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tool.domains.map((d: string) => (
+                  <span key={d} className="text-xs bg-slate-50 border border-slate-200 text-slate-600 px-2.5 py-0.5 rounded-full">
+                    {d}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Respondents */}
+          {tool.respondentTypes?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Respondents</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tool.respondentTypes.map((r: string) => (
+                  <span key={r} className="text-xs bg-slate-50 border border-slate-200 text-slate-600 px-2.5 py-0.5 rounded-full">
+                    {RESPONDENT_TYPE_LABELS[r] ?? r}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Form items count */}
+          {tool.formItems?.length > 0 && (
+            <div className="inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <List size={12} className="text-slate-400" />
+              {tool.formItems.length} form item{tool.formItems.length !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-2">
+          <Button
+            className="flex-1 gap-1.5"
+            onClick={() => { onClose(); setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`); }}
+          >
+            <Eye size={14} /> View Form
           </Button>
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil size={13} /> Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {editing && <EditToolModal tool={tool} onClose={() => setEditing(false)} />}
-      {deleting && <DeleteConfirmDialog tool={tool} onClose={() => setDeleting(false)} />}
-    </>
+// ── Tool Row ──────────────────────────────────────────────────────────────────
+
+function ToolRow({ tool, onClick }: { tool: any; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-0"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-slate-800 group-hover:text-primary transition-colors leading-snug">
+            {tool.name}
+          </span>
+          {tool.isRemyndOwned && (
+            <span className="inline-flex items-center bg-blue-50 text-blue-600 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-blue-100 shrink-0">
+              ReMynd
+            </span>
+          )}
+        </div>
+        {tool.description && (
+          <p className="text-xs text-slate-400 mt-0.5 line-clamp-1 leading-relaxed">{tool.description}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {(tool.respondentTypes ?? []).map((r: string) => (
+          <span key={r} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-medium hidden sm:inline">
+            {RESPONDENT_TYPE_LABELS[r] ?? r}
+          </span>
+        ))}
+        <span className={cn(
+          "inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded",
+          tool.scoringType === "auto" ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+        )}>
+          {tool.scoringType === "auto" ? <CheckCircle2 size={9} /> : <Clock size={9} />}
+          {tool.scoringType === "auto" ? "Auto" : "Manual"}
+        </span>
+        <ChevronDown size={12} className="text-slate-300 -rotate-90 group-hover:text-slate-500 transition-colors" />
+      </div>
+    </button>
+  );
+}
+
+// ── Section Group ─────────────────────────────────────────────────────────────
+
+function SectionGroup({ label, tools, onSelect }: { label: string; tools: any[]; onSelect: (t: any) => void }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+      >
+        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium">{tools.length}</span>
+          {open ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+        </div>
+      </button>
+      {open && (
+        <div className="divide-y divide-slate-100">
+          {tools.map(tool => (
+            <ToolRow key={tool.id} tool={tool} onClick={() => onSelect(tool)} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1550,6 +1670,7 @@ export default function AssessmentTools() {
   const [filterOwnership, setFilterOwnership] = useState("all");
   const [filterProduct, setFilterProduct] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<any>(null);
 
   // Derive sorted category list from loaded tools
   const categories = Array.from(
@@ -1566,9 +1687,9 @@ export default function AssessmentTools() {
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
-      t.name.toLowerCase().includes(q) ||
-      t.description.toLowerCase().includes(q) ||
-      t.domains.some(d => d.toLowerCase().includes(q));
+      (t.name ?? "").toLowerCase().includes(q) ||
+      (t.description ?? "").toLowerCase().includes(q) ||
+      (t.domains ?? []).some((d: string) => d.toLowerCase().includes(q));
     const matchRespondent =
       filterRespondent === "all" || (t.respondentTypes ?? []).includes(filterRespondent);
     const matchCategory =
@@ -1584,6 +1705,23 @@ export default function AssessmentTools() {
       (ASSESSMENT_PRODUCTS.find(p => p.id === filterProduct)?.toolIds ?? []).includes(t.id);
     return matchSearch && matchRespondent && matchCategory && matchBattery && matchOwnership && matchProduct;
   });
+
+  // Build a lookup map for fast access by tool id
+  const filteredById = new Map<string, any>(filtered.map(t => [t.id, t]));
+
+  // Group filtered tools by library section; leftover goes to "Additional Tools"
+  const sectionedIds = new Set(LIBRARY_SECTIONS.flatMap(s => s.ids));
+  const groupedSections = LIBRARY_SECTIONS
+    .map(section => ({
+      label: section.label,
+      tools: section.ids.map(id => filteredById.get(id)).filter(Boolean),
+    }))
+    .filter(s => s.tools.length > 0);
+
+  const otherTools = filtered.filter(t => !sectionedIds.has(t.id));
+  if (otherTools.length > 0) {
+    groupedSections.push({ label: "Additional Tools", tools: otherTools });
+  }
 
   const hasActiveFilters =
     search !== "" ||
@@ -1734,9 +1872,24 @@ export default function AssessmentTools() {
       )}
 
       {!isLoading && filtered.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map(tool => <ToolCard key={tool.id} tool={tool} isAdmin={isAdmin} />)}
+        <div className="space-y-3">
+          {groupedSections.map(section => (
+            <SectionGroup
+              key={section.label}
+              label={section.label}
+              tools={section.tools}
+              onSelect={setSelectedTool}
+            />
+          ))}
         </div>
+      )}
+
+      {selectedTool && (
+        <ToolInfoModal
+          tool={selectedTool}
+          isAdmin={isAdmin}
+          onClose={() => setSelectedTool(null)}
+        />
       )}
 
       {adding && <AddToolModal onClose={() => setAdding(false)} />}
