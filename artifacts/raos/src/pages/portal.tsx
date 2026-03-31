@@ -375,93 +375,130 @@ export default function Portal() {
   const isSchool = tab === "school";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Header */}
-      <header className="border-b border-slate-100 bg-white/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-white">
+
+      {/* ── Dark brand header — matches landing page ── */}
+      <header
+        className="relative overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+      >
+        {/* Background glows */}
+        <div className="absolute top-[-40%] left-[-5%] w-[40%] h-[200%] bg-blue-700/10 rounded-full blur-[70px] pointer-events-none" />
+        <div className="absolute top-[-40%] right-[-5%] w-[35%] h-[200%] bg-indigo-900/15 rounded-full blur-[70px] pointer-events-none" />
+        {/* Dot grid */}
+        <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+            backgroundSize: "28px 28px"
+          }}
+        />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+          {/* Logo + wordmark */}
           <Link href="/">
             <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
-                <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
+              <div className="relative">
+                <div className="absolute -inset-1 bg-blue-400/15 rounded-[14px] blur-md" />
+                <div className="relative w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
+                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+                </div>
               </div>
-              <span className="font-bold text-slate-900 text-lg">ReMynd</span>
+              <div className="leading-none">
+                <span className="font-extrabold text-white text-[1.1rem] tracking-tight block">ReMynd</span>
+                <span className="text-blue-300 text-[10px] font-semibold tracking-wide">Student Services</span>
+              </div>
             </div>
           </Link>
-          <div className="flex items-center gap-4">
+
+          {/* Right controls */}
+          <div className="flex items-center gap-5">
             <LanguageSwitcherLight />
-            <a href="/login" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">{t.staffLogin}</a>
+            <a
+              href="/login"
+              className="text-[11px] text-slate-400 hover:text-slate-200 font-medium tracking-wide transition-colors"
+            >
+              {t.staffLogin}
+            </a>
+          </div>
+        </div>
+
+        {/* Hero text inside the dark band */}
+        <div className="relative z-10 max-w-5xl mx-auto px-6 pt-6 pb-12 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-300 text-[11px] font-semibold mb-5">
+            <Zap size={11} /> {p.badge}
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight mb-3">
+            {p.hero}
+          </h1>
+          <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
+            {p.heroDesc}
+          </p>
+
+          {/* Tab selector — floats at bottom of hero */}
+          <div className="mt-8 flex rounded-xl bg-white/[0.06] border border-white/[0.08] p-1 gap-1 max-w-xs mx-auto">
+            <button
+              onClick={() => handleTabChange("school")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all",
+                tab === "school"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              )}
+            >
+              <School size={13} /> {p.tabSchool}
+            </button>
+            <button
+              onClick={() => handleTabChange("parent")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all",
+                tab === "parent"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              )}
+            >
+              <Users size={13} /> {p.tabParent}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-5xl mx-auto px-6 pt-14 pb-10 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full text-indigo-600 text-xs font-semibold mb-6">
-          <Zap size={12} /> {p.badge}
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-4">
-          {p.hero}
-        </h1>
-        <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-          {p.heroDesc}
-        </p>
-      </section>
-
-      {/* Tab selector */}
-      <div className="max-w-5xl mx-auto px-6 mb-8">
-        <div className="flex rounded-xl bg-slate-100 p-1 gap-1 max-w-sm mx-auto">
-          <button
-            onClick={() => handleTabChange("school")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all",
-              tab === "school"
-                ? "bg-white text-indigo-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+      {/* ── Light content area ── */}
+      <div className="bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-2xl mx-auto px-6 py-12 pb-20">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            {view === "success" ? (
+              <SuccessPanel tab={tab} onReset={() => { setView("info"); }} />
+            ) : view === "form" ? (
+              <InquiryFormPanel tab={tab} onBack={() => setView("info")} onSuccess={() => setView("success")} />
+            ) : tab === "school" ? (
+              <SchoolContent onInquire={() => setView("form")} />
+            ) : (
+              <ParentContent onInquire={() => setView("form")} />
             )}
-          >
-            <School size={15} /> {p.tabSchool}
-          </button>
-          <button
-            onClick={() => handleTabChange("parent")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all",
-              tab === "parent"
-                ? "bg-white text-teal-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            )}
-          >
-            <Users size={15} /> {p.tabParent}
-          </button>
-        </div>
-      </div>
+          </div>
 
-      {/* Content panel */}
-      <div className="max-w-2xl mx-auto px-6 pb-20">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-          {view === "success" ? (
-            <SuccessPanel tab={tab} onReset={() => { setView("info"); }} />
-          ) : view === "form" ? (
-            <InquiryFormPanel tab={tab} onBack={() => setView("info")} onSuccess={() => setView("success")} />
-          ) : tab === "school" ? (
-            <SchoolContent onInquire={() => setView("form")} />
-          ) : (
-            <ParentContent onInquire={() => setView("form")} />
+          {/* FAQ */}
+          {view === "info" && (
+            <div className="mt-10 space-y-4">
+              <h4 className="font-semibold text-slate-900">{p.faqTitle}</h4>
+              {(isSchool ? p.school.faqs : p.parent.faqs).map(({ q, a }) => (
+                <div key={q} className="bg-slate-50 rounded-xl p-4">
+                  <p className="font-semibold text-sm text-slate-800 mb-1">{q}</p>
+                  <p className="text-sm text-slate-500">{a}</p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* FAQ */}
-        {view === "info" && (
-          <div className="mt-10 space-y-4">
-            <h4 className="font-semibold text-slate-900">{p.faqTitle}</h4>
-            {(isSchool ? p.school.faqs : p.parent.faqs).map(({ q, a }) => (
-              <div key={q} className="bg-slate-50 rounded-xl p-4">
-                <p className="font-semibold text-sm text-slate-800 mb-1">{q}</p>
-                <p className="text-sm text-slate-500">{a}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Footer strip */}
+        <div className="border-t border-slate-100 py-5 text-center">
+          <p className="text-[11px] text-slate-400 tracking-wide">
+            © {new Date().getFullYear()} ReMynd Student Services · Confidential
+          </p>
+        </div>
       </div>
+
     </div>
   );
 }
