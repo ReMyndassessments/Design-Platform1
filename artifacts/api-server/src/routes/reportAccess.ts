@@ -190,27 +190,15 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     createdTokens[role] = token;
 
     // Send email
+    // Only send to parent at upload time — teacher email is sent after parent grants consent
     if (role === "parent") {
       await sendEmail({
         to: email,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
         html: buildParentEmail(lang, studentName, schoolName, link),
       });
-    } else {
-      await sendEmail({
-        to: email,
-        subject: `Assessment Report — ${studentName} (Pending Parental Consent)`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0a1628">Assessment report ready — awaiting parental consent</h2>
-            <p>The psychoeducational assessment report for <strong>${studentName}</strong> has been finalised.</p>
-            <p>As the report is confidential, the parents have been notified first. You will receive a follow-up email as soon as parental consent to release the report to the school has been provided.</p>
-            <p style="font-size:13px;color:#64748b">If you have any questions, please contact the ReMynd assessment team directly.</p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-          </div>`,
-      });
     }
+    // Teacher: no email yet — they will be notified once the parent grants permission
   }
 
   res.json({ success: true, tokens: createdTokens });

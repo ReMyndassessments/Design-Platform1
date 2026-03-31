@@ -249,12 +249,43 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
     .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
     .where(eq(reportTokensTable.id, tok.id));
 
-  // If withheld, notify admins
-  if (!granted) {
+  const { sendEmail } = await import("../lib/outlookEmail.js");
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, tok.caseId));
+  const studentName = caseRow?.studentName ?? "Unknown Student";
+  const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
+  const host = req.headers.host as string ?? "localhost";
+  const base = `${proto}://${host}`;
+
+  if (granted) {
+    // Find and notify the teacher with their download link
     try {
-      const { sendEmail } = await import("../lib/outlookEmail.js");
-      const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, tok.caseId));
-      const studentName = caseRow?.studentName ?? "Unknown Student";
+      const [teacherTok] = await db
+        .select()
+        .from(reportTokensTable)
+        .where(and(eq(reportTokensTable.caseId, tok.caseId), eq(reportTokensTable.role, "teacher")));
+
+      if (teacherTok) {
+        const teacherLink = `${base}/external/${teacherTok.token}`;
+        await sendEmail({
+          to: teacherTok.email,
+          subject: `Assessment Report Available — ${studentName}`,
+          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#0a1628">Assessment report now available</h2>
+            <p>The psychoeducational assessment report for <strong>${studentName}</strong> is now ready for you to download.</p>
+            <p>The parent/guardian has reviewed the report and given their permission for the school to receive a copy.</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${teacherLink}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
+            </p>
+            <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+          </div>`,
+        });
+      }
+    } catch (_) {}
+  } else {
+    // Parent withheld — notify admins
+    try {
       const html = `<p>The parent/guardian for <strong>${studentName}</strong> has chosen <strong>Not Yet</strong> when asked whether to share the psychoeducational report with their school.</p><p>No school access has been granted at this time. You may use the admin override in RAOS if required.</p>`;
       await sendEmail({ to: "noelroberts43@gmail.com", subject: `Parent withheld school consent — ${studentName}`, html });
       await sendEmail({ to: "hayleyxu13@gmail.com", subject: `Parent withheld school consent — ${studentName}`, html });
