@@ -8,7 +8,7 @@ export default function LandingPage() {
       <div className="lg:w-1/2 flex flex-col justify-between px-10 py-12 bg-gradient-to-br from-[#0d1b35] via-[#112244] to-[#0f2a50]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-md">
-            <div className="w-4 h-4 rounded-sm bg-[#0d1b35]" />
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
           </div>
           <span className="text-sm font-bold tracking-wide text-white">ReMynd</span>
         </div>

@@ -364,8 +364,8 @@ export default function Portal() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/">
             <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="w-8 h-8 bg-indigo-600 group-hover:bg-indigo-700 rounded-lg flex items-center justify-center transition-colors">
-                <Brain size={16} className="text-white" />
+              <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+                <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
               </div>
               <span className="font-bold text-slate-900 text-lg">ReMynd</span>
             </div>
