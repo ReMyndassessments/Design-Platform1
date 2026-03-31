@@ -80,7 +80,7 @@ router.post("/portal/inquiry", async (req, res) => {
 });
 
 router.get("/portal/inquiries", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
     res.status(403).json({ error: "forbidden" });
     return;
   }
@@ -94,7 +94,7 @@ router.get("/portal/inquiries", authMiddleware, async (req, res) => {
 });
 
 router.patch("/portal/inquiries/:id/status", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
     res.status(403).json({ error: "forbidden" });
     return;
   }

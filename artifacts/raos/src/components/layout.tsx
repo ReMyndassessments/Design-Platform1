@@ -28,7 +28,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       const rows = await customFetch<Array<{ status: string }>>("/api/portal/inquiries");
       return rows.filter((r) => r.status === "new").length;
     },
-    enabled: user?.role === "admin",
+    enabled: user?.role === "admin" || user?.role === "assessment_invigilator",
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -47,7 +47,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cases", label: "Cases", icon: Users },
     ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
-    ...(user?.role === "admin" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
+    ...(user?.role === "admin" || user?.role === "assessment_invigilator" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
     ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
   ];
 
