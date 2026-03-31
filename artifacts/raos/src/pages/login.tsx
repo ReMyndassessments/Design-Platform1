@@ -77,8 +77,8 @@ export default function Login() {
 
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center shadow">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+          <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
           </div>
           <div>
             <p className="text-sm font-bold text-slate-800 leading-none">ReMynd</p>
