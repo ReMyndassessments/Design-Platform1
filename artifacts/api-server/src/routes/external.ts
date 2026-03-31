@@ -73,81 +73,117 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
 const router = Router();
 
 router.get("/external/portal/:token", async (req, res) => {
-  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, req.params.token)).limit(1);
+  const portalToken = req.params.token;
+
+  // ── Path A: token matches an assignment (normal portal link) ──────────────
+  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
   const assignment = rows[0];
-  if (!assignment) {
-    res.status(404).json({ error: "not_found", message: "Form link not found" });
-    return;
-  }
 
-  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
-  const caseData = caseRows[0];
+  if (assignment) {
+    const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+    const caseData = caseRows[0];
 
-  const groupByEmail = !!assignment.assignedToEmail;
-  const siblings = await db
-    .select({
-      toolId: assignmentsTable.toolId,
-      toolName: assignmentsTable.toolName,
-      status: assignmentsTable.status,
-      uniqueToken: assignmentsTable.uniqueToken,
-      respondentLabel: assignmentsTable.respondentLabel,
-      respondentType: assignmentsTable.respondentType,
-    })
-    .from(assignmentsTable)
-    .where(
-      and(
-        eq(assignmentsTable.caseId, assignment.caseId),
-        groupByEmail
-          ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
-          : and(
-              eq(assignmentsTable.respondentType, assignment.respondentType),
-              eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
-            ),
-      )
-    );
+    const groupByEmail = !!assignment.assignedToEmail;
+    const siblings = await db
+      .select({
+        toolId: assignmentsTable.toolId,
+        toolName: assignmentsTable.toolName,
+        status: assignmentsTable.status,
+        uniqueToken: assignmentsTable.uniqueToken,
+        respondentLabel: assignmentsTable.respondentLabel,
+        respondentType: assignmentsTable.respondentType,
+      })
+      .from(assignmentsTable)
+      .where(
+        and(
+          eq(assignmentsTable.caseId, assignment.caseId),
+          groupByEmail
+            ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
+            : and(
+                eq(assignmentsTable.respondentType, assignment.respondentType),
+                eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
+              ),
+        )
+      );
 
-  // Check if a report is available for this respondent
-  let reportAccess: object | null = null;
-  const reportPhases = ["report", "debrief", "complete"];
-  if (caseData && reportPhases.includes(caseData.currentPhase ?? "")) {
-    const reportRole = resolveReportRole(assignment.respondentType);
-    if (reportRole) {
-      const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, assignment.caseId));
-      if (upload) {
-        const [tok] = await db
-          .select()
-          .from(reportTokensTable)
-          .where(and(eq(reportTokensTable.caseId, assignment.caseId), eq(reportTokensTable.role, reportRole)));
-        if (tok) {
-          reportAccess = {
-            tokenId: tok.id,
-            role: tok.role,
-            filename: upload.filename,
-            downloadedAt: tok.downloadedAt,
-            permissionGranted: tok.permissionGranted,
-            adminOverride: tok.adminOverride,
-            // teacher access blocked until parent grants permission
-            blocked: tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride,
-          };
+    // Check if a report is available for this respondent
+    let reportAccess: object | null = null;
+    const reportPhases = ["report", "debrief", "complete"];
+    if (caseData && reportPhases.includes(caseData.currentPhase ?? "")) {
+      const reportRole = resolveReportRole(assignment.respondentType);
+      if (reportRole) {
+        const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, assignment.caseId));
+        if (upload) {
+          const [tok] = await db
+            .select()
+            .from(reportTokensTable)
+            .where(and(eq(reportTokensTable.caseId, assignment.caseId), eq(reportTokensTable.role, reportRole)));
+          if (tok) {
+            reportAccess = {
+              tokenId: tok.id,
+              role: tok.role,
+              filename: upload.filename,
+              downloadedAt: tok.downloadedAt,
+              permissionGranted: tok.permissionGranted,
+              adminOverride: tok.adminOverride,
+              blocked: tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride,
+            };
+          }
         }
       }
     }
+
+    res.json({
+      studentName: caseData?.studentName ?? "the student",
+      currentPhase: caseData?.currentPhase ?? "pre_commitment",
+      progressPercentage: caseData?.progressPercentage ?? 0,
+      respondentLabel: assignment.respondentLabel,
+      respondentType: assignment.respondentType,
+      forms: siblings.map(s => ({
+        toolId: s.toolId,
+        toolName: s.toolName,
+        status: s.status,
+        uniqueToken: s.uniqueToken,
+      })),
+      reportAccess,
+    });
+    return;
   }
 
-  res.json({
-    studentName: caseData?.studentName ?? "the student",
-    currentPhase: caseData?.currentPhase ?? "pre_commitment",
-    progressPercentage: caseData?.progressPercentage ?? 0,
-    respondentLabel: assignment.respondentLabel,
-    respondentType: assignment.respondentType,
-    forms: siblings.map(s => ({
-      toolId: s.toolId,
-      toolName: s.toolName,
-      status: s.status,
-      uniqueToken: s.uniqueToken,
-    })),
-    reportAccess,
-  });
+  // ── Path B: token matches a report token (report-only link from email) ────
+  const [reportTok] = await db
+    .select()
+    .from(reportTokensTable)
+    .where(eq(reportTokensTable.token, portalToken))
+    .limit(1);
+
+  if (reportTok) {
+    const [caseData] = await db.select().from(casesTable).where(eq(casesTable.id, reportTok.caseId)).limit(1);
+    const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, reportTok.caseId));
+
+    const reportAccess = upload ? {
+      tokenId: reportTok.id,
+      role: reportTok.role,
+      filename: upload.filename,
+      downloadedAt: reportTok.downloadedAt,
+      permissionGranted: reportTok.permissionGranted,
+      adminOverride: reportTok.adminOverride,
+      blocked: reportTok.role === "teacher" && !reportTok.permissionGranted && !reportTok.adminOverride,
+    } : null;
+
+    res.json({
+      studentName: caseData?.studentName ?? "the student",
+      currentPhase: caseData?.currentPhase ?? "report",
+      progressPercentage: caseData?.progressPercentage ?? 100,
+      respondentLabel: reportTok.role === "parent" ? "Parent / Guardian" : "Teacher",
+      respondentType: reportTok.role,
+      forms: [],
+      reportAccess,
+    });
+    return;
+  }
+
+  res.status(404).json({ error: "not_found", message: "Form link not found" });
 });
 
 // Download report via portal token (records the download event)
