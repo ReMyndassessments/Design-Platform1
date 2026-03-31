@@ -5,46 +5,45 @@ export default function LandingPage() {
     <div className="min-h-screen text-white flex flex-col lg:flex-row">
 
       {/* Left — Brand panel */}
-      <div className="lg:w-1/2 bg-slate-900 text-white relative overflow-hidden flex flex-col justify-between items-center px-10 py-12 text-center">
+      <div className="lg:w-1/2 bg-slate-900 text-white relative overflow-hidden flex flex-col justify-center items-center px-12 py-16 text-center gap-10">
         {/* Background blobs */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-3xl" />
 
-        {/* Logo */}
-        <div className="z-10 flex flex-col items-center gap-3">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-12 h-12 object-contain" />
+        {/* Logo + name */}
+        <div className="z-10 flex flex-col items-center gap-4">
+          <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-xl">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-16 h-16 object-contain" />
           </div>
-          <span className="text-xl font-bold tracking-wide text-white">ReMynd</span>
-        </div>
-
-        {/* Main content */}
-        <div className="z-10">
-          <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase mb-4">
-            Assessment Operating System
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-bold leading-tight mb-6 text-white">
-            Psychoeducational<br />Assessment,<br />Professionally Managed.
-          </h1>
-          <p className="text-slate-300 text-sm leading-relaxed max-w-sm mx-auto mb-10">
-            RAOS is ReMynd's specialist platform for end-to-end management of psychoeducational assessments — from initial referral through to report delivery and debrief.
-          </p>
-
-          <div className="space-y-3 text-left inline-block">
-            {[
-              "Full case lifecycle tracking",
-              "Standardised scoring across 60+ instruments",
-              "Role-based access for all assessment staff",
-              "Secure digital form delivery and administration",
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3 text-sm text-slate-400">
-                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                {item}
-              </div>
-            ))}
+          <div>
+            <h1 className="text-4xl font-bold text-white tracking-tight">ReMynd</h1>
+            <p className="text-slate-400 text-base mt-1 tracking-widest uppercase text-sm">Assessment Operating System</p>
           </div>
         </div>
 
+        {/* Description */}
+        <div className="z-10 max-w-md">
+          <p className="text-slate-300 text-base leading-relaxed">
+            A specialist platform for end-to-end management of psychoeducational assessments — from initial referral through to report delivery and debrief.
+          </p>
+        </div>
+
+        {/* Capabilities */}
+        <div className="z-10 flex flex-col gap-3 w-full max-w-md">
+          {[
+            "Full case lifecycle tracking",
+            "Standardised scoring across 60+ instruments",
+            "Role-based access for all assessment staff",
+            "Secure digital form delivery and administration",
+          ].map((item) => (
+            <div key={item} className="flex items-center gap-3 text-slate-300 text-sm bg-white/5 rounded-lg px-4 py-2.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+              {item}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
         <p className="z-10 text-xs text-slate-600">
           © {new Date().getFullYear()} ReMynd Pty Ltd · Confidential
         </p>
