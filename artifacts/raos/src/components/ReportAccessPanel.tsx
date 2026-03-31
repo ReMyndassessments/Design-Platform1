@@ -53,7 +53,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
   const fetchStatus = async () => {
     try {
       const r = await fetch(`${BASE}/cases/${caseId}/report-access`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
       });
       if (!r.ok) return;
       const data = await r.json();
@@ -77,7 +77,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
         },
         body: JSON.stringify({ name: selectedFile.name, size: selectedFile.size, contentType: selectedFile.type }),
       });
@@ -95,7 +95,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
         },
         body: JSON.stringify({
           fileKey: objectPath,
@@ -123,7 +123,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
       },
       body: JSON.stringify({ email, resend: true }),
     });
@@ -135,7 +135,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
       },
       body: JSON.stringify({ email: editEmail, resend: false }),
     });
@@ -147,7 +147,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
   const handleOverride = async (tokenId: string) => {
     const r = await fetch(`${BASE}/cases/${caseId}/report-access/tokens/${tokenId}/override`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
     });
     if (!r.ok) {
       const d = await r.json();
