@@ -27,6 +27,17 @@ function getTransport() {
   });
 }
 
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
+  const transport = getTransport();
+  const fromUser = process.env.GMAIL_USER!;
+  await transport.sendMail({
+    from: `"ReMynd Student Services" <${fromUser}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
 export async function sendInquiryNotification(
   data: InquiryEmailData,
   notifyEmails: string | string[]

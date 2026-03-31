@@ -26,6 +26,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient } from "@tanstack/react-query";
+import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 
 const PHASES = [
   "intake", "forms", "assessment", "scoring", "report", "debrief", "complete"
@@ -524,6 +525,11 @@ export default function CaseDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Report Access Panel — visible to admin in report/debrief/complete phases */}
+      {role === "admin" && ['report', 'debrief', 'complete'].includes(c.currentPhase) && (
+        <ReportAccessPanel caseId={c.id} parentEmail={c.parentEmail ?? undefined} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Info & AI */}

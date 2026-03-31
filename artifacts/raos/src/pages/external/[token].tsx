@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock,
-  ArrowLeft, ChevronRight, ClipboardCheck,
+  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,16 @@ type PortalForm = {
   uniqueToken: string;
 };
 
+type ReportAccess = {
+  tokenId: string;
+  role: "parent" | "teacher";
+  filename: string;
+  downloadedAt: string | null;
+  permissionGranted: boolean | null;
+  adminOverride: boolean;
+  blocked: boolean;
+};
+
 type PortalData = {
   studentName: string;
   currentPhase: string;
@@ -44,6 +54,7 @@ type PortalData = {
   respondentLabel: string | null;
   respondentType: string | null;
   forms: PortalForm[];
+  reportAccess: ReportAccess | null;
 };
 
 // ── Phase config ──────────────────────────────────────────────────────────────
@@ -85,6 +96,30 @@ const PT = {
     mandarin: "通过此门户提交的所有信息均已加密，仅与授权评估团队共享。您可以随时使用原始链接返回此页面。",
     korean:   "이 포털을 통해 제출된 모든 정보는 암호화되어 승인된 평가팀과만 공유됩니다. 원래 링크를 사용하여 언제든지 이 페이지로 돌아올 수 있습니다.",
   },
+  reportReady:       { english: "Your Report is Ready", mandarin: "您的报告已准备好", korean: "보고서가 준비되었습니다" },
+  reportReadyBody:   {
+    english:  "Your psychoeducational assessment report is available to download. This document is confidential and intended for your personal use.",
+    mandarin: "您的心理教育评估报告可供下载。本文件属于保密文件，仅供您个人使用。",
+    korean:   "심리교육 평가 보고서를 다운로드할 수 있습니다. 이 문서는 기밀이며 귀하의 개인 사용을 위한 것입니다.",
+  },
+  downloadReport:    { english: "Download Report", mandarin: "下载报告", korean: "보고서 다운로드" },
+  alreadyDownloaded: { english: "Downloaded", mandarin: "已下载", korean: "다운로드됨" },
+  awaitingConsent:   { english: "Awaiting Parental Consent", mandarin: "等待家长同意", korean: "부모 동의 대기 중" },
+  awaitingConsentBody: {
+    english:  "The report will be available once the parent/guardian has reviewed and approved access.",
+    mandarin: "报告将在家长/监护人审阅并批准访问后可供下载。",
+    korean:   "부모/보호자가 검토하고 접근을 승인한 후 보고서를 이용할 수 있습니다.",
+  },
+  shareConsentTitle: { english: "Share Report with School?", mandarin: "与学校共享报告？", korean: "학교와 보고서 공유?" },
+  shareConsentBody:  {
+    english:  "Would you like to allow your child's school to view this assessment report? You can choose to share it now, or decide later.",
+    mandarin: "您是否希望允许孩子的学校查看此评估报告？您可以选择现在共享，或稍后决定。",
+    korean:   "자녀의 학교에서 이 평가 보고서를 볼 수 있도록 허용하시겠습니까? 지금 공유하거나 나중에 결정할 수 있습니다.",
+  },
+  shareYes:          { english: "Yes, share with school", mandarin: "是的，与学校共享", korean: "예, 학교와 공유" },
+  shareNotYet:       { english: "Not Yet", mandarin: "暂时不", korean: "아직은 아니에요" },
+  consentGranted:    { english: "School access granted", mandarin: "已授予学校访问权限", korean: "학교 접근 허용됨" },
+  consentWithheld:   { english: "School access not yet granted", mandarin: "尚未授予学校访问权限", korean: "학교 접근 아직 허용 안 됨" },
 } satisfies Record<string, Record<Lang, string>>;
 
 function t(key: keyof typeof PT, language: string): string {
@@ -590,6 +625,58 @@ function PortalView({
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
   const allDone = pendingCount === 0;
 
+  // Report download state
+  const [reportDownloading, setReportDownloading] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
+  const [consentDecision, setConsentDecision] = useState<boolean | null>(
+    portal.reportAccess?.permissionGranted ?? null
+  );
+
+  const handleDownloadReport = async () => {
+    if (!portal.reportAccess) return;
+    setReportDownloading(true);
+    try {
+      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/download`);
+      if (!resp.ok) throw new Error("Download failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = portal.reportAccess.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      // After first download, show consent modal for parents
+      if (portal.reportAccess.role === "parent" && consentDecision === null) {
+        setTimeout(() => setShowConsentModal(true), 800);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setReportDownloading(false);
+    }
+  };
+
+  const handleConsent = async (granted: boolean) => {
+    if (!portal.reportAccess) return;
+    setConsentSubmitting(true);
+    try {
+      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/permission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ granted }),
+      });
+      setConsentDecision(granted);
+      setShowConsentModal(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setConsentSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
       {/* Header */}
@@ -707,6 +794,95 @@ function PortalView({
             })}
           </div>
         </div>
+
+        {/* Report Download Card */}
+        {portal.reportAccess && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                <FileText size={18} className="text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">
+                  {portal.reportAccess.blocked ? t("awaitingConsent", language) : t("reportReady", language)}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[260px]">
+                  {portal.reportAccess.blocked ? t("awaitingConsentBody", language) : portal.reportAccess.filename}
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              {portal.reportAccess.blocked ? (
+                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
+                  <Clock size={14} className="text-amber-500 shrink-0" />
+                  <span>{t("awaitingConsentBody", language)}</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500 leading-relaxed">{t("reportReadyBody", language)}</p>
+                  <button
+                    onClick={handleDownloadReport}
+                    disabled={reportDownloading}
+                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                  >
+                    {reportDownloading ? (
+                      <><Loader2 size={15} className="animate-spin" /> Downloading…</>
+                    ) : portal.reportAccess.downloadedAt ? (
+                      <><Download size={15} /> {t("alreadyDownloaded", language)} — {t("downloadReport", language)}</>
+                    ) : (
+                      <><Download size={15} /> {t("downloadReport", language)}</>
+                    )}
+                  </button>
+                  {/* Consent status indicator for parents */}
+                  {portal.reportAccess.role === "parent" && (
+                    <div className="flex items-center gap-2 text-xs">
+                      {consentDecision === true ? (
+                        <span className="flex items-center gap-1.5 text-emerald-700"><CheckCircle2 size={13} className="text-emerald-500" />{t("consentGranted", language)}</span>
+                      ) : consentDecision === false ? (
+                        <button onClick={() => setShowConsentModal(true)} className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 transition-colors">
+                          <Info size={13} />{t("consentWithheld", language)} — change?
+                        </button>
+                      ) : portal.reportAccess.downloadedAt ? (
+                        <button onClick={() => setShowConsentModal(true)} className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 transition-colors">
+                          <Info size={13} />{t("shareConsentTitle", language)}
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Parental Consent Modal */}
+        {showConsentModal && portal.reportAccess && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 mx-auto">
+                <FileText size={22} className="text-indigo-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 text-center mb-2">{t("shareConsentTitle", language)}</h3>
+              <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">{t("shareConsentBody", language)}</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => handleConsent(true)}
+                  disabled={consentSubmitting}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  {consentSubmitting ? <Loader2 size={15} className="animate-spin mx-auto" /> : t("shareYes", language)}
+                </button>
+                <button
+                  onClick={() => handleConsent(false)}
+                  disabled={consentSubmitting}
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 text-sm font-semibold rounded-xl transition-colors"
+                >
+                  {t("shareNotYet", language)}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Info notice */}
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 flex gap-3 items-start">
