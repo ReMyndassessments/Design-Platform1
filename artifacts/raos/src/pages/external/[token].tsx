@@ -593,33 +593,43 @@ function PortalView({
   return (
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-5 py-3 flex items-center gap-3 shadow-sm">
-        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain mix-blend-multiply" />
-        </div>
-        <div>
-          <span className="font-display font-bold text-sm tracking-tight text-primary block leading-none">ReMynd</span>
-          <span className="text-[10px] text-slate-400 font-medium">{t("portalSubtitle", language)}</span>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          {portal.respondentLabel && (
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-semibold text-slate-700">{portal.respondentLabel}</p>
-              <p className="text-[10px] text-slate-400">{t("respondent", language)}</p>
+      <header
+        className="relative overflow-hidden sticky top-0 z-20"
+        style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+      >
+        <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div className="relative z-10 px-5 py-3 flex items-center gap-3">
+          <div className="relative flex-shrink-0">
+            <div className="absolute -inset-1 bg-blue-400/15 rounded-[12px] blur-sm" />
+            <div className="relative w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
             </div>
-          )}
-          <div className="flex bg-slate-100 p-0.5 rounded-lg">
-            {LANG_OPTIONS.map(lang => (
-              <button
-                key={lang.id}
-                onClick={() => setLanguage(lang.id)}
-                className={cn(
-                  "px-3 py-1.5 text-xs rounded-md font-semibold transition-all",
-                  language === lang.id ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
-                )}>
-                {lang.label}
-              </button>
-            ))}
+          </div>
+          <div className="leading-none">
+            <span className="font-extrabold text-white text-sm tracking-tight block">ReMynd</span>
+            <span className="text-blue-300 text-[10px] font-semibold tracking-wide">{t("portalSubtitle", language)}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-4">
+            {portal.respondentLabel && (
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-semibold text-white">{portal.respondentLabel}</p>
+                <p className="text-[10px] text-slate-400">{t("respondent", language)}</p>
+              </div>
+            )}
+            <div className="flex bg-white/[0.08] border border-white/[0.10] p-0.5 rounded-lg">
+              {LANG_OPTIONS.map(lang => (
+                <button
+                  key={lang.id}
+                  onClick={() => setLanguage(lang.id)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md font-semibold transition-all",
+                    language === lang.id ? "bg-white shadow-sm text-indigo-700" : "text-slate-400 hover:text-slate-200"
+                  )}>
+                  {lang.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -857,52 +867,61 @@ function FormView({
   return (
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
       {/* Nav */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-5 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
-          >
-            <ArrowLeft size={14} />
-            <span className="hidden sm:inline">My Forms</span>
-          </button>
-          <div className="h-4 w-px bg-slate-200" />
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+      <header
+        className="relative overflow-hidden sticky top-0 z-20"
+        style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+      >
+        <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div className="relative z-10 px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 font-medium transition-colors"
+            >
+              <ArrowLeft size={14} />
+              <span className="hidden sm:inline">My Forms</span>
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-shrink-0">
+                <div className="absolute -inset-0.5 bg-blue-400/15 rounded-[10px] blur-sm" />
+                <div className="relative w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-md ring-1 ring-white/10">
+                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain" />
+                </div>
+              </div>
+              <span className="font-extrabold text-white text-sm tracking-tight">ReMynd</span>
             </div>
-            <span className="font-display font-bold text-sm tracking-tight text-primary">ReMynd</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {requiredQuestions.length > 0 && (
+              <span className="text-xs text-slate-400 font-medium hidden sm:block">
+                {answeredRequired.length} / {requiredQuestions.length} completed
+              </span>
+            )}
+            <div className="flex bg-white/[0.08] border border-white/[0.10] p-0.5 rounded-lg">
+              {[{ id: "english", label: "En" }, { id: "mandarin", label: "中" }, { id: "korean", label: "한" }].map(lang => (
+                <button
+                  key={lang.id}
+                  onClick={() => setLanguage(lang.id)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md font-semibold transition-all",
+                    language === lang.id ? "bg-white shadow-sm text-indigo-700" : "text-slate-400 hover:text-slate-200"
+                  )}>
+                  {lang.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {requiredQuestions.length > 0 && (
-            <span className="text-xs text-slate-500 font-medium hidden sm:block">
-              {answeredRequired.length} / {requiredQuestions.length} completed
-            </span>
-          )}
-          <div className="flex bg-slate-100 p-0.5 rounded-lg">
-            {[{ id: "english", label: "En" }, { id: "mandarin", label: "中" }, { id: "korean", label: "한" }].map(lang => (
-              <button
-                key={lang.id}
-                onClick={() => setLanguage(lang.id)}
-                className={cn(
-                  "px-3 py-1.5 text-xs rounded-md font-semibold transition-all",
-                  language === lang.id ? "bg-white shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
-                )}>
-                {lang.label}
-              </button>
-            ))}
-          </div>
+        {/* Progress bar inside header bottom */}
+        <div className="w-full h-0.5 bg-white/10">
+          <div
+            className="h-full bg-blue-400 transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </header>
-
-      {/* Progress bar */}
-      <div className="w-full h-1 bg-slate-200">
-        <div
-          className="h-full bg-primary transition-all duration-500 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
 
       {/* Form body */}
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 pb-32">
@@ -1012,13 +1031,38 @@ export default function ExternalFormView() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const BrandHeader = () => (
+    <header
+      className="relative overflow-hidden"
+      style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+    >
+      <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+        style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+      <div className="relative z-10 px-5 py-3 flex items-center gap-3">
+        <div className="relative flex-shrink-0">
+          <div className="absolute -inset-1 bg-blue-400/15 rounded-[12px] blur-sm" />
+          <div className="relative w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
+          </div>
+        </div>
+        <div className="leading-none">
+          <span className="font-extrabold text-white text-sm tracking-tight block">ReMynd</span>
+          <span className="text-blue-300 text-[10px] font-semibold tracking-wide">Student Services</span>
+        </div>
+      </div>
+    </header>
+  );
+
   // Portal loading state
   if (portalLoading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
-          <p className="text-sm text-slate-500">Loading your portal...</p>
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <BrandHeader />
+        <div className="flex-1 flex justify-center items-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
+            <p className="text-sm text-slate-500">Loading your portal...</p>
+          </div>
         </div>
       </div>
     );
@@ -1027,16 +1071,23 @@ export default function ExternalFormView() {
   // Portal error state
   if (portalError || !portal) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-slate-50 p-6">
-        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-slate-100">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">🔗</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
-          <p className="text-slate-500 text-sm leading-relaxed">
-            This link is invalid or has expired. Please contact the assessment team for a new link.
-          </p>
-          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
-            <span>ReMynd Assessment System</span>
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <BrandHeader />
+        <div className="flex-1 flex justify-center items-center p-6">
+          <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-slate-100">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7 text-slate-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              This link is invalid or has expired. Please contact the assessment team for a new link.
+            </p>
+            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+              <span>ReMynd Assessment System</span>
+            </div>
           </div>
         </div>
       </div>
