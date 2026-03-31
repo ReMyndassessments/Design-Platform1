@@ -106,7 +106,7 @@ export default function CaseDetail() {
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "" });
+  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", workingDocUrl: "" });
   
   const [newAssignment, setNewAssignment] = useState({
     toolIds: [] as string[],
@@ -322,6 +322,7 @@ export default function CaseDetail() {
       parentEmail: c.parentEmail ?? "",
       parentPhone: c.parentPhone ?? "",
       caseStatus: c.caseStatus ?? "active",
+      workingDocUrl: c.workingDocUrl ?? "",
     });
     setEditCaseOpen(true);
   };
@@ -542,7 +543,25 @@ export default function CaseDetail() {
               <div className="flex justify-between border-b pb-2"><span className="text-slate-500">DOB</span><span className="font-medium">{formatDate(c.dob)}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-slate-500">School</span><span className="font-medium">{c.school} (Grade {c.grade || 'N/A'})</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Language</span><span className="font-medium capitalize">{c.languagePreference}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Parent</span><span className="font-medium">{c.parentName || 'N/A'}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Parent</span><span className="font-medium">{c.parentName || 'N/A'}</span></div>
+              {c.workingDocUrl ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Working Doc</span>
+                  <a
+                    href={c.workingDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                  >
+                    Open in Google Docs <ExternalLink size={13} />
+                  </a>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Working Doc</span>
+                  <span className="text-slate-400 text-xs italic">Not linked — edit case to add</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -907,6 +926,16 @@ export default function CaseDetail() {
                 <option value="closed">Closed</option>
                 <option value="completed">Completed</option>
               </select>
+            </div>
+            <div className="border-t pt-3 space-y-1">
+              <label className="text-sm font-medium">Working Document (Google Docs URL)</label>
+              <Input
+                type="url"
+                placeholder="https://docs.google.com/document/d/..."
+                value={editFields.workingDocUrl}
+                onChange={e => setEditFields(f => ({ ...f, workingDocUrl: e.target.value }))}
+              />
+              <p className="text-xs text-slate-500">Paste the shared Google Docs link here so both you and Abegail can access the working report.</p>
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setEditCaseOpen(false)}>Cancel</Button>

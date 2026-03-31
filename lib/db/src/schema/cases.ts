@@ -43,6 +43,7 @@ export const casesTable = pgTable("cases", {
   parentEmail: text("parent_email"),
   parentPhone: text("parent_phone"),
   consentObtained: boolean("consent_obtained").notNull().default(false),
+  workingDocUrl: text("working_doc_url"),
   intakeData: jsonb("intake_data"),
   intakeAnalysis: jsonb("intake_analysis"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
