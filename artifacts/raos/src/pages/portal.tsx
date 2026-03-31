@@ -337,7 +337,12 @@ function SuccessPanel({ tab, onReset }: { tab: Tab; onReset: () => void }) {
 export default function Portal() {
   const { t } = useI18n();
   const p = t.portal;
-  const [tab, setTab] = useState<Tab>("school");
+  const initialTab = (() => {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("tab");
+    return raw === "parent" ? "parent" : "school";
+  })() as Tab;
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [view, setView] = useState<"info" | "form" | "success">("info");
 
   const handleTabChange = (newTab: Tab) => {
