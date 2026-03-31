@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, Loader2, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useI18n();
+  const l = t.login;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -63,13 +67,14 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6">
 
-      {/* Back link */}
-      <div className="w-full max-w-sm mb-6">
+      {/* Back + Language switcher row */}
+      <div className="w-full max-w-sm mb-6 flex items-center justify-between">
         <Link href="/">
           <span className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-            <ChevronLeft size={15} /> Back
+            <ChevronLeft size={15} /> {t.back.replace("← ", "")}
           </span>
         </Link>
+        <LanguageSwitcherLight />
       </div>
 
       {/* Card */}
@@ -82,16 +87,16 @@ export default function Login() {
           </div>
           <div>
             <p className="text-sm font-bold text-slate-800 leading-none">ReMynd</p>
-            <p className="text-xs text-slate-400 mt-0.5">Staff Portal</p>
+            <p className="text-xs text-slate-400 mt-0.5">{l.staffPortal}</p>
           </div>
         </div>
 
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Sign in</h2>
-        <p className="text-slate-400 text-sm mb-6">Enter your credentials to access RAOS.</p>
+        <h2 className="text-xl font-bold text-slate-900 mb-1">{l.signIn}</h2>
+        <p className="text-slate-400 text-sm mb-6">{l.signInDesc}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Email Address</label>
+            <label className="text-sm font-medium text-slate-700">{l.email}</label>
             <Input
               type="email"
               placeholder="name@remynd.com"
@@ -103,7 +108,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Password</label>
+            <label className="text-sm font-medium text-slate-700">{l.password}</label>
             <Input
               type="password"
               placeholder="••••••••"
@@ -120,15 +125,15 @@ export default function Login() {
             disabled={loginMutation.isPending}
           >
             {loginMutation.isPending ? (
-              <><Loader2 size={16} className="animate-spin mr-2" /> Signing in...</>
+              <><Loader2 size={16} className="animate-spin mr-2" /> {l.signingIn}</>
             ) : (
-              <>Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" /></>
+              <>{l.signInBtn} <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" /></>
             )}
           </Button>
 
           {!import.meta.env.PROD && (
             <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-500">
-              <p className="font-semibold mb-1 text-slate-700 text-xs">Demo Accounts</p>
+              <p className="font-semibold mb-1 text-slate-700 text-xs">{l.demoAccounts}</p>
               <ul className="space-y-0.5 text-xs">
                 <li>admin@remynd.com</li>
                 <li>hayley@remynd.com</li>
