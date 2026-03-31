@@ -9,7 +9,9 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-const NOTIFY_EMAIL = process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com";
+const NOTIFY_EMAILS = (
+  process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com,hayleyxu13@gmail.com,ne_roberts@yahoo.com"
+).split(",").map((e) => e.trim()).filter(Boolean);
 
 router.post("/portal/inquiry", async (req, res) => {
   const {
@@ -67,11 +69,11 @@ router.post("/portal/inquiry", async (req, res) => {
       wechatId,
       whatsappId,
     },
-    NOTIFY_EMAIL
+    NOTIFY_EMAILS
   ).then((fromAddress) => {
-    logger.info({ from: fromAddress, to: NOTIFY_EMAIL }, "[email] Inquiry notification sent successfully");
+    logger.info({ from: fromAddress, to: NOTIFY_EMAILS }, "[email] Inquiry notification sent successfully");
   }).catch((err) => {
-    logger.error({ to: NOTIFY_EMAIL, error: String(err) }, "[email] FAILED to send inquiry notification");
+    logger.error({ to: NOTIFY_EMAILS, error: String(err) }, "[email] FAILED to send inquiry notification");
   });
 
   res.status(201).json({ success: true, id: row[0]?.id });

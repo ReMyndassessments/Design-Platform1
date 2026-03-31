@@ -29,10 +29,11 @@ function getTransport() {
 
 export async function sendInquiryNotification(
   data: InquiryEmailData,
-  notifyEmail: string
+  notifyEmails: string | string[]
 ): Promise<string> {
   const transport = getTransport();
   const fromUser = process.env.GMAIL_USER!;
+  const toList = Array.isArray(notifyEmails) ? notifyEmails.join(", ") : notifyEmails;
   const typeLabel = data.inquiryType === "school" ? "School" : "Parent";
 
   const rows = [
@@ -74,7 +75,7 @@ export async function sendInquiryNotification(
 
   await transport.sendMail({
     from: `"ReMynd RAOS" <${fromUser}>`,
-    to: notifyEmail,
+    to: toList,
     subject: `[RAOS] New ${typeLabel} Inquiry from ${data.contactName}`,
     html,
   });
