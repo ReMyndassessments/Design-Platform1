@@ -32,7 +32,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cases", label: "Cases", icon: Users },
     ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
     ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),

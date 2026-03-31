@@ -20,7 +20,7 @@ export default function Login() {
   useEffect(() => {
     if (!isCheckingUser && user && !hasRedirected.current) {
       hasRedirected.current = true;
-      setLocation("/");
+      setLocation("/dashboard");
     }
     // setLocation is intentionally excluded — it is not stable across renders
     // and including it causes an infinite redirect loop
@@ -39,7 +39,7 @@ export default function Login() {
             localStorage.setItem("raos_token", data.token);
           }
           toast({ title: "Welcome back!", description: "Successfully logged in." });
-          setLocation("/");
+          setLocation("/dashboard");
         },
         onError: () => {
           toast({ 
