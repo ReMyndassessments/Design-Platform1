@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -9,7 +8,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { School, User, Mail, Phone, Calendar, Building2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { School, User, Mail, Phone, Calendar, Building2, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 
@@ -50,6 +59,7 @@ export default function InquiriesPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Inquiry | null>(null);
 
   const { data: inquiries = [], isLoading, isError } = useQuery<Inquiry[]>({
     queryKey: ["inquiries"],
@@ -64,6 +74,16 @@ export default function InquiriesPage() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inquiries"] }),
+  });
+
+  const deleteInquiry = useMutation({
+    mutationFn: (id: string) =>
+      customFetch(`/api/portal/inquiries/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inquiries"] });
+      if (expanded === deleteTarget?.id) setExpanded(null);
+      setDeleteTarget(null);
+    },
   });
 
   const filtered = filter === "all" ? inquiries : inquiries.filter((i) => i.status === filter);
@@ -164,7 +184,7 @@ export default function InquiriesPage() {
                       <p className="text-sm text-slate-500 truncate">{inq.contactEmail}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs text-slate-400 hidden sm:block">
                       {formatDate(inq.createdAt)}
                     </span>
@@ -187,6 +207,17 @@ export default function InquiriesPage() {
                         <SelectItem value="closed">Closed</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(inq);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -235,6 +266,28 @@ export default function InquiriesPage() {
           );
         })}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this inquiry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the inquiry from{" "}
+              <span className="font-semibold text-slate-700">{deleteTarget?.contactName}</span>. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => deleteTarget && deleteInquiry.mutate(deleteTarget.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

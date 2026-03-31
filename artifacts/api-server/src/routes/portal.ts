@@ -9,7 +9,7 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-const NOTIFY_EMAIL = process.env.INQUIRY_NOTIFY_EMAIL || "ne_roberts@yahoo.com";
+const NOTIFY_EMAIL = process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com";
 
 router.post("/portal/inquiry", async (req, res) => {
   const {
@@ -107,6 +107,19 @@ router.patch("/portal/inquiries/:id/status", authMiddleware, async (req, res) =>
   await db
     .update(inquiriesTable)
     .set({ status, updatedAt: new Date() })
+    .where(sql`${inquiriesTable.id} = ${req.params.id}`);
+
+  res.json({ success: true });
+});
+
+router.delete("/portal/inquiries/:id", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+
+  await db
+    .delete(inquiriesTable)
     .where(sql`${inquiriesTable.id} = ${req.params.id}`);
 
   res.json({ success: true });
