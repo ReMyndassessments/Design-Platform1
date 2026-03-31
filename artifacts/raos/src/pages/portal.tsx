@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -361,12 +362,14 @@ export default function Portal() {
       {/* Header */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Brain size={16} className="text-white" />
+          <Link href="/">
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <div className="w-8 h-8 bg-indigo-600 group-hover:bg-indigo-700 rounded-lg flex items-center justify-center transition-colors">
+                <Brain size={16} className="text-white" />
+              </div>
+              <span className="font-bold text-slate-900 text-lg">ReMynd</span>
             </div>
-            <span className="font-bold text-slate-900 text-lg">ReMynd</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500 hidden sm:block">Already have a form link?</span>
             <a href="/login" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Staff Login →</a>
