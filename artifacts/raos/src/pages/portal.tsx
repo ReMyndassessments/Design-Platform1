@@ -136,9 +136,9 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
           { icon: Star, label: "Strengths-based", desc: "We highlight strengths alongside any areas of difficulty" },
           { icon: Zap, label: "Actionable", desc: "Recommendations your school and family can implement straight away" },
         ].map(({ icon: Icon, label, desc }) => (
-          <div key={label} className="bg-rose-50 rounded-xl p-4 text-center">
-            <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Icon size={18} className="text-rose-500" />
+          <div key={label} className="bg-teal-50 rounded-xl p-4 text-center">
+            <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Icon size={18} className="text-teal-600" />
             </div>
             <p className="font-semibold text-slate-900 text-sm">{label}</p>
             <p className="text-slate-500 text-xs mt-1">{desc}</p>
@@ -158,7 +158,7 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
             "We want to understand why school feels so hard for my child",
           ].map(r => (
             <div key={r} className="flex items-start gap-2">
-              <CheckCircle2 size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 size={15} className="text-teal-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-slate-600">{r}</p>
             </div>
           ))}
@@ -181,7 +181,7 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
       </div>
 
       <div className="text-center pt-2">
-        <Button onClick={onInquire} size="lg" className="bg-rose-500 hover:bg-rose-600 text-white gap-2">
+        <Button onClick={onInquire} size="lg" className="bg-teal-600 hover:bg-teal-700 text-white gap-2">
           Make an Enquiry <ArrowRight size={16} />
         </Button>
         <p className="text-xs text-slate-400 mt-2">No obligation. We'll get back to you within one business day.</p>
@@ -193,7 +193,7 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
 function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState<InquiryForm>(emptyForm);
   const isSchool = tab === "school";
-  const accent = isSchool ? "indigo" : "rose";
+  const accent = isSchool ? "indigo" : "teal";
 
   const mutation = useMutation({
     mutationFn: async (data: InquiryForm) => {
@@ -229,11 +229,11 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Your Name <span className="text-red-400">*</span></Label>
+          <Label>Your Name <span className="text-slate-400">*</span></Label>
           <Input placeholder="Full name" value={form.contactName} onChange={set("contactName")} required />
         </div>
         <div className="space-y-1.5">
-          <Label>Email Address <span className="text-red-400">*</span></Label>
+          <Label>Email Address <span className="text-slate-400">*</span></Label>
           <Input type="email" placeholder="email@example.com" value={form.contactEmail} onChange={set("contactEmail")} required />
         </div>
       </div>
@@ -295,7 +295,7 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
 
       <div className="space-y-1.5">
         <Label>
-          {isSchool ? "Reason for Referral" : "What are your main concerns?"} <span className="text-red-400">*</span>
+          {isSchool ? "Reason for Referral" : "What are your main concerns?"} <span className="text-slate-400">*</span>
         </Label>
         <Textarea
           placeholder={isSchool
@@ -309,13 +309,13 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
       </div>
 
       {mutation.isError && (
-        <p className="text-sm text-red-500">Something went wrong. Please try again or contact us directly.</p>
+        <p className="text-sm text-amber-700">Something went wrong. Please try again or contact us directly.</p>
       )}
 
       <Button
         type="submit"
         disabled={mutation.isPending}
-        className={cn("w-full", isSchool ? "bg-indigo-600 hover:bg-indigo-700" : "bg-rose-500 hover:bg-rose-600")}
+        className={cn("w-full", isSchool ? "bg-indigo-600 hover:bg-indigo-700" : "bg-teal-600 hover:bg-teal-700")}
       >
         {mutation.isPending ? "Submitting…" : "Submit Enquiry"}
       </Button>
@@ -406,7 +406,7 @@ export default function Portal() {
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all",
               tab === "parent"
-                ? "bg-white text-rose-600 shadow-sm"
+                ? "bg-white text-teal-700 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
