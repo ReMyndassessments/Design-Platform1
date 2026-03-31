@@ -26,6 +26,8 @@ interface InquiryForm {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  wechatId: string;
+  whatsappId: string;
   organisation: string;
   role: string;
   studentName: string;
@@ -38,6 +40,8 @@ const emptyForm: InquiryForm = {
   contactName: "",
   contactEmail: "",
   contactPhone: "",
+  wechatId: "",
+  whatsappId: "",
   organisation: "",
   role: "",
   studentName: "",
@@ -247,6 +251,21 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
             <Input placeholder={f.orgPlaceholderParent} value={form.organisation} onChange={set("organisation")} />
           </div>
         )}
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-1.5">
+            <span className="text-green-600 font-bold text-xs">WeChat</span> {f.wechatId}
+          </Label>
+          <Input placeholder={f.wechatPlaceholder} value={form.wechatId} onChange={set("wechatId")} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-1.5">
+            <span className="text-emerald-500 font-bold text-xs">WhatsApp</span> {f.whatsappId}
+          </Label>
+          <Input placeholder={f.whatsappPlaceholder} value={form.whatsappId} onChange={set("whatsappId")} />
+        </div>
       </div>
 
       {isSchool && (

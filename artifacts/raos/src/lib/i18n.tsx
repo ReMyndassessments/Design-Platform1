@@ -147,6 +147,10 @@ export const translations = {
         agePlaceholder: "e.g. 10",
         orgPlaceholderSchool: "School name",
         orgPlaceholderParent: "School name (if applicable)",
+        wechatId: "ID (optional)",
+        whatsappId: "ID (optional)",
+        wechatPlaceholder: "WeChat ID",
+        whatsappPlaceholder: "+1 234 567 8900",
       },
 
       // Success
@@ -299,6 +303,10 @@ export const translations = {
         agePlaceholder: "例如：10",
         orgPlaceholderSchool: "学校名称",
         orgPlaceholderParent: "学校名称（如适用）",
+        wechatId: "微信号（可选）",
+        whatsappId: "ID（可选）",
+        wechatPlaceholder: "微信号",
+        whatsappPlaceholder: "+1 234 567 8900",
       },
 
       success: {
@@ -449,6 +457,10 @@ export const translations = {
         agePlaceholder: "예: 10",
         orgPlaceholderSchool: "학교 이름",
         orgPlaceholderParent: "학교 이름 (해당되는 경우)",
+        wechatId: "ID (선택사항)",
+        whatsappId: "ID (선택사항)",
+        wechatPlaceholder: "WeChat ID",
+        whatsappPlaceholder: "+1 234 567 8900",
       },
 
       success: {
