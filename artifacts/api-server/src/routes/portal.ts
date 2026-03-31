@@ -68,10 +68,10 @@ router.post("/portal/inquiry", async (req, res) => {
       whatsappId,
     },
     NOTIFY_EMAIL
-  ).then(() => {
-    logger.info({ to: NOTIFY_EMAIL }, "[email] Inquiry notification sent");
+  ).then((fromAddress) => {
+    logger.info({ from: fromAddress, to: NOTIFY_EMAIL }, "[email] Inquiry notification sent successfully");
   }).catch((err) => {
-    logger.error({ err: err?.message ?? String(err) }, "[email] Failed to send inquiry notification");
+    logger.error({ to: NOTIFY_EMAIL, error: String(err) }, "[email] FAILED to send inquiry notification");
   });
 
   res.status(201).json({ success: true, id: row[0]?.id });
