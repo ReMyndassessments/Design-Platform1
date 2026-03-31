@@ -287,7 +287,7 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="space-y-1.5 sm:col-span-1">
             <Label>{isSchool ? f.studentName : f.childName}</Label>
-            <Input placeholder={f.namePlaceholder.split(" ")[0]} value={form.studentName} onChange={set("studentName")} />
+            <Input placeholder="e.g. Alex T." value={form.studentName} onChange={set("studentName")} />
           </div>
           <div className="space-y-1.5">
             <Label>{f.age}</Label>
