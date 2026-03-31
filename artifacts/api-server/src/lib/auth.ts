@@ -2,6 +2,10 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "raos-dev-secret-change-in-production-2024";
+const JWT_EXPIRES_IN = "30d";
 
 export function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "raos-salt-2024").digest("hex");
@@ -12,21 +16,24 @@ export function verifyPassword(password: string, hash: string): boolean {
 }
 
 export function generateToken(userId: string): string {
-  return Buffer.from(`${userId}:${Date.now()}:${crypto.randomBytes(16).toString("hex")}`).toString("base64");
-}
-
-const tokenStore = new Map<string, string>(); // token -> userId
-
-export function storeToken(token: string, userId: string): void {
-  tokenStore.set(token, userId);
+  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function getUserIdFromToken(token: string): string | undefined {
-  return tokenStore.get(token);
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    return typeof payload.sub === "string" ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
-export function revokeToken(token: string): void {
-  tokenStore.delete(token);
+export function storeToken(_token: string, _userId: string): void {
+  // No-op: JWTs are self-contained and don't require server-side storage
+}
+
+export function revokeToken(_token: string): void {
+  // No-op: JWTs expire on their own; client is responsible for deleting the token
 }
 
 export async function getUserById(id: string) {
