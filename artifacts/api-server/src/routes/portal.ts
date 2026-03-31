@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendInquiryNotification } from "../lib/outlookEmail.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -67,8 +68,10 @@ router.post("/portal/inquiry", async (req, res) => {
       whatsappId,
     },
     NOTIFY_EMAIL
-  ).catch((err) => {
-    console.error("[email] Failed to send inquiry notification:", err?.message ?? err);
+  ).then(() => {
+    logger.info({ to: NOTIFY_EMAIL }, "[email] Inquiry notification sent");
+  }).catch((err) => {
+    logger.error({ err: err?.message ?? String(err) }, "[email] Failed to send inquiry notification");
   });
 
   res.status(201).json({ success: true, id: row[0]?.id });
