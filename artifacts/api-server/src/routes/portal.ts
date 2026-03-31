@@ -8,7 +8,7 @@ import { sendInquiryNotification } from "../lib/outlookEmail.js";
 
 const router = Router();
 
-const NOTIFY_EMAIL = process.env.INQUIRY_NOTIFY_EMAIL || "ne-roberts@yahoo.com";
+const NOTIFY_EMAIL = process.env.INQUIRY_NOTIFY_EMAIL || "ne_roberts@yahoo.com";
 
 router.post("/portal/inquiry", async (req, res) => {
   const {
