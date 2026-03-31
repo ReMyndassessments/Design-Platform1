@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 export interface InquiryEmailData {
   inquiryType: "school" | "parent";
   contactName: string;
@@ -13,51 +15,24 @@ export interface InquiryEmailData {
   whatsappId?: string;
 }
 
-async function getAccessToken(): Promise<string> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  if (!hostname) throw new Error("REPLIT_CONNECTORS_HOSTNAME not set");
-
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? "repl " + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? "depl " + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!xReplitToken) throw new Error("X-Replit-Token not available");
-
-  const url = `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=outlook`;
-  const connRes = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Replit-Token": xReplitToken,
-    },
+function getTransport() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) {
+    throw new Error("GMAIL_USER or GMAIL_APP_PASSWORD environment variable is not set");
+  }
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
   });
-
-  if (!connRes.ok) {
-    const body = await connRes.text();
-    throw new Error(`Connectors API ${connRes.status}: ${body}`);
-  }
-
-  const connData = await connRes.json();
-  const connection = connData.items?.[0];
-  const accessToken =
-    connection?.settings?.access_token ||
-    connection?.settings?.oauth?.credentials?.access_token;
-
-  if (!accessToken) {
-    throw new Error(
-      `Outlook access token missing. Connection data: ${JSON.stringify(connData).slice(0, 300)}`
-    );
-  }
-
-  return accessToken;
 }
 
 export async function sendInquiryNotification(
   data: InquiryEmailData,
   notifyEmail: string
-): Promise<void> {
-  const accessToken = await getAccessToken();
+): Promise<string> {
+  const transport = getTransport();
+  const fromUser = process.env.GMAIL_USER!;
   const typeLabel = data.inquiryType === "school" ? "School" : "Parent";
 
   const rows = [
@@ -97,42 +72,12 @@ export async function sendInquiryNotification(
       </div>
     </div>`;
 
-  const payload = {
-    message: {
-      subject: `[RAOS] New ${typeLabel} Inquiry from ${data.contactName}`,
-      body: { contentType: "HTML", content: html },
-      toRecipients: [{ emailAddress: { address: notifyEmail } }],
-    },
-    saveToSentItems: true,
-  };
-
-  // Identify the sending account for diagnostics
-  let fromAddress = "unknown";
-  try {
-    const meRes = await fetch("https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (meRes.ok) {
-      const me = await meRes.json() as { mail?: string; userPrincipalName?: string };
-      fromAddress = me.mail || me.userPrincipalName || "unknown";
-    }
-  } catch {
-    // non-fatal
-  }
-
-  const graphRes = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+  await transport.sendMail({
+    from: `"ReMynd RAOS" <${fromUser}>`,
+    to: notifyEmail,
+    subject: `[RAOS] New ${typeLabel} Inquiry from ${data.contactName}`,
+    html,
   });
 
-  if (!graphRes.ok) {
-    const errorBody = await graphRes.text();
-    throw new Error(`Graph API ${graphRes.status} ${graphRes.statusText}: ${errorBody}`);
-  }
-
-  return fromAddress;
+  return fromUser;
 }

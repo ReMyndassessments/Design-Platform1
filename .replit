@@ -33,3 +33,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 JWT_SECRET = "3b33b040b99662110a967cd36f2fdecb9f72679d44b7027838ab5b2494ebe56f31f06fb7b04f3ddf0479e73a5beef65a"
+GMAIL_USER = "noelroberts43@gmail.com"
