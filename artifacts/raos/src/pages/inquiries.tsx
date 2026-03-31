@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { School, User, Mail, Phone, Calendar, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { customFetch } from "@workspace/api-client-react";
 
 interface Inquiry {
   id: string;
@@ -52,28 +53,16 @@ export default function InquiriesPage() {
 
   const { data: inquiries = [], isLoading, isError } = useQuery<Inquiry[]>({
     queryKey: ["inquiries"],
-    queryFn: async () => {
-      const token = localStorage.getItem("raos_token");
-      const res = await fetch(`/api/portal/inquiries`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load inquiries");
-      return res.json();
-    },
+    queryFn: () => customFetch<Inquiry[]>("/api/portal/inquiries"),
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const token = localStorage.getItem("raos_token");
-      await fetch(`/api/portal/inquiries/${id}/status`, {
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      customFetch(`/api/portal/inquiries/${id}/status`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      });
-    },
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inquiries"] }),
   });
 

@@ -11,8 +11,8 @@ import {
   Inbox,
 } from "lucide-react";
 import { useState } from "react";
-import { useGetCurrentUser, useLogout } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useGetCurrentUser, useLogout, customFetch } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -21,6 +21,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetCurrentUser();
   const logoutMutation = useLogout();
   const queryClient = useQueryClient();
+
+  const { data: newInquiryCount = 0 } = useQuery<number>({
+    queryKey: ["inquiries-new-count"],
+    queryFn: async () => {
+      const rows = await customFetch<Array<{ status: string }>>("/api/portal/inquiries");
+      return rows.filter((r) => r.status === "new").length;
+    },
+    enabled: user?.role === "admin",
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -68,6 +79,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => {
             const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+            const badge = item.href === "/inquiries" && newInquiryCount > 0 ? newInquiryCount : null;
             return (
               <Link 
                 key={item.href} 
@@ -84,7 +96,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   "transition-colors",
                   isActive ? "text-primary-foreground" : "text-slate-400 group-hover:text-white"
                 )} />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {badge !== null && (
+                  <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </Link>
             );
           })}
