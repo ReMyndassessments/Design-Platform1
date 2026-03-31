@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useLogin, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -11,7 +11,7 @@ export default function Login() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
+
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser({
     query: { retry: false, refetchOnWindowFocus: false }
   });
@@ -22,8 +22,6 @@ export default function Login() {
       hasRedirected.current = true;
       setLocation("/dashboard");
     }
-    // setLocation is intentionally excluded — it is not stable across renders
-    // and including it causes an infinite redirect loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCheckingUser, user]);
 
@@ -42,8 +40,8 @@ export default function Login() {
           setLocation("/dashboard");
         },
         onError: () => {
-          toast({ 
-            title: "Login failed", 
+          toast({
+            title: "Login failed",
             description: "Please check your credentials and try again.",
             variant: "destructive"
           });
@@ -53,97 +51,95 @@ export default function Login() {
   };
 
   if (isCheckingUser) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-slate-400 w-8 h-8" />
+      </div>
+    );
   }
 
-  if (user) {
-    return null;
-  }
+  if (user) return null;
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row">
-      {/* Mobile top / Desktop left — dark branding panel */}
-      <div className="md:w-1/2 bg-slate-900 text-white relative overflow-hidden flex flex-col justify-center items-center p-10 md:p-12 py-14 md:py-0">
-        {/* Background blobs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-3xl" />
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6">
 
-        <div className="z-10 text-center max-w-md w-full">
-          <div className="mb-6 mx-auto w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-16 h-16 md:w-20 md:h-20 object-contain" />
-          </div>
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 tracking-tight text-white">
-            ReMynd Assessment Operating System
-          </h1>
-          {/* Subtitle shown on desktop only */}
-          <p className="hidden md:block text-lg text-slate-300 leading-relaxed">
-            The intelligent operating system for psychoeducational assessments. Streamline forms, scoring, and report generation in one secure platform.
-          </p>
-          {/* Welcome text shown on mobile only */}
-          <div className="md:hidden mt-4">
-            <p className="text-2xl font-bold text-white">Welcome back</p>
-            <p className="text-slate-400 mt-1 text-sm">Please sign in to your account.</p>
-          </div>
-        </div>
+      {/* Back link */}
+      <div className="w-full max-w-sm mb-6">
+        <Link href="/">
+          <span className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+            <ChevronLeft size={15} /> Back
+          </span>
+        </Link>
       </div>
 
-      {/* Mobile bottom / Desktop right — form panel */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white md:rounded-l-3xl shadow-[-20px_0_40px_-15px_rgba(0,0,0,0.05)] z-10 relative">
-        <div className="w-full max-w-md animate-slide-up">
-          {/* Welcome text shown on desktop only */}
-          <div className="hidden md:block mb-8">
-            <h2 className="text-3xl font-bold text-slate-900">Welcome back</h2>
-            <p className="text-slate-500 mt-2 text-sm">Please sign in to your account.</p>
+      {/* Card */}
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center shadow">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800 leading-none">ReMynd</p>
+            <p className="text-xs text-slate-400 mt-0.5">Staff Portal</p>
+          </div>
+        </div>
+
+        <h2 className="text-xl font-bold text-slate-900 mb-1">Sign in</h2>
+        <p className="text-slate-400 text-sm mb-6">Enter your credentials to access RAOS.</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Email Address</label>
+            <Input
+              type="email"
+              placeholder="name@remynd.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-11"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 ml-1">Email Address</label>
-              <Input
-                type="email"
-                placeholder="name@remynd.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Password</label>
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-11"
+            />
+          </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 ml-1">Password</label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-12 text-base mt-4 group"
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending ? "Signing in..." : "Sign In"}
-              {!loginMutation.isPending && <ArrowRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />}
-            </Button>
-
-            {!import.meta.env.PROD && (
-              <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600">
-                <p className="font-semibold mb-1 text-slate-800">Demo Accounts:</p>
-                <ul className="space-y-1">
-                  <li>admin@remynd.com</li>
-                  <li>hayley@remynd.com</li>
-                  <li>abegail@remynd.com</li>
-                  <li className="italic text-xs mt-2 text-slate-400">Password: password</li>
-                </ul>
-              </div>
+          <Button
+            type="submit"
+            className="w-full h-11 mt-2 group"
+            disabled={loginMutation.isPending}
+          >
+            {loginMutation.isPending ? (
+              <><Loader2 size={16} className="animate-spin mr-2" /> Signing in...</>
+            ) : (
+              <>Sign In <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" /></>
             )}
-          </form>
-        </div>
+          </Button>
+
+          {!import.meta.env.PROD && (
+            <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-500">
+              <p className="font-semibold mb-1 text-slate-700 text-xs">Demo Accounts</p>
+              <ul className="space-y-0.5 text-xs">
+                <li>admin@remynd.com</li>
+                <li>hayley@remynd.com</li>
+                <li>abegail@remynd.com</li>
+                <li className="italic mt-1 text-slate-400">Password: password</li>
+              </ul>
+            </div>
+          )}
+        </form>
       </div>
+
     </div>
   );
 }
