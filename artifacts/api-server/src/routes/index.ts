@@ -9,6 +9,7 @@ import reportsRouter from "./reports";
 import usersRouter from "./users";
 import dashboardRouter from "./dashboard";
 import batteriesRouter from "./batteries";
+import portalRouter from "./portal";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(scoresRouter);
 router.use(reportsRouter);
 router.use(dashboardRouter);
 router.use(batteriesRouter);
+router.use(portalRouter);
 
 export default router;

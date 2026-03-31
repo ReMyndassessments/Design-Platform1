@@ -53,6 +53,7 @@ import GuidedSelfReport from "@/pages/cases/[id]/self-report";
 import CdpProfilePage from "@/pages/cases/[id]/cdp";
 import ResponseViewer from "@/pages/cases/[id]/response/[assignmentId]";
 import ExternalFormView from "@/pages/external/[token]";
+import Portal from "@/pages/portal";
 import AssessmentTools from "@/pages/tools";
 import FormPreviewPage from "@/pages/tools/[id]/preview";
 import TeamPage from "@/pages/team";
@@ -100,6 +101,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/portal" component={Portal} />
       <Route path="/external/:token" component={ExternalFormView} />
       
       <Route path="/">
