@@ -286,7 +286,10 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
         </p>
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="space-y-1.5 sm:col-span-1">
-            <Label>{isSchool ? f.studentName : f.childName}</Label>
+            <div>
+              <Label>{isSchool ? f.studentName : f.childName}</Label>
+              <p className="text-[11px] text-slate-400 mt-0.5">{f.studentNameHint}</p>
+            </div>
             <Input placeholder="e.g. Alex T." value={form.studentName} onChange={set("studentName")} />
           </div>
           <div className="space-y-1.5">
