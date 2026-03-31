@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   UserCog,
+  Inbox,
 } from "lucide-react";
 import { useState } from "react";
 import { useGetCurrentUser, useLogout } from "@workspace/api-client-react";
@@ -35,6 +36,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/cases", label: "Cases", icon: Users },
     ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
+    ...(user?.role === "admin" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
     ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
   ];
 

@@ -59,6 +59,7 @@ import LandingPage from "@/pages/landing";
 import AssessmentTools from "@/pages/tools";
 import FormPreviewPage from "@/pages/tools/[id]/preview";
 import TeamPage from "@/pages/team";
+import InquiriesPage from "@/pages/inquiries";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -139,6 +140,9 @@ function Router() {
       <Route path="/tools/:id/preview" component={FormPreviewPage} />
       <Route path="/team">
         {() => <ProtectedRoute component={TeamPage} />}
+      </Route>
+      <Route path="/inquiries">
+        {() => <ProtectedRoute component={InquiriesPage} />}
       </Route>
       
       <Route component={NotFound} />
