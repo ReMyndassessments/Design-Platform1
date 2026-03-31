@@ -54,11 +54,9 @@ router.post("/cases/:id/report-drafts", authMiddleware, async (req, res) => {
   // If first version, mark it active. Otherwise, keep existing active unchanged.
   const isFirstVersion = nextVersion === 1;
 
-  // If this is not the first version, leave existing active as-is
-  // (admin must explicitly pin a version as active)
   // Resolve uploader's display name
   const [userRow] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!));
-  const uploaderName = userRow ? `${userRow.firstName ?? ""} ${userRow.lastName ?? ""}`.trim() || userRow.email : "Unknown";
+  const uploaderName = userRow ? (userRow.name || userRow.email) : "Unknown";
 
   const draft = {
     id: randomUUID(),
