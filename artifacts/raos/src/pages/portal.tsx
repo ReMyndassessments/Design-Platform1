@@ -300,7 +300,7 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
             <Label>{f.yearGroup}</Label>
             <Select value={form.yearGroup} onValueChange={v => setForm(fr => ({ ...fr, yearGroup: v }))}>
               <SelectTrigger><SelectValue placeholder={f.selectYear} /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-56 overflow-y-auto">
                 {YEAR_GROUPS_EN.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
