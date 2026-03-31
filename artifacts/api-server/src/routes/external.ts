@@ -137,6 +137,7 @@ router.get("/external/portal/:token", async (req, res) => {
       studentName: caseData?.studentName ?? "the student",
       currentPhase: caseData?.currentPhase ?? "pre_commitment",
       progressPercentage: caseData?.progressPercentage ?? 0,
+      languagePreference: caseData?.languagePreference ?? "english",
       respondentLabel: assignment.respondentLabel,
       respondentType: assignment.respondentType,
       forms: siblings.map(s => ({
@@ -175,6 +176,7 @@ router.get("/external/portal/:token", async (req, res) => {
       studentName: caseData?.studentName ?? "the student",
       currentPhase: caseData?.currentPhase ?? "report",
       progressPercentage: caseData?.progressPercentage ?? 100,
+      languagePreference: caseData?.languagePreference ?? "english",
       respondentLabel: reportTok.role === "parent" ? "Parent / Guardian" : "Teacher",
       respondentType: reportTok.role,
       forms: [],

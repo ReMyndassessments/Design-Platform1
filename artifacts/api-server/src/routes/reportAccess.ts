@@ -8,6 +8,109 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 
+type Lang = "english" | "mandarin" | "korean";
+
+function normLang(raw: string | null | undefined): Lang {
+  if (raw === "mandarin") return "mandarin";
+  if (raw === "korean") return "korean";
+  return "english";
+}
+
+const EMAIL_COPY = {
+  parentSubject: {
+    english: (name: string) => `Assessment Report Ready — ${name}`,
+    mandarin: (name: string) => `评估报告已准备就绪 — ${name}`,
+    korean:   (name: string) => `평가 보고서 준비 완료 — ${name}`,
+  },
+  parentHeading: {
+    english: "Your child's assessment report is ready",
+    mandarin: "您孩子的评估报告已准备就绪",
+    korean:   "자녀의 평가 보고서가 준비되었습니다",
+  },
+  parentBody: {
+    english: (name: string) => `The psychoeducational assessment report for <strong>${name}</strong> has been finalised and is ready for you to download.`,
+    mandarin: (name: string) => `<strong>${name}</strong> 的心理教育评估报告已完成，可供您下载。`,
+    korean:   (name: string) => `<strong>${name}</strong>의 심리교육 평가 보고서가 완료되었으며 다운로드할 준비가 되었습니다.`,
+  },
+  parentCTA: {
+    english: "Please click the button below to access your confidential copy:",
+    mandarin: "请点击下面的按钮访问您的保密副本：",
+    korean:   "아래 버튼을 클릭하여 기밀 사본에 접근하세요:",
+  },
+  parentDownloadBtn: {
+    english: "Download My Report",
+    mandarin: "下载我的报告",
+    korean:   "내 보고서 다운로드",
+  },
+  parentConsent: {
+    english: (school: string) => `After downloading, you will be asked whether you give permission for <strong>${school}</strong> to access their copy of the report. This is entirely your choice.`,
+    mandarin: (school: string) => `下载后，系统会询问您是否允许 <strong>${school}</strong> 访问其报告副本。这完全是您的选择。`,
+    korean:   (school: string) => `다운로드 후, <strong>${school}</strong>에서 보고서 사본에 접근할 수 있도록 허용할지 여부를 묻는 메시지가 표시됩니다. 이것은 전적으로 귀하의 선택입니다.`,
+  },
+  parentUniqueLink: {
+    english: "This link is unique to you. Please do not share it.",
+    mandarin: "此链接是您专用的。请勿与他人共享。",
+    korean:   "이 링크는 귀하 전용입니다. 다른 사람과 공유하지 마세요.",
+  },
+  resendHeading: {
+    english: "Your assessment report link",
+    mandarin: "您的评估报告链接",
+    korean:   "평가 보고서 링크",
+  },
+  resendBody: {
+    english: (name: string) => `Please use the link below to access the report for <strong>${name}</strong>:`,
+    mandarin: (name: string) => `请使用以下链接访问 <strong>${name}</strong> 的报告：`,
+    korean:   (name: string) => `아래 링크를 사용하여 <strong>${name}</strong>의 보고서에 접근하세요:`,
+  },
+  resendBtn: {
+    english: "Access Report",
+    mandarin: "访问报告",
+    korean:   "보고서 접근",
+  },
+  teacherOverrideHeading: {
+    english: "Assessment report now available",
+    mandarin: "评估报告现已可获取",
+    korean:   "평가 보고서가 이제 제공됩니다",
+  },
+  teacherOverrideBody: {
+    english: (name: string) => `Access to the assessment report for <strong>${name}</strong> has been authorised. You can now download your copy:`,
+    mandarin: (name: string) => `访问 <strong>${name}</strong> 评估报告的权限已获授权。您现在可以下载您的副本：`,
+    korean:   (name: string) => `<strong>${name}</strong>의 평가 보고서에 대한 접근 권한이 승인되었습니다. 이제 사본을 다운로드할 수 있습니다:`,
+  },
+  teacherOverrideBtn: {
+    english: "Download Report",
+    mandarin: "下载报告",
+    korean:   "보고서 다운로드",
+  },
+} as const;
+
+function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string): string {
+  return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+    <h2 style="color:#0a1628">${EMAIL_COPY.parentHeading[lang]}</h2>
+    <p>${EMAIL_COPY.parentBody[lang](studentName)}</p>
+    <p>${EMAIL_COPY.parentCTA[lang]}</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.parentDownloadBtn[lang]}</a>
+    </p>
+    <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentConsent[lang](schoolName)}</p>
+    <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentUniqueLink[lang]}</p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+    <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+  </div>`;
+}
+
+function buildResendEmail(lang: Lang, studentName: string, link: string): string {
+  return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+    <h2 style="color:#0a1628">${EMAIL_COPY.resendHeading[lang]}</h2>
+    <p>${EMAIL_COPY.resendBody[lang](studentName)}</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.resendBtn[lang]}</a>
+    </p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+    <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+  </div>`;
+}
+
 const router = Router();
 const storage = new ObjectStorageService();
 
@@ -58,6 +161,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
   const studentName = caseRow?.studentName ?? "your student";
   const schoolName = caseRow?.school ?? "the school";
+  const lang = normLang(caseRow?.languagePreference);
   const base = getBaseUrl(req);
 
   // Delete old tokens and regenerate
@@ -89,20 +193,8 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     if (role === "parent") {
       await sendEmail({
         to: email,
-        subject: `Assessment Report Ready — ${studentName}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0a1628">Your child's assessment report is ready</h2>
-            <p>The psychoeducational assessment report for <strong>${studentName}</strong> has been finalised and is ready for you to download.</p>
-            <p>Please click the button below to access your confidential copy:</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download My Report</a>
-            </p>
-            <p style="font-size:13px;color:#64748b">After downloading, you will be asked whether you give permission for <strong>${schoolName}</strong> to access their copy of the report. This is entirely your choice.</p>
-            <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-          </div>`,
+        subject: EMAIL_COPY.parentSubject[lang](studentName),
+        html: buildParentEmail(lang, studentName, schoolName, link),
       });
     } else {
       await sendEmail({
@@ -142,21 +234,14 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     const t = token[0];
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, t.caseId));
     const studentName = caseRow?.studentName ?? "your student";
+    const resendLang = normLang(caseRow?.languagePreference);
     const base = getBaseUrl(req);
     const link = `${base}/external/${t.token}`;
 
     await sendEmail({
       to: email,
-      subject: `Assessment Report — ${studentName}`,
-      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-        <h2 style="color:#0a1628">Your assessment report link</h2>
-        <p>Please use the link below to access the report for <strong>${studentName}</strong>:</p>
-        <p style="text-align:center;margin:28px 0">
-          <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Access Report</a>
-        </p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-        <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-      </div>`,
+      subject: EMAIL_COPY.resendHeading[resendLang] + ` — ${studentName}`,
+      html: buildResendEmail(resendLang, studentName, link),
     });
 
     await db.update(reportTokensTable)

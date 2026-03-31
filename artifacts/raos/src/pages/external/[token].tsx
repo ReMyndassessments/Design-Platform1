@@ -51,6 +51,7 @@ type PortalData = {
   studentName: string;
   currentPhase: string;
   progressPercentage: number;
+  languagePreference: string;
   respondentLabel: string | null;
   respondentType: string | null;
   forms: PortalForm[];
@@ -1188,6 +1189,13 @@ export default function ExternalFormView() {
   const [portalRefreshKey, setPortalRefreshKey] = useState(0);
 
   const { data: portal, loading: portalLoading, error: portalError } = usePortalData(portalToken, portalRefreshKey);
+
+  // Auto-set language from case preference when portal data first loads
+  useEffect(() => {
+    if (portal?.languagePreference && portal.languagePreference !== "english") {
+      setLanguage(portal.languagePreference);
+    }
+  }, [portal?.languagePreference]);
 
   const handleStartForm = useCallback((formToken: string) => {
     setActiveFormToken(formToken);
