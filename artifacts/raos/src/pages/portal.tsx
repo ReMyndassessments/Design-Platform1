@@ -370,10 +370,7 @@ export default function Portal() {
               <span className="font-bold text-slate-900 text-lg">ReMynd</span>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500 hidden sm:block">Already have a form link?</span>
-            <a href="/login" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Staff Login →</a>
-          </div>
+          <a href="/login" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Staff Login →</a>
         </div>
       </header>
 
