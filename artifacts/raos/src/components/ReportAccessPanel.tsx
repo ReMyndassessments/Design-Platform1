@@ -52,6 +52,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
   const [pEmail, setPEmail] = useState(parentEmail ?? "");
   const [tEmail, setTEmail] = useState("");
   const [notifyTeam, setNotifyTeam] = useState(false);
+  const [sendInternalCopy, setSendInternalCopy] = useState(false);
   const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -124,6 +125,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           parentEmail: pEmail || undefined,
           teacherEmail: tEmail || undefined,
           notifyTeam,
+          sendInternalCopy,
           additionalRecipients: additionalRecipients.filter(r => r.email.trim()),
         }),
       });
@@ -134,6 +136,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
       setSelectedFile(null);
       setAdditionalRecipients([]);
       setNotifyTeam(false);
+      setSendInternalCopy(false);
       await fetchStatus();
     } catch (err) {
       console.error(err);
@@ -388,6 +391,27 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
             </label>
             <p className="text-xs text-slate-500">
               The assigned invigilator and psychometrician will each receive an email with a link to open this case in RAOS and download their copy.
+            </p>
+          </div>
+        </div>
+
+        {/* Internal copy to Hayley & Abegail */}
+        <div className={cn(
+          "flex items-start gap-3 rounded-xl border p-3 transition-colors",
+          sendInternalCopy ? "bg-violet-50 border-violet-200" : "bg-white border-slate-200"
+        )}>
+          <Checkbox
+            id="sendInternalCopy"
+            checked={sendInternalCopy}
+            onCheckedChange={v => setSendInternalCopy(!!v)}
+            className="mt-0.5"
+          />
+          <div className="space-y-0.5">
+            <label htmlFor="sendInternalCopy" className="text-sm font-medium text-slate-800 cursor-pointer">
+              Send report copy to Hayley &amp; Abegail
+            </label>
+            <p className="text-xs text-slate-500">
+              Hayley (hayleyxu13@gmail.com) and Abegail (cioconabegail@gmail.com) will each receive their own secure download link — the same as the parent and school receive.
             </p>
           </div>
         </div>

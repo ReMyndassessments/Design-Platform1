@@ -146,6 +146,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     parentEmail,
     teacherEmail,
     notifyTeam = false,
+    sendInternalCopy = false,
     additionalRecipients = [],
   }: {
     fileKey: string;
@@ -153,6 +154,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     parentEmail?: string;
     teacherEmail?: string;
     notifyTeam?: boolean;
+    sendInternalCopy?: boolean;
     additionalRecipients?: Array<{ name: string; email: string }>;
   } = req.body;
 
@@ -230,6 +232,37 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
         <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
       </div>`,
     });
+  }
+
+  // Send direct download links to Hayley & Abegail if requested
+  if (sendInternalCopy) {
+    const internalTeam = [
+      { name: "Hayley", email: "hayleyxu13@gmail.com" },
+      { name: "Abegail", email: "cioconabegail@gmail.com" },
+    ];
+    for (const { name, email } of internalTeam) {
+      const token = randomUUID();
+      const link = `${base}/external/${token}`;
+      await db.insert(reportTokensTable).values({
+        id: randomUUID(), caseId, role: "other", email, token,
+        recipientName: name,
+        sentAt: new Date(),
+      });
+      await sendEmail({
+        to: email,
+        subject: `Assessment Report Ready — ${studentName}`,
+        html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+          <h2 style="color:#0a1628">Final report ready for download</h2>
+          <p>Hi ${name}, the final psychoeducational assessment report for <strong>${studentName}</strong> is now available.</p>
+          <p style="text-align:center;margin:28px 0">
+            <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
+          </p>
+          <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+          <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+        </div>`,
+      });
+    }
   }
 
   // Optionally notify assigned internal team (invigilator + psychometrician)
