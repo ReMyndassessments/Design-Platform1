@@ -408,10 +408,10 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           />
           <div className="space-y-0.5">
             <label htmlFor="sendInternalCopy" className="text-sm font-medium text-slate-800 cursor-pointer">
-              Send report copy to Hayley &amp; Abegail
+              Send report copy to Assessment Invigilator &amp; Psychometrician
             </label>
             <p className="text-xs text-slate-500">
-              Hayley (hayleyxu13@gmail.com) and Abegail (cioconabegail@gmail.com) will each receive their own secure download link — the same as the parent and school receive.
+              The current Assessment Invigilator and Psychometrician on your team will each receive their own secure download link — the same as the parent and school receive.
             </p>
           </div>
         </div>

@@ -234,26 +234,25 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     });
   }
 
-  // Send direct download links to Hayley & Abegail if requested
+  // Send direct download links to current Assessment Invigilator & Psychometrician
   if (sendInternalCopy) {
-    const internalTeam = [
-      { name: "Hayley", email: "hayleyxu13@gmail.com" },
-      { name: "Abegail", email: "cioconabegail@gmail.com" },
-    ];
-    for (const { name, email } of internalTeam) {
+    const internalStaff = await db.select().from(usersTable)
+      .where(inArray(usersTable.role, ["assessment_invigilator", "psychometrician"]));
+    for (const staff of internalStaff) {
       const token = randomUUID();
       const link = `${base}/external/${token}`;
+      const roleLabel = staff.role === "assessment_invigilator" ? "Assessment Invigilator" : "Psychometrician";
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "other", email, token,
-        recipientName: name,
+        id: randomUUID(), caseId, role: "other", email: staff.email, token,
+        recipientName: staff.name,
         sentAt: new Date(),
       });
       await sendEmail({
-        to: email,
+        to: staff.email,
         subject: `Assessment Report Ready — ${studentName}`,
         html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
           <h2 style="color:#0a1628">Final report ready for download</h2>
-          <p>Hi ${name}, the final psychoeducational assessment report for <strong>${studentName}</strong> is now available.</p>
+          <p>Hi ${staff.name} (${roleLabel}), the final psychoeducational assessment report for <strong>${studentName}</strong> is now available.</p>
           <p style="text-align:center;margin:28px 0">
             <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
           </p>
