@@ -288,7 +288,6 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
     try {
       const html = `<p>The parent/guardian for <strong>${studentName}</strong> has chosen <strong>Not Yet</strong> when asked whether to share the psychoeducational report with their school.</p><p>No school access has been granted at this time. You may use the admin override in RAOS if required.</p>`;
       await sendEmail({ to: "noelroberts43@gmail.com", subject: `Parent withheld school consent — ${studentName}`, html });
-      await sendEmail({ to: "hayleyxu13@gmail.com", subject: `Parent withheld school consent — ${studentName}`, html });
     } catch (_) {}
   }
 
