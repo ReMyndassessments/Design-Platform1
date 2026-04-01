@@ -31,6 +31,10 @@ import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 const PHASES = [
   "intake", "forms", "assessment", "scoring", "report", "final_review", "debrief"
 ];
+const PHASE_PROGRESS: Record<string, number> = {
+  pre_commitment: 5, intake: 15, setup: 25, forms: 38,
+  assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 100, complete: 100,
+};
 const PHASE_LABELS: Record<string, string> = {
   pre_commitment: "Intake",
   intake: "Intake",
@@ -522,7 +526,7 @@ export default function CaseDetail() {
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Progress</p>
-              <p className="text-2xl font-bold text-primary-foreground">{c.progressPercentage}%</p>
+              <p className="text-2xl font-bold text-primary-foreground">{PHASE_PROGRESS[c.currentPhase] ?? c.progressPercentage}%</p>
             </div>
           </div>
         </CardContent>
