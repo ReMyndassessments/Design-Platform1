@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, asc } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { Readable } from "stream";
 import { nanoid } from "nanoid";
@@ -106,14 +106,14 @@ router.get("/external/portal/:token", async (req, res) => {
         )
       );
 
-    // Check if a report is available for this respondent
+    // Check if reports are available for this respondent
     let reportAccess: object | null = null;
     const reportPhases = ["report", "debrief", "complete"];
     if (caseData && reportPhases.includes(caseData.currentPhase ?? "")) {
       const reportRole = resolveReportRole(assignment.respondentType);
       if (reportRole) {
-        const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, assignment.caseId));
-        if (upload) {
+        const uploads = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, assignment.caseId));
+        if (uploads.length > 0) {
           const [tok] = await db
             .select()
             .from(reportTokensTable)
@@ -122,7 +122,7 @@ router.get("/external/portal/:token", async (req, res) => {
             reportAccess = {
               tokenId: tok.id,
               role: tok.role,
-              filename: upload.filename,
+              files: uploads.map(u => ({ id: u.id, filename: u.filename, label: u.label, uploadedAt: u.uploadedAt })),
               downloadedAt: tok.downloadedAt,
               permissionGranted: tok.permissionGranted,
               adminOverride: tok.adminOverride,
@@ -160,12 +160,12 @@ router.get("/external/portal/:token", async (req, res) => {
 
   if (reportTok) {
     const [caseData] = await db.select().from(casesTable).where(eq(casesTable.id, reportTok.caseId)).limit(1);
-    const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, reportTok.caseId));
+    const uploads = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, reportTok.caseId));
 
-    const reportAccess = upload ? {
+    const reportAccess = uploads.length > 0 ? {
       tokenId: reportTok.id,
       role: reportTok.role,
-      filename: upload.filename,
+      files: uploads.map(u => ({ id: u.id, filename: u.filename, label: u.label, uploadedAt: u.uploadedAt })),
       downloadedAt: reportTok.downloadedAt,
       permissionGranted: reportTok.permissionGranted,
       adminOverride: reportTok.adminOverride,
@@ -189,6 +189,7 @@ router.get("/external/portal/:token", async (req, res) => {
 });
 
 // Download report via portal token (records the download event)
+// Optional ?uploadId=... to download a specific file; defaults to most recent
 router.get("/external/report/:tokenId/download", async (req, res) => {
   const [tok] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.id, req.params.tokenId));
   if (!tok) {
@@ -201,7 +202,15 @@ router.get("/external/report/:tokenId/download", async (req, res) => {
     return;
   }
 
-  const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, tok.caseId));
+  const { uploadId } = req.query as { uploadId?: string };
+  const allUploads = await db.select().from(reportUploadsTable)
+    .where(eq(reportUploadsTable.caseId, tok.caseId))
+    .orderBy(asc(reportUploadsTable.uploadedAt));
+
+  const upload = uploadId
+    ? allUploads.find(u => u.id === uploadId)
+    : allUploads[allUploads.length - 1];
+
   if (!upload) {
     res.status(404).json({ error: "no_report" });
     return;
@@ -219,7 +228,7 @@ router.get("/external/report/:tokenId/download", async (req, res) => {
     const objectFile = await storage.getObjectEntityFile(upload.fileKey);
     const response = await storage.downloadObject(objectFile);
     res.setHeader("Content-Disposition", `attachment; filename="${upload.filename}"`);
-    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Type", "application/octet-stream");
     res.status(response.status);
     response.headers.forEach((value, key) => {
       if (key !== "content-disposition" && key !== "content-type") res.setHeader(key, value);

@@ -6,9 +6,10 @@ export const reportRecipientRoleEnum = pgEnum("report_recipient_role", ["parent"
 
 export const reportUploadsTable = pgTable("report_uploads", {
   id: text("id").primaryKey(),
-  caseId: text("case_id").notNull().unique(),
+  caseId: text("case_id").notNull(),
   fileKey: text("file_key").notNull(),
   filename: text("filename").notNull(),
+  label: text("label"),
   uploadedBy: text("uploaded_by").notNull(),
   uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
 });

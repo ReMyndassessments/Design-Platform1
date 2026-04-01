@@ -37,10 +37,17 @@ type PortalForm = {
   uniqueToken: string;
 };
 
+type ReportFile = {
+  id: string;
+  filename: string;
+  label: string | null;
+  uploadedAt: string;
+};
+
 type ReportAccess = {
   tokenId: string;
   role: "parent" | "teacher";
-  filename: string;
+  files: ReportFile[];
   downloadedAt: string | null;
   permissionGranted: boolean | null;
   adminOverride: boolean;
@@ -627,25 +634,26 @@ function PortalView({
   const allDone = pendingCount === 0;
 
   // Report download state
-  const [reportDownloading, setReportDownloading] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [consentSubmitting, setConsentSubmitting] = useState(false);
   const [consentDecision, setConsentDecision] = useState<boolean | null>(
     portal.reportAccess?.permissionGranted ?? null
   );
 
-  const handleDownloadReport = async () => {
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
+  const handleDownloadFile = async (file: ReportFile) => {
     if (!portal.reportAccess) return;
-    setReportDownloading(true);
+    setDownloadingFileId(file.id);
     try {
       const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/download`);
+      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/download?uploadId=${file.id}`);
       if (!resp.ok) throw new Error("Download failed");
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = portal.reportAccess.filename;
+      a.download = file.filename;
       a.click();
       URL.revokeObjectURL(url);
       // After first download, show consent modal for parents
@@ -655,7 +663,17 @@ function PortalView({
     } catch (e) {
       console.error(e);
     } finally {
-      setReportDownloading(false);
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    if (!portal.reportAccess) return;
+    const files = portal.reportAccess.files ?? [];
+    if (files.length === 1) {
+      await handleDownloadFile(files[0]);
+    } else if (files.length > 1) {
+      await handleDownloadFile(files[files.length - 1]);
     }
   };
 
@@ -807,8 +825,12 @@ function PortalView({
                 <h2 className="text-sm font-bold text-slate-900">
                   {portal.reportAccess.blocked ? t("awaitingConsent", language) : t("reportReady", language)}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[260px]">
-                  {portal.reportAccess.blocked ? t("awaitingConsentBody", language) : portal.reportAccess.filename}
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {portal.reportAccess.blocked
+                    ? t("awaitingConsentBody", language)
+                    : portal.reportAccess.files?.length > 1
+                    ? `${portal.reportAccess.files.length} documents available`
+                    : (portal.reportAccess.files?.[0]?.label ?? portal.reportAccess.files?.[0]?.filename ?? "")}
                 </p>
               </div>
             </div>
@@ -821,19 +843,43 @@ function PortalView({
               ) : (
                 <div className="space-y-3">
                   <p className="text-xs text-slate-500 leading-relaxed">{t("reportReadyBody", language)}</p>
-                  <button
-                    onClick={handleDownloadReport}
-                    disabled={reportDownloading}
-                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
-                  >
-                    {reportDownloading ? (
-                      <><Loader2 size={15} className="animate-spin" /> Downloading…</>
-                    ) : portal.reportAccess.downloadedAt ? (
-                      <><Download size={15} /> {t("alreadyDownloaded", language)} — {t("downloadReport", language)}</>
-                    ) : (
-                      <><Download size={15} /> {t("downloadReport", language)}</>
-                    )}
-                  </button>
+
+                  {/* Multi-file download list */}
+                  {(portal.reportAccess.files?.length ?? 0) > 1 ? (
+                    <div className="space-y-2">
+                      {portal.reportAccess.files.map((file) => (
+                        <button
+                          key={file.id}
+                          onClick={() => handleDownloadFile(file)}
+                          disabled={downloadingFileId === file.id}
+                          className="w-full flex items-center gap-3 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 border border-indigo-100 text-indigo-800 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors text-left"
+                        >
+                          {downloadingFileId === file.id
+                            ? <Loader2 size={14} className="animate-spin shrink-0"/>
+                            : <Download size={14} className="shrink-0"/>}
+                          <span className="flex-1 truncate">{file.label ?? file.filename}</span>
+                          <span className="text-[10px] text-indigo-500 shrink-0">
+                            {new Date(file.uploadedAt).toLocaleDateString()}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleDownloadReport}
+                      disabled={!!downloadingFileId}
+                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                    >
+                      {downloadingFileId ? (
+                        <><Loader2 size={15} className="animate-spin" /> Downloading…</>
+                      ) : portal.reportAccess.downloadedAt ? (
+                        <><Download size={15} /> {t("alreadyDownloaded", language)} — {t("downloadReport", language)}</>
+                      ) : (
+                        <><Download size={15} /> {t("downloadReport", language)}</>
+                      )}
+                    </button>
+                  )}
+
                   {/* Consent status indicator for parents */}
                   {portal.reportAccess.role === "parent" && (
                     <div className="flex items-center gap-2 text-xs">

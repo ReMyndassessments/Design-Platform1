@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { reportUploadsTable, reportTokensTable, casesTable, usersTable } from "@workspace/db/schema";
-import { eq, and, or, sql, inArray } from "drizzle-orm";
+import { reportUploadsTable, reportTokensTable, casesTable, usersTable, responsesTable, scoresTable, assessmentToolsTable, assignmentsTable } from "@workspace/db/schema";
+import { eq, and, or, sql, inArray, asc, isNotNull } from "drizzle-orm";
+import archiver from "archiver";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
 import { sendEmail } from "../lib/outlookEmail.js";
@@ -120,17 +121,19 @@ function getBaseUrl(req: any): string {
   return `${proto}://${host}`;
 }
 
-// ── Admin: get report upload + token status for a case ────────────────────────
+// ── Admin: get report uploads + token status for a case ───────────────────────
 router.get("/cases/:id/report-access", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
     res.status(403).json({ error: "forbidden" }); return;
   }
   const caseId = req.params.id;
 
-  const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId));
+  const uploads = await db.select().from(reportUploadsTable)
+    .where(eq(reportUploadsTable.caseId, caseId))
+    .orderBy(asc(reportUploadsTable.uploadedAt));
   const tokens = await db.select().from(reportTokensTable).where(eq(reportTokensTable.caseId, caseId));
 
-  res.json({ upload: upload ?? null, tokens });
+  res.json({ uploads, tokens });
 });
 
 // ── Admin: upload report PDF for a case ───────────────────────────────────────
@@ -143,18 +146,22 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
   const {
     fileKey,
     filename,
+    label,
     parentEmail,
     teacherEmail,
     notifyTeam = false,
     sendInternalCopy = false,
+    notifyRecipients = false,
     additionalRecipients = [],
   }: {
     fileKey: string;
     filename: string;
+    label?: string;
     parentEmail?: string;
     teacherEmail?: string;
     notifyTeam?: boolean;
     sendInternalCopy?: boolean;
+    notifyRecipients?: boolean;
     additionalRecipients?: Array<{ name: string; email: string }>;
   } = req.body;
 
@@ -162,151 +169,171 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     res.status(400).json({ error: "fileKey and filename required" }); return;
   }
 
-  // Gate: report can only be sent during Final Review phase
+  // Gate: only allowed during Final Review or Debrief
   const [phaseCheck] = await db.select({ currentPhase: casesTable.currentPhase })
     .from(casesTable).where(eq(casesTable.id, caseId));
   if (!phaseCheck) { res.status(404).json({ error: "case_not_found" }); return; }
-  if (phaseCheck.currentPhase !== "final_review") {
-    res.status(409).json({ error: "wrong_phase", message: "Reports can only be sent during the Final Review phase." }); return;
+  if (phaseCheck.currentPhase !== "final_review" && phaseCheck.currentPhase !== "debrief") {
+    res.status(409).json({ error: "wrong_phase", message: "Reports can only be sent during Final Review or Debrief." }); return;
   }
 
-  // Upsert report upload record
-  const uploadId = randomUUID();
-  await db.delete(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId));
+  const isReuploading = phaseCheck.currentPhase === "debrief";
+
+  // Record new upload (history kept — never delete old ones)
   await db.insert(reportUploadsTable).values({
-    id: uploadId,
+    id: randomUUID(),
     caseId,
     fileKey,
     filename,
+    label: (label as string | undefined)?.trim() || null,
     uploadedBy: req.userId ?? "admin",
   });
 
-  // Get case info for emails
+  // Get case info
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
   const studentName = caseRow?.studentName ?? "your student";
   const schoolName = caseRow?.school ?? "the school";
   const lang = normLang(caseRow?.languagePreference);
   const base = getBaseUrl(req);
 
-  // Delete old tokens and regenerate
-  await db.delete(reportTokensTable).where(eq(reportTokensTable.caseId, caseId));
+  if (!isReuploading) {
+    // ── FIRST UPLOAD (final_review): create tokens, send emails, advance phase ─
+    await db.delete(reportTokensTable).where(eq(reportTokensTable.caseId, caseId));
+    const createdTokens: Record<string, string> = {};
 
-  const createdTokens: Record<string, string> = {};
+    if (parentEmail) {
+      const token = randomUUID();
+      await db.insert(reportTokensTable).values({
+        id: randomUUID(), caseId, role: "parent", email: parentEmail, token, sentAt: new Date(),
+      });
+      createdTokens["parent"] = token;
+      await sendEmail({
+        to: parentEmail,
+        subject: EMAIL_COPY.parentSubject[lang](studentName),
+        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`),
+      });
+    }
 
-  // Parent token
-  if (parentEmail) {
-    const token = randomUUID();
-    await db.insert(reportTokensTable).values({
-      id: randomUUID(), caseId, role: "parent", email: parentEmail, token, sentAt: new Date(),
-    });
-    createdTokens["parent"] = token;
-    const link = `${base}/external/${token}`;
-    await sendEmail({
-      to: parentEmail,
-      subject: EMAIL_COPY.parentSubject[lang](studentName),
-      html: buildParentEmail(lang, studentName, schoolName, link),
-    });
-  }
+    if (teacherEmail) {
+      const token = randomUUID();
+      await db.insert(reportTokensTable).values({
+        id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token,
+      });
+      createdTokens["teacher"] = token;
+    }
 
-  // Teacher token — no email until parent grants consent; sentAt deliberately left null
-  if (teacherEmail) {
-    const token = randomUUID();
-    await db.insert(reportTokensTable).values({
-      id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token,
-    });
-    createdTokens["teacher"] = token;
-  }
-
-  // Additional consented recipients — immediate download links
-  for (const { name, email } of additionalRecipients) {
-    if (!email?.trim()) continue;
-    const token = randomUUID();
-    const link = `${base}/external/${token}`;
-    await db.insert(reportTokensTable).values({
-      id: randomUUID(), caseId, role: "other", email: email.trim(), token,
-      recipientName: name?.trim() || null,
-      sentAt: new Date(),
-    });
-    await sendEmail({
-      to: email.trim(),
-      subject: `Assessment Report Ready — ${studentName}`,
-      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-        <h2 style="color:#0a1628">Assessment report available</h2>
-        <p>With the consent of ${studentName}'s parent/guardian, you have been given access to their psychoeducational assessment report.</p>
-        <p style="text-align:center;margin:28px 0">
-          <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-        </p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-        <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-      </div>`,
-    });
-  }
-
-  // Send direct download links to current Assessment Invigilator & Psychometrician
-  if (sendInternalCopy) {
-    const internalStaff = await db.select().from(usersTable)
-      .where(inArray(usersTable.role, ["assessment_invigilator", "psychometrician"]));
-    for (const staff of internalStaff) {
+    for (const { name, email } of additionalRecipients) {
+      if (!email?.trim()) continue;
       const token = randomUUID();
       const link = `${base}/external/${token}`;
-      const roleLabel = staff.role === "assessment_invigilator" ? "Assessment Invigilator" : "Psychometrician";
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "other", email: staff.email, token,
-        recipientName: staff.name,
+        id: randomUUID(), caseId, role: "other", email: email.trim(), token,
+        recipientName: name?.trim() || null,
         sentAt: new Date(),
       });
       await sendEmail({
-        to: staff.email,
+        to: email.trim(),
         subject: `Assessment Report Ready — ${studentName}`,
         html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-          <h2 style="color:#0a1628">Final report ready for download</h2>
-          <p>Hi ${staff.name} (${roleLabel}), the final psychoeducational assessment report for <strong>${studentName}</strong> is now available.</p>
+          <h2 style="color:#0a1628">Assessment report available</h2>
+          <p>With the consent of ${studentName}'s parent/guardian, you have been given access to their psychoeducational assessment report.</p>
           <p style="text-align:center;margin:28px 0">
             <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
           </p>
-          <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
           <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
         </div>`,
       });
     }
-  }
 
-  // Optionally notify assigned internal team (invigilator + psychometrician)
-  if (notifyTeam) {
-    try {
-      const teamUserIds = [caseRow?.assignedLeadId, caseRow?.assignedPsychId].filter(Boolean) as string[];
-      if (teamUserIds.length > 0) {
-        const teamUsers = await db.select().from(usersTable).where(inArray(usersTable.id, teamUserIds));
-        const caseUrl = `${base}/cases/${caseId}`;
-        for (const user of teamUsers) {
-          await sendEmail({
-            to: user.email,
-            subject: `Final Report Uploaded — ${studentName}`,
-            html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-              <h2 style="color:#0a1628">Final report uploaded</h2>
-              <p>The final psychoeducational assessment report for <strong>${studentName}</strong> has been uploaded to RAOS.</p>
-              <p>You can download your copy directly from the case:</p>
-              <p style="text-align:center;margin:28px 0">
-                <a href="${caseUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open Case in RAOS</a>
-              </p>
-              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-              <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-            </div>`,
-          });
-        }
+    if (sendInternalCopy) {
+      const internalStaff = await db.select().from(usersTable)
+        .where(inArray(usersTable.role, ["assessment_invigilator", "psychometrician"]));
+      for (const staff of internalStaff) {
+        const token = randomUUID();
+        const roleLabel = staff.role === "assessment_invigilator" ? "Assessment Invigilator" : "Psychometrician";
+        await db.insert(reportTokensTable).values({
+          id: randomUUID(), caseId, role: "other", email: staff.email, token,
+          recipientName: staff.name, sentAt: new Date(),
+        });
+        await sendEmail({
+          to: staff.email,
+          subject: `Assessment Report Ready — ${studentName}`,
+          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#0a1628">Final report ready for download</h2>
+            <p>Hi ${staff.name} (${roleLabel}), the final assessment report for <strong>${studentName}</strong> is now available.</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${base}/external/${token}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
+            </p>
+            <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+          </div>`,
+        });
       }
-    } catch (err) {
-      console.error("Failed to notify internal team of report upload", err);
     }
+
+    if (notifyTeam) {
+      try {
+        const teamUserIds = [caseRow?.assignedLeadId, caseRow?.assignedPsychId].filter(Boolean) as string[];
+        if (teamUserIds.length > 0) {
+          const teamUsers = await db.select().from(usersTable).where(inArray(usersTable.id, teamUserIds));
+          const caseUrl = `${base}/cases/${caseId}`;
+          for (const user of teamUsers) {
+            await sendEmail({
+              to: user.email,
+              subject: `Final Report Uploaded — ${studentName}`,
+              html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+                <h2 style="color:#0a1628">Final report uploaded</h2>
+                <p>The final assessment report for <strong>${studentName}</strong> has been uploaded to RAOS.</p>
+                <p style="text-align:center;margin:28px 0">
+                  <a href="${caseUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open Case in RAOS</a>
+                </p>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+                <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+              </div>`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to notify internal team", err);
+      }
+    }
+
+    // Advance to Debrief
+    await db.update(casesTable)
+      .set({ currentPhase: "debrief", progressPercentage: 100 })
+      .where(eq(casesTable.id, caseId));
+
+    res.json({ success: true, isFirstUpload: true, tokens: createdTokens });
+
+  } else {
+    // ── RE-UPLOAD (debrief): notify existing recipients if requested ────────────
+    if (notifyRecipients) {
+      const existingTokens = await db.select().from(reportTokensTable)
+        .where(and(eq(reportTokensTable.caseId, caseId), isNotNull(reportTokensTable.sentAt)));
+      const fileLabel = (label as string | undefined)?.trim() || filename;
+      for (const tok of existingTokens) {
+        const portalLink = `${base}/external/${tok.token}`;
+        await sendEmail({
+          to: tok.email,
+          subject: `Updated Document Available — ${studentName}`,
+          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#0a1628">An updated document is available</h2>
+            <p>A new document (<strong>${fileLabel}</strong>) has been added to the assessment report package for <strong>${studentName}</strong>.</p>
+            <p>Your existing download link still works — click below to access all documents.</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${portalLink}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Access Documents</a>
+            </p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+          </div>`,
+        });
+      }
+    }
+
+    res.json({ success: true, isFirstUpload: false });
   }
-
-  // Auto-advance case to Debrief now that the report has been sent
-  await db.update(casesTable)
-    .set({ currentPhase: "debrief", progressPercentage: 100 })
-    .where(eq(casesTable.id, caseId));
-
-  res.json({ success: true, tokens: createdTokens });
 });
 
 // ── Admin: update email for a token and optionally resend ─────────────────────
@@ -562,6 +589,59 @@ router.post("/report-access/:token/permission", async (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+// ── Admin: download full case archive as ZIP ─────────────────────────────────
+router.get("/cases/:id/archive", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const caseId = req.params.id;
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
+  if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+
+  const [uploads, tokens, responses, scores, assignments] = await Promise.all([
+    db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId)).orderBy(asc(reportUploadsTable.uploadedAt)),
+    db.select().from(reportTokensTable).where(eq(reportTokensTable.caseId, caseId)),
+    db.select().from(responsesTable).where(eq(responsesTable.caseId, caseId)),
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
+    db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
+  ]);
+
+  const safeName = (caseRow.studentName ?? caseId).replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${safeName} - Case Archive.zip"`);
+
+  const archive = archiver("zip", { zlib: { level: 6 } });
+  archive.pipe(res);
+
+  // Case data JSON
+  archive.append(JSON.stringify({ caseData: caseRow, recipients: tokens, assignments }, null, 2), { name: "01 - case-data.json" });
+  archive.append(JSON.stringify(responses, null, 2), { name: "02 - form-responses.json" });
+  archive.append(JSON.stringify(scores, null, 2), { name: "03 - scores.json" });
+
+  // All uploaded files (reports, supplementary docs, etc.)
+  for (let i = 0; i < uploads.length; i++) {
+    const upload = uploads[i];
+    const idx = String(i + 1).padStart(2, "0");
+    const date = upload.uploadedAt.toISOString().slice(0, 10);
+    const tag = upload.label ? `${upload.label} ` : "";
+    const entryName = `documents/${idx} - ${tag}${date} - ${upload.filename}`;
+    try {
+      const objectFile = await storage.getObjectEntityFile(upload.fileKey);
+      const dlRes = await storage.downloadObject(objectFile);
+      if (dlRes.body) {
+        const nodeStream = Readable.fromWeb(dlRes.body as ReadableStream<Uint8Array>);
+        archive.append(nodeStream, { name: entryName });
+        // Must wait for each stream before adding next, so we finalize after the loop
+      }
+    } catch (err) {
+      console.error("Archive: failed to include file", upload.filename, err);
+    }
+  }
+
+  archive.finalize();
 });
 
 export default router;

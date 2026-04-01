@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
-  UserPlus, X, Bell,
+  UserPlus, X, Bell, Archive, FilePlus2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ interface ReportToken {
 interface ReportUpload {
   id: string;
   filename: string;
+  label: string | null;
   uploadedAt: string;
 }
 
@@ -46,18 +47,24 @@ const BASE = "/api";
 export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAdvanced }: Props) {
   const { toast } = useToast();
 
-  const [upload, setUpload] = useState<ReportUpload | null>(null);
+  const [uploads, setUploads] = useState<ReportUpload[]>([]);
   const [tokens, setTokens] = useState<ReportToken[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isDebrief = currentPhase === "debrief";
+  const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief";
+  const hasUploads = uploads.length > 0;
+
   // Upload form state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileLabel, setFileLabel] = useState("");
   const [pEmail, setPEmail] = useState(parentEmail ?? "");
   const [tEmail, setTEmail] = useState("");
   const [notifyTeam, setNotifyTeam] = useState(false);
   const [sendInternalCopy, setSendInternalCopy] = useState(false);
+  const [notifyRecipients, setNotifyRecipients] = useState(false);
   const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Edit email state
   const [editingToken, setEditingToken] = useState<string | null>(null);
@@ -70,7 +77,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
       });
       if (!r.ok) return;
       const data = await r.json();
-      setUpload(data.upload);
+      setUploads(data.uploads ?? []);
       setTokens(data.tokens ?? []);
     } finally {
       setLoading(false);
@@ -81,22 +88,21 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
 
   const addRecipient = () =>
     setAdditionalRecipients(r => [...r, { name: "", email: "" }]);
-
   const removeRecipient = (i: number) =>
     setAdditionalRecipients(r => r.filter((_, idx) => idx !== i));
-
   const updateRecipient = (i: number, field: keyof AdditionalRecipient, value: string) =>
     setAdditionalRecipients(r => r.map((rec, idx) => idx === i ? { ...rec, [field]: value } : rec));
 
   const handleUpload = async () => {
-    if (!selectedFile) { toast({ title: "Please select a PDF file", variant: "destructive" }); return; }
-    if (!pEmail && !tEmail && additionalRecipients.length === 0) {
+    if (!selectedFile) {
+      toast({ title: "Please select a file", variant: "destructive" }); return;
+    }
+    if (!isDebrief && !pEmail && !tEmail && additionalRecipients.length === 0) {
       toast({ title: "Enter at least one recipient email", variant: "destructive" }); return;
     }
 
     setIsUploading(true);
     try {
-      // Step 1: get presigned upload URL
       const urlRes = await fetch(`${BASE}/storage/uploads/request-url`, {
         method: "POST",
         headers: {
@@ -107,14 +113,12 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
       });
       const { uploadURL, objectPath } = await urlRes.json();
 
-      // Step 2: upload directly to GCS
       await fetch(uploadURL, {
         method: "PUT",
         headers: { "Content-Type": selectedFile.type },
         body: selectedFile,
       });
 
-      // Step 3: register upload + generate tokens
       const regRes = await fetch(`${BASE}/cases/${caseId}/report-access/upload`, {
         method: "POST",
         headers: {
@@ -124,23 +128,33 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
         body: JSON.stringify({
           fileKey: objectPath,
           filename: selectedFile.name,
+          label: fileLabel || undefined,
           parentEmail: pEmail || undefined,
           teacherEmail: tEmail || undefined,
           notifyTeam,
           sendInternalCopy,
+          notifyRecipients,
           additionalRecipients: additionalRecipients.filter(r => r.email.trim()),
         }),
       });
 
-      if (!regRes.ok) throw new Error("Registration failed");
+      if (!regRes.ok) throw new Error("Upload failed");
+      const result = await regRes.json();
 
-      toast({ title: "Report sent", description: "Secure links delivered. Case advanced to Debrief." });
+      if (result.isFirstUpload) {
+        toast({ title: "Report sent", description: "Secure links delivered. Case advanced to Debrief." });
+        onPhaseAdvanced?.();
+      } else {
+        toast({ title: "Document added", description: notifyRecipients ? "Recipients have been notified." : "File added to the case." });
+      }
+
       setSelectedFile(null);
+      setFileLabel("");
       setAdditionalRecipients([]);
       setNotifyTeam(false);
       setSendInternalCopy(false);
+      setNotifyRecipients(false);
       await fetchStatus();
-      onPhaseAdvanced?.();
     } catch (err) {
       console.error(err);
       toast({ title: "Upload failed", variant: "destructive" });
@@ -187,6 +201,24 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
       toast({ title: "Override applied — teacher can now download" });
       await fetchStatus();
     }
+  };
+
+  const handleArchiveDownload = () => {
+    const url = `${BASE}/cases/${caseId}/archive`;
+    const a = document.createElement("a");
+    a.href = url;
+    const headers = new Headers({ Authorization: `Bearer ${localStorage.getItem("raos_token")}` });
+    // Use fetch to trigger the download with auth
+    fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        a.href = blobUrl;
+        a.download = "case-archive.zip";
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => toast({ title: "Archive download failed", variant: "destructive" }));
   };
 
   const parentToken = tokens.find(t => t.role === "parent");
@@ -244,7 +276,6 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
           </div>
         </div>
 
-        {/* Email row */}
         {!isOther && (
           editingToken === token.id ? (
             <div className="flex gap-2">
@@ -275,7 +306,6 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
           </div>
         )}
 
-        {/* Permission status (parent only) */}
         {isParent && (
           <div className={cn("rounded-lg px-3 py-2 flex items-center justify-between",
             permGranted ? "bg-green-50 border border-green-200" :
@@ -284,26 +314,18 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
             "bg-slate-50 border border-slate-200"
           )}>
             <div className="flex items-center gap-2">
-              {permGranted
-                ? <ShieldCheck size={14} className="text-green-600"/>
-                : permDenied
-                ? <ShieldAlert size={14} className="text-amber-600"/>
-                : downloaded
-                ? <AlertTriangle size={14} className="text-orange-500"/>
-                : <Shield size={14} className="text-slate-400"/>
-              }
+              {permGranted ? <ShieldCheck size={14} className="text-green-600"/>
+                : permDenied ? <ShieldAlert size={14} className="text-amber-600"/>
+                : downloaded ? <AlertTriangle size={14} className="text-orange-500"/>
+                : <Shield size={14} className="text-slate-400"/>}
               <span className={cn("text-xs font-medium",
                 permGranted ? "text-green-700" :
                 permDenied ? "text-amber-700" :
-                downloaded ? "text-orange-700" :
-                "text-slate-500"
+                downloaded ? "text-orange-700" : "text-slate-500"
               )}>
-                {permGranted
-                  ? token.adminOverride ? "Permission granted (admin override)" : "Permission granted"
-                  : permDenied
-                  ? "Parent withheld permission"
-                  : downloaded
-                  ? "Downloaded — awaiting permission decision"
+                {permGranted ? (token.adminOverride ? "Permission granted (admin override)" : "Permission granted")
+                  : permDenied ? "Parent withheld permission"
+                  : downloaded ? "Downloaded — awaiting permission decision"
                   : "Awaiting download"}
               </span>
             </div>
@@ -324,24 +346,53 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
           <FileText size={18} className="text-indigo-600"/>
         </div>
         <div>
           <h3 className="font-bold text-slate-900 text-base">Report Access</h3>
-          <p className="text-xs text-slate-500">Upload the final PDF and send secure download links</p>
+          <p className="text-xs text-slate-500">
+            {isDebrief ? "Add documents or upload a revised report" : "Upload the final PDF and send secure download links"}
+          </p>
         </div>
-        {upload && (
+        {hasUploads && (
           <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
             <CheckCircle2 size={13} className="text-green-500"/>
-            <span>{upload.filename}</span>
+            <span>{uploads.length} document{uploads.length > 1 ? "s" : ""}</span>
           </div>
         )}
       </div>
 
-      {/* Phase gate — upload only available during Final Review */}
-      {currentPhase && currentPhase !== "final_review" && currentPhase !== "debrief" && (
+      {/* Uploaded files list */}
+      {hasUploads && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Uploaded Documents</p>
+          <div className="space-y-1.5">
+            {uploads.map((u, i) => (
+              <div key={u.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5">
+                <FileText size={14} className="text-indigo-400 shrink-0"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{u.label || u.filename}</p>
+                  {u.label && <p className="text-[10px] text-slate-400 truncate">{u.filename}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {i === uploads.length - 1 && (
+                    <Badge variant="outline" className="text-indigo-600 border-indigo-200 text-[10px]">Latest</Badge>
+                  )}
+                  <span className="text-[10px] text-slate-400">
+                    {new Date(u.uploadedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Phase gate — locked before final_review */}
+      {isLocked && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <Clock size={16} className="text-amber-500 mt-0.5 shrink-0" />
           <div>
@@ -353,142 +404,153 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
         </div>
       )}
 
-      {/* Upload form — locked outside of final_review */}
+      {/* Upload form */}
       <div className={cn(
         "space-y-4 border border-dashed rounded-xl p-5",
-        currentPhase && currentPhase !== "final_review" && currentPhase !== "debrief"
+        isLocked
           ? "border-slate-200 bg-slate-50 opacity-40 pointer-events-none select-none"
           : "border-slate-300 bg-slate-50"
       )}>
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          {upload ? "Replace Report & Resend" : "Upload Final Report"}
+        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
+          {isDebrief ? <FilePlus2 size={13}/> : <Upload size={13}/>}
+          {isDebrief ? (hasUploads ? "Add Another Document" : "Upload Revised Report") : "Upload Final Report"}
         </p>
 
         {/* File picker */}
         <div>
-          <Label className="text-xs text-slate-600 mb-1 block">Report PDF</Label>
+          <Label className="text-xs text-slate-600 mb-1 block">File (PDF or other document)</Label>
           <label className={cn(
             "flex items-center gap-3 border rounded-xl px-4 py-3 cursor-pointer transition-colors",
             selectedFile ? "border-indigo-300 bg-indigo-50" : "border-slate-300 bg-white hover:border-indigo-300"
           )}>
             <Upload size={16} className={selectedFile ? "text-indigo-500" : "text-slate-400"} />
             <span className={cn("text-sm", selectedFile ? "text-indigo-700 font-medium" : "text-slate-400")}>
-              {selectedFile ? selectedFile.name : "Choose PDF file…"}
+              {selectedFile ? selectedFile.name : "Choose file…"}
             </span>
-            <input type="file" accept="application/pdf" className="hidden"
+            <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls" className="hidden"
               onChange={e => setSelectedFile(e.target.files?.[0] ?? null)} />
           </label>
         </div>
 
-        {/* Parent + Teacher */}
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs text-slate-600 mb-1 block">Parent email</Label>
-            <Input value={pEmail} onChange={e => setPEmail(e.target.value)}
-              placeholder="parent@example.com" className="h-9 text-sm" />
-          </div>
-          <div>
-            <Label className="text-xs text-slate-600 mb-1 block">Teacher email</Label>
-            <Input value={tEmail} onChange={e => setTEmail(e.target.value)}
-              placeholder="teacher@school.com" className="h-9 text-sm" />
-          </div>
-        </div>
-
-        {/* Team notification checkbox */}
-        <div className={cn(
-          "flex items-start gap-3 rounded-xl border p-3 transition-colors",
-          notifyTeam ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"
-        )}>
-          <Checkbox
-            id="notifyTeam"
-            checked={notifyTeam}
-            onCheckedChange={v => setNotifyTeam(!!v)}
-            className="mt-0.5"
+        {/* Document label */}
+        <div>
+          <Label className="text-xs text-slate-600 mb-1 block">
+            Document label <span className="text-slate-400">(optional)</span>
+          </Label>
+          <Input
+            value={fileLabel}
+            onChange={e => setFileLabel(e.target.value)}
+            placeholder="e.g. Assessment Report, Behavior Plan, IEP…"
+            className="h-9 text-sm"
           />
-          <div className="space-y-0.5">
-            <label htmlFor="notifyTeam" className="text-sm font-medium text-slate-800 cursor-pointer flex items-center gap-1.5">
-              <Bell size={13} className={notifyTeam ? "text-blue-500" : "text-slate-400"} />
-              Notify assigned team
-            </label>
-            <p className="text-xs text-slate-500">
-              The assigned invigilator and psychometrician will each receive an email with a link to open this case in RAOS and download their copy.
-            </p>
-          </div>
         </div>
 
-        {/* Internal copy to Hayley & Abegail */}
-        <div className={cn(
-          "flex items-start gap-3 rounded-xl border p-3 transition-colors",
-          sendInternalCopy ? "bg-violet-50 border-violet-200" : "bg-white border-slate-200"
-        )}>
-          <Checkbox
-            id="sendInternalCopy"
-            checked={sendInternalCopy}
-            onCheckedChange={v => setSendInternalCopy(!!v)}
-            className="mt-0.5"
-          />
-          <div className="space-y-0.5">
-            <label htmlFor="sendInternalCopy" className="text-sm font-medium text-slate-800 cursor-pointer">
-              Send report copy to Assessment Invigilator &amp; Psychometrician
-            </label>
-            <p className="text-xs text-slate-500">
-              The current Assessment Invigilator and Psychometrician on your team will each receive their own secure download link — the same as the parent and school receive.
-            </p>
-          </div>
-        </div>
-
-        {/* Additional consented recipients */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs text-slate-600">Additional recipients (parent-consented)</Label>
-            <button
-              type="button"
-              onClick={addRecipient}
-              className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
-            >
-              <UserPlus size={12}/> Add recipient
-            </button>
-          </div>
-
-          {additionalRecipients.length === 0 && (
-            <p className="text-xs text-slate-400 italic">
-              Add anyone the parent has consented to share with — relatives, specialists, etc. They will receive a direct download link immediately.
-            </p>
-          )}
-
-          {additionalRecipients.map((rec, i) => (
-            <div key={i} className="flex gap-2 items-start">
-              <Input
-                placeholder="Name (optional)"
-                value={rec.name}
-                onChange={e => updateRecipient(i, "name", e.target.value)}
-                className="h-8 text-sm w-36 shrink-0"
-              />
-              <Input
-                placeholder="email@example.com"
-                type="email"
-                value={rec.email}
-                onChange={e => updateRecipient(i, "email", e.target.value)}
-                className="h-8 text-sm flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => removeRecipient(i)}
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-              >
-                <X size={13}/>
-              </button>
+        {/* First-upload fields (only shown in final_review) */}
+        {!isDebrief && (
+          <>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-slate-600 mb-1 block">Parent email</Label>
+                <Input value={pEmail} onChange={e => setPEmail(e.target.value)}
+                  placeholder="parent@example.com" className="h-9 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs text-slate-600 mb-1 block">Teacher email</Label>
+                <Input value={tEmail} onChange={e => setTEmail(e.target.value)}
+                  placeholder="teacher@school.com" className="h-9 text-sm" />
+              </div>
             </div>
-          ))}
-        </div>
+
+            <div className={cn("flex items-start gap-3 rounded-xl border p-3 transition-colors",
+              notifyTeam ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"
+            )}>
+              <Checkbox id="notifyTeam" checked={notifyTeam}
+                onCheckedChange={v => setNotifyTeam(!!v)} className="mt-0.5" />
+              <div className="space-y-0.5">
+                <label htmlFor="notifyTeam" className="text-sm font-medium text-slate-800 cursor-pointer flex items-center gap-1.5">
+                  <Bell size={13} className={notifyTeam ? "text-blue-500" : "text-slate-400"} />
+                  Notify assigned team
+                </label>
+                <p className="text-xs text-slate-500">
+                  The assigned invigilator and psychometrician will receive a link to open this case in RAOS.
+                </p>
+              </div>
+            </div>
+
+            <div className={cn("flex items-start gap-3 rounded-xl border p-3 transition-colors",
+              sendInternalCopy ? "bg-violet-50 border-violet-200" : "bg-white border-slate-200"
+            )}>
+              <Checkbox id="sendInternalCopy" checked={sendInternalCopy}
+                onCheckedChange={v => setSendInternalCopy(!!v)} className="mt-0.5" />
+              <div className="space-y-0.5">
+                <label htmlFor="sendInternalCopy" className="text-sm font-medium text-slate-800 cursor-pointer">
+                  Send report copy to Assessment Invigilator &amp; Psychometrician
+                </label>
+                <p className="text-xs text-slate-500">
+                  Each will receive their own secure download link — the same as the parent and school receive.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-slate-600">Additional recipients (parent-consented)</Label>
+                <button type="button" onClick={addRecipient}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                  <UserPlus size={12}/> Add recipient
+                </button>
+              </div>
+              {additionalRecipients.length === 0 && (
+                <p className="text-xs text-slate-400 italic">
+                  Add anyone the parent has consented to share with. They will receive a direct download link immediately.
+                </p>
+              )}
+              {additionalRecipients.map((rec, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <Input placeholder="Name (optional)" value={rec.name}
+                    onChange={e => updateRecipient(i, "name", e.target.value)}
+                    className="h-8 text-sm w-36 shrink-0" />
+                  <Input placeholder="email@example.com" type="email" value={rec.email}
+                    onChange={e => updateRecipient(i, "email", e.target.value)}
+                    className="h-8 text-sm flex-1" />
+                  <button type="button" onClick={() => removeRecipient(i)}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                    <X size={13}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Re-upload in debrief: notify existing recipients */}
+        {isDebrief && (
+          <div className={cn("flex items-start gap-3 rounded-xl border p-3 transition-colors",
+            notifyRecipients ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"
+          )}>
+            <Checkbox id="notifyRecipients" checked={notifyRecipients}
+              onCheckedChange={v => setNotifyRecipients(!!v)} className="mt-0.5" />
+            <div className="space-y-0.5">
+              <label htmlFor="notifyRecipients" className="text-sm font-medium text-slate-800 cursor-pointer flex items-center gap-1.5">
+                <Bell size={13} className={notifyRecipients ? "text-blue-500" : "text-slate-400"} />
+                Notify all recipients of this new document
+              </label>
+              <p className="text-xs text-slate-500">
+                All existing recipients will receive an email letting them know a new document is available. Their existing download links still work.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Button onClick={handleUpload} disabled={isUploading || !selectedFile} className="gap-2 w-full sm:w-auto">
           <SendHorizonal size={15}/>
-          {isUploading ? "Uploading…" : upload ? "Replace & Resend Links" : "Upload & Send Links"}
+          {isUploading ? "Uploading…"
+            : isDebrief ? "Add Document"
+            : "Upload & Send Links"}
         </Button>
       </div>
 
-      {/* Token status */}
+      {/* Token (link) status */}
       {(parentToken || teacherToken || otherTokens.length > 0) && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Link Status</p>
@@ -496,6 +558,24 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
             {parentToken && <TokenCard token={parentToken} />}
             {teacherToken && <TokenCard token={teacherToken} />}
             {otherTokens.map(t => <TokenCard key={t.id} token={t} />)}
+          </div>
+        </div>
+      )}
+
+      {/* ZIP archive download (admin, debrief only) */}
+      {isDebrief && hasUploads && (
+        <div className="border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Download Full Case Archive</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Downloads a ZIP containing all uploaded documents, form responses, scores, and case data for offline storage.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleArchiveDownload} className="gap-2 shrink-0">
+              <Archive size={14}/>
+              Download ZIP
+            </Button>
           </div>
         </div>
       )}
