@@ -545,26 +545,38 @@ export default function CaseDetail() {
               <CardTitle className="text-lg">Student Details</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm">
-              <div className="flex justify-between border-b pb-2"><span className="text-slate-500">DOB</span><span className="font-medium">{formatDate(c.dob)}</span></div>
-              <div className="flex justify-between border-b pb-2"><span className="text-slate-500">School</span><span className="font-medium">{c.school} (Grade {c.grade || 'N/A'})</span></div>
-              <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Language</span><span className="font-medium capitalize">{c.languagePreference}</span></div>
-              <div className="flex justify-between border-b pb-2"><span className="text-slate-500">Parent</span><span className="font-medium">{c.parentName || 'N/A'}</span></div>
+              <div className="flex items-start justify-between gap-4 border-b pb-2">
+                <span className="text-slate-500 shrink-0">DOB</span>
+                <span className="font-medium text-right">{formatDate(c.dob)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b pb-2">
+                <span className="text-slate-500 shrink-0">School</span>
+                <span className="font-medium text-right">{c.school} (Grade {c.grade || 'N/A'})</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b pb-2">
+                <span className="text-slate-500 shrink-0">Language</span>
+                <span className="font-medium text-right capitalize">{c.languagePreference}</span>
+              </div>
+              <div className="flex items-start justify-between gap-4 border-b pb-2">
+                <span className="text-slate-500 shrink-0">Parent</span>
+                <span className="font-medium text-right">{c.parentName || 'N/A'}</span>
+              </div>
               {c.workingDocUrl ? (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Working Doc</span>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-slate-500 shrink-0">Working Doc</span>
                   <a
                     href={c.workingDocUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-right"
                   >
                     Open in Google Docs <ExternalLink size={13} />
                   </a>
                 </div>
               ) : (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Working Doc</span>
-                  <span className="text-slate-400 text-xs italic">Not linked — edit case to add</span>
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-slate-500 shrink-0">Working Doc</span>
+                  <span className="text-slate-400 text-xs italic text-right">Not linked — edit case to add</span>
                 </div>
               )}
             </CardContent>
