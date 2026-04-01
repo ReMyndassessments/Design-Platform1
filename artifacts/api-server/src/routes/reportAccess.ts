@@ -198,11 +198,11 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     });
   }
 
-  // Teacher token — no email until parent grants consent
+  // Teacher token — no email until parent grants consent; sentAt deliberately left null
   if (teacherEmail) {
     const token = randomUUID();
     await db.insert(reportTokensTable).values({
-      id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token, sentAt: new Date(),
+      id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token,
     });
     createdTokens["teacher"] = token;
   }
@@ -339,6 +339,10 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
         <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
       </div>`,
     });
+    // Mark sentAt now that the email has actually been sent
+    await db.update(reportTokensTable)
+      .set({ sentAt: new Date(), updatedAt: new Date() })
+      .where(eq(reportTokensTable.id, teacherToken.id));
   }
 
   res.json({ success: true });
@@ -396,11 +400,37 @@ router.get("/report-access/:token/download", async (req, res) => {
   const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, token.caseId));
   if (!upload) { res.status(404).json({ error: "report_not_ready" }); return; }
 
-  // Record download timestamp on first download
+  // Record download timestamp on first download and notify admins
   if (!token.downloadedAt) {
     await db.update(reportTokensTable)
       .set({ downloadedAt: new Date(), updatedAt: new Date() })
       .where(eq(reportTokensTable.id, token.id));
+
+    try {
+      const [caseRowForNotif] = await db.select().from(casesTable).where(eq(casesTable.id, token.caseId));
+      const studentNameForNotif = caseRowForNotif?.studentName ?? "Unknown student";
+      const recipientLabel =
+        token.role === "parent" ? "the parent / guardian"
+        : token.role === "teacher" ? "the school teacher"
+        : (token.recipientName || "an additional recipient");
+      const downloadedAt = new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai", dateStyle: "full", timeStyle: "short" });
+      const ADMIN_EMAILS = ["noelroberts43@gmail.com", "hayleyxu13@gmail.com"];
+      for (const adminEmail of ADMIN_EMAILS) {
+        await sendEmail({
+          to: adminEmail,
+          subject: `Report Downloaded — ${studentNameForNotif}`,
+          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#0a1628">Report downloaded</h2>
+            <p>The final assessment report for <strong>${studentNameForNotif}</strong> has been downloaded by ${recipientLabel} (<strong>${token.email}</strong>).</p>
+            <p style="font-size:13px;color:#64748b">Downloaded: ${downloadedAt} (China Standard Time)</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Internal</p>
+          </div>`,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to send download notification to admins", err);
+    }
   }
 
   // Stream file from object storage
@@ -462,6 +492,10 @@ router.post("/report-access/:token/permission", async (req, res) => {
           <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
         </div>`,
       });
+      // Mark sentAt now that the email has actually been sent
+      await db.update(reportTokensTable)
+        .set({ sentAt: new Date(), updatedAt: new Date() })
+        .where(eq(reportTokensTable.id, teacherToken.id));
     }
   } else {
     // Parent chose "Not Yet" — notify admin if already downloaded
