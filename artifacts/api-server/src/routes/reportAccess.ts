@@ -621,7 +621,7 @@ router.get("/cases/:id/archive", authMiddleware, async (req, res) => {
   archive.append(JSON.stringify(responses, null, 2), { name: "02 - form-responses.json" });
   archive.append(JSON.stringify(scores, null, 2), { name: "03 - scores.json" });
 
-  // All uploaded files (reports, supplementary docs, etc.)
+  // Buffer all uploaded files before archiving to ensure complete, valid ZIP
   for (let i = 0; i < uploads.length; i++) {
     const upload = uploads[i];
     const idx = String(i + 1).padStart(2, "0");
@@ -632,9 +632,8 @@ router.get("/cases/:id/archive", authMiddleware, async (req, res) => {
       const objectFile = await storage.getObjectEntityFile(upload.fileKey);
       const dlRes = await storage.downloadObject(objectFile);
       if (dlRes.body) {
-        const nodeStream = Readable.fromWeb(dlRes.body as ReadableStream<Uint8Array>);
-        archive.append(nodeStream, { name: entryName });
-        // Must wait for each stream before adding next, so we finalize after the loop
+        const arrayBuffer = await dlRes.arrayBuffer();
+        archive.append(Buffer.from(arrayBuffer), { name: entryName });
       }
     } catch (err) {
       console.error("Archive: failed to include file", upload.filename, err);
