@@ -140,7 +140,21 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
   }
 
   const caseId = req.params.id;
-  const { fileKey, filename, parentEmail, teacherEmail } = req.body;
+  const {
+    fileKey,
+    filename,
+    parentEmail,
+    teacherEmail,
+    notifyTeam = false,
+    additionalRecipients = [],
+  }: {
+    fileKey: string;
+    filename: string;
+    parentEmail?: string;
+    teacherEmail?: string;
+    notifyTeam?: boolean;
+    additionalRecipients?: Array<{ name: string; email: string }>;
+  } = req.body;
 
   if (!fileKey || !filename) {
     res.status(400).json({ error: "fileKey and filename required" }); return;
@@ -167,65 +181,84 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
   // Delete old tokens and regenerate
   await db.delete(reportTokensTable).where(eq(reportTokensTable.caseId, caseId));
 
-  const roles: Array<{ role: "parent" | "teacher"; email: string }> = [];
-  if (parentEmail) roles.push({ role: "parent", email: parentEmail });
-  if (teacherEmail) roles.push({ role: "teacher", email: teacherEmail });
-
   const createdTokens: Record<string, string> = {};
 
-  for (const { role, email } of roles) {
+  // Parent token
+  if (parentEmail) {
     const token = randomUUID();
-    const tokenId = randomUUID();
-    const link = `${base}/external/${token}`;
-
     await db.insert(reportTokensTable).values({
-      id: tokenId,
-      caseId,
-      role,
-      email,
-      token,
-      sentAt: new Date(),
+      id: randomUUID(), caseId, role: "parent", email: parentEmail, token, sentAt: new Date(),
     });
-
-    createdTokens[role] = token;
-
-    // Send email
-    // Only send to parent at upload time — teacher email is sent after parent grants consent
-    if (role === "parent") {
-      await sendEmail({
-        to: email,
-        subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, link),
-      });
-    }
-    // Teacher: no email yet — they will be notified once the parent grants permission
+    createdTokens["parent"] = token;
+    const link = `${base}/external/${token}`;
+    await sendEmail({
+      to: parentEmail,
+      subject: EMAIL_COPY.parentSubject[lang](studentName),
+      html: buildParentEmail(lang, studentName, schoolName, link),
+    });
   }
 
-  // Notify assigned internal team (invigilator + psychometrician) that the report is ready
-  try {
-    const teamUserIds = [caseRow?.assignedLeadId, caseRow?.assignedPsychId].filter(Boolean) as string[];
-    if (teamUserIds.length > 0) {
-      const teamUsers = await db.select().from(usersTable).where(inArray(usersTable.id, teamUserIds));
-      const caseUrl = `${base}/cases/${caseId}`;
-      for (const user of teamUsers) {
-        await sendEmail({
-          to: user.email,
-          subject: `Final Report Uploaded — ${studentName}`,
-          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0a1628">Final report uploaded</h2>
-            <p>The final psychoeducational assessment report for <strong>${studentName}</strong> has been uploaded to RAOS.</p>
-            <p>You can download your copy directly from the case:</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${caseUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open Case in RAOS</a>
-            </p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-          </div>`,
-        });
+  // Teacher token — no email until parent grants consent
+  if (teacherEmail) {
+    const token = randomUUID();
+    await db.insert(reportTokensTable).values({
+      id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token, sentAt: new Date(),
+    });
+    createdTokens["teacher"] = token;
+  }
+
+  // Additional consented recipients — immediate download links
+  for (const { name, email } of additionalRecipients) {
+    if (!email?.trim()) continue;
+    const token = randomUUID();
+    const link = `${base}/external/${token}`;
+    await db.insert(reportTokensTable).values({
+      id: randomUUID(), caseId, role: "other", email: email.trim(), token,
+      recipientName: name?.trim() || null,
+      sentAt: new Date(),
+    });
+    await sendEmail({
+      to: email.trim(),
+      subject: `Assessment Report Ready — ${studentName}`,
+      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+        <h2 style="color:#0a1628">Assessment report available</h2>
+        <p>With the consent of ${studentName}'s parent/guardian, you have been given access to their psychoeducational assessment report.</p>
+        <p style="text-align:center;margin:28px 0">
+          <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+        <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+      </div>`,
+    });
+  }
+
+  // Optionally notify assigned internal team (invigilator + psychometrician)
+  if (notifyTeam) {
+    try {
+      const teamUserIds = [caseRow?.assignedLeadId, caseRow?.assignedPsychId].filter(Boolean) as string[];
+      if (teamUserIds.length > 0) {
+        const teamUsers = await db.select().from(usersTable).where(inArray(usersTable.id, teamUserIds));
+        const caseUrl = `${base}/cases/${caseId}`;
+        for (const user of teamUsers) {
+          await sendEmail({
+            to: user.email,
+            subject: `Final Report Uploaded — ${studentName}`,
+            html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+              <h2 style="color:#0a1628">Final report uploaded</h2>
+              <p>The final psychoeducational assessment report for <strong>${studentName}</strong> has been uploaded to RAOS.</p>
+              <p>You can download your copy directly from the case:</p>
+              <p style="text-align:center;margin:28px 0">
+                <a href="${caseUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open Case in RAOS</a>
+              </p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+              <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+            </div>`,
+          });
+        }
       }
+    } catch (err) {
+      console.error("Failed to notify internal team of report upload", err);
     }
-  } catch (err) {
-    console.error("Failed to notify internal team of report upload", err);
   }
 
   res.json({ success: true, tokens: createdTokens });

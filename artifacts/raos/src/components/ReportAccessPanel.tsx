@@ -3,17 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
+  UserPlus, X, Bell,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface ReportToken {
   id: string;
-  role: "parent" | "teacher";
+  role: "parent" | "teacher" | "other";
   email: string;
+  recipientName?: string | null;
   sentAt: string | null;
   downloadedAt: string | null;
   permissionGranted: boolean | null;
@@ -31,6 +34,11 @@ interface Props {
   parentEmail?: string;
 }
 
+interface AdditionalRecipient {
+  name: string;
+  email: string;
+}
+
 const BASE = "/api";
 
 export function ReportAccessPanel({ caseId, parentEmail }: Props) {
@@ -43,6 +51,8 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
   // Upload form state
   const [pEmail, setPEmail] = useState(parentEmail ?? "");
   const [tEmail, setTEmail] = useState("");
+  const [notifyTeam, setNotifyTeam] = useState(false);
+  const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -66,9 +76,20 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
 
   useEffect(() => { fetchStatus(); }, [caseId]);
 
+  const addRecipient = () =>
+    setAdditionalRecipients(r => [...r, { name: "", email: "" }]);
+
+  const removeRecipient = (i: number) =>
+    setAdditionalRecipients(r => r.filter((_, idx) => idx !== i));
+
+  const updateRecipient = (i: number, field: keyof AdditionalRecipient, value: string) =>
+    setAdditionalRecipients(r => r.map((rec, idx) => idx === i ? { ...rec, [field]: value } : rec));
+
   const handleUpload = async () => {
     if (!selectedFile) { toast({ title: "Please select a PDF file", variant: "destructive" }); return; }
-    if (!pEmail && !tEmail) { toast({ title: "Enter at least one email address", variant: "destructive" }); return; }
+    if (!pEmail && !tEmail && additionalRecipients.length === 0) {
+      toast({ title: "Enter at least one recipient email", variant: "destructive" }); return;
+    }
 
     setIsUploading(true);
     try {
@@ -102,13 +123,17 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           filename: selectedFile.name,
           parentEmail: pEmail || undefined,
           teacherEmail: tEmail || undefined,
+          notifyTeam,
+          additionalRecipients: additionalRecipients.filter(r => r.email.trim()),
         }),
       });
 
       if (!regRes.ok) throw new Error("Registration failed");
 
-      toast({ title: "Report uploaded and emails sent", description: "Both parties have been notified." });
+      toast({ title: "Report uploaded", description: "Secure links have been sent to all recipients." });
       setSelectedFile(null);
+      setAdditionalRecipients([]);
+      setNotifyTeam(false);
       await fetchStatus();
     } catch (err) {
       console.error(err);
@@ -160,28 +185,46 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
 
   const parentToken = tokens.find(t => t.role === "parent");
   const teacherToken = tokens.find(t => t.role === "teacher");
+  const otherTokens = tokens.filter(t => t.role === "other");
 
   const TokenCard = ({ token }: { token: ReportToken }) => {
     const isParent = token.role === "parent";
+    const isOther = token.role === "other";
     const downloaded = !!token.downloadedAt;
     const permGranted = token.permissionGranted === true;
     const permDenied = token.permissionGranted === false;
     const canOverride = isParent && downloaded && !permGranted;
 
+    const roleLabel = isParent ? "Parent / Guardian"
+      : token.role === "teacher" ? "Teacher"
+      : token.recipientName || "Additional Recipient";
+
+    const iconBg = isParent ? "bg-teal-50" : isOther ? "bg-purple-50" : "bg-indigo-50";
+    const iconColor = isParent ? "text-teal-500" : isOther ? "text-purple-500" : "text-indigo-500";
+
     return (
       <div className="border border-slate-200 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center",
-              isParent ? "bg-teal-50" : "bg-indigo-50")}>
+            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", iconBg)}>
               {isParent
-                ? <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-teal-500"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>
-                : <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-500"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/></svg>
+                ? <svg viewBox="0 0 20 20" fill="currentColor" className={cn("w-4 h-4", iconColor)}><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>
+                : isOther
+                ? <UserPlus size={14} className={iconColor} />
+                : <svg viewBox="0 0 20 20" fill="currentColor" className={cn("w-4 h-4", iconColor)}><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/></svg>
               }
             </div>
-            <span className="font-semibold text-sm text-slate-800 capitalize">{token.role}</span>
+            <div>
+              <span className="font-semibold text-sm text-slate-800">{roleLabel}</span>
+              {isOther && token.recipientName && (
+                <p className="text-[10px] text-slate-400 leading-none">{token.email}</p>
+              )}
+            </div>
             {token.adminOverride && (
               <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px]">Admin Override</Badge>
+            )}
+            {isOther && (
+              <Badge variant="outline" className="text-purple-600 border-purple-200 text-[10px]">Consented</Badge>
             )}
           </div>
           <div className="flex items-center gap-1.5">
@@ -189,25 +232,36 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
               ? <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><Mail size={9} className="mr-1"/>Sent</Badge>
               : <Badge variant="outline" className="text-slate-500 text-[10px]"><Clock size={9} className="mr-1"/>Not sent</Badge>
             }
-            {downloaded
-              ? <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>
-              : null
-            }
+            {downloaded && (
+              <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>
+            )}
           </div>
         </div>
 
         {/* Email row */}
-        {editingToken === token.id ? (
-          <div className="flex gap-2">
-            <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="h-8 text-sm flex-1" />
-            <Button size="sm" className="h-8" onClick={() => handleUpdateEmail(token.id)}>Save</Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingToken(null)}>Cancel</Button>
-          </div>
-        ) : (
+        {!isOther && (
+          editingToken === token.id ? (
+            <div className="flex gap-2">
+              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="h-8 text-sm flex-1" />
+              <Button size="sm" className="h-8" onClick={() => handleUpdateEmail(token.id)}>Save</Button>
+              <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingToken(null)}>Cancel</Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
+              <button onClick={() => { setEditingToken(token.id); setEditEmail(token.email); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600 underline">Edit</button>
+              <button onClick={() => handleResend(token.id, token.email)}
+                className="text-[10px] text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
+                <RefreshCw size={9}/> Resend
+              </button>
+            </div>
+          )
+        )}
+
+        {isOther && (
           <div className="flex items-center gap-2">
             <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
-            <button onClick={() => { setEditingToken(token.id); setEditEmail(token.email); }}
-              className="text-[10px] text-slate-400 hover:text-slate-600 underline">Edit</button>
             <button onClick={() => handleResend(token.id, token.email)}
               className="text-[10px] text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
               <RefreshCw size={9}/> Resend
@@ -286,6 +340,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           {upload ? "Replace Report & Resend" : "Upload Final Report"}
         </p>
 
+        {/* File picker */}
         <div>
           <Label className="text-xs text-slate-600 mb-1 block">Report PDF</Label>
           <label className={cn(
@@ -301,6 +356,7 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           </label>
         </div>
 
+        {/* Parent + Teacher */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs text-slate-600 mb-1 block">Parent email</Label>
@@ -314,6 +370,73 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
           </div>
         </div>
 
+        {/* Team notification checkbox */}
+        <div className={cn(
+          "flex items-start gap-3 rounded-xl border p-3 transition-colors",
+          notifyTeam ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"
+        )}>
+          <Checkbox
+            id="notifyTeam"
+            checked={notifyTeam}
+            onCheckedChange={v => setNotifyTeam(!!v)}
+            className="mt-0.5"
+          />
+          <div className="space-y-0.5">
+            <label htmlFor="notifyTeam" className="text-sm font-medium text-slate-800 cursor-pointer flex items-center gap-1.5">
+              <Bell size={13} className={notifyTeam ? "text-blue-500" : "text-slate-400"} />
+              Notify assigned team
+            </label>
+            <p className="text-xs text-slate-500">
+              The assigned invigilator and psychometrician will each receive an email with a link to open this case in RAOS and download their copy.
+            </p>
+          </div>
+        </div>
+
+        {/* Additional consented recipients */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-slate-600">Additional recipients (parent-consented)</Label>
+            <button
+              type="button"
+              onClick={addRecipient}
+              className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
+            >
+              <UserPlus size={12}/> Add recipient
+            </button>
+          </div>
+
+          {additionalRecipients.length === 0 && (
+            <p className="text-xs text-slate-400 italic">
+              Add anyone the parent has consented to share with — relatives, specialists, etc. They will receive a direct download link immediately.
+            </p>
+          )}
+
+          {additionalRecipients.map((rec, i) => (
+            <div key={i} className="flex gap-2 items-start">
+              <Input
+                placeholder="Name (optional)"
+                value={rec.name}
+                onChange={e => updateRecipient(i, "name", e.target.value)}
+                className="h-8 text-sm w-36 shrink-0"
+              />
+              <Input
+                placeholder="email@example.com"
+                type="email"
+                value={rec.email}
+                onChange={e => updateRecipient(i, "email", e.target.value)}
+                className="h-8 text-sm flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => removeRecipient(i)}
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+              >
+                <X size={13}/>
+              </button>
+            </div>
+          ))}
+        </div>
+
         <Button onClick={handleUpload} disabled={isUploading || !selectedFile} className="gap-2 w-full sm:w-auto">
           <SendHorizonal size={15}/>
           {isUploading ? "Uploading…" : upload ? "Replace & Resend Links" : "Upload & Send Links"}
@@ -321,12 +444,13 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
       </div>
 
       {/* Token status */}
-      {(parentToken || teacherToken) && (
+      {(parentToken || teacherToken || otherTokens.length > 0) && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Link Status</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {parentToken && <TokenCard token={parentToken} />}
             {teacherToken && <TokenCard token={teacherToken} />}
+            {otherTokens.map(t => <TokenCard key={t.id} token={t} />)}
           </div>
         </div>
       )}

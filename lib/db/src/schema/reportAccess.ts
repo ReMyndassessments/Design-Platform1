@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, boolean, pgEnum, integer } from "drizzle-orm/
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const reportRecipientRoleEnum = pgEnum("report_recipient_role", ["parent", "teacher"]);
+export const reportRecipientRoleEnum = pgEnum("report_recipient_role", ["parent", "teacher", "other"]);
 
 export const reportUploadsTable = pgTable("report_uploads", {
   id: text("id").primaryKey(),
@@ -19,6 +19,7 @@ export const reportTokensTable = pgTable("report_tokens", {
   role: reportRecipientRoleEnum("role").notNull(),
   email: text("email").notNull(),
   token: text("token").notNull().unique(),
+  recipientName: text("recipient_name"),
   sentAt: timestamp("sent_at"),
   downloadedAt: timestamp("downloaded_at"),
   permissionGranted: boolean("permission_granted"),
