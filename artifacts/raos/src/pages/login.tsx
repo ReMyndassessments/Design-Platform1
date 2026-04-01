@@ -135,9 +135,9 @@ export default function Login() {
             <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-500">
               <p className="font-semibold mb-1 text-slate-700 text-xs">{l.demoAccounts}</p>
               <ul className="space-y-0.5 text-xs">
-                <li>admin@remynd.com</li>
-                <li>hayley@remynd.com</li>
-                <li>abegail@remynd.com</li>
+                <li>noelroberts43@gmail.com</li>
+                <li>hayleyxu13@gmail.com</li>
+                <li>cioconabegail@gmail.com</li>
                 <li className="italic mt-1 text-slate-400">Password: password</li>
               </ul>
             </div>
