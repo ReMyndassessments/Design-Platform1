@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { reportUploadsTable, reportTokensTable, casesTable } from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { reportUploadsTable, reportTokensTable, casesTable, usersTable } from "@workspace/db/schema";
+import { eq, and, or, sql, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
 import { sendEmail } from "../lib/outlookEmail.js";
@@ -199,6 +199,33 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       });
     }
     // Teacher: no email yet — they will be notified once the parent grants permission
+  }
+
+  // Notify assigned internal team (invigilator + psychometrician) that the report is ready
+  try {
+    const teamUserIds = [caseRow?.assignedLeadId, caseRow?.assignedPsychId].filter(Boolean) as string[];
+    if (teamUserIds.length > 0) {
+      const teamUsers = await db.select().from(usersTable).where(inArray(usersTable.id, teamUserIds));
+      const caseUrl = `${base}/cases/${caseId}`;
+      for (const user of teamUsers) {
+        await sendEmail({
+          to: user.email,
+          subject: `Final Report Uploaded — ${studentName}`,
+          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#0a1628">Final report uploaded</h2>
+            <p>The final psychoeducational assessment report for <strong>${studentName}</strong> has been uploaded to RAOS.</p>
+            <p>You can download your copy directly from the case:</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${caseUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open Case in RAOS</a>
+            </p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+          </div>`,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to notify internal team of report upload", err);
   }
 
   res.json({ success: true, tokens: createdTokens });
