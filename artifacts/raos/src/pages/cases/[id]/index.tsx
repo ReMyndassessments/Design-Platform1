@@ -29,7 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 
 const PHASES = [
-  "intake", "forms", "assessment", "scoring", "report", "debrief", "complete"
+  "intake", "forms", "assessment", "scoring", "report", "final_review", "debrief"
 ];
 const PHASE_LABELS: Record<string, string> = {
   pre_commitment: "Intake",
@@ -39,8 +39,9 @@ const PHASE_LABELS: Record<string, string> = {
   assessment: "Assessment",
   scoring: "Scoring",
   report: "Report",
+  final_review: "Final Review",
   debrief: "Debrief",
-  complete: "Complete",
+  complete: "Debrief",
 };
 // Map hidden internal phases to their nearest visible display phase
 const PHASE_DISPLAY_MAP: Record<string, string> = {
@@ -52,7 +53,7 @@ function displayPhase(phase: string): string {
 }
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
-const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
+const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "final_review", "debrief"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 
 
@@ -220,7 +221,7 @@ export default function CaseDetail() {
 
   const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
-  const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
+  const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
 
   const filteredTools = tools?.filter(t => {
     if (role === "admin") return true;
@@ -448,7 +449,7 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['report', 'debrief', 'complete'].includes(c.currentPhase) && (
+          {['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
             <Link href={`/cases/${c.id}/report`}>
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
@@ -466,7 +467,7 @@ export default function CaseDetail() {
           <Button 
             onClick={handleAdvancePhase} 
             disabled={advancePhaseMut.isPending || !canAdvance}
-            title={!canAdvance && c.currentPhase !== "complete" ? "Your role cannot advance the current phase" : undefined}
+            title={!canAdvance && c.currentPhase !== "debrief" ? "Your role cannot advance the current phase" : undefined}
             className="shadow-lg shadow-primary/20"
           >
             {advancePhaseMut.isPending ? "Advancing..." : "Advance Phase"} <ChevronRight size={18} className="ml-1"/>
@@ -527,8 +528,8 @@ export default function CaseDetail() {
         </CardContent>
       </Card>
 
-      {/* Report Access Panel — visible to admin in report/debrief/complete phases */}
-      {role === "admin" && ['report', 'debrief', 'complete'].includes(c.currentPhase) && (
+      {/* Report Access Panel — visible to admin in report/final_review/debrief phases */}
+      {role === "admin" && ['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
         <ReportAccessPanel caseId={c.id} parentEmail={c.parentEmail ?? undefined} />
       )}
 

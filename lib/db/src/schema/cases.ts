@@ -17,6 +17,7 @@ export const casePhaseEnum = pgEnum("case_phase", [
   "assessment",
   "scoring",
   "report",
+  "final_review",
   "debrief",
   "complete",
 ]);
