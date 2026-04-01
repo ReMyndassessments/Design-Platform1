@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
 
-const INVIGILATOR_EMAIL = "hayley@remynd.com";
+const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
 
 function getBaseUrl(req: { headers: Record<string, string | string[] | undefined> }): string {

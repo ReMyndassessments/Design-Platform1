@@ -10,7 +10,7 @@ import { logger } from "../lib/logger.js";
 const router = Router();
 
 const NOTIFY_EMAILS = (
-  process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com,hayley@remynd.com,ne_roberts@yahoo.com"
+  process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com,ne_roberts@yahoo.com,hayleyxu13@gmail.com"
 ).split(",").map((e) => e.trim()).filter(Boolean);
 
 router.post("/portal/inquiry", async (req, res) => {

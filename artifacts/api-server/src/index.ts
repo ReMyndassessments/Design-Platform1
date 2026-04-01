@@ -1153,6 +1153,12 @@ async function syncTools() {
   }
 }
 
+const CANONICAL_USERS = [
+  { id: "user-admin-001", name: "Noel (Admin)", email: "noelroberts43@gmail.com", role: "admin" as const },
+  { id: "user-hayley-002", name: "Hayley (Assessment Invigilator)", email: "hayleyxu13@gmail.com", role: "assessment_invigilator" as const },
+  { id: "user-abegail-003", name: "Abegail (Psychometrician)", email: "cioconabegail@gmail.com", role: "psychometrician" as const },
+];
+
 async function seedIfEmpty() {
   try {
     const existingUsers = await db.select().from(usersTable).limit(1);
@@ -1162,14 +1168,25 @@ async function seedIfEmpty() {
     }
 
     logger.info("Seeding demo users...");
-    await db.insert(usersTable).values([
-      { id: "user-admin-001", name: "Noel (Admin)", email: "admin@remynd.com", passwordHash: hashPassword("password"), role: "admin" },
-      { id: "user-hayley-002", name: "Hayley (Assessment Invigilator)", email: "hayley@remynd.com", passwordHash: hashPassword("password"), role: "assessment_invigilator" },
-      { id: "user-abegail-003", name: "Abegail (Psychometrician)", email: "abegail@remynd.com", passwordHash: hashPassword("password"), role: "psychometrician" },
-    ]).onConflictDoNothing();
+    await db.insert(usersTable).values(
+      CANONICAL_USERS.map(u => ({ ...u, passwordHash: hashPassword("password") }))
+    ).onConflictDoNothing();
     logger.info("Demo users seeded successfully");
   } catch (err) {
     logger.error({ err }, "Failed to seed users");
+  }
+}
+
+async function syncUserEmails() {
+  try {
+    for (const u of CANONICAL_USERS) {
+      await db.update(usersTable)
+        .set({ email: u.email, name: u.name })
+        .where(eq(usersTable.id, u.id));
+    }
+    logger.info("User emails synced from canonical list");
+  } catch (err) {
+    logger.error({ err }, "Failed to sync user emails");
   }
 }
 
@@ -1249,7 +1266,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-Promise.all([seedIfEmpty(), syncTools(), syncBatteries()]).then(() => {
+Promise.all([seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()]).then(() => {
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
