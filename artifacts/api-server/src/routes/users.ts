@@ -120,7 +120,7 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
   }
 
   const { id } = req.params;
-  const { name, role } = req.body;
+  const { name, email, role } = req.body;
 
   const target = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!target[0]) {
@@ -137,8 +137,8 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
-  if (!name?.trim() && !role) {
-    res.status(400).json({ error: "bad_request", message: "Provide at least name or role to update" });
+  if (!name?.trim() && !email?.trim() && !role) {
+    res.status(400).json({ error: "bad_request", message: "Provide at least name, email, or role to update" });
     return;
   }
 
@@ -147,8 +147,21 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
+  // Check email uniqueness if changing
+  if (email?.trim()) {
+    const normalised = email.trim().toLowerCase();
+    if (normalised !== target[0].email) {
+      const conflict = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalised)).limit(1);
+      if (conflict.length > 0) {
+        res.status(409).json({ error: "conflict", message: "That email is already in use by another account" });
+        return;
+      }
+    }
+  }
+
   const updates: Partial<typeof usersTable.$inferInsert> = { updatedAt: new Date() };
   if (name?.trim()) updates.name = name.trim();
+  if (email?.trim()) updates.email = email.trim().toLowerCase();
   if (role) updates.role = role;
 
   const updated = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();

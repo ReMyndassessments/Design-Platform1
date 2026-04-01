@@ -189,15 +189,17 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
   const updateMut = useUpdateUser();
 
   const [name, setName] = useState(user.name ?? "");
+  const [email, setEmail] = useState(user.email ?? "");
   const [role, setRole] = useState<"assessment_invigilator" | "psychometrician">(user.role as "assessment_invigilator" | "psychometrician");
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = () => {
     setError(null);
     if (!name.trim()) { setError("Name is required."); return; }
+    if (!email.trim()) { setError("Email is required."); return; }
 
     updateMut.mutate(
-      { userId: user.id, data: { name: name.trim(), role } },
+      { userId: user.id, data: { name: name.trim(), email: email.trim().toLowerCase(), role } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
@@ -229,9 +231,8 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">Email</label>
-            <Input value={user.email} disabled className="h-10 bg-slate-50 text-slate-400" />
-            <p className="text-xs text-slate-400">Email cannot be changed after account creation.</p>
+            <label className="text-sm font-semibold text-slate-700">Email <span className="text-red-500">*</span></label>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-10" />
           </div>
 
           <div className="space-y-1.5">
