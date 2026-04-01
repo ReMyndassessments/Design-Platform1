@@ -17,12 +17,17 @@ function getBaseUrl(req: { headers: Record<string, string | string[] | undefined
   return `${proto}://${host}`;
 }
 
-function buildDebriefEmail(lang: "en" | "zh" | "ko", studentName: string, parentName: string | null, meetingUrl: string): string {
+function buildDebriefEmail(lang: "en" | "zh" | "ko", studentName: string, recipientName: string | null, meetingUrl: string, recipientType: "parent" | "teacher" = "parent"): string {
+  const isTeacher = recipientType === "teacher";
   const copy = {
     en: {
-      salutation: `Dear ${parentName ?? "Parent/Guardian"},`,
-      intro: `We are pleased to let you know that ${studentName}'s psychoeducational assessment has been completed and we would like to schedule a debrief meeting with you to discuss the findings.`,
-      what: `During the debrief, our team will walk you through the assessment results, explain what they mean for ${studentName}, and answer any questions you may have.`,
+      salutation: `Dear ${recipientName ?? (isTeacher ? "Educator" : "Parent/Guardian")},`,
+      intro: isTeacher
+        ? `We are writing to let you know that ${studentName}'s psychoeducational assessment has been completed. As one of ${studentName}'s educators, you are invited to join the debrief meeting where we will discuss the key findings.`
+        : `We are pleased to let you know that ${studentName}'s psychoeducational assessment has been completed and we would like to schedule a debrief meeting with you to discuss the findings.`,
+      what: isTeacher
+        ? `The debrief will cover assessment outcomes and practical recommendations that may be relevant to your work with ${studentName} in the classroom.`
+        : `During the debrief, our team will walk you through the assessment results, explain what they mean for ${studentName}, and answer any questions you may have.`,
       howTitle: "How to join the meeting:",
       how: `Click the button below to join our secure video meeting room. No account or download is required — it works directly in your browser.`,
       cta: "Join the Debrief Meeting",
@@ -295,29 +300,50 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
     const meetingUrl = `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}`;
 
+    // Send to parent
     if (parentEmail) {
       try {
         const isChinese = lang.includes("mandarin") || lang.includes("chinese");
         const isKorean = lang.includes("korean");
-
-        let subject: string;
-        let html: string;
-
-        if (isChinese) {
-          subject = `汇报会议邀请 — ${studentName}`;
-          html = buildDebriefEmail("zh", studentName, parentName, meetingUrl);
-        } else if (isKorean) {
-          subject = `결과 설명 회의 초대 — ${studentName}`;
-          html = buildDebriefEmail("ko", studentName, parentName, meetingUrl);
-        } else {
-          subject = `Debrief Meeting Invitation — ${studentName}`;
-          html = buildDebriefEmail("en", studentName, parentName, meetingUrl);
-        }
-
+        const subject = isChinese
+          ? `汇报会议邀请 — ${studentName}`
+          : isKorean
+          ? `결과 설명 회의 초대 — ${studentName}`
+          : `Debrief Meeting Invitation — ${studentName}`;
+        const html = buildDebriefEmail(
+          isChinese ? "zh" : isKorean ? "ko" : "en",
+          studentName,
+          parentName,
+          meetingUrl,
+          "parent"
+        );
         await sendEmail({ to: parentEmail, subject, html });
       } catch (err) {
-        console.error("[debrief-email] Failed to send debrief invite:", err);
+        console.error("[debrief-email] Failed to send parent invite:", err);
       }
+    }
+
+    // Send to teachers (unique emails from teacher/referring_teacher assignments)
+    try {
+      const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
+      const teacherAssignments = await db
+        .select()
+        .from(assignmentsTable)
+        .where(eq(assignmentsTable.caseId, req.params.caseId));
+      const teacherEmailsSeen = new Set<string>();
+      for (const a of teacherAssignments) {
+        if (!TEACHER_TYPES.has(a.respondentType ?? "")) continue;
+        const email = a.assignedToEmail?.trim();
+        if (!email || teacherEmailsSeen.has(email)) continue;
+        teacherEmailsSeen.add(email);
+        await sendEmail({
+          to: email,
+          subject: `Debrief Meeting Invitation — ${studentName}`,
+          html: buildDebriefEmail("en", studentName, a.assignedToName ?? null, meetingUrl, "teacher"),
+        });
+      }
+    } catch (err) {
+      console.error("[debrief-email] Failed to send teacher invites:", err);
     }
   }
 

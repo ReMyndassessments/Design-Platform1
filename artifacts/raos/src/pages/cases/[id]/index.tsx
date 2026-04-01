@@ -1296,20 +1296,34 @@ export default function CaseDetail() {
                 onCheckedChange={v => setSendEmailOnDebrief(!!v)}
                 className="mt-0.5"
               />
-              <div>
+              <div className="space-y-1">
                 <Label htmlFor="send-debrief-email" className="text-sm font-medium cursor-pointer">
-                  Send meeting invite email to parent
+                  Send meeting invite emails
                 </Label>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {c?.parentEmail
-                    ? `Will be sent to ${c.parentEmail}`
-                    : "No parent email on file — email cannot be sent"}
-                </p>
+                {c?.parentEmail && (
+                  <p className="text-xs text-slate-500">Parent: {c.parentEmail}</p>
+                )}
+                {(() => {
+                  const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
+                  const teacherEmails = [...new Set(
+                    (c?.assignments ?? [])
+                      .filter(a => TEACHER_TYPES.has(a.respondentType ?? "") && a.assignedToEmail)
+                      .map(a => a.assignedToEmail!)
+                  )];
+                  return teacherEmails.length > 0 ? (
+                    <p className="text-xs text-slate-500">Teachers: {teacherEmails.join(", ")}</p>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No teacher emails on file</p>
+                  );
+                })()}
+                {!c?.parentEmail && (c?.assignments ?? []).filter(a => ["teacher1","teacher2","referring_teacher","special_needs_teacher","school_counselor"].includes(a.respondentType ?? "") && a.assignedToEmail).length === 0 && (
+                  <p className="text-xs text-amber-600">No recipient emails found on this case</p>
+                )}
               </div>
             </div>
             {!sendEmailOnDebrief && (
               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                No email will be sent. You can share the meeting link manually from the case page.
+                No emails will be sent. You can share the meeting link manually from the case page.
               </p>
             )}
           </div>
