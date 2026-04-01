@@ -11,10 +11,10 @@ export default function LandingPage() {
   const l = t.landing;
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col md:flex-row">
 
       {/* ── LEFT — Brand panel ── */}
-      <div className="lg:w-[48%] relative overflow-hidden flex flex-col justify-between px-10 py-12 min-h-[50vh] lg:min-h-screen"
+      <div className="md:w-[48%] relative overflow-hidden flex flex-col justify-between px-10 py-12 min-h-[50vh] md:min-h-screen"
         style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
       >
         {/* Layered background glows */}
@@ -94,7 +94,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── RIGHT — Access panel ── */}
-      <div className="lg:w-[52%] flex flex-col justify-center px-10 py-16 bg-white">
+      <div className="md:w-[52%] flex flex-col justify-center px-10 py-16 bg-white">
         <div className="max-w-sm mx-auto w-full">
 
           {/* Language switcher */}
