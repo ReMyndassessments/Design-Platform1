@@ -8,6 +8,7 @@ import {
   useDeleteAssignment,
   useUpdateCase,
   useGetCurrentUser,
+  useListUsers,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,6 +101,7 @@ export default function CaseDetail() {
   const analyzeIntakeMut = useAnalyzeIntake();
   const updateCaseMut = useUpdateCase();
   const { data: tools } = useListAssessmentTools();
+  const { data: staffUsers } = useListUsers();
   const createAssignmentMut = useCreateAssignment();
   const deleteAssignmentMut = useDeleteAssignment();
 
@@ -111,7 +113,7 @@ export default function CaseDetail() {
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", workingDocUrl: "" });
+  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
   
   const [newAssignment, setNewAssignment] = useState({
     toolIds: [] as string[],
@@ -328,13 +330,20 @@ export default function CaseDetail() {
       parentPhone: c.parentPhone ?? "",
       caseStatus: c.caseStatus ?? "active",
       workingDocUrl: c.workingDocUrl ?? "",
+      assignedLeadId: c.assignedLeadId ?? "",
+      assignedPsychId: c.assignedPsychId ?? "",
     });
     setEditCaseOpen(true);
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateCaseMut.mutate({ caseId, data: editFields }, {
+    const data = {
+      ...editFields,
+      assignedLeadId: editFields.assignedLeadId || null,
+      assignedPsychId: editFields.assignedPsychId || null,
+    };
+    updateCaseMut.mutate({ caseId, data }, {
       onSuccess: () => {
         toast({ title: "Case updated" });
         setEditCaseOpen(false);
@@ -943,6 +952,37 @@ export default function CaseDetail() {
                 <option value="closed">Closed</option>
                 <option value="completed">Completed</option>
               </select>
+            </div>
+            <div className="border-t pt-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned Team</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Invigilator</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={editFields.assignedLeadId}
+                    onChange={e => setEditFields(f => ({ ...f, assignedLeadId: e.target.value }))}
+                  >
+                    <option value="">— Unassigned —</option>
+                    {(staffUsers ?? []).filter((u: any) => u.role === "assessment_invigilator").map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Psychometrician</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={editFields.assignedPsychId}
+                    onChange={e => setEditFields(f => ({ ...f, assignedPsychId: e.target.value }))}
+                  >
+                    <option value="">— Unassigned —</option>
+                    {(staffUsers ?? []).filter((u: any) => u.role === "psychometrician").map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
             <div className="border-t pt-3 space-y-1">
               <label className="text-sm font-medium">Working Document (Google Docs URL)</label>
