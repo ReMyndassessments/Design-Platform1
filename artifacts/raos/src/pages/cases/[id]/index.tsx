@@ -21,7 +21,7 @@ import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
-  Send, Mail, Link2, LayoutGrid
+  Send, Mail, Link2, LayoutGrid, Video, CopyCheck
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -124,6 +124,7 @@ export default function CaseDetail() {
   });
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
+  const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
@@ -641,6 +642,48 @@ export default function CaseDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* Meeting Room — visible during assessment and debrief phases */}
+          {['assessment', 'scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (() => {
+            const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
+            const meetingUrl = `https://meet.jit.si/${roomName}`;
+            const handleCopyMeeting = () => {
+              navigator.clipboard.writeText(meetingUrl);
+              setMeetingLinkCopied(true);
+              setTimeout(() => setMeetingLinkCopied(false), 2000);
+            };
+            return (
+              <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                <CardHeader className="pb-2 border-b border-emerald-100/60">
+                  <CardTitle className="text-base flex items-center gap-2 text-emerald-900">
+                    <Video size={16} className="text-emerald-600" />
+                    {c.currentPhase === 'debrief' ? 'Debrief Meeting Room' : 'Invigilation Meeting Room'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-xs text-emerald-700">
+                    {c.currentPhase === 'debrief'
+                      ? 'Use this room for the debrief session. Share the link with all participants.'
+                      : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
+                  </p>
+                  <div className="bg-white/70 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-mono text-slate-700 break-all">
+                    {meetingUrl}
+                  </div>
+                  <div className="flex gap-2">
+                    <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2" size="sm">
+                        <Video size={14} /> Join Meeting
+                      </Button>
+                    </a>
+                    <Button variant="outline" size="sm" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5" onClick={handleCopyMeeting}>
+                      {meetingLinkCopied ? <CopyCheck size={14} /> : <Copy size={14} />}
+                      {meetingLinkCopied ? 'Copied!' : 'Copy Link'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
 
         {/* Right Col: Assignments */}
