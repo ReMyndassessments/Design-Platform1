@@ -128,6 +128,7 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     parentPhone: c.parentPhone,
     consentObtained: c.consentObtained,
     workingDocUrl: c.workingDocUrl,
+    customMeetingUrl: c.customMeetingUrl,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -231,7 +232,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
-  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl"];
+  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl"];
   const allowed = req.userRole === "admin" ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {
@@ -282,15 +283,17 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
   }).where(eq(casesTable.id, req.params.caseId)).returning();
 
   // Send debrief invite email to parent when advancing to debrief phase
-  if (next === "debrief") {
+  const sendDebriefEmail = req.body?.sendDebriefEmail !== false; // default true
+  if (next === "debrief" && sendDebriefEmail) {
     const caseRow = rows[0];
     const parentEmail = caseRow.parentEmail;
     const studentName = caseRow.studentName;
     const parentName = caseRow.parentName;
     const lang = (caseRow.languagePreference ?? "english").toLowerCase();
     const caseId = req.params.caseId;
+    const base = getBaseUrl(req as any);
     const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
-    const meetingUrl = `https://meet.jit.si/${roomName}`;
+    const meetingUrl = `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}`;
 
     if (parentEmail) {
       try {

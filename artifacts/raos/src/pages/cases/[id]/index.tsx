@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
@@ -125,6 +127,12 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
+  const [debriefDialogOpen, setDebriefDialogOpen] = useState(false);
+  const [sendEmailOnDebrief, setSendEmailOnDebrief] = useState(true);
+  const [debriefAdvancing, setDebriefAdvancing] = useState(false);
+  const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
+  const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
+  const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
@@ -301,6 +309,11 @@ export default function CaseDetail() {
   };
 
   const handleAdvancePhase = () => {
+    if (c?.currentPhase === 'final_review') {
+      setSendEmailOnDebrief(true);
+      setDebriefDialogOpen(true);
+      return;
+    }
     advancePhaseMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Phase advanced" });
@@ -308,6 +321,56 @@ export default function CaseDetail() {
       },
       onError: () => toast({ title: "Cannot advance this phase", description: "Your role does not allow advancing the current phase.", variant: "destructive" })
     });
+  };
+
+  const handleDebriefConfirm = async () => {
+    setDebriefAdvancing(true);
+    try {
+      const token = localStorage.getItem("raos_token");
+      const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
+      const res = await fetch(`${basePath}/api/cases/${caseId}/advance`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ sendDebriefEmail: sendEmailOnDebrief }),
+      });
+      if (res.ok) {
+        setDebriefDialogOpen(false);
+        toast({
+          title: "Case moved to Debrief",
+          description: sendEmailOnDebrief ? "Meeting invite email sent to parent." : "No email sent.",
+        });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      } else {
+        toast({ title: "Failed to advance phase", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setDebriefAdvancing(false);
+    }
+  };
+
+  const handleSaveMeetingUrl = () => {
+    setSavingMeetingUrl(true);
+    updateCaseMut.mutate(
+      { caseId, data: { customMeetingUrl: meetingUrlDraft.trim() || null } as any },
+      {
+        onSuccess: () => {
+          setEditingMeetingUrl(false);
+          setSavingMeetingUrl(false);
+          toast({ title: "Meeting link updated" });
+          queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        },
+        onError: () => {
+          setSavingMeetingUrl(false);
+          toast({ title: "Failed to save", variant: "destructive" });
+        },
+      }
+    );
   };
 
   const handleAnalyzeIntake = () => {
@@ -646,11 +709,21 @@ export default function CaseDetail() {
           {/* Meeting Room — visible during assessment and debrief phases */}
           {['assessment', 'scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (() => {
             const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
-            const meetingUrl = `https://meet.jit.si/${roomName}`;
+            const base = window.location.origin;
+            const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
+            const brandedJitsiUrl = `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
+            const jitsiUrl = `https://meet.jit.si/${roomName}`;
+            const activeUrl = c.customMeetingUrl ?? brandedJitsiUrl;
+            const isCustom = !!c.customMeetingUrl;
+            const joinUrl = isCustom ? c.customMeetingUrl! : jitsiUrl;
             const handleCopyMeeting = () => {
-              navigator.clipboard.writeText(meetingUrl);
+              navigator.clipboard.writeText(activeUrl);
               setMeetingLinkCopied(true);
               setTimeout(() => setMeetingLinkCopied(false), 2000);
+            };
+            const handleStartEdit = () => {
+              setMeetingUrlDraft(c.customMeetingUrl ?? "");
+              setEditingMeetingUrl(true);
             };
             return (
               <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
@@ -663,23 +736,61 @@ export default function CaseDetail() {
                 <CardContent className="p-4 space-y-3">
                   <p className="text-xs text-emerald-700">
                     {c.currentPhase === 'debrief'
-                      ? 'Use this room for the debrief session. Share the link with all participants.'
+                      ? 'Share the link with parents to bring them into the meeting room.'
                       : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
                   </p>
+
+                  {/* Current meeting link display */}
                   <div className="bg-white/70 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-mono text-slate-700 break-all">
-                    {meetingUrl}
+                    {activeUrl}
                   </div>
+
+                  {isCustom && (
+                    <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                      ⚡ Using custom platform — Jitsi room still available if needed
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
                   <div className="flex gap-2">
-                    <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
                       <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2" size="sm">
                         <Video size={14} /> Join Meeting
                       </Button>
                     </a>
                     <Button variant="outline" size="sm" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5" onClick={handleCopyMeeting}>
                       {meetingLinkCopied ? <CopyCheck size={14} /> : <Copy size={14} />}
-                      {meetingLinkCopied ? 'Copied!' : 'Copy Link'}
+                      {meetingLinkCopied ? 'Copied!' : 'Copy'}
                     </Button>
                   </div>
+
+                  {/* Custom URL editor */}
+                  {editingMeetingUrl ? (
+                    <div className="space-y-2 pt-1 border-t border-emerald-200">
+                      <p className="text-xs text-slate-600 font-medium">Paste a Zoom, Teams, or other link:</p>
+                      <Input
+                        placeholder="https://zoom.us/j/... or leave blank to use Jitsi"
+                        value={meetingUrlDraft}
+                        onChange={e => setMeetingUrlDraft(e.target.value)}
+                        className="text-xs h-8"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSaveMeetingUrl} disabled={savingMeetingUrl}>
+                          {savingMeetingUrl ? "Saving…" : "Save"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingMeetingUrl(false)}>Cancel</Button>
+                        {isCustom && (
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500 hover:text-red-700" onClick={() => { setMeetingUrlDraft(""); handleSaveMeetingUrl(); }}>
+                            Reset to Jitsi
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={handleStartEdit} className="text-[10px] text-emerald-700 underline underline-offset-2 hover:text-emerald-900">
+                      {isCustom ? "Change platform" : "Use a different platform (Zoom, Teams…)"}
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -1161,6 +1272,53 @@ export default function CaseDetail() {
             <Button variant="outline" className="flex-1" onClick={() => setDeleteCaseOpen(false)} disabled={deleteLoading}>Cancel</Button>
             <Button variant="destructive" className="flex-1" onClick={handleDeleteCase} disabled={deleteLoading}>
               {deleteLoading ? "Deleting..." : "Delete Case"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Debrief Phase Advance Dialog */}
+      <Dialog open={debriefDialogOpen} onOpenChange={open => { if (!open) setDebriefDialogOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video size={18} className="text-emerald-600" /> Advance to Debrief
+            </DialogTitle>
+            <DialogDescription>
+              You're moving <span className="font-semibold text-slate-900">{c?.studentName}</span>'s case to the Debrief phase. Choose how to handle the parent notification below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <div className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50">
+              <Checkbox
+                id="send-debrief-email"
+                checked={sendEmailOnDebrief}
+                onCheckedChange={v => setSendEmailOnDebrief(!!v)}
+                className="mt-0.5"
+              />
+              <div>
+                <Label htmlFor="send-debrief-email" className="text-sm font-medium cursor-pointer">
+                  Send meeting invite email to parent
+                </Label>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {c?.parentEmail
+                    ? `Will be sent to ${c.parentEmail}`
+                    : "No parent email on file — email cannot be sent"}
+                </p>
+              </div>
+            </div>
+            {!sendEmailOnDebrief && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                No email will be sent. You can share the meeting link manually from the case page.
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDebriefDialogOpen(false)} disabled={debriefAdvancing}>
+              Cancel
+            </Button>
+            <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleDebriefConfirm} disabled={debriefAdvancing}>
+              {debriefAdvancing ? "Advancing…" : "Confirm & Advance"}
             </Button>
           </div>
         </DialogContent>
