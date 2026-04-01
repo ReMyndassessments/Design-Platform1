@@ -6,6 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
+import { sendEmail } from "../lib/outlookEmail.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -14,6 +15,67 @@ function getBaseUrl(req: { headers: Record<string, string | string[] | undefined
   const host = req.headers.host as string ?? "localhost";
   const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
   return `${proto}://${host}`;
+}
+
+function buildDebriefEmail(lang: "en" | "zh" | "ko", studentName: string, parentName: string | null, meetingUrl: string): string {
+  const copy = {
+    en: {
+      salutation: `Dear ${parentName ?? "Parent/Guardian"},`,
+      intro: `We are pleased to let you know that ${studentName}'s psychoeducational assessment has been completed and we would like to schedule a debrief meeting with you to discuss the findings.`,
+      what: `During the debrief, our team will walk you through the assessment results, explain what they mean for ${studentName}, and answer any questions you may have.`,
+      howTitle: "How to join the meeting:",
+      how: `Click the button below to join our secure video meeting room. No account or download is required — it works directly in your browser.`,
+      cta: "Join the Debrief Meeting",
+      alt: `Or paste this link into your browser: ${meetingUrl}`,
+      footer: "If you have any questions before the meeting, please reply to this email.",
+      sign: "The ReMynd Student Services Team",
+    },
+    zh: {
+      salutation: `尊敬的${parentName ?? "家长/监护人"}，`,
+      intro: `我们很高兴地通知您，${studentName}的心理教育评估已经完成。我们希望与您安排一次结果汇报会议，讨论评估结果。`,
+      what: `在汇报会议期间，我们的团队将向您介绍评估结果，解释其对${studentName}的意义，并解答您的任何疑问。`,
+      howTitle: "如何加入会议：",
+      how: `点击下方按钮即可加入我们的安全视频会议室。无需注册或下载，直接在浏览器中使用即可。`,
+      cta: "加入汇报会议",
+      alt: `或将以下链接粘贴到浏览器中：${meetingUrl}`,
+      footer: "如果您在会议前有任何问题，请直接回复本邮件。",
+      sign: "ReMynd学生服务团队",
+    },
+    ko: {
+      salutation: `${parentName ?? "학부모/보호자"}님께,`,
+      intro: `${studentName} 학생의 심리교육 평가가 완료되었음을 알려드립니다. 평가 결과를 논의하기 위한 결과 설명 회의를 예약하고자 합니다.`,
+      what: `결과 설명 회의에서 저희 팀은 평가 결과를 안내해 드리고, ${studentName} 학생에게 의미하는 바를 설명하며, 궁금하신 사항에 답변드리겠습니다.`,
+      howTitle: "회의 참여 방법:",
+      how: `아래 버튼을 클릭하시면 보안 화상 회의실에 참여하실 수 있습니다. 계정 생성이나 다운로드 없이 브라우저에서 바로 사용 가능합니다.`,
+      cta: "결과 설명 회의 참여",
+      alt: `또는 다음 링크를 브라우저에 붙여넣으세요: ${meetingUrl}`,
+      footer: "회의 전에 궁금하신 점이 있으시면 이 이메일에 바로 답장해 주세요.",
+      sign: "ReMynd 학생 서비스 팀",
+    },
+  }[lang];
+
+  return `
+  <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
+    <div style="background:#1e293b;padding:28px 32px;border-radius:12px 12px 0 0">
+      <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700">ReMynd Student Services</h1>
+      <p style="margin:6px 0 0;color:#94a3b8;font-size:13px">${lang === "zh" ? "心理教育评估汇报" : lang === "ko" ? "심리교육 평가 결과 설명" : "Psychoeducational Assessment Debrief"}</p>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px">
+      <p style="margin:0 0 16px;font-size:15px">${copy.salutation}</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6">${copy.intro}</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.6">${copy.what}</p>
+      <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#475569">${copy.howTitle}</p>
+      <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569">${copy.how}</p>
+      <p style="text-align:center;margin:28px 0">
+        <a href="${meetingUrl}" style="background:#059669;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">${copy.cta}</a>
+      </p>
+      <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0 0 24px">${copy.alt}</p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+      <p style="font-size:13px;color:#475569;margin:0 0 8px">${copy.footer}</p>
+      <p style="font-size:13px;color:#475569;margin:0"><strong>${copy.sign}</strong></p>
+      <p style="font-size:11px;color:#94a3b8;margin:20px 0 0">ReMynd Student Services · Confidential</p>
+    </div>
+  </div>`;
 }
 
 const router = Router();
@@ -218,6 +280,44 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     progressPercentage: PHASE_PROGRESS[next] ?? 100,
     updatedAt: new Date(),
   }).where(eq(casesTable.id, req.params.caseId)).returning();
+
+  // Send debrief invite email to parent when advancing to debrief phase
+  if (next === "debrief") {
+    const caseRow = rows[0];
+    const parentEmail = caseRow.parentEmail;
+    const studentName = caseRow.studentName;
+    const parentName = caseRow.parentName;
+    const lang = (caseRow.languagePreference ?? "english").toLowerCase();
+    const caseId = req.params.caseId;
+    const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
+    const meetingUrl = `https://meet.jit.si/${roomName}`;
+
+    if (parentEmail) {
+      try {
+        const isChinese = lang.includes("mandarin") || lang.includes("chinese");
+        const isKorean = lang.includes("korean");
+
+        let subject: string;
+        let html: string;
+
+        if (isChinese) {
+          subject = `汇报会议邀请 — ${studentName}`;
+          html = buildDebriefEmail("zh", studentName, parentName, meetingUrl);
+        } else if (isKorean) {
+          subject = `결과 설명 회의 초대 — ${studentName}`;
+          html = buildDebriefEmail("ko", studentName, parentName, meetingUrl);
+        } else {
+          subject = `Debrief Meeting Invitation — ${studentName}`;
+          html = buildDebriefEmail("en", studentName, parentName, meetingUrl);
+        }
+
+        await sendEmail({ to: parentEmail, subject, html });
+      } catch (err) {
+        console.error("[debrief-email] Failed to send debrief invite:", err);
+      }
+    }
+  }
+
   res.json(formatCase(updated[0]));
 });
 
