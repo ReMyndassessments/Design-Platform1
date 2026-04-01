@@ -32,6 +32,8 @@ interface ReportUpload {
 interface Props {
   caseId: string;
   parentEmail?: string;
+  currentPhase?: string;
+  onPhaseAdvanced?: () => void;
 }
 
 interface AdditionalRecipient {
@@ -41,7 +43,7 @@ interface AdditionalRecipient {
 
 const BASE = "/api";
 
-export function ReportAccessPanel({ caseId, parentEmail }: Props) {
+export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAdvanced }: Props) {
   const { toast } = useToast();
 
   const [upload, setUpload] = useState<ReportUpload | null>(null);
@@ -132,12 +134,13 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
 
       if (!regRes.ok) throw new Error("Registration failed");
 
-      toast({ title: "Report uploaded", description: "Secure links have been sent to all recipients." });
+      toast({ title: "Report sent", description: "Secure links delivered. Case advanced to Debrief." });
       setSelectedFile(null);
       setAdditionalRecipients([]);
       setNotifyTeam(false);
       setSendInternalCopy(false);
       await fetchStatus();
+      onPhaseAdvanced?.();
     } catch (err) {
       console.error(err);
       toast({ title: "Upload failed", variant: "destructive" });
@@ -337,8 +340,26 @@ export function ReportAccessPanel({ caseId, parentEmail }: Props) {
         )}
       </div>
 
-      {/* Upload form */}
-      <div className="space-y-4 border border-dashed border-slate-300 rounded-xl p-5 bg-slate-50">
+      {/* Phase gate — upload only available during Final Review */}
+      {currentPhase && currentPhase !== "final_review" && currentPhase !== "debrief" && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <Clock size={16} className="text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Not available yet</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              The report can only be sent once the case reaches <strong>Final Review</strong>. Advance the case through the remaining phases to unlock this section.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload form — locked outside of final_review */}
+      <div className={cn(
+        "space-y-4 border border-dashed rounded-xl p-5",
+        currentPhase && currentPhase !== "final_review" && currentPhase !== "debrief"
+          ? "border-slate-200 bg-slate-50 opacity-40 pointer-events-none select-none"
+          : "border-slate-300 bg-slate-50"
+      )}>
         <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
           {upload ? "Replace Report & Resend" : "Upload Final Report"}
         </p>

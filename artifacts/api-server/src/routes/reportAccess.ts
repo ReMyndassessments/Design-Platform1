@@ -162,6 +162,14 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     res.status(400).json({ error: "fileKey and filename required" }); return;
   }
 
+  // Gate: report can only be sent during Final Review phase
+  const [phaseCheck] = await db.select({ currentPhase: casesTable.currentPhase })
+    .from(casesTable).where(eq(casesTable.id, caseId));
+  if (!phaseCheck) { res.status(404).json({ error: "case_not_found" }); return; }
+  if (phaseCheck.currentPhase !== "final_review") {
+    res.status(409).json({ error: "wrong_phase", message: "Reports can only be sent during the Final Review phase." }); return;
+  }
+
   // Upsert report upload record
   const uploadId = randomUUID();
   await db.delete(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId));
@@ -292,6 +300,11 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       console.error("Failed to notify internal team of report upload", err);
     }
   }
+
+  // Auto-advance case to Debrief now that the report has been sent
+  await db.update(casesTable)
+    .set({ currentPhase: "debrief", progressPercentage: 100 })
+    .where(eq(casesTable.id, caseId));
 
   res.json({ success: true, tokens: createdTokens });
 });

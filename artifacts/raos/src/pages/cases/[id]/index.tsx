@@ -543,7 +543,15 @@ export default function CaseDetail() {
 
       {/* Report Access Panel — visible to admin in report/final_review/debrief phases */}
       {role === "admin" && ['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
-        <ReportAccessPanel caseId={c.id} parentEmail={c.parentEmail ?? undefined} />
+        <ReportAccessPanel
+          caseId={c.id}
+          parentEmail={c.parentEmail ?? undefined}
+          currentPhase={c.currentPhase}
+          onPhaseAdvanced={() => {
+            queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+            queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+          }}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
