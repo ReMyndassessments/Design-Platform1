@@ -601,13 +601,18 @@ router.get("/cases/:id/archive", authMiddleware, async (req, res) => {
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
   if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
 
-  const [uploads, tokens, responses, scores, assignments] = await Promise.all([
+  const [uploads, tokens, scores, assignments] = await Promise.all([
     db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId)).orderBy(asc(reportUploadsTable.uploadedAt)),
     db.select().from(reportTokensTable).where(eq(reportTokensTable.caseId, caseId)),
-    db.select().from(responsesTable).where(eq(responsesTable.caseId, caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
   ]);
+
+  // Responses link through assignment IDs, not caseId
+  const assignmentIds = assignments.map(a => a.id);
+  const responses = assignmentIds.length > 0
+    ? await db.select().from(responsesTable).where(inArray(responsesTable.assignmentId, assignmentIds))
+    : [];
 
   const safeName = (caseRow.studentName ?? caseId).replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
   res.setHeader("Content-Type", "application/zip");
