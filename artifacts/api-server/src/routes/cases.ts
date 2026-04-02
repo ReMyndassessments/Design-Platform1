@@ -346,34 +346,25 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
   if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
 
   try {
-    // GET https://moderated.jitsi.net/rest/rooms returns { meetingId: "..." }
-    const response = await fetch("https://moderated.jitsi.net/rest/rooms", {
-      method: "GET",
-    });
-    if (!response.ok) throw new Error(`Jitsi API responded ${response.status}`);
-    const data = await response.json() as { meetingId: string };
-    if (!data.meetingId) throw new Error("No meetingId returned");
+    // Generate a unique random room name — both admin and guest use the exact same URL.
+    // The first person to join a meet.jit.si room automatically becomes the moderator,
+    // so the admin simply needs to join before the client.
+    const { randomBytes } = await import("crypto");
+    const roomName = `RAOS-${randomBytes(8).toString("hex")}`;
+    const meetingUrl = `https://meet.jit.si/${roomName}`;
 
-    // Guest URL: meet.jit.si/moderated/{meetingId}  (as shown on moderated.jitsi.net)
-    // Moderator URL: moderated.jitsi.net/{meetingId} → Jitsi auth → same room as host
-    // Both use the same meetingId — they land in the same Jitsi room.
-    const guestUrl = `https://meet.jit.si/moderated/${data.meetingId}`;
-    const moderatorUrl = `https://moderated.jitsi.net/${data.meetingId}`;
-
-    // Store guest URL as customMeetingUrl so it's used on the branded join page
-    // Store moderator URL separately so admin can access it
     await db.update(casesTable)
       .set({
-        customMeetingUrl: guestUrl,
-        moderatorMeetingUrl: moderatorUrl,
+        customMeetingUrl: meetingUrl,
+        moderatorMeetingUrl: meetingUrl,
         updatedAt: new Date(),
       })
       .where(eq(casesTable.id, req.params.caseId));
 
-    res.json({ guestUrl, moderatorUrl });
+    res.json({ guestUrl: meetingUrl, moderatorUrl: meetingUrl });
   } catch (err) {
-    console.error("Failed to create moderated meeting:", err);
-    res.status(502).json({ error: "jitsi_api_failed", message: "Could not create a moderated meeting. Try again." });
+    console.error("Failed to create meeting:", err);
+    res.status(502).json({ error: "meeting_creation_failed", message: "Could not create a meeting room. Try again." });
   }
 });
 
