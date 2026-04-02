@@ -819,10 +819,7 @@ export default function CaseDetail() {
                         size="sm"
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
                         disabled={creatingModeratedMeeting}
-                        onClick={async () => {
-                          const url = await handleCreateModeratedMeeting();
-                          if (url) window.open(url, "_blank");
-                        }}
+                        onClick={handleCreateModeratedMeeting}
                       >
                         <Video size={14} />
                         {creatingModeratedMeeting ? 'Generating room…' : 'Generate Meeting Room'}
