@@ -439,7 +439,7 @@ export default function CaseDetail() {
   const handleSaveMeetingUrl = () => {
     setSavingMeetingUrl(true);
     updateCaseMut.mutate(
-      { caseId, data: { customMeetingUrl: meetingUrlDraft.trim() || null } as any },
+      { caseId, data: { customMeetingUrl: meetingUrlDraft.trim() || null, moderatorMeetingUrl: null } as any },
       {
         onSuccess: () => {
           setEditingMeetingUrl(false);
@@ -818,106 +818,115 @@ export default function CaseDetail() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
 
-                  {!isModerated && !isCustom ? (
-                    /* ── No room yet: single generate button ── */
-                    <>
-                      <p className="text-xs text-emerald-700">
-                        Opens Jitsi Moderated Meetings — you'll get a host link and a separate guest link to share with your client.
-                      </p>
-                      <Button
-                        size="sm"
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                        onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
-                      >
-                        <Video size={14} />
-                        Generate Meeting Room
-                      </Button>
-                    </>
+                  {!isCustom ? (
+                    /* ── No room yet: 2-step flow ── */
+                    <div className="space-y-3">
+                      {/* Step 1 */}
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Step 1 — Create the room</p>
+                        <Button
+                          size="sm"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                          onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
+                        >
+                          <Video size={14} />
+                          Open Jitsi Moderated Meetings ↗
+                        </Button>
+                        <p className="text-[10px] text-emerald-600">On the Jitsi page, copy the <strong>"Share meeting link for guests"</strong> URL.</p>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="space-y-1.5 pt-2 border-t border-emerald-100">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Step 2 — Paste the guest link</p>
+                        <Input
+                          placeholder="https://meet.jit.si/moderated/..."
+                          value={meetingUrlDraft}
+                          onChange={e => setMeetingUrlDraft(e.target.value)}
+                          className="text-xs h-8"
+                        />
+                        <Button
+                          size="sm"
+                          className="w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={handleSaveMeetingUrl}
+                          disabled={savingMeetingUrl || !meetingUrlDraft.trim()}
+                        >
+                          {savingMeetingUrl ? "Saving…" : "Save Guest Link"}
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
-                    /* ── Room exists: join button + shared link ── */
+                    /* ── Guest link saved: show branded client URL ── */
                     <>
-                      {/* Join Meeting */}
-                      {isModerated && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                            onClick={() => window.open(c.moderatorMeetingUrl!, "_blank")}
-                          >
-                            <ShieldCheck size={14} />
-                            Join Meeting (as Host)
-                          </Button>
-                          <p className="text-[10px] text-emerald-600 text-center -mt-1">Join before your client — first to join becomes the host</p>
-                        </>
-                      )}
-
-                      {/* Branded client join link to copy and share */}
-                      {isModerated && clientJoinUrl && (
-                        <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Client join link — share with client</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{clientJoinUrl}</p>
-                            <Button
-                              size="sm" variant="ghost"
-                              className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800"
-                              onClick={() => {
-                                navigator.clipboard.writeText(clientJoinUrl);
-                                setMeetingLinkCopied(true);
-                                setTimeout(() => setMeetingLinkCopied(false), 2000);
-                              }}
-                            >
-                              {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
-                            </Button>
+                      {/* Branded client join link */}
+                      {(() => {
+                        const rawUrl = c.customMeetingUrl!;
+                        const isJitsiModerated = rawUrl.includes('meet.jit.si/moderated/');
+                        const guestId = rawUrl.split('/').pop();
+                        const brandedUrl = isJitsiModerated && guestId
+                          ? `${window.location.origin}${base}/join/${guestId}?jitsiRoom=moderated/${guestId}`
+                          : rawUrl;
+                        return (
+                          <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Client join link — share with teachers & parents</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{brandedUrl}</p>
+                              <Button
+                                size="sm" variant="ghost"
+                                className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(brandedUrl);
+                                  setMeetingLinkCopied(true);
+                                  setTimeout(() => setMeetingLinkCopied(false), 2000);
+                                }}
+                              >
+                                {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
-                      {/* Custom URL editor output */}
-                      {isCustom && (
-                        <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Meeting link</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{c.customMeetingUrl}</p>
-                            <Button
-                              size="sm" variant="ghost"
-                              className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800"
-                              onClick={() => {
-                                navigator.clipboard.writeText(c.customMeetingUrl!);
-                                setMeetingLinkCopied(true);
-                                setTimeout(() => setMeetingLinkCopied(false), 2000);
-                              }}
-                            >
-                              {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                      {/* Admin note */}
+                      <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                        <ShieldCheck size={11} />
+                        To join as moderator, use the <strong>"Join as moderator"</strong> button on the Jitsi page directly.
+                      </p>
+
+                      {/* Change / Remove */}
+                      <div className="flex gap-2 pt-1 border-t border-emerald-100">
+                        <button
+                          onClick={() => { setMeetingUrlDraft(c.customMeetingUrl ?? ""); setEditingMeetingUrl(true); }}
+                          className="text-[10px] text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+                        >
+                          Change link
+                        </button>
+                        <span className="text-[10px] text-emerald-300">|</span>
+                        <button
+                          onClick={() => updateCaseMut.mutate(
+                            { caseId, data: { customMeetingUrl: null, moderatorMeetingUrl: null } as any },
+                            { onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }) }
+                          )}
+                          className="text-[10px] text-red-500 underline underline-offset-2 hover:text-red-700"
+                        >
+                          Remove room
+                        </button>
+                      </div>
+
+                      {/* Change link editor */}
+                      {editingMeetingUrl && (
+                        <div className="space-y-2 pt-1 border-t border-emerald-200">
+                          <Input
+                            placeholder="https://meet.jit.si/moderated/..."
+                            value={meetingUrlDraft}
+                            onChange={e => setMeetingUrlDraft(e.target.value)}
+                            className="text-xs h-8"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSaveMeetingUrl} disabled={savingMeetingUrl}>
+                              {savingMeetingUrl ? "Saving…" : "Save"}
                             </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingMeetingUrl(false)}>Cancel</Button>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Generate a new room / Remove room */}
-                      {isModerated && (
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
-                            onClick={handleCreateModeratedMeeting}
-                            disabled={creatingModeratedMeeting}
-                          >
-                            {creatingModeratedMeeting ? 'Creating…' : '↻ New Room'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => updateCaseMut.mutate(
-                              { caseId, data: { customMeetingUrl: null, moderatorMeetingUrl: null } as any },
-                              { onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }) }
-                            )}
-                          >
-                            ✕ Remove
-                          </Button>
                         </div>
                       )}
 
@@ -933,34 +942,6 @@ export default function CaseDetail() {
                         </Button>
                       )}
                     </>
-                  )}
-
-                  {/* Custom URL editor */}
-                  {editingMeetingUrl ? (
-                    <div className="space-y-2 pt-1 border-t border-emerald-200">
-                      <p className="text-xs text-slate-600 font-medium">Paste a Zoom, Teams, or other link:</p>
-                      <Input
-                        placeholder="https://zoom.us/j/... or leave blank to use Jitsi"
-                        value={meetingUrlDraft}
-                        onChange={e => setMeetingUrlDraft(e.target.value)}
-                        className="text-xs h-8"
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSaveMeetingUrl} disabled={savingMeetingUrl}>
-                          {savingMeetingUrl ? "Saving…" : "Save"}
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingMeetingUrl(false)}>Cancel</Button>
-                        {isCustom && (
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500 hover:text-red-700" onClick={() => { setMeetingUrlDraft(""); handleSaveMeetingUrl(); }}>
-                            Reset to Jitsi
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={handleStartEdit} className="text-[10px] text-emerald-700 underline underline-offset-2 hover:text-emerald-900">
-                      {isCustom ? "Change platform" : "Use a different platform (Zoom, Teams…)"}
-                    </button>
                   )}
                 </CardContent>
               </Card>
