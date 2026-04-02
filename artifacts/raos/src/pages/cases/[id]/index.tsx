@@ -127,9 +127,9 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
-  const [debriefDialogOpen, setDebriefDialogOpen] = useState(false);
-  const [sendEmailOnDebrief, setSendEmailOnDebrief] = useState(true);
-  const [debriefAdvancing, setDebriefAdvancing] = useState(false);
+  const [sendInviteOpen, setSendInviteOpen] = useState(false);
+  const [inviteChecked, setInviteChecked] = useState<Record<string, boolean>>({});
+  const [sendingInvite, setSendingInvite] = useState(false);
   const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
@@ -309,11 +309,6 @@ export default function CaseDetail() {
   };
 
   const handleAdvancePhase = () => {
-    if (c?.currentPhase === 'final_review') {
-      setSendEmailOnDebrief(true);
-      setDebriefDialogOpen(true);
-      return;
-    }
     advancePhaseMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Phase advanced" });
@@ -323,34 +318,63 @@ export default function CaseDetail() {
     });
   };
 
-  const handleDebriefConfirm = async () => {
-    setDebriefAdvancing(true);
+  const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
+
+  const buildInviteRecipients = () => {
+    const list: { key: string; email: string; name: string | null; type: "parent" | "teacher"; lang?: "en" | "zh" | "ko" }[] = [];
+    if (c?.parentEmail) {
+      const lang = (c.languagePreference ?? "english").toLowerCase();
+      list.push({
+        key: `parent:${c.parentEmail}`,
+        email: c.parentEmail,
+        name: c.parentName ?? null,
+        type: "parent",
+        lang: lang.includes("mandarin") || lang.includes("chinese") ? "zh" : lang.includes("korean") ? "ko" : "en",
+      });
+    }
+    const seen = new Set<string>();
+    for (const a of c?.assignments ?? []) {
+      if (!TEACHER_TYPES.has(a.respondentType ?? "")) continue;
+      const email = a.assignedToEmail?.trim();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      list.push({ key: `teacher:${email}`, email, name: a.assignedToName ?? null, type: "teacher" });
+    }
+    return list;
+  };
+
+  const handleOpenSendInvite = () => {
+    const recipients = buildInviteRecipients();
+    const checked: Record<string, boolean> = {};
+    for (const r of recipients) checked[r.key] = true;
+    setInviteChecked(checked);
+    setSendInviteOpen(true);
+  };
+
+  const handleSendInvite = async () => {
+    const allRecipients = buildInviteRecipients();
+    const selected = allRecipients.filter(r => inviteChecked[r.key]);
+    if (selected.length === 0) { toast({ title: "No recipients selected", variant: "destructive" }); return; }
+    setSendingInvite(true);
     try {
       const token = localStorage.getItem("raos_token");
       const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
-      const res = await fetch(`${basePath}/api/cases/${caseId}/advance`, {
+      const res = await fetch(`${basePath}/api/cases/${caseId}/debrief-invite`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ sendDebriefEmail: sendEmailOnDebrief }),
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ recipients: selected.map(r => ({ email: r.email, name: r.name, type: r.type, lang: r.lang })) }),
       });
+      const data = await res.json();
       if (res.ok) {
-        setDebriefDialogOpen(false);
-        toast({
-          title: "Case moved to Debrief",
-          description: sendEmailOnDebrief ? "Meeting invite email sent to parent." : "No email sent.",
-        });
-        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-        queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+        setSendInviteOpen(false);
+        toast({ title: `Invite sent to ${data.sent?.length ?? selected.length} recipient${selected.length !== 1 ? "s" : ""}` });
       } else {
-        toast({ title: "Failed to advance phase", variant: "destructive" });
+        toast({ title: "Failed to send invite", variant: "destructive" });
       }
     } catch {
       toast({ title: "Network error", variant: "destructive" });
     } finally {
-      setDebriefAdvancing(false);
+      setSendingInvite(false);
     }
   };
 
@@ -763,6 +787,16 @@ export default function CaseDetail() {
                       {meetingLinkCopied ? 'Copied!' : 'Copy'}
                     </Button>
                   </div>
+                  {c.currentPhase === 'debrief' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2 mt-1"
+                      onClick={handleOpenSendInvite}
+                    >
+                      <Mail size={13} /> Send Meeting Invite
+                    </Button>
+                  )}
 
                   {/* Custom URL editor */}
                   {editingMeetingUrl ? (
@@ -1277,62 +1311,51 @@ export default function CaseDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Debrief Phase Advance Dialog */}
-      <Dialog open={debriefDialogOpen} onOpenChange={open => { if (!open) setDebriefDialogOpen(false); }}>
+      {/* Send Meeting Invite Dialog */}
+      <Dialog open={sendInviteOpen} onOpenChange={open => { if (!open) setSendInviteOpen(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Video size={18} className="text-emerald-600" /> Advance to Debrief
+              <Mail size={18} className="text-emerald-600" /> Send Meeting Invite
             </DialogTitle>
             <DialogDescription>
-              You're moving <span className="font-semibold text-slate-900">{c?.studentName}</span>'s case to the Debrief phase. Choose how to handle the parent notification below.
+              Choose who should receive the debrief meeting link for <span className="font-semibold text-slate-900">{c?.studentName}</span>.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2 space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50">
-              <Checkbox
-                id="send-debrief-email"
-                checked={sendEmailOnDebrief}
-                onCheckedChange={v => setSendEmailOnDebrief(!!v)}
-                className="mt-0.5"
-              />
-              <div className="space-y-1">
-                <Label htmlFor="send-debrief-email" className="text-sm font-medium cursor-pointer">
-                  Send meeting invite emails
-                </Label>
-                {c?.parentEmail && (
-                  <p className="text-xs text-slate-500">Parent: {c.parentEmail}</p>
-                )}
-                {(() => {
-                  const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
-                  const teacherEmails = [...new Set(
-                    (c?.assignments ?? [])
-                      .filter(a => TEACHER_TYPES.has(a.respondentType ?? "") && a.assignedToEmail)
-                      .map(a => a.assignedToEmail!)
-                  )];
-                  return teacherEmails.length > 0 ? (
-                    <p className="text-xs text-slate-500">Teachers: {teacherEmails.join(", ")}</p>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No teacher emails on file</p>
-                  );
-                })()}
-                {!c?.parentEmail && (c?.assignments ?? []).filter(a => ["teacher1","teacher2","referring_teacher","special_needs_teacher","school_counselor"].includes(a.respondentType ?? "") && a.assignedToEmail).length === 0 && (
-                  <p className="text-xs text-amber-600">No recipient emails found on this case</p>
-                )}
-              </div>
-            </div>
-            {!sendEmailOnDebrief && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                No emails will be sent. You can share the meeting link manually from the case page.
+          <div className="py-2 space-y-2">
+            {buildInviteRecipients().length === 0 ? (
+              <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                No email addresses found on this case. Add a parent or teacher email first.
               </p>
+            ) : (
+              buildInviteRecipients().map(r => (
+                <div key={r.key} className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50">
+                  <Checkbox
+                    id={r.key}
+                    checked={!!inviteChecked[r.key]}
+                    onCheckedChange={v => setInviteChecked(prev => ({ ...prev, [r.key]: !!v }))}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor={r.key} className="text-sm font-medium cursor-pointer capitalize">
+                      {r.type === "parent" ? "Parent / Guardian" : "Teacher"}
+                      {r.name && <span className="font-normal text-slate-500"> — {r.name}</span>}
+                    </Label>
+                    <p className="text-xs text-slate-400 truncate">{r.email}</p>
+                  </div>
+                </div>
+              ))
             )}
           </div>
           <div className="flex gap-3 mt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setDebriefDialogOpen(false)} disabled={debriefAdvancing}>
+            <Button variant="outline" className="flex-1" onClick={() => setSendInviteOpen(false)} disabled={sendingInvite}>
               Cancel
             </Button>
-            <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleDebriefConfirm} disabled={debriefAdvancing}>
-              {debriefAdvancing ? "Advancing…" : "Confirm & Advance"}
+            <Button
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleSendInvite}
+              disabled={sendingInvite || buildInviteRecipients().every(r => !inviteChecked[r.key])}
+            >
+              {sendingInvite ? "Sending…" : "Send Invite"}
             </Button>
           </div>
         </DialogContent>

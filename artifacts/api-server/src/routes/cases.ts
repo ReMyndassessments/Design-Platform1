@@ -287,67 +287,53 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     updatedAt: new Date(),
   }).where(eq(casesTable.id, req.params.caseId)).returning();
 
-  // Send debrief invite email to parent when advancing to debrief phase
-  const sendDebriefEmail = req.body?.sendDebriefEmail !== false; // default true
-  if (next === "debrief" && sendDebriefEmail) {
-    const caseRow = rows[0];
-    const parentEmail = caseRow.parentEmail;
-    const studentName = caseRow.studentName;
-    const parentName = caseRow.parentName;
-    const lang = (caseRow.languagePreference ?? "english").toLowerCase();
-    const caseId = req.params.caseId;
-    const base = getBaseUrl(req as any);
-    const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
-    const meetingUrl = `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}`;
+  res.json(formatCase(updated[0]));
+});
 
-    // Send to parent
-    if (parentEmail) {
-      try {
-        const isChinese = lang.includes("mandarin") || lang.includes("chinese");
-        const isKorean = lang.includes("korean");
-        const subject = isChinese
-          ? `汇报会议邀请 — ${studentName}`
-          : isKorean
-          ? `결과 설명 회의 초대 — ${studentName}`
-          : `Debrief Meeting Invitation — ${studentName}`;
-        const html = buildDebriefEmail(
-          isChinese ? "zh" : isKorean ? "ko" : "en",
-          studentName,
-          parentName,
-          meetingUrl,
-          "parent"
-        );
-        await sendEmail({ to: parentEmail, subject, html });
-      } catch (err) {
-        console.error("[debrief-email] Failed to send parent invite:", err);
-      }
-    }
+// ── Send debrief meeting invite manually ──────────────────────────────────────
+router.post("/cases/:caseId/debrief-invite", authMiddleware, async (req, res) => {
+  const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!rows[0]) { res.status(404).json({ error: "not_found" }); return; }
 
-    // Send to teachers (unique emails from teacher/referring_teacher assignments)
+  const caseRow = rows[0];
+  const studentName = caseRow.studentName;
+  const base = getBaseUrl(req as any);
+  const roomName = `raos-${req.params.caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
+  const meetingUrl = caseRow.customMeetingUrl || `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}`;
+
+  // recipients: [{ email, name, type: "parent" | "teacher", lang?: "en"|"zh"|"ko" }]
+  const { recipients } = req.body as {
+    recipients: { email: string; name?: string; type: "parent" | "teacher"; lang?: "en" | "zh" | "ko" }[];
+  };
+
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    res.status(400).json({ error: "No recipients provided" }); return;
+  }
+
+  const sent: string[] = [];
+  const failed: string[] = [];
+
+  for (const r of recipients) {
+    if (!r.email) continue;
     try {
-      const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
-      const teacherAssignments = await db
-        .select()
-        .from(assignmentsTable)
-        .where(eq(assignmentsTable.caseId, req.params.caseId));
-      const teacherEmailsSeen = new Set<string>();
-      for (const a of teacherAssignments) {
-        if (!TEACHER_TYPES.has(a.respondentType ?? "")) continue;
-        const email = a.assignedToEmail?.trim();
-        if (!email || teacherEmailsSeen.has(email)) continue;
-        teacherEmailsSeen.add(email);
-        await sendEmail({
-          to: email,
-          subject: `Debrief Meeting Invitation — ${studentName}`,
-          html: buildDebriefEmail("en", studentName, a.assignedToName ?? null, meetingUrl, "teacher"),
-        });
-      }
+      const lang = r.lang ?? "en";
+      const isParent = r.type === "parent";
+      const subject = isParent
+        ? (lang === "zh" ? `汇报会议邀请 — ${studentName}` : lang === "ko" ? `결과 설명 회의 초대 — ${studentName}` : `Debrief Meeting Invitation — ${studentName}`)
+        : `Debrief Meeting Invitation — ${studentName}`;
+      await sendEmail({
+        to: r.email,
+        subject,
+        html: buildDebriefEmail(lang, studentName, r.name ?? null, meetingUrl, r.type),
+      });
+      sent.push(r.email);
     } catch (err) {
-      console.error("[debrief-email] Failed to send teacher invites:", err);
+      console.error(`[debrief-invite] Failed to send to ${r.email}:`, err);
+      failed.push(r.email);
     }
   }
 
-  res.json(formatCase(updated[0]));
+  res.json({ sent, failed });
 });
 
 router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
