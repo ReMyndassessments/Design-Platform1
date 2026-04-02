@@ -880,7 +880,7 @@ export default function CaseDetail() {
                         {activeGuestUrl}
                       </div>
                       <div className="flex gap-2">
-                        <a href={`https://meet.jit.si/${roomName}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                        <a href={activeGuestUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
                           <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2" size="sm">
                             <Video size={14} /> Join Meeting
                           </Button>
