@@ -23,7 +23,7 @@ import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, 
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
-  Send, Mail, Link2, LayoutGrid, Video, CopyCheck
+  Send, Mail, Link2, LayoutGrid, Video, CopyCheck, ShieldCheck
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -795,6 +795,14 @@ export default function CaseDetail() {
                       ? 'Share the link with parents to bring them into the meeting room.'
                       : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
                   </p>
+
+                  {/* Host tip */}
+                  <div className="flex items-start gap-2 bg-emerald-100/60 border border-emerald-200 rounded-lg px-3 py-2">
+                    <ShieldCheck size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      <span className="font-semibold">To enter as host:</span> click <em>Join Meeting</em> before your clients do. The first person into the room is automatically the moderator and gets full host controls — mute others, remove participants, set a room password, etc.
+                    </p>
+                  </div>
 
                   {/* Current meeting link display */}
                   <div className="bg-white/70 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-mono text-slate-700 break-all">
