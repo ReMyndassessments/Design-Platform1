@@ -822,16 +822,15 @@ export default function CaseDetail() {
                     /* ── No room yet: single generate button ── */
                     <>
                       <p className="text-xs text-emerald-700">
-                        Generate a unique meeting room. You and your client both use the same link — join first to become the host.
+                        Opens Jitsi Moderated Meetings — you'll get a host link and a separate guest link to share with your client.
                       </p>
                       <Button
                         size="sm"
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                        disabled={creatingModeratedMeeting}
-                        onClick={handleCreateModeratedMeeting}
+                        onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
                       >
                         <Video size={14} />
-                        {creatingModeratedMeeting ? 'Generating room…' : 'Generate Meeting Room'}
+                        Generate Meeting Room
                       </Button>
                     </>
                   ) : (
