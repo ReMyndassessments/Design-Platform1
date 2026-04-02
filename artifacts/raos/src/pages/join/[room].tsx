@@ -41,19 +41,23 @@ export default function JoinMeetingPage() {
     setLoading(true);
     await loadScript();
     setJoined(true);
-    // initApi runs in useEffect after joined=true causes re-render
   }
 
-  // Once joined=true, the container div is visible — initialise Jitsi then
   useEffect(() => {
     if (!joined) return;
     const timer = setTimeout(() => {
-      if (!containerRef.current || !window.JitsiMeetExternalAPI) return;
+      const el = containerRef.current;
+      if (!el || !window.JitsiMeetExternalAPI) return;
+
+      // Measure actual rendered pixel dimensions so Jitsi fills the space exactly
+      const h = el.getBoundingClientRect().height || window.innerHeight - 65;
+      const w = el.getBoundingClientRect().width || window.innerWidth;
+
       apiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
         roomName,
-        parentNode: containerRef.current,
-        width: "100%",
-        height: "100%",
+        parentNode: el,
+        width: w,
+        height: h,
         configOverwrite: {
           startWithAudioMuted: true,
           disableDeepLinking: true,
@@ -71,19 +75,18 @@ export default function JoinMeetingPage() {
           DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
         },
       });
+
       setLoading(false);
-    }, 150); // small delay to let React commit the DOM update
+    }, 200);
     return () => clearTimeout(timer);
   }, [joined, roomName, sessionLabel]);
 
   useEffect(() => {
-    return () => {
-      apiRef.current?.dispose();
-    };
+    return () => { apiRef.current?.dispose(); };
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900 shrink-0">
         <div className="flex items-center gap-3">
@@ -106,7 +109,7 @@ export default function JoinMeetingPage() {
         </div>
       </div>
 
-      {/* Pre-join screen — hidden once joined */}
+      {/* Pre-join screen */}
       {!joined && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
           <div className="text-center space-y-3 max-w-md">
@@ -148,10 +151,10 @@ export default function JoinMeetingPage() {
         </div>
       )}
 
-      {/* Jitsi container — always in the DOM once joined so the ref is stable */}
+      {/* Jitsi container — always in DOM once joined so ref is stable */}
       <div
         ref={containerRef}
-        className={joined ? "flex-1 relative min-h-0" : "hidden"}
+        className={joined ? "flex-1 overflow-hidden" : "hidden"}
       />
     </div>
   );
