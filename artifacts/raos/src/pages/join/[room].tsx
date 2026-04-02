@@ -12,8 +12,10 @@ declare global {
 export default function JoinMeetingPage() {
   const params = useParams<{ room: string }>();
   const search = useSearch();
-  const roomName = params.room;
-  const studentName = new URLSearchParams(search).get("student") ?? "";
+  const qs = new URLSearchParams(search);
+  const studentName = qs.get("student") ?? "";
+  // jitsiRoom overrides the route param when it's a moderated room (e.g. "moderated/XXXX")
+  const roomName = qs.get("jitsiRoom") ?? params.room;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);

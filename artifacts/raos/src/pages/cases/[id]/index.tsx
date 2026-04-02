@@ -127,6 +127,8 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
+  const [moderatorLinkCopied, setModeratorLinkCopied] = useState(false);
+  const [creatingModeratedMeeting, setCreatingModeratedMeeting] = useState(false);
   const [sendInviteOpen, setSendInviteOpen] = useState(false);
   const [inviteChecked, setInviteChecked] = useState<Record<string, boolean>>({});
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -358,6 +360,29 @@ export default function CaseDetail() {
     }
 
     return list;
+  };
+
+  const handleCreateModeratedMeeting = async () => {
+    setCreatingModeratedMeeting(true);
+    try {
+      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const token = localStorage.getItem("raos_token");
+      const resp = await fetch(`${apiBase}/api/cases/${caseId}/create-moderated-meeting`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        const d = await resp.json();
+        toast({ title: d.message ?? "Failed to create moderated meeting", variant: "destructive" });
+      } else {
+        toast({ title: "Moderated meeting created" });
+        queryClient.invalidateQueries({ queryKey: ["case", caseId] });
+      }
+    } catch {
+      toast({ title: "Network error — please try again", variant: "destructive" });
+    } finally {
+      setCreatingModeratedMeeting(false);
+    }
   };
 
   const handleOpenSendInvite = () => {
@@ -767,15 +792,32 @@ export default function CaseDetail() {
             const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
             const base = window.location.origin;
             const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
-            const brandedJitsiUrl = `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
-            const jitsiUrl = `https://meet.jit.si/${roomName}`;
-            const activeUrl = c.customMeetingUrl ?? brandedJitsiUrl;
-            const isCustom = !!c.customMeetingUrl;
-            const joinUrl = isCustom ? c.customMeetingUrl! : jitsiUrl;
-            const handleCopyMeeting = () => {
-              navigator.clipboard.writeText(activeUrl);
+
+            // Moderated meeting: guest URL stored in customMeetingUrl, moderator URL separate
+            const isModerated = !!c.moderatorMeetingUrl;
+            const guestJitsiRoom = (() => {
+              if (!isModerated || !c.customMeetingUrl) return null;
+              try { return new URL(c.customMeetingUrl).pathname.slice(1); } // e.g. "moderated/XXXX"
+              catch { return null; }
+            })();
+            const brandedGuestUrl = guestJitsiRoom
+              ? `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}&jitsiRoom=${encodeURIComponent(guestJitsiRoom)}`
+              : `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
+
+            const activeGuestUrl = brandedGuestUrl;
+            // isCustom: user has set a non-Jitsi platform URL (not the same as moderated)
+            const isCustom = !!c.customMeetingUrl && !isModerated;
+
+            const handleCopyGuestLink = () => {
+              navigator.clipboard.writeText(activeGuestUrl);
               setMeetingLinkCopied(true);
               setTimeout(() => setMeetingLinkCopied(false), 2000);
+            };
+            const handleCopyModeratorLink = () => {
+              if (!c.moderatorMeetingUrl) return;
+              navigator.clipboard.writeText(c.moderatorMeetingUrl);
+              setModeratorLinkCopied(true);
+              setTimeout(() => setModeratorLinkCopied(false), 2000);
             };
             const handleStartEdit = () => {
               setMeetingUrlDraft(c.customMeetingUrl ?? "");
@@ -792,46 +834,91 @@ export default function CaseDetail() {
                 <CardContent className="p-4 space-y-3">
                   <p className="text-xs text-emerald-700">
                     {c.currentPhase === 'debrief'
-                      ? 'Share the link with parents to bring them into the meeting room.'
+                      ? 'Share the guest link with parents to bring them into the meeting room.'
                       : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
                   </p>
 
-                  {/* Host tip */}
-                  <div className="flex items-start gap-2 bg-emerald-100/60 border border-emerald-200 rounded-lg px-3 py-2">
-                    <ShieldCheck size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-emerald-800 leading-relaxed">
-                      <span className="font-semibold">To enter as host:</span> click <em>Join Meeting</em> before your clients do. The first person into the room is automatically the moderator and gets full host controls — mute others, remove participants, set a room password, etc.
-                    </p>
-                  </div>
-
-                  {/* Current meeting link display */}
-                  <div className="bg-white/70 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-mono text-slate-700 break-all">
-                    {activeUrl}
-                  </div>
-
-                  {isCustom && (
-                    <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                      ⚡ Using custom platform — Jitsi room still available if needed
-                    </p>
+                  {/* Moderated meeting panel */}
+                  {isModerated ? (
+                    <div className="space-y-2">
+                      {/* Moderator row */}
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 flex items-center gap-1"><ShieldCheck size={10}/> Your Moderator Link</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[11px] font-mono text-indigo-900 truncate flex-1">{c.moderatorMeetingUrl}</p>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-indigo-600 hover:text-indigo-800" onClick={handleCopyModeratorLink}>
+                            {moderatorLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                          </Button>
+                        </div>
+                        <a href={c.moderatorMeetingUrl!} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2 mt-1">
+                            <ShieldCheck size={13}/> Join as Moderator
+                          </Button>
+                        </a>
+                      </div>
+                      {/* Guest row */}
+                      <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Guest Link (share with clients)</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{activeGuestUrl}</p>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-emerald-600 hover:text-emerald-800" onClick={handleCopyGuestLink}>
+                            {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Standard (non-moderated) meeting */
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 bg-emerald-100/60 border border-emerald-200 rounded-lg px-3 py-2">
+                        <ShieldCheck size={13} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-emerald-800 leading-relaxed">
+                          <span className="font-semibold">To enter as host:</span> join before your clients do — the first person in is automatically the moderator. Or use <strong>Create Moderated Meeting</strong> below for a guaranteed host link.
+                        </p>
+                      </div>
+                      <div className="bg-white/70 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-mono text-slate-700 break-all">
+                        {activeGuestUrl}
+                      </div>
+                      <div className="flex gap-2">
+                        <a href={`https://meet.jit.si/${roomName}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                          <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2" size="sm">
+                            <Video size={14} /> Join Meeting
+                          </Button>
+                        </a>
+                        <Button variant="outline" size="sm" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5" onClick={handleCopyGuestLink}>
+                          {meetingLinkCopied ? <CopyCheck size={14} /> : <Copy size={14} />}
+                          {meetingLinkCopied ? 'Copied!' : 'Copy'}
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 gap-2"
+                        onClick={handleCreateModeratedMeeting}
+                        disabled={creatingModeratedMeeting}
+                      >
+                        <ShieldCheck size={13} /> {creatingModeratedMeeting ? 'Creating…' : 'Create Moderated Meeting'}
+                      </Button>
+                    </div>
                   )}
 
-                  {/* Action buttons */}
-                  <div className="flex gap-2">
-                    <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2" size="sm">
-                        <Video size={14} /> Join Meeting
-                      </Button>
-                    </a>
-                    <Button variant="outline" size="sm" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5" onClick={handleCopyMeeting}>
-                      {meetingLinkCopied ? <CopyCheck size={14} /> : <Copy size={14} />}
-                      {meetingLinkCopied ? 'Copied!' : 'Copy'}
+                  {isModerated && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-slate-400 hover:text-slate-600 text-[10px]"
+                      onClick={handleCreateModeratedMeeting}
+                      disabled={creatingModeratedMeeting}
+                    >
+                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Create new moderated room'}
                     </Button>
-                  </div>
+                  )}
+
                   {c.currentPhase === 'debrief' && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2 mt-1"
+                      className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
                       onClick={handleOpenSendInvite}
                     >
                       <Mail size={13} /> Send Meeting Invite

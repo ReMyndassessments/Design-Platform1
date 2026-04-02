@@ -134,6 +134,7 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     consentObtained: c.consentObtained,
     workingDocUrl: c.workingDocUrl,
     customMeetingUrl: c.customMeetingUrl,
+    moderatorMeetingUrl: c.moderatorMeetingUrl,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -237,7 +238,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
-  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl"];
+  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl"];
   const allowed = req.userRole === "admin" ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {
@@ -334,6 +335,39 @@ router.post("/cases/:caseId/debrief-invite", authMiddleware, async (req, res) =>
   }
 
   res.json({ sent, failed });
+});
+
+// ── Create Jitsi Moderated Meeting ────────────────────────────────────────────
+router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
+
+  try {
+    const response = await fetch("https://api.moderated.jitsi.net/conference", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) throw new Error(`Jitsi API responded ${response.status}`);
+    const data = await response.json() as { id: string; guestUrl: string; moderatorUrl: string };
+
+    // Store guest URL as customMeetingUrl so it's used on the branded join page
+    // Store moderator URL separately so admin can access it
+    await db.update(casesTable)
+      .set({
+        customMeetingUrl: data.guestUrl,
+        moderatorMeetingUrl: data.moderatorUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(casesTable.id, req.params.caseId));
+
+    res.json({ guestUrl: data.guestUrl, moderatorUrl: data.moderatorUrl });
+  } catch (err) {
+    console.error("Failed to create moderated meeting:", err);
+    res.status(502).json({ error: "jitsi_api_failed", message: "Could not create a moderated meeting. Try again." });
+  }
 });
 
 router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
