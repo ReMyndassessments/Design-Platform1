@@ -354,9 +354,10 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
     const data = await response.json() as { meetingId: string };
     if (!data.meetingId) throw new Error("No meetingId returned");
 
-    // Guest URL: meet.jit.si with the moderated room path
+    // Guest URL: meet.jit.si/moderated/{meetingId}  (as shown on moderated.jitsi.net)
+    // Moderator URL: moderated.jitsi.net/{meetingId} → Jitsi auth → same room as host
+    // Both use the same meetingId — they land in the same Jitsi room.
     const guestUrl = `https://meet.jit.si/moderated/${data.meetingId}`;
-    // Moderator URL: moderated.jitsi.net handles host auth via Jitsi login
     const moderatorUrl = `https://moderated.jitsi.net/${data.meetingId}`;
 
     // Store guest URL as customMeetingUrl so it's used on the branded join page
