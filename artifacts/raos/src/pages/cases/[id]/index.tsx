@@ -790,31 +790,11 @@ export default function CaseDetail() {
 
           {/* Meeting Room — visible during assessment and debrief phases */}
           {['assessment', 'scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (() => {
-            const roomName = `raos-${caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
-            const base = window.location.origin;
-            const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
-
-            // Moderated meeting: the API creates a meetingId; guest URL uses meet.jit.si/moderated/{id}
-            // (no sign-in for guests), moderator URL uses moderated.jitsi.net/{id} (Jitsi account required).
+            // isModerated = room created via moderated.jitsi.net API (guaranteed host)
+            // isCustom = user pasted a Zoom/Teams/other URL manually
             const isModerated = !!c.moderatorMeetingUrl;
-            const guestJitsiRoom = (() => {
-              if (!isModerated || !c.customMeetingUrl) return null;
-              try { return new URL(c.customMeetingUrl).pathname.slice(1); } // e.g. "moderated/XXXX"
-              catch { return null; }
-            })();
-            // Guest branded URL wraps the Jitsi room in the ReMynd join page
-            const brandedUrl = `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
-            const brandedGuestUrl = guestJitsiRoom
-              ? `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}&jitsiRoom=${encodeURIComponent(guestJitsiRoom)}`
-              : brandedUrl;
             const isCustom = !!c.customMeetingUrl && !isModerated;
-            const activeGuestUrl = isCustom ? c.customMeetingUrl! : brandedGuestUrl;
 
-            const handleCopyGuestLink = () => {
-              navigator.clipboard.writeText(activeGuestUrl);
-              setMeetingLinkCopied(true);
-              setTimeout(() => setMeetingLinkCopied(false), 2000);
-            };
             const handleStartEdit = () => {
               setMeetingUrlDraft(c.customMeetingUrl ?? "");
               setEditingMeetingUrl(true);
@@ -828,64 +808,109 @@ export default function CaseDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
-                  <p className="text-xs text-emerald-700">
-                    {c.currentPhase === 'debrief'
-                      ? 'Share the client link below. You join as moderator — guaranteed host regardless of who connects first.'
-                      : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
-                  </p>
 
-                  {/* Admin: Join as Moderator — opens moderated.jitsi.net which requires Jitsi account sign-in */}
-                  <Button
-                    size="sm"
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                    disabled={creatingModeratedMeeting}
-                    onClick={async () => {
-                      if (c.moderatorMeetingUrl) {
-                        window.open(c.moderatorMeetingUrl, "_blank");
-                      } else {
-                        const url = await handleCreateModeratedMeeting();
-                        if (url) window.open(url, "_blank");
-                      }
-                    }}
-                  >
-                    <ShieldCheck size={14} />
-                    {creatingModeratedMeeting ? 'Setting up room…' : 'Join as Moderator'}
-                  </Button>
-
-                  {/* Guest/client branded link */}
-                  <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Client link — share with parents / teachers</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{activeGuestUrl}</p>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800" onClick={handleCopyGuestLink}>
-                        {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                  {!isModerated && !isCustom ? (
+                    /* ── No room yet: single generate button ── */
+                    <>
+                      <p className="text-xs text-emerald-700">
+                        Generate a moderated room — you'll get a host link and a guest link to share.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                        disabled={creatingModeratedMeeting}
+                        onClick={async () => {
+                          const url = await handleCreateModeratedMeeting();
+                          if (url) window.open(url, "_blank");
+                        }}
+                      >
+                        <Video size={14} />
+                        {creatingModeratedMeeting ? 'Generating room…' : 'Generate Meeting Room'}
                       </Button>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    /* ── Room exists: moderator button + guest link ── */
+                    <>
+                      {/* Join as Moderator */}
+                      {isModerated && (
+                        <Button
+                          size="sm"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                          onClick={() => window.open(c.moderatorMeetingUrl!, "_blank")}
+                        >
+                          <ShieldCheck size={14} />
+                          Join as Moderator
+                        </Button>
+                      )}
 
-                  {/* Generate a new moderated room pair */}
-                  {isModerated && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
-                      onClick={handleCreateModeratedMeeting}
-                      disabled={creatingModeratedMeeting}
-                    >
-                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
-                    </Button>
-                  )}
+                      {/* Naked guest link to copy */}
+                      {isModerated && c.customMeetingUrl && (
+                        <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Guest link — share with clients</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{c.customMeetingUrl}</p>
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800"
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.customMeetingUrl!);
+                                setMeetingLinkCopied(true);
+                                setTimeout(() => setMeetingLinkCopied(false), 2000);
+                              }}
+                            >
+                              {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
-                  {c.currentPhase === 'debrief' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
-                      onClick={handleOpenSendInvite}
-                    >
-                      <Mail size={13} /> Send Meeting Invite
-                    </Button>
+                      {/* Custom URL editor output */}
+                      {isCustom && (
+                        <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Meeting link</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{c.customMeetingUrl}</p>
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800"
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.customMeetingUrl!);
+                                setMeetingLinkCopied(true);
+                                setTimeout(() => setMeetingLinkCopied(false), 2000);
+                              }}
+                            >
+                              {meetingLinkCopied ? <CopyCheck size={12}/> : <Copy size={12}/>}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Generate a new room */}
+                      {isModerated && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
+                          onClick={handleCreateModeratedMeeting}
+                          disabled={creatingModeratedMeeting}
+                        >
+                          {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
+                        </Button>
+                      )}
+
+                      {/* Send invite — debrief only */}
+                      {c.currentPhase === 'debrief' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
+                          onClick={handleOpenSendInvite}
+                        >
+                          <Mail size={13} /> Send Meeting Invite
+                        </Button>
+                      )}
+                    </>
                   )}
 
                   {/* Custom URL editor */}
