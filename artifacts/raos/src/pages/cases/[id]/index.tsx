@@ -127,8 +127,6 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
-  const [moderatorLinkCopied, setModeratorLinkCopied] = useState(false);
-  const [creatingModeratedMeeting, setCreatingModeratedMeeting] = useState(false);
   const [sendInviteOpen, setSendInviteOpen] = useState(false);
   const [inviteChecked, setInviteChecked] = useState<Record<string, boolean>>({});
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -360,31 +358,6 @@ export default function CaseDetail() {
     }
 
     return list;
-  };
-
-  const handleCreateModeratedMeeting = async (): Promise<string | null> => {
-    setCreatingModeratedMeeting(true);
-    try {
-      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const token = localStorage.getItem("raos_token");
-      const resp = await fetch(`${apiBase}/api/cases/${caseId}/create-moderated-meeting`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resp.ok) {
-        const d = await resp.json();
-        toast({ title: d.message ?? "Failed to create moderated meeting", variant: "destructive" });
-        return null;
-      }
-      const d = await resp.json();
-      queryClient.invalidateQueries({ queryKey: ["case", caseId] });
-      return d.moderatorUrl as string;
-    } catch {
-      toast({ title: "Network error — please try again", variant: "destructive" });
-      return null;
-    } finally {
-      setCreatingModeratedMeeting(false);
-    }
   };
 
   const handleOpenSendInvite = () => {
@@ -795,31 +768,16 @@ export default function CaseDetail() {
             const base = window.location.origin;
             const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
 
-            // Moderated meeting: guest URL stored in customMeetingUrl, moderator URL separate
-            const isModerated = !!c.moderatorMeetingUrl;
-            const guestJitsiRoom = (() => {
-              if (!isModerated || !c.customMeetingUrl) return null;
-              try { return new URL(c.customMeetingUrl).pathname.slice(1); } // e.g. "moderated/XXXX"
-              catch { return null; }
-            })();
-            const brandedGuestUrl = guestJitsiRoom
-              ? `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}&jitsiRoom=${encodeURIComponent(guestJitsiRoom)}`
-              : `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
-
-            const activeGuestUrl = brandedGuestUrl;
-            // isCustom: user has set a non-Jitsi platform URL (not the same as moderated)
-            const isCustom = !!c.customMeetingUrl && !isModerated;
+            // Standard Jitsi room — no sign-in required for anyone.
+            // The first person to join automatically becomes the host/moderator.
+            const brandedUrl = `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
+            const isCustom = !!c.customMeetingUrl;
+            const activeGuestUrl = isCustom ? c.customMeetingUrl! : brandedUrl;
 
             const handleCopyGuestLink = () => {
               navigator.clipboard.writeText(activeGuestUrl);
               setMeetingLinkCopied(true);
               setTimeout(() => setMeetingLinkCopied(false), 2000);
-            };
-            const handleCopyModeratorLink = () => {
-              if (!c.moderatorMeetingUrl) return;
-              navigator.clipboard.writeText(c.moderatorMeetingUrl);
-              setModeratorLinkCopied(true);
-              setTimeout(() => setModeratorLinkCopied(false), 2000);
             };
             const handleStartEdit = () => {
               setMeetingUrlDraft(c.customMeetingUrl ?? "");
@@ -836,31 +794,23 @@ export default function CaseDetail() {
                 <CardContent className="p-4 space-y-3">
                   <p className="text-xs text-emerald-700">
                     {c.currentPhase === 'debrief'
-                      ? 'Share the guest link with parents to bring them into the meeting room.'
+                      ? 'Join first to become the host, then share the link below with clients.'
                       : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
                   </p>
 
-                  {/* Admin: Join as Moderator */}
+                  {/* Admin: Join the room (first to join = host) */}
                   <Button
                     size="sm"
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                    disabled={creatingModeratedMeeting}
-                    onClick={async () => {
-                      if (c.moderatorMeetingUrl) {
-                        window.open(c.moderatorMeetingUrl, "_blank");
-                      } else {
-                        const url = await handleCreateModeratedMeeting();
-                        if (url) window.open(url, "_blank");
-                      }
-                    }}
+                    onClick={() => window.open(brandedUrl, "_blank")}
                   >
                     <ShieldCheck size={14} />
-                    {creatingModeratedMeeting ? 'Setting up room…' : 'Join as Moderator'}
+                    Join as Host
                   </Button>
 
                   {/* Guest link to share with clients */}
                   <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Guest link — share with clients</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Client link — share with parents / teachers</p>
                     <div className="flex items-center gap-2">
                       <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{activeGuestUrl}</p>
                       <Button size="sm" variant="ghost" className="h-6 px-2 shrink-0 text-emerald-600 hover:text-emerald-800" onClick={handleCopyGuestLink}>
@@ -868,20 +818,6 @@ export default function CaseDetail() {
                       </Button>
                     </div>
                   </div>
-
-                  {/* Refresh room (generates a new moderated room pair) */}
-                  {isModerated && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
-                      onClick={handleCreateModeratedMeeting}
-                      disabled={creatingModeratedMeeting}
-                    >
-                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
-                    </Button>
-                  )}
 
                   {c.currentPhase === 'debrief' && (
                     <Button
