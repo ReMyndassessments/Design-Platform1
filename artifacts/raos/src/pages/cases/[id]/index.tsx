@@ -882,18 +882,32 @@ export default function CaseDetail() {
                         </div>
                       )}
 
-                      {/* Generate a new room */}
+                      {/* Generate a new room / Remove room */}
                       {isModerated && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
-                          onClick={handleCreateModeratedMeeting}
-                          disabled={creatingModeratedMeeting}
-                        >
-                          {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
+                            onClick={handleCreateModeratedMeeting}
+                            disabled={creatingModeratedMeeting}
+                          >
+                            {creatingModeratedMeeting ? 'Creating…' : '↻ New Room'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => updateCaseMut.mutate(
+                              { caseId, data: { customMeetingUrl: null, moderatorMeetingUrl: null } as any },
+                              { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["case", caseId] }) }
+                            )}
+                          >
+                            ✕ Remove
+                          </Button>
+                        </div>
                       )}
 
                       {/* Send invite — debrief only */}
