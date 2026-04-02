@@ -127,6 +127,7 @@ export default function CaseDetail() {
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
+  const [creatingModeratedMeeting, setCreatingModeratedMeeting] = useState(false);
   const [sendInviteOpen, setSendInviteOpen] = useState(false);
   const [inviteChecked, setInviteChecked] = useState<Record<string, boolean>>({});
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -358,6 +359,31 @@ export default function CaseDetail() {
     }
 
     return list;
+  };
+
+  const handleCreateModeratedMeeting = async (): Promise<string | null> => {
+    setCreatingModeratedMeeting(true);
+    try {
+      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const token = localStorage.getItem("raos_token");
+      const resp = await fetch(`${apiBase}/api/cases/${caseId}/create-moderated-meeting`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        const d = await resp.json();
+        toast({ title: d.message ?? "Failed to create moderated meeting", variant: "destructive" });
+        return null;
+      }
+      const d = await resp.json();
+      queryClient.invalidateQueries({ queryKey: ["case", caseId] });
+      return d.moderatorUrl as string;
+    } catch {
+      toast({ title: "Network error — please try again", variant: "destructive" });
+      return null;
+    } finally {
+      setCreatingModeratedMeeting(false);
+    }
   };
 
   const handleOpenSendInvite = () => {
@@ -768,11 +794,21 @@ export default function CaseDetail() {
             const base = window.location.origin;
             const basePath = import.meta.env.BASE_URL?.replace(/\/$/, '') ?? '';
 
-            // Standard Jitsi room — no sign-in required for anyone.
-            // The first person to join automatically becomes the host/moderator.
+            // Moderated meeting: the API creates a meetingId; guest URL uses meet.jit.si/moderated/{id}
+            // (no sign-in for guests), moderator URL uses moderated.jitsi.net/{id} (Jitsi account required).
+            const isModerated = !!c.moderatorMeetingUrl;
+            const guestJitsiRoom = (() => {
+              if (!isModerated || !c.customMeetingUrl) return null;
+              try { return new URL(c.customMeetingUrl).pathname.slice(1); } // e.g. "moderated/XXXX"
+              catch { return null; }
+            })();
+            // Guest branded URL wraps the Jitsi room in the ReMynd join page
             const brandedUrl = `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}`;
-            const isCustom = !!c.customMeetingUrl;
-            const activeGuestUrl = isCustom ? c.customMeetingUrl! : brandedUrl;
+            const brandedGuestUrl = guestJitsiRoom
+              ? `${base}${basePath}/join/${roomName}?student=${encodeURIComponent(c.studentName)}&jitsiRoom=${encodeURIComponent(guestJitsiRoom)}`
+              : brandedUrl;
+            const isCustom = !!c.customMeetingUrl && !isModerated;
+            const activeGuestUrl = isCustom ? c.customMeetingUrl! : brandedGuestUrl;
 
             const handleCopyGuestLink = () => {
               navigator.clipboard.writeText(activeGuestUrl);
@@ -794,21 +830,29 @@ export default function CaseDetail() {
                 <CardContent className="p-4 space-y-3">
                   <p className="text-xs text-emerald-700">
                     {c.currentPhase === 'debrief'
-                      ? 'Join first to become the host, then share the link below with clients.'
+                      ? 'Share the client link below. You join as moderator — guaranteed host regardless of who connects first.'
                       : 'Join this room to observe the assessment remotely. Share with Hayley to open on her device.'}
                   </p>
 
-                  {/* Admin: Join the room (first to join = host) */}
+                  {/* Admin: Join as Moderator — opens moderated.jitsi.net which requires Jitsi account sign-in */}
                   <Button
                     size="sm"
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                    onClick={() => window.open(brandedUrl, "_blank")}
+                    disabled={creatingModeratedMeeting}
+                    onClick={async () => {
+                      if (c.moderatorMeetingUrl) {
+                        window.open(c.moderatorMeetingUrl, "_blank");
+                      } else {
+                        const url = await handleCreateModeratedMeeting();
+                        if (url) window.open(url, "_blank");
+                      }
+                    }}
                   >
                     <ShieldCheck size={14} />
-                    Join as Host
+                    {creatingModeratedMeeting ? 'Setting up room…' : 'Join as Moderator'}
                   </Button>
 
-                  {/* Guest link to share with clients */}
+                  {/* Guest/client branded link */}
                   <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Client link — share with parents / teachers</p>
                     <div className="flex items-center gap-2">
@@ -818,6 +862,20 @@ export default function CaseDetail() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Generate a new moderated room pair */}
+                  {isModerated && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
+                      onClick={handleCreateModeratedMeeting}
+                      disabled={creatingModeratedMeeting}
+                    >
+                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
+                    </Button>
+                  )}
 
                   {c.currentPhase === 'debrief' && (
                     <Button

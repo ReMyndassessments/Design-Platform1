@@ -15,8 +15,15 @@ export default function JoinMeetingPage() {
   const qs = new URLSearchParams(search);
   const studentName = qs.get("student") ?? "";
 
-  // Use the room name from the URL path directly (standard Jitsi — no sign-in required).
-  const embeddedRoomName = params.room;
+  // jitsiRoom param is set for moderated rooms (e.g. "moderated/XXXX").
+  // The Jitsi External API URL-encodes slashes, sending guests to the wrong room.
+  // For moderated rooms we navigate directly to meet.jit.si/{jitsiRoom} instead.
+  const jitsiRoomParam = qs.get("jitsiRoom");
+  const isModeratedRoom = !!jitsiRoomParam && jitsiRoomParam.includes("/");
+  const directJitsiUrl = isModeratedRoom ? `https://meet.jit.si/${jitsiRoomParam}` : null;
+
+  // For standard rooms, embed via the External API.
+  const embeddedRoomName = jitsiRoomParam && !isModeratedRoom ? jitsiRoomParam : params.room;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
@@ -42,12 +49,17 @@ export default function JoinMeetingPage() {
 
   async function startMeeting() {
     setLoading(true);
+    if (directJitsiUrl) {
+      // Moderated room: navigate directly so the path isn't URL-encoded by the External API
+      window.location.href = directJitsiUrl;
+      return;
+    }
     await loadScript();
     setJoined(true);
   }
 
   useEffect(() => {
-    if (!joined) return;
+    if (!joined || isModeratedRoom) return;
     const timer = setTimeout(() => {
       const el = containerRef.current;
       if (!el || !window.JitsiMeetExternalAPI) return;
@@ -153,7 +165,7 @@ export default function JoinMeetingPage() {
         </div>
       )}
 
-      {/* Jitsi container — only used for standard (non-moderated) rooms */}
+      {/* Jitsi container — embedded for standard rooms; moderated rooms redirect directly */}
       <div
         ref={containerRef}
         className={joined && !isModeratedRoom ? "flex-1 overflow-hidden" : "hidden"}
