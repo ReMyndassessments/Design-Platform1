@@ -843,7 +843,7 @@ export default function CaseDetail() {
                     <div className="space-y-2">
                       {/* Moderator row */}
                       <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 flex items-center gap-1"><ShieldCheck size={10}/> Your Moderator Link</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 flex items-center gap-1"><ShieldCheck size={10}/> Your Moderator Link <span className="font-normal normal-case text-indigo-400">(requires free Jitsi account)</span></p>
                         <div className="flex items-center gap-2">
                           <p className="text-[11px] font-mono text-indigo-900 truncate flex-1">{c.moderatorMeetingUrl}</p>
                           <Button size="sm" variant="ghost" className="h-6 px-2 text-indigo-600 hover:text-indigo-800" onClick={handleCopyModeratorLink}>

@@ -346,24 +346,30 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
   if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
 
   try {
-    const response = await fetch("https://api.moderated.jitsi.net/conference", {
+    // GET https://moderated.jitsi.net/rest/rooms returns { meetingId: "..." }
+    const response = await fetch("https://moderated.jitsi.net/rest/rooms", {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
     });
     if (!response.ok) throw new Error(`Jitsi API responded ${response.status}`);
-    const data = await response.json() as { id: string; guestUrl: string; moderatorUrl: string };
+    const data = await response.json() as { meetingId: string };
+    if (!data.meetingId) throw new Error("No meetingId returned");
+
+    // Guest URL: meet.jit.si with the moderated room path
+    const guestUrl = `https://meet.jit.si/moderated/${data.meetingId}`;
+    // Moderator URL: moderated.jitsi.net handles host auth via Jitsi login
+    const moderatorUrl = `https://moderated.jitsi.net/${data.meetingId}`;
 
     // Store guest URL as customMeetingUrl so it's used on the branded join page
     // Store moderator URL separately so admin can access it
     await db.update(casesTable)
       .set({
-        customMeetingUrl: data.guestUrl,
-        moderatorMeetingUrl: data.moderatorUrl,
+        customMeetingUrl: guestUrl,
+        moderatorMeetingUrl: moderatorUrl,
         updatedAt: new Date(),
       })
       .where(eq(casesTable.id, req.params.caseId));
 
-    res.json({ guestUrl: data.guestUrl, moderatorUrl: data.moderatorUrl });
+    res.json({ guestUrl, moderatorUrl });
   } catch (err) {
     console.error("Failed to create moderated meeting:", err);
     res.status(502).json({ error: "jitsi_api_failed", message: "Could not create a moderated meeting. Try again." });
