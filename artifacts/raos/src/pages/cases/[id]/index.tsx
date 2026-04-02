@@ -130,6 +130,8 @@ export default function CaseDetail() {
   const [sendInviteOpen, setSendInviteOpen] = useState(false);
   const [inviteChecked, setInviteChecked] = useState<Record<string, boolean>>({});
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [extraInviteEmail, setExtraInviteEmail] = useState("");
+  const [extraInviteEmails, setExtraInviteEmails] = useState<string[]>([]);
   const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
@@ -363,13 +365,28 @@ export default function CaseDetail() {
     const checked: Record<string, boolean> = {};
     for (const r of recipients) checked[r.key] = r.defaultChecked;
     setInviteChecked(checked);
+    setExtraInviteEmails([]);
+    setExtraInviteEmail("");
     setSendInviteOpen(true);
+  };
+
+  const handleAddExtraEmail = () => {
+    const email = extraInviteEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) return;
+    if (extraInviteEmails.includes(email)) { setExtraInviteEmail(""); return; }
+    setExtraInviteEmails(prev => [...prev, email]);
+    setExtraInviteEmail("");
   };
 
   const handleSendInvite = async () => {
     const allRecipients = buildInviteRecipients();
     const selected = allRecipients.filter(r => inviteChecked[r.key]);
-    if (selected.length === 0) { toast({ title: "No recipients selected", variant: "destructive" }); return; }
+    const extras = extraInviteEmails.map(email => ({ email, name: null, type: "teacher" as const }));
+    const combined = [
+      ...selected.map(r => ({ email: r.email, name: r.name, type: r.type === "staff" ? "teacher" as const : r.type as "parent" | "teacher", lang: r.lang })),
+      ...extras,
+    ];
+    if (combined.length === 0) { toast({ title: "No recipients selected", variant: "destructive" }); return; }
     setSendingInvite(true);
     try {
       const token = localStorage.getItem("raos_token");
@@ -377,12 +394,12 @@ export default function CaseDetail() {
       const res = await fetch(`${basePath}/api/cases/${caseId}/debrief-invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ recipients: selected.map(r => ({ email: r.email, name: r.name, type: r.type === "staff" ? "teacher" : r.type, lang: r.lang })) }),
+        body: JSON.stringify({ recipients: combined }),
       });
       const data = await res.json();
       if (res.ok) {
         setSendInviteOpen(false);
-        toast({ title: `Invite sent to ${data.sent?.length ?? selected.length} recipient${selected.length !== 1 ? "s" : ""}` });
+        toast({ title: `Invite sent to ${data.sent?.length ?? combined.length} recipient${combined.length !== 1 ? "s" : ""}` });
       } else {
         toast({ title: "Failed to send invite", variant: "destructive" });
       }
@@ -1388,9 +1405,31 @@ export default function CaseDetail() {
                   </div>
                 )}
 
-                {teachers.length === 0 && (
-                  <p className="text-xs text-slate-400 italic">No teacher emails recorded on this case's assignments.</p>
-                )}
+                {/* Add any email manually */}
+                <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Add any recipient</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="any.email@school.com"
+                      value={extraInviteEmail}
+                      onChange={e => setExtraInviteEmail(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddExtraEmail(); } }}
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Button size="sm" variant="outline" className="h-8 px-3 shrink-0" onClick={handleAddExtraEmail}>Add</Button>
+                  </div>
+                  {extraInviteEmails.map(email => (
+                    <div key={email} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50">
+                      <div className="flex-1 text-sm text-slate-700 truncate">{email}</div>
+                      <button
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        onClick={() => setExtraInviteEmails(prev => prev.filter(e => e !== email))}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })()}
