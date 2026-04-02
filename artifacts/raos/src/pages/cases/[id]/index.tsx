@@ -813,7 +813,7 @@ export default function CaseDetail() {
                     /* ── No room yet: single generate button ── */
                     <>
                       <p className="text-xs text-emerald-700">
-                        Generate a moderated room — you'll get a host link and a guest link to share.
+                        Generate a unique meeting room. You and your client both use the same link — join first to become the host.
                       </p>
                       <Button
                         size="sm"
@@ -826,24 +826,27 @@ export default function CaseDetail() {
                       </Button>
                     </>
                   ) : (
-                    /* ── Room exists: moderator button + guest link ── */
+                    /* ── Room exists: join button + shared link ── */
                     <>
-                      {/* Join as Moderator */}
+                      {/* Join Meeting */}
                       {isModerated && (
-                        <Button
-                          size="sm"
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                          onClick={() => window.open(c.moderatorMeetingUrl!, "_blank")}
-                        >
-                          <ShieldCheck size={14} />
-                          Join as Moderator
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                            onClick={() => window.open(c.moderatorMeetingUrl!, "_blank")}
+                          >
+                            <ShieldCheck size={14} />
+                            Join Meeting (as Host)
+                          </Button>
+                          <p className="text-[10px] text-emerald-600 text-center -mt-1">Join before your client — first to join becomes the host</p>
+                        </>
                       )}
 
-                      {/* Naked guest link to copy */}
+                      {/* Shared room link to copy and send to client */}
                       {isModerated && c.customMeetingUrl && (
                         <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Guest link — share with clients</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Room link — share with client</p>
                           <div className="flex items-center gap-2">
                             <p className="text-[11px] font-mono text-slate-700 truncate flex-1">{c.customMeetingUrl}</p>
                             <Button
