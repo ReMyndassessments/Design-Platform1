@@ -930,17 +930,15 @@ export default function CaseDetail() {
                         </div>
                       )}
 
-                      {/* Send invite — debrief only */}
-                      {c.currentPhase === 'debrief' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
-                          onClick={handleOpenSendInvite}
-                        >
-                          <Mail size={13} /> Send Meeting Invite
-                        </Button>
-                      )}
+                      {/* Send invite — available whenever a meeting room exists */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
+                        onClick={handleOpenSendInvite}
+                      >
+                        <Mail size={13} /> Send Meeting Invite
+                      </Button>
                     </>
                   )}
                 </CardContent>
@@ -1446,8 +1444,49 @@ export default function CaseDetail() {
             const teachers = all.filter(r => r.type === "teacher");
             const staff = all.filter(r => r.type === "staff");
 
+            const groupState = (group: typeof all): boolean | "indeterminate" => {
+              if (group.length === 0) return false;
+              const checkedCount = group.filter(r => inviteChecked[r.key]).length;
+              if (checkedCount === 0) return false;
+              if (checkedCount === group.length) return true;
+              return "indeterminate";
+            };
+
+            const toggleGroup = (group: typeof all, forceValue?: boolean) => {
+              const allChecked = group.every(r => inviteChecked[r.key]);
+              const newVal = forceValue !== undefined ? forceValue : !allChecked;
+              setInviteChecked(prev => {
+                const next = { ...prev };
+                for (const r of group) next[r.key] = newVal;
+                return next;
+              });
+            };
+
+            const GroupHeader = ({ label, group, optional }: { label: string; group: typeof all; optional?: boolean }) => {
+              const state = groupState(group);
+              return (
+                <div
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                  onClick={() => toggleGroup(group)}
+                >
+                  <Checkbox
+                    checked={state}
+                    onCheckedChange={v => toggleGroup(group, v === true)}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    {label}
+                    {optional && <span className="normal-case font-normal tracking-normal text-slate-400 ml-1">(optional)</span>}
+                  </span>
+                  <span className="ml-auto text-[10px] text-slate-400 font-normal normal-case tracking-normal">
+                    {group.filter(r => inviteChecked[r.key]).length}/{group.length} selected
+                  </span>
+                </div>
+              );
+            };
+
             const RecipientRow = ({ r }: { r: typeof all[0] }) => (
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50">
+              <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50 ml-4">
                 <Checkbox
                   id={r.key}
                   checked={!!inviteChecked[r.key]}
@@ -1472,31 +1511,31 @@ export default function CaseDetail() {
 
                 {parents.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Parent / Guardian</p>
+                    <GroupHeader label="Parents / Guardians" group={parents} />
                     {parents.map(r => <RecipientRow key={r.key} r={r} />)}
                   </div>
                 )}
 
                 {teachers.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Teachers</p>
+                    <GroupHeader label="School" group={teachers} />
                     {teachers.map(r => <RecipientRow key={r.key} r={r} />)}
                   </div>
                 )}
 
                 {staff.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Your Team <span className="normal-case font-normal tracking-normal">(optional)</span></p>
+                    <GroupHeader label="ReMynd Team" group={staff} optional />
                     {staff.map(r => <RecipientRow key={r.key} r={r} />)}
                   </div>
                 )}
 
-                {/* Add any email manually */}
+                {/* Other — add any email manually */}
                 <div className="space-y-1.5 pt-1 border-t border-slate-100">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Add any recipient</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Other</p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="any.email@school.com"
+                      placeholder="any.email@example.com"
                       value={extraInviteEmail}
                       onChange={e => setExtraInviteEmail(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddExtraEmail(); } }}
@@ -1505,7 +1544,7 @@ export default function CaseDetail() {
                     <Button size="sm" variant="outline" className="h-8 px-3 shrink-0" onClick={handleAddExtraEmail}>Add</Button>
                   </div>
                   {extraInviteEmails.map(email => (
-                    <div key={email} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50">
+                    <div key={email} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50 ml-4">
                       <div className="flex-1 text-sm text-slate-700 truncate">{email}</div>
                       <button
                         className="text-slate-400 hover:text-red-500 transition-colors"
@@ -1526,7 +1565,7 @@ export default function CaseDetail() {
             <Button
               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={handleSendInvite}
-              disabled={sendingInvite || buildInviteRecipients().every(r => !inviteChecked[r.key])}
+              disabled={sendingInvite || (buildInviteRecipients().every(r => !inviteChecked[r.key]) && extraInviteEmails.length === 0)}
             >
               {sendingInvite ? "Sending…" : "Send Invite"}
             </Button>
