@@ -24,48 +24,57 @@ export default function JoinMeetingPage() {
     ? `ReMynd Debrief — ${studentName}`
     : "ReMynd Session";
 
-  function startMeeting() {
-    setLoading(true);
-    const existing = document.getElementById("jitsi-external-api-script");
-    if (existing) {
-      initApi();
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = "jitsi-external-api-script";
-    script.src = "https://meet.jit.si/external_api.js";
-    script.async = true;
-    script.onload = initApi;
-    document.head.appendChild(script);
+  function loadScript(): Promise<void> {
+    return new Promise((resolve) => {
+      const existing = document.getElementById("jitsi-external-api-script");
+      if (existing) { resolve(); return; }
+      const script = document.createElement("script");
+      script.id = "jitsi-external-api-script";
+      script.src = "https://meet.jit.si/external_api.js";
+      script.async = true;
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
   }
 
-  function initApi() {
-    if (!containerRef.current || !roomName) return;
-    apiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
-      roomName,
-      parentNode: containerRef.current,
-      width: "100%",
-      height: "100%",
-      configOverwrite: {
-        startWithAudioMuted: true,
-        disableDeepLinking: true,
-        prejoinPageEnabled: false,
-        subject: sessionLabel,
-        toolbarButtons: [
-          "microphone", "camera", "hangup", "chat", "raisehand", "tileview", "fullscreen",
-        ],
-      },
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: false,
-        SHOW_WATERMARK_FOR_GUESTS: false,
-        APP_NAME: "ReMynd Student Services",
-        DEFAULT_BACKGROUND: "#0f172a",
-        DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
-      },
-    });
+  async function startMeeting() {
+    setLoading(true);
+    await loadScript();
     setJoined(true);
-    setLoading(false);
+    // initApi runs in useEffect after joined=true causes re-render
   }
+
+  // Once joined=true, the container div is visible — initialise Jitsi then
+  useEffect(() => {
+    if (!joined) return;
+    const timer = setTimeout(() => {
+      if (!containerRef.current || !window.JitsiMeetExternalAPI) return;
+      apiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
+        roomName,
+        parentNode: containerRef.current,
+        width: "100%",
+        height: "100%",
+        configOverwrite: {
+          startWithAudioMuted: true,
+          disableDeepLinking: true,
+          prejoinPageEnabled: false,
+          subject: sessionLabel,
+          toolbarButtons: [
+            "microphone", "camera", "hangup", "chat", "raisehand", "tileview", "fullscreen",
+          ],
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          APP_NAME: "ReMynd Student Services",
+          DEFAULT_BACKGROUND: "#0f172a",
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+        },
+      });
+      setLoading(false);
+    }, 150); // small delay to let React commit the DOM update
+    return () => clearTimeout(timer);
+  }, [joined, roomName, sessionLabel]);
 
   useEffect(() => {
     return () => {
@@ -97,10 +106,9 @@ export default function JoinMeetingPage() {
         </div>
       </div>
 
-      {/* Main area */}
-      {!joined ? (
+      {/* Pre-join screen — hidden once joined */}
+      {!joined && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
-          {/* Branding card */}
           <div className="text-center space-y-3 max-w-md">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
               <Video size={28} className="text-emerald-400" />
@@ -113,23 +121,14 @@ export default function JoinMeetingPage() {
             </p>
           </div>
 
-          {/* Info pills */}
           <div className="flex flex-wrap gap-3 justify-center">
-            {[
-              "No download required",
-              "Works in your browser",
-              "Secure & private",
-            ].map((t) => (
-              <span
-                key={t}
-                className="text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded-full px-3 py-1"
-              >
+            {["No download required", "Works in your browser", "Secure & private"].map((t) => (
+              <span key={t} className="text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded-full px-3 py-1">
                 {t}
               </span>
             ))}
           </div>
 
-          {/* Join button */}
           <Button
             size="lg"
             onClick={startMeeting}
@@ -147,15 +146,13 @@ export default function JoinMeetingPage() {
             Your camera and microphone will not be turned on automatically. You can enable them once you are inside the room.
           </p>
         </div>
-      ) : (
-        /* Embedded meeting — fills the remaining space */
-        <div className="flex-1 relative min-h-0">
-          <div ref={containerRef} className="absolute inset-0" />
-        </div>
       )}
 
-      {/* Hidden container used before join to hold the DOM node */}
-      {!joined && <div ref={containerRef} className="hidden" />}
+      {/* Jitsi container — always in the DOM once joined so the ref is stable */}
+      <div
+        ref={containerRef}
+        className={joined ? "flex-1 relative min-h-0" : "hidden"}
+      />
     </div>
   );
 }
