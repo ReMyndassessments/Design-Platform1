@@ -14,8 +14,17 @@ export default function JoinMeetingPage() {
   const search = useSearch();
   const qs = new URLSearchParams(search);
   const studentName = qs.get("student") ?? "";
-  // jitsiRoom overrides the route param when it's a moderated room (e.g. "moderated/XXXX")
-  const roomName = qs.get("jitsiRoom") ?? params.room;
+
+  // jitsiRoom is set for moderated rooms (e.g. "moderated/XXXX").
+  // The Jitsi External API cannot handle slashes in roomName (it URL-encodes them,
+  // landing guests in a different room). For moderated rooms we navigate directly
+  // to meet.jit.si/{jitsiRoom} instead of embedding via the External API.
+  const jitsiRoomParam = qs.get("jitsiRoom");
+  const isModeratedRoom = !!jitsiRoomParam && jitsiRoomParam.includes("/");
+  const directJitsiUrl = isModeratedRoom ? `https://meet.jit.si/${jitsiRoomParam}` : null;
+
+  // For standard (non-moderated) rooms, use the External API embedded experience.
+  const embeddedRoomName = jitsiRoomParam && !isModeratedRoom ? jitsiRoomParam : params.room;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
@@ -41,22 +50,26 @@ export default function JoinMeetingPage() {
 
   async function startMeeting() {
     setLoading(true);
+    if (directJitsiUrl) {
+      // Moderated room: navigate directly so the path isn't URL-encoded
+      window.location.href = directJitsiUrl;
+      return;
+    }
     await loadScript();
     setJoined(true);
   }
 
   useEffect(() => {
-    if (!joined) return;
+    if (!joined || isModeratedRoom) return;
     const timer = setTimeout(() => {
       const el = containerRef.current;
       if (!el || !window.JitsiMeetExternalAPI) return;
 
-      // Measure actual rendered pixel dimensions so Jitsi fills the space exactly
       const h = el.getBoundingClientRect().height || window.innerHeight - 65;
       const w = el.getBoundingClientRect().width || window.innerWidth;
 
       apiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
-        roomName,
+        roomName: embeddedRoomName,
         parentNode: el,
         width: w,
         height: h,
@@ -81,7 +94,7 @@ export default function JoinMeetingPage() {
       setLoading(false);
     }, 200);
     return () => clearTimeout(timer);
-  }, [joined, roomName, sessionLabel]);
+  }, [joined, embeddedRoomName, sessionLabel, isModeratedRoom]);
 
   useEffect(() => {
     return () => { apiRef.current?.dispose(); };
@@ -153,10 +166,10 @@ export default function JoinMeetingPage() {
         </div>
       )}
 
-      {/* Jitsi container — always in DOM once joined so ref is stable */}
+      {/* Jitsi container — only used for standard (non-moderated) rooms */}
       <div
         ref={containerRef}
-        className={joined ? "flex-1 overflow-hidden" : "hidden"}
+        className={joined && !isModeratedRoom ? "flex-1 overflow-hidden" : "hidden"}
       />
     </div>
   );
