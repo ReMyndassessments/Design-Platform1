@@ -321,7 +321,10 @@ export default function CaseDetail() {
   const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
 
   const buildInviteRecipients = () => {
-    const list: { key: string; email: string; name: string | null; type: "parent" | "teacher"; lang?: "en" | "zh" | "ko" }[] = [];
+    type Recipient = { key: string; email: string; name: string | null; type: "parent" | "teacher" | "staff"; lang?: "en" | "zh" | "ko"; defaultChecked: boolean };
+    const list: Recipient[] = [];
+
+    // Parent
     if (c?.parentEmail) {
       const lang = (c.languagePreference ?? "english").toLowerCase();
       list.push({
@@ -330,23 +333,35 @@ export default function CaseDetail() {
         name: c.parentName ?? null,
         type: "parent",
         lang: lang.includes("mandarin") || lang.includes("chinese") ? "zh" : lang.includes("korean") ? "ko" : "en",
+        defaultChecked: true,
       });
     }
+
+    // Teachers from assignments
     const seen = new Set<string>();
     for (const a of c?.assignments ?? []) {
       if (!TEACHER_TYPES.has(a.respondentType ?? "")) continue;
       const email = a.assignedToEmail?.trim();
       if (!email || seen.has(email)) continue;
       seen.add(email);
-      list.push({ key: `teacher:${email}`, email, name: a.assignedToName ?? null, type: "teacher" });
+      list.push({ key: `teacher:${email}`, email, name: a.assignedToName ?? null, type: "teacher", defaultChecked: true });
     }
+
+    // Team / staff (optional — unchecked by default)
+    for (const u of staffUsers ?? []) {
+      if (!u.email) continue;
+      if (seen.has(u.email) || u.email === c?.parentEmail) continue;
+      seen.add(u.email);
+      list.push({ key: `staff:${u.email}`, email: u.email, name: u.name, type: "staff", defaultChecked: false });
+    }
+
     return list;
   };
 
   const handleOpenSendInvite = () => {
     const recipients = buildInviteRecipients();
     const checked: Record<string, boolean> = {};
-    for (const r of recipients) checked[r.key] = true;
+    for (const r of recipients) checked[r.key] = r.defaultChecked;
     setInviteChecked(checked);
     setSendInviteOpen(true);
   };
@@ -362,7 +377,7 @@ export default function CaseDetail() {
       const res = await fetch(`${basePath}/api/cases/${caseId}/debrief-invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ recipients: selected.map(r => ({ email: r.email, name: r.name, type: r.type, lang: r.lang })) }),
+        body: JSON.stringify({ recipients: selected.map(r => ({ email: r.email, name: r.name, type: r.type === "staff" ? "teacher" : r.type, lang: r.lang })) }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -1322,30 +1337,63 @@ export default function CaseDetail() {
               Choose who should receive the debrief meeting link for <span className="font-semibold text-slate-900">{c?.studentName}</span>.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2 space-y-2">
-            {buildInviteRecipients().length === 0 ? (
-              <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                No email addresses found on this case. Add a parent or teacher email first.
-              </p>
-            ) : (
-              buildInviteRecipients().map(r => (
-                <div key={r.key} className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50">
-                  <Checkbox
-                    id={r.key}
-                    checked={!!inviteChecked[r.key]}
-                    onCheckedChange={v => setInviteChecked(prev => ({ ...prev, [r.key]: !!v }))}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <Label htmlFor={r.key} className="text-sm font-medium cursor-pointer capitalize">
-                      {r.type === "parent" ? "Parent / Guardian" : "Teacher"}
-                      {r.name && <span className="font-normal text-slate-500"> — {r.name}</span>}
-                    </Label>
-                    <p className="text-xs text-slate-400 truncate">{r.email}</p>
-                  </div>
+          {(() => {
+            const all = buildInviteRecipients();
+            const parents = all.filter(r => r.type === "parent");
+            const teachers = all.filter(r => r.type === "teacher");
+            const staff = all.filter(r => r.type === "staff");
+
+            const RecipientRow = ({ r }: { r: typeof all[0] }) => (
+              <div className="flex items-center gap-3 p-3 rounded-lg border bg-slate-50">
+                <Checkbox
+                  id={r.key}
+                  checked={!!inviteChecked[r.key]}
+                  onCheckedChange={v => setInviteChecked(prev => ({ ...prev, [r.key]: !!v }))}
+                />
+                <div className="flex-1 min-w-0">
+                  <Label htmlFor={r.key} className="text-sm font-medium cursor-pointer">
+                    {r.name ?? r.email}
+                  </Label>
+                  {r.name && <p className="text-xs text-slate-400 truncate">{r.email}</p>}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+            );
+
+            return (
+              <div className="py-2 space-y-4">
+                {all.length === 0 && (
+                  <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    No email addresses found on this case.
+                  </p>
+                )}
+
+                {parents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Parent / Guardian</p>
+                    {parents.map(r => <RecipientRow key={r.key} r={r} />)}
+                  </div>
+                )}
+
+                {teachers.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Teachers</p>
+                    {teachers.map(r => <RecipientRow key={r.key} r={r} />)}
+                  </div>
+                )}
+
+                {staff.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-0.5">Your Team <span className="normal-case font-normal tracking-normal">(optional)</span></p>
+                    {staff.map(r => <RecipientRow key={r.key} r={r} />)}
+                  </div>
+                )}
+
+                {teachers.length === 0 && (
+                  <p className="text-xs text-slate-400 italic">No teacher emails recorded on this case's assignments.</p>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex gap-3 mt-2">
             <Button variant="outline" className="flex-1" onClick={() => setSendInviteOpen(false)} disabled={sendingInvite}>
               Cancel
