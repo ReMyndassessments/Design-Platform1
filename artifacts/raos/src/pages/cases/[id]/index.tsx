@@ -376,7 +376,7 @@ export default function CaseDetail() {
         return null;
       }
       const d = await resp.json();
-      queryClient.invalidateQueries({ queryKey: ["case", caseId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       return d.moderatorUrl as string;
     } catch {
       toast({ title: "Network error — please try again", variant: "destructive" });
@@ -902,7 +902,7 @@ export default function CaseDetail() {
                             className="border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700"
                             onClick={() => updateCaseMut.mutate(
                               { caseId, data: { customMeetingUrl: null, moderatorMeetingUrl: null } as any },
-                              { onSuccess: () => queryClient.invalidateQueries({ queryKey: ["case", caseId] }) }
+                              { onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }) }
                             )}
                           >
                             ✕ Remove
