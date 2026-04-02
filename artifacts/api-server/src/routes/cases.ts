@@ -351,7 +351,8 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
     // so the admin simply needs to join before the client.
     const { randomBytes } = await import("crypto");
     const roomName = `RAOS-${randomBytes(8).toString("hex")}`;
-    const meetingUrl = `https://meet.jit.si/${roomName}`;
+    // Use meet.ffmuc.net — a reliable public Jitsi instance that does not require login.
+    const meetingUrl = `https://meet.ffmuc.net/${roomName}`;
 
     await db.update(casesTable)
       .set({

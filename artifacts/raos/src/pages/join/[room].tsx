@@ -40,7 +40,7 @@ export default function JoinMeetingPage() {
       if (existing) { resolve(); return; }
       const script = document.createElement("script");
       script.id = "jitsi-external-api-script";
-      script.src = "https://meet.jit.si/external_api.js";
+      script.src = "https://meet.ffmuc.net/external_api.js";
       script.async = true;
       script.onload = () => resolve();
       document.head.appendChild(script);
@@ -67,7 +67,7 @@ export default function JoinMeetingPage() {
       const h = el.getBoundingClientRect().height || window.innerHeight - 65;
       const w = el.getBoundingClientRect().width || window.innerWidth;
 
-      apiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
+      apiRef.current = new window.JitsiMeetExternalAPI("meet.ffmuc.net", {
         roomName: embeddedRoomName,
         parentNode: el,
         width: w,
