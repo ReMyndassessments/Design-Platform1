@@ -81,7 +81,7 @@ export default function JoinMeetingPage() {
           <img
             src="/images/remynd-logo.png"
             alt="ReMynd"
-            className="w-8 h-8 object-contain"
+            className="w-8 h-8 object-contain brightness-0 invert"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
           <div>
