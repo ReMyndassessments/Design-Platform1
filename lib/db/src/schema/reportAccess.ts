@@ -29,6 +29,8 @@ export const reportTokensTable = pgTable("report_tokens", {
   adminOverride: boolean("admin_override").notNull().default(false),
   adminOverrideAt: timestamp("admin_override_at"),
   adminOverrideBy: text("admin_override_by"),
+  markedReceivedAt: timestamp("marked_received_at"),
+  markedReceivedBy: text("marked_received_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
