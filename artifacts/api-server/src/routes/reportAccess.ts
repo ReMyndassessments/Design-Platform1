@@ -9,6 +9,10 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 
+function generateAccessCode(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
 type Lang = "english" | "mandarin" | "korean";
 
 function normLang(raw: string | null | undefined): Lang {
@@ -204,7 +208,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     if (parentEmail) {
       const token = randomUUID();
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "parent", email: parentEmail, token, sentAt: new Date(),
+        id: randomUUID(), caseId, role: "parent", email: parentEmail, token, accessCode: generateAccessCode(), sentAt: new Date(),
       });
       createdTokens["parent"] = token;
       await sendEmail({
@@ -217,7 +221,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
     if (teacherEmail) {
       const token = randomUUID();
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token,
+        id: randomUUID(), caseId, role: "teacher", email: teacherEmail, token, accessCode: generateAccessCode(),
       });
       createdTokens["teacher"] = token;
     }
@@ -227,7 +231,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       const token = randomUUID();
       const link = `${base}/external/${token}`;
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "other", email: email.trim(), token,
+        id: randomUUID(), caseId, role: "other", email: email.trim(), token, accessCode: generateAccessCode(),
         recipientName: name?.trim() || null,
         sentAt: new Date(),
       });
@@ -253,7 +257,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
         const token = randomUUID();
         const roleLabel = staff.role === "assessment_invigilator" ? "Assessment Invigilator" : "Psychometrician";
         await db.insert(reportTokensTable).values({
-          id: randomUUID(), caseId, role: "other", email: staff.email, token,
+          id: randomUUID(), caseId, role: "other", email: staff.email, token, accessCode: generateAccessCode(),
           recipientName: staff.name, sentAt: new Date(),
         });
         await sendEmail({

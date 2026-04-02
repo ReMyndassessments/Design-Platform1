@@ -20,6 +20,7 @@ export const reportTokensTable = pgTable("report_tokens", {
   role: reportRecipientRoleEnum("role").notNull(),
   email: text("email").notNull(),
   token: text("token").notNull().unique(),
+  accessCode: text("access_code"),
   recipientName: text("recipient_name"),
   sentAt: timestamp("sent_at"),
   downloadedAt: timestamp("downloaded_at"),

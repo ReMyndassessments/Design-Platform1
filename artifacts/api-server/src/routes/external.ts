@@ -127,6 +127,7 @@ router.get("/external/portal/:token", async (req, res) => {
               permissionGranted: tok.permissionGranted,
               adminOverride: tok.adminOverride,
               blocked: tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride,
+              hasAccessCode: !!tok.accessCode,
             };
           }
         }
@@ -167,6 +168,7 @@ router.get("/external/portal/:token", async (req, res) => {
       role: reportTok.role,
       files: uploads.map(u => ({ id: u.id, filename: u.filename, label: u.label, uploadedAt: u.uploadedAt })),
       downloadedAt: reportTok.downloadedAt,
+      hasAccessCode: !!reportTok.accessCode,
       permissionGranted: reportTok.permissionGranted,
       adminOverride: reportTok.adminOverride,
       blocked: reportTok.role === "teacher" && !reportTok.permissionGranted && !reportTok.adminOverride,
@@ -188,6 +190,19 @@ router.get("/external/portal/:token", async (req, res) => {
   res.status(404).json({ error: "not_found", message: "Form link not found" });
 });
 
+// Verify access code for a report token
+router.post("/external/report/:tokenId/verify", async (req, res) => {
+  const [tok] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.id, req.params.tokenId));
+  if (!tok) { res.status(404).json({ error: "not_found" }); return; }
+  if (!tok.accessCode) { res.json({ ok: true }); return; }
+  const { code } = req.body as { code?: string };
+  if (!code || code.trim() !== tok.accessCode) {
+    res.status(401).json({ error: "invalid_code", message: "Incorrect access code." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 // Download report via portal token (records the download event)
 // Optional ?uploadId=... to download a specific file; defaults to most recent
 router.get("/external/report/:tokenId/download", async (req, res) => {
@@ -195,6 +210,15 @@ router.get("/external/report/:tokenId/download", async (req, res) => {
   if (!tok) {
     res.status(404).json({ error: "not_found" });
     return;
+  }
+
+  // Check access code if one is set
+  if (tok.accessCode) {
+    const providedCode = (req.headers["x-access-code"] as string | undefined)?.trim();
+    if (!providedCode || providedCode !== tok.accessCode) {
+      res.status(401).json({ error: "access_code_required", message: "A valid access code is required to download this report." });
+      return;
+    }
   }
 
   if (tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride) {

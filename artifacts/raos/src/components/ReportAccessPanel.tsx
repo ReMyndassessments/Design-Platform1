@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
-  UserPlus, X, Bell, Archive, FilePlus2,
+  UserPlus, X, Bell, Archive, FilePlus2, Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ interface ReportToken {
   downloadedAt: string | null;
   permissionGranted: boolean | null;
   adminOverride: boolean;
+  accessCode: string | null;
 }
 
 interface ReportUpload {
@@ -275,6 +276,16 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
             )}
           </div>
         </div>
+
+        {/* Access code display */}
+        {token.accessCode && (
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <Lock size={12} className="text-slate-400 shrink-0" />
+            <span className="text-xs text-slate-500">Access code:</span>
+            <span className="font-mono font-bold text-sm tracking-widest text-slate-800">{token.accessCode}</span>
+            <span className="text-[10px] text-slate-400 ml-1">— share out-of-band (call, WhatsApp, etc.)</span>
+          </div>
+        )}
 
         {!isOther && (
           editingToken === token.id ? (

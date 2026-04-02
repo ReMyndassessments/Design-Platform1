@@ -52,6 +52,7 @@ type ReportAccess = {
   permissionGranted: boolean | null;
   adminOverride: boolean;
   blocked: boolean;
+  hasAccessCode: boolean;
 };
 
 type PortalData = {
@@ -640,14 +641,54 @@ function PortalView({
     portal.reportAccess?.permissionGranted ?? null
   );
 
+  // Access code / PIN gate
+  const pinKey = portal.reportAccess ? `raos_pin_${portal.reportAccess.tokenId}` : null;
+  const [pinVerified, setPinVerified] = useState(() => {
+    if (!portal.reportAccess?.hasAccessCode) return true;
+    return pinKey ? sessionStorage.getItem(pinKey) === "1" : false;
+  });
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinChecking, setPinChecking] = useState(false);
+
+  const handleVerifyPin = async () => {
+    if (!portal.reportAccess || !pinInput.trim()) return;
+    setPinChecking(true);
+    setPinError("");
+    try {
+      const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: pinInput.trim() }),
+      });
+      if (resp.ok) {
+        if (pinKey) sessionStorage.setItem(pinKey, "1");
+        sessionStorage.setItem(`raos_code_${portal.reportAccess.tokenId}`, pinInput.trim());
+        setPinVerified(true);
+      } else {
+        setPinError("Incorrect access code. Please check with the person who shared this link.");
+      }
+    } catch {
+      setPinError("Could not verify. Please check your connection and try again.");
+    } finally {
+      setPinChecking(false);
+    }
+  };
+
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   const handleDownloadFile = async (file: ReportFile) => {
     if (!portal.reportAccess) return;
     setDownloadingFileId(file.id);
+    const storedCode = portal.reportAccess.hasAccessCode
+      ? sessionStorage.getItem(`raos_code_${portal.reportAccess.tokenId}`) ?? ""
+      : "";
     try {
       const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/download?uploadId=${file.id}`);
+      const headers: Record<string, string> = {};
+      if (storedCode) headers["X-Access-Code"] = storedCode;
+      const resp = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/download?uploadId=${file.id}`, { headers });
       if (!resp.ok) throw new Error("Download failed");
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -835,7 +876,38 @@ function PortalView({
               </div>
             </div>
             <div className="px-5 py-4">
-              {portal.reportAccess.blocked ? (
+              {/* Access code gate */}
+              {portal.reportAccess.hasAccessCode && !pinVerified ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600">
+                    This report is protected. Please enter the access code provided to you to continue.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={pinInput}
+                      onChange={e => { setPinInput(e.target.value.replace(/\D/g, "")); setPinError(""); }}
+                      onKeyDown={e => { if (e.key === "Enter") handleVerifyPin(); }}
+                      className="flex-1 border border-slate-200 rounded-lg px-4 py-2 text-lg tracking-widest text-center font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                    <button
+                      onClick={handleVerifyPin}
+                      disabled={pinChecking || pinInput.length < 6}
+                      className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+                    >
+                      {pinChecking ? "Checking…" : "Confirm"}
+                    </button>
+                  </div>
+                  {pinError && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <Lock size={11} /> {pinError}
+                    </p>
+                  )}
+                </div>
+              ) : portal.reportAccess.blocked ? (
                 <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
                   <Clock size={14} className="text-amber-500 shrink-0" />
                   <span>{t("awaitingConsentBody", language)}</span>
