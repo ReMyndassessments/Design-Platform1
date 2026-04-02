@@ -32,11 +32,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 
 const PHASES = [
-  "intake", "forms", "assessment", "scoring", "report", "final_review", "debrief"
+  "intake", "forms", "assessment", "scoring", "report", "final_review", "debrief", "complete"
 ];
 const PHASE_PROGRESS: Record<string, number> = {
   pre_commitment: 5, intake: 15, setup: 25, forms: 38,
-  assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 100, complete: 100,
+  assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 95, complete: 100,
 };
 const PHASE_LABELS: Record<string, string> = {
   pre_commitment: "Intake",
@@ -48,7 +48,7 @@ const PHASE_LABELS: Record<string, string> = {
   report: "Report",
   final_review: "Final Review",
   debrief: "Debrief",
-  complete: "Debrief",
+  complete: "Complete",
 };
 // Map hidden internal phases to their nearest visible display phase
 const PHASE_DISPLAY_MAP: Record<string, string> = {
