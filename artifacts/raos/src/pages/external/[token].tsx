@@ -783,6 +783,14 @@ function PortalView({
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 space-y-5">
 
+        {/* Phase Tracker */}
+        <PhaseTracker
+          currentPhase={portal.currentPhase}
+          progressPercentage={portal.progressPercentage}
+          studentName={portal.studentName}
+          language={language}
+        />
+
         {/* Forms Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
