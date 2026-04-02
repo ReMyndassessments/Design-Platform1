@@ -871,14 +871,16 @@ export default function CaseDetail() {
 
                   {/* Refresh room (generates a new moderated room pair) */}
                   {isModerated && (
-                    <button
+                    <Button
                       type="button"
-                      className="text-[10px] text-slate-400 hover:text-slate-600 underline underline-offset-2 w-full text-center disabled:opacity-40"
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 gap-2"
                       onClick={handleCreateModeratedMeeting}
                       disabled={creatingModeratedMeeting}
                     >
-                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a new room'}
-                    </button>
+                      {creatingModeratedMeeting ? 'Creating new room…' : '↻ Generate a New Room'}
+                    </Button>
                   )}
 
                   {c.currentPhase === 'debrief' && (
