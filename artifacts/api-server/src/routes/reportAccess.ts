@@ -376,6 +376,22 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
   res.json({ success: true });
 });
 
+// ── Admin: mark a token as received out-of-system ─────────────────────────────
+router.post("/cases/:id/report-access/tokens/:tokenId/mark-received", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const [token] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.id, req.params.tokenId));
+  if (!token) { res.status(404).json({ error: "not_found" }); return; }
+
+  const now = new Date();
+  await db.update(reportTokensTable)
+    .set({ markedReceivedAt: now, markedReceivedBy: req.userId ?? "admin", updatedAt: now })
+    .where(eq(reportTokensTable.id, req.params.tokenId));
+
+  res.json({ success: true, markedReceivedAt: now });
+});
+
 // ── Admin: override parental consent (only if parent has downloaded) ───────────
 router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin") {

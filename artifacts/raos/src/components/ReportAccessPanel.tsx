@@ -22,6 +22,8 @@ interface ReportToken {
   permissionGranted: boolean | null;
   adminOverride: boolean;
   accessCode: string | null;
+  markedReceivedAt: string | null;
+  markedReceivedBy: string | null;
 }
 
 interface ReportUpload {
@@ -204,6 +206,19 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
     }
   };
 
+  const handleMarkReceived = async (tokenId: string) => {
+    const r = await fetch(`${BASE}/cases/${caseId}/report-access/tokens/${tokenId}/mark-received`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+    });
+    if (!r.ok) {
+      toast({ title: "Could not mark as received", variant: "destructive" });
+    } else {
+      toast({ title: "Marked as received out of system" });
+      await fetchStatus();
+    }
+  };
+
   const handleArchiveDownload = () => {
     const url = `${BASE}/cases/${caseId}/archive`;
     const a = document.createElement("a");
@@ -274,6 +289,9 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
             {downloaded && (
               <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>
             )}
+            {token.markedReceivedAt && !downloaded && (
+              <Badge variant="outline" className="text-emerald-700 border-emerald-200 text-[10px]"><CheckCircle2 size={9} className="mr-1"/>Received (out of system)</Badge>
+            )}
           </div>
         </div>
 
@@ -295,7 +313,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
               <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingToken(null)}>Cancel</Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
               <button onClick={() => { setEditingToken(token.id); setEditEmail(token.email); }}
                 className="text-[10px] text-slate-400 hover:text-slate-600 underline">Edit</button>
@@ -303,17 +321,29 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
                 className="text-[10px] text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
                 <RefreshCw size={9}/> Resend
               </button>
+              {!downloaded && !token.markedReceivedAt && (
+                <button onClick={() => handleMarkReceived(token.id)}
+                  className="text-[10px] text-emerald-600 hover:text-emerald-800 flex items-center gap-1">
+                  <CheckCircle2 size={9}/> Mark received
+                </button>
+              )}
             </div>
           )
         )}
 
         {isOther && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
             <button onClick={() => handleResend(token.id, token.email)}
               className="text-[10px] text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
               <RefreshCw size={9}/> Resend
             </button>
+            {!downloaded && !token.markedReceivedAt && (
+              <button onClick={() => handleMarkReceived(token.id)}
+                className="text-[10px] text-emerald-600 hover:text-emerald-800 flex items-center gap-1">
+                <CheckCircle2 size={9}/> Mark received
+              </button>
+            )}
           </div>
         )}
 
