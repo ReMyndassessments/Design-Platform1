@@ -345,7 +345,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             <Lock size={12} className="text-slate-400 shrink-0" />
             <span className="text-xs text-slate-500">Access code:</span>
             <span className="font-mono font-bold text-sm tracking-widest text-slate-800">{token.accessCode}</span>
-            <span className="text-[10px] text-slate-400 ml-1">— share out-of-band (call, WhatsApp, etc.)</span>
+            <span className="text-[10px] text-slate-400 ml-1">— included in their email</span>
           </div>
         )}
 
