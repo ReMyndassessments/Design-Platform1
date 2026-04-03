@@ -89,7 +89,21 @@ const EMAIL_COPY = {
   },
 } as const;
 
-function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string): string {
+function buildAccessCodeBlock(lang: Lang, code: string): string {
+  const labels = {
+    english:  { heading: "Your secure access code", body: "You will be asked to enter this 6-digit code when you open your report link. Keep this email for your records." },
+    mandarin: { heading: "您的安全访问码", body: "打开报告链接时，系统将要求您输入此6位数代码。请保留此电子邮件以备参考。" },
+    korean:   { heading: "보안 액세스 코드", body: "보고서 링크를 열 때 이 6자리 코드를 입력하라는 메시지가 표시됩니다. 참조를 위해 이 이메일을 보관하십시오." },
+  };
+  const label = labels[lang];
+  return `<div style="background:#f0f4ff;border:2px solid #c7d7fd;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
+    <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:0.05em">${label.heading}</p>
+    <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:0.18em;color:#1d4ed8;font-family:monospace">${code}</p>
+    <p style="margin:10px 0 0;font-size:11px;color:#6b7280">${label.body}</p>
+  </div>`;
+}
+
+function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string): string {
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
     <h2 style="color:#0a1628">${EMAIL_COPY.parentHeading[lang]}</h2>
     <p>${EMAIL_COPY.parentBody[lang](studentName)}</p>
@@ -97,6 +111,7 @@ function buildParentEmail(lang: Lang, studentName: string, schoolName: string, l
     <p style="text-align:center;margin:28px 0">
       <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.parentDownloadBtn[lang]}</a>
     </p>
+    ${accessCode ? buildAccessCodeBlock(lang, accessCode) : ""}
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentConsent[lang](schoolName)}</p>
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentUniqueLink[lang]}</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
@@ -297,13 +312,14 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   // Create a real live token so the full portal experience is accessible
   const token = randomUUID();
+  const testAccessCode = generateAccessCode();
   await db.insert(reportTokensTable).values({
     id: randomUUID(),
     caseId,
     role: "other",
     email: adminUser.email,
     token,
-    accessCode: generateAccessCode(),
+    accessCode: testAccessCode,
     recipientName: "TEST PREVIEW (admin)",
     sentAt: new Date(),
   });
@@ -312,13 +328,13 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   const testBanner = `<div style="background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
     <p style="margin:0;font-size:14px;font-weight:700;color:#92400e">⚠️ ADMIN TEST PREVIEW — This is the live parent experience</p>
-    <p style="margin:6px 0 0;font-size:12px;color:#b45309">You are seeing exactly what the parent will receive. The download button below is a <strong>real working link</strong> — click it to walk through the full portal experience including consent and download.</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#b45309">You are seeing exactly what the parent will receive. The download button below is a <strong>real working link</strong> — click it to walk through the full portal experience including consent and download. The access code below is also real — enter it when prompted.</p>
   </div>`;
 
   await sendEmail({
     to: adminUser.email,
     subject: `[TEST] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
-    html: testBanner + buildParentEmail(lang, studentName, schoolName, liveLink),
+    html: testBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode),
   });
 
   res.json({ success: true, sentTo: adminUser.email });
@@ -391,14 +407,15 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
 
     if (parentEmail) {
       const token = randomUUID();
+      const parentAccessCode = generateAccessCode();
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "parent", email: parentEmail, token, accessCode: generateAccessCode(), sentAt: new Date(),
+        id: randomUUID(), caseId, role: "parent", email: parentEmail, token, accessCode: parentAccessCode, sentAt: new Date(),
       });
       createdTokens["parent"] = token;
       await sendEmail({
         to: parentEmail,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`),
+        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode),
       });
     }
 

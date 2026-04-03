@@ -174,12 +174,18 @@ router.get("/external/portal/:token", async (req, res) => {
       blocked: reportTok.role === "teacher" && !reportTok.permissionGranted && !reportTok.adminOverride,
     } : null;
 
+    // Map internal admin phases to parent-visible phases
+    const rawPhase = caseData?.currentPhase ?? "report";
+    const displayPhase = rawPhase === "final_review" ? "report"
+      : rawPhase === "pre_commitment" || rawPhase === "intake" || rawPhase === "forms"
+        ? "report" : rawPhase;
+
     res.json({
       studentName: caseData?.studentName ?? "the student",
-      currentPhase: caseData?.currentPhase ?? "report",
+      currentPhase: displayPhase,
       progressPercentage: caseData?.progressPercentage ?? 100,
       languagePreference: caseData?.languagePreference ?? "english",
-      respondentLabel: reportTok.role === "parent" ? "Parent / Guardian" : "Teacher",
+      respondentLabel: reportTok.role === "parent" ? "Parent / Guardian" : reportTok.role === "teacher" ? "Teacher" : (reportTok.recipientName ?? "Recipient"),
       respondentType: reportTok.role,
       forms: [],
       reportAccess,
