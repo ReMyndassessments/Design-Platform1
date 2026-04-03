@@ -492,12 +492,12 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           : "border-slate-300 bg-slate-50"
       )}>
         <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center gap-2">
-          {isDebrief ? <FilePlus2 size={13}/> : <Upload size={13}/>}
-          {isDebrief ? (hasUploads ? "Add Another Document" : "Upload Revised Report") : "Upload Final Report"}
+          <FilePlus2 size={13}/>
+          {hasUploads ? "Add Supplementary Documents" : "Upload Final Report"}
         </p>
 
-        {/* Google Doc auto-import */}
-        {workingDocUrl && (
+        {/* Google Doc auto-import — only show when no report attached yet */}
+        {workingDocUrl && !hasUploads && (
           <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
             <ExternalLink size={14} className="text-blue-500 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
