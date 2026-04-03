@@ -6,3 +6,9 @@ id = "QBw29TkpUw8clGmW-oSVn"
 uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
 type = "text"
 title = "Invigilator Training Manual — RAOS"
+
+[[outputs]]
+id = "CwfJvv1qSC-y9ajbqM8yz"
+uri = "file://PSYCHOMETRICIAN_TRAINING_MANUAL.md"
+type = "text"
+title = "Psychometrician Training Manual — RAOS"
