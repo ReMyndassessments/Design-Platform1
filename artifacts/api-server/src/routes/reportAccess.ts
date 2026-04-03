@@ -284,12 +284,23 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   const base = getBaseUrl(req);
   const placeholderLink = `${base}/external/TEST_PREVIEW_LINK`;
 
-  const testBanner = `<div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:24px;font-family:sans-serif">
-    <p style="margin:0;font-size:13px;font-weight:600;color:#92400e">TEST PREVIEW — This is how the parent email will look</p>
-    <p style="margin:4px 0 0;font-size:12px;color:#b45309">The download button link is a placeholder. No actual report link is active in this test.</p>
+  const testBanner = `<div style="background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
+    <p style="margin:0;font-size:14px;font-weight:700;color:#92400e">⚠️ TEST PREVIEW ONLY — Do not send this to parents</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#b45309">This is exactly how the parent email will appear. The "Download My Report" button below is <strong>disabled</strong> in this preview — it is not a real link. No report access has been granted.</p>
   </div>`;
 
-  const emailHtml = testBanner + buildParentEmail(lang, studentName, schoolName, placeholderLink);
+  // Build the parent email but replace the link button with a disabled visual-only button
+  const parentEmailHtml = buildParentEmail(lang, studentName, schoolName, placeholderLink)
+    .replace(
+      `<a href="${placeholderLink}"`,
+      `<span style="cursor:default;opacity:0.5;pointer-events:none;" title="Disabled in test preview" data-disabled="true" onclick="return false;"`
+    )
+    .replace(
+      `>${EMAIL_COPY.parentDownloadBtn[lang]}</a>`,
+      `>${EMAIL_COPY.parentDownloadBtn[lang]} (preview only)</span>`
+    );
+
+  const emailHtml = testBanner + parentEmailHtml;
 
   await sendEmail({
     to: adminUser.email,
