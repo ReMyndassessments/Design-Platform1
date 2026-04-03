@@ -608,7 +608,7 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
+          {['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
             <Link href={`/cases/${c.id}/report`}>
               <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
             </Link>
