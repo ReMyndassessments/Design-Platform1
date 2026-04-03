@@ -234,6 +234,14 @@ router.post("/cases/:id/report-access/import-google-doc", authMiddleware, async 
     res.status(502).json({ error: "storage_upload_failed", message: "Failed to save the PDF. Please try again." }); return;
   }
 
+  // Remove any previous Google Doc imports for this case (replace, don't accumulate)
+  await db.delete(reportUploadsTable).where(
+    and(
+      eq(reportUploadsTable.caseId, caseId),
+      eq(reportUploadsTable.label, "Assessment Report (imported from Google Docs)")
+    )
+  );
+
   // Register in DB
   const studentName = caseRow.studentName ?? "Student";
   const filename = `${studentName.replace(/[^a-z0-9]/gi, "_")}_Report.pdf`;
