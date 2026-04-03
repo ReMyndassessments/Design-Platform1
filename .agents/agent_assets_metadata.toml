@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "QBw29TkpUw8clGmW-oSVn"
+uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
+type = "text"
+title = "Invigilator Training Manual — RAOS"
