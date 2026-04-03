@@ -103,7 +103,21 @@ function buildAccessCodeBlock(lang: Lang, code: string): string {
   </div>`;
 }
 
-function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string): string {
+function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string): string {
+  const labels = {
+    english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting to walk you through the assessment results. Click the button below to join at your scheduled time.", btn: "Join Debrief Meeting" },
+    mandarin: { heading: "汇报会议", body: "您的临床医生已安排了一次虚拟汇报会议，为您详细讲解评估结果。请在预定时间点击下方按钮加入会议。", btn: "加入汇报会议" },
+    korean:   { heading: "디브리핑 미팅", body: "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 예약했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.", btn: "디브리핑 미팅 참여" },
+  };
+  const label = labels[lang];
+  return `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
+    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em">📹 ${label.heading}</p>
+    <p style="margin:0 0 14px;font-size:13px;color:#15803d">${label.body}</p>
+    <a href="${meetingUrl}" style="background:#16a34a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">${label.btn} ↗</a>
+  </div>`;
+}
+
+function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string, debriefMeetingUrl?: string): string {
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
     <h2 style="color:#0a1628">${EMAIL_COPY.parentHeading[lang]}</h2>
     <p>${EMAIL_COPY.parentBody[lang](studentName)}</p>
@@ -112,6 +126,7 @@ function buildParentEmail(lang: Lang, studentName: string, schoolName: string, l
       <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.parentDownloadBtn[lang]}</a>
     </p>
     ${accessCode ? buildAccessCodeBlock(lang, accessCode) : ""}
+    ${debriefMeetingUrl ? buildDebriefMeetingBlock(lang, debriefMeetingUrl) : ""}
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentConsent[lang](schoolName)}</p>
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentUniqueLink[lang]}</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
@@ -335,7 +350,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   await sendEmail({
     to: adminUser.email,
     subject: `[TEST] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
-    html: testBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode),
+    html: testBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined),
   });
 
   res.json({ success: true, sentTo: adminUser.email });
@@ -416,7 +431,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       await sendEmail({
         to: parentEmail,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode),
+        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ?? undefined),
       });
     }
 

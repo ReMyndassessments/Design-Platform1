@@ -836,7 +836,9 @@ export const UpdateUserBody = zod.object({
   name: zod.string().optional(),
   email: zod.string().optional(),
   password: zod.string().optional(),
-  role: zod.enum(["admin", "assessment_invigilator", "psychometrician"]).optional(),
+  role: zod
+    .enum(["admin", "assessment_invigilator", "psychometrician"])
+    .optional(),
 });
 
 export const UpdateUserResponse = zod.object({

@@ -8,6 +8,7 @@ import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
   UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink, FlaskConical,
+  Video, Copy, Pencil, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,9 @@ interface Props {
   parentEmail?: string;
   currentPhase?: string;
   workingDocUrl?: string;
+  debriefMeetingUrl?: string;
   onPhaseAdvanced?: () => void;
+  onCaseUpdated?: () => void;
 }
 
 interface AdditionalRecipient {
@@ -48,12 +51,16 @@ interface AdditionalRecipient {
 
 const BASE = "/api";
 
-export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, onPhaseAdvanced }: Props) {
+export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, onPhaseAdvanced, onCaseUpdated }: Props) {
   const { toast } = useToast();
 
   const [uploads, setUploads] = useState<ReportUpload[]>([]);
   const [tokens, setTokens] = useState<ReportToken[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [debriefUrlDraft, setDebriefUrlDraft] = useState(debriefMeetingUrl ?? "");
+  const [editingDebriefUrl, setEditingDebriefUrl] = useState(false);
+  const [savingDebriefUrl, setSavingDebriefUrl] = useState(false);
 
   const isDebrief = currentPhase === "debrief";
   const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief";
@@ -240,6 +247,28 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       toast({ title: "Import failed. Please try again.", variant: "destructive" });
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleSaveDebriefUrl = async (url: string | null) => {
+    setSavingDebriefUrl(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+        },
+        body: JSON.stringify({ debriefMeetingUrl: url }),
+      });
+      if (!r.ok) throw new Error("Failed to save");
+      toast({ title: url ? "Debrief meeting link saved" : "Debrief meeting link cleared" });
+      setEditingDebriefUrl(false);
+      onCaseUpdated?.();
+    } catch {
+      toast({ title: "Could not save meeting link", variant: "destructive" });
+    } finally {
+      setSavingDebriefUrl(false);
     }
   };
 
@@ -505,6 +534,67 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
             <CheckCircle2 size={13} className="text-green-500"/>
             <span>{uploads.length} document{uploads.length > 1 ? "s" : ""}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Debrief Meeting Room */}
+      <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Video size={15} className="text-green-700 shrink-0"/>
+          <p className="text-sm font-semibold text-green-900">Debrief Meeting Room</p>
+          {debriefMeetingUrl && !editingDebriefUrl && (
+            <Badge className="ml-auto text-[10px] bg-green-100 text-green-800 border-green-300 font-medium">Link saved</Badge>
+          )}
+        </div>
+        <p className="text-xs text-green-700">
+          {debriefMeetingUrl
+            ? "A virtual meeting link is saved and will be included in the report delivery email."
+            : "Paste a Jitsi, Zoom, or Teams link here. It will appear as a \"Join Debrief Meeting\" button in the parent's report email."}
+        </p>
+
+        {debriefMeetingUrl && !editingDebriefUrl ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 bg-white rounded-lg border border-green-200 px-3 py-2">
+              <span className="text-xs text-slate-600 truncate flex-1">{debriefMeetingUrl}</span>
+              <button
+                className="shrink-0 text-slate-400 hover:text-slate-700"
+                onClick={() => { navigator.clipboard.writeText(debriefMeetingUrl); toast({ title: "Link copied" }); }}>
+                <Copy size={13}/>
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-xs border-green-300 text-green-800 hover:bg-green-100"
+                onClick={() => { setDebriefUrlDraft(debriefMeetingUrl); setEditingDebriefUrl(true); }}>
+                <Pencil size={11} className="mr-1"/> Edit
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => handleSaveDebriefUrl(null)} disabled={savingDebriefUrl}>
+                <Trash2 size={11} className="mr-1"/> Clear
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Input
+              placeholder="https://meet.jit.si/moderated/..."
+              value={debriefUrlDraft}
+              onChange={e => setDebriefUrlDraft(e.target.value)}
+              className="h-8 text-sm bg-white border-green-200 focus:border-green-400"
+            />
+            <div className="flex gap-2">
+              <Button size="sm"
+                className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white"
+                onClick={() => handleSaveDebriefUrl(debriefUrlDraft.trim() || null)}
+                disabled={savingDebriefUrl || !debriefUrlDraft.trim()}>
+                {savingDebriefUrl ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
+                Save Meeting Link
+              </Button>
+              {editingDebriefUrl && (
+                <Button size="sm" variant="ghost" className="h-7 text-xs"
+                  onClick={() => setEditingDebriefUrl(false)}>Cancel</Button>
+              )}
+            </div>
           </div>
         )}
       </div>

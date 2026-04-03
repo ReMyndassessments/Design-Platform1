@@ -49,6 +49,7 @@ export const casesTable = pgTable("cases", {
   psychApprovedReport: boolean("psych_approved_report").notNull().default(false),
   customMeetingUrl: text("custom_meeting_url"),
   moderatorMeetingUrl: text("moderator_meeting_url"),
+  debriefMeetingUrl: text("debrief_meeting_url"),
   intakeData: jsonb("intake_data"),
   intakeAnalysis: jsonb("intake_analysis"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
