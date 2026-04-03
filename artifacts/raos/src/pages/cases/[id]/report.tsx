@@ -3,7 +3,7 @@ import { useGetCase, useGetCurrentUser, useUpdateCase } from "@workspace/api-cli
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ExternalLink, FileEdit, Link2, X, PackageCheck } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileEdit, Link2, X, PackageCheck, CheckCircle2, Circle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -25,6 +25,31 @@ export default function ReportEditor() {
   const [editingDocUrl, setEditingDocUrl] = useState(false);
   const [docUrlInput, setDocUrlInput] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const handleToggleApproval = async (approve: boolean) => {
+    setIsApproving(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-approval`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ approved: approve }),
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        toast({ title: d.message ?? "Failed to save approval", variant: "destructive" });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/cases', caseId] });
+    } catch {
+      toast({ title: "Failed to save approval. Please try again.", variant: "destructive" });
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   const handleImportGoogleDoc = async () => {
     setIsImporting(true);
@@ -170,27 +195,109 @@ export default function ReportEditor() {
         </CardContent>
       </Card>
 
-      {/* Attach to Delivery */}
-      {workingDocUrl && (
-        <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">
-          <div className="px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
-            <PackageCheck size={17} className="text-emerald-600" />
-            <h3 className="font-semibold text-slate-800">Attach to Delivery</h3>
-          </div>
-          <CardContent className="p-6 flex items-center justify-between gap-6">
-            <p className="text-sm text-slate-600">
-              When the report is finalised, click to automatically export it as PDF and attach it to the delivery system — ready to send to parents and teachers.
-            </p>
-            <Button
-              onClick={handleImportGoogleDoc}
-              disabled={isImporting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20 shrink-0"
-            >
-              {isImporting ? "Attaching…" : "Attach Report"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Finalise & Attach */}
+      {workingDocUrl && (() => {
+        const adminApproved = caseData?.adminApprovedReport ?? false;
+        const psychApproved = caseData?.psychApprovedReport ?? false;
+        const bothApproved = adminApproved && psychApproved;
+        const myRole = currentUser?.role;
+        const canApprove = myRole === "admin" || myRole === "psychometrician";
+
+        return (
+          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">
+            <div className="px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
+              <PackageCheck size={17} className="text-emerald-600" />
+              <h3 className="font-semibold text-slate-800">Finalise &amp; Attach</h3>
+            </div>
+            <CardContent className="p-6 space-y-5">
+              <p className="text-sm text-slate-600">
+                Both the admin and psychometrician must mark this report as final before it can be attached and sent.
+              </p>
+
+              {/* Approval status rows */}
+              <div className="space-y-2">
+                {/* Admin row */}
+                <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-emerald-100">
+                  <div className="flex items-center gap-3">
+                    {adminApproved
+                      ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                      : <Circle size={18} className="text-slate-300 shrink-0" />}
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Admin (Noel)</p>
+                      <p className="text-xs text-slate-400">{adminApproved ? "Marked as final" : "Pending approval"}</p>
+                    </div>
+                  </div>
+                  {myRole === "admin" && (
+                    <Button
+                      size="sm"
+                      variant={adminApproved ? "outline" : "default"}
+                      disabled={isApproving}
+                      onClick={() => handleToggleApproval(!adminApproved)}
+                      className={adminApproved
+                        ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                    >
+                      {adminApproved ? "Revoke" : "Approve"}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Psych row */}
+                <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-emerald-100">
+                  <div className="flex items-center gap-3">
+                    {psychApproved
+                      ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                      : <Circle size={18} className="text-slate-300 shrink-0" />}
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Psychometrician (Abegail)</p>
+                      <p className="text-xs text-slate-400">{psychApproved ? "Marked as final" : "Pending approval"}</p>
+                    </div>
+                  </div>
+                  {myRole === "psychometrician" && (
+                    <Button
+                      size="sm"
+                      variant={psychApproved ? "outline" : "default"}
+                      disabled={isApproving}
+                      onClick={() => handleToggleApproval(!psychApproved)}
+                      className={psychApproved
+                        ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                    >
+                      {psychApproved ? "Revoke" : "Approve"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Attach button — only admin can trigger, only when both approved */}
+              {myRole === "admin" && (
+                <div className="flex items-center justify-between pt-1">
+                  {!bothApproved && (
+                    <p className="text-xs text-amber-600">
+                      {!adminApproved && !psychApproved
+                        ? "Waiting for both approvals"
+                        : !adminApproved
+                        ? "Your approval is still needed"
+                        : "Waiting for psychometrician to approve"}
+                    </p>
+                  )}
+                  <Button
+                    onClick={handleImportGoogleDoc}
+                    disabled={isImporting || !bothApproved}
+                    className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20 disabled:opacity-50"
+                  >
+                    {isImporting ? "Attaching…" : "Attach Report"}
+                  </Button>
+                </div>
+              )}
+
+              {!canApprove && (
+                <p className="text-xs text-slate-400 italic">Only the admin and psychometrician can approve and attach this report.</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

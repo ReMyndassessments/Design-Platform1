@@ -45,6 +45,8 @@ export const casesTable = pgTable("cases", {
   parentPhone: text("parent_phone"),
   consentObtained: boolean("consent_obtained").notNull().default(false),
   workingDocUrl: text("working_doc_url"),
+  adminApprovedReport: boolean("admin_approved_report").notNull().default(false),
+  psychApprovedReport: boolean("psych_approved_report").notNull().default(false),
   customMeetingUrl: text("custom_meeting_url"),
   moderatorMeetingUrl: text("moderator_meeting_url"),
   intakeData: jsonb("intake_data"),

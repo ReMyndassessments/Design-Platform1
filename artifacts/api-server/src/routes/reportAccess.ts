@@ -141,6 +141,26 @@ router.get("/cases/:id/report-access", authMiddleware, async (req, res) => {
 });
 
 // ── Admin: import Google Doc as PDF directly into delivery ────────────────────
+router.post("/cases/:id/report-approval", authMiddleware, async (req, res) => {
+  const role = req.userRole;
+  if (role !== "admin" && role !== "psychometrician") {
+    res.status(403).json({ error: "forbidden", message: "Only admins and psychometricians can approve reports." }); return;
+  }
+
+  const caseId = req.params.id;
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
+  if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+
+  const approved: boolean = req.body.approved !== false;
+  const field = role === "admin" ? { adminApprovedReport: approved } : { psychApprovedReport: approved };
+
+  const [updated] = await db.update(casesTable).set({ ...field, updatedAt: new Date() }).where(eq(casesTable.id, caseId)).returning();
+  res.json({
+    adminApprovedReport: updated.adminApprovedReport,
+    psychApprovedReport: updated.psychApprovedReport,
+  });
+});
+
 router.post("/cases/:id/report-access/import-google-doc", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin") {
     res.status(403).json({ error: "forbidden" }); return;
@@ -150,6 +170,13 @@ router.post("/cases/:id/report-access/import-google-doc", authMiddleware, async 
 
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
   if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+
+  if (!caseRow.adminApprovedReport || !caseRow.psychApprovedReport) {
+    res.status(403).json({
+      error: "not_approved",
+      message: "Both the admin and psychometrician must approve the report before it can be attached.",
+    }); return;
+  }
 
   const workingDocUrl = caseRow.workingDocUrl;
   if (!workingDocUrl) {

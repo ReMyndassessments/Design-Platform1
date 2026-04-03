@@ -133,6 +133,8 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     parentPhone: c.parentPhone,
     consentObtained: c.consentObtained,
     workingDocUrl: c.workingDocUrl,
+    adminApprovedReport: c.adminApprovedReport,
+    psychApprovedReport: c.psychApprovedReport,
     customMeetingUrl: c.customMeetingUrl,
     moderatorMeetingUrl: c.moderatorMeetingUrl,
     createdAt: c.createdAt,
@@ -249,6 +251,11 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   if (updates.currentPhase) {
     updates.progressPercentage = PHASE_PROGRESS[updates.currentPhase as string] ?? 0;
+  }
+  // If the working doc URL is being changed, reset both approvals
+  if (updates.workingDocUrl !== undefined && updates.workingDocUrl !== existing[0].workingDocUrl) {
+    updates.adminApprovedReport = false;
+    updates.psychApprovedReport = false;
   }
   updates.updatedAt = new Date();
 
