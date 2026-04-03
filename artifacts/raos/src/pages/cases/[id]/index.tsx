@@ -107,6 +107,25 @@ export default function CaseDetail() {
   const createAssignmentMut = useCreateAssignment();
   const deleteAssignmentMut = useDeleteAssignment();
 
+  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const stepBackMut = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/step-back`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Phase stepped back" });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      setStepBackConfirmOpen(false);
+    },
+    onError: () => toast({ title: "Could not step back", variant: "destructive" }),
+  });
+
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
@@ -325,25 +344,6 @@ export default function CaseDetail() {
       onError: () => toast({ title: "Cannot advance this phase", description: "Your role does not allow advancing the current phase.", variant: "destructive" })
     });
   };
-
-  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  const stepBackMut = useMutation({
-    mutationFn: async () => {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/step-back`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
-      });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Phase stepped back" });
-      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
-      setStepBackConfirmOpen(false);
-    },
-    onError: () => toast({ title: "Could not step back", variant: "destructive" }),
-  });
 
   const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
 
