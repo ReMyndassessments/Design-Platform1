@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
-  UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink,
+  UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink, FlaskConical,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -243,6 +243,19 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
     }
   };
 
+  const handleResetTestPreview = async () => {
+    try {
+      await fetch(`${BASE}/cases/${caseId}/report-access/test-preview`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      toast({ title: "Test preview cleared" });
+      await fetchStatus();
+    } catch {
+      toast({ title: "Failed to reset test preview", variant: "destructive" });
+    }
+  };
+
   const handleSendTestEmail = async () => {
     setIsSendingTest(true);
     try {
@@ -281,24 +294,71 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       .catch(() => toast({ title: "Archive download failed", variant: "destructive" }));
   };
 
-  const parentToken = tokens.find(t => t.role === "parent");
+  const testPreviewToken = tokens.find(t => t.recipientName === "TEST PREVIEW (admin)");
+  const parentToken = tokens.find(t => t.role === "parent" && t.recipientName !== "TEST PREVIEW (admin)");
   const teacherToken = tokens.find(t => t.role === "teacher");
-  const otherTokens = tokens.filter(t => t.role === "other");
+  const otherTokens = tokens.filter(t => t.role === "other" && t.recipientName !== "TEST PREVIEW (admin)");
 
   const TokenCard = ({ token }: { token: ReportToken }) => {
     const isParent = token.role === "parent";
     const isOther = token.role === "other";
+    const isTestPreview = token.recipientName === "TEST PREVIEW (admin)";
     const downloaded = !!token.downloadedAt;
     const permGranted = token.permissionGranted === true;
     const permDenied = token.permissionGranted === false;
-    const canOverride = isParent && downloaded && !permGranted;
+    const canOverride = isParent && !isTestPreview && downloaded && !permGranted;
 
-    const roleLabel = isParent ? "Parent / Guardian"
+    const roleLabel = isParent && !isTestPreview ? "Parent / Guardian"
       : token.role === "teacher" ? "Teacher"
       : token.recipientName || "Additional Recipient";
 
-    const iconBg = isParent ? "bg-teal-50" : isOther ? "bg-purple-50" : "bg-indigo-50";
-    const iconColor = isParent ? "text-teal-500" : isOther ? "text-purple-500" : "text-indigo-500";
+    const iconBg = isTestPreview ? "bg-amber-50" : isParent ? "bg-teal-50" : isOther ? "bg-purple-50" : "bg-indigo-50";
+    const iconColor = isTestPreview ? "text-amber-500" : isParent ? "text-teal-500" : isOther ? "text-purple-500" : "text-indigo-500";
+
+    if (isTestPreview) {
+      return (
+        <div className="border-2 border-dashed border-amber-300 bg-amber-50/40 rounded-xl p-4 space-y-3">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                <FlaskConical size={14} className="text-amber-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-sm text-amber-800">Test Preview</span>
+                  <Badge className="bg-amber-200 text-amber-800 border-0 text-[9px] px-1.5 py-0 h-4">Admin only</Badge>
+                </div>
+                <p className="text-[10px] text-amber-600 leading-none mt-0.5">{token.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {downloaded && <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>}
+              {permGranted && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><ShieldCheck size={9} className="mr-1"/>Consented</Badge>}
+              {token.sentAt && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><Mail size={9} className="mr-1"/>Sent</Badge>}
+            </div>
+          </div>
+
+          {/* Access code */}
+          {token.accessCode && (
+            <div className="flex items-center gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2">
+              <Lock size={12} className="text-amber-400 shrink-0" />
+              <span className="text-xs text-amber-700">Test access code:</span>
+              <span className="font-mono font-bold text-sm tracking-widest text-amber-900">{token.accessCode}</span>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-1 border-t border-amber-200">
+            <p className="text-[10px] text-amber-600">This test token is not visible to parents or teachers.</p>
+            <button onClick={handleResetTestPreview}
+              className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-1 font-medium">
+              <X size={10}/> Clear test
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="border border-slate-200 rounded-xl p-4 space-y-3">
@@ -684,13 +744,14 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       </div>
 
       {/* Token (link) status */}
-      {(parentToken || teacherToken || otherTokens.length > 0) && (
+      {(parentToken || teacherToken || otherTokens.length > 0 || testPreviewToken) && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Link Status</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {parentToken && <TokenCard token={parentToken} />}
             {teacherToken && <TokenCard token={teacherToken} />}
             {otherTokens.map(t => <TokenCard key={t.id} token={t} />)}
+            {testPreviewToken && <TokenCard token={testPreviewToken} />}
           </div>
         </div>
       )}

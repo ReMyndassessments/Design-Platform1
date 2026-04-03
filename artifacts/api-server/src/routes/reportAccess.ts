@@ -594,6 +594,15 @@ router.post("/cases/:id/report-access/tokens/:tokenId/mark-received", authMiddle
   res.json({ success: true, markedReceivedAt: now });
 });
 
+// ── Admin: delete test preview token ──────────────────────────────────────────
+router.delete("/cases/:id/report-access/test-preview", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }
+  await db.delete(reportTokensTable).where(
+    and(eq(reportTokensTable.caseId, req.params.id), eq(reportTokensTable.recipientName, "TEST PREVIEW (admin)"))
+  );
+  res.json({ success: true });
+});
+
 // ── Admin: override parental consent (only if parent has downloaded) ───────────
 router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin") {
