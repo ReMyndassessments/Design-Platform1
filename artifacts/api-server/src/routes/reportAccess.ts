@@ -258,6 +258,48 @@ router.post("/cases/:id/report-access/import-google-doc", authMiddleware, async 
   res.json({ success: true, filename, message: "Report imported successfully. You can now send it to recipients." });
 });
 
+// ── Admin: send a test preview email to themselves ────────────────────────────
+router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const caseId = req.params.id;
+
+  const [caseRow] = await db.select({
+    studentName: casesTable.studentName,
+    schoolName: casesTable.schoolName,
+    preferredLanguage: casesTable.preferredLanguage,
+  }).from(casesTable).where(eq(casesTable.id, caseId));
+
+  if (!caseRow) { res.status(404).json({ error: "Case not found" }); return; }
+
+  const [adminUser] = await db.select({ email: usersTable.email, name: usersTable.name })
+    .from(usersTable).where(eq(usersTable.id, req.userId!));
+
+  if (!adminUser?.email) { res.status(400).json({ error: "Admin email not found" }); return; }
+
+  const lang = normLang(caseRow.preferredLanguage);
+  const studentName = caseRow.studentName;
+  const schoolName = caseRow.schoolName ?? "the school";
+  const base = getBaseUrl(req);
+  const placeholderLink = `${base}/external/TEST_PREVIEW_LINK`;
+
+  const testBanner = `<div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:24px;font-family:sans-serif">
+    <p style="margin:0;font-size:13px;font-weight:600;color:#92400e">TEST PREVIEW — This is how the parent email will look</p>
+    <p style="margin:4px 0 0;font-size:12px;color:#b45309">The download button link is a placeholder. No actual report link is active in this test.</p>
+  </div>`;
+
+  const emailHtml = testBanner + buildParentEmail(lang, studentName, schoolName, placeholderLink);
+
+  await sendEmail({
+    to: adminUser.email,
+    subject: `[TEST PREVIEW] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
+    html: emailHtml,
+  });
+
+  res.json({ success: true, sentTo: adminUser.email });
+});
+
 // ── Admin: upload report PDF for a case ───────────────────────────────────────
 router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {

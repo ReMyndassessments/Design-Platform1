@@ -70,6 +70,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Edit email state
   const [editingToken, setEditingToken] = useState<string | null>(null);
@@ -239,6 +240,26 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       toast({ title: "Import failed. Please try again.", variant: "destructive" });
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-access/send-test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast({ title: data.error ?? "Failed to send test email", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Test email sent", description: `Preview sent to ${data.sentTo} — check your inbox.` });
+    } catch {
+      toast({ title: "Failed to send test email. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -641,12 +662,25 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           </div>
         )}
 
-        <Button onClick={handleUpload} disabled={isUploading || !selectedFile} className="gap-2 w-full sm:w-auto">
-          <SendHorizonal size={15}/>
-          {isUploading ? "Uploading…"
-            : isDebrief ? "Add Document"
-            : "Upload & Send Links"}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={handleUpload} disabled={isUploading || !selectedFile} className="gap-2">
+            <SendHorizonal size={15}/>
+            {isUploading ? "Sending…"
+              : isDebrief ? "Add Document"
+              : "Send Links"}
+          </Button>
+          {!isDebrief && (
+            <Button
+              variant="outline"
+              onClick={handleSendTestEmail}
+              disabled={isSendingTest}
+              className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50"
+            >
+              <Mail size={14}/>
+              {isSendingTest ? "Sending…" : "Preview Email"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Token (link) status */}
