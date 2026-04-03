@@ -310,13 +310,14 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
     and(eq(reportTokensTable.caseId, caseId), eq(reportTokensTable.recipientName, "TEST PREVIEW (admin)"))
   );
 
-  // Create a real live token so the full portal experience is accessible
+  // Create a real live parent-role token so the full parent experience is tested
+  // (consent gate, access code, download flow — identical to what the real parent receives)
   const token = randomUUID();
   const testAccessCode = generateAccessCode();
   await db.insert(reportTokensTable).values({
     id: randomUUID(),
     caseId,
-    role: "other",
+    role: "parent",
     email: adminUser.email,
     token,
     accessCode: testAccessCode,
