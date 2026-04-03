@@ -604,7 +604,7 @@ router.get("/cases/:id/report-access/uploads/:uploadId/view", authMiddleware, as
   if (!upload) { res.status(404).json({ error: "not_found" }); return; }
 
   try {
-    const objectFile = storage.objectFile(upload.fileKey);
+    const objectFile = await storage.getObjectEntityFile(upload.fileKey);
     const response = await storage.downloadObject(objectFile);
     if (!response.ok) { res.status(502).json({ error: "storage_error" }); return; }
     res.setHeader("Content-Type", "application/pdf");
@@ -618,7 +618,8 @@ router.get("/cases/:id/report-access/uploads/:uploadId/view", authMiddleware, as
       }
     });
     stream.pipe(res);
-  } catch {
+  } catch (err) {
+    console.error("Error streaming upload:", err);
     res.status(502).json({ error: "download_failed" });
   }
 });
