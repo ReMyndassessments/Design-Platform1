@@ -152,7 +152,11 @@ router.post("/cases/:id/report-approval", authMiddleware, async (req, res) => {
   if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
 
   const approved: boolean = req.body.approved !== false;
-  const field = role === "admin" ? { adminApprovedReport: approved } : { psychApprovedReport: approved };
+  // When the admin withdraws approval it means they're sending the report back for revision —
+  // Abegail's "Mark as Final" is also cleared so she must re-confirm after changes.
+  const field = role === "admin"
+    ? { adminApprovedReport: approved, ...(approved ? {} : { psychApprovedReport: false }) }
+    : { psychApprovedReport: approved };
 
   const [updated] = await db.update(casesTable).set({ ...field, updatedAt: new Date() }).where(eq(casesTable.id, caseId)).returning();
   res.json({

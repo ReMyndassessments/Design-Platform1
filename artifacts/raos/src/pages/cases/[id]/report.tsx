@@ -237,7 +237,7 @@ export default function ReportEditor() {
                         ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
                         : "bg-emerald-600 hover:bg-emerald-700 text-white"}
                     >
-                      {adminApproved ? "Undo" : "Approve"}
+                      {adminApproved ? "Request Revision" : "Approve"}
                     </Button>
                   )}
                 </div>
