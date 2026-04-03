@@ -8,6 +8,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
+const BASE = "/api";
+
 export default function ReportEditor() {
   const params = useParams();
   const caseId = params.id as string;
@@ -22,6 +24,27 @@ export default function ReportEditor() {
 
   const [editingDocUrl, setEditingDocUrl] = useState(false);
   const [docUrlInput, setDocUrlInput] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportGoogleDoc = async () => {
+    setIsImporting(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-access/import-google-doc`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast({ title: data.message ?? "Import failed", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Report attached", description: "The Google Doc has been exported as PDF and is ready to send from the case page." });
+    } catch {
+      toast({ title: "Import failed. Please try again.", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   useEffect(() => {
     if (caseData?.workingDocUrl) {
@@ -147,44 +170,27 @@ export default function ReportEditor() {
         </CardContent>
       </Card>
 
-      {/* Ready for Delivery */}
-      <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">
-        <div className="px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
-          <PackageCheck size={17} className="text-emerald-600" />
-          <h3 className="font-semibold text-slate-800">Ready for Delivery?</h3>
-        </div>
-        <CardContent className="p-6 space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm text-slate-700">
-              Once the report is finalised in Google Docs:
+      {/* Attach to Delivery */}
+      {workingDocUrl && (
+        <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">
+          <div className="px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
+            <PackageCheck size={17} className="text-emerald-600" />
+            <h3 className="font-semibold text-slate-800">Attach to Delivery</h3>
+          </div>
+          <CardContent className="p-6 flex items-center justify-between gap-6">
+            <p className="text-sm text-slate-600">
+              When the report is finalised, click to automatically export it as PDF and attach it to the delivery system — ready to send to parents and teachers.
             </p>
-            <ol className="space-y-1.5 text-sm text-slate-600 list-none">
-              <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                <span>Open the Google Doc and go to <strong>File → Download → PDF</strong> to export it</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                <span>Go to the case page and use the <strong>Report Access</strong> panel to upload the PDF and send secure links to the parent and school</span>
-              </li>
-            </ol>
-          </div>
-          <div className="flex gap-3">
-            {workingDocUrl && (
-              <a href={workingDocUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                  <ExternalLink size={14} className="mr-2" /> Open Google Doc
-                </Button>
-              </a>
-            )}
-            <Link href={`/cases/${caseId}`}>
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20">
-                Go to Report Access
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+            <Button
+              onClick={handleImportGoogleDoc}
+              disabled={isImporting}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20 shrink-0"
+            >
+              {isImporting ? "Attaching…" : "Attach Report"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
