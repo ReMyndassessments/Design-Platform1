@@ -27,7 +27,7 @@ export default function ReportEditor() {
   const [isImporting, setIsImporting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
-  const handleToggleApproval = async (approve: boolean) => {
+  const handleToggleApproval = async (approve: boolean, overridePsych = false) => {
     setIsApproving(true);
     try {
       const r = await fetch(`${BASE}/cases/${caseId}/report-approval`, {
@@ -36,7 +36,7 @@ export default function ReportEditor() {
           Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ approved: approve }),
+        body: JSON.stringify({ approved: approve, overridePsych }),
       });
       if (!r.ok) {
         const d = await r.json();
@@ -250,22 +250,43 @@ export default function ReportEditor() {
                       : <Circle size={18} className="text-slate-300 shrink-0" />}
                     <div>
                       <p className="text-sm font-medium text-slate-800">Psychometrician (Abegail)</p>
-                      <p className="text-xs text-slate-400">{psychApproved ? "Marked as final" : "Pending approval"}</p>
+                      <p className="text-xs text-slate-400">
+                        {psychApproved
+                          ? "Marked as final"
+                          : myRole === "admin"
+                          ? "Pending — Abegail hasn't signed off yet"
+                          : "Pending approval"}
+                      </p>
                     </div>
                   </div>
-                  {myRole === "psychometrician" && (
-                    <Button
-                      size="sm"
-                      variant={psychApproved ? "outline" : "default"}
-                      disabled={isApproving}
-                      onClick={() => handleToggleApproval(!psychApproved)}
-                      className={psychApproved
-                        ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
-                        : "bg-emerald-600 hover:bg-emerald-700 text-white"}
-                    >
-                      {psychApproved ? "Unmark" : "Mark as Final"}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {myRole === "psychometrician" && (
+                      <Button
+                        size="sm"
+                        variant={psychApproved ? "outline" : "default"}
+                        disabled={isApproving}
+                        onClick={() => handleToggleApproval(!psychApproved)}
+                        className={psychApproved
+                          ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                      >
+                        {psychApproved ? "Unmark" : "Mark as Final"}
+                      </Button>
+                    )}
+                    {myRole === "admin" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isApproving}
+                        onClick={() => handleToggleApproval(!psychApproved, true)}
+                        className={psychApproved
+                          ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200 text-xs"
+                          : "text-slate-500 border-dashed border-slate-300 hover:border-slate-400 text-xs"}
+                      >
+                        {psychApproved ? "Remove override" : "Override"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
 

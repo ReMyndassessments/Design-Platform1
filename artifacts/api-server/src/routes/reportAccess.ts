@@ -152,9 +152,14 @@ router.post("/cases/:id/report-approval", authMiddleware, async (req, res) => {
   if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
 
   const approved: boolean = req.body.approved !== false;
+  const overridePsych: boolean = role === "admin" && req.body.overridePsych === true;
+
   // When the admin withdraws approval it means they're sending the report back for revision —
   // Abegail's "Mark as Final" is also cleared so she must re-confirm after changes.
-  const field = role === "admin"
+  // When overridePsych is set, the admin is approving on Abegail's behalf.
+  const field = overridePsych
+    ? { psychApprovedReport: approved }
+    : role === "admin"
     ? { adminApprovedReport: approved, ...(approved ? {} : { psychApprovedReport: false }) }
     : { psychApprovedReport: approved };
 
