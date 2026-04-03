@@ -12,3 +12,9 @@ id = "CwfJvv1qSC-y9ajbqM8yz"
 uri = "file://PSYCHOMETRICIAN_TRAINING_MANUAL.md"
 type = "text"
 title = "Psychometrician Training Manual — RAOS"
+
+[[outputs]]
+id = "L1xeEEswtQ4rK8zCOxxUu"
+uri = "file://ADMIN_TRAINING_MANUAL.md"
+type = "text"
+title = "Administrator Training Manual — RAOS"
