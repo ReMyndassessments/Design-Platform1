@@ -64,11 +64,16 @@ export default function ReportEditor() {
         toast({ title: data.message ?? "Import failed", variant: "destructive" });
         return;
       }
-      // Advance phase to Final Review if still in Report phase
-      if (caseData?.currentPhase === "report") {
-        await fetch(`${BASE}/cases/${caseId}/advance`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      // Move to Final Review if not already there or beyond
+      const preFinalPhases = ["pre_commitment", "intake", "setup", "forms", "assessment", "scoring", "report"];
+      if (preFinalPhases.includes(caseData?.currentPhase ?? "")) {
+        await fetch(`${BASE}/cases/${caseId}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ currentPhase: "final_review" }),
         });
       }
       toast({ title: "Report attached", description: "Taking you to the delivery panel…" });
