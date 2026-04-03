@@ -687,6 +687,47 @@ export default function CaseDetail() {
         </CardContent>
       </Card>
 
+      {/* Student Details — always at top */}
+      <Card className="border-none shadow-md">
+        <CardContent className="px-5 py-3">
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Student Details</span>
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs">DOB</span>
+              <span className="font-medium">{formatDate(c.dob)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs">School</span>
+              <span className="font-medium">{c.school} (Grade {c.grade || 'N/A'})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs">Language</span>
+              <span className="font-medium capitalize">{c.languagePreference}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-xs">Parent</span>
+              <span className="font-medium">{c.parentName || 'N/A'}</span>
+            </div>
+            {c.workingDocUrl ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 text-xs">Working Doc</span>
+                <a href={c.workingDocUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium">
+                  Open in Google Docs <ExternalLink size={12} />
+                </a>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 text-xs">Working Doc</span>
+                <span className="text-slate-400 text-xs italic">Not linked</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Final Review Banner */}
       {c.currentPhase === 'final_review' && role === 'admin' && (
         <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md">
@@ -721,50 +762,8 @@ export default function CaseDetail() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col: Info & AI */}
+        {/* Left Col: AI & Phase Content */}
         <div className="space-y-6 col-span-1">
-          <Card className="border-none shadow-md">
-            <CardHeader className="pb-3 border-b bg-slate-50/50">
-              <CardTitle className="text-lg">Student Details</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-4 border-b pb-2">
-                <span className="text-slate-500 shrink-0">DOB</span>
-                <span className="font-medium text-right">{formatDate(c.dob)}</span>
-              </div>
-              <div className="flex items-start justify-between gap-4 border-b pb-2">
-                <span className="text-slate-500 shrink-0">School</span>
-                <span className="font-medium text-right">{c.school} (Grade {c.grade || 'N/A'})</span>
-              </div>
-              <div className="flex items-start justify-between gap-4 border-b pb-2">
-                <span className="text-slate-500 shrink-0">Language</span>
-                <span className="font-medium text-right capitalize">{c.languagePreference}</span>
-              </div>
-              <div className="flex items-start justify-between gap-4 border-b pb-2">
-                <span className="text-slate-500 shrink-0">Parent</span>
-                <span className="font-medium text-right">{c.parentName || 'N/A'}</span>
-              </div>
-              {c.workingDocUrl ? (
-                <div className="flex items-start justify-between gap-4">
-                  <span className="text-slate-500 shrink-0">Working Doc</span>
-                  <a
-                    href={c.workingDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-right"
-                  >
-                    Open in Google Docs <ExternalLink size={13} />
-                  </a>
-                </div>
-              ) : (
-                <div className="flex items-start justify-between gap-4">
-                  <span className="text-slate-500 shrink-0">Working Doc</span>
-                  <span className="text-slate-400 text-xs italic text-right">Not linked — edit case to add</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring") && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
