@@ -593,6 +593,36 @@ router.get("/report-access/:token", async (req, res) => {
   });
 });
 
+// ── Admin: view/download an uploaded file ─────────────────────────────────────
+router.get("/cases/:id/report-access/uploads/:uploadId/view", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "psychometrician") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const [upload] = await db.select().from(reportUploadsTable).where(
+    and(eq(reportUploadsTable.caseId, req.params.id), eq(reportUploadsTable.id, req.params.uploadId))
+  );
+  if (!upload) { res.status(404).json({ error: "not_found" }); return; }
+
+  try {
+    const objectFile = storage.objectFile(upload.fileKey);
+    const response = await storage.downloadObject(objectFile);
+    if (!response.ok) { res.status(502).json({ error: "storage_error" }); return; }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${upload.filename}"`);
+    const reader = response.body!.getReader();
+    const stream = new Readable({
+      async read() {
+        const { done, value } = await reader.read();
+        if (done) this.push(null);
+        else this.push(Buffer.from(value));
+      }
+    });
+    stream.pipe(res);
+  } catch {
+    res.status(502).json({ error: "download_failed" });
+  }
+});
+
 // ── External: download report PDF ─────────────────────────────────────────────
 router.get("/report-access/:token/download", async (req, res) => {
   const [token] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.token, req.params.token));

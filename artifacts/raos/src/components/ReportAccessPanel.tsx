@@ -448,6 +448,22 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
                   <span className="text-[10px] text-slate-400">
                     {new Date(u.uploadedAt).toLocaleDateString()}
                   </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-slate-500 hover:text-indigo-600"
+                    onClick={async () => {
+                      const r = await fetch(`${BASE}/cases/${caseId}/report-access/uploads/${u.id}/view`, {
+                        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+                      });
+                      if (!r.ok) return;
+                      const blob = await r.blob();
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, "_blank");
+                    }}
+                  >
+                    <ExternalLink size={12} className="mr-1" /> View
+                  </Button>
                 </div>
               </div>
             ))}
