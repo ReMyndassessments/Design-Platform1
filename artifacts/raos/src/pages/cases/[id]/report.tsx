@@ -64,6 +64,13 @@ export default function ReportEditor() {
         toast({ title: data.message ?? "Import failed", variant: "destructive" });
         return;
       }
+      // Advance phase to Final Review if still in Report phase
+      if (caseData?.currentPhase === "report") {
+        await fetch(`${BASE}/cases/${caseId}/advance`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        });
+      }
       toast({ title: "Report attached", description: "Taking you to the delivery panel…" });
       navigate(`/cases/${caseId}`);
     } catch {

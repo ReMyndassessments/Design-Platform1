@@ -687,6 +687,25 @@ export default function CaseDetail() {
         </CardContent>
       </Card>
 
+      {/* Final Review Banner */}
+      {c.currentPhase === 'final_review' && role === 'admin' && (
+        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <Eye size={20} className="text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-800 text-base mb-1">Final Review — Before You Send</h3>
+                <p className="text-sm text-slate-600">
+                  The report has been attached to the delivery package. Review everything below — the attached PDF, any additional documents, and recipient details — then send it out when you're satisfied. Sending will advance the case to the Debrief stage.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Report Access Panel — visible to admin in report/final_review/debrief phases */}
       {role === "admin" && ['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
         <ReportAccessPanel
@@ -746,7 +765,7 @@ export default function CaseDetail() {
             </CardContent>
           </Card>
 
-          {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && (
+          {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring") && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">
