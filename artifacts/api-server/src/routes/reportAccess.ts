@@ -295,11 +295,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   }
   const caseId = req.params.id;
 
-  const [caseRow] = await db.select({
-    studentName: casesTable.studentName,
-    school: casesTable.school,
-    languagePreference: casesTable.languagePreference,
-  }).from(casesTable).where(eq(casesTable.id, caseId));
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
 
   if (!caseRow) { res.status(404).json({ error: "Case not found" }); return; }
 
@@ -313,6 +309,11 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
     .from(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId));
   if (!upload) {
     res.status(400).json({ error: "No report uploaded yet. Import or upload the report first." }); return;
+  }
+
+  // Require a debrief meeting link before test email can be sent
+  if (!caseRow.debriefMeetingUrl) {
+    res.status(400).json({ error: "No debrief meeting link saved. Add a meeting link in the Debrief Meeting Room section before sending." }); return;
   }
 
   const lang = normLang(caseRow.languagePreference);
@@ -390,14 +391,17 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
   }
 
   // Gate: only allowed during Final Review or Debrief
-  const [phaseCheck] = await db.select({ currentPhase: casesTable.currentPhase })
-    .from(casesTable).where(eq(casesTable.id, caseId));
+  const [phaseCheck] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
   if (!phaseCheck) { res.status(404).json({ error: "case_not_found" }); return; }
   if (phaseCheck.currentPhase !== "final_review" && phaseCheck.currentPhase !== "debrief") {
     res.status(409).json({ error: "wrong_phase", message: "Reports can only be sent during Final Review or Debrief." }); return;
   }
 
+  // Gate: require debrief meeting link before first send (when it would email the parent)
   const isReuploading = phaseCheck.currentPhase === "debrief";
+  if (!isReuploading && parentEmail && !phaseCheck.debriefMeetingUrl) {
+    res.status(400).json({ error: "no_meeting_link", message: "A debrief meeting link must be saved before sending the report to the parent." }); return;
+  }
 
   // Record new upload (history kept — never delete old ones)
   await db.insert(reportUploadsTable).values({

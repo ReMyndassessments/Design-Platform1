@@ -811,8 +811,16 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           </div>
         )}
 
+        {/* Meeting link gate warning */}
+        {!isDebrief && !debriefMeetingUrl && (
+          <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-800">
+            <AlertTriangle size={13} className="text-amber-500 shrink-0"/>
+            <span>A debrief meeting link must be saved before sending or previewing the report email.</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={handleUpload} disabled={isUploading || !selectedFile} className="gap-2">
+          <Button onClick={handleUpload} disabled={isUploading || !selectedFile || (!isDebrief && !!pEmail && !debriefMeetingUrl)} className="gap-2">
             <SendHorizonal size={15}/>
             {isUploading ? "Sending…"
               : isDebrief ? "Add Document"
@@ -822,8 +830,8 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             <Button
               variant="outline"
               onClick={handleSendTestEmail}
-              disabled={isSendingTest}
-              className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50"
+              disabled={isSendingTest || !debriefMeetingUrl}
+              className="gap-2 text-slate-600 border-slate-300 hover:bg-slate-50 disabled:opacity-40"
             >
               <Mail size={14}/>
               {isSendingTest ? "Sending…" : "Preview Email"}
