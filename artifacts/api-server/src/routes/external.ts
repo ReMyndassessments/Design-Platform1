@@ -175,10 +175,10 @@ router.get("/external/portal/:token", async (req, res) => {
     } : null;
 
     // Map internal admin phases to parent-visible phases
-    const rawPhase = caseData?.currentPhase ?? "report";
-    const displayPhase = rawPhase === "final_review" ? "report"
-      : rawPhase === "pre_commitment" || rawPhase === "intake" || rawPhase === "forms"
-        ? "report" : rawPhase;
+    const rawPhase = caseData?.currentPhase ?? "debrief";
+    const displayPhase = rawPhase === "final_review" ? "debrief"
+      : rawPhase === "pre_commitment" || rawPhase === "intake" || rawPhase === "forms" || rawPhase === "report" || rawPhase === "scoring" || rawPhase === "assessment"
+        ? "debrief" : rawPhase;
 
     res.json({
       studentName: caseData?.studentName ?? "the student",
