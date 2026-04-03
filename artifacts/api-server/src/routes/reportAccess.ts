@@ -267,7 +267,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   const [caseRow] = await db.select({
     studentName: casesTable.studentName,
-    schoolName: casesTable.schoolName,
+    school: casesTable.school,
     languagePreference: casesTable.languagePreference,
   }).from(casesTable).where(eq(casesTable.id, caseId));
 
@@ -280,7 +280,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   const lang = normLang(caseRow.languagePreference);
   const studentName = caseRow.studentName;
-  const schoolName = caseRow.schoolName ?? "the school";
+  const schoolName = caseRow.school ?? "the school";
   const base = getBaseUrl(req);
   const placeholderLink = `${base}/external/TEST_PREVIEW_LINK`;
 
