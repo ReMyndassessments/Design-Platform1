@@ -240,6 +240,7 @@ export default function CaseDetail() {
   const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
+  const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
 
   const filteredTools = tools?.filter(t => {
     if (role === "admin") return true;
@@ -763,7 +764,7 @@ export default function CaseDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: AI & Phase Content */}
-        <div className="space-y-6 col-span-1">
+        <div className={`space-y-6 col-span-1${hideAssignments ? ' lg:col-span-3' : ''}`}>
           {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring") && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
@@ -966,8 +967,8 @@ export default function CaseDetail() {
           })()}
         </div>
 
-        {/* Right Col: Assignments */}
-        <div className="col-span-1 lg:col-span-2">
+        {/* Right Col: Assignments — hidden from report stage onwards */}
+        {!hideAssignments && <div className="col-span-1 lg:col-span-2">
           <Card className="border-none shadow-md h-full">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle>Assessment Forms & Assignments</CardTitle>
@@ -1077,7 +1078,7 @@ export default function CaseDetail() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </div>}
       </div>
 
       {/* Modals */}
