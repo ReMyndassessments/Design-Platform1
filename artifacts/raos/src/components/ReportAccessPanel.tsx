@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
-  UserPlus, X, Bell, Archive, FilePlus2, Lock,
+  UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ interface Props {
   caseId: string;
   parentEmail?: string;
   currentPhase?: string;
+  workingDocUrl?: string;
   onPhaseAdvanced?: () => void;
 }
 
@@ -47,7 +48,7 @@ interface AdditionalRecipient {
 
 const BASE = "/api";
 
-export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAdvanced }: Props) {
+export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, onPhaseAdvanced }: Props) {
   const { toast } = useToast();
 
   const [uploads, setUploads] = useState<ReportUpload[]>([]);
@@ -456,6 +457,22 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, onPhaseAd
           {isDebrief ? <FilePlus2 size={13}/> : <Upload size={13}/>}
           {isDebrief ? (hasUploads ? "Add Another Document" : "Upload Revised Report") : "Upload Final Report"}
         </p>
+
+        {/* Google Doc export prompt */}
+        {workingDocUrl && (
+          <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+            <ExternalLink size={14} className="text-blue-500 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-800 mb-0.5">Finalise from your working document</p>
+              <p className="text-xs text-blue-700">Open the Google Doc, go to <strong>File → Download → PDF</strong>, then upload the exported PDF below.</p>
+            </div>
+            <a href={workingDocUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 bg-white">
+                Open Doc
+              </Button>
+            </a>
+          </div>
+        )}
 
         {/* File picker */}
         <div>

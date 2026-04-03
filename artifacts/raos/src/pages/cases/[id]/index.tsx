@@ -693,6 +693,7 @@ export default function CaseDetail() {
           caseId={c.id}
           parentEmail={c.parentEmail ?? undefined}
           currentPhase={c.currentPhase}
+          workingDocUrl={c.workingDocUrl ?? undefined}
           onPhaseAdvanced={() => {
             queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
             queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
