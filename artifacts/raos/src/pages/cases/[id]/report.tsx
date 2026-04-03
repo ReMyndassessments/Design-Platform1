@@ -1,4 +1,4 @@
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useGetCase, useGetCurrentUser, useUpdateCase } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export default function ReportEditor() {
   const caseId = params.id as string;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const { data: currentUser } = useGetCurrentUser();
   const canEdit = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
@@ -63,7 +64,8 @@ export default function ReportEditor() {
         toast({ title: data.message ?? "Import failed", variant: "destructive" });
         return;
       }
-      toast({ title: "Report attached", description: "The Google Doc has been exported as PDF and is ready to send from the case page." });
+      toast({ title: "Report attached", description: "Taking you to the delivery panel…" });
+      navigate(`/cases/${caseId}`);
     } catch {
       toast({ title: "Import failed. Please try again.", variant: "destructive" });
     } finally {
