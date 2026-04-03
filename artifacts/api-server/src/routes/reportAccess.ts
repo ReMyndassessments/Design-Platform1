@@ -268,7 +268,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   const [caseRow] = await db.select({
     studentName: casesTable.studentName,
     schoolName: casesTable.schoolName,
-    preferredLanguage: casesTable.preferredLanguage,
+    languagePreference: casesTable.languagePreference,
   }).from(casesTable).where(eq(casesTable.id, caseId));
 
   if (!caseRow) { res.status(404).json({ error: "Case not found" }); return; }
@@ -278,7 +278,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   if (!adminUser?.email) { res.status(400).json({ error: "Admin email not found" }); return; }
 
-  const lang = normLang(caseRow.preferredLanguage);
+  const lang = normLang(caseRow.languagePreference);
   const studentName = caseRow.studentName;
   const schoolName = caseRow.schoolName ?? "the school";
   const base = getBaseUrl(req);
