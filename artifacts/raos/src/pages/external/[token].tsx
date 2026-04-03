@@ -64,6 +64,7 @@ type PortalData = {
   respondentType: string | null;
   forms: PortalForm[];
   reportAccess: ReportAccess | null;
+  debriefMeetingUrl?: string | null;
 };
 
 // ── Phase config ──────────────────────────────────────────────────────────────
@@ -129,6 +130,13 @@ const PT = {
   shareNotYet:       { english: "Not Yet", mandarin: "暂时不", korean: "아직은 아니에요" },
   consentGranted:    { english: "School access granted", mandarin: "已授予学校访问权限", korean: "학교 접근 허용됨" },
   consentWithheld:   { english: "School access not yet granted", mandarin: "尚未授予学校访问权限", korean: "학교 접근 아직 허용 안 됨" },
+  debriefMeeting:    { english: "Debrief Meeting", mandarin: "汇报会议", korean: "디브리핑 미팅" },
+  debriefMeetingBody: {
+    english:  "Your clinician has set up a virtual meeting to walk you through the assessment results. Click below to join at your scheduled time.",
+    mandarin: "您的临床医生已设置了一次虚拟会议，为您详细讲解评估结果。请在预定时间点击下方链接加入。",
+    korean:   "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 준비했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.",
+  },
+  joinMeeting:       { english: "Join Debrief Meeting", mandarin: "加入汇报会议", korean: "디브리핑 미팅 참여" },
 } satisfies Record<string, Record<Lang, string>>;
 
 function t(key: keyof typeof PT, language: string): string {
@@ -970,6 +978,36 @@ function PortalView({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Debrief Meeting Card */}
+        {portal.debriefMeetingUrl && (
+          <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                  <path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-slate-900">{t("debriefMeeting", language)}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t("debriefMeetingBody", language)}</p>
+              </div>
+            </div>
+            <div className="px-5 pb-5">
+              <a
+                href={portal.debriefMeetingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>
+                </svg>
+                {t("joinMeeting", language)} ↗
+              </a>
             </div>
           </div>
         )}

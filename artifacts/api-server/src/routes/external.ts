@@ -148,6 +148,7 @@ router.get("/external/portal/:token", async (req, res) => {
         uniqueToken: s.uniqueToken,
       })),
       reportAccess,
+      debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
     });
     return;
   }
@@ -189,6 +190,7 @@ router.get("/external/portal/:token", async (req, res) => {
       respondentType: reportTok.role,
       forms: [],
       reportAccess,
+      debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
     });
     return;
   }

@@ -575,14 +575,15 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     const t = token[0];
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, t.caseId));
     const studentName = caseRow?.studentName ?? "your student";
+    const schoolName = caseRow?.school ?? "the school";
     const resendLang = normLang(caseRow?.languagePreference);
     const base = getBaseUrl(req);
     const link = `${base}/external/${t.token}`;
 
     await sendEmail({
       to: email,
-      subject: EMAIL_COPY.resendHeading[resendLang] + ` — ${studentName}`,
-      html: buildResendEmail(resendLang, studentName, link),
+      subject: EMAIL_COPY.parentSubject[resendLang](studentName),
+      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ?? undefined),
     });
 
     await db.update(reportTokensTable)
