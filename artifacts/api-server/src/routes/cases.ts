@@ -109,6 +109,12 @@ function nextPhase(current: string): string {
   return PHASE_ORDER[idx + 1];
 }
 
+function prevPhase(current: string): string {
+  const idx = PHASE_ORDER.indexOf(current);
+  if (idx <= 0) return current;
+  return PHASE_ORDER[idx - 1];
+}
+
 function canAccessCase(_role: string, _userId: string, _c: typeof casesTable.$inferSelect): boolean {
   return true;
 }
@@ -295,6 +301,31 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     updatedAt: new Date(),
   }).where(eq(casesTable.id, req.params.caseId)).returning();
 
+  res.json(formatCase(updated[0]));
+});
+
+// ── Admin: step case back one phase ───────────────────────────────────────────
+router.post("/cases/:caseId/step-back", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can step back a phase" });
+    return;
+  }
+  const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!rows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  const current = rows[0].currentPhase;
+  const prev = prevPhase(current);
+  if (prev === current) {
+    res.status(400).json({ error: "already_at_first_phase" }); return;
+  }
+  const PHASE_PROGRESS: Record<string, number> = {
+    pre_commitment: 5, intake: 15, setup: 25, forms: 38,
+    assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 95,
+  };
+  const updated = await db.update(casesTable).set({
+    currentPhase: prev as typeof casesTable.$inferSelect["currentPhase"],
+    progressPercentage: PHASE_PROGRESS[prev] ?? 0,
+    updatedAt: new Date(),
+  }).where(eq(casesTable.id, req.params.caseId)).returning();
   res.json(formatCase(updated[0]));
 });
 

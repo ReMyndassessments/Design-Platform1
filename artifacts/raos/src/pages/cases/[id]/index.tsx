@@ -21,14 +21,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { 
-  ArrowLeft, CheckCircle2, ChevronRight, 
+  ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Send, Mail, Link2, LayoutGrid, Video, CopyCheck, ShieldCheck
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 
 const PHASES = [
@@ -124,6 +124,7 @@ export default function CaseDetail() {
     assignedToName: "",
     assignedToEmail: ""
   });
+  const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
   const [distributeFormsOpen, setDistributeFormsOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
@@ -241,6 +242,9 @@ export default function CaseDetail() {
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
+  const prevPhaseName = currentPhaseIndex > 0
+    ? (PHASE_LABELS[PHASES[currentPhaseIndex - 1]] ?? PHASES[currentPhaseIndex - 1])
+    : null;
 
   const filteredTools = tools?.filter(t => {
     if (role === "admin") return true;
@@ -321,6 +325,25 @@ export default function CaseDetail() {
       onError: () => toast({ title: "Cannot advance this phase", description: "Your role does not allow advancing the current phase.", variant: "destructive" })
     });
   };
+
+  const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const stepBackMut = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/step-back`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Phase stepped back" });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+      setStepBackConfirmOpen(false);
+    },
+    onError: () => toast({ title: "Could not step back", variant: "destructive" }),
+  });
 
   const TEACHER_TYPES = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor"]);
 
@@ -623,6 +646,16 @@ export default function CaseDetail() {
                 <Trash2 size={16} /> Delete
               </Button>
             </>
+          )}
+          {role === "admin" && c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
+            <Button
+              variant="outline"
+              className="bg-white gap-1.5"
+              onClick={() => setStepBackConfirmOpen(true)}
+              disabled={stepBackMut.isPending}
+            >
+              <ChevronLeft size={16} /> Step Back
+            </Button>
           )}
           <Button 
             onClick={handleAdvancePhase} 
@@ -1429,7 +1462,25 @@ export default function CaseDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Case Confirmation */}
+      {/* Step Back Confirmation */}
+      <Dialog open={stepBackConfirmOpen} onOpenChange={open => { if (!open) setStepBackConfirmOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Step Back to Previous Phase?</DialogTitle>
+            <DialogDescription>
+              This will move <span className="font-semibold text-slate-900">{c.studentName}</span>'s case back to the{" "}
+              {prevPhaseName && <span className="font-semibold text-slate-900">{prevPhaseName}</span>} phase. You can advance again at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setStepBackConfirmOpen(false)} disabled={stepBackMut.isPending}>Cancel</Button>
+            <Button variant="default" className="flex-1 bg-amber-600 hover:bg-amber-700" onClick={() => stepBackMut.mutate()} disabled={stepBackMut.isPending}>
+              {stepBackMut.isPending ? "Stepping back..." : "Step Back"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteCaseOpen} onOpenChange={open => { if (!open) setDeleteCaseOpen(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
