@@ -140,6 +140,80 @@ router.get("/cases/:id/report-access", authMiddleware, async (req, res) => {
   res.json({ uploads, tokens });
 });
 
+// ── Admin: import Google Doc as PDF directly into delivery ────────────────────
+router.post("/cases/:id/report-access/import-google-doc", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const caseId = req.params.id;
+
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, caseId));
+  if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+
+  const workingDocUrl = caseRow.workingDocUrl;
+  if (!workingDocUrl) {
+    res.status(400).json({ error: "no_working_doc", message: "No Google Doc is linked to this case." }); return;
+  }
+
+  // Extract Google Doc ID from URL
+  const docIdMatch = workingDocUrl.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+  if (!docIdMatch) {
+    res.status(400).json({ error: "invalid_url", message: "The linked URL does not appear to be a valid Google Doc." }); return;
+  }
+  const docId = docIdMatch[1];
+  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=pdf`;
+
+  // Fetch the PDF from Google
+  let pdfBuffer: Buffer;
+  try {
+    const response = await fetch(exportUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) {
+      if (response.status === 403 || response.status === 401) {
+        res.status(403).json({
+          error: "google_access_denied",
+          message: "Could not access the Google Doc. Make sure it is shared as 'Anyone with the link can view' in Google Docs."
+        }); return;
+      }
+      throw new Error(`Google export returned ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    pdfBuffer = Buffer.from(arrayBuffer);
+  } catch (err: any) {
+    if (err?.message?.includes("google_access_denied")) throw err;
+    res.status(502).json({ error: "fetch_failed", message: "Failed to download the Google Doc. Please try again." }); return;
+  }
+
+  // Upload to object storage via presigned URL
+  const uploadUrl = await storage.getObjectEntityUploadURL();
+  const objectPath = storage.normalizeObjectEntityPath(uploadUrl);
+
+  const putRes = await fetch(uploadUrl, {
+    method: "PUT",
+    body: pdfBuffer,
+    headers: { "Content-Type": "application/pdf" },
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!putRes.ok) {
+    res.status(502).json({ error: "storage_upload_failed", message: "Failed to save the PDF. Please try again." }); return;
+  }
+
+  // Register in DB
+  const studentName = caseRow.studentName ?? "Student";
+  const filename = `${studentName.replace(/[^a-z0-9]/gi, "_")}_Report.pdf`;
+
+  await db.insert(reportUploadsTable).values({
+    id: randomUUID(),
+    caseId,
+    fileKey: objectPath,
+    filename,
+    label: "Assessment Report (imported from Google Docs)",
+    uploadedBy: req.userId ?? "admin",
+  });
+
+  res.json({ success: true, filename, message: "Report imported successfully. You can now send it to recipients." });
+});
+
 // ── Admin: upload report PDF for a case ───────────────────────────────────────
 router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {

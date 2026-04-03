@@ -69,6 +69,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [notifyRecipients, setNotifyRecipients] = useState(false);
   const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Edit email state
   const [editingToken, setEditingToken] = useState<string | null>(null);
@@ -217,6 +218,27 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
     } else {
       toast({ title: "Marked as received out of system" });
       await fetchStatus();
+    }
+  };
+
+  const handleImportGoogleDoc = async () => {
+    setIsImporting(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-access/import-google-doc`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast({ title: data.message ?? "Import failed", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Report imported", description: "The Google Doc has been exported as PDF and is ready to send." });
+      await fetchStatus();
+    } catch {
+      toast({ title: "Import failed. Please try again.", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -458,19 +480,22 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           {isDebrief ? (hasUploads ? "Add Another Document" : "Upload Revised Report") : "Upload Final Report"}
         </p>
 
-        {/* Google Doc export prompt */}
+        {/* Google Doc auto-import */}
         {workingDocUrl && (
           <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
             <ExternalLink size={14} className="text-blue-500 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-blue-800 mb-0.5">Finalise from your working document</p>
-              <p className="text-xs text-blue-700">Open the Google Doc, go to <strong>File → Download → PDF</strong>, then upload the exported PDF below.</p>
+              <p className="text-xs font-semibold text-blue-800 mb-0.5">Import directly from your working document</p>
+              <p className="text-xs text-blue-700">Click below to automatically export the Google Doc as PDF and attach it here, ready to send.</p>
             </div>
-            <a href={workingDocUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
-              <Button size="sm" variant="outline" className="h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100 bg-white">
-                Open Doc
-              </Button>
-            </a>
+            <Button
+              size="sm"
+              disabled={isImporting}
+              onClick={handleImportGoogleDoc}
+              className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+            >
+              {isImporting ? "Importing…" : "Auto-import"}
+            </Button>
           </div>
         )}
 
