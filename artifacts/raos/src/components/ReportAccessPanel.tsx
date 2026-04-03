@@ -317,42 +317,41 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
 
     if (isTestPreview) {
       return (
-        <div className="border-2 border-dashed border-amber-300 bg-amber-50/40 rounded-xl p-4 space-y-3">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                <FlaskConical size={14} className="text-amber-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-sm text-amber-800">Test Preview</span>
-                  <Badge className="bg-amber-200 text-amber-800 border-0 text-[9px] px-1.5 py-0 h-4">Admin only</Badge>
-                </div>
-                <p className="text-[10px] text-amber-600 leading-none mt-0.5">{token.email}</p>
-              </div>
+        <div className="sm:col-span-2 border-2 border-dashed border-amber-300 bg-amber-50/40 rounded-xl px-4 py-3 flex items-center gap-4 flex-wrap">
+          {/* Icon + label */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <FlaskConical size={14} className="text-amber-600" />
             </div>
-            <div className="flex items-center gap-1.5">
-              {downloaded && <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>}
-              {permGranted && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><ShieldCheck size={9} className="mr-1"/>Consented</Badge>}
-              {token.sentAt && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><Mail size={9} className="mr-1"/>Sent</Badge>}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-sm text-amber-800 whitespace-nowrap">Test Preview</span>
+              <Badge className="bg-amber-200 text-amber-800 border-0 text-[9px] px-1.5 py-0 h-4 shrink-0">Admin only</Badge>
             </div>
           </div>
 
-          {/* Access code */}
+          {/* Email */}
+          <span className="text-[11px] text-amber-600 shrink-0">{token.email}</span>
+
+          {/* Access code pill */}
           {token.accessCode && (
-            <div className="flex items-center gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2">
-              <Lock size={12} className="text-amber-400 shrink-0" />
-              <span className="text-xs text-amber-700">Test access code:</span>
+            <div className="flex items-center gap-1.5 bg-white border border-amber-200 rounded-lg px-2.5 py-1 shrink-0">
+              <Lock size={11} className="text-amber-400" />
+              <span className="text-[11px] text-amber-700">Code:</span>
               <span className="font-mono font-bold text-sm tracking-widest text-amber-900">{token.accessCode}</span>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-1 border-t border-amber-200">
-            <p className="text-[10px] text-amber-600">This test token is not visible to parents or teachers.</p>
+          {/* Status badges */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {token.sentAt && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><Mail size={9} className="mr-1"/>Sent</Badge>}
+            {downloaded && <Badge variant="outline" className="text-blue-700 border-blue-200 text-[10px]"><Download size={9} className="mr-1"/>Downloaded</Badge>}
+            {permGranted && <Badge variant="outline" className="text-green-700 border-green-200 text-[10px]"><ShieldCheck size={9} className="mr-1"/>Consented</Badge>}
+          </div>
+
+          {/* Spacer + clear */}
+          <div className="flex-1 flex justify-end">
             <button onClick={handleResetTestPreview}
-              className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-1 font-medium">
+              className="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-1 font-medium whitespace-nowrap">
               <X size={10}/> Clear test
             </button>
           </div>
