@@ -18,3 +18,9 @@ id = "L1xeEEswtQ4rK8zCOxxUu"
 uri = "file://ADMIN_TRAINING_MANUAL.md"
 type = "text"
 title = "Administrator Training Manual — RAOS"
+
+[[outputs]]
+id = "IADbVHGaatp2j16WpKlFs"
+uri = "file://TRAINING_MANUAL.md"
+type = "text"
+title = "RAOS Training Manual — All Roles"
