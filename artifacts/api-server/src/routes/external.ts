@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
@@ -327,15 +328,28 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
           html: teacherTestBanner + teacherEmailHtml,
         });
       } else if (isTestPreview) {
-        // No teacher token yet (report not officially sent) — send the school email preview with a disabled placeholder button
+        // No permanent teacher token yet — create a real temporary test teacher token so the admin
+        // can experience the complete end-to-end flow including actually downloading the report.
+        const testTeacherToken = randomUUID();
+        await db.insert(reportTokensTable).values({
+          id: randomUUID(),
+          caseId: tok.caseId,
+          role: "teacher",
+          email: tok.email,
+          token: testTeacherToken,
+          accessCode: null,
+          recipientName: "TEST PREVIEW (admin)",
+          sentAt: new Date(),
+        });
+        const teacherLink = `${base}/external/${testTeacherToken}`;
         const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
           <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is the layout of what the teacher will receive once the parent grants consent on the live send. The "Download Report" button is intentionally inactive in this preview — a real, working link is only generated when you officially release the report.</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the school receives once the parent grants consent. The "Download Report" button below is a real, working link — click it to experience the full teacher flow. No access code is required.</p>
         </div>`;
         await sendEmail({
           to: tok.email,
           subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
-          html: teacherTestBanner + buildTeacherEmail(studentName, "", caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null, true),
+          html: teacherTestBanner + buildTeacherEmail(studentName, teacherLink, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null),
         });
       }
     } catch (_) {}
