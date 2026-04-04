@@ -7,6 +7,7 @@ import { ObjectStorageService } from "../lib/objectStorage.js";
 import { Readable } from "stream";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
+import { buildTeacherEmail } from "../lib/emailTemplates.js";
 
 const storage = new ObjectStorageService();
 
@@ -305,22 +306,35 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
         .from(reportTokensTable)
         .where(and(eq(reportTokensTable.caseId, tok.caseId), eq(reportTokensTable.role, "teacher")));
 
+      const isTestPreview = tok.recipientName === "TEST PREVIEW (admin)";
+
       if (teacherTok) {
         const teacherLink = `${base}/external/${teacherTok.token}`;
+        const teacherEmailHtml = buildTeacherEmail(studentName, teacherLink);
+        const teacherTestBanner = isTestPreview
+          ? `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
+              <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
+              <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the teacher receives once the parent grants consent. The download button below is a real working link to the teacher portal — no access code is required for teachers.</p>
+            </div>`
+          : "";
         await sendEmail({
-          to: teacherTok.email,
-          subject: `Assessment Report Available — ${studentName}`,
-          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0a1628">Assessment report now available</h2>
-            <p>The psychoeducational assessment report for <strong>${studentName}</strong> is now ready for you to download.</p>
-            <p>The parent/guardian has reviewed the report and given their permission for the school to receive a copy.</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${teacherLink}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-            </p>
-            <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-          </div>`,
+          to: isTestPreview ? tok.email : teacherTok.email,
+          subject: isTestPreview
+            ? `[TEST — Teacher] Assessment Report Now Available — ${studentName}`
+            : `Assessment Report Available — ${studentName}`,
+          html: teacherTestBanner + teacherEmailHtml,
+        });
+      } else if (isTestPreview) {
+        // No teacher token yet (report not officially sent) — still send the school email preview to admin
+        const placeholderLink = `${base}/external/[teacher-link-generated-on-real-send]`;
+        const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
+          <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the teacher receives once the parent grants consent. The download button below is a placeholder — the real teacher link is generated when you do the live send. No access code is required for teachers.</p>
+        </div>`;
+        await sendEmail({
+          to: tok.email,
+          subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
+          html: teacherTestBanner + buildTeacherEmail(studentName, placeholderLink),
         });
       }
     } catch (_) {}

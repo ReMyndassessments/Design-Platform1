@@ -297,7 +297,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
         toast({ title: data.error ?? "Failed to send test email", variant: "destructive" });
         return;
       }
-      toast({ title: "2 preview emails sent", description: `Check your inbox at ${data.sentTo}. Email 1 shows what the parent receives. Email 2 shows what the teacher receives after consent is granted.` });
+      toast({ title: "Test email sent — step 1 of 2", description: `Check your inbox at ${data.sentTo}. Click through, download the report, then grant consent for the school. The school email will arrive automatically as step 2.` });
     } catch {
       toast({ title: "Failed to send test email. Please try again.", variant: "destructive" });
     } finally {
