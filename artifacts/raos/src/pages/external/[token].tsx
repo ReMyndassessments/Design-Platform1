@@ -122,9 +122,9 @@ const PT = {
   },
   shareConsentTitle: { english: "Share Report with School?", mandarin: "与学校共享报告？", korean: "학교와 보고서 공유?" },
   shareConsentBody:  {
-    english:  "Would you like to allow your child's school to view this assessment report? You can choose to share it now, or decide later.",
-    mandarin: "您是否希望允许孩子的学校查看此评估报告？您可以选择现在共享，或稍后决定。",
-    korean:   "자녀의 학교에서 이 평가 보고서를 볼 수 있도록 허용하시겠습니까? 지금 공유하거나 나중에 결정할 수 있습니다.",
+    english:  "Would you like to allow your child's school to receive a copy of this assessment report and join the debrief meeting? Granting permission will send the school their own download link and include them in the debrief session. You can choose to share now, or decide later.",
+    mandarin: "您是否希望允许孩子的学校获取此评估报告副本并参加汇报会议？授予权限后，学校将收到下载链接并受邀参加汇报会议。您可以选择现在共享，或稍后决定。",
+    korean:   "자녀의 학교에서 이 평가 보고서 사본을 받고 디브리핑 미팅에 참여할 수 있도록 허용하시겠습니까? 허용하시면 학교에 다운로드 링크가 전송되고 디브리핑 세션에도 초대됩니다. 지금 공유하거나 나중에 결정할 수 있습니다.",
   },
   shareYes:          { english: "Yes, share with school", mandarin: "是的，与学校共享", korean: "예, 학교와 공유" },
   shareNotYet:       { english: "Not Yet", mandarin: "暂时不", korean: "아직은 아니에요" },

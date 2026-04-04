@@ -653,7 +653,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
     await sendEmail({
       to: teacherToken.email,
       subject: `Assessment Report Now Available — ${studentName}`,
-      html: buildTeacherEmail(studentName, link),
+      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ?? null),
     });
     // Mark sentAt now that the email has actually been sent
     await db.update(reportTokensTable)
