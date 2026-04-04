@@ -1027,7 +1027,7 @@ export default function CaseDetail() {
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-700 flex-1">{c.assessmentMeetingDate}</span>
                         <button
-                          onClick={() => setAssessmentDateDraft(c.assessmentMeetingDate ?? "")}
+                          onClick={() => setAssessmentDateDraft("edit")}
                           className="text-[10px] text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
                         >Edit</button>
                         <button
@@ -1037,27 +1037,37 @@ export default function CaseDetail() {
                         >Clear</button>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="e.g. Monday, 14 Apr 2025 at 2:00 PM SGT"
-                          value={assessmentDateDraft}
+                      <div className="space-y-1.5">
+                        <input
+                          type="datetime-local"
+                          value={assessmentDateDraft === "edit" ? "" : assessmentDateDraft}
                           onChange={e => setAssessmentDateDraft(e.target.value)}
-                          className="text-xs h-8 flex-1"
+                          className="w-full rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 h-8"
                         />
-                        <Button
-                          size="sm"
-                          className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3"
-                          onClick={() => {
-                            handleSaveAssessmentDate(assessmentDateDraft.trim() || null);
-                            setAssessmentDateDraft("");
-                          }}
-                          disabled={savingAssessmentDate || !assessmentDateDraft.trim()}
-                        >
-                          {savingAssessmentDate ? "Saving…" : "Save"}
-                        </Button>
-                        {c.assessmentMeetingDate && (
-                          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAssessmentDateDraft("")}>Cancel</Button>
-                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3"
+                            onClick={() => {
+                              if (!assessmentDateDraft || assessmentDateDraft === "edit") return;
+                              const [datePart, timePart] = assessmentDateDraft.split("T");
+                              const [y, mo, d] = datePart.split("-").map(Number);
+                              const [h, mi] = (timePart || "00:00").split(":").map(Number);
+                              const formatted = new Date(y, mo - 1, d, h, mi).toLocaleString("en-SG", {
+                                weekday: "long", year: "numeric", month: "long", day: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                              });
+                              handleSaveAssessmentDate(formatted);
+                              setAssessmentDateDraft("");
+                            }}
+                            disabled={savingAssessmentDate || !assessmentDateDraft || assessmentDateDraft === "edit"}
+                          >
+                            {savingAssessmentDate ? "Saving…" : "Save"}
+                          </Button>
+                          {c.assessmentMeetingDate && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAssessmentDateDraft("")}>Cancel</Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

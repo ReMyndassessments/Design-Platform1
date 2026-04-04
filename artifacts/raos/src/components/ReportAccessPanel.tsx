@@ -631,7 +631,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-700 flex-1">{debriefMeetingDate}</span>
               <button
-                onClick={() => setDebriefDateDraft(debriefMeetingDate)}
+                onClick={() => setDebriefDateDraft("edit")}
                 className="text-[10px] text-green-700 underline underline-offset-2 hover:text-green-900"
               >Edit</button>
               <button
@@ -641,24 +641,36 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
               >Clear</button>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. Friday, 18 Apr 2025 at 10:00 AM SGT"
-                value={debriefDateDraft}
+            <div className="space-y-1.5">
+              <input
+                type="datetime-local"
+                value={debriefDateDraft === "edit" ? "" : debriefDateDraft}
                 onChange={e => setDebriefDateDraft(e.target.value)}
-                className="text-xs h-8 flex-1 bg-white border-green-200 focus:border-green-400"
+                className="w-full rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-400 h-8"
               />
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-green-700 hover:bg-green-800 text-white px-3"
-                onClick={() => handleSaveDebriefDate(debriefDateDraft.trim() || null)}
-                disabled={savingDebriefDate || !debriefDateDraft.trim()}
-              >
-                {savingDebriefDate ? "Saving…" : "Save"}
-              </Button>
-              {debriefMeetingDate && (
-                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDebriefDateDraft("")}>Cancel</Button>
-              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white px-3"
+                  onClick={() => {
+                    if (!debriefDateDraft || debriefDateDraft === "edit") return;
+                    const [datePart, timePart] = debriefDateDraft.split("T");
+                    const [y, mo, d] = datePart.split("-").map(Number);
+                    const [h, mi] = (timePart || "00:00").split(":").map(Number);
+                    const formatted = new Date(y, mo - 1, d, h, mi).toLocaleString("en-SG", {
+                      weekday: "long", year: "numeric", month: "long", day: "numeric",
+                      hour: "2-digit", minute: "2-digit",
+                    });
+                    handleSaveDebriefDate(formatted);
+                  }}
+                  disabled={savingDebriefDate || !debriefDateDraft || debriefDateDraft === "edit"}
+                >
+                  {savingDebriefDate ? "Saving…" : "Save"}
+                </Button>
+                {debriefMeetingDate && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setDebriefDateDraft("")}>Cancel</Button>
+                )}
+              </div>
             </div>
           )}
         </div>
