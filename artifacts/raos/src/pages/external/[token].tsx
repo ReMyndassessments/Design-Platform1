@@ -757,15 +757,14 @@ function PortalView({
         <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
           style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div className="relative z-10 px-5 py-3 flex items-center gap-3">
-          <div className="relative flex-shrink-0">
-            <div className="absolute -inset-1 bg-blue-400/15 rounded-[12px] blur-sm" />
-            <div className="relative w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
             </div>
-          </div>
-          <div className="leading-none">
-            <span className="font-extrabold text-white text-sm tracking-tight block">ReMynd</span>
-            <span className="text-blue-300 text-[10px] font-semibold tracking-wide">{t("portalSubtitle", language)}</span>
+            <div className="leading-none">
+              <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
+              <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">{t("portalSubtitle", language)}</span>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-4">
             {portal.respondentLabel && (
@@ -1229,14 +1228,14 @@ function FormView({
               <span className="hidden sm:inline">My Forms</span>
             </button>
             <div className="h-4 w-px bg-white/10" />
-            <div className="flex items-center gap-2">
-              <div className="relative flex-shrink-0">
-                <div className="absolute -inset-0.5 bg-blue-400/15 rounded-[10px] blur-sm" />
-                <div className="relative w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-md ring-1 ring-white/10">
-                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain" />
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
               </div>
-              <span className="font-extrabold text-white text-sm tracking-tight">ReMynd</span>
+              <div className="leading-none">
+                <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
+                <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Student Services</span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1392,15 +1391,12 @@ export default function ExternalFormView() {
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
       <div className="relative z-10 px-5 py-3 flex items-center gap-3">
-        <div className="relative flex-shrink-0">
-          <div className="absolute -inset-1 bg-blue-400/15 rounded-[12px] blur-sm" />
-          <div className="relative w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
-          </div>
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
         </div>
         <div className="leading-none">
-          <span className="font-extrabold text-white text-sm tracking-tight block">ReMynd</span>
-          <span className="text-blue-300 text-[10px] font-semibold tracking-wide">Student Services</span>
+          <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
+          <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Student Services</span>
         </div>
       </div>
     </header>
