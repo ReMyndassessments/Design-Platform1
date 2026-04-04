@@ -40,6 +40,7 @@ interface Props {
   currentPhase?: string;
   workingDocUrl?: string;
   debriefMeetingUrl?: string;
+  debriefMeetingDate?: string;
   onPhaseAdvanced?: () => void;
   onCaseUpdated?: () => void;
 }
@@ -51,7 +52,7 @@ interface AdditionalRecipient {
 
 const BASE = "/api";
 
-export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, onPhaseAdvanced, onCaseUpdated }: Props) {
+export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, debriefMeetingDate, onPhaseAdvanced, onCaseUpdated }: Props) {
   const { toast } = useToast();
 
   const [uploads, setUploads] = useState<ReportUpload[]>([]);
@@ -61,6 +62,9 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [debriefUrlDraft, setDebriefUrlDraft] = useState(debriefMeetingUrl ?? "");
   const [editingDebriefUrl, setEditingDebriefUrl] = useState(false);
   const [savingDebriefUrl, setSavingDebriefUrl] = useState(false);
+
+  const [debriefDateDraft, setDebriefDateDraft] = useState("");
+  const [savingDebriefDate, setSavingDebriefDate] = useState(false);
 
   const isDebrief = currentPhase === "debrief";
   const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief";
@@ -269,6 +273,28 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       toast({ title: "Could not save meeting link", variant: "destructive" });
     } finally {
       setSavingDebriefUrl(false);
+    }
+  };
+
+  const handleSaveDebriefDate = async (value: string | null) => {
+    setSavingDebriefDate(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+        },
+        body: JSON.stringify({ debriefMeetingDate: value }),
+      });
+      if (!r.ok) throw new Error("Failed to save");
+      toast({ title: value ? "Debrief date saved" : "Debrief date cleared" });
+      setDebriefDateDraft("");
+      onCaseUpdated?.();
+    } catch {
+      toast({ title: "Could not save debrief date", variant: "destructive" });
+    } finally {
+      setSavingDebriefDate(false);
     }
   };
 
@@ -597,6 +623,45 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             </div>
           </div>
         )}
+
+        {/* Debrief date / time */}
+        <div className="pt-2 border-t border-green-100 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Debrief Date &amp; Time</p>
+          {debriefMeetingDate && debriefDateDraft === "" ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-700 flex-1">{debriefMeetingDate}</span>
+              <button
+                onClick={() => setDebriefDateDraft(debriefMeetingDate)}
+                className="text-[10px] text-green-700 underline underline-offset-2 hover:text-green-900"
+              >Edit</button>
+              <button
+                onClick={() => handleSaveDebriefDate(null)}
+                disabled={savingDebriefDate}
+                className="text-[10px] text-red-500 underline underline-offset-2 hover:text-red-700"
+              >Clear</button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. Friday, 18 Apr 2025 at 10:00 AM SGT"
+                value={debriefDateDraft}
+                onChange={e => setDebriefDateDraft(e.target.value)}
+                className="text-xs h-8 flex-1 bg-white border-green-200 focus:border-green-400"
+              />
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-green-700 hover:bg-green-800 text-white px-3"
+                onClick={() => handleSaveDebriefDate(debriefDateDraft.trim() || null)}
+                disabled={savingDebriefDate || !debriefDateDraft.trim()}
+              >
+                {savingDebriefDate ? "Saving…" : "Save"}
+              </Button>
+              {debriefMeetingDate && (
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setDebriefDateDraft("")}>Cancel</Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Uploaded files list */}

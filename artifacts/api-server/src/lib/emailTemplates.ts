@@ -1,8 +1,12 @@
-export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null): string {
+export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null, debriefMeetingDate?: string | null): string {
+  const dateRow = debriefMeetingDate
+    ? `<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#166534">Scheduled: ${debriefMeetingDate}</p>`
+    : "";
   const debriefBlock = debriefMeetingUrl
     ? `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
         <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em">📹 Debrief Meeting</p>
-        <p style="margin:0 0 14px;font-size:13px;color:#15803d">A virtual debrief meeting has been scheduled to walk the family through the assessment results. As the school representative, you are invited to attend. Click the button below to join at the scheduled time.</p>
+        <p style="margin:0 0 10px;font-size:13px;color:#15803d">A virtual debrief meeting has been scheduled to walk the family through the assessment results. As the school representative, you are invited to attend. Click the button below to join at the scheduled time.</p>
+        ${dateRow}
         <a href="${debriefMeetingUrl}" style="background:#16a34a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">Join Debrief Meeting ↗</a>
       </div>`
     : "";

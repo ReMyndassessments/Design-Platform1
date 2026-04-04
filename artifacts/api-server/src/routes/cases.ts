@@ -143,7 +143,9 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     psychApprovedReport: c.psychApprovedReport,
     customMeetingUrl: c.customMeetingUrl,
     moderatorMeetingUrl: c.moderatorMeetingUrl,
+    assessmentMeetingDate: c.assessmentMeetingDate,
     debriefMeetingUrl: c.debriefMeetingUrl,
+    debriefMeetingDate: c.debriefMeetingDate,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -247,7 +249,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
-  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "debriefMeetingUrl"];
+  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate"];
   const allowed = req.userRole === "admin" ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {

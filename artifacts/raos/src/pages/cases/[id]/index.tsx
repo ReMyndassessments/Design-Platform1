@@ -156,6 +156,8 @@ export default function CaseDetail() {
   const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
+  const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
+  const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
@@ -479,6 +481,24 @@ export default function CaseDetail() {
     );
   };
 
+  const handleSaveAssessmentDate = (value: string | null) => {
+    setSavingAssessmentDate(true);
+    updateCaseMut.mutate(
+      { caseId, data: { assessmentMeetingDate: value } as any },
+      {
+        onSuccess: () => {
+          setSavingAssessmentDate(false);
+          toast({ title: value ? "Assessment date saved" : "Assessment date cleared" });
+          queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        },
+        onError: () => {
+          setSavingAssessmentDate(false);
+          toast({ title: "Failed to save date", variant: "destructive" });
+        },
+      }
+    );
+  };
+
   const handleAnalyzeIntake = () => {
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
@@ -789,6 +809,7 @@ export default function CaseDetail() {
           currentPhase={c.currentPhase}
           workingDocUrl={c.workingDocUrl ?? undefined}
           debriefMeetingUrl={c.debriefMeetingUrl ?? undefined}
+          debriefMeetingDate={c.debriefMeetingDate ?? undefined}
           onPhaseAdvanced={() => {
             queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
             queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
@@ -998,6 +1019,48 @@ export default function CaseDetail() {
                       </Button>
                     </>
                   )}
+
+                  {/* Assessment date / time */}
+                  <div className="pt-2 border-t border-emerald-100 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Assessment Date &amp; Time</p>
+                    {c.assessmentMeetingDate && assessmentDateDraft === "" ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-700 flex-1">{c.assessmentMeetingDate}</span>
+                        <button
+                          onClick={() => setAssessmentDateDraft(c.assessmentMeetingDate ?? "")}
+                          className="text-[10px] text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+                        >Edit</button>
+                        <button
+                          onClick={() => handleSaveAssessmentDate(null)}
+                          disabled={savingAssessmentDate}
+                          className="text-[10px] text-red-500 underline underline-offset-2 hover:text-red-700"
+                        >Clear</button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="e.g. Monday, 14 Apr 2025 at 2:00 PM SGT"
+                          value={assessmentDateDraft}
+                          onChange={e => setAssessmentDateDraft(e.target.value)}
+                          className="text-xs h-8 flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3"
+                          onClick={() => {
+                            handleSaveAssessmentDate(assessmentDateDraft.trim() || null);
+                            setAssessmentDateDraft("");
+                          }}
+                          disabled={savingAssessmentDate || !assessmentDateDraft.trim()}
+                        >
+                          {savingAssessmentDate ? "Saving…" : "Save"}
+                        </Button>
+                        {c.assessmentMeetingDate && (
+                          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setAssessmentDateDraft("")}>Cancel</Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );

@@ -104,21 +104,25 @@ function buildAccessCodeBlock(lang: Lang, code: string): string {
   </div>`;
 }
 
-function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string): string {
+function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: string | null): string {
   const labels = {
-    english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting to walk you through the assessment results. Click the button below to join at your scheduled time.", btn: "Join Debrief Meeting" },
-    mandarin: { heading: "汇报会议", body: "您的临床医生已安排了一次虚拟汇报会议，为您详细讲解评估结果。请在预定时间点击下方按钮加入会议。", btn: "加入汇报会议" },
-    korean:   { heading: "디브리핑 미팅", body: "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 예약했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.", btn: "디브리핑 미팅 참여" },
+    english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting to walk you through the assessment results. Click the button below to join at your scheduled time.", btn: "Join Debrief Meeting", dateLabel: "Scheduled:" },
+    mandarin: { heading: "汇报会议", body: "您的临床医生已安排了一次虚拟汇报会议，为您详细讲解评估结果。请在预定时间点击下方按钮加入会议。", btn: "加入汇报会议", dateLabel: "预定时间：" },
+    korean:   { heading: "디브리핑 미팅", body: "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 예약했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.", btn: "디브리핑 미팅 참여", dateLabel: "예정 일시:" },
   };
   const label = labels[lang];
+  const dateRow = meetingDate
+    ? `<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#166534">${label.dateLabel} ${meetingDate}</p>`
+    : "";
   return `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
     <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em">📹 ${label.heading}</p>
-    <p style="margin:0 0 14px;font-size:13px;color:#15803d">${label.body}</p>
+    <p style="margin:0 0 10px;font-size:13px;color:#15803d">${label.body}</p>
+    ${dateRow}
     <a href="${meetingUrl}" style="background:#16a34a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">${label.btn} ↗</a>
   </div>`;
 }
 
-function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string, debriefMeetingUrl?: string): string {
+function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string, debriefMeetingUrl?: string, debriefMeetingDate?: string | null): string {
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
     <h2 style="color:#0a1628">${EMAIL_COPY.parentHeading[lang]}</h2>
     <p>${EMAIL_COPY.parentBody[lang](studentName)}</p>
@@ -127,7 +131,7 @@ function buildParentEmail(lang: Lang, studentName: string, schoolName: string, l
       <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.parentDownloadBtn[lang]}</a>
     </p>
     ${accessCode ? buildAccessCodeBlock(lang, accessCode) : ""}
-    ${debriefMeetingUrl ? buildDebriefMeetingBlock(lang, debriefMeetingUrl) : ""}
+    ${debriefMeetingUrl ? buildDebriefMeetingBlock(lang, debriefMeetingUrl, debriefMeetingDate) : ""}
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentConsent[lang](schoolName)}</p>
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentUniqueLink[lang]}</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
@@ -352,7 +356,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   await sendEmail({
     to: adminUser.email,
     subject: `[TEST — Parent] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
-    html: parentTestBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined),
+    html: parentTestBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined, caseRow.debriefMeetingDate ?? null),
   });
 
   res.json({ success: true, sentTo: adminUser.email });
@@ -436,7 +440,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       await sendEmail({
         to: parentEmail,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ?? undefined),
+        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ?? undefined, caseRow?.debriefMeetingDate ?? null),
       });
     }
 
@@ -588,7 +592,7 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     await sendEmail({
       to: email,
       subject: EMAIL_COPY.parentSubject[resendLang](studentName),
-      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ?? undefined),
+      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ?? undefined, caseRow?.debriefMeetingDate ?? null),
     });
 
     await db.update(reportTokensTable)
@@ -653,7 +657,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
     await sendEmail({
       to: teacherToken.email,
       subject: `Assessment Report Now Available — ${studentName}`,
-      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ?? null),
+      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null),
     });
     // Mark sentAt now that the email has actually been sent
     await db.update(reportTokensTable)
