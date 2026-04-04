@@ -9,6 +9,7 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import { randomUUID } from "crypto";
 import { Readable } from "stream";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
+import { getAdminEmails } from "../lib/adminEmails.js";
 
 function generateAccessCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -765,7 +766,7 @@ router.get("/report-access/:token/download", async (req, res) => {
         : token.role === "teacher" ? "the school teacher"
         : (token.recipientName || "an additional recipient");
       const downloadedAt = new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai", dateStyle: "full", timeStyle: "short" });
-      const ADMIN_EMAILS = ["noelroberts43@gmail.com"];
+      const ADMIN_EMAILS = await getAdminEmails();
       for (const adminEmail of ADMIN_EMAILS) {
         await sendEmail({
           to: adminEmail,
@@ -851,7 +852,7 @@ router.post("/report-access/:token/permission", async (req, res) => {
   } else {
     // Parent chose "Not Yet" — notify admin if already downloaded
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, token.caseId));
-    const ADMIN_EMAILS = ["noelroberts43@gmail.com"];
+    const ADMIN_EMAILS = await getAdminEmails();
     for (const adminEmail of ADMIN_EMAILS) {
       await sendEmail({
         to: adminEmail,

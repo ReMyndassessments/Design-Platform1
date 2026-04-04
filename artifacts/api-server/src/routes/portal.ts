@@ -6,12 +6,15 @@ import { sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendInquiryNotification } from "../lib/outlookEmail.js";
 import { logger } from "../lib/logger.js";
+import { getAdminEmails } from "../lib/adminEmails.js";
 
 const router = Router();
 
-const NOTIFY_EMAILS = (
-  process.env.INQUIRY_NOTIFY_EMAIL || "noelroberts43@gmail.com,ne_roberts@yahoo.com,hayleyxu13@gmail.com"
-).split(",").map((e) => e.trim()).filter(Boolean);
+async function getInquiryNotifyEmails(): Promise<string[]> {
+  const envList = (process.env.INQUIRY_NOTIFY_EMAIL || "")
+    .split(",").map((e) => e.trim()).filter(Boolean);
+  return envList.length > 0 ? envList : getAdminEmails();
+}
 
 router.post("/portal/inquiry", async (req, res) => {
   const {
@@ -54,26 +57,28 @@ router.post("/portal/inquiry", async (req, res) => {
     status: "new",
   }).returning();
 
-  sendInquiryNotification(
-    {
-      inquiryType,
-      contactName,
-      contactEmail,
-      contactPhone,
-      organisation,
-      role,
-      studentName,
-      studentAge,
-      yearGroup,
-      message,
-      wechatId,
-      whatsappId,
-    },
-    NOTIFY_EMAILS
-  ).then((fromAddress) => {
-    logger.info({ from: fromAddress, to: NOTIFY_EMAILS }, "[email] Inquiry notification sent successfully");
+  getInquiryNotifyEmails().then(notifyEmails => {
+    return sendInquiryNotification(
+      {
+        inquiryType,
+        contactName,
+        contactEmail,
+        contactPhone,
+        organisation,
+        role,
+        studentName,
+        studentAge,
+        yearGroup,
+        message,
+        wechatId,
+        whatsappId,
+      },
+      notifyEmails
+    ).then((fromAddress) => {
+      logger.info({ from: fromAddress, to: notifyEmails }, "[email] Inquiry notification sent successfully");
+    });
   }).catch((err) => {
-    logger.error({ to: NOTIFY_EMAILS, error: String(err) }, "[email] FAILED to send inquiry notification");
+    logger.error({ error: String(err) }, "[email] FAILED to send inquiry notification");
   });
 
   res.status(201).json({ success: true, id: row[0]?.id });

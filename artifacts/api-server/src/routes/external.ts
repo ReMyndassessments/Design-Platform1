@@ -9,6 +9,7 @@ import { Readable } from "stream";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
+import { getAdminEmails } from "../lib/adminEmails.js";
 
 const storage = new ObjectStorageService();
 
@@ -365,7 +366,10 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
     // Parent withheld — notify admins
     try {
       const html = `<p>The parent/guardian for <strong>${studentName}</strong> has chosen <strong>Not Yet</strong> when asked whether to share the psychoeducational report with their school.</p><p>No school access has been granted at this time. You may use the admin override in RAOS if required.</p>`;
-      await sendEmail({ to: "noelroberts43@gmail.com", subject: `Parent withheld school consent — ${studentName}`, html });
+      const adminEmails = await getAdminEmails();
+      for (const adminEmail of adminEmails) {
+        await sendEmail({ to: adminEmail, subject: `Parent withheld school consent — ${studentName}`, html });
+      }
     } catch (_) {}
   }
 
