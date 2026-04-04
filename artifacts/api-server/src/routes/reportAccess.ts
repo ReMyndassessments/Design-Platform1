@@ -146,6 +146,18 @@ function buildResendEmail(lang: Lang, studentName: string, link: string): string
   </div>`;
 }
 
+function buildTeacherEmail(studentName: string, link: string): string {
+  return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+    <h2 style="color:#0a1628">${EMAIL_COPY.teacherOverrideHeading["english"]}</h2>
+    <p>${EMAIL_COPY.teacherOverrideBody["english"](studentName)}</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">${EMAIL_COPY.teacherOverrideBtn["english"]}</a>
+    </p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+    <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
+  </div>`;
+}
+
 const router = Router();
 const storage = new ObjectStorageService();
 
@@ -343,18 +355,32 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   const liveLink = `${base}/external/${token}`;
 
-  const testBanner = `<div style="background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
-    <p style="margin:0;font-size:14px;font-weight:700;color:#92400e">⚠️ ADMIN TEST PREVIEW — This is the live parent experience</p>
-    <p style="margin:6px 0 0;font-size:12px;color:#b45309">You are seeing exactly what the parent will receive. The download button below is a <strong>real working link</strong> — click it to walk through the full portal experience including consent and download. The access code below is also real — enter it when prompted.</p>
+  const parentTestBanner = `<div style="background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
+    <p style="margin:0;font-size:14px;font-weight:700;color:#92400e">⚠️ ADMIN TEST PREVIEW — Email 1 of 2: Parent / Guardian</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#b45309">This is exactly what the parent will receive. The download button below is a <strong>real working link</strong> — click it to walk through the full portal experience including consent and download. The access code below is also real — enter it when prompted.</p>
   </div>`;
 
   await sendEmail({
     to: adminUser.email,
-    subject: `[TEST] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
-    html: testBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined),
+    subject: `[TEST 1/2 — Parent] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
+    html: parentTestBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined),
   });
 
-  res.json({ success: true, sentTo: adminUser.email });
+  // Second test email: what the teacher/school receives after the parent grants consent
+  const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
+    <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Email 2 of 2: School / Teacher</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is what the teacher receives <strong>after the parent grants consent</strong> (or after you manually override). The download button links to the teacher's portal — note that no access code is required for teachers. This email is always sent in English regardless of the student's language preference.</p>
+  </div>`;
+
+  const placeholderTeacherLink = `${base}/external/[teacher-token-generated-on-send]`;
+
+  await sendEmail({
+    to: adminUser.email,
+    subject: `[TEST 2/2 — Teacher] Assessment Report Now Available — ${studentName}`,
+    html: teacherTestBanner + buildTeacherEmail(studentName, placeholderTeacherLink),
+  });
+
+  res.json({ success: true, sentTo: adminUser.email, emailCount: 2 });
 });
 
 // ── Admin: upload report PDF for a case ───────────────────────────────────────
@@ -652,15 +678,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
     await sendEmail({
       to: teacherToken.email,
       subject: `Assessment Report Now Available — ${studentName}`,
-      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-        <h2 style="color:#0a1628">Report access granted</h2>
-        <p>Access to the assessment report for <strong>${studentName}</strong> has been authorised. You can now download your copy:</p>
-        <p style="text-align:center;margin:28px 0">
-          <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-        </p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-        <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-      </div>`,
+      html: buildTeacherEmail(studentName, link),
     });
     // Mark sentAt now that the email has actually been sent
     await db.update(reportTokensTable)
