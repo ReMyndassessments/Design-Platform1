@@ -327,16 +327,15 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
           html: teacherTestBanner + teacherEmailHtml,
         });
       } else if (isTestPreview) {
-        // No teacher token yet (report not officially sent) — still send the school email preview to admin
-        const placeholderLink = `${base}/external/[teacher-link-generated-on-real-send]`;
+        // No teacher token yet (report not officially sent) — send the school email preview with a disabled placeholder button
         const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
           <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the teacher receives once the parent grants consent. The download button below is a placeholder — the real teacher link is generated when you do the live send. No access code is required for teachers.</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is the layout of what the teacher will receive once the parent grants consent on the live send. The "Download Report" button is intentionally inactive in this preview — a real, working link is only generated when you officially release the report.</p>
         </div>`;
         await sendEmail({
           to: tok.email,
           subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
-          html: teacherTestBanner + buildTeacherEmail(studentName, placeholderLink, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null),
+          html: teacherTestBanner + buildTeacherEmail(studentName, "", caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null, true),
         });
       }
     } catch (_) {}
