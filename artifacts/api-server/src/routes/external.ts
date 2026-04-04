@@ -150,6 +150,7 @@ router.get("/external/portal/:token", async (req, res) => {
       })),
       reportAccess,
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
+      debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
     });
     return;
   }
@@ -192,6 +193,7 @@ router.get("/external/portal/:token", async (req, res) => {
       forms: [],
       reportAccess,
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
+      debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
     });
     return;
   }

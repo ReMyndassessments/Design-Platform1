@@ -65,6 +65,7 @@ type PortalData = {
   forms: PortalForm[];
   reportAccess: ReportAccess | null;
   debriefMeetingUrl?: string | null;
+  debriefMeetingDate?: string | null;
 };
 
 // ── Phase config ──────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ const PT = {
     mandarin: "您的临床医生已设置了一次虚拟会议，为您详细讲解评估结果。请在预定时间点击下方链接加入。",
     korean:   "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 준비했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.",
   },
+  meetingScheduled:  { english: "Scheduled:", mandarin: "预定时间：", korean: "예정 일시:" },
   joinMeeting:       { english: "Join Debrief Meeting", mandarin: "加入汇报会议", korean: "디브리핑 미팅 참여" },
 } satisfies Record<string, Record<Lang, string>>;
 
@@ -996,6 +998,17 @@ function PortalView({
                 <p className="text-xs text-slate-500 mt-0.5">{t("debriefMeetingBody", language)}</p>
               </div>
             </div>
+            {portal.debriefMeetingDate && (
+              <div className="mx-5 mb-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600 shrink-0">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+                </svg>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">{t("meetingScheduled", language)}</p>
+                  <p className="text-xs font-medium text-slate-800 mt-0.5">{portal.debriefMeetingDate}</p>
+                </div>
+              </div>
+            )}
             <div className="px-5 pb-5">
               <a
                 href={portal.debriefMeetingUrl}
