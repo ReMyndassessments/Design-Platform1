@@ -90,6 +90,33 @@ function isPhaseVisible(_role: string, _phase: string): boolean {
   return true;
 }
 
+const TIMEZONES = [
+  { value: "Asia/Singapore",    label: "Singapore (SGT, UTC+8)" },
+  { value: "Asia/Kuala_Lumpur", label: "Kuala Lumpur (MYT, UTC+8)" },
+  { value: "Asia/Hong_Kong",    label: "Hong Kong (HKT, UTC+8)" },
+  { value: "Asia/Shanghai",     label: "China (CST, UTC+8)" },
+  { value: "Asia/Tokyo",        label: "Japan (JST, UTC+9)" },
+  { value: "Asia/Seoul",        label: "Korea (KST, UTC+9)" },
+  { value: "Asia/Bangkok",      label: "Bangkok / Jakarta (ICT/WIB, UTC+7)" },
+  { value: "Asia/Kolkata",      label: "India (IST, UTC+5:30)" },
+  { value: "Asia/Dubai",        label: "Dubai (GST, UTC+4)" },
+  { value: "Europe/London",     label: "London (GMT/BST)" },
+  { value: "Europe/Paris",      label: "Paris / Berlin (CET/CEST)" },
+  { value: "America/New_York",  label: "New York (EST/EDT)" },
+  { value: "America/Chicago",   label: "Chicago (CST/CDT)" },
+  { value: "America/Los_Angeles", label: "Los Angeles (PST/PDT)" },
+  { value: "Australia/Sydney",  label: "Sydney (AEDT/AEST)" },
+  { value: "Pacific/Auckland",  label: "Auckland (NZST/NZDT)" },
+];
+
+function getTzAbbr(tz: string, date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("en", { timeZone: tz, timeZoneName: "short" })
+      .formatToParts(date)
+      .find(p => p.type === "timeZoneName")?.value ?? tz;
+  } catch { return tz; }
+}
+
 export default function CaseDetail() {
   const params = useParams();
   const caseId = params.id as string;
@@ -157,6 +184,7 @@ export default function CaseDetail() {
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
   const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
+  const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
   const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
@@ -1044,6 +1072,15 @@ export default function CaseDetail() {
                           onChange={e => setAssessmentDateDraft(e.target.value)}
                           className="w-full rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 h-8"
                         />
+                        <select
+                          value={assessmentTz}
+                          onChange={e => setAssessmentTz(e.target.value)}
+                          className="w-full rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 h-8"
+                        >
+                          {TIMEZONES.map(tz => (
+                            <option key={tz.value} value={tz.value}>{tz.label}</option>
+                          ))}
+                        </select>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -1053,10 +1090,12 @@ export default function CaseDetail() {
                               const [datePart, timePart] = assessmentDateDraft.split("T");
                               const [y, mo, d] = datePart.split("-").map(Number);
                               const [h, mi] = (timePart || "00:00").split(":").map(Number);
-                              const formatted = new Date(y, mo - 1, d, h, mi).toLocaleString("en-SG", {
+                              const date = new Date(y, mo - 1, d, h, mi);
+                              const tzAbbr = getTzAbbr(assessmentTz, date);
+                              const formatted = date.toLocaleString("en-SG", {
                                 weekday: "long", year: "numeric", month: "long", day: "numeric",
                                 hour: "2-digit", minute: "2-digit",
-                              });
+                              }) + " " + tzAbbr;
                               handleSaveAssessmentDate(formatted);
                               setAssessmentDateDraft("");
                             }}
