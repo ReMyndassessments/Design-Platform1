@@ -629,25 +629,43 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <Input
-              placeholder="https://meet.jit.si/moderated/..."
-              value={debriefUrlDraft}
-              onChange={e => setDebriefUrlDraft(e.target.value)}
-              className="h-8 text-sm bg-white border-green-200 focus:border-green-400"
-            />
-            <div className="flex gap-2">
-              <Button size="sm"
-                className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white"
-                onClick={() => handleSaveDebriefUrl(debriefUrlDraft.trim() || null)}
-                disabled={savingDebriefUrl || !debriefUrlDraft.trim()}>
-                {savingDebriefUrl ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
-                Save Meeting Link
+          <div className="space-y-3">
+            {/* Step 1 */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Step 1 — Create the room</p>
+              <Button
+                size="sm"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
+              >
+                <Video size={14} />
+                Open Jitsi Moderated Meetings ↗
               </Button>
-              {editingDebriefUrl && (
-                <Button size="sm" variant="ghost" className="h-7 text-xs"
-                  onClick={() => setEditingDebriefUrl(false)}>Cancel</Button>
-              )}
+              <p className="text-[10px] text-green-700">On the Jitsi page, copy the <strong>"Share meeting link for guests"</strong> URL.</p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="space-y-1.5 pt-2 border-t border-green-100">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Step 2 — Paste the guest link</p>
+              <Input
+                placeholder="https://meet.jit.si/moderated/..."
+                value={debriefUrlDraft}
+                onChange={e => setDebriefUrlDraft(e.target.value)}
+                className="h-8 text-sm bg-white border-green-200 focus:border-green-400"
+              />
+              <div className="flex gap-2">
+                <Button size="sm"
+                  className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white"
+                  onClick={() => handleSaveDebriefUrl(debriefUrlDraft.trim() || null)}
+                  disabled={savingDebriefUrl || !debriefUrlDraft.trim()}>
+                  {savingDebriefUrl ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
+                  Save Meeting Link
+                </Button>
+                {editingDebriefUrl && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs"
+                    onClick={() => setEditingDebriefUrl(false)}>Cancel</Button>
+                )}
+              </div>
             </div>
           </div>
         )}
