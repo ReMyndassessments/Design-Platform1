@@ -290,9 +290,15 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
   }
 
   const { granted } = req.body as { granted: boolean };
+  // Update the parent token
   await db.update(reportTokensTable)
     .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
     .where(eq(reportTokensTable.id, tok.id));
+
+  // Also unlock / re-lock all teacher tokens for this case so they reflect the parent's decision
+  await db.update(reportTokensTable)
+    .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(reportTokensTable.caseId, tok.caseId), eq(reportTokensTable.role, "teacher")));
 
   const { sendEmail } = await import("../lib/outlookEmail.js");
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, tok.caseId));
@@ -340,6 +346,8 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
           accessCode: null,
           recipientName: "TEST PREVIEW (admin)",
           sentAt: new Date(),
+          permissionGranted: true,
+          permissionGrantedAt: new Date(),
         });
         const teacherLink = `${base}/external/${testTeacherToken}`;
         const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
