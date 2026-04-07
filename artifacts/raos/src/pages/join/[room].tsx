@@ -131,10 +131,10 @@ export default function JoinMeetingPage() {
               <Video size={28} className="text-emerald-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">
-              {studentName ? `Debrief — ${studentName}` : "Join Meeting"}
+              {studentName ? `Assessment Session — ${studentName}` : "Join Meeting"}
             </h1>
             <p className="text-slate-400 text-sm leading-relaxed">
-              You have been invited to a ReMynd debrief session. When you are ready, click the button below to join. No account or download is required.
+              You have been invited to a ReMynd assessment session. When you are ready, click the button below to join. No account or download is required.
             </p>
           </div>
 
