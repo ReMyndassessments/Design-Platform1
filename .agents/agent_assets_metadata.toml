@@ -30,3 +30,9 @@ id = "c5rgPEFr_p0pi88d_tKZv"
 uri = "file://RAOS_Invigilator_Manual_Revised.docx"
 type = "word_document"
 title = "RAOS Invigilator Training Manual (Revised)"
+
+[[outputs]]
+id = "JRFE4UxYoKB4mZgfZxnH0"
+uri = "file://RAOS_Psychometrician_Manual_Revised.docx"
+type = "word_document"
+title = "RAOS Psychometrician Training Manual (Revised)"
