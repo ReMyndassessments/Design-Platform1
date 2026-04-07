@@ -291,6 +291,9 @@ export default function CaseDetail() {
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
+  const showAiCard = isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
+  const showMeetingCard = c.currentPhase === 'assessment';
+  const hasLeftContent = showAiCard || showMeetingCard;
   const prevPhaseName = currentPhaseIndex > 0
     ? (PHASE_LABELS[PHASES[currentPhaseIndex - 1]] ?? PHASES[currentPhaseIndex - 1])
     : null;
@@ -787,10 +790,10 @@ export default function CaseDetail() {
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col: AI & Phase Content */}
-        <div className={`space-y-6 col-span-1${hideAssignments ? ' lg:col-span-3' : ''}`}>
-          {isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring") && (
+      <div className={`grid grid-cols-1 gap-6 ${hasLeftContent || hideAssignments ? 'lg:grid-cols-3' : ''}`}>
+        {/* Left Col: AI & Phase Content — only rendered when there's actual content */}
+        {(hasLeftContent || hideAssignments) && <div className={`space-y-6 ${hideAssignments ? 'lg:col-span-3' : 'col-span-1'}`}>
+          {showAiCard && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">
@@ -1053,10 +1056,10 @@ export default function CaseDetail() {
               </Card>
             );
           })()}
-        </div>
+        </div>}
 
         {/* Right Col: Assignments — hidden from report stage onwards */}
-        {!hideAssignments && <div className="col-span-1 lg:col-span-2">
+        {!hideAssignments && <div className={hasLeftContent ? 'col-span-1 lg:col-span-2' : ''}>
           <Card className="border-none shadow-md h-full">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle>Assessment Forms & Assignments</CardTitle>
