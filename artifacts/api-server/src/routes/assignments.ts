@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable } from "@workspace/db/schema";
+import { eq, and, ne } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
@@ -286,6 +286,37 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
   }
 
   res.status(201).json({ assignments: created, batteryId: battery.id, count: created.length });
+});
+
+// GET /api/assignments/my-pending — returns invigilator's own pending forms
+router.get("/assignments/my-pending", authMiddleware, async (req, res) => {
+  const { userId } = req;
+  const userRows = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId!)).limit(1);
+  if (!userRows[0]) { res.status(404).json({ error: "user_not_found" }); return; }
+  const email = userRows[0].email;
+
+  const rows = await db
+    .select({
+      id: assignmentsTable.id,
+      caseId: assignmentsTable.caseId,
+      studentName: casesTable.studentName,
+      toolName: assignmentsTable.toolName,
+      status: assignmentsTable.status,
+      uniqueLink: assignmentsTable.uniqueLink,
+      respondentType: assignmentsTable.respondentType,
+      updatedAt: assignmentsTable.updatedAt,
+    })
+    .from(assignmentsTable)
+    .innerJoin(casesTable, eq(assignmentsTable.caseId, casesTable.id))
+    .where(
+      and(
+        eq(assignmentsTable.assignedToEmail, email),
+        eq(assignmentsTable.respondentType, "invigilator"),
+        ne(assignmentsTable.status, "completed"),
+      )
+    );
+
+  res.json(rows);
 });
 
 export default router;
