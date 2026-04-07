@@ -182,6 +182,7 @@ export default function CaseDetail() {
   const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
+  const [formModalUrl, setFormModalUrl] = useState<string | null>(null);
   const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
   const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
   const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
@@ -1129,11 +1130,9 @@ export default function CaseDetail() {
                             <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
                               <Copy size={16} />
                             </Button>
-                            <a href={`/external/${a.uniqueToken}`} target="_blank" rel="noopener noreferrer">
-                              <Button variant="outline" size="sm" className="bg-white" title="Open Form">
-                                <ExternalLink size={16} />
-                              </Button>
-                            </a>
+                            <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`/external/${a.uniqueToken}`)}>
+                              <ExternalLink size={16} />
+                            </Button>
                           </>
                         )}
                         {a.respondentType === 'self' && a.status !== 'completed' && (
@@ -1738,6 +1737,19 @@ export default function CaseDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Full-screen form modal */}
+      {formModalUrl && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50 shrink-0">
+            <p className="text-sm font-semibold text-slate-700">Assessment Form</p>
+            <Button variant="outline" size="sm" onClick={() => { setFormModalUrl(null); queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }); }}>
+              Close
+            </Button>
+          </div>
+          <iframe src={formModalUrl} className="flex-1 w-full border-0" allow="camera; microphone" />
+        </div>
+      )}
 
     </div>
   );
