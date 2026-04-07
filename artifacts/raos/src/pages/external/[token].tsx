@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1350,6 +1350,12 @@ function FormView({
 export default function ExternalFormView() {
   const { token } = useParams();
   const portalToken = token as string;
+  const [, setLocation] = useLocation();
+
+  // Detect if accessed from a case page (for staff)
+  const searchParams = new URLSearchParams(window.location.search);
+  const fromCase = searchParams.get("from") === "case";
+  const fromCaseId = searchParams.get("caseId") ?? "";
 
   const [mode, setMode] = useState<"portal" | "form">("portal");
   const [activeFormToken, setActiveFormToken] = useState<string>(portalToken);
@@ -1384,22 +1390,35 @@ export default function ExternalFormView() {
   }, []);
 
   const BrandHeader = () => (
-    <header
-      className="relative overflow-hidden"
-      style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
-    >
-      <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
-        style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-      <div className="relative z-10 px-5 py-3 flex items-center gap-3">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+    <>
+      {fromCase && (
+        <div style={{ background: '#1e40af', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={() => setLocation(`/cases/${fromCaseId}`)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+          >
+            <ArrowLeft size={14} /> Back to Case
+          </button>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>Staff view — filling form on behalf of invigilator</span>
         </div>
-        <div className="leading-none">
-          <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
-          <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Student Services</span>
+      )}
+      <header
+        className="relative overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+      >
+        <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div className="relative z-10 px-5 py-3 flex items-center gap-3">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+          </div>
+          <div className="leading-none">
+            <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
+            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Student Services</span>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 
   // Portal loading state

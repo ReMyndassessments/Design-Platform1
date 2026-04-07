@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
@@ -1739,23 +1738,31 @@ export default function CaseDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Full-screen form portal */}
-      {formModalUrl && createPortal(
-        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: '#fff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
-            <span style={{ fontWeight: 600, fontSize: 14, color: '#334155' }}>Assessment Form</span>
-            <button
-              onClick={() => { setFormModalUrl(null); queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }); }}
-              style={{ padding: '4px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13 }}
-            >
-              Close
-            </button>
-          </div>
-          <iframe src={formModalUrl} style={{ flex: 1, width: '100%', border: 'none', minHeight: 0 }} allow="camera; microphone" />
-        </div>,
-        document.body
-      )}
 
+      {/* Full-screen form modal */}
+      <Dialog
+        fullScreen
+        open={!!formModalUrl}
+        onOpenChange={open => {
+          if (!open) {
+            setFormModalUrl(null);
+            queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+          }
+        }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50 shrink-0">
+          <span className="text-sm font-semibold text-slate-700">Assessment Form</span>
+        </div>
+        {formModalUrl && (
+          <iframe
+            key={formModalUrl}
+            src={formModalUrl}
+            className="flex-1 w-full border-0 min-h-0"
+            style={{ height: '100%' }}
+            allow="camera; microphone"
+          />
+        )}
+      </Dialog>
     </div>
   );
 }
