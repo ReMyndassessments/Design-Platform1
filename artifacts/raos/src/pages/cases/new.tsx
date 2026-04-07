@@ -35,6 +35,12 @@ export default function NewCase() {
   const isPsych = currentUser?.role === "psychometrician";
 
   useEffect(() => {
+    if (currentUser && !isAdmin) {
+      setLocation("/cases");
+    }
+  }, [currentUser, isAdmin, setLocation]);
+
+  useEffect(() => {
     if (!currentUser?.id) return;
     if (isLead) {
       setFormData(prev => ({ ...prev, assignedLeadId: currentUser.id }));
