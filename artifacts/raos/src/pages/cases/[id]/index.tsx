@@ -1130,7 +1130,7 @@ export default function CaseDetail() {
                             <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
                               <Copy size={16} />
                             </Button>
-                            <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`/external/${a.uniqueToken}`)}>
+                            <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}>
                               <ExternalLink size={16} />
                             </Button>
                           </>
