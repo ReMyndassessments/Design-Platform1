@@ -24,3 +24,9 @@ id = "IADbVHGaatp2j16WpKlFs"
 uri = "file://TRAINING_MANUAL.md"
 type = "text"
 title = "RAOS Training Manual — All Roles"
+
+[[outputs]]
+id = "c5rgPEFr_p0pi88d_tKZv"
+uri = "file://RAOS_Invigilator_Manual_Revised.docx"
+type = "word_document"
+title = "RAOS Invigilator Training Manual (Revised)"
