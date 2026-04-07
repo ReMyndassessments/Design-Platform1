@@ -1739,17 +1739,16 @@ export default function CaseDetail() {
       </Dialog>
 
       {/* Full-screen form modal */}
-      {formModalUrl && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white">
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50 shrink-0">
-            <p className="text-sm font-semibold text-slate-700">Assessment Form</p>
-            <Button variant="outline" size="sm" onClick={() => { setFormModalUrl(null); queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }); }}>
-              Close
-            </Button>
-          </div>
-          <iframe src={formModalUrl} className="flex-1 w-full border-0" allow="camera; microphone" />
-        </div>
-      )}
+      <Dialog open={!!formModalUrl} onOpenChange={open => { if (!open) { setFormModalUrl(null); queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] }); } }}>
+        <DialogContent className="max-w-none w-screen h-screen p-0 flex flex-col rounded-none border-0 gap-0">
+          <DialogHeader className="flex flex-row items-center justify-between px-4 py-3 border-b bg-slate-50 shrink-0 space-y-0">
+            <DialogTitle className="text-sm font-semibold text-slate-700">Assessment Form</DialogTitle>
+          </DialogHeader>
+          {formModalUrl && (
+            <iframe src={formModalUrl} className="flex-1 w-full border-0 min-h-0" allow="camera; microphone" />
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
