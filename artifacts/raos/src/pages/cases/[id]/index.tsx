@@ -292,7 +292,8 @@ export default function CaseDetail() {
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
   const showAiCard = role !== "assessment_invigilator" && isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
-  const showMeetingCard = c.currentPhase === 'assessment';
+  const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
+  const showInvigilatorPanel = role === 'assessment_invigilator' && c.currentPhase === 'assessment';
   const hasLeftContent = showAiCard || showMeetingCard;
   const prevPhaseName = currentPhaseIndex > 0
     ? (PHASE_LABELS[PHASES[currentPhaseIndex - 1]] ?? PHASES[currentPhaseIndex - 1])
@@ -789,6 +790,49 @@ export default function CaseDetail() {
           }}
         />
       )}
+
+      {/* Invigilator full-width panel — assessment phase only */}
+      {showInvigilatorPanel && (() => {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const isCustom = !!c.customMeetingUrl;
+        const rawUrl = c.customMeetingUrl ?? "";
+        const isJitsiModerated = rawUrl.includes('meet.jit.si/moderated/');
+        const guestId = rawUrl.split('/').pop();
+        const joinUrl = isJitsiModerated && guestId
+          ? `${window.location.origin}${base}/join/${guestId}?jitsiRoom=moderated/${guestId}`
+          : rawUrl;
+        return (
+          <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+            <CardHeader className="pb-3 border-b border-emerald-100/60">
+              <CardTitle className="text-base flex items-center gap-2 text-emerald-900">
+                <Video size={16} className="text-emerald-600" />
+                Invigilation Meeting Room
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              {isCustom ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {c.assessmentMeetingDate && (
+                    <div className="bg-white/70 border border-emerald-200 rounded-lg px-4 py-2.5 space-y-0.5 flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Assessment Date &amp; Time</p>
+                      <p className="text-sm text-slate-700 font-medium">{c.assessmentMeetingDate}</p>
+                    </div>
+                  )}
+                  <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-6">
+                      <Video size={15} /> Join Assessment Meeting ↗
+                    </Button>
+                  </a>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-1">
+                  No meeting room has been set up yet. The admin will configure this and notify you.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <div className={`grid grid-cols-1 gap-6 ${hasLeftContent || hideAssignments ? 'lg:grid-cols-3' : ''}`}>
         {/* Left Col: AI & Phase Content — only rendered when there's actual content */}
