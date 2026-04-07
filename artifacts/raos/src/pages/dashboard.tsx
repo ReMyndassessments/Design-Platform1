@@ -1,16 +1,12 @@
-import { useGetDashboardStats, useGetCurrentUser, useGetMyPendingForms } from "@workspace/api-client-react";
+import { useGetDashboardStats } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight, ClipboardList, ExternalLink } from "lucide-react";
+import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const { data: stats, isLoading, isError } = useGetDashboardStats();
-  const { data: currentUser } = useGetCurrentUser();
-  const isInvigilator = currentUser?.role === "assessment_invigilator";
-  const { data: myPendingForms } = useGetMyPendingForms();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (isError || !stats) return <div className="text-destructive p-4 bg-destructive/10 rounded-xl">Failed to load dashboard data.</div>;
@@ -63,49 +59,6 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
-
-      {/* Invigilator: My Pending Observation Forms */}
-      {isInvigilator && (
-        <Card className="border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 pb-4">
-            <div className="flex items-center gap-2">
-              <ClipboardList size={20} className="text-primary" />
-              <CardTitle>My Pending Observation Forms</CardTitle>
-            </div>
-            {myPendingForms && myPendingForms.length > 0 && (
-              <Badge variant="warning" className="text-xs">{myPendingForms.length} pending</Badge>
-            )}
-          </CardHeader>
-          <CardContent className="p-0">
-            {!myPendingForms || myPendingForms.length === 0 ? (
-              <div className="py-10 text-center text-slate-400 text-sm">
-                No pending observation forms — you're all caught up!
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {myPendingForms.map(form => (
-                  <div key={form.id} className="px-6 py-4 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 text-sm">{form.toolName}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Student: {form.studentName}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <Badge variant={form.status === "in_progress" ? "default" : "secondary"} className="text-xs capitalize">
-                        {form.status === "in_progress" ? "In Progress" : "Not Started"}
-                      </Badge>
-                      <a href={form.uniqueLink} target="_blank" rel="noopener noreferrer">
-                        <Button size="sm" className="gap-1.5 text-xs">
-                          <ExternalLink size={13} /> Fill Out Form
-                        </Button>
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Pipeline Chart */}
