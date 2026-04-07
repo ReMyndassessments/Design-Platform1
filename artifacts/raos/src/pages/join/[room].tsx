@@ -21,6 +21,8 @@ export default function JoinMeetingPage() {
   const jitsiRoomParam = qs.get("jitsiRoom");
   const isModeratedRoom = !!jitsiRoomParam && jitsiRoomParam.includes("/");
   const directJitsiUrl = isModeratedRoom ? `https://meet.jit.si/${jitsiRoomParam}` : null;
+  const redirectUrl = qs.get("redirectUrl") ?? "";
+  const sessionType = qs.get("type") ?? ""; // "assessment" | "debrief" | ""
 
   // For standard rooms, embed via the External API.
   const embeddedRoomName = jitsiRoomParam && !isModeratedRoom ? jitsiRoomParam : params.room;
@@ -31,7 +33,11 @@ export default function JoinMeetingPage() {
   const [loading, setLoading] = useState(false);
 
   const sessionLabel = studentName
-    ? `ReMynd Debrief — ${studentName}`
+    ? sessionType === "assessment"
+      ? `ReMynd Assessment — ${studentName}`
+      : sessionType === "debrief"
+      ? `ReMynd Debrief — ${studentName}`
+      : `ReMynd Session — ${studentName}`
     : "ReMynd Session";
 
   function loadScript(): Promise<void> {
@@ -49,6 +55,11 @@ export default function JoinMeetingPage() {
 
   async function startMeeting() {
     setLoading(true);
+    if (redirectUrl) {
+      window.open(decodeURIComponent(redirectUrl), "_blank");
+      setLoading(false);
+      return;
+    }
     if (directJitsiUrl) {
       // Moderated room: navigate directly so the path isn't URL-encoded by the External API
       window.location.href = directJitsiUrl;
@@ -131,10 +142,16 @@ export default function JoinMeetingPage() {
               <Video size={28} className="text-emerald-400" />
             </div>
             <h1 className="text-2xl font-bold text-white">
-              {studentName ? `Assessment Session — ${studentName}` : "Join Meeting"}
+              {studentName
+                ? sessionType === "debrief"
+                  ? `Debrief Session — ${studentName}`
+                  : `Assessment Session — ${studentName}`
+                : "Join Meeting"}
             </h1>
             <p className="text-slate-400 text-sm leading-relaxed">
-              You have been invited to a ReMynd assessment session. When you are ready, click the button below to join. No account or download is required.
+              {sessionType === "debrief"
+                ? "You have been invited to a ReMynd debrief session. When you are ready, click the button below to join. No account or download is required."
+                : "You have been invited to a ReMynd assessment session. When you are ready, click the button below to join. No account or download is required."}
             </p>
           </div>
 

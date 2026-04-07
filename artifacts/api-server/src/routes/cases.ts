@@ -341,7 +341,7 @@ router.post("/cases/:caseId/debrief-invite", authMiddleware, async (req, res) =>
   const studentName = caseRow.studentName;
   const base = getBaseUrl(req as any);
   const roomName = `raos-${req.params.caseId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}`;
-  const meetingUrl = caseRow.customMeetingUrl || `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}`;
+  const meetingUrl = caseRow.customMeetingUrl || `${base}/join/${roomName}?student=${encodeURIComponent(studentName)}&type=assessment`;
 
   // recipients: [{ email, name, type: "parent" | "teacher", lang?: "en"|"zh"|"ko" }]
   const { recipients } = req.body as {
@@ -361,8 +361,8 @@ router.post("/cases/:caseId/debrief-invite", authMiddleware, async (req, res) =>
       const lang = r.lang ?? "en";
       const isParent = r.type === "parent";
       const subject = isParent
-        ? (lang === "zh" ? `汇报会议邀请 — ${studentName}` : lang === "ko" ? `결과 설명 회의 초대 — ${studentName}` : `Debrief Meeting Invitation — ${studentName}`)
-        : `Debrief Meeting Invitation — ${studentName}`;
+        ? (lang === "zh" ? `评估会议邀请 — ${studentName}` : lang === "ko" ? `평가 세션 초대 — ${studentName}` : `Assessment Session Invitation — ${studentName}`)
+        : `Assessment Session Invitation — ${studentName}`;
       await sendEmail({
         to: r.email,
         subject,

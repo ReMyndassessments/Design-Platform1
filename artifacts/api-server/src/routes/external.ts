@@ -320,7 +320,8 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
 
       if (teacherTok) {
         const teacherLink = `${base}/external/${teacherTok.token}`;
-        const teacherEmailHtml = buildTeacherEmail(studentName, teacherLink, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null);
+        const debriefJoinUrl = caseRow?.debriefMeetingUrl ? `${base}/join/debrief?type=debrief&student=${encodeURIComponent(studentName)}&redirectUrl=${encodeURIComponent(caseRow.debriefMeetingUrl)}` : null;
+        const teacherEmailHtml = buildTeacherEmail(studentName, teacherLink, debriefJoinUrl, caseRow?.debriefMeetingDate ?? null);
         const teacherTestBanner = isTestPreview
           ? `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
               <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
@@ -358,7 +359,7 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
         await sendEmail({
           to: tok.email,
           subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
-          html: teacherTestBanner + buildTeacherEmail(studentName, teacherLink, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null),
+          html: teacherTestBanner + buildTeacherEmail(studentName, teacherLink, caseRow?.debriefMeetingUrl ? `${base}/join/debrief?type=debrief&student=${encodeURIComponent(studentName)}&redirectUrl=${encodeURIComponent(caseRow.debriefMeetingUrl)}` : null, caseRow?.debriefMeetingDate ?? null),
         });
       }
     } catch (_) {}

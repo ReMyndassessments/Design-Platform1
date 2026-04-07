@@ -105,6 +105,10 @@ function buildAccessCodeBlock(lang: Lang, code: string): string {
   </div>`;
 }
 
+function makeDebriefJoinUrl(base: string, studentName: string, rawUrl: string): string {
+  return `${base}/join/debrief?type=debrief&student=${encodeURIComponent(studentName)}&redirectUrl=${encodeURIComponent(rawUrl)}`;
+}
+
 function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: string | null): string {
   const labels = {
     english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting to walk you through the assessment results. Click the button below to join at your scheduled time.", btn: "Join Debrief Meeting", dateLabel: "Scheduled:" },
@@ -357,7 +361,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   await sendEmail({
     to: adminUser.email,
     subject: `[TEST — Parent] ${EMAIL_COPY.parentSubject[lang](studentName)}`,
-    html: parentTestBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ?? undefined, caseRow.debriefMeetingDate ?? null),
+    html: parentTestBanner + buildParentEmail(lang, studentName, schoolName, liveLink, testAccessCode, caseRow.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow.debriefMeetingDate ?? null),
   });
 
   res.json({ success: true, sentTo: adminUser.email });
@@ -441,7 +445,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       await sendEmail({
         to: parentEmail,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ?? undefined, caseRow?.debriefMeetingDate ?? null),
+        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow?.debriefMeetingDate ?? null),
       });
     }
 
@@ -593,7 +597,7 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     await sendEmail({
       to: email,
       subject: EMAIL_COPY.parentSubject[resendLang](studentName),
-      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ?? undefined, caseRow?.debriefMeetingDate ?? null),
+      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow?.debriefMeetingDate ?? null),
     });
 
     await db.update(reportTokensTable)
@@ -658,7 +662,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
     await sendEmail({
       to: teacherToken.email,
       subject: `Assessment Report Now Available — ${studentName}`,
-      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ?? null, caseRow?.debriefMeetingDate ?? null),
+      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : null, caseRow?.debriefMeetingDate ?? null),
     });
     // Mark sentAt now that the email has actually been sent
     await db.update(reportTokensTable)

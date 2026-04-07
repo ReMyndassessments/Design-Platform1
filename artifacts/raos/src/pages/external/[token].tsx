@@ -1010,7 +1010,7 @@ function PortalView({
             )}
             <div className="px-5 pb-5">
               <a
-                href={portal.debriefMeetingUrl}
+                href={`/join/debrief?type=debrief&student=${encodeURIComponent(portal.studentName)}&redirectUrl=${encodeURIComponent(portal.debriefMeetingUrl!)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
