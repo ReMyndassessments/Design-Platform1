@@ -346,12 +346,12 @@ export default function CaseDetail() {
       list.push({ key: `teacher:${email}`, email, name: a.assignedToName ?? null, type: "teacher", defaultChecked: true });
     }
 
-    // Team / staff (optional — unchecked by default)
+    // Team / staff — checked by default so invigilator gets the link
     for (const u of staffUsers ?? []) {
       if (!u.email) continue;
       if (seen.has(u.email) || u.email === c?.parentEmail) continue;
       seen.add(u.email);
-      list.push({ key: `staff:${u.email}`, email: u.email, name: u.name, type: "staff", defaultChecked: false });
+      list.push({ key: `staff:${u.email}`, email: u.email, name: u.name, type: "staff", defaultChecked: true });
     }
 
     return list;
@@ -866,8 +866,41 @@ export default function CaseDetail() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
 
-                  {!isCustom ? (
-                    /* ── No room yet: 2-step flow ── */
+                  {role !== "admin" ? (
+                    /* ── Invigilator / read-only view ── */
+                    <div className="space-y-3">
+                      {isCustom ? (
+                        <>
+                          {c.assessmentMeetingDate && (
+                            <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2 space-y-0.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Assessment Date &amp; Time</p>
+                              <p className="text-xs text-slate-700">{c.assessmentMeetingDate}</p>
+                            </div>
+                          )}
+                          {(() => {
+                            const rawUrl = c.customMeetingUrl!;
+                            const isJitsiModerated = rawUrl.includes('meet.jit.si/moderated/');
+                            const guestId = rawUrl.split('/').pop();
+                            const joinUrl = isJitsiModerated && guestId
+                              ? `${window.location.origin}${base}/join/${guestId}?jitsiRoom=moderated/${guestId}`
+                              : rawUrl;
+                            return (
+                              <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                <Button size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+                                  <Video size={14} /> Join Assessment Meeting ↗
+                                </Button>
+                              </a>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <p className="text-xs text-slate-500 bg-white/60 border border-emerald-100 rounded-lg px-3 py-2.5 text-center">
+                          No meeting room has been set up yet. The admin will configure this and notify you.
+                        </p>
+                      )}
+                    </div>
+                  ) : !isCustom ? (
+                    /* ── Admin: No room yet — 2-step flow ── */
                     <div className="space-y-3">
                       {/* Step 1 */}
                       <div className="space-y-1.5">
@@ -903,7 +936,7 @@ export default function CaseDetail() {
                       </div>
                     </div>
                   ) : (
-                    /* ── Guest link saved: show branded client URL ── */
+                    /* ── Admin: Guest link saved ── */
                     <>
                       {/* Branded client join link */}
                       {(() => {
@@ -978,19 +1011,20 @@ export default function CaseDetail() {
                         </div>
                       )}
 
-                      {/* Send invite — available whenever a meeting room exists */}
+                      {/* Send invite — admin only */}
                       <Button
                         variant="outline"
                         size="sm"
                         className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
                         onClick={handleOpenSendInvite}
                       >
-                        <Mail size={13} /> Send Meeting Invite
+                        <Mail size={13} /> Send Meeting Link via Email
                       </Button>
                     </>
                   )}
 
-                  {/* Assessment date / time */}
+                  {/* Assessment date / time — admin only */}
+                  {role === "admin" && (
                   <div className="pt-2 border-t border-emerald-100 space-y-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Assessment Date &amp; Time</p>
                     {c.assessmentMeetingDate && assessmentDateDraft === "" ? (
@@ -1052,6 +1086,7 @@ export default function CaseDetail() {
                       </div>
                     )}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -1461,10 +1496,10 @@ export default function CaseDetail() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail size={18} className="text-emerald-600" /> Send Meeting Invite
+              <Mail size={18} className="text-emerald-600" /> Send Assessment Meeting Link
             </DialogTitle>
             <DialogDescription>
-              Choose who should receive the debrief meeting link for <span className="font-semibold text-slate-900">{c?.studentName}</span>.
+              Choose who should receive the assessment meeting link for <span className="font-semibold text-slate-900">{c?.studentName}</span>.
             </DialogDescription>
           </DialogHeader>
           {(() => {
