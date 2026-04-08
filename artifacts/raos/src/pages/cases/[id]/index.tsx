@@ -1046,7 +1046,7 @@ export default function CaseDetail() {
                       })()}
 
                       {/* Join as Host button */}
-                      {c.customMeetingUrl?.includes("meet.ffmuc.net") && (
+                      {c.customMeetingUrl && (
                         <Button
                           size="sm"
                           className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
