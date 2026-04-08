@@ -644,6 +644,8 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   // Extra manually-entered recipients from the UI
   const extraEmails: { email: string; name?: string; role?: "parent" | "teacher" }[] =
     Array.isArray(req.body?.extraEmails) ? req.body.extraEmails : [];
+  const excludeTokenIds: string[] =
+    Array.isArray(req.body?.excludeTokenIds) ? req.body.excludeTokenIds : [];
 
   const tokens = await db.select().from(reportTokensTable)
     .where(and(
@@ -651,11 +653,14 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
       sql`${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%'`
     ));
 
+  // Filter out any token IDs the admin has explicitly excluded
+  const activeTokens = tokens.filter(t => !excludeTokenIds.includes(t.id));
+
   const subject = `Debrief Meeting Invitation — ${studentName}`;
   let sent = 0;
 
   // Send to existing token holders (they get a report access link)
-  for (const t of tokens) {
+  for (const t of activeTokens) {
     const link = `${base}/external/${t.token}`;
     let html: string;
     if (t.role === "teacher") {
@@ -669,7 +674,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
 
   // Send to extra manually-entered recipients — create proper portal tokens so they
   // get the full /external/[token] branded experience (report access + meeting link).
-  const existingEmails = new Set(tokens.map(t => t.email.toLowerCase()));
+  const existingEmails = new Set(activeTokens.map(t => t.email.toLowerCase()));
   for (const e of extraEmails) {
     if (!e.email) continue;
     const normalised = e.email.trim().toLowerCase();
