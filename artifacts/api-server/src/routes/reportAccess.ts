@@ -667,12 +667,39 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
     sent++;
   }
 
-  // Send to extra manually-entered recipients (meeting link only, no report access)
+  // Send to extra manually-entered recipients — create proper portal tokens so they
+  // get the full /external/[token] branded experience (report access + meeting link).
+  const existingEmails = new Set(tokens.map(t => t.email.toLowerCase()));
   for (const e of extraEmails) {
     if (!e.email) continue;
-    const html = buildParentEmail(lang, studentName, schoolName, debriefJoinUrl, undefined, debriefJoinUrl, debriefDate);
-    await sendEmail({ to: e.email, subject, html });
+    const normalised = e.email.trim().toLowerCase();
+    if (existingEmails.has(normalised)) continue; // already sent above
+
+    const token = randomUUID();
+    const accessCode = generateAccessCode();
+    const role: "parent" | "teacher" = e.role === "teacher" ? "teacher" : "parent";
+
+    await db.insert(reportTokensTable).values({
+      id: randomUUID(),
+      caseId: req.params.id,
+      role,
+      email: e.email.trim(),
+      token,
+      accessCode,
+      recipientName: e.name?.trim() || null,
+      sentAt: new Date(),
+    });
+
+    const link = `${base}/external/${token}`;
+    let html: string;
+    if (role === "teacher") {
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate);
+    } else {
+      html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate);
+    }
+    await sendEmail({ to: e.email.trim(), subject, html });
     sent++;
+    existingEmails.add(normalised);
   }
 
   res.json({ success: true, sent });
