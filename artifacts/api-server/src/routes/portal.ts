@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { inquiriesTable, casesTable, assignmentsTable } from "@workspace/db/schema";
+import { inquiriesTable, casesTable, assignmentsTable, referralInvitesTable } from "@workspace/db/schema";
 import { nanoid } from "nanoid";
 import { sql } from "drizzle-orm";
 import crypto from "crypto";
@@ -126,7 +126,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true, existingCaseId } = req.body;
+  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true, existingToken } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
   }
@@ -147,67 +147,26 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
   const host  = req.headers.host as string ?? "localhost";
   const baseUrl = `${proto}://${host}`;
 
-  let caseId: string;
-  let portalLink: string;
-
-  if (existingCaseId) {
-    // ── Reuse an already-created case — just look up the referral assignment token ──
-    caseId = existingCaseId;
-    const existing = await db
-      .select({ uniqueLink: assignmentsTable.uniqueLink })
-      .from(assignmentsTable)
-      .where(sql`${assignmentsTable.caseId} = ${caseId} AND ${assignmentsTable.toolId} = ${resolvedFormId}`)
-      .limit(1);
-    if (!existing.length || !existing[0].uniqueLink) {
-      res.status(404).json({ error: "not_found", message: "Existing case assignment not found" }); return;
-    }
-    portalLink = existing[0].uniqueLink;
+  // ── Reuse existing invite token if already generated this session ──────────
+  let inviteToken: string;
+  if (existingToken) {
+    inviteToken = existingToken;
   } else {
-    // ── 1. Create a new pre-commitment case ──────────────────────────────────
-    caseId = nanoid();
-    await db.insert(casesTable).values({
-      id: caseId,
-      studentName: "Referral Pending",
-      dob: "TBD",
-      school: schoolName || "TBD",
-      grade: null,
-      referralReason: `Referral form sent to ${toName} (${toEmail})`,
-      currentPhase: "pre_commitment",
-      progressPercentage: 0,
-      caseStatus: "active",
+    // ── Create a lightweight invite record — NO case or assignment yet ────────
+    inviteToken = crypto.randomBytes(24).toString("hex");
+    await db.insert(referralInvitesTable).values({
+      token:          inviteToken,
+      formId:         resolvedFormId,
+      includeConsent: !!includeConsent,
+      toEmail,
+      toName,
+      schoolName:     schoolName || null,
     });
-
-    // ── 2. Create assignment(s) ──────────────────────────────────────────────
-    function makeAssignment(toolId: string, toolName: string) {
-      const token = crypto.randomBytes(24).toString("hex");
-      return {
-        id: nanoid(),
-        caseId,
-        toolId,
-        toolName,
-        respondentType: "referring_teacher" as const,
-        respondentLabel: "Referring Teacher",
-        assignedToName: toName,
-        assignedToEmail: toEmail,
-        uniqueToken: token,
-        uniqueLink: `${baseUrl}/external/${token}`,
-        qrCodeData: `${baseUrl}/external/${token}`,
-        status: "not_started" as const,
-        dueDate: null,
-      };
-    }
-
-    const referralAssignment = makeAssignment(resolvedFormId, formLabel);
-    await db.insert(assignmentsTable).values(referralAssignment);
-
-    if (includeConsent) {
-      await db.insert(assignmentsTable).values(makeAssignment("CONSENT", "Consent Form"));
-    }
-
-    portalLink = `${baseUrl}/external/${referralAssignment.uniqueToken}`;
   }
 
-  // ── 3. Optionally send email ───────────────────────────────────────────────
+  const portalLink = `${baseUrl}/external/${inviteToken}`;
+
+  // ── Optionally send email ──────────────────────────────────────────────────
   if (doSendEmail) {
     const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We are reaching out regarding assessment services for students at <strong>${schoolName}</strong>.</p>` : "";
     const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
@@ -236,11 +195,11 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
       await sendEmail({ to: toEmail, subject: `${formLabel} — ReMynd Student Services`, html });
     } catch (err: any) {
       logger.error({ error: String(err) }, "[email] Failed to send referral invite");
-      res.status(502).json({ error: "send_failed", message: "Case created but email could not be sent." }); return;
+      res.status(502).json({ error: "send_failed", message: "Invite created but email could not be sent." }); return;
     }
   }
 
-  res.json({ success: true, link: portalLink, caseId });
+  res.json({ success: true, link: portalLink, inviteToken });
 });
 
 router.delete("/portal/inquiries/:id", authMiddleware, async (req, res) => {

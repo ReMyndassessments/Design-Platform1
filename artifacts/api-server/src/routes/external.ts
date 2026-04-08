@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
-import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
+import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
 import { eq, and, ne, asc } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
@@ -200,6 +200,43 @@ router.get("/external/portal/:token", async (req, res) => {
     return;
   }
 
+  // ── Path C: token matches a referral invite (no case yet) ────────────────
+  const [invite] = await db
+    .select()
+    .from(referralInvitesTable)
+    .where(eq(referralInvitesTable.token, portalToken))
+    .limit(1);
+
+  if (invite) {
+    const FORM_LABELS: Record<string, string> = {
+      "REFERRAL":          "Referral Form — School",
+      "REFERRAL-CORP":     "Referral Form — Corporate",
+      "REFERRAL-UNI":      "Referral Form — University",
+      "REFERRAL-PARENT":   "Referral Form — Parent",
+      "REFERRAL-BOARDING": "Referral Form — Boarding School",
+    };
+    const forms = [
+      { toolId: invite.formId, toolName: FORM_LABELS[invite.formId] ?? "Referral Form", status: invite.usedAt ? "completed" : "not_started", uniqueToken: invite.token },
+      ...(invite.includeConsent && !invite.usedAt
+        ? [{ toolId: "CONSENT", toolName: "Consent Form", status: "not_started" as const, uniqueToken: `${invite.token}__consent` }]
+        : []),
+    ];
+    res.json({
+      studentName: "the student",
+      currentPhase: "pre_commitment",
+      progressPercentage: 0,
+      languagePreference: "english",
+      respondentLabel: "Referring Teacher",
+      respondentType: "referring_teacher",
+      forms,
+      reportAccess: null,
+      debriefMeetingUrl: null,
+      debriefMeetingDate: null,
+      isInvite: true,
+    });
+    return;
+  }
+
   res.status(404).json({ error: "not_found", message: "Form link not found" });
 });
 
@@ -378,10 +415,43 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
 });
 
 router.get("/external/form/:token", async (req, res) => {
-  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, req.params.token)).limit(1);
+  const rawToken = req.params.token;
+
+  // ── Standard assignment token (checked first — takes priority after invite is submitted) ──
+  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
   const assignment = rows[0];
 
   if (!assignment) {
+    // ── Fallback: referral invite token (no case created yet) ────────────────
+    const isConsentSuffix = rawToken.endsWith("__consent");
+    const baseToken = isConsentSuffix ? rawToken.replace(/__consent$/, "") : rawToken;
+    const [invite] = await db.select().from(referralInvitesTable).where(eq(referralInvitesTable.token, baseToken)).limit(1);
+    if (invite) {
+      const toolId = isConsentSuffix ? "CONSENT" : invite.formId;
+      const FORM_LABELS: Record<string, string> = {
+        "REFERRAL":          "Referral Form — School",
+        "REFERRAL-CORP":     "Referral Form — Corporate",
+        "REFERRAL-UNI":      "Referral Form — University",
+        "REFERRAL-PARENT":   "Referral Form — Parent",
+        "REFERRAL-BOARDING": "Referral Form — Boarding School",
+        "CONSENT":           "Consent Form",
+      };
+      const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
+      const questions = await resolveQuestions(toolId);
+      res.json({
+        assignmentId: rawToken,
+        toolId,
+        formType,
+        toolName: FORM_LABELS[toolId] ?? toolId,
+        respondentLabel: "Referring Teacher",
+        studentName: "the student",
+        language: "english",
+        questions,
+        alreadySubmitted: !!invite.usedAt,
+        isInvite: true,
+      });
+      return;
+    }
     res.status(404).json({ error: "not_found", message: "Form link not found or has expired" });
     return;
   }
@@ -410,53 +480,157 @@ router.get("/external/form/:token", async (req, res) => {
 });
 
 router.post("/external/form/:token/submit", async (req, res) => {
-  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, req.params.token)).limit(1);
-  const assignment = rows[0];
+  const rawToken = req.params.token;
+  const { answers, language } = req.body;
 
-  if (!assignment) {
-    res.status(404).json({ error: "not_found", message: "Form link not found" });
+  // ── Standard assignment path (checked first — handles post-submission consent) ─
+  const existingAssignmentRows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+  if (existingAssignmentRows[0]) {
+    const assignment = existingAssignmentRows[0];
+    await db.insert(responsesTable).values({ id: nanoid(), assignmentId: assignment.id, answers: answers ?? {}, language: language ?? "english" });
+    await db.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() }).where(eq(assignmentsTable.id, assignment.id));
+    const groupByEmail = !!assignment.assignedToEmail;
+    const siblings = await db.select({ toolName: assignmentsTable.toolName, uniqueToken: assignmentsTable.uniqueToken, respondentLabel: assignmentsTable.respondentLabel })
+      .from(assignmentsTable)
+      .where(and(
+        eq(assignmentsTable.caseId, assignment.caseId),
+        groupByEmail ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!) : and(eq(assignmentsTable.respondentType, assignment.respondentType), eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? "")),
+        ne(assignmentsTable.id, assignment.id),
+        ne(assignmentsTable.status, "completed"),
+      ));
+    res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms: siblings });
     return;
   }
 
-  const { answers, language } = req.body;
+  // ── Invite token path — create case + assignments on first real submission ─
+  const isConsentSuffix = rawToken.endsWith("__consent");
+  const baseToken = isConsentSuffix ? rawToken.replace(/__consent$/, "") : rawToken;
 
-  await db.insert(responsesTable).values({
-    id: nanoid(),
-    assignmentId: assignment.id,
-    answers: answers ?? {},
-    language: language ?? "english",
-  });
+  const [invite] = await db.select().from(referralInvitesTable).where(eq(referralInvitesTable.token, baseToken)).limit(1);
 
-  await db.update(assignmentsTable).set({
-    status: "completed",
-    submittedAt: new Date(),
-  }).where(eq(assignmentsTable.id, assignment.id));
+  if (invite) {
+    if (invite.usedAt) {
+      res.json({ success: true, message: "This form has already been submitted. Thank you!", nextForms: [] });
+      return;
+    }
 
-  let nextForms: { toolName: string; uniqueToken: string; respondentLabel: string }[] = [];
-  const groupByEmail = !!assignment.assignedToEmail;
-  const siblings = await db
-    .select({
-      toolName: assignmentsTable.toolName,
-      uniqueToken: assignmentsTable.uniqueToken,
-      respondentLabel: assignmentsTable.respondentLabel,
-    })
-    .from(assignmentsTable)
-    .where(
-      and(
-        eq(assignmentsTable.caseId, assignment.caseId),
-        groupByEmail
-          ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
-          : and(
-              eq(assignmentsTable.respondentType, assignment.respondentType),
-              eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
-            ),
-        ne(assignmentsTable.id, assignment.id),
-        ne(assignmentsTable.status, "completed"),
-      )
-    );
-  nextForms = siblings;
+    const { randomBytes } = await import("crypto");
+    const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
+    const host  = (req.headers.host as string) ?? "localhost";
+    const baseUrl = `${proto}://${host}`;
 
-  res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms });
+    const FORM_LABELS: Record<string, string> = {
+      "REFERRAL":          "Referral Form — School",
+      "REFERRAL-CORP":     "Referral Form — Corporate",
+      "REFERRAL-UNI":      "Referral Form — University",
+      "REFERRAL-PARENT":   "Referral Form — Parent",
+      "REFERRAL-BOARDING": "Referral Form — Boarding School",
+      "CONSENT":           "Consent Form",
+    };
+
+    // Create the case
+    const caseId = nanoid();
+    await db.insert(casesTable).values({
+      id: caseId,
+      studentName: "Referral Pending",
+      dob: "TBD",
+      school: invite.schoolName || "TBD",
+      grade: null,
+      referralReason: `Referral form submitted by ${invite.toName} (${invite.toEmail})`,
+      currentPhase: "pre_commitment",
+      progressPercentage: 0,
+      caseStatus: "active",
+    });
+
+    // Create the referral assignment (completed immediately)
+    const referralToken = baseToken;
+    const referralAssignmentId = nanoid();
+    await db.insert(assignmentsTable).values({
+      id: referralAssignmentId,
+      caseId,
+      toolId: invite.formId,
+      toolName: FORM_LABELS[invite.formId] ?? "Referral Form",
+      respondentType: "referring_teacher",
+      respondentLabel: "Referring Teacher",
+      assignedToName: invite.toName,
+      assignedToEmail: invite.toEmail,
+      uniqueToken: referralToken,
+      uniqueLink: `${baseUrl}/external/${referralToken}`,
+      qrCodeData: `${baseUrl}/external/${referralToken}`,
+      status: "completed",
+      submittedAt: new Date(),
+      dueDate: null,
+    });
+
+    // Store the response for the referral form (if this is the referral submission)
+    const submittedToolId = isConsentSuffix ? "CONSENT" : invite.formId;
+    let submittedAssignmentId = referralAssignmentId;
+
+    if (isConsentSuffix) {
+      // Consent submitted — create consent assignment as well
+      const consentToken = randomBytes(24).toString("hex");
+      submittedAssignmentId = nanoid();
+      await db.insert(assignmentsTable).values({
+        id: submittedAssignmentId,
+        caseId,
+        toolId: "CONSENT",
+        toolName: "Consent Form",
+        respondentType: "referring_teacher",
+        respondentLabel: "Referring Teacher",
+        assignedToName: invite.toName,
+        assignedToEmail: invite.toEmail,
+        uniqueToken: consentToken,
+        uniqueLink: `${baseUrl}/external/${consentToken}`,
+        qrCodeData: `${baseUrl}/external/${consentToken}`,
+        status: "completed",
+        submittedAt: new Date(),
+        dueDate: null,
+      });
+    } else if (invite.includeConsent) {
+      // Create pending consent assignment
+      const consentToken = randomBytes(24).toString("hex");
+      await db.insert(assignmentsTable).values({
+        id: nanoid(),
+        caseId,
+        toolId: "CONSENT",
+        toolName: "Consent Form",
+        respondentType: "referring_teacher",
+        respondentLabel: "Referring Teacher",
+        assignedToName: invite.toName,
+        assignedToEmail: invite.toEmail,
+        uniqueToken: `${baseToken}__consent`,
+        uniqueLink: `${baseUrl}/external/${baseToken}__consent`,
+        qrCodeData: `${baseUrl}/external/${baseToken}__consent`,
+        status: "not_started",
+        dueDate: null,
+      });
+    }
+
+    // Store the actual form answers
+    await db.insert(responsesTable).values({
+      id: nanoid(),
+      assignmentId: submittedAssignmentId,
+      answers: answers ?? {},
+      language: language ?? "english",
+    });
+
+    // Mark invite as used
+    await db.update(referralInvitesTable).set({
+      usedAt: new Date(),
+      resultingCaseId: caseId,
+    }).where(eq(referralInvitesTable.token, baseToken));
+
+    // Determine next form (consent still pending)
+    const nextForms = !isConsentSuffix && invite.includeConsent
+      ? [{ toolName: "Consent Form", uniqueToken: `${baseToken}__consent`, respondentLabel: "Referring Teacher" }]
+      : [];
+
+    res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms });
+    return;
+  }
+
+  // Token not found in assignments or invites
+  res.status(404).json({ error: "not_found", message: "Form link not found" });
 });
 
 export default router;

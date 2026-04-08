@@ -9,7 +9,7 @@ import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM,
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
 import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM, FASM_FORM } from "./lib/opentools.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -1266,7 +1266,29 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-Promise.all([seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()]).then(() => {
+async function runMigrations() {
+  try {
+    // Ensure referral_invites table exists (added 2026-04)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS referral_invites (
+        token            text PRIMARY KEY,
+        form_id          text NOT NULL,
+        include_consent  boolean NOT NULL DEFAULT false,
+        to_email         text NOT NULL,
+        to_name          text NOT NULL,
+        school_name      text,
+        created_at       timestamp NOT NULL DEFAULT now(),
+        used_at          timestamp,
+        resulting_case_id text
+      )
+    `);
+    logger.info("Migrations applied");
+  } catch (err) {
+    logger.error({ err }, "Migration failed");
+  }
+}
+
+Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()]).then(() => {
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

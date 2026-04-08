@@ -83,10 +83,10 @@ export default function InquiriesPage() {
   ];
 
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [generatedCaseId, setGeneratedCaseId] = useState<string | null>(null);
+  const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(null);
 
   function callInviteApi(sendEmail: boolean) {
-    return customFetch<{ success: boolean; link: string; caseId: string }>("/api/portal/send-referral-invite", {
+    return customFetch<{ success: boolean; link: string; inviteToken: string }>("/api/portal/send-referral-invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -94,8 +94,8 @@ export default function InquiriesPage() {
         formId: selectedFormId,
         includeConsent,
         sendEmail,
-        // Reuse the already-created case so we don't create a duplicate
-        ...(generatedCaseId ? { existingCaseId: generatedCaseId } : {}),
+        // Reuse the same invite token so we never create a duplicate
+        ...(generatedInviteToken ? { existingToken: generatedInviteToken } : {}),
       }),
     });
   }
@@ -104,7 +104,7 @@ export default function InquiriesPage() {
     mutationFn: () => callInviteApi(true),
     onSuccess: (data) => {
       setGeneratedLink(data.link);
-      setGeneratedCaseId(data.caseId);
+      setGeneratedInviteToken(data.inviteToken);
       setInviteSent(true);
     },
     onError: (err: any) => {
@@ -116,7 +116,7 @@ export default function InquiriesPage() {
     mutationFn: () => callInviteApi(false),
     onSuccess: (data) => {
       setGeneratedLink(data.link);
-      setGeneratedCaseId(data.caseId);
+      setGeneratedInviteToken(data.inviteToken);
       navigator.clipboard.writeText(data.link).then(() => {
         setLinkCopied("generated");
         setTimeout(() => setLinkCopied(null), 2000);
