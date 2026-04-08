@@ -126,7 +126,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true } = req.body;
+  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true, existingCaseId } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
   }
@@ -147,48 +147,65 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
   const host  = req.headers.host as string ?? "localhost";
   const baseUrl = `${proto}://${host}`;
 
-  // ── 1. Create a pre-commitment case ────────────────────────────────────────
-  const caseId = nanoid();
-  await db.insert(casesTable).values({
-    id: caseId,
-    studentName: "Referral Pending",
-    dob: "TBD",
-    school: schoolName || "TBD",
-    grade: null,
-    referralReason: `Referral form sent to ${toName} (${toEmail})`,
-    currentPhase: "pre_commitment",
-    progressPercentage: 0,
-    caseStatus: "active",
-  });
+  let caseId: string;
+  let portalLink: string;
 
-  // ── 2. Create assignment(s) ────────────────────────────────────────────────
-  function makeAssignment(toolId: string, toolName: string) {
-    const token = crypto.randomBytes(24).toString("hex");
-    return {
-      id: nanoid(),
-      caseId,
-      toolId,
-      toolName,
-      respondentType: "referring_teacher" as const,
-      respondentLabel: "Referring Teacher",
-      assignedToName: toName,
-      assignedToEmail: toEmail,
-      uniqueToken: token,
-      uniqueLink: `${baseUrl}/external/${token}`,
-      qrCodeData: `${baseUrl}/external/${token}`,
-      status: "not_started" as const,
-      dueDate: null,
-    };
+  if (existingCaseId) {
+    // ── Reuse an already-created case — just look up the referral assignment token ──
+    caseId = existingCaseId;
+    const existing = await db
+      .select({ uniqueLink: assignmentsTable.uniqueLink })
+      .from(assignmentsTable)
+      .where(sql`${assignmentsTable.caseId} = ${caseId} AND ${assignmentsTable.toolId} = ${resolvedFormId}`)
+      .limit(1);
+    if (!existing.length || !existing[0].uniqueLink) {
+      res.status(404).json({ error: "not_found", message: "Existing case assignment not found" }); return;
+    }
+    portalLink = existing[0].uniqueLink;
+  } else {
+    // ── 1. Create a new pre-commitment case ──────────────────────────────────
+    caseId = nanoid();
+    await db.insert(casesTable).values({
+      id: caseId,
+      studentName: "Referral Pending",
+      dob: "TBD",
+      school: schoolName || "TBD",
+      grade: null,
+      referralReason: `Referral form sent to ${toName} (${toEmail})`,
+      currentPhase: "pre_commitment",
+      progressPercentage: 0,
+      caseStatus: "active",
+    });
+
+    // ── 2. Create assignment(s) ──────────────────────────────────────────────
+    function makeAssignment(toolId: string, toolName: string) {
+      const token = crypto.randomBytes(24).toString("hex");
+      return {
+        id: nanoid(),
+        caseId,
+        toolId,
+        toolName,
+        respondentType: "referring_teacher" as const,
+        respondentLabel: "Referring Teacher",
+        assignedToName: toName,
+        assignedToEmail: toEmail,
+        uniqueToken: token,
+        uniqueLink: `${baseUrl}/external/${token}`,
+        qrCodeData: `${baseUrl}/external/${token}`,
+        status: "not_started" as const,
+        dueDate: null,
+      };
+    }
+
+    const referralAssignment = makeAssignment(resolvedFormId, formLabel);
+    await db.insert(assignmentsTable).values(referralAssignment);
+
+    if (includeConsent) {
+      await db.insert(assignmentsTable).values(makeAssignment("CONSENT", "Consent Form"));
+    }
+
+    portalLink = `${baseUrl}/external/${referralAssignment.uniqueToken}`;
   }
-
-  const referralAssignment = makeAssignment(resolvedFormId, formLabel);
-  await db.insert(assignmentsTable).values(referralAssignment);
-
-  if (includeConsent) {
-    await db.insert(assignmentsTable).values(makeAssignment("CONSENT", "Consent Form"));
-  }
-
-  const portalLink = `${baseUrl}/external/${referralAssignment.uniqueToken}`;
 
   // ── 3. Optionally send email ───────────────────────────────────────────────
   if (doSendEmail) {
