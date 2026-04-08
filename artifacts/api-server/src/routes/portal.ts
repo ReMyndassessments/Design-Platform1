@@ -4,7 +4,7 @@ import { inquiriesTable } from "@workspace/db/schema";
 import { nanoid } from "nanoid";
 import { sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { sendInquiryNotification } from "../lib/outlookEmail.js";
+import { sendInquiryNotification, sendEmail } from "../lib/outlookEmail.js";
 import { logger } from "../lib/logger.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
 
@@ -117,6 +117,51 @@ router.patch("/portal/inquiries/:id/status", authMiddleware, async (req, res) =>
     .where(sql`${inquiriesTable.id} = ${req.params.id}`);
 
   res.json({ success: true });
+});
+
+// ── Send referral form invite to a school contact ───────────────────────────
+router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const { toEmail, toName, schoolName, note } = req.body;
+  if (!toEmail || !toName) {
+    res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
+  }
+
+  const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
+  const host  = req.headers.host as string ?? "localhost";
+  const portalUrl = `${proto}://${host}/portal?tab=school`;
+
+  const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We noticed your interest in assessment services for <strong>${schoolName}</strong>. We would love to support your students.</p>` : "";
+  const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
+
+  const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
+    <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
+      <p style="margin:0;font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px">ReMynd Student Services</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em">Assessment Operating System</p>
+    </div>
+    <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+      <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
+      <p style="margin:0 0 12px;font-size:14px;color:#475569">We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, our referral form takes just a few minutes to complete.</p>
+      ${schoolLine}${noteLine}
+      <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps.</p>
+      <p style="text-align:center;margin:28px 0">
+        <a href="${portalUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Submit a Referral ↗</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+      <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team.</p>
+    </div>
+  </div>`;
+
+  try {
+    await sendEmail({ to: toEmail, subject: `Referral Invitation — ReMynd Student Services`, html });
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ error: String(err) }, "[email] Failed to send referral invite");
+    res.status(502).json({ error: "send_failed", message: "Email could not be sent. Please check your mail configuration." });
+  }
 });
 
 router.delete("/portal/inquiries/:id", authMiddleware, async (req, res) => {

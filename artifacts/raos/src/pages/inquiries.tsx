@@ -18,9 +18,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { School, User, Mail, Phone, Calendar, Building2, Trash2 } from "lucide-react";
+import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Inquiry {
   id: string;
@@ -57,9 +60,35 @@ function formatDate(iso: string) {
 
 export default function InquiriesPage() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Inquiry | null>(null);
+
+  // Send Referral Form invite state
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
+
+  const sendReferralInvite = useMutation({
+    mutationFn: (data: typeof inviteForm) =>
+      customFetch("/api/portal/send-referral-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      setInviteSent(true);
+      setTimeout(() => {
+        setInviteSent(false);
+        setShowInviteForm(false);
+        setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" });
+      }, 2500);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to send", description: err?.message ?? "Please try again.", variant: "destructive" });
+    },
+  });
 
   const { data: inquiries = [], isLoading, isError } = useQuery<Inquiry[]>({
     queryKey: ["inquiries"],
@@ -111,12 +140,99 @@ export default function InquiriesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div>
-        <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
-        <p className="text-slate-500 mt-1">
-          School and parent inquiries submitted via the portal
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
+          <p className="text-slate-500 mt-1">
+            School and parent inquiries submitted via the portal
+          </p>
+        </div>
+        <Button
+          onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); }}
+          className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          <SendHorizonal size={15} />
+          Send Referral Form
+          {showInviteForm ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+        </Button>
       </div>
+
+      {/* Send Referral Form invite panel */}
+      {showInviteForm && (
+        <Card className="border-indigo-200 shadow-md bg-gradient-to-br from-indigo-50 to-blue-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-indigo-900 flex items-center gap-2">
+              <School size={16} className="text-indigo-600"/>
+              Send Referral Form to a School
+            </CardTitle>
+            <p className="text-xs text-indigo-600 font-normal">
+              They'll receive a branded ReMynd email with a direct link to submit a referral — no case file needed first.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {inviteSent ? (
+              <div className="flex items-center gap-3 py-4 justify-center text-emerald-700">
+                <CheckCircle2 size={22} className="text-emerald-500"/>
+                <span className="font-medium">Referral form sent successfully!</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-600">Contact Name *</label>
+                    <Input
+                      placeholder="e.g. Ms. Sarah Lee"
+                      value={inviteForm.toName}
+                      onChange={e => setInviteForm(f => ({ ...f, toName: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-600">Email Address *</label>
+                    <Input
+                      type="email"
+                      placeholder="contact@school.edu"
+                      value={inviteForm.toEmail}
+                      onChange={e => setInviteForm(f => ({ ...f, toEmail: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">School Name <span className="text-slate-400">(optional)</span></label>
+                  <Input
+                    placeholder="e.g. Raffles International School"
+                    value={inviteForm.schoolName}
+                    onChange={e => setInviteForm(f => ({ ...f, schoolName: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Personal note <span className="text-slate-400">(optional — included in the email)</span></label>
+                  <Textarea
+                    placeholder="e.g. It was great speaking with you last week…"
+                    value={inviteForm.note}
+                    onChange={e => setInviteForm(f => ({ ...f, note: e.target.value }))}
+                    className="text-sm resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                    disabled={!inviteForm.toName.trim() || !inviteForm.toEmail.trim() || sendReferralInvite.isPending}
+                    onClick={() => sendReferralInvite.mutate(inviteForm)}
+                  >
+                    <SendHorizonal size={14}/>
+                    {sendReferralInvite.isPending ? "Sending…" : "Send Invite"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowInviteForm(false)}>Cancel</Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
