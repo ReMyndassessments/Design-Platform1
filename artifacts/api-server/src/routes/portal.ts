@@ -125,17 +125,36 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note } = req.body;
+  const { toEmail, toName, schoolName, note, formId } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
   }
 
+  const VALID_FORM_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT"];
+  const resolvedFormId = VALID_FORM_IDS.includes(formId) ? formId : "REFERRAL";
+
+  const FORM_LABELS: Record<string, string> = {
+    "REFERRAL":          "Referral Form — School",
+    "REFERRAL-CORP":     "Referral Form — Corporate",
+    "REFERRAL-UNI":      "Referral Form — University",
+    "REFERRAL-PARENT":   "Referral Form — Parent",
+    "REFERRAL-BOARDING": "Referral Form — Boarding School",
+    "CONSENT":           "Consent Form",
+  };
+  const formLabel = FORM_LABELS[resolvedFormId] ?? "Referral Form";
+
   const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
   const host  = req.headers.host as string ?? "localhost";
-  const portalUrl = `${proto}://${host}/portal?tab=school`;
+  const formUrl = `${proto}://${host}/tools/${resolvedFormId}/preview`;
 
   const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We noticed your interest in assessment services for <strong>${schoolName}</strong>. We would love to support your students.</p>` : "";
   const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
+
+  const isConsent = resolvedFormId === "CONSENT";
+  const bodyText = isConsent
+    ? `We are sharing our consent form for your reference. Please review and complete it at your earliest convenience.`
+    : `We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, our referral form takes just a few minutes to complete.`;
+  const ctaText = isConsent ? "Open Consent Form ↗" : "Open Referral Form ↗";
 
   const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
     <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
@@ -144,11 +163,12 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
-      <p style="margin:0 0 12px;font-size:14px;color:#475569">We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, our referral form takes just a few minutes to complete.</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#475569">${bodyText}</p>
       ${schoolLine}${noteLine}
+      <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:0.06em">${formLabel}</p>
       <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps.</p>
       <p style="text-align:center;margin:28px 0">
-        <a href="${portalUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Submit a Referral ↗</a>
+        <a href="${formUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">${ctaText}</a>
       </p>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
       <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team.</p>

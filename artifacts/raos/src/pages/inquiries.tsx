@@ -24,6 +24,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface Inquiry {
   id: string;
@@ -69,9 +70,19 @@ export default function InquiriesPage() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState("REFERRAL");
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
 
-  const referralLink = `${window.location.origin}/portal?tab=school`;
+  const FORM_OPTIONS = [
+    { id: "REFERRAL",          label: "Referral — School" },
+    { id: "REFERRAL-CORP",     label: "Referral — Corporate" },
+    { id: "REFERRAL-UNI",      label: "Referral — University" },
+    { id: "REFERRAL-PARENT",   label: "Referral — Parent" },
+    { id: "REFERRAL-BOARDING", label: "Referral — Boarding" },
+    { id: "CONSENT",           label: "Consent Form" },
+  ];
+
+  const referralLink = `${window.location.origin}/tools/${selectedFormId}/preview`;
 
   function copyReferralLink() {
     navigator.clipboard.writeText(referralLink).then(() => {
@@ -85,7 +96,7 @@ export default function InquiriesPage() {
       customFetch("/api/portal/send-referral-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, formId: selectedFormId }),
       }),
     onSuccess: () => {
       setInviteSent(true);
@@ -180,6 +191,27 @@ export default function InquiriesPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Form selector */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-500">Select form</p>
+              <div className="flex flex-wrap gap-1.5">
+                {FORM_OPTIONS.map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setSelectedFormId(opt.id); setLinkCopied(false); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                      selectedFormId === opt.id
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-700"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Referral link row — always visible */}
             <div className="flex items-center gap-2 bg-white/70 border border-indigo-200 rounded-lg px-3 py-2">
               <Link size={13} className="text-indigo-400 shrink-0"/>
