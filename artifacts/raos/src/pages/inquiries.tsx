@@ -82,33 +82,38 @@ export default function InquiriesPage() {
     { id: "REFERRAL-BOARDING", label: "Referral — Boarding" },
   ];
 
-  const referralLink  = `${window.location.origin}/tools/${selectedFormId}/preview`;
-  const consentLink   = `${window.location.origin}/tools/CONSENT/preview`;
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
-  function copyLink(url: string, key: string) {
-    navigator.clipboard.writeText(url).then(() => {
-      setLinkCopied(key);
-      setTimeout(() => setLinkCopied(null), 2000);
+  function callInviteApi(sendEmail: boolean) {
+    return customFetch<{ success: boolean; link: string }>("/api/portal/send-referral-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...inviteForm, formId: selectedFormId, includeConsent, sendEmail }),
     });
   }
 
   const sendReferralInvite = useMutation({
-    mutationFn: (data: typeof inviteForm) =>
-      customFetch("/api/portal/send-referral-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, formId: selectedFormId, includeConsent }),
-      }),
-    onSuccess: () => {
+    mutationFn: () => callInviteApi(true),
+    onSuccess: (data) => {
+      setGeneratedLink(data.link);
       setInviteSent(true);
-      setTimeout(() => {
-        setInviteSent(false);
-        setShowInviteForm(false);
-        setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" });
-      }, 2500);
     },
     onError: (err: any) => {
       toast({ title: "Failed to send", description: err?.message ?? "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const copyLinkOnly = useMutation({
+    mutationFn: () => callInviteApi(false),
+    onSuccess: (data) => {
+      setGeneratedLink(data.link);
+      navigator.clipboard.writeText(data.link).then(() => {
+        setLinkCopied("generated");
+        setTimeout(() => setLinkCopied(null), 2000);
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to generate link", description: err?.message ?? "Please try again.", variant: "destructive" });
     },
   });
 
@@ -233,38 +238,33 @@ export default function InquiriesPage() {
               {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ 1 form</span>}
             </button>
 
-            {/* Link rows — always visible */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 bg-white/70 border border-indigo-200 rounded-lg px-3 py-2">
-                <Link size={13} className="text-indigo-400 shrink-0"/>
-                <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{referralLink}</span>
-                <button
-                  onClick={() => copyLink(referralLink, "referral")}
-                  className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-indigo-100 hover:bg-indigo-200 text-indigo-700"
-                >
-                  {linkCopied === "referral" ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
-                  {linkCopied === "referral" ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              {includeConsent && (
-                <div className="flex items-center gap-2 bg-white/70 border border-emerald-200 rounded-lg px-3 py-2">
-                  <Link size={13} className="text-emerald-400 shrink-0"/>
-                  <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{consentLink}</span>
-                  <button
-                    onClick={() => copyLink(consentLink, "consent")}
-                    className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
-                  >
-                    {linkCopied === "consent" ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
-                    {linkCopied === "consent" ? "Copied!" : "Copy"}
-                  </button>
+            {/* Contact details + actions */}
+            {inviteSent && generatedLink ? (
+              <div className="space-y-3 py-2">
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <CheckCircle2 size={20} className="text-emerald-500 shrink-0"/>
+                  <span className="font-medium text-sm">Invite sent to {inviteForm.toEmail}</span>
                 </div>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 text-center">— or send a personalised email invite —</p>
-            {inviteSent ? (
-              <div className="flex items-center gap-3 py-4 justify-center text-emerald-700">
-                <CheckCircle2 size={22} className="text-emerald-500"/>
-                <span className="font-medium">Referral form sent successfully!</span>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500">Portal link (you can also share this directly):</p>
+                  <div className="flex items-center gap-2 bg-white border border-emerald-200 rounded-lg px-3 py-2">
+                    <Link size={13} className="text-emerald-400 shrink-0"/>
+                    <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{generatedLink}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied("done"); setTimeout(() => setLinkCopied(null), 2000); }}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
+                    >
+                      {linkCopied === "done" ? <CheckCircle2 size={12}/> : <Copy size={12}/>}
+                      {linkCopied === "done" ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => { setInviteSent(false); setGeneratedLink(null); setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" }); }}
+                >
+                  Send another
+                </Button>
               </div>
             ) : (
               <>
@@ -299,7 +299,7 @@ export default function InquiriesPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Personal note <span className="text-slate-400">(optional — included in the email)</span></label>
+                  <label className="text-xs font-medium text-slate-600">Personal note <span className="text-slate-400">(optional — included in email)</span></label>
                   <Textarea
                     placeholder="e.g. It was great speaking with you last week…"
                     value={inviteForm.note}
@@ -308,16 +308,46 @@ export default function InquiriesPage() {
                     rows={2}
                   />
                 </div>
-                <div className="flex gap-2 pt-1">
+
+                {/* Generated link preview (after copy-only action) */}
+                {generatedLink && !inviteSent && (
+                  <div className="flex items-center gap-2 bg-white border border-indigo-200 rounded-lg px-3 py-2">
+                    <Link size={13} className="text-indigo-400 shrink-0"/>
+                    <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{generatedLink}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(generatedLink!); setLinkCopied("generated"); setTimeout(() => setLinkCopied(null), 2000); }}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-indigo-100 hover:bg-indigo-200 text-indigo-700"
+                    >
+                      {linkCopied === "generated" ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                      {linkCopied === "generated" ? "Copied!" : "Copy again"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button
                     className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                    disabled={!inviteForm.toName.trim() || !inviteForm.toEmail.trim() || sendReferralInvite.isPending}
-                    onClick={() => sendReferralInvite.mutate(inviteForm)}
+                    disabled={!inviteForm.toName.trim() || !inviteForm.toEmail.trim() || sendReferralInvite.isPending || copyLinkOnly.isPending}
+                    onClick={() => sendReferralInvite.mutate()}
                   >
                     <SendHorizonal size={14}/>
-                    {sendReferralInvite.isPending ? "Sending…" : "Send Invite"}
+                    {sendReferralInvite.isPending ? "Sending…" : "Send Email Invite"}
                   </Button>
-                  <Button variant="outline" onClick={() => setShowInviteForm(false)}>Cancel</Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={!inviteForm.toName.trim() || !inviteForm.toEmail.trim() || copyLinkOnly.isPending || sendReferralInvite.isPending}
+                    onClick={() => copyLinkOnly.mutate()}
+                  >
+                    {copyLinkOnly.isPending ? (
+                      <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin"/> Generating…</span>
+                    ) : linkCopied === "generated" ? (
+                      <><CheckCircle2 size={14} className="text-emerald-600"/> Copied!</>
+                    ) : (
+                      <><Copy size={14}/> Copy Link Only</>
+                    )}
+                  </Button>
+                  <Button variant="ghost" onClick={() => { setShowInviteForm(false); setGeneratedLink(null); setInviteSent(false); }}>Cancel</Button>
                 </div>
               </>
             )}

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { inquiriesTable } from "@workspace/db/schema";
+import { inquiriesTable, casesTable, assignmentsTable } from "@workspace/db/schema";
 import { nanoid } from "nanoid";
 import { sql } from "drizzle-orm";
+import crypto from "crypto";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendInquiryNotification, sendEmail } from "../lib/outlookEmail.js";
 import { logger } from "../lib/logger.js";
@@ -125,12 +126,12 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note, formId, includeConsent } = req.body;
+  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
   }
 
-  const VALID_FORM_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT"];
+  const VALID_FORM_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"];
   const resolvedFormId = VALID_FORM_IDS.includes(formId) ? formId : "REFERRAL";
 
   const FORM_LABELS: Record<string, string> = {
@@ -139,51 +140,90 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     "REFERRAL-UNI":      "Referral Form — University",
     "REFERRAL-PARENT":   "Referral Form — Parent",
     "REFERRAL-BOARDING": "Referral Form — Boarding School",
-    "CONSENT":           "Consent Form",
   };
   const formLabel = FORM_LABELS[resolvedFormId] ?? "Referral Form";
 
   const proto = (req.headers["x-forwarded-proto"] as string) ?? "https";
   const host  = req.headers.host as string ?? "localhost";
-  const formUrl = `${proto}://${host}/tools/${resolvedFormId}/preview`;
+  const baseUrl = `${proto}://${host}`;
 
-  const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We noticed your interest in assessment services for <strong>${schoolName}</strong>. We would love to support your students.</p>` : "";
-  const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
+  // ── 1. Create a pre-commitment case ────────────────────────────────────────
+  const caseId = nanoid();
+  await db.insert(casesTable).values({
+    id: caseId,
+    studentName: "Referral Pending",
+    dob: "TBD",
+    school: schoolName || "TBD",
+    grade: null,
+    referralReason: `Referral form sent to ${toName} (${toEmail})`,
+    currentPhase: "pre_commitment",
+    progressPercentage: 0,
+    caseStatus: "active",
+  });
 
-  const consentUrl = `${proto}://${host}/tools/CONSENT/preview`;
-  const consentSection = includeConsent
-    ? `<p style="margin:16px 0 0;text-align:center">
-        <a href="${consentUrl}" style="background:#059669;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Consent Form ↗</a>
-       </p>`
-    : "";
+  // ── 2. Create assignment(s) ────────────────────────────────────────────────
+  function makeAssignment(toolId: string, toolName: string) {
+    const token = crypto.randomBytes(24).toString("hex");
+    return {
+      id: nanoid(),
+      caseId,
+      toolId,
+      toolName,
+      respondentType: "referring_teacher" as const,
+      respondentLabel: "Referring Teacher",
+      assignedToName: toName,
+      assignedToEmail: toEmail,
+      uniqueToken: token,
+      uniqueLink: `${baseUrl}/external/${token}`,
+      qrCodeData: `${baseUrl}/external/${token}`,
+      status: "not_started" as const,
+      dueDate: null,
+    };
+  }
 
-  const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
+  const referralAssignment = makeAssignment(resolvedFormId, formLabel);
+  await db.insert(assignmentsTable).values(referralAssignment);
+
+  if (includeConsent) {
+    await db.insert(assignmentsTable).values(makeAssignment("CONSENT", "Consent Form"));
+  }
+
+  const portalLink = `${baseUrl}/external/${referralAssignment.uniqueToken}`;
+
+  // ── 3. Optionally send email ───────────────────────────────────────────────
+  if (doSendEmail) {
+    const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We are reaching out regarding assessment services for students at <strong>${schoolName}</strong>.</p>` : "";
+    const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
+    const formCount  = includeConsent ? "forms" : "form";
+    const formTakes  = includeConsent ? "they take" : "it takes";
+
+    const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
     <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
       <p style="margin:0;font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px">ReMynd Student Services</p>
       <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em">Assessment Operating System</p>
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
-      <p style="margin:0 0 12px;font-size:14px;color:#475569">We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, please complete the form${includeConsent ? "s" : ""} below — ${includeConsent ? "they take" : "it takes"} just a few minutes.</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#475569">Thank you for your interest in ReMynd Student Services. Please complete the ${formCount} at the link below — ${formTakes} just a few minutes.</p>
       ${schoolLine}${noteLine}
-      <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:0.06em">${formLabel}</p>
-      <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps.</p>
+      <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps. You can return to this link at any time.</p>
       <p style="text-align:center;margin:28px 0">
-        <a href="${formUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Referral Form ↗</a>
+        <a href="${portalLink}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open ${formLabel} ↗</a>
       </p>
-      ${consentSection}
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
       <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team.</p>
     </div>
   </div>`;
 
-  try {
-    await sendEmail({ to: toEmail, subject: `Referral Invitation — ReMynd Student Services`, html });
-    res.json({ success: true });
-  } catch (err: any) {
-    logger.error({ error: String(err) }, "[email] Failed to send referral invite");
-    res.status(502).json({ error: "send_failed", message: "Email could not be sent. Please check your mail configuration." });
+    try {
+      await sendEmail({ to: toEmail, subject: `${formLabel} — ReMynd Student Services`, html });
+    } catch (err: any) {
+      logger.error({ error: String(err) }, "[email] Failed to send referral invite");
+      res.status(502).json({ error: "send_failed", message: "Case created but email could not be sent." }); return;
+    }
   }
+
+  res.json({ success: true, link: portalLink, caseId });
 });
 
 router.delete("/portal/inquiries/:id", authMiddleware, async (req, res) => {
