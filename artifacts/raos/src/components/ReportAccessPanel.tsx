@@ -112,6 +112,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [additionalRecipients, setAdditionalRecipients] = useState<AdditionalRecipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [deletingUploadId, setDeletingUploadId] = useState<string | null>(null);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Edit email state
@@ -778,8 +779,8 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
         </div>
       </div>
 
-      {/* Send Debrief Invitation — debrief phase only, when recipients exist */}
-      {isDebrief && (parentToken || teacherToken) && (
+      {/* Send Debrief Invitation — available in final_review and debrief phases */}
+      {!isLocked && (parentToken || teacherToken) && (
         <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Mail size={15} className="text-green-700 shrink-0"/>

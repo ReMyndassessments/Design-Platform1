@@ -981,6 +981,15 @@ export default function CaseDetail() {
                           >
                             Paste a Zoom or Teams link instead
                           </button>
+                          {/* Send invite — available even before room is set */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100 gap-2"
+                            onClick={handleOpenSendInvite}
+                          >
+                            <Mail size={13} /> Send Meeting Link via Email
+                          </Button>
                         </>
                       ) : (
                         <div className="space-y-1.5">

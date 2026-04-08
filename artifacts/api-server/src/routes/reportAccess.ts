@@ -783,6 +783,29 @@ router.get("/cases/:id/report-access/uploads/:uploadId/view", authMiddleware, as
   }
 });
 
+// ── Admin: delete an uploaded file ─────────────────────────────────────────────
+router.delete("/cases/:id/report-access/uploads/:uploadId", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const [upload] = await db.select().from(reportUploadsTable).where(
+    and(eq(reportUploadsTable.caseId, req.params.id), eq(reportUploadsTable.id, req.params.uploadId))
+  );
+  if (!upload) { res.status(404).json({ error: "not_found" }); return; }
+
+  // Delete from object storage
+  try {
+    const objectFile = await storage.getObjectEntityFile(upload.fileKey);
+    await objectFile.delete();
+  } catch (err) {
+    console.warn("Could not delete from storage (may already be gone):", err);
+  }
+
+  // Remove from DB
+  await db.delete(reportUploadsTable).where(eq(reportUploadsTable.id, upload.id));
+  res.json({ success: true });
+});
+
 // ── External: download report PDF ─────────────────────────────────────────────
 router.get("/report-access/:token/download", async (req, res) => {
   const [token] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.token, req.params.token));
