@@ -30,7 +30,14 @@ export default function JoinMeetingPage() {
       return;
     }
 
-    // Standard Jitsi room — navigate directly to avoid iframe embedding issues
+    // Legacy: old moderated Jitsi links sent with ?jitsiRoom=moderated/...
+    const jitsiRoomParam = qs.get("jitsiRoom");
+    if (jitsiRoomParam) {
+      window.location.href = `https://meet.jit.si/${jitsiRoomParam}`;
+      return;
+    }
+
+    // Standard room — navigate directly to meet.ffmuc.net
     const room = params.room ?? "remynd-meeting";
     const fragment = [
       `config.startWithAudioMuted=true`,
