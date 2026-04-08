@@ -55,6 +55,7 @@ import CdpProfilePage from "@/pages/cases/[id]/cdp";
 import ResponseViewer from "@/pages/cases/[id]/response/[assignmentId]";
 import ExternalFormView from "@/pages/external/[token]";
 import JoinMeetingPage from "@/pages/join/[room]";
+import QuickMeetPage from "@/pages/meet/[room]";
 import Portal from "@/pages/portal";
 import LandingPage from "@/pages/landing";
 import AssessmentTools from "@/pages/tools";
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/portal" component={Portal} />
       <Route path="/external/:token" component={ExternalFormView} />
       <Route path="/join/:room" component={JoinMeetingPage} />
+      <Route path="/meet/:room" component={QuickMeetPage} />
       <Route path="/" component={LandingPage} />
       <Route path="/dashboard">
         {() => <ProtectedRoute component={Dashboard} />}
