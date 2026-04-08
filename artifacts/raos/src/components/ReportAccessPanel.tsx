@@ -629,7 +629,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
               </button>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {debriefMeetingUrl.includes("meet.ffmuc.net") && (
+              {debriefMeetingUrl && (
                 <Button size="sm"
                   className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white gap-1"
                   onClick={() => window.open(debriefMeetingUrl, "_blank")}>
