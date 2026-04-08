@@ -23,7 +23,7 @@ import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
-  Mail, LayoutGrid, Video, CopyCheck, ShieldCheck
+  Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -182,6 +182,8 @@ export default function CaseDetail() {
   const [editingMeetingUrl, setEditingMeetingUrl] = useState(false);
   const [meetingUrlDraft, setMeetingUrlDraft] = useState("");
   const [savingMeetingUrl, setSavingMeetingUrl] = useState(false);
+  const [generatingAssessmentRoom, setGeneratingAssessmentRoom] = useState(false);
+  const [showAssessmentManualPaste, setShowAssessmentManualPaste] = useState(false);
   const [formModalUrl, setFormModalUrl] = useState<string | null>(null);
   const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
   const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
@@ -447,6 +449,27 @@ export default function CaseDetail() {
         onError: () => {
           setSavingMeetingUrl(false);
           toast({ title: "Failed to save", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleGenerateAssessmentRoom = () => {
+    setGeneratingAssessmentRoom(true);
+    const slug = `raos-${caseId.slice(0, 8)}-assessment`;
+    const url = `https://meet.ffmuc.net/${slug}`;
+    updateCaseMut.mutate(
+      { caseId, data: { customMeetingUrl: url, moderatorMeetingUrl: null } as any },
+      {
+        onSuccess: () => {
+          setGeneratingAssessmentRoom(false);
+          setShowAssessmentManualPaste(false);
+          toast({ title: "Assessment room created" });
+          queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        },
+        onError: () => {
+          setGeneratingAssessmentRoom(false);
+          toast({ title: "Failed to create room", variant: "destructive" });
         },
       }
     );
@@ -923,10 +946,11 @@ export default function CaseDetail() {
                           )}
                           {(() => {
                             const rawUrl = c.customMeetingUrl!;
-                            const isJitsiModerated = rawUrl.includes('meet.jit.si/moderated/');
-                            const guestId = rawUrl.split('/').pop();
-                            const joinUrl = isJitsiModerated && guestId
-                              ? `${window.location.origin}${base}/join/${guestId}?jitsiRoom=moderated/${guestId}`
+                            const isFfmuc = rawUrl.includes('meet.ffmuc.net');
+                            const roomSlug = rawUrl.split('/').pop();
+                            const studentParam = c.studentName ? `&student=${encodeURIComponent(c.studentName)}` : '';
+                            const joinUrl = isFfmuc && roomSlug
+                              ? `${window.location.origin}${base}/join/${roomSlug}?type=assessment${studentParam}`
                               : rawUrl;
                             return (
                               <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="block">
@@ -944,40 +968,49 @@ export default function CaseDetail() {
                       )}
                     </div>
                   ) : !isCustom ? (
-                    /* ── Admin: No room yet — 2-step flow ── */
+                    /* ── Admin: No room yet ── */
                     <div className="space-y-3">
-                      {/* Step 1 */}
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Step 1 — Create the room</p>
-                        <Button
-                          size="sm"
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                          onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
-                        >
-                          <Video size={14} />
-                          Open Jitsi Moderated Meetings ↗
-                        </Button>
-                        <p className="text-[10px] text-emerald-600">On the Jitsi page, copy the <strong>"Share meeting link for guests"</strong> URL.</p>
-                      </div>
-
-                      {/* Step 2 */}
-                      <div className="space-y-1.5 pt-2 border-t border-emerald-100">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Step 2 — Paste the guest link</p>
-                        <Input
-                          placeholder="https://meet.jit.si/moderated/..."
-                          value={meetingUrlDraft}
-                          onChange={e => setMeetingUrlDraft(e.target.value)}
-                          className="text-xs h-8"
-                        />
-                        <Button
-                          size="sm"
-                          className="w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={handleSaveMeetingUrl}
-                          disabled={savingMeetingUrl || !meetingUrlDraft.trim()}
-                        >
-                          {savingMeetingUrl ? "Saving…" : "Save Guest Link"}
-                        </Button>
-                      </div>
+                      {!showAssessmentManualPaste ? (
+                        <>
+                          <Button
+                            size="sm"
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                            onClick={handleGenerateAssessmentRoom}
+                            disabled={generatingAssessmentRoom || savingMeetingUrl}
+                          >
+                            {generatingAssessmentRoom ? <RefreshCw size={14} className="animate-spin"/> : <Video size={14}/>}
+                            {generatingAssessmentRoom ? "Creating room…" : "Generate Assessment Room"}
+                          </Button>
+                          <button
+                            className="text-[10px] text-emerald-600 underline underline-offset-2 hover:text-emerald-900 w-full text-center"
+                            onClick={() => setShowAssessmentManualPaste(true)}
+                          >
+                            Paste a Zoom or Teams link instead
+                          </button>
+                        </>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Paste meeting link</p>
+                          <Input
+                            placeholder="https://zoom.us/j/... or Teams link"
+                            value={meetingUrlDraft}
+                            onChange={e => setMeetingUrlDraft(e.target.value)}
+                            className="text-xs h-8"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={handleSaveMeetingUrl}
+                              disabled={savingMeetingUrl || !meetingUrlDraft.trim()}
+                            >
+                              {savingMeetingUrl ? "Saving…" : "Save Link"}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => setShowAssessmentManualPaste(false)}>Cancel</Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* ── Admin: Guest link saved ── */
@@ -985,10 +1018,11 @@ export default function CaseDetail() {
                       {/* Branded client join link */}
                       {(() => {
                         const rawUrl = c.customMeetingUrl!;
-                        const isJitsiModerated = rawUrl.includes('meet.jit.si/moderated/');
-                        const guestId = rawUrl.split('/').pop();
-                        const brandedUrl = isJitsiModerated && guestId
-                          ? `${window.location.origin}${base}/join/${guestId}?jitsiRoom=moderated/${guestId}`
+                        const isFfmuc = rawUrl.includes('meet.ffmuc.net');
+                        const roomSlug = rawUrl.split('/').pop();
+                        const studentParam = c.studentName ? `&student=${encodeURIComponent(c.studentName)}` : '';
+                        const brandedUrl = isFfmuc && roomSlug
+                          ? `${window.location.origin}${base}/join/${roomSlug}?type=assessment${studentParam}`
                           : rawUrl;
                         return (
                           <div className="bg-white/70 border border-emerald-200 rounded-lg px-3 py-2.5 space-y-1.5">
@@ -1011,11 +1045,16 @@ export default function CaseDetail() {
                         );
                       })()}
 
-                      {/* Admin note */}
-                      <p className="text-[10px] text-emerald-600 flex items-center gap-1">
-                        <ShieldCheck size={11} />
-                        To join as moderator, use the <strong>"Join as moderator"</strong> button on the Jitsi page directly.
-                      </p>
+                      {/* Join as Host button */}
+                      {c.customMeetingUrl?.includes("meet.ffmuc.net") && (
+                        <Button
+                          size="sm"
+                          className="w-full h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                          onClick={() => window.open(c.customMeetingUrl!, "_blank")}
+                        >
+                          <Video size={12}/> Join as Host
+                        </Button>
+                      )}
 
                       {/* Change / Remove */}
                       <div className="flex gap-2 pt-1 border-t border-emerald-100">
@@ -1041,7 +1080,7 @@ export default function CaseDetail() {
                       {editingMeetingUrl && (
                         <div className="space-y-2 pt-1 border-t border-emerald-200">
                           <Input
-                            placeholder="https://meet.jit.si/moderated/..."
+                            placeholder="https://zoom.us/j/... or Teams link"
                             value={meetingUrlDraft}
                             onChange={e => setMeetingUrlDraft(e.target.value)}
                             className="text-xs h-8"
