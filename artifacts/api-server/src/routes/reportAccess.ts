@@ -624,6 +624,50 @@ router.post("/cases/:id/report-access/tokens/:tokenId/mark-received", authMiddle
   res.json({ success: true, markedReceivedAt: now });
 });
 
+// ── Admin: send debrief invitation to all token holders ───────────────────────
+router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }
+
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, req.params.id));
+  if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+  if (!caseRow.debriefMeetingUrl) {
+    res.status(400).json({ error: "no_meeting_link", message: "Save a debrief meeting link first." }); return;
+  }
+
+  const base = getBaseUrl(req);
+  const studentName = caseRow.studentName ?? "your student";
+  const schoolName = caseRow.school ?? "the school";
+  const lang = normLang(caseRow.languagePreference);
+  const debriefJoinUrl = makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl);
+  const debriefDate = caseRow.debriefMeetingDate ?? null;
+
+  const tokens = await db.select().from(reportTokensTable)
+    .where(and(
+      eq(reportTokensTable.caseId, req.params.id),
+      sql`${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%'`
+    ));
+
+  let sent = 0;
+  for (const t of tokens) {
+    const link = `${base}/external/${t.token}`;
+    let html: string;
+    let subject: string;
+
+    if (t.role === "teacher") {
+      subject = `Debrief Meeting Invitation — ${studentName}`;
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate);
+    } else {
+      subject = `Debrief Meeting Invitation — ${studentName}`;
+      html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate);
+    }
+
+    await sendEmail({ to: t.email, subject, html });
+    sent++;
+  }
+
+  res.json({ success: true, sent });
+});
+
 // ── Admin: delete test preview token ──────────────────────────────────────────
 router.delete("/cases/:id/report-access/test-preview", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }

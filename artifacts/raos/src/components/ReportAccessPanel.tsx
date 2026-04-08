@@ -8,7 +8,7 @@ import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
   UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink, FlaskConical,
-  Video, Copy, Pencil, Trash2,
+  Video, Copy, Pencil, Trash2, UserCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [savingDebriefUrl, setSavingDebriefUrl] = useState(false);
   const [generatingDebriefRoom, setGeneratingDebriefRoom] = useState(false);
   const [showManualPaste, setShowManualPaste] = useState(false);
+  const [sendingDebriefInvite, setSendingDebriefInvite] = useState(false);
 
   const [debriefDateDraft, setDebriefDateDraft] = useState("");
   const [debriefTz, setDebriefTz] = useState("Asia/Singapore");
@@ -303,6 +304,23 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       toast({ title: "Could not save meeting link", variant: "destructive" });
     } finally {
       setSavingDebriefUrl(false);
+    }
+  };
+
+  const handleSendDebriefInvitation = async () => {
+    setSendingDebriefInvite(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-access/send-debrief`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message ?? "Failed");
+      toast({ title: `Debrief invitation sent`, description: `${data.sent} recipient${data.sent !== 1 ? "s" : ""} notified with the meeting link and report access.` });
+    } catch (e: any) {
+      toast({ title: e.message ?? "Failed to send invitation", variant: "destructive" });
+    } finally {
+      setSendingDebriefInvite(false);
     }
   };
 
@@ -759,6 +777,56 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           )}
         </div>
       </div>
+
+      {/* Send Debrief Invitation — debrief phase only, when recipients exist */}
+      {isDebrief && (parentToken || teacherToken) && (
+        <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Mail size={15} className="text-green-700 shrink-0"/>
+            <p className="text-sm font-semibold text-green-900">Send Debrief Invitation</p>
+          </div>
+          <p className="text-xs text-green-700">
+            Sends each recipient their report access link together with the debrief meeting details. The email includes the meeting date, time, and a branded join link.
+          </p>
+
+          {/* Recipients */}
+          <div className="space-y-1.5">
+            {parentToken && (
+              <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
+                <UserPlus size={11} className="text-green-600 shrink-0"/>
+                <span className="text-[11px] text-slate-600 font-medium">Parent —</span>
+                <span className="text-[11px] text-slate-500 truncate">{parentToken.email}</span>
+              </div>
+            )}
+            {teacherToken && (
+              <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
+                <UserPlus size={11} className="text-green-600 shrink-0"/>
+                <span className="text-[11px] text-slate-600 font-medium">School —</span>
+                <span className="text-[11px] text-slate-500 truncate">{teacherToken.email}</span>
+              </div>
+            )}
+          </div>
+
+          {!debriefMeetingUrl && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              <AlertTriangle size={12} className="shrink-0"/>
+              Save a debrief meeting link above before sending.
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            className="w-full bg-green-700 hover:bg-green-800 text-white gap-2"
+            onClick={handleSendDebriefInvitation}
+            disabled={sendingDebriefInvite || !debriefMeetingUrl}
+          >
+            {sendingDebriefInvite
+              ? <><RefreshCw size={14} className="animate-spin"/> Sending…</>
+              : <><SendHorizonal size={14}/> Send Debrief Invitation</>
+            }
+          </Button>
+        </div>
+      )}
 
       {/* Uploaded files list */}
       {hasUploads && (
