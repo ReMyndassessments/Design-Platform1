@@ -624,7 +624,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/mark-received", authMiddle
   res.json({ success: true, markedReceivedAt: now });
 });
 
-// ── Admin: send debrief invitation to all token holders ───────────────────────
+// ── Admin: send debrief invitation to all token holders + any extra emails ─────
 router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }
 
@@ -641,27 +641,37 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   const debriefJoinUrl = makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl);
   const debriefDate = caseRow.debriefMeetingDate ?? null;
 
+  // Extra manually-entered recipients from the UI
+  const extraEmails: { email: string; name?: string; role?: "parent" | "teacher" }[] =
+    Array.isArray(req.body?.extraEmails) ? req.body.extraEmails : [];
+
   const tokens = await db.select().from(reportTokensTable)
     .where(and(
       eq(reportTokensTable.caseId, req.params.id),
       sql`${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%'`
     ));
 
+  const subject = `Debrief Meeting Invitation — ${studentName}`;
   let sent = 0;
+
+  // Send to existing token holders (they get a report access link)
   for (const t of tokens) {
     const link = `${base}/external/${t.token}`;
     let html: string;
-    let subject: string;
-
     if (t.role === "teacher") {
-      subject = `Debrief Meeting Invitation — ${studentName}`;
       html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate);
     } else {
-      subject = `Debrief Meeting Invitation — ${studentName}`;
       html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate);
     }
-
     await sendEmail({ to: t.email, subject, html });
+    sent++;
+  }
+
+  // Send to extra manually-entered recipients (meeting link only, no report access)
+  for (const e of extraEmails) {
+    if (!e.email) continue;
+    const html = buildParentEmail(lang, studentName, schoolName, debriefJoinUrl, undefined, debriefJoinUrl, debriefDate);
+    await sendEmail({ to: e.email, subject, html });
     sent++;
   }
 

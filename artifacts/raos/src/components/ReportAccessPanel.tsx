@@ -92,6 +92,8 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [generatingDebriefRoom, setGeneratingDebriefRoom] = useState(false);
   const [showManualPaste, setShowManualPaste] = useState(false);
   const [sendingDebriefInvite, setSendingDebriefInvite] = useState(false);
+  const [debriefExtraEmail, setDebriefExtraEmail] = useState("");
+  const [debriefExtraEmails, setDebriefExtraEmails] = useState<string[]>([]);
 
   const [debriefDateDraft, setDebriefDateDraft] = useState("");
   const [debriefTz, setDebriefTz] = useState("Asia/Singapore");
@@ -313,11 +315,17 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
     try {
       const r = await fetch(`${BASE}/cases/${caseId}/report-access/send-debrief`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+        },
+        body: JSON.stringify({ extraEmails: debriefExtraEmails.map(email => ({ email })) }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.message ?? "Failed");
       toast({ title: `Debrief invitation sent`, description: `${data.sent} recipient${data.sent !== 1 ? "s" : ""} notified with the meeting link and report access.` });
+      setDebriefExtraEmails([]);
+      setDebriefExtraEmail("");
     } catch (e: any) {
       toast({ title: e.message ?? "Failed to send invitation", variant: "destructive" });
     } finally {
@@ -780,32 +788,79 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
       </div>
 
       {/* Send Debrief Invitation — available in final_review and debrief phases */}
-      {!isLocked && (parentToken || teacherToken) && (
+      {!isLocked && (
         <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Mail size={15} className="text-green-700 shrink-0"/>
             <p className="text-sm font-semibold text-green-900">Send Debrief Invitation</p>
           </div>
           <p className="text-xs text-green-700">
-            Sends each recipient their report access link together with the debrief meeting details. The email includes the meeting date, time, and a branded join link.
+            Sends each recipient the debrief meeting details and their report access link (if they have one).
           </p>
 
-          {/* Recipients */}
+          {/* Saved token recipients */}
+          {(parentToken || teacherToken) && (
+            <div className="space-y-1.5">
+              {parentToken && (
+                <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
+                  <UserPlus size={11} className="text-green-600 shrink-0"/>
+                  <span className="text-[11px] text-slate-600 font-medium">Parent —</span>
+                  <span className="text-[11px] text-slate-500 truncate">{parentToken.email}</span>
+                </div>
+              )}
+              {teacherToken && (
+                <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
+                  <UserPlus size={11} className="text-green-600 shrink-0"/>
+                  <span className="text-[11px] text-slate-600 font-medium">School —</span>
+                  <span className="text-[11px] text-slate-500 truncate">{teacherToken.email}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Extra recipients — always available */}
           <div className="space-y-1.5">
-            {parentToken && (
-              <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">
+              {parentToken || teacherToken ? "Additional recipients" : "Recipients"}
+            </p>
+            {debriefExtraEmails.map(email => (
+              <div key={email} className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
                 <UserPlus size={11} className="text-green-600 shrink-0"/>
-                <span className="text-[11px] text-slate-600 font-medium">Parent —</span>
-                <span className="text-[11px] text-slate-500 truncate">{parentToken.email}</span>
+                <span className="text-[11px] text-slate-500 truncate flex-1">{email}</span>
+                <button onClick={() => setDebriefExtraEmails(prev => prev.filter(e => e !== email))} className="text-slate-400 hover:text-red-500">
+                  <X size={11}/>
+                </button>
               </div>
-            )}
-            {teacherToken && (
-              <div className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
-                <UserPlus size={11} className="text-green-600 shrink-0"/>
-                <span className="text-[11px] text-slate-600 font-medium">School —</span>
-                <span className="text-[11px] text-slate-500 truncate">{teacherToken.email}</span>
-              </div>
-            )}
+            ))}
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={debriefExtraEmail}
+                onChange={e => setDebriefExtraEmail(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const em = debriefExtraEmail.trim().toLowerCase();
+                    if (em && em.includes("@") && !debriefExtraEmails.includes(em)) {
+                      setDebriefExtraEmails(prev => [...prev, em]);
+                      setDebriefExtraEmail("");
+                    }
+                  }
+                }}
+                placeholder="Add email address…"
+                className="flex-1 rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-400 h-7"
+              />
+              <button
+                onClick={() => {
+                  const em = debriefExtraEmail.trim().toLowerCase();
+                  if (em && em.includes("@") && !debriefExtraEmails.includes(em)) {
+                    setDebriefExtraEmails(prev => [...prev, em]);
+                    setDebriefExtraEmail("");
+                  }
+                }}
+                className="text-xs text-green-700 font-medium px-2 border border-green-300 rounded-md bg-white hover:bg-green-50 h-7"
+              >Add</button>
+            </div>
           </div>
 
           {!debriefMeetingUrl && (
@@ -819,7 +874,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
             size="sm"
             className="w-full bg-green-700 hover:bg-green-800 text-white gap-2"
             onClick={handleSendDebriefInvitation}
-            disabled={sendingDebriefInvite || !debriefMeetingUrl}
+            disabled={sendingDebriefInvite || !debriefMeetingUrl || (!parentToken && !teacherToken && debriefExtraEmails.length === 0)}
           >
             {sendingDebriefInvite
               ? <><RefreshCw size={14} className="animate-spin"/> Sending…</>
