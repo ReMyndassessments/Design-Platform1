@@ -919,6 +919,27 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
                   >
                     <ExternalLink size={12} className="mr-1" /> View
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-slate-400 hover:text-red-600"
+                    disabled={deletingUploadId === u.id}
+                    onClick={async () => {
+                      if (!confirm(`Delete "${u.label || u.filename}"? This cannot be undone.`)) return;
+                      setDeletingUploadId(u.id);
+                      try {
+                        await fetch(`${BASE}/cases/${caseId}/report-access/uploads/${u.id}`, {
+                          method: "DELETE",
+                          headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+                        });
+                        await fetchStatus();
+                      } finally {
+                        setDeletingUploadId(null);
+                      }
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </Button>
                 </div>
               </div>
             ))}
