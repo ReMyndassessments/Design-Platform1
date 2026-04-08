@@ -69,8 +69,9 @@ export default function InquiriesPage() {
   // Send Referral Form invite state
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState("REFERRAL");
+  const [includeConsent, setIncludeConsent] = useState(false);
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
 
   const FORM_OPTIONS = [
@@ -79,15 +80,15 @@ export default function InquiriesPage() {
     { id: "REFERRAL-UNI",      label: "Referral — University" },
     { id: "REFERRAL-PARENT",   label: "Referral — Parent" },
     { id: "REFERRAL-BOARDING", label: "Referral — Boarding" },
-    { id: "CONSENT",           label: "Consent Form" },
   ];
 
-  const referralLink = `${window.location.origin}/tools/${selectedFormId}/preview`;
+  const referralLink  = `${window.location.origin}/tools/${selectedFormId}/preview`;
+  const consentLink   = `${window.location.origin}/tools/CONSENT/preview`;
 
-  function copyReferralLink() {
-    navigator.clipboard.writeText(referralLink).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
+  function copyLink(url: string, key: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(key);
+      setTimeout(() => setLinkCopied(null), 2000);
     });
   }
 
@@ -96,7 +97,7 @@ export default function InquiriesPage() {
       customFetch("/api/portal/send-referral-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, formId: selectedFormId }),
+        body: JSON.stringify({ ...data, formId: selectedFormId, includeConsent }),
       }),
     onSuccess: () => {
       setInviteSent(true);
@@ -193,12 +194,12 @@ export default function InquiriesPage() {
           <CardContent className="space-y-3">
             {/* Form selector */}
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-500">Select form</p>
+              <p className="text-xs font-medium text-slate-500">Select referral form</p>
               <div className="flex flex-wrap gap-1.5">
                 {FORM_OPTIONS.map(opt => (
                   <button
                     key={opt.id}
-                    onClick={() => { setSelectedFormId(opt.id); setLinkCopied(false); }}
+                    onClick={() => { setSelectedFormId(opt.id); setLinkCopied(null); }}
                     className={cn(
                       "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
                       selectedFormId === opt.id
@@ -212,17 +213,52 @@ export default function InquiriesPage() {
               </div>
             </div>
 
-            {/* Referral link row — always visible */}
-            <div className="flex items-center gap-2 bg-white/70 border border-indigo-200 rounded-lg px-3 py-2">
-              <Link size={13} className="text-indigo-400 shrink-0"/>
-              <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{referralLink}</span>
-              <button
-                onClick={copyReferralLink}
-                className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-indigo-100 hover:bg-indigo-200 text-indigo-700"
-              >
-                {linkCopied ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
-                {linkCopied ? "Copied!" : "Copy link"}
-              </button>
+            {/* Consent form add-on toggle */}
+            <button
+              onClick={() => setIncludeConsent(v => !v)}
+              className={cn(
+                "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
+                includeConsent
+                  ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                includeConsent ? "border-emerald-500 bg-emerald-500" : "border-slate-300 bg-white"
+              )}>
+                {includeConsent && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              </div>
+              <span>Also include Consent Form</span>
+              {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ 1 form</span>}
+            </button>
+
+            {/* Link rows — always visible */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 bg-white/70 border border-indigo-200 rounded-lg px-3 py-2">
+                <Link size={13} className="text-indigo-400 shrink-0"/>
+                <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{referralLink}</span>
+                <button
+                  onClick={() => copyLink(referralLink, "referral")}
+                  className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-indigo-100 hover:bg-indigo-200 text-indigo-700"
+                >
+                  {linkCopied === "referral" ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                  {linkCopied === "referral" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {includeConsent && (
+                <div className="flex items-center gap-2 bg-white/70 border border-emerald-200 rounded-lg px-3 py-2">
+                  <Link size={13} className="text-emerald-400 shrink-0"/>
+                  <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{consentLink}</span>
+                  <button
+                    onClick={() => copyLink(consentLink, "consent")}
+                    className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
+                  >
+                    {linkCopied === "consent" ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                    {linkCopied === "consent" ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-400 text-center">— or send a personalised email invite —</p>
             {inviteSent ? (

@@ -125,7 +125,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note, formId } = req.body;
+  const { toEmail, toName, schoolName, note, formId, includeConsent } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
   }
@@ -150,11 +150,12 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
   const schoolLine = schoolName ? `<p style="margin:0 0 12px;font-size:14px;color:#475569">We noticed your interest in assessment services for <strong>${schoolName}</strong>. We would love to support your students.</p>` : "";
   const noteLine   = note ? `<p style="margin:0 0 20px;font-size:14px;color:#475569;font-style:italic">${note}</p>` : "";
 
-  const isConsent = resolvedFormId === "CONSENT";
-  const bodyText = isConsent
-    ? `We are sharing our consent form for your reference. Please review and complete it at your earliest convenience.`
-    : `We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, our referral form takes just a few minutes to complete.`;
-  const ctaText = isConsent ? "Open Consent Form ↗" : "Open Referral Form ↗";
+  const consentUrl = `${proto}://${host}/tools/CONSENT/preview`;
+  const consentSection = includeConsent
+    ? `<p style="margin:16px 0 0;text-align:center">
+        <a href="${consentUrl}" style="background:#059669;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Consent Form ↗</a>
+       </p>`
+    : "";
 
   const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
     <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
@@ -163,13 +164,14 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
-      <p style="margin:0 0 12px;font-size:14px;color:#475569">${bodyText}</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#475569">We'd love to hear from you. If you have a student who may benefit from a psychoeducational assessment, please complete the form${includeConsent ? "s" : ""} below — ${includeConsent ? "they take" : "it takes"} just a few minutes.</p>
       ${schoolLine}${noteLine}
       <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:0.06em">${formLabel}</p>
       <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps.</p>
       <p style="text-align:center;margin:28px 0">
-        <a href="${formUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">${ctaText}</a>
+        <a href="${formUrl}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Referral Form ↗</a>
       </p>
+      ${consentSection}
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
       <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team.</p>
     </div>
