@@ -89,6 +89,8 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
   const [debriefUrlDraft, setDebriefUrlDraft] = useState(debriefMeetingUrl ?? "");
   const [editingDebriefUrl, setEditingDebriefUrl] = useState(false);
   const [savingDebriefUrl, setSavingDebriefUrl] = useState(false);
+  const [generatingDebriefRoom, setGeneratingDebriefRoom] = useState(false);
+  const [showManualPaste, setShowManualPaste] = useState(false);
 
   const [debriefDateDraft, setDebriefDateDraft] = useState("");
   const [debriefTz, setDebriefTz] = useState("Asia/Singapore");
@@ -302,6 +304,15 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
     } finally {
       setSavingDebriefUrl(false);
     }
+  };
+
+  const handleGenerateDebriefRoom = async () => {
+    setGeneratingDebriefRoom(true);
+    const slug = `raos-${caseId.slice(0, 8)}-debrief`;
+    const url = `https://meet.ffmuc.net/${slug}`;
+    await handleSaveDebriefUrl(url);
+    setShowManualPaste(false);
+    setGeneratingDebriefRoom(false);
   };
 
   const handleSaveDebriefDate = async (value: string | null) => {
@@ -604,7 +615,7 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
         <p className="text-xs text-green-700">
           {debriefMeetingUrl
             ? "A virtual meeting link is saved and will be included in the report delivery email."
-            : "Paste a Jitsi, Zoom, or Teams link here. It will appear as a \"Join Debrief Meeting\" button in the parent's report email."}
+            : "Generate a meeting room instantly, or paste a Zoom or Teams link. Families will receive a branded join link in the report email."}
         </p>
 
         {debriefMeetingUrl && !editingDebriefUrl ? (
@@ -617,7 +628,14 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
                 <Copy size={13}/>
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {debriefMeetingUrl.includes("meet.ffmuc.net") && (
+                <Button size="sm"
+                  className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white gap-1"
+                  onClick={() => window.open(debriefMeetingUrl, "_blank")}>
+                  <Video size={11}/> Join as Host
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="h-7 text-xs border-green-300 text-green-800 hover:bg-green-100"
                 onClick={() => { setDebriefUrlDraft(debriefMeetingUrl); setEditingDebriefUrl(true); }}>
                 <Pencil size={11} className="mr-1"/> Edit
@@ -630,43 +648,52 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
           </div>
         ) : (
           <div className="space-y-3">
-            {/* Step 1 */}
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Step 1 — Create the room</p>
-              <Button
-                size="sm"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                onClick={() => window.open('https://moderated.jitsi.net/', '_blank')}
-              >
-                <Video size={14} />
-                Open Jitsi Moderated Meetings ↗
-              </Button>
-              <p className="text-[10px] text-green-700">On the Jitsi page, copy the <strong>"Share meeting link for guests"</strong> URL.</p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="space-y-1.5 pt-2 border-t border-green-100">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Step 2 — Paste the guest link</p>
-              <Input
-                placeholder="https://meet.jit.si/moderated/..."
-                value={debriefUrlDraft}
-                onChange={e => setDebriefUrlDraft(e.target.value)}
-                className="h-8 text-sm bg-white border-green-200 focus:border-green-400"
-              />
-              <div className="flex gap-2">
-                <Button size="sm"
-                  className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white"
-                  onClick={() => handleSaveDebriefUrl(debriefUrlDraft.trim() || null)}
-                  disabled={savingDebriefUrl || !debriefUrlDraft.trim()}>
-                  {savingDebriefUrl ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
-                  Save Meeting Link
+            {!showManualPaste ? (
+              <>
+                <Button
+                  size="sm"
+                  className="w-full bg-green-700 hover:bg-green-800 text-white gap-2"
+                  onClick={handleGenerateDebriefRoom}
+                  disabled={generatingDebriefRoom || savingDebriefUrl}
+                >
+                  {generatingDebriefRoom ? <RefreshCw size={14} className="animate-spin"/> : <Video size={14}/>}
+                  {generatingDebriefRoom ? "Creating room…" : "Generate Debrief Room"}
                 </Button>
-                {editingDebriefUrl && (
+                <button
+                  className="text-[10px] text-green-700 underline underline-offset-2 hover:text-green-900 w-full text-center"
+                  onClick={() => setShowManualPaste(true)}
+                >
+                  Paste a Zoom or Teams link instead
+                </button>
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Paste meeting link</p>
+                <Input
+                  placeholder="https://zoom.us/j/... or Teams link"
+                  value={debriefUrlDraft}
+                  onChange={e => setDebriefUrlDraft(e.target.value)}
+                  className="h-8 text-sm bg-white border-green-200 focus:border-green-400"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm"
+                    className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white"
+                    onClick={() => handleSaveDebriefUrl(debriefUrlDraft.trim() || null)}
+                    disabled={savingDebriefUrl || !debriefUrlDraft.trim()}>
+                    {savingDebriefUrl ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
+                    Save Link
+                  </Button>
                   <Button size="sm" variant="ghost" className="h-7 text-xs"
-                    onClick={() => setEditingDebriefUrl(false)}>Cancel</Button>
-                )}
+                    onClick={() => { setShowManualPaste(false); setEditingDebriefUrl(false); }}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
+            {editingDebriefUrl && !showManualPaste && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs w-full"
+                onClick={() => setEditingDebriefUrl(false)}>Cancel</Button>
+            )}
           </div>
         )}
 
