@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2, Copy, Link } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +68,17 @@ export default function InquiriesPage() {
   // Send Referral Form invite state
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
+
+  const referralLink = `${window.location.origin}/portal?tab=school`;
+
+  function copyReferralLink() {
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   const sendReferralInvite = useMutation({
     mutationFn: (data: typeof inviteForm) =>
@@ -170,6 +180,19 @@ export default function InquiriesPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Referral link row — always visible */}
+            <div className="flex items-center gap-2 bg-white/70 border border-indigo-200 rounded-lg px-3 py-2">
+              <Link size={13} className="text-indigo-400 shrink-0"/>
+              <span className="text-xs text-slate-500 truncate flex-1 font-mono select-all">{referralLink}</span>
+              <button
+                onClick={copyReferralLink}
+                className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-colors bg-indigo-100 hover:bg-indigo-200 text-indigo-700"
+              >
+                {linkCopied ? <CheckCircle2 size={12} className="text-emerald-600"/> : <Copy size={12}/>}
+                {linkCopied ? "Copied!" : "Copy link"}
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 text-center">— or send a personalised email invite —</p>
             {inviteSent ? (
               <div className="flex items-center gap-3 py-4 justify-center text-emerald-700">
                 <CheckCircle2 size={22} className="text-emerald-500"/>
