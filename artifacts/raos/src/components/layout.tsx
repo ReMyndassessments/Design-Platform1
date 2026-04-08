@@ -228,8 +228,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Quick Meet — admin only */}
-        {user?.role === "admin" && (
+        {/* Quick Meet — admin + assessment invigilator */}
+        {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
           <div className="px-4 pb-3">
             <button
               onClick={() => { setQuickMeetOpen(true); setIsMobileMenuOpen(false); }}
@@ -278,7 +278,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Quick Meet Dialog */}
-      {user?.role === "admin" && (
+      {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
         <QuickMeetDialog open={quickMeetOpen} onClose={() => setQuickMeetOpen(false)} />
       )}
     </div>
