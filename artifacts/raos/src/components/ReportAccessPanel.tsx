@@ -821,36 +821,32 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
           <div className="space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-green-700">Recipients</p>
 
-            {/* Existing token holders with X to exclude */}
-            {parentToken && (
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-all ${debriefSkippedTokenIds.includes(parentToken.id) ? "bg-slate-50 border-slate-200 opacity-50" : "bg-white/70 border-green-100"}`}>
+            {/* Existing token holders — hidden once X is clicked */}
+            {parentToken && !debriefSkippedTokenIds.includes(parentToken.id) && (
+              <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-white/70 px-3 py-1.5">
                 <UserPlus size={11} className="text-green-600 shrink-0"/>
                 <span className="text-[11px] text-slate-600 font-medium">Parent</span>
                 <span className="text-[11px] text-slate-400">—</span>
                 <span className="text-[11px] text-slate-500 truncate flex-1">{parentToken.email}</span>
                 <button
-                  title={debriefSkippedTokenIds.includes(parentToken.id) ? "Click to re-include" : "Click to exclude"}
-                  onClick={() => setDebriefSkippedTokenIds(prev =>
-                    prev.includes(parentToken.id) ? prev.filter(id => id !== parentToken.id) : [...prev, parentToken.id]
-                  )}
-                  className={`shrink-0 transition-colors ${debriefSkippedTokenIds.includes(parentToken.id) ? "text-slate-300 hover:text-green-500" : "text-slate-300 hover:text-red-500"}`}
+                  title="Remove from this send"
+                  onClick={() => setDebriefSkippedTokenIds(prev => [...prev, parentToken.id])}
+                  className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
                 >
                   <X size={11}/>
                 </button>
               </div>
             )}
-            {teacherToken && (
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-all ${debriefSkippedTokenIds.includes(teacherToken.id) ? "bg-slate-50 border-slate-200 opacity-50" : "bg-white/70 border-green-100"}`}>
+            {teacherToken && !debriefSkippedTokenIds.includes(teacherToken.id) && (
+              <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-white/70 px-3 py-1.5">
                 <UserPlus size={11} className="text-green-600 shrink-0"/>
                 <span className="text-[11px] text-slate-600 font-medium">School</span>
                 <span className="text-[11px] text-slate-400">—</span>
                 <span className="text-[11px] text-slate-500 truncate flex-1">{teacherToken.email}</span>
                 <button
-                  title={debriefSkippedTokenIds.includes(teacherToken.id) ? "Click to re-include" : "Click to exclude"}
-                  onClick={() => setDebriefSkippedTokenIds(prev =>
-                    prev.includes(teacherToken.id) ? prev.filter(id => id !== teacherToken.id) : [...prev, teacherToken.id]
-                  )}
-                  className={`shrink-0 transition-colors ${debriefSkippedTokenIds.includes(teacherToken.id) ? "text-slate-300 hover:text-green-500" : "text-slate-300 hover:text-red-500"}`}
+                  title="Remove from this send"
+                  onClick={() => setDebriefSkippedTokenIds(prev => [...prev, teacherToken.id])}
+                  className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
                 >
                   <X size={11}/>
                 </button>
