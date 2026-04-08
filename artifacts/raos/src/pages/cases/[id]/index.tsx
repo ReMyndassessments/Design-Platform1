@@ -799,6 +799,7 @@ export default function CaseDetail() {
       {role === "admin" && ['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
         <ReportAccessPanel
           caseId={c.id}
+          studentName={c.studentName ?? undefined}
           parentEmail={c.parentEmail ?? undefined}
           currentPhase={c.currentPhase}
           workingDocUrl={c.workingDocUrl ?? undefined}

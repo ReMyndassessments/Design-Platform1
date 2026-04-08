@@ -36,6 +36,7 @@ interface ReportUpload {
 
 interface Props {
   caseId: string;
+  studentName?: string;
   parentEmail?: string;
   currentPhase?: string;
   workingDocUrl?: string;
@@ -79,7 +80,7 @@ function getTzAbbr(tz: string, date: Date): string {
   } catch { return tz; }
 }
 
-export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, debriefMeetingDate, onPhaseAdvanced, onCaseUpdated }: Props) {
+export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, debriefMeetingDate, onPhaseAdvanced, onCaseUpdated }: Props) {
   const { toast } = useToast();
 
   const [uploads, setUploads] = useState<ReportUpload[]>([]);
@@ -659,7 +660,20 @@ export function ReportAccessPanel({ caseId, parentEmail, currentPhase, workingDo
               {debriefMeetingUrl && (
                 <Button size="sm"
                   className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white gap-1"
-                  onClick={() => window.open(debriefMeetingUrl, "_blank")}>
+                  onClick={() => {
+                    const studentParam = studentName ? `&student=${encodeURIComponent(studentName)}` : "";
+                    let brandedUrl: string;
+                    if (debriefMeetingUrl.includes("meet.ffmuc.net")) {
+                      const slug = debriefMeetingUrl.split("/").pop() ?? "meeting";
+                      brandedUrl = `/join/${slug}?type=debrief${studentParam}`;
+                    } else if (debriefMeetingUrl.includes("meet.jit.si")) {
+                      const slug = debriefMeetingUrl.split("/").pop() ?? "meeting";
+                      brandedUrl = `/join/${slug}?jitsiRoom=${encodeURIComponent(debriefMeetingUrl.replace("https://meet.jit.si/", ""))}&type=debrief${studentParam}`;
+                    } else {
+                      brandedUrl = `/join/debrief?type=debrief${studentParam}&redirectUrl=${encodeURIComponent(debriefMeetingUrl)}`;
+                    }
+                    window.open(brandedUrl, "_blank");
+                  }}>
                   <Video size={11}/> Join as Host
                 </Button>
               )}
