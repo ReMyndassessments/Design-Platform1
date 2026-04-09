@@ -291,7 +291,7 @@ export default function CaseDetail() {
 
   const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
-  const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "debrief";
+  const canAdvance = canAdvancePhase(role, c.currentPhase);
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
   const showAiCard = role !== "assessment_invigilator" && isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
