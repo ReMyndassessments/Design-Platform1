@@ -118,7 +118,7 @@ const PHASE_PROGRESS: Record<string, number> = {
 
 const PHASE_ORDER = [
   "pre_commitment", "intake", "setup", "forms", "assessment",
-  "scoring", "report", "final_review", "debrief"
+  "scoring", "report", "final_review", "debrief", "complete"
 ];
 
 function nextPhase(current: string): string {
