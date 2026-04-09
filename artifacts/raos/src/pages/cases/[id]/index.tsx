@@ -27,7 +27,7 @@ import {
   Circle, PackageCheck, Link2, X, FileEdit
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
@@ -195,6 +195,8 @@ export default function CaseDetail() {
   const [editingReportDoc, setEditingReportDoc] = useState(false);
   const [isAttachingReport, setIsAttachingReport] = useState(false);
   const [isTogglingApproval, setIsTogglingApproval] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const autoAttachFiredRef = useRef(false);
 
   useEffect(() => {
     if (c?.workingDocUrl) setReportDocInput(c.workingDocUrl);
@@ -248,6 +250,7 @@ export default function CaseDetail() {
 
   const handleAttachReport = async () => {
     setIsAttachingReport(true);
+    setAttachError(null);
     try {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/report-access/import-google-doc`, {
         method: "POST",
@@ -255,18 +258,39 @@ export default function CaseDetail() {
       });
       const data = await r.json();
       if (!r.ok) {
-        toast({ title: data.message ?? "Import failed", variant: "destructive" });
+        const msg = data.message ?? "Could not import the Google Doc. Please try again.";
+        setAttachError(msg);
+        toast({ title: msg, variant: "destructive" });
+        autoAttachFiredRef.current = false;
         return;
       }
       toast({ title: "Report attached", description: "Case advanced to Final Review." });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
     } catch {
-      toast({ title: "Import failed. Please try again.", variant: "destructive" });
+      const msg = "Import failed. Please try again.";
+      setAttachError(msg);
+      toast({ title: msg, variant: "destructive" });
+      autoAttachFiredRef.current = false;
     } finally {
       setIsAttachingReport(false);
     }
   };
+
+  // Auto-attach when both approvals are in and phase hasn't advanced yet
+  useEffect(() => {
+    if (
+      c?.adminApprovedReport &&
+      c?.psychApprovedReport &&
+      ['scoring', 'report'].includes(c?.currentPhase ?? '') &&
+      !isAttachingReport &&
+      !autoAttachFiredRef.current
+    ) {
+      autoAttachFiredRef.current = true;
+      handleAttachReport();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c?.adminApprovedReport, c?.psychApprovedReport, c?.currentPhase]);
 
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
@@ -1011,30 +1035,41 @@ export default function CaseDetail() {
                       </div>
                     </div>
                   </div>
-                  {/* Attach button — admin only, only when both approved */}
-                  {role === "admin" && (
-                    <div className="flex items-center justify-between pt-1">
-                      {!bothApproved && (
-                        <p className="text-xs text-amber-600">
-                          {!adminApproved && !psychApproved
-                            ? "Waiting for both approvals"
-                            : !adminApproved
-                            ? "Your approval is still needed"
-                            : "Waiting for psychometrician to approve"}
-                        </p>
-                      )}
-                      <Button
-                        onClick={handleAttachReport}
-                        disabled={isAttachingReport || !bothApproved}
-                        className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20 disabled:opacity-50"
-                      >
-                        {isAttachingReport ? "Attaching…" : "Attach Report"}
-                      </Button>
-                    </div>
-                  )}
-                  {role === "psychometrician" && (
-                    <p className="text-xs text-slate-400 italic">Only the admin can attach and send the final report.</p>
-                  )}
+                  {/* Attach status */}
+                  <div className="pt-1">
+                    {!bothApproved ? (
+                      <p className="text-xs text-amber-600">
+                        {!adminApproved && !psychApproved
+                          ? "Waiting for both approvals before the report is automatically attached."
+                          : !adminApproved
+                          ? "Your approval is still needed."
+                          : "Waiting for the psychometrician to approve."}
+                      </p>
+                    ) : isAttachingReport ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                        <RefreshCw size={13} className="animate-spin" />
+                        Attaching report automatically…
+                      </div>
+                    ) : attachError ? (
+                      <div className="flex items-center gap-3">
+                        <p className="text-xs text-red-600 flex-1">{attachError}</p>
+                        {role === "admin" && (
+                          <Button
+                            size="sm"
+                            onClick={() => { autoAttachFiredRef.current = false; handleAttachReport(); }}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                          >
+                            Retry
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                        <CheckCircle2 size={13} />
+                        Both approved — report being attached automatically.
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
