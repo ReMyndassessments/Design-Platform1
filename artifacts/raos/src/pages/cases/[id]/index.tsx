@@ -264,7 +264,7 @@ export default function CaseDetail() {
         autoAttachFiredRef.current = false;
         return;
       }
-      toast({ title: "Report attached", description: "Case advanced to Final Review." });
+      toast({ title: "Report attached", description: "The working document has been added to the report access section below." });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
     } catch {
@@ -1096,8 +1096,8 @@ export default function CaseDetail() {
         </Card>
       )}
 
-      {/* Report Access Panel — visible to admin in report/final_review/debrief phases */}
-      {role === "admin" && ['report', 'final_review', 'debrief'].includes(c.currentPhase) && (
+      {/* Report Access Panel — visible to admin from scoring phase onwards */}
+      {role === "admin" && ['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
         <ReportAccessPanel
           caseId={c.id}
           studentName={c.studentName ?? undefined}
