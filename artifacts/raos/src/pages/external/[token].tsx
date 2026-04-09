@@ -77,7 +77,6 @@ const PHASES = [
   { key: "scoring",        label: "Scoring",    labelZh: "评分",   labelKo: "채점" },
   { key: "report",         label: "Report",     labelZh: "报告",   labelKo: "보고서" },
   { key: "debrief",        label: "Debrief",    labelZh: "汇报",   labelKo: "결과설명" },
-  { key: "complete",       label: "Complete",   labelZh: "完成",   labelKo: "완료" },
 ];
 
 function phaseLabel(phase: typeof PHASES[0], language: string) {
@@ -549,7 +548,8 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName, language 
   language: string;
 }) {
   const rawIdx = phaseIndex(currentPhase);
-  const currentIdx = Math.max(rawIdx, FORMS_IDX);
+  const lastIdx = PHASES.length - 1;
+  const currentIdx = rawIdx === -1 ? lastIdx : Math.min(Math.max(rawIdx, FORMS_IDX), lastIdx);
   const currentLabel = phaseLabel(PHASES[currentIdx] ?? PHASES[FORMS_IDX], language);
 
   return (
