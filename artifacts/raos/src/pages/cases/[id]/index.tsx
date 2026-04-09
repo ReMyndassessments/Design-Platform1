@@ -23,10 +23,11 @@ import { formatDate } from "@/lib/utils";
 import { 
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
-  Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw
+  Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
+  Circle, PackageCheck, Link2, X, FileEdit
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
@@ -188,6 +189,85 @@ export default function CaseDetail() {
   const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
   const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
   const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
+
+  // ── Report Workspace state ─────────────────────────────────────────────────
+  const [reportDocInput, setReportDocInput] = useState("");
+  const [editingReportDoc, setEditingReportDoc] = useState(false);
+  const [isAttachingReport, setIsAttachingReport] = useState(false);
+  const [isTogglingApproval, setIsTogglingApproval] = useState(false);
+
+  useEffect(() => {
+    if (c?.workingDocUrl) setReportDocInput(c.workingDocUrl);
+  }, [c?.workingDocUrl]);
+
+  const handleSaveReportDocUrl = () => {
+    updateCaseMut.mutate({ caseId, data: { workingDocUrl: reportDocInput.trim() } }, {
+      onSuccess: () => {
+        toast({ title: "Working document saved" });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        setEditingReportDoc(false);
+      },
+      onError: () => toast({ title: "Failed to save URL", variant: "destructive" })
+    });
+  };
+
+  const handleRemoveReportDocUrl = () => {
+    updateCaseMut.mutate({ caseId, data: { workingDocUrl: "" } }, {
+      onSuccess: () => {
+        toast({ title: "Working document removed" });
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+        setReportDocInput("");
+        setEditingReportDoc(false);
+      }
+    });
+  };
+
+  const handleToggleReportApproval = async (approve: boolean, overridePsych = false) => {
+    setIsTogglingApproval(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/report-approval`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ approved: approve, overridePsych }),
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        toast({ title: d.message ?? "Failed to save approval", variant: "destructive" });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    } catch {
+      toast({ title: "Failed to save approval. Please try again.", variant: "destructive" });
+    } finally {
+      setIsTogglingApproval(false);
+    }
+  };
+
+  const handleAttachReport = async () => {
+    setIsAttachingReport(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/report-access/import-google-doc`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast({ title: data.message ?? "Import failed", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Report attached", description: "Case advanced to Final Review." });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+    } catch {
+      toast({ title: "Import failed. Please try again.", variant: "destructive" });
+    } finally {
+      setIsAttachingReport(false);
+    }
+  };
+
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
@@ -646,11 +726,6 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
-            <Link href={`/cases/${c.id}/report`}>
-              <Button variant="outline" className="bg-white"><Edit size={18} className="mr-2"/> View Report</Button>
-            </Link>
-          )}
           {role === "admin" && (
             <>
               <Button variant="outline" className="bg-white gap-2" onClick={handleOpenEdit}>
@@ -775,6 +850,197 @@ export default function CaseDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Report Workspace ── Collaborative doc + approvals (scoring → final_review) */}
+      {['scoring', 'report', 'final_review'].includes(c.currentPhase) && (role === 'admin' || role === 'psychometrician') && (
+        <>
+          {/* Collaborative Working Document */}
+          <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-blue-100">
+              <div className="flex items-center gap-2">
+                <FileEdit size={17} className="text-blue-600" />
+                <h3 className="font-semibold text-slate-800">Collaborative Working Document</h3>
+              </div>
+              {c.workingDocUrl && !editingReportDoc && (
+                <Button variant="ghost" size="sm" className="text-slate-500 h-7 text-xs" onClick={() => { setReportDocInput(c.workingDocUrl ?? ""); setEditingReportDoc(true); }}>
+                  Change link
+                </Button>
+              )}
+            </div>
+            <CardContent className="p-6">
+              {!editingReportDoc && c.workingDocUrl ? (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-600 mb-1">Both you and the psychometrician can edit this document simultaneously in real time.</p>
+                    <p className="text-xs text-slate-400 truncate">{c.workingDocUrl}</p>
+                  </div>
+                  <a href={c.workingDocUrl} target="_blank" rel="noopener noreferrer">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow shadow-blue-600/20">
+                      <ExternalLink size={15} className="mr-2" /> Open in Google Docs
+                    </Button>
+                  </a>
+                </div>
+              ) : editingReportDoc ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600">Paste the shared Google Docs link below.</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      placeholder="https://docs.google.com/document/d/..."
+                      value={reportDocInput}
+                      onChange={e => setReportDocInput(e.target.value)}
+                      className="bg-white"
+                      autoFocus
+                    />
+                    <Button onClick={handleSaveReportDocUrl} disabled={!reportDocInput.trim() || updateCaseMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+                      Save
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingReportDoc(false); setReportDocInput(c.workingDocUrl ?? ""); }} className="shrink-0">
+                      <X size={16} />
+                    </Button>
+                  </div>
+                  {c.workingDocUrl && (
+                    <button onClick={handleRemoveReportDocUrl} className="text-xs text-red-500 hover:text-red-700 underline">
+                      Remove working document
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600">
+                    Link a Google Doc so you and the psychometrician can draft the report together in real time. Once linked, it stays here permanently for this case.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      placeholder="https://docs.google.com/document/d/..."
+                      value={reportDocInput}
+                      onChange={e => setReportDocInput(e.target.value)}
+                      className="bg-white"
+                    />
+                    <Button onClick={handleSaveReportDocUrl} disabled={!reportDocInput.trim() || updateCaseMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+                      <Link2 size={15} className="mr-2" /> Link Doc
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Final Approvals & Attach */}
+          {c.workingDocUrl && (() => {
+            const adminApproved = c.adminApprovedReport ?? false;
+            const psychApproved = c.psychApprovedReport ?? false;
+            const bothApproved = adminApproved && psychApproved;
+            return (
+              <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">
+                <div className="px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
+                  <PackageCheck size={17} className="text-emerald-600" />
+                  <h3 className="font-semibold text-slate-800">Final Approvals &amp; Attach Report</h3>
+                </div>
+                <CardContent className="p-6 space-y-5">
+                  <p className="text-sm text-slate-600">
+                    Both the admin and psychometrician must approve before the report can be attached and sent to recipients.
+                  </p>
+                  <div className="space-y-2">
+                    {/* Admin row */}
+                    <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        {adminApproved
+                          ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                          : <Circle size={18} className="text-slate-300 shrink-0" />}
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Admin (Noel)</p>
+                          <p className="text-xs text-slate-400">{adminApproved ? "Approved" : "Pending approval"}</p>
+                        </div>
+                      </div>
+                      {role === "admin" && (
+                        <Button
+                          size="sm"
+                          variant={adminApproved ? "outline" : "default"}
+                          disabled={isTogglingApproval}
+                          onClick={() => handleToggleReportApproval(!adminApproved)}
+                          className={adminApproved
+                            ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                        >
+                          {adminApproved ? "Request Revision" : "Approve"}
+                        </Button>
+                      )}
+                    </div>
+                    {/* Psych row */}
+                    <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        {psychApproved
+                          ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                          : <Circle size={18} className="text-slate-300 shrink-0" />}
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Psychometrician (Abegail)</p>
+                          <p className="text-xs text-slate-400">
+                            {psychApproved ? "Approved" : role === "admin" ? "Pending — Abegail hasn't signed off yet" : "Pending approval"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {role === "psychometrician" && (
+                          <Button
+                            size="sm"
+                            variant={psychApproved ? "outline" : "default"}
+                            disabled={isTogglingApproval}
+                            onClick={() => handleToggleReportApproval(!psychApproved)}
+                            className={psychApproved
+                              ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200"
+                              : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                          >
+                            {psychApproved ? "Unmark" : "Mark as Final"}
+                          </Button>
+                        )}
+                        {role === "admin" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isTogglingApproval}
+                            onClick={() => handleToggleReportApproval(!psychApproved, true)}
+                            className={psychApproved
+                              ? "text-slate-500 border-slate-200 hover:text-red-600 hover:border-red-200 text-xs"
+                              : "text-slate-500 border-dashed border-slate-300 hover:border-slate-400 text-xs"}
+                          >
+                            {psychApproved ? "Remove override" : "Override"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Attach button — admin only, only when both approved */}
+                  {role === "admin" && (
+                    <div className="flex items-center justify-between pt-1">
+                      {!bothApproved && (
+                        <p className="text-xs text-amber-600">
+                          {!adminApproved && !psychApproved
+                            ? "Waiting for both approvals"
+                            : !adminApproved
+                            ? "Your approval is still needed"
+                            : "Waiting for psychometrician to approve"}
+                        </p>
+                      )}
+                      <Button
+                        onClick={handleAttachReport}
+                        disabled={isAttachingReport || !bothApproved}
+                        className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-600/20 disabled:opacity-50"
+                      >
+                        {isAttachingReport ? "Attaching…" : "Attach Report"}
+                      </Button>
+                    </div>
+                  )}
+                  {role === "psychometrician" && (
+                    <p className="text-xs text-slate-400 italic">Only the admin can attach and send the final report.</p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </>
+      )}
 
       {/* Final Review Banner */}
       {c.currentPhase === 'final_review' && role === 'admin' && (
