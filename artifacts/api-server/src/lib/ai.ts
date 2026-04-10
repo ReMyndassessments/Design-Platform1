@@ -69,8 +69,9 @@ export async function analyzeIntakeWithAI(intake: {
     isRemyndOwned: boolean;
   }>;
 }): Promise<IntakeAnalysisResult> {
+  const toArr = (v: unknown): string[] => Array.isArray(v) ? v as string[] : [];
   const toolList = (intake.assessmentTools ?? [])
-    .map(t => `- ID: ${t.id} | Name: ${t.name} | Category: ${t.category} | Domains: ${t.domains.join(", ")} | Respondents: ${t.respondentTypes.join(", ")} | ReMynd-owned: ${t.isRemyndOwned} | Description: ${t.description}`)
+    .map(t => `- ID: ${t.id} | Name: ${t.name} | Category: ${t.category} | Domains: ${toArr(t.domains).join(", ")} | Respondents: ${toArr(t.respondentTypes).join(", ")} | ReMynd-owned: ${t.isRemyndOwned} | Description: ${t.description}`)
     .join("\n");
 
   const prompt = `You are a senior psychoeducational assessment specialist with deep expertise in selecting appropriate assessment batteries for students.

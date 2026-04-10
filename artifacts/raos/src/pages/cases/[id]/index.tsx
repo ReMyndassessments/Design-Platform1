@@ -1172,26 +1172,69 @@ export default function CaseDetail() {
               </CardHeader>
               <CardContent>
                 {c.intakeAnalysis ? (
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estimated Risk</span>
-                      <div className="mt-1">
-                        {c.intakeAnalysis.riskLevel === 'high' ? <Badge variant="destructive" className="px-3 py-1">High Risk</Badge> : 
-                         c.intakeAnalysis.riskLevel === 'moderate' ? <Badge variant="warning" className="px-3 py-1">Moderate Risk</Badge> : 
-                         <Badge variant="success" className="px-3 py-1">Low Risk</Badge>}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recommended Domains</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {c.intakeAnalysis.recommendedDomains.map((d: string) => (
-                          <Badge key={d} variant="outline" className="bg-white">{d}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-sm text-slate-700 bg-white/60 p-3 rounded-lg border border-blue-100/50">
+                  <div className="space-y-5">
+                    {/* Summary */}
+                    <div className="text-sm text-slate-700 bg-white/70 p-3 rounded-lg border border-blue-100">
                       {c.intakeAnalysis.summary}
                     </div>
+
+                    {/* Risk + Domains row */}
+                    <div className="flex flex-wrap items-start gap-4">
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Risk Level</span>
+                        {c.intakeAnalysis.riskLevel === 'high' ? <Badge variant="destructive">High</Badge> :
+                         c.intakeAnalysis.riskLevel === 'moderate' ? <Badge variant="warning">Moderate</Badge> :
+                         <Badge variant="success">Low</Badge>}
+                      </div>
+                      {Array.isArray(c.intakeAnalysis.recommendedDomains) && c.intakeAnalysis.recommendedDomains.length > 0 && (
+                        <div className="flex-1">
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Key Domains</span>
+                          <div className="flex flex-wrap gap-1">
+                            {(c.intakeAnalysis.recommendedDomains as string[]).map((d: string) => (
+                              <Badge key={d} variant="outline" className="bg-white text-xs">{d.replace(/_/g, ' ')}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Flags */}
+                    {Array.isArray(c.intakeAnalysis.flags) && (c.intakeAnalysis.flags as string[]).length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Clinical Flags</span>
+                        <ul className="space-y-1">
+                          {(c.intakeAnalysis.flags as string[]).map((f: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                              <span className="mt-0.5 shrink-0">⚠</span><span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommended Tools */}
+                    {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Recommended Assessment Tools</span>
+                        <div className="space-y-2">
+                          {(c.intakeAnalysis.recommendedTools as any[]).map((t: any) => (
+                            <div key={t.toolId} className="bg-white rounded-lg border border-blue-100 p-3">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="text-sm font-semibold text-slate-800">{t.name}</span>
+                                <Badge className={`text-xs shrink-0 ${t.priority === 'essential' ? 'bg-red-100 text-red-700 border-red-200' : t.priority === 'recommended' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} variant="outline">
+                                  {t.priority}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500">{t.rationale}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">
+                      {analyzeIntakeMut.isPending ? "Re-analyzing..." : "Re-run Analysis"}
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-center py-6">
