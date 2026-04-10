@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { generateIntakeSummary } from "../lib/ai.js";
+import { sendEmail } from "../lib/outlookEmail.js";
 
 const router = Router();
 
@@ -286,6 +287,62 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
   }
 
   res.status(201).json({ assignments: created, batteryId: battery.id, count: created.length });
+});
+
+// ── POST /api/cases/:caseId/send-respondent-email ────────────────────────────
+// Send one branded email to a respondent with their unique form link
+router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "psychometrician") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const { toEmail, toName, formLink, formNames, studentName, respondentRole } = req.body as {
+    toEmail: string;
+    toName: string;
+    formLink: string;
+    formNames: string[];
+    studentName?: string;
+    respondentRole?: string;
+  };
+
+  if (!toEmail || !toName || !formLink || !Array.isArray(formNames)) {
+    res.status(400).json({ error: "bad_request", message: "toEmail, toName, formLink, and formNames are required" }); return;
+  }
+
+  const caseRows = await db.select({ id: casesTable.id, studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+
+  const resolvedStudentName = studentName ?? caseRows[0].studentName ?? "the student";
+  const formsListHtml = formNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
+  const roleLabel = respondentRole ?? "respondent";
+
+  const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
+  <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
+    <p style="margin:0;font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px">ReMynd Student Services</p>
+    <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em">Assessment Operating System</p>
+  </div>
+  <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+    <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
+    <p style="margin:0 0 12px;font-size:14px;color:#475569">
+      As part of the psychoeducational assessment for <strong>${resolvedStudentName}</strong>, we are requesting your input as their <strong>${roleLabel}</strong>.
+    </p>
+    <p style="margin:0 0 8px;font-size:14px;color:#475569">Please complete the following form${formNames.length > 1 ? "s" : ""} at the link below:</p>
+    <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#475569">${formsListHtml}</ul>
+    <p style="margin:0 0 24px;font-size:14px;color:#475569">Each form takes just a few minutes. You can return to the same link at any time to continue or review your responses.</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="${formLink}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open My Forms ↗</a>
+    </p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+    <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team. Please do not share this link.</p>
+  </div>
+</div>`;
+
+  try {
+    await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(502).json({ error: "send_failed", message: "Email could not be sent. Please try again." });
+  }
 });
 
 // GET /api/assignments/my-pending — returns invigilator's own pending forms
