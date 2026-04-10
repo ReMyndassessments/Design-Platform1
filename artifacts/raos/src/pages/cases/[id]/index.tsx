@@ -1192,10 +1192,8 @@ export default function CaseDetail() {
         );
       })()}
 
-      <div className={`grid grid-cols-1 gap-6 ${hasLeftContent || hideAssignments ? 'lg:grid-cols-3' : ''}`}>
-        {/* Left Col: AI & Phase Content — only rendered when there's actual content */}
-        {(hasLeftContent || hideAssignments) && <div className={`space-y-6 ${hideAssignments ? 'lg:col-span-3' : 'col-span-1'}`}>
-          {showAiCard && (
+      <div className="space-y-6">
+        {showAiCard && (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center text-blue-900">
@@ -1554,11 +1552,10 @@ export default function CaseDetail() {
               </Card>
             );
           })()}
-        </div>}
 
-        {/* Right Col: Assignments — hidden from report stage onwards */}
-        {!hideAssignments && <div className={hasLeftContent ? 'col-span-1 lg:col-span-2' : ''}>
-          <Card className="border-none shadow-md h-full">
+        {/* Assignments — hidden from report stage onwards */}
+        {!hideAssignments && (
+          <Card className="border-none shadow-md">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle>Assessment Forms & Assignments</CardTitle>
               <div className="flex gap-2">
@@ -1660,10 +1657,9 @@ export default function CaseDetail() {
               )}
             </CardContent>
           </Card>
-        </div>}
-      </div>
+        )}
 
-      {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
+        {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
       {(role === "admin" || role === "psychometrician") && !hideAssignments && (
         <Card className="border-none shadow-md">
           <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
@@ -1735,7 +1731,8 @@ export default function CaseDetail() {
             )}
           </CardContent>
         </Card>
-      )}
+        )}
+      </div>
 
       {/* Modals */}
       <Dialog open={!!deleteAssignmentTarget} onOpenChange={open => { if (!open) setDeleteAssignmentTarget(null); }}>
