@@ -1305,7 +1305,7 @@ export default function CaseDetail() {
                     <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">Complete before AI Analysis</span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">These forms must be sent out and completed before running the AI Intake Analysis.</p>
+                <p className="text-xs text-slate-500 mt-1">Referral and Intake forms are needed to run the AI Analysis. Consent must be obtained before any testing begins.</p>
               </CardHeader>
               <CardContent className="pt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1411,7 +1411,7 @@ export default function CaseDetail() {
 
         {showAiCard && (() => {
           const allAssignments2 = c.assignments ?? [];
-          const INTAKE_TOOL_IDS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"],["CONSENT"]];
+          const INTAKE_TOOL_IDS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"]];
           const intakeFormsComplete = INTAKE_TOOL_IDS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
           return (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
