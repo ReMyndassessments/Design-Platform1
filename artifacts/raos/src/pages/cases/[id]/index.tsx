@@ -1201,29 +1201,15 @@ export default function CaseDetail() {
             {respondentGroups.length > 0 && (
               <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{respondentGroups.length} respondent{respondentGroups.length !== 1 ? "s" : ""}</span>
             )}
-            <div className="ml-auto flex gap-2">
-              {role === "admin" && (
-                <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setAddAssignmentModalOpen(true)}>
-                  <span className="text-lg leading-none">+</span> Add Assignment
-                </Button>
-              )}
-            </div>
           </div>
           <CardContent className="p-0">
             {respondentGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-3">
+              <div className="flex flex-col items-center justify-center py-8 px-6 text-center gap-2">
                 <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                   <Users size={22} className="text-slate-400" />
                 </div>
-                <div>
-                  <p className="font-medium text-slate-700 mb-1">No external respondents assigned yet</p>
-                  <p className="text-sm text-slate-500">Add a parent, teacher, or other external form assignment to send them their personalised link.</p>
-                </div>
-                {role === "admin" && (
-                  <Button onClick={() => setAddAssignmentModalOpen(true)} className="mt-1 gap-2">
-                    <span className="text-lg leading-none">+</span> Add Assignment
-                  </Button>
-                )}
+                <p className="font-medium text-slate-700">No external respondents assigned yet</p>
+                <p className="text-sm text-slate-500">Use the <span className="font-medium text-slate-700">Assessment Forms &amp; Assignments</span> section below to add a parent, teacher, or other external respondent — they'll appear here once assigned.</p>
               </div>
             ) : (
               <div className="divide-y">
