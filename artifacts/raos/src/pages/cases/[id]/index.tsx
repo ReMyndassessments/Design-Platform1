@@ -1288,7 +1288,8 @@ export default function CaseDetail() {
         {!hideAssignments && (() => {
           const intakeAssignments = (c.assignments ?? []).filter(a => INTAKE_TOOL_IDS.has(a.toolId ?? ""));
           const INTAKE_FORM_OPTIONS = [
-            { label: "Referral Form", toolId: "REFERRAL", respondentType: "referring_teacher", respondentLabel: "Referring Teacher" },
+            { label: "Referral Form — School / Teacher", toolId: "REFERRAL", respondentType: "referring_teacher", respondentLabel: "Referring Teacher" },
+            { label: "Referral Form — Parent", toolId: "REFERRAL", respondentType: "parent", respondentLabel: "Parent" },
             { label: "Parent Intake Form", toolId: "INTAKE", respondentType: "parent", respondentLabel: "Parent" },
             { label: "Consent Form", toolId: "CONSENT", respondentType: "parent", respondentLabel: "Parent" },
           ];
