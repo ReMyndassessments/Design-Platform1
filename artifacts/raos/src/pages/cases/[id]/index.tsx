@@ -397,7 +397,7 @@ export default function CaseDetail() {
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
-  const showAiCard = role !== "assessment_invigilator" && isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
+  const showAiCard = role === "admin" && isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
   const showInvigilatorPanel = role === 'assessment_invigilator' && c.currentPhase === 'assessment';
   const hasLeftContent = showAiCard || showMeetingCard;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable } from "@workspace/db/schema";
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
@@ -528,23 +528,68 @@ router.post("/cases/:caseId/self-report", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can run AI intake analysis" });
+    return;
+  }
   const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
-    res.status(403).json({ error: "forbidden", message: "Access denied" });
-    return;
-  }
 
   const c = rows[0];
+
+  const REFERRAL_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"];
+  const ADMIN_IDS = new Set([...REFERRAL_IDS, "CONSENT", "INTAKE"]);
+
+  const [assignments, allTools] = await Promise.all([
+    db.select().from(assignmentsTable).where(
+      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE"]))
+    ),
+    db.select({
+      id: assessmentToolsTable.id,
+      name: assessmentToolsTable.name,
+      description: assessmentToolsTable.description,
+      domains: assessmentToolsTable.domains,
+      respondentTypes: assessmentToolsTable.respondentTypes,
+      category: assessmentToolsTable.category,
+      isRemyndOwned: assessmentToolsTable.isRemyndOwned,
+    }).from(assessmentToolsTable),
+  ]);
+
+  const referralAssignmentIds = assignments.filter(a => REFERRAL_IDS.includes(a.toolId)).map(a => a.id);
+  const intakeAssignmentIds = assignments.filter(a => a.toolId === "INTAKE").map(a => a.id);
+  const allAssignmentIds = [...referralAssignmentIds, ...intakeAssignmentIds];
+
+  const responses = allAssignmentIds.length > 0
+    ? await db.select().from(responsesTable).where(inArray(responsesTable.assignmentId, allAssignmentIds))
+    : [];
+
+  const referralAnswers = responses.find(r => referralAssignmentIds.includes(r.assignmentId))?.answers as Record<string, unknown> | null ?? null;
+  const intakeAnswers = responses.find(r => intakeAssignmentIds.includes(r.assignmentId))?.answers as Record<string, unknown> | null ?? null;
+
+  const assessmentTools = allTools.filter(t => !ADMIN_IDS.has(t.id));
+
+  let age: number | null = null;
+  if (c.dob) {
+    const dob = new Date(c.dob);
+    const today = new Date();
+    const y = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    age = (m < 0 || (m === 0 && today.getDate() < dob.getDate())) ? y - 1 : y;
+  }
+
   const analysis = await analyzeIntakeWithAI({
     studentName: c.studentName,
     school: c.school,
     referralReason: c.referralReason,
     grade: c.grade,
-    intakeData: c.intakeData,
+    dob: c.dob,
+    age,
+    referralFormAnswers: referralAnswers,
+    parentIntakeAnswers: intakeAnswers,
+    assessmentTools,
   });
 
   await db.update(casesTable).set({

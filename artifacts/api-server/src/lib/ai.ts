@@ -35,51 +35,109 @@ async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<string> {
 }
 
 
+export type RecommendedTool = {
+  toolId: string;
+  name: string;
+  rationale: string;
+  priority: "essential" | "recommended" | "optional";
+};
+
+export type IntakeAnalysisResult = {
+  recommendedTools: RecommendedTool[];
+  recommendedDomains: string[];
+  riskLevel: "low" | "moderate" | "high";
+  summary: string;
+  flags: string[];
+};
+
 export async function analyzeIntakeWithAI(intake: {
   studentName: string;
   school: string;
   referralReason: string;
   grade?: string | null;
-  intakeData?: unknown;
-}): Promise<{
-  recommendedDomains: string[];
-  riskLevel: "low" | "moderate" | "high";
-  summary: string;
-  flags: string[];
-}> {
-  const prompt = `You are a psychoeducational assessment specialist AI. Analyze the following student intake information and provide assessment recommendations.
+  dob?: string | null;
+  age?: number | null;
+  referralFormAnswers?: Record<string, unknown> | null;
+  parentIntakeAnswers?: Record<string, unknown> | null;
+  assessmentTools?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    domains: string[];
+    respondentTypes: string[];
+    category: string;
+    isRemyndOwned: boolean;
+  }>;
+}): Promise<IntakeAnalysisResult> {
+  const toolList = (intake.assessmentTools ?? [])
+    .map(t => `- ID: ${t.id} | Name: ${t.name} | Category: ${t.category} | Domains: ${t.domains.join(", ")} | Respondents: ${t.respondentTypes.join(", ")} | ReMynd-owned: ${t.isRemyndOwned} | Description: ${t.description}`)
+    .join("\n");
 
-Student: ${intake.studentName}
+  const prompt = `You are a senior psychoeducational assessment specialist with deep expertise in selecting appropriate assessment batteries for students.
+
+Analyze the following intake data for a student and recommend which assessment tools from the provided library should be used.
+
+═══ STUDENT INFORMATION ═══
+Name: ${intake.studentName}
 School: ${intake.school}
-Grade: ${intake.grade ?? "Unknown"}
-Referral Reason: ${intake.referralReason}
-Additional Intake Data: ${JSON.stringify(intake.intakeData ?? {})}
+Grade: ${intake.grade ?? "Not specified"}
+Date of Birth: ${intake.dob ?? "Not recorded"}
+Age: ${intake.age != null ? `${intake.age} years old` : "Unknown"}
+Primary Referral Reason: ${intake.referralReason || "Not specified"}
 
-Based on this information, provide a JSON response (no markdown, just pure JSON) with:
-- recommendedDomains: array of relevant domains from ["attention", "executive_function", "emotional_regulation", "social_communication", "academic_persistence", "memory", "processing_speed"]
-- riskLevel: "low", "moderate", or "high"
-- summary: 2-3 sentence clinical summary of the referral concerns
-- flags: array of specific concerns to watch for
+═══ REFERRAL FORM RESPONSES ═══
+${intake.referralFormAnswers ? JSON.stringify(intake.referralFormAnswers, null, 2) : "No referral form data available."}
 
-Example format:
-{"recommendedDomains": ["attention", "executive_function"], "riskLevel": "moderate", "summary": "Student presents with...", "flags": ["Possible ADHD inattentive presentation", "Academic underachievement"]}`;
+═══ PARENT INTAKE FORM RESPONSES ═══
+${intake.parentIntakeAnswers ? JSON.stringify(intake.parentIntakeAnswers, null, 2) : "No parent intake form data available."}
+
+═══ AVAILABLE ASSESSMENT TOOLS ═══
+${toolList || "No tools available in library."}
+
+═══ INSTRUCTIONS ═══
+Based on ALL the above information (student age, grade, gender if mentioned, referral concerns from the referral form, and developmental/behavioral history from the parent intake form):
+
+1. Identify the key domains of concern
+2. Select appropriate assessment tools from the library above that match:
+   - The student's age/grade level
+   - The presenting concerns and referral reasons
+   - The behavioral patterns described in the parent intake
+   - Use a mix of respondent types (parent, teacher, self) where appropriate
+3. Prioritize ReMynd-owned tools where clinically appropriate
+4. Assign each tool a priority: "essential" (must use), "recommended" (strongly suggested), or "optional" (useful if time allows)
+5. Provide a brief clinical rationale for each tool selection
+
+Return ONLY a JSON object (no markdown, no code fences) with this exact structure:
+{
+  "recommendedTools": [
+    {"toolId": "TOOL_ID", "name": "Tool Name", "rationale": "1-2 sentence clinical justification", "priority": "essential|recommended|optional"}
+  ],
+  "recommendedDomains": ["attention", "executive_function", "emotional_regulation", "social_communication", "academic_persistence", "memory", "processing_speed"],
+  "riskLevel": "low|moderate|high",
+  "summary": "2-3 sentence clinical summary of the referral picture and key concerns",
+  "flags": ["Specific concern or pattern to watch for during assessment"]
+}`;
 
   try {
-    const text = await callDeepSeek(prompt);
+    const text = await callDeepSeek(prompt, 6000);
     const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
     return {
-      recommendedDomains: parsed.recommendedDomains ?? ["attention"],
+      recommendedTools: Array.isArray(parsed.recommendedTools) ? parsed.recommendedTools : [],
+      recommendedDomains: Array.isArray(parsed.recommendedDomains) ? parsed.recommendedDomains : [],
       riskLevel: parsed.riskLevel ?? "moderate",
       summary: parsed.summary ?? "Intake analysis completed.",
-      flags: parsed.flags ?? [],
+      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
     };
   } catch {
     return {
+      recommendedTools: [],
       recommendedDomains: ["attention", "executive_function"],
       riskLevel: "moderate",
-      summary: `Student ${intake.studentName} has been referred for: ${intake.referralReason}. Full AI analysis unavailable; manual review recommended.`,
-      flags: ["Manual review recommended"],
+      summary: `${intake.studentName} has been referred for: ${intake.referralReason || "concerns noted in intake"}. Full AI analysis unavailable — manual review recommended.`,
+      flags: ["Manual review recommended — AI analysis could not be completed"],
     };
   }
 }
