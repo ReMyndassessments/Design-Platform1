@@ -1857,7 +1857,7 @@ export default function CaseDetail() {
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">3</span>
-                Finalize and Assign Assessment Battery
+                Build Assessment Battery
               </CardTitle>
               <div className="flex gap-2">
                 {hasCdpBattery && (
@@ -1977,7 +1977,7 @@ export default function CaseDetail() {
                   <Users size={22} className="text-slate-400" />
                 </div>
                 <p className="font-medium text-slate-700">No external respondents assigned yet</p>
-                <p className="text-sm text-slate-500">Add a parent, teacher, or other external respondent in the <span className="font-medium text-slate-700">Finalize and Assign Assessment Battery</span> section above — they'll appear here once assigned.</p>
+                <p className="text-sm text-slate-500">Add a parent, teacher, or other external respondent in the <span className="font-medium text-slate-700">Build Assessment Battery</span> section above — they'll appear here once assigned.</p>
               </div>
             ) : (
               <div className="divide-y">
