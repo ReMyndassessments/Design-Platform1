@@ -1900,7 +1900,14 @@ export default function CaseDetail() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {c.assignments.filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).map(a => (
+                  {c.assignments
+                    .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? ""))
+                    .sort((a, b) => {
+                      const aInvig = a.respondentType === "invigilator" ? 1 : 0;
+                      const bInvig = b.respondentType === "invigilator" ? 1 : 0;
+                      return aInvig - bInvig;
+                    })
+                    .map(a => (
                     <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
