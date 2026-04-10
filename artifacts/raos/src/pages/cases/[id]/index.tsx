@@ -1919,7 +1919,21 @@ export default function CaseDetail() {
                       const bOrder = ORDER[b.respondentType] ?? 5;
                       return aOrder - bOrder;
                     })
-                    .map(a => (
+                    .reduce<{ type: string; label: string; items: NonNullable<typeof c.assignments> }[]>((groups, a) => {
+                      const last = groups[groups.length - 1];
+                      if (last && last.type === a.respondentType) {
+                        last.items.push(a);
+                      } else {
+                        groups.push({ type: a.respondentType, label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, items: [a] });
+                      }
+                      return groups;
+                    }, [])
+                    .flatMap((group, gi) => [
+                      <div key={`grp-${gi}`} className="px-4 py-2 bg-slate-50/80 border-b border-t flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{group.label}</span>
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{group.items.length} form{group.items.length !== 1 ? "s" : ""}</span>
+                      </div>,
+                      ...group.items.map(a => (
                     <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
@@ -1984,7 +1998,8 @@ export default function CaseDetail() {
                         )}
                       </div>
                     </div>
-                  ))}
+                  ))
+                    ])}
                 </div>
               )}
             </CardContent>
