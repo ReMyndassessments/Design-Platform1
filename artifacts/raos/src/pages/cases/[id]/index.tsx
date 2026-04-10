@@ -872,15 +872,15 @@ export default function CaseDetail() {
         </CardContent>
       </Card>
 
-      {/* ── Report Workspace ── Collaborative doc + approvals (scoring → final_review) */}
-      {['scoring', 'report', 'final_review'].includes(c.currentPhase) && (role === 'admin' || role === 'psychometrician') && (
+      {/* ── Report Workspace ── Collaborative doc (all phases) + approvals (scoring → final_review) */}
+      {(role === 'admin' || role === 'psychometrician') && (
         <>
           {/* Collaborative Working Document */}
           <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
             <div className="px-6 py-4 flex items-center justify-between border-b border-blue-100">
               <div className="flex items-center gap-2">
                 <FileEdit size={17} className="text-blue-600" />
-                <h3 className="font-semibold text-slate-800">Collaborative Working Document</h3>
+                <h3 className="font-semibold text-slate-800">Report Working Document</h3>
               </div>
               {c.workingDocUrl && !editingReportDoc && (
                 <Button variant="ghost" size="sm" className="text-slate-500 h-7 text-xs" onClick={() => { setReportDocInput(c.workingDocUrl ?? ""); setEditingReportDoc(true); }}>
@@ -892,7 +892,7 @@ export default function CaseDetail() {
               {!editingReportDoc && c.workingDocUrl ? (
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm text-slate-600 mb-1">Both you and the psychometrician can edit this document simultaneously in real time.</p>
+                    <p className="text-sm text-slate-600 mb-1">Both you and the psychometrician can build sections of the report in real time as forms and AI analysis come in.</p>
                     <p className="text-xs text-slate-400 truncate">{c.workingDocUrl}</p>
                   </div>
                   <a href={c.workingDocUrl} target="_blank" rel="noopener noreferrer">
@@ -929,7 +929,7 @@ export default function CaseDetail() {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-600">
-                    Link a Google Doc so you and the psychometrician can draft the report together in real time. Once linked, it stays here permanently for this case.
+                    Link the report template Google Doc now so sections can be drafted as soon as forms and AI analysis arrive. Once linked, it stays here for the full lifetime of this case.
                   </p>
                   <div className="flex gap-2">
                     <Input
@@ -948,8 +948,8 @@ export default function CaseDetail() {
             </CardContent>
           </Card>
 
-          {/* Final Approvals & Attach */}
-          {c.workingDocUrl && (() => {
+          {/* Final Approvals & Attach — only relevant once scoring begins */}
+          {c.workingDocUrl && ['scoring', 'report', 'final_review'].includes(c.currentPhase) && (() => {
             const adminApproved = c.adminApprovedReport ?? false;
             const psychApproved = c.psychApprovedReport ?? false;
             const bothApproved = adminApproved && psychApproved;
