@@ -1263,6 +1263,7 @@ export default function CaseDetail() {
               <CardTitle className="text-base flex items-center gap-2 text-emerald-900">
                 <Video size={16} className="text-emerald-600" />
                 Invigilation Meeting Room
+                <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Optional</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -1636,6 +1637,7 @@ export default function CaseDetail() {
                   <CardTitle className="text-base flex items-center gap-2 text-emerald-900">
                     <Video size={16} className="text-emerald-600" />
                     Invigilation Meeting Room
+                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Optional</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
