@@ -1192,80 +1192,6 @@ export default function CaseDetail() {
         );
       })()}
 
-      {/* ── Respondent Dispatch Panel ── always visible to admin/psych during active assignment phases ── */}
-      {(role === "admin" || role === "psychometrician") && !hideAssignments && (
-        <Card className="border-none shadow-md">
-          <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
-            <Users size={17} className="text-primary" />
-            <h3 className="font-semibold text-slate-800">Send Forms to Respondents</h3>
-            {respondentGroups.length > 0 && (
-              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{respondentGroups.length} respondent{respondentGroups.length !== 1 ? "s" : ""}</span>
-            )}
-          </div>
-          <CardContent className="p-0">
-            {respondentGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 px-6 text-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                  <Users size={22} className="text-slate-400" />
-                </div>
-                <p className="font-medium text-slate-700">No external respondents assigned yet</p>
-                <p className="text-sm text-slate-500">Use the <span className="font-medium text-slate-700">Assessment Forms &amp; Assignments</span> section below to add a parent, teacher, or other external respondent — they'll appear here once assigned.</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {respondentGroups.map(group => {
-                  const completedCount = group.forms.filter(f => f.status === "completed").length;
-                  const allDone = completedCount === group.forms.length;
-                  return (
-                    <div key={group.groupKey} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-semibold text-slate-800 text-sm">{group.name ?? group.label}</span>
-                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
-                          {allDone
-                            ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">All Complete</span>
-                            : <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{completedCount}/{group.forms.length} done</span>
-                          }
-                        </div>
-                        <div className="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
-                          {group.email && <span className="text-slate-400">{group.email}</span>}
-                          <span>{group.forms.map(f => f.name).join(" · ")}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 shrink-0 flex-wrap">
-                        <Button variant="outline" size="sm" className="bg-white" title="Show QR Code"
-                          onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
-                          <QrCode size={15} />
-                        </Button>
-                        <Button variant="outline" size="sm" className="bg-white" title="Copy link"
-                          onClick={() => copyLink(group.link)}>
-                          <Copy size={15} />
-                        </Button>
-                        <Button size="sm" className="gap-1.5" title="Send link by email"
-                          onClick={() => {
-                            setSendEmailTarget({
-                              groupKey: group.groupKey,
-                              label: group.label,
-                              name: group.name ?? "",
-                              email: group.email ?? "",
-                              link: group.link,
-                              formNames: group.forms.map(f => f.name),
-                              respondentRole: group.label,
-                            });
-                            setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" });
-                          }}>
-                          <Send size={14} /> Send Email
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       <div className={`grid grid-cols-1 gap-6 ${hasLeftContent || hideAssignments ? 'lg:grid-cols-3' : ''}`}>
         {/* Left Col: AI & Phase Content — only rendered when there's actual content */}
         {(hasLeftContent || hideAssignments) && <div className={`space-y-6 ${hideAssignments ? 'lg:col-span-3' : 'col-span-1'}`}>
@@ -1736,6 +1662,80 @@ export default function CaseDetail() {
           </Card>
         </div>}
       </div>
+
+      {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
+      {(role === "admin" || role === "psychometrician") && !hideAssignments && (
+        <Card className="border-none shadow-md">
+          <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
+            <Users size={17} className="text-primary" />
+            <h3 className="font-semibold text-slate-800">Send Forms to Respondents</h3>
+            {respondentGroups.length > 0 && (
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{respondentGroups.length} respondent{respondentGroups.length !== 1 ? "s" : ""}</span>
+            )}
+          </div>
+          <CardContent className="p-0">
+            {respondentGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 px-6 text-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                  <Users size={22} className="text-slate-400" />
+                </div>
+                <p className="font-medium text-slate-700">No external respondents assigned yet</p>
+                <p className="text-sm text-slate-500">Add a parent, teacher, or other external respondent in the <span className="font-medium text-slate-700">Assessment Forms &amp; Assignments</span> section above — they'll appear here once assigned.</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {respondentGroups.map(group => {
+                  const completedCount = group.forms.filter(f => f.status === "completed").length;
+                  const allDone = completedCount === group.forms.length;
+                  return (
+                    <div key={group.groupKey} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-semibold text-slate-800 text-sm">{group.name ?? group.label}</span>
+                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
+                          {allDone
+                            ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">All Complete</span>
+                            : <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{completedCount}/{group.forms.length} done</span>
+                          }
+                        </div>
+                        <div className="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                          {group.email && <span className="text-slate-400">{group.email}</span>}
+                          <span>{group.forms.map(f => f.name).join(" · ")}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0 flex-wrap">
+                        <Button variant="outline" size="sm" className="bg-white" title="Show QR Code"
+                          onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
+                          <QrCode size={15} />
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-white" title="Copy link"
+                          onClick={() => copyLink(group.link)}>
+                          <Copy size={15} />
+                        </Button>
+                        <Button size="sm" className="gap-1.5" title="Send link by email"
+                          onClick={() => {
+                            setSendEmailTarget({
+                              groupKey: group.groupKey,
+                              label: group.label,
+                              name: group.name ?? "",
+                              email: group.email ?? "",
+                              link: group.link,
+                              formNames: group.forms.map(f => f.name),
+                              respondentRole: group.label,
+                            });
+                            setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" });
+                          }}>
+                          <Send size={14} /> Send Email
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modals */}
       <Dialog open={!!deleteAssignmentTarget} onOpenChange={open => { if (!open) setDeleteAssignmentTarget(null); }}>
