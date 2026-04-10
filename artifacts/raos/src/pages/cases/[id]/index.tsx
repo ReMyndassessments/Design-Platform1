@@ -602,7 +602,15 @@ export default function CaseDetail() {
   const handleSendInvite = async () => {
     const allRecipients = buildInviteRecipients();
     const selected = allRecipients.filter(r => inviteChecked[r.key]);
-    const extras = extraInviteEmails.map(email => ({ email, name: null, type: "teacher" as const }));
+    // Auto-include any email typed in the input but not yet clicked "Add"
+    const pendingEmail = extraInviteEmail.trim().toLowerCase();
+    const allExtras = [...extraInviteEmails];
+    if (pendingEmail && pendingEmail.includes("@") && !allExtras.includes(pendingEmail)) {
+      allExtras.push(pendingEmail);
+      setExtraInviteEmails(allExtras);
+      setExtraInviteEmail("");
+    }
+    const extras = allExtras.map(email => ({ email, name: null, type: "teacher" as const }));
     const combined = [
       ...selected.map(r => ({ email: r.email, name: r.name, type: r.type === "staff" ? "teacher" as const : r.type as "parent" | "teacher", lang: r.lang })),
       ...extras,
@@ -2589,7 +2597,7 @@ export default function CaseDetail() {
             <Button
               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={handleSendInvite}
-              disabled={sendingInvite || (buildInviteRecipients().every(r => !inviteChecked[r.key]) && extraInviteEmails.length === 0)}
+              disabled={sendingInvite || (buildInviteRecipients().every(r => !inviteChecked[r.key]) && extraInviteEmails.length === 0 && !extraInviteEmail.trim().includes("@"))}
             >
               {sendingInvite ? "Sending…" : "Send Invite"}
             </Button>
