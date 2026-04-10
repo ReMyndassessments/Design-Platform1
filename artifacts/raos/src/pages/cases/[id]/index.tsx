@@ -61,7 +61,6 @@ function displayPhase(phase: string): string {
 }
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
-const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "final_review", "debrief"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 
 
@@ -80,11 +79,8 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   invigilator:       "Invigilator",
 };
 
-function canAdvancePhase(role: string, currentPhase: string): boolean {
-  if (role === "admin") return true;
-  if (role === "assessment_invigilator") return false;
-  if (role === "psychometrician") return PSYCH_PHASES.has(currentPhase);
-  return false;
+function canAdvancePhase(role: string): boolean {
+  return role === "admin";
 }
 
 function isPhaseVisible(_role: string, _phase: string): boolean {
@@ -395,7 +391,7 @@ export default function CaseDetail() {
 
   const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
-  const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
+  const canAdvance = canAdvancePhase(role) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
   const showAiCard = isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';

@@ -305,16 +305,11 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     return;
   }
   const { userRole } = req;
+  if (userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can advance case phases" });
+    return;
+  }
   const current = rows[0].currentPhase;
-  const PSYCH_PHASES = new Set(["setup", "forms", "assessment", "scoring", "report", "debrief"]);
-  if (userRole === "assessment_invigilator") {
-    res.status(403).json({ error: "forbidden", message: "Invigilators have view-only access and cannot advance phases" });
-    return;
-  }
-  if (userRole === "psychometrician" && !PSYCH_PHASES.has(current)) {
-    res.status(403).json({ error: "forbidden", message: "Psychometricians can only advance Setup through Debrief phases" });
-    return;
-  }
   const next = nextPhase(current);
   const updated = await db.update(casesTable).set({
     currentPhase: next as typeof casesTable.$inferSelect["currentPhase"],
