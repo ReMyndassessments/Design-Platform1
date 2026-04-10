@@ -64,6 +64,18 @@ const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor"]);
 
+const RESPONDENT_LABELS: Record<string, string> = {
+  parent: "Parent",
+  teacher1: "Teacher 1",
+  teacher2: "Teacher 2",
+  self: "Student Self-Report",
+  school_counselor: "School Counselor",
+  special_needs_teacher: "Special Needs Teacher",
+  referring_teacher: "Referring Teacher",
+  boarding_staff: "Boarding Staff",
+  invigilator: "Invigilator",
+};
+
 
 const RESPONDENT_TYPES_IN_MODAL = [
   "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator",
@@ -159,6 +171,7 @@ export default function CaseDetail() {
   const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [assigningToolId, setAssigningToolId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
   
   const [newAssignment, setNewAssignment] = useState({
@@ -637,6 +650,53 @@ export default function CaseDetail() {
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       }
     });
+  };
+
+  const dismissToolMut = useMutation({
+    mutationFn: async (toolId: string) => {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/dismiss-recommended-tool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolId }),
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Failed to dismiss tool");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    },
+  });
+
+  const handleAssignTool = async (rec: { toolId: string; name: string }) => {
+    const toolData = (tools ?? []).find(t => t.id === rec.toolId);
+    const respondentTypes = toolData?.respondentTypes ?? [];
+    if (respondentTypes.length === 0) {
+      toast({ title: "No respondent types", description: "This tool has no respondent types configured.", variant: "destructive" });
+      return;
+    }
+    setAssigningToolId(rec.toolId);
+    try {
+      let count = 0;
+      for (const rt of respondentTypes) {
+        await createAssignmentMut.mutateAsync({
+          caseId,
+          data: {
+            toolId: rec.toolId,
+            respondentType: rt as CreateAssignmentRequestRespondentType,
+            respondentLabel: RESPONDENT_LABELS[rt] ?? rt,
+          },
+        });
+        count++;
+      }
+      toast({ title: `${rec.name} assigned`, description: `Added ${count} assignment${count !== 1 ? "s" : ""} (${respondentTypes.map(rt => RESPONDENT_LABELS[rt] ?? rt).join(", ")}).` });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
+    } catch {
+      toast({ title: "Error assigning tool", variant: "destructive" });
+    } finally {
+      setAssigningToolId(null);
+    }
   };
 
   const handleOpenEdit = () => {
@@ -1244,24 +1304,70 @@ export default function CaseDetail() {
                     )}
 
                     {/* Recommended Tools */}
-                    {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (
-                      <div>
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Recommended Assessment Tools</span>
-                        <div className="space-y-2">
-                          {(c.intakeAnalysis.recommendedTools as any[]).map((t: any) => (
-                            <div key={t.toolId} className="bg-white rounded-lg border border-blue-100 p-3">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-sm font-semibold text-slate-800">{t.name}</span>
-                                <Badge className={`text-xs shrink-0 ${t.priority === 'essential' ? 'bg-red-100 text-red-700 border-red-200' : t.priority === 'recommended' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} variant="outline">
-                                  {t.priority}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-slate-500">{t.rationale}</p>
-                            </div>
-                          ))}
+                    {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (() => {
+                      const dismissedIds = new Set<string>(
+                        Array.isArray((c.intakeAnalysis as any).dismissedToolIds)
+                          ? (c.intakeAnalysis as any).dismissedToolIds
+                          : []
+                      );
+                      const visibleTools = (c.intakeAnalysis.recommendedTools as any[]).filter((t: any) => !dismissedIds.has(t.toolId));
+                      if (visibleTools.length === 0) return null;
+                      return (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Recommended Assessment Tools</span>
+                          <div className="space-y-2">
+                            {visibleTools.map((t: any) => {
+                              const alreadyAssigned = (c.assignments ?? []).some((a: any) => a.toolId === t.toolId);
+                              const isAssigning = assigningToolId === t.toolId;
+                              const toolData = (tools ?? []).find(tool => tool.id === t.toolId);
+                              const respondentTypes = toolData?.respondentTypes ?? [];
+                              return (
+                                <div key={t.toolId} className={`bg-white rounded-lg border p-3 transition-colors ${alreadyAssigned ? 'border-emerald-200 bg-emerald-50/30' : 'border-blue-100'}`}>
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-semibold text-slate-800">{t.name}</span>
+                                        <Badge className={`text-xs shrink-0 ${t.priority === 'essential' ? 'bg-red-100 text-red-700 border-red-200' : t.priority === 'recommended' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} variant="outline">
+                                          {t.priority}
+                                        </Badge>
+                                        {alreadyAssigned && (
+                                          <span className="text-xs text-emerald-600 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">Assigned</span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-1">{t.rationale}</p>
+                                      {respondentTypes.length > 0 && (
+                                        <p className="text-[10px] text-slate-400 mt-1">Respondents: {respondentTypes.map((rt: string) => RESPONDENT_LABELS[rt] ?? rt).join(", ")}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {(role === "admin" || role === "psychometrician") && (
+                                    <div className="flex gap-2 mt-2 pt-2 border-t border-blue-50">
+                                      <Button
+                                        size="sm"
+                                        className={`h-7 text-xs gap-1.5 flex-1 ${alreadyAssigned ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                                        disabled={isAssigning || alreadyAssigned}
+                                        onClick={() => handleAssignTool({ toolId: t.toolId, name: t.name })}
+                                      >
+                                        {isAssigning ? "Assigning…" : alreadyAssigned ? "✓ Assigned" : "Assign"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 text-xs text-slate-500 hover:text-red-600 hover:border-red-200"
+                                        disabled={dismissToolMut.isPending && dismissToolMut.variables === t.toolId}
+                                        onClick={() => dismissToolMut.mutate(t.toolId)}
+                                      >
+                                        Dismiss
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {role === "admin" && (
                       <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">

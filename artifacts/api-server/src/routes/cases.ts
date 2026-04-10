@@ -596,4 +596,24 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   res.json(analysis);
 });
 
+router.post("/cases/:caseId/dismiss-recommended-tool", authMiddleware, async (req, res) => {
+  const { toolId } = req.body;
+  if (!toolId) { res.status(400).json({ error: "toolId required" }); return; }
+  const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  if (!rows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const current = (rows[0].intakeAnalysis as Record<string, unknown> | null) ?? {};
+  const dismissed = Array.isArray(current.dismissedToolIds)
+    ? [...(current.dismissedToolIds as string[])]
+    : [];
+  if (!dismissed.includes(toolId)) dismissed.push(toolId);
+  const updated = await db.update(casesTable)
+    .set({ intakeAnalysis: { ...current, dismissedToolIds: dismissed }, updatedAt: new Date() })
+    .where(eq(casesTable.id, req.params.caseId))
+    .returning();
+  res.json(formatCase(updated[0]));
+});
+
 export default router;
