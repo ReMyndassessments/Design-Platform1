@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -414,6 +415,35 @@ export default function CaseDetail() {
     }>();
     for (const a of c.assignments) {
       if (INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
+      if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
+      const key = a.assignedToEmail
+        ? `email:${a.assignedToEmail}`
+        : `type:${a.respondentType}:${a.respondentLabel ?? ""}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          groupKey: key,
+          label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType,
+          respondentType: a.respondentType,
+          name: a.assignedToName ?? null,
+          email: a.assignedToEmail ?? null,
+          link: a.uniqueLink,
+          forms: [],
+        });
+      }
+      groups.get(key)!.forms.push({ id: a.id, name: a.toolName, status: a.status });
+    }
+    return [...groups.values()];
+  }, [c?.assignments]);
+
+  const intakeRespondentGroups = useMemo(() => {
+    if (!c?.assignments) return [];
+    const groups = new Map<string, {
+      groupKey: string; label: string; respondentType: string;
+      name: string | null; email: string | null; link: string;
+      forms: { id: string; name: string; status: string }[];
+    }>();
+    for (const a of c.assignments) {
+      if (!INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
       if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
       const key = a.assignedToEmail
         ? `email:${a.assignedToEmail}`
@@ -1254,159 +1284,154 @@ export default function CaseDetail() {
 
       <div className="space-y-6">
 
-        {/* ── Pre-Assessment Intake Forms ───────────────────────────── */}
+        {/* ── Step 1: Pre-Assessment Intake Forms ─── */}
         {!hideAssignments && (() => {
-          const ADMIN_SLOTS = [
-            {
-              key: "referral",
-              label: "Referral Form",
-              description: "Completed by the referring school or parent to initiate the assessment",
-              toolIds: ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"],
-              defaultToolId: "REFERRAL",
-              defaultRespondentType: "referring_teacher" as const,
-              icon: "📋",
-            },
-            {
-              key: "intake",
-              label: "Parent Intake Form",
-              description: "Comprehensive developmental, health, and family history from the parent",
-              toolIds: ["INTAKE"],
-              defaultToolId: "INTAKE",
-              defaultRespondentType: "parent" as const,
-              icon: "📝",
-            },
-            {
-              key: "consent",
-              label: "Consent Form",
-              description: "Parental consent for assessment, data storage, and AI-assisted analysis",
-              toolIds: ["CONSENT"],
-              defaultToolId: "CONSENT",
-              defaultRespondentType: "parent" as const,
-              icon: "✅",
-            },
+          const intakeAssignments = (c.assignments ?? []).filter(a => INTAKE_TOOL_IDS.has(a.toolId ?? ""));
+          const INTAKE_FORM_OPTIONS = [
+            { label: "Referral Form", toolId: "REFERRAL", respondentType: "referring_teacher", respondentLabel: "Referring Teacher" },
+            { label: "Parent Intake Form", toolId: "INTAKE", respondentType: "parent", respondentLabel: "Parent" },
+            { label: "Consent Form", toolId: "CONSENT", respondentType: "parent", respondentLabel: "Parent" },
           ];
-
-          const allAssignments = c.assignments ?? [];
-          const intakeComplete = ADMIN_SLOTS.every(slot =>
-            allAssignments.some(a => slot.toolIds.includes(a.toolId ?? "") && a.status === "completed")
-          );
-
           return (
             <Card className="border-none shadow-md">
-              <CardHeader className="pb-3 border-b bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold">1</span>
-                    Pre-Assessment Intake Forms
-                  </CardTitle>
-                  {intakeComplete ? (
-                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">All Complete ✓</span>
-                  ) : (
-                    <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">Complete before AI Analysis</span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Referral and Intake forms are needed to run the AI Analysis. Consent must be obtained before any testing begins.</p>
+              <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">1</span>
+                  Pre-Assessment Intake Forms
+                </CardTitle>
+                {(role === "admin" || role === "psychometrician") && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm">Add Form</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {INTAKE_FORM_OPTIONS.map(opt => {
+                        const alreadyAdded = intakeAssignments.some(a => a.toolId === opt.toolId);
+                        return (
+                          <DropdownMenuItem
+                            key={opt.toolId}
+                            disabled={alreadyAdded || assigningToolId === opt.toolId}
+                            onClick={async () => {
+                              setAssigningToolId(opt.toolId);
+                              try {
+                                await createAssignmentMut.mutateAsync({
+                                  caseId,
+                                  data: {
+                                    toolId: opt.toolId,
+                                    respondentType: opt.respondentType as CreateAssignmentRequestRespondentType,
+                                    respondentLabel: opt.respondentLabel,
+                                  },
+                                });
+                                toast({ title: `${opt.label} added` });
+                                queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+                              } catch {
+                                toast({ title: "Failed to add form", variant: "destructive" });
+                              } finally {
+                                setAssigningToolId(null);
+                              }
+                            }}
+                          >
+                            {alreadyAdded ? `✓ ${opt.label}` : opt.label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </CardHeader>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {ADMIN_SLOTS.map((slot, idx) => {
-                    const match = allAssignments.find(a => slot.toolIds.includes(a.toolId ?? ""));
-                    const status = match?.status ?? null;
-                    const isCompleted = status === "completed";
-                    const isSent = status === "sent" || status === "in_progress" || (status && status !== "completed" && status !== "not_started");
-                    const isAdded = !!match;
-                    const isAdding = assigningToolId === slot.defaultToolId;
-
-                    let statusBg = "bg-slate-50 border-slate-200";
-                    let stepColor = "bg-slate-100 text-slate-500";
-                    let statusLabel = "Not Added";
-                    let statusDot = "bg-slate-300";
-
-                    if (isCompleted) {
-                      statusBg = "bg-emerald-50/60 border-emerald-200";
-                      stepColor = "bg-emerald-100 text-emerald-700";
-                      statusLabel = "Completed";
-                      statusDot = "bg-emerald-500";
-                    } else if (isSent) {
-                      statusBg = "bg-amber-50/60 border-amber-200";
-                      stepColor = "bg-amber-100 text-amber-700";
-                      statusLabel = "Sent";
-                      statusDot = "bg-amber-400";
-                    } else if (isAdded) {
-                      statusBg = "bg-blue-50/60 border-blue-200";
-                      stepColor = "bg-blue-100 text-blue-700";
-                      statusLabel = "Not Started";
-                      statusDot = "bg-blue-400";
-                    }
-
-                    return (
-                      <div key={slot.key} className={`rounded-xl border p-4 flex flex-col gap-3 transition-colors ${statusBg}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${stepColor}`}>{idx + 1}</span>
-                            <span className="text-sm font-semibold text-slate-800 leading-tight">{slot.label}</span>
+              <CardContent className="p-0">
+                {intakeAssignments.length === 0 ? (
+                  <div className="p-10 text-center text-slate-500 flex flex-col items-center gap-2">
+                    <FileBarChart size={28} className="text-slate-300" />
+                    <p className="text-sm">No intake forms added yet.</p>
+                    {(role === "admin" || role === "psychometrician") && (
+                      <p className="text-xs text-slate-400">Use "Add Form" above to add the Referral, Intake, and Consent forms.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {intakeAssignments.map(a => (
+                      <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h4 className="font-semibold text-slate-900">{a.toolName}</h4>
+                            {getStatusBadge(a.status)}
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`w-2 h-2 rounded-full ${statusDot}`} />
-                            <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
+                          <div className="flex items-center text-sm text-slate-500 gap-4 flex-wrap">
+                            <span className="font-medium text-slate-700">{RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType}{a.respondentLabel ? `: ${a.respondentLabel}` : ""}</span>
+                            <span>Assigned to: {a.assignedToName || 'Unspecified'}</span>
+                            {a.assignedToEmail && <span className="text-slate-400">{a.assignedToEmail}</span>}
                           </div>
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-snug">{slot.description}</p>
-                        {match && (
-                          <div className="text-[11px] text-slate-400 flex flex-col gap-0.5">
-                            {match.assignedToName && <span>To: <span className="font-medium text-slate-600">{match.assignedToName}</span></span>}
-                            {match.respondentLabel && <span>Role: <span className="text-slate-500">{match.respondentLabel}</span></span>}
-                          </div>
-                        )}
-                        <div className="flex gap-2 mt-auto">
-                          {isCompleted ? (
-                            <a
-                              href={`/cases/${caseId}/forms/${match!.id}/responses`}
-                              className="inline-flex items-center justify-center h-7 text-xs flex-1 px-3 rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-colors"
-                            >
-                              View Response
-                            </a>
-                          ) : isAdded ? (
-                            <span className="text-[11px] text-slate-400 italic flex items-center">Awaiting completion…</span>
-                          ) : role === "admin" ? (
-                            <Button
-                              size="sm"
-                              className="h-7 text-xs flex-1 bg-violet-600 hover:bg-violet-700"
-                              disabled={isAdding}
-                              onClick={async () => {
-                                setAssigningToolId(slot.defaultToolId);
-                                try {
-                                  await createAssignmentMut.mutateAsync({
-                                    caseId,
-                                    data: {
-                                      toolId: slot.defaultToolId,
-                                      respondentType: slot.defaultRespondentType as CreateAssignmentRequestRespondentType,
-                                      respondentLabel: slot.defaultRespondentType === "parent" ? "Parent" : "Referring Teacher",
-                                    },
-                                  });
-                                  toast({ title: `${slot.label} added`, description: "You can now send it from the Assignments section below." });
-                                  queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-                                  queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
-                                } catch {
-                                  toast({ title: "Failed to add form", variant: "destructive" });
-                                } finally {
-                                  setAssigningToolId(null);
-                                }
-                              }}
-                            >
-                              {isAdding ? "Adding…" : "Add Form"}
-                            </Button>
+                        <div className="flex gap-2 flex-wrap">
+                          {a.status === 'completed' ? (
+                            <Link href={`/cases/${caseId}/response/${a.id}`}>
+                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                <Eye size={14} /> View Response
+                              </Button>
+                            </Link>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">Not yet assigned</span>
+                            <>
+                              <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }}><QrCode size={16} /></Button>
+                              <Button variant="outline" size="sm" className="bg-white" title="Copy Link" onClick={() => copyLink(a.uniqueLink)}><Copy size={16} /></Button>
+                              <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}><ExternalLink size={16} /></Button>
+                            </>
+                          )}
+                          {(role === "admin" || role === "psychometrician") && (
+                            <Button variant="outline" size="sm" className="bg-white text-red-500 hover:text-red-700 hover:border-red-300" title="Remove" onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}>
+                              <Trash2 size={16} />
+                            </Button>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
+                {intakeRespondentGroups.length > 0 && (role === "admin" || role === "psychometrician") && (
+                  <div className="border-t">
+                    <div className="px-6 py-3 flex items-center gap-2 bg-slate-50/70">
+                      <Send size={14} className="text-primary" />
+                      <span className="text-sm font-semibold text-slate-700">Send to Respondents</span>
+                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{intakeRespondentGroups.length} respondent{intakeRespondentGroups.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="divide-y">
+                      {intakeRespondentGroups.map(group => {
+                        const completedCount = group.forms.filter(f => f.status === "completed").length;
+                        const allDone = completedCount === group.forms.length;
+                        return (
+                          <div key={group.groupKey} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="font-semibold text-slate-800 text-sm">{group.name ?? group.label}</span>
+                                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
+                                {allDone
+                                  ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">All Complete</span>
+                                  : <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{completedCount}/{group.forms.length} done</span>
+                                }
+                              </div>
+                              <div className="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                                {group.email && <span className="text-slate-400">{group.email}</span>}
+                                <span>{group.forms.map(f => f.name).join(" · ")}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0 flex-wrap">
+                              <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}><QrCode size={15} /></Button>
+                              <Button variant="outline" size="sm" className="bg-white" title="Copy link" onClick={() => copyLink(group.link)}><Copy size={15} /></Button>
+                              <Button size="sm" className="gap-1.5" onClick={() => { setSendEmailTarget({ groupKey: group.groupKey, label: group.label, name: group.name ?? "", email: group.email ?? "", link: group.link, formNames: group.forms.map(f => f.name), respondentRole: group.label }); setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" }); }}>
+                                <Send size={14} /> Send Email
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
+
+
         })()}
 
         {showAiCard && (() => {
@@ -1830,7 +1855,10 @@ export default function CaseDetail() {
         {!hideAssignments && (
           <Card className="border-none shadow-md">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
-              <CardTitle>Assessment Forms & Assignments</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">3</span>
+                Finalize and Assign Assessment Battery
+              </CardTitle>
               <div className="flex gap-2">
                 {hasCdpBattery && (
                   <Link href={`/cases/${caseId}/cdp`}>
@@ -1851,7 +1879,7 @@ export default function CaseDetail() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {(!c.assignments || c.assignments.length === 0) ? (
+              {(!c.assignments || c.assignments.filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).length === 0) ? (
                 <div className="p-12 text-center text-slate-500 flex flex-col items-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                     <FileBarChart size={32} />
@@ -1860,7 +1888,7 @@ export default function CaseDetail() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {c.assignments.map(a => (
+                  {c.assignments.filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).map(a => (
                     <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
@@ -1949,7 +1977,7 @@ export default function CaseDetail() {
                   <Users size={22} className="text-slate-400" />
                 </div>
                 <p className="font-medium text-slate-700">No external respondents assigned yet</p>
-                <p className="text-sm text-slate-500">Add a parent, teacher, or other external respondent in the <span className="font-medium text-slate-700">Assessment Forms &amp; Assignments</span> section above — they'll appear here once assigned.</p>
+                <p className="text-sm text-slate-500">Add a parent, teacher, or other external respondent in the <span className="font-medium text-slate-700">Finalize and Assign Assessment Battery</span> section above — they'll appear here once assigned.</p>
               </div>
             ) : (
               <div className="divide-y">
