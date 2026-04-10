@@ -163,6 +163,22 @@ export default function CaseDetail() {
     onError: () => toast({ title: "Could not step back", variant: "destructive" }),
   });
 
+  const dismissToolMut = useMutation({
+    mutationFn: async (toolId: string) => {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/dismiss-recommended-tool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolId }),
+        credentials: "include",
+      });
+      if (!r.ok) throw new Error("Failed to dismiss tool");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+    },
+  });
+
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
@@ -651,22 +667,6 @@ export default function CaseDetail() {
       }
     });
   };
-
-  const dismissToolMut = useMutation({
-    mutationFn: async (toolId: string) => {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/dismiss-recommended-tool`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolId }),
-        credentials: "include",
-      });
-      if (!r.ok) throw new Error("Failed to dismiss tool");
-      return r.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-    },
-  });
 
   const handleAssignTool = async (rec: { toolId: string; name: string }) => {
     const toolData = (tools ?? []).find(t => t.id === rec.toolId);
