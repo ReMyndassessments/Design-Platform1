@@ -1979,6 +1979,15 @@ export default function CaseDetail() {
                             </Button>
                           </>
                         )}
+                        {a.respondentType === 'parent' && a.status !== 'completed' && (
+                          <Button
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                            onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}
+                          >
+                            <Play size={14} className="mr-1" /> Launch Guided
+                          </Button>
+                        )}
                         {a.respondentType === 'self' && a.status !== 'completed' && (
                           <Link href={`/cases/${caseId}/self-report`}>
                             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
