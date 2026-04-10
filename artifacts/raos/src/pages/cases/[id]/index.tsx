@@ -1840,7 +1840,7 @@ export default function CaseDetail() {
                     </Button>
                   </Link>
                 )}
-                {role === "admin" && (
+                {(role === "admin" || role === "psychometrician") && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
                       <LayoutGrid size={13} /> Assign by Product
@@ -1913,7 +1913,7 @@ export default function CaseDetail() {
                             </Button>
                           </Link>
                         )}
-                        {role === "admin" && (
+                        {(role === "admin" || role === "psychometrician") && (
                           <Button
                             variant="outline" size="sm"
                             className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
