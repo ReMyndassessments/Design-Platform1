@@ -1354,14 +1354,25 @@ export default function CaseDetail() {
                     {intakeAssignments.map(a => (
                       <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-1">
+                          <div className="flex items-center gap-3 mb-1 flex-wrap">
                             <h4 className="font-semibold text-slate-900">{a.toolName}</h4>
                             {getStatusBadge(a.status)}
+                            {c.referralInvite?.formId === a.toolId && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded-full">
+                                <Link2 size={10} /> Via inquiry portal
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center text-sm text-slate-500 gap-4 flex-wrap">
                             <span className="font-medium text-slate-700">{RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType}{a.respondentLabel ? `: ${a.respondentLabel}` : ""}</span>
-                            <span>Assigned to: {a.assignedToName || 'Unspecified'}</span>
+                            {c.referralInvite?.formId === a.toolId
+                              ? <span>From: {c.referralInvite.toName}{c.referralInvite.schoolName ? ` · ${c.referralInvite.schoolName}` : ""}</span>
+                              : <span>Assigned to: {a.assignedToName || 'Unspecified'}</span>
+                            }
                             {a.assignedToEmail && <span className="text-slate-400">{a.assignedToEmail}</span>}
+                            {c.referralInvite?.formId === a.toolId && c.referralInvite.toEmail && (
+                              <span className="text-slate-400">{c.referralInvite.toEmail}</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2 flex-wrap">

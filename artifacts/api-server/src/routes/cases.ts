@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -241,16 +241,28 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  const [assignments, scores] = await Promise.all([
+  const [assignments, scores, referralInviteRows] = await Promise.all([
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
+    db.select().from(referralInvitesTable).where(eq(referralInvitesTable.resultingCaseId, req.params.caseId)).limit(1),
   ]);
+  const referralInvite = referralInviteRows[0]
+    ? {
+        token: referralInviteRows[0].token,
+        formId: referralInviteRows[0].formId,
+        toName: referralInviteRows[0].toName,
+        toEmail: referralInviteRows[0].toEmail,
+        schoolName: referralInviteRows[0].schoolName,
+        usedAt: referralInviteRows[0].usedAt?.toISOString() ?? null,
+      }
+    : null;
   res.json({
     ...formatCase(c),
     intakeData: c.intakeData,
     intakeAnalysis: c.intakeAnalysis,
     assignments,
     scores,
+    referralInvite,
   });
 });
 
