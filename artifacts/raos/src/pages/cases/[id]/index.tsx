@@ -121,7 +121,7 @@ export default function CaseDetail() {
   const queryClient = useQueryClient();
   
   const [, setLocation] = useLocation();
-  const { data: currentUser } = useGetCurrentUser();
+  const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const { data: c, isLoading, isError, error } = useGetCase(caseId);
   const advancePhaseMut = useAdvanceCasePhase();
   const analyzeIntakeMut = useAnalyzeIntake();
@@ -391,7 +391,7 @@ export default function CaseDetail() {
 
   const role = currentUser?.role ?? "psychometrician";
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
-  const canAdvance = canAdvancePhase(role) && c.currentPhase !== "complete";
+  const canAdvance = !userLoading && canAdvancePhase(role) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
   const showAiCard = isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
@@ -412,8 +412,9 @@ export default function CaseDetail() {
 
   const handleAdvancePhase = () => {
     advancePhaseMut.mutate({ caseId }, {
-      onSuccess: () => {
+      onSuccess: (updatedCase) => {
         toast({ title: "Phase advanced" });
+        queryClient.setQueryData([`/api/cases/${caseId}`], updatedCase);
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       },
       onError: () => toast({ title: "Cannot advance this phase", description: "Your role does not allow advancing the current phase.", variant: "destructive" })
