@@ -62,6 +62,7 @@ function displayPhase(phase: string): string {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
+const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor"]);
 
 
 const RESPONDENT_TYPES_IN_MODAL = [
@@ -374,6 +375,36 @@ export default function CaseDetail() {
     }
   };
 
+  // Must be before early returns to satisfy React hooks rules
+  const respondentGroups = useMemo(() => {
+    if (!c?.assignments) return [];
+    const groups = new Map<string, {
+      groupKey: string; label: string; respondentType: string;
+      name: string | null; email: string | null; link: string;
+      forms: { id: string; name: string; status: string }[];
+    }>();
+    for (const a of c.assignments) {
+      if (INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
+      if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
+      const key = a.assignedToEmail
+        ? `email:${a.assignedToEmail}`
+        : `type:${a.respondentType}:${a.respondentLabel ?? ""}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          groupKey: key,
+          label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType,
+          respondentType: a.respondentType,
+          name: a.assignedToName ?? null,
+          email: a.assignedToEmail ?? null,
+          link: a.uniqueLink,
+          forms: [],
+        });
+      }
+      groups.get(key)!.forms.push({ id: a.id, name: a.toolName, status: a.status });
+    }
+    return [...groups.values()];
+  }, [c?.assignments]);
+
   if (isLoading) return <div className="flex justify-center p-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   const isForbidden = isError && (error as { status?: number })?.status === 403;
@@ -405,37 +436,6 @@ export default function CaseDetail() {
   const prevPhaseName = currentPhaseIndex > 0
     ? (PHASE_LABELS[PHASES[currentPhaseIndex - 1]] ?? PHASES[currentPhaseIndex - 1])
     : null;
-
-  // Group external assignments by respondent for dispatch panel
-  const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor"]);
-  const respondentGroups = useMemo(() => {
-    if (!c.assignments) return [];
-    const groups = new Map<string, {
-      groupKey: string; label: string; respondentType: string;
-      name: string | null; email: string | null; link: string;
-      forms: { id: string; name: string; status: string }[];
-    }>();
-    for (const a of c.assignments) {
-      if (INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
-      if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
-      const key = a.assignedToEmail
-        ? `email:${a.assignedToEmail}`
-        : `type:${a.respondentType}:${a.respondentLabel ?? ""}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          groupKey: key,
-          label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType,
-          respondentType: a.respondentType,
-          name: a.assignedToName ?? null,
-          email: a.assignedToEmail ?? null,
-          link: a.uniqueLink,
-          forms: [],
-        });
-      }
-      groups.get(key)!.forms.push({ id: a.id, name: a.toolName, status: a.status });
-    }
-    return [...groups.values()];
-  }, [c.assignments]);
 
   const filteredTools = tools?.filter(t => {
     if (role === "admin") return true;
