@@ -1253,13 +1253,179 @@ export default function CaseDetail() {
       })()}
 
       <div className="space-y-6">
-        {showAiCard && (
+
+        {/* ── Pre-Assessment Intake Forms ───────────────────────────── */}
+        {!hideAssignments && (() => {
+          const ADMIN_SLOTS = [
+            {
+              key: "referral",
+              label: "Referral Form",
+              description: "Completed by the referring school or parent to initiate the assessment",
+              toolIds: ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"],
+              defaultToolId: "REFERRAL",
+              defaultRespondentType: "referring_teacher" as const,
+              icon: "📋",
+            },
+            {
+              key: "intake",
+              label: "Parent Intake Form",
+              description: "Comprehensive developmental, health, and family history from the parent",
+              toolIds: ["INTAKE"],
+              defaultToolId: "INTAKE",
+              defaultRespondentType: "parent" as const,
+              icon: "📝",
+            },
+            {
+              key: "consent",
+              label: "Consent Form",
+              description: "Parental consent for assessment, data storage, and AI-assisted analysis",
+              toolIds: ["CONSENT"],
+              defaultToolId: "CONSENT",
+              defaultRespondentType: "parent" as const,
+              icon: "✅",
+            },
+          ];
+
+          const allAssignments = c.assignments ?? [];
+          const intakeComplete = ADMIN_SLOTS.every(slot =>
+            allAssignments.some(a => slot.toolIds.includes(a.toolId ?? "") && a.status === "completed")
+          );
+
+          return (
+            <Card className="border-none shadow-md">
+              <CardHeader className="pb-3 border-b bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold">1</span>
+                    Pre-Assessment Intake Forms
+                  </CardTitle>
+                  {intakeComplete ? (
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">All Complete ✓</span>
+                  ) : (
+                    <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">Complete before AI Analysis</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">These forms must be sent out and completed before running the AI Intake Analysis.</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {ADMIN_SLOTS.map((slot, idx) => {
+                    const match = allAssignments.find(a => slot.toolIds.includes(a.toolId ?? ""));
+                    const status = match?.status ?? null;
+                    const isCompleted = status === "completed";
+                    const isSent = status === "sent" || status === "in_progress" || (status && status !== "completed" && status !== "not_started");
+                    const isAdded = !!match;
+                    const isAdding = assigningToolId === slot.defaultToolId;
+
+                    let statusBg = "bg-slate-50 border-slate-200";
+                    let stepColor = "bg-slate-100 text-slate-500";
+                    let statusLabel = "Not Added";
+                    let statusDot = "bg-slate-300";
+
+                    if (isCompleted) {
+                      statusBg = "bg-emerald-50/60 border-emerald-200";
+                      stepColor = "bg-emerald-100 text-emerald-700";
+                      statusLabel = "Completed";
+                      statusDot = "bg-emerald-500";
+                    } else if (isSent) {
+                      statusBg = "bg-amber-50/60 border-amber-200";
+                      stepColor = "bg-amber-100 text-amber-700";
+                      statusLabel = "Sent";
+                      statusDot = "bg-amber-400";
+                    } else if (isAdded) {
+                      statusBg = "bg-blue-50/60 border-blue-200";
+                      stepColor = "bg-blue-100 text-blue-700";
+                      statusLabel = "Not Started";
+                      statusDot = "bg-blue-400";
+                    }
+
+                    return (
+                      <div key={slot.key} className={`rounded-xl border p-4 flex flex-col gap-3 transition-colors ${statusBg}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${stepColor}`}>{idx + 1}</span>
+                            <span className="text-sm font-semibold text-slate-800 leading-tight">{slot.label}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`w-2 h-2 rounded-full ${statusDot}`} />
+                            <span className="text-[11px] font-medium text-slate-500">{statusLabel}</span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-snug">{slot.description}</p>
+                        {match && (
+                          <div className="text-[11px] text-slate-400 flex flex-col gap-0.5">
+                            {match.assignedToName && <span>To: <span className="font-medium text-slate-600">{match.assignedToName}</span></span>}
+                            {match.respondentLabel && <span>Role: <span className="text-slate-500">{match.respondentLabel}</span></span>}
+                          </div>
+                        )}
+                        <div className="flex gap-2 mt-auto">
+                          {isCompleted ? (
+                            <a
+                              href={`/cases/${caseId}/forms/${match!.id}/responses`}
+                              className="inline-flex items-center justify-center h-7 text-xs flex-1 px-3 rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-colors"
+                            >
+                              View Response
+                            </a>
+                          ) : isAdded ? (
+                            <span className="text-[11px] text-slate-400 italic flex items-center">Awaiting completion…</span>
+                          ) : role === "admin" ? (
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs flex-1 bg-violet-600 hover:bg-violet-700"
+                              disabled={isAdding}
+                              onClick={async () => {
+                                setAssigningToolId(slot.defaultToolId);
+                                try {
+                                  await createAssignmentMut.mutateAsync({
+                                    caseId,
+                                    data: {
+                                      toolId: slot.defaultToolId,
+                                      respondentType: slot.defaultRespondentType as CreateAssignmentRequestRespondentType,
+                                      respondentLabel: slot.defaultRespondentType === "parent" ? "Parent" : "Referring Teacher",
+                                    },
+                                  });
+                                  toast({ title: `${slot.label} added`, description: "You can now send it from the Assignments section below." });
+                                  queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+                                  queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
+                                } catch {
+                                  toast({ title: "Failed to add form", variant: "destructive" });
+                                } finally {
+                                  setAssigningToolId(null);
+                                }
+                              }}
+                            >
+                              {isAdding ? "Adding…" : "Add Form"}
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Not yet assigned</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {showAiCard && (() => {
+          const allAssignments2 = c.assignments ?? [];
+          const INTAKE_TOOL_IDS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"],["CONSENT"]];
+          const intakeFormsComplete = INTAKE_TOOL_IDS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
+          return (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center text-blue-900">
-                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain mr-2" />
-                  AI Intake Analysis
-                </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-lg flex items-center text-blue-900 gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-200 text-blue-800 text-xs font-bold shrink-0">2</span>
+                    <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
+                    AI Intake Analysis
+                  </CardTitle>
+                  {!intakeFormsComplete && !c.intakeAnalysis && (
+                    <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full shrink-0">Complete Step 1 first</span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {c.intakeAnalysis ? (
@@ -1391,7 +1557,8 @@ export default function CaseDetail() {
                 )}
               </CardContent>
             </Card>
-          )}
+          );
+        })()}
 
           {/* Invigilation Meeting Room — assessment phase only */}
           {c.currentPhase === 'assessment' && (() => {
