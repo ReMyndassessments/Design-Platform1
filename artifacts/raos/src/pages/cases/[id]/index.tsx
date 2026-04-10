@@ -397,7 +397,7 @@ export default function CaseDetail() {
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = canAdvancePhase(role, c.currentPhase) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
-  const showAiCard = role === "admin" && isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
+  const showAiCard = isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
   const showInvigilatorPanel = role === 'assessment_invigilator' && c.currentPhase === 'assessment';
   const hasLeftContent = showAiCard || showMeetingCard;
@@ -1232,16 +1232,24 @@ export default function CaseDetail() {
                       </div>
                     )}
 
-                    <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">
-                      {analyzeIntakeMut.isPending ? "Re-analyzing..." : "Re-run Analysis"}
-                    </Button>
+                    {role === "admin" && (
+                      <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">
+                        {analyzeIntakeMut.isPending ? "Re-analyzing..." : "Re-run Analysis"}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-6">
-                    <p className="text-sm text-slate-500 mb-4">No AI analysis run yet for this case.</p>
-                    <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
-                      {analyzeIntakeMut.isPending ? "Analyzing..." : "Run AI Intake Analysis"}
-                    </Button>
+                    {role === "admin" ? (
+                      <>
+                        <p className="text-sm text-slate-500 mb-4">No AI analysis run yet for this case.</p>
+                        <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
+                          {analyzeIntakeMut.isPending ? "Analyzing..." : "Run AI Intake Analysis"}
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">No AI analysis has been run for this case yet. The admin will initiate this.</p>
+                    )}
                   </div>
                 )}
               </CardContent>
