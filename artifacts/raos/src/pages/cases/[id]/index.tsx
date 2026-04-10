@@ -1903,9 +1903,21 @@ export default function CaseDetail() {
                   {c.assignments
                     .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? ""))
                     .sort((a, b) => {
-                      const aInvig = a.respondentType === "invigilator" ? 1 : 0;
-                      const bInvig = b.respondentType === "invigilator" ? 1 : 0;
-                      return aInvig - bInvig;
+                      const ORDER: Record<string, number> = {
+                        parent: 0,
+                        teacher: 1,
+                        teacher1: 2,
+                        teacher2: 3,
+                        referring_teacher: 4,
+                        boarding_staff: 5,
+                        special_needs_teacher: 6,
+                        school_counselor: 7,
+                        self: 8,
+                        invigilator: 9,
+                      };
+                      const aOrder = ORDER[a.respondentType] ?? 5;
+                      const bOrder = ORDER[b.respondentType] ?? 5;
+                      return aOrder - bOrder;
                     })
                     .map(a => (
                     <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
