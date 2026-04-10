@@ -2170,8 +2170,7 @@ export default function CaseDetail() {
                     try {
                       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/send-respondent-email`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
                         body: JSON.stringify({
                           toEmail: sendEmailForm.email.trim(),
                           toName: sendEmailForm.name.trim(),
