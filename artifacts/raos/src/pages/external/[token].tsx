@@ -549,7 +549,7 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName, language 
 }) {
   const rawIdx = phaseIndex(currentPhase);
   const lastIdx = PHASES.length - 1;
-  const currentIdx = rawIdx === -1 ? lastIdx : Math.min(Math.max(rawIdx, FORMS_IDX), lastIdx);
+  const currentIdx = rawIdx === -1 ? 0 : Math.min(Math.max(rawIdx, 0), lastIdx);
   const currentLabel = phaseLabel(PHASES[currentIdx] ?? PHASES[FORMS_IDX], language);
 
   return (

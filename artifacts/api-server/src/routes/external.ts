@@ -137,9 +137,18 @@ router.get("/external/portal/:token", async (req, res) => {
       }
     }
 
+    // Map internal phases to the 6 phases visible to respondents
+    const rawPhaseA = caseData?.currentPhase ?? "pre_commitment";
+    const displayPhaseA =
+      rawPhaseA === "pre_commitment" ? "intake"
+      : rawPhaseA === "setup"        ? "forms"
+      : rawPhaseA === "final_review" ? "debrief"
+      : rawPhaseA === "complete"     ? "debrief"
+      : rawPhaseA;
+
     res.json({
       studentName: caseData?.studentName ?? "the student",
-      currentPhase: caseData?.currentPhase ?? "pre_commitment",
+      currentPhase: displayPhaseA,
       progressPercentage: caseData?.progressPercentage ?? 0,
       languagePreference: caseData?.languagePreference ?? "english",
       respondentLabel: assignment.respondentLabel,
@@ -223,7 +232,7 @@ router.get("/external/portal/:token", async (req, res) => {
     ];
     res.json({
       studentName: "the student",
-      currentPhase: "pre_commitment",
+      currentPhase: "intake",
       progressPercentage: 0,
       languagePreference: "english",
       respondentLabel: "Referring Teacher",
