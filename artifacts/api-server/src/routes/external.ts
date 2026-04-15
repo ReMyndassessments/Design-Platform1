@@ -137,11 +137,12 @@ router.get("/external/portal/:token", async (req, res) => {
       }
     }
 
-    // Map internal phases to the 6 phases visible to respondents
+    // Map internal phases to the 5 phases visible to respondents
     const rawPhaseA = caseData?.currentPhase ?? "pre_commitment";
     const displayPhaseA =
       rawPhaseA === "pre_commitment" ? "intake"
-      : rawPhaseA === "setup"        ? "forms"
+      : rawPhaseA === "setup"        ? "intake"
+      : rawPhaseA === "forms"        ? "intake"
       : rawPhaseA === "final_review" ? "debrief"
       : rawPhaseA === "complete"     ? "debrief"
       : rawPhaseA;
@@ -188,11 +189,15 @@ router.get("/external/portal/:token", async (req, res) => {
       blocked: reportTok.role === "teacher" && !reportTok.permissionGranted && !reportTok.adminOverride,
     } : null;
 
-    // Map internal admin phases to parent-visible phases
+    // Map internal phases to the 5 phases visible to respondents
     const rawPhase = caseData?.currentPhase ?? "debrief";
-    const displayPhase = rawPhase === "final_review" ? "debrief"
-      : rawPhase === "pre_commitment" || rawPhase === "intake" || rawPhase === "forms" || rawPhase === "report" || rawPhase === "scoring" || rawPhase === "assessment"
-        ? "debrief" : rawPhase;
+    const displayPhase =
+      rawPhase === "pre_commitment" ? "intake"
+      : rawPhase === "setup"        ? "intake"
+      : rawPhase === "forms"        ? "intake"
+      : rawPhase === "final_review" ? "debrief"
+      : rawPhase === "complete"     ? "debrief"
+      : rawPhase;
 
     res.json({
       studentName: caseData?.studentName ?? "the student",

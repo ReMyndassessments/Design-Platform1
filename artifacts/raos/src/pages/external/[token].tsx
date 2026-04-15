@@ -72,7 +72,6 @@ type PortalData = {
 
 const PHASES = [
   { key: "intake",         label: "Intake",     labelZh: "接收",   labelKo: "접수" },
-  { key: "forms",          label: "Forms",      labelZh: "表格",   labelKo: "양식" },
   { key: "assessment",     label: "Assessment", labelZh: "评估",   labelKo: "평가" },
   { key: "scoring",        label: "Scoring",    labelZh: "评分",   labelKo: "채점" },
   { key: "report",         label: "Report",     labelZh: "报告",   labelKo: "보고서" },
@@ -539,8 +538,6 @@ function getSuccessMessage(formType: string) {
 
 // ── Phase Tracker Component ───────────────────────────────────────────────────
 
-const FORMS_IDX = phaseIndex("forms");
-
 function PhaseTracker({ currentPhase, progressPercentage, studentName, language }: {
   currentPhase: string;
   progressPercentage: number;
@@ -550,7 +547,7 @@ function PhaseTracker({ currentPhase, progressPercentage, studentName, language 
   const rawIdx = phaseIndex(currentPhase);
   const lastIdx = PHASES.length - 1;
   const currentIdx = rawIdx === -1 ? 0 : Math.min(Math.max(rawIdx, 0), lastIdx);
-  const currentLabel = phaseLabel(PHASES[currentIdx] ?? PHASES[FORMS_IDX], language);
+  const currentLabel = phaseLabel(PHASES[currentIdx] ?? PHASES[0], language);
 
   return (
     <div className="bg-[#111827] rounded-2xl p-5 md:p-6 text-white shadow-xl">
