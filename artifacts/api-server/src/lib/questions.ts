@@ -1417,6 +1417,17 @@ export const RCADS_FORM: FormQuestion[] = [
 
 // ─── SCAS ──────────────────────────────────────────────────────────────────────
 export const SCAS_FORM: FormQuestion[] = [
+  {
+    id: "scas_instr",
+    type: "section_header",
+    text: "Spence Children's Anxiety Scale",
+    textChinese: "斯宾塞儿童焦虑量表",
+    textKorean: "스펜스 아동 불안 척도",
+    note: "Below is a list of things that children can be worried about or which can be a problem for children. For each item please indicate how often each of these things is a problem for you. Please answer every question.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Always (3)",
+    noteChinese: "以下是儿童可能担心或感到困扰的事项。请针对每个项目，选择这些事情对您造成困扰的频率。请回答所有项目。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)",
+    noteKorean: "아래는 아동이 걱정하거나 어려움을 겪을 수 있는 항목들입니다. 각 항목에 대해 해당 사항이 얼마나 자주 문제가 되는지 선택해 주세요. 모든 항목에 응답해 주세요.\n\n응답 척도: 전혀 없음 (0) · 때때로 (1) · 자주 (2) · 항상 (3)",
+    domain: "admin", options: [], optionsChinese: [], optionsKorean: [],
+  },
   { id: "scas1",  text: "I worry about things.", textChinese: "我会担心事情。", textKorean: "나는 일이 걱정된다.", type: "likert", options: NSOA_OPTIONS, optionsChinese: NSOA_OPTIONS_ZH, optionsKorean: NSOA_OPTIONS_KO, domain: "generalized_anxiety", required: true },
   { id: "scas2",  text: "I am scared of the dark.", textChinese: "我害怕黑暗。", textKorean: "어두운 것이 무섭다.", type: "likert", options: NSOA_OPTIONS, optionsChinese: NSOA_OPTIONS_ZH, optionsKorean: NSOA_OPTIONS_KO, domain: "physical_injury_fears", required: true },
   { id: "scas3",  text: "When I have a problem, I get a funny feeling in my stomach.", textChinese: "当我遇到问题时，我的胃部会有一种奇怪的感觉。", textKorean: "문제가 있을 때 배에 이상한 느낌이 든다.", type: "likert", options: NSOA_OPTIONS, optionsChinese: NSOA_OPTIONS_ZH, optionsKorean: NSOA_OPTIONS_KO, domain: "panic_agoraphobia", required: true },
