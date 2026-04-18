@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -2195,6 +2195,31 @@ async function patchInstructionHeaders() {
   }
 }
 
+async function reviseBFI44Form() {
+  try {
+    const rows = await db
+      .select({ formItems: assessmentToolsTable.formItems })
+      .from(assessmentToolsTable)
+      .where(eq(assessmentToolsTable.id, "BFI-44"))
+      .limit(1);
+
+    if (!rows.length) return;
+
+    const items = (rows[0].formItems ?? []) as any[];
+    // Idempotency: already up-to-date if header is present and 45 items total
+    if (items.length === 45 && items[0]?.id === "bfi44_instr") return;
+
+    await db
+      .update(assessmentToolsTable)
+      .set({ formItems: BFI_44_FORM as any })
+      .where(eq(assessmentToolsTable.id, "BFI-44"));
+
+    logger.info({ toolId: "BFI-44" }, "Wrote full BFI-44 form to DB");
+  } catch (err) {
+    logger.error({ err, toolId: "BFI-44" }, "Failed to write BFI-44 form");
+  }
+}
+
 async function reviseYBOCSSCForm() {
   try {
     const rows = await db
@@ -2225,6 +2250,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => reviseHIQForm())
   .then(() => reviseDYSRISKTalents())
   .then(() => reviseLASAForm())
+  .then(() => reviseBFI44Form())
   .then(() => reviseYBOCSSCForm())
   .then(() => patchInstructionHeaders())
   .then(() => {
