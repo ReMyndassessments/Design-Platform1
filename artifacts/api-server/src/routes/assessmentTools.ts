@@ -66,12 +66,13 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       note?: string;
       noteChinese?: string;
       noteKorean?: string;
+      rows?: StoredItem[];
     };
     const typeMap: Record<string, string> = {
       radio: "radio_group",
       multiple_choice: "radio_group",
     };
-    const questions = (tool.formItems as StoredItem[]).map(item => ({
+    const mapItem = (item: StoredItem): object => ({
       id: item.id,
       text: item.text,
       textChinese: item.textChinese,
@@ -85,7 +86,9 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       note: item.note,
       noteChinese: item.noteChinese,
       noteKorean: item.noteKorean,
-    }));
+      ...(item.rows ? { rows: item.rows.map(mapItem) } : {}),
+    });
+    const questions = (tool.formItems as StoredItem[]).map(mapItem);
     res.json({ toolId: id, questions });
     return;
   }
