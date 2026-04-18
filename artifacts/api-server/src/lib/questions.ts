@@ -1893,6 +1893,19 @@ const RCEP_SCALE_OPTIONS_ZH = ["从不", "很少", "有时", "经常", "非常�
 const RCEP_SCALE_OPTIONS_KO = ["전혀 없음", "거의 없음", "때때로", "자주", "매우 자주"];
 
 export const RCEP_CORE_FORM: FormQuestion[] = [
+  {
+    id: "rcep_instr",
+    type: "section_header",
+    domain: "admin",
+    required: false,
+    text: "ReMynd Comprehensive Educational Profile \u2014 Tier 2 Core (RCEP-Core)",
+    textChinese: "ReMynd\u5168\u9762\u6559\u80b2\u6863\u6848\u2014\u7b2c\u4e8c\u5c42\u6838\u5fc3\u7248 (RCEP-Core)",
+    textKorean: "ReMynd \uc885\ud569 \uad50\uc721 \ud504\ub85c\ud544 \u2014 Tier 2 \ud575\uc2ec\ud310 (RCEP-Core)",
+    note: "This whole-child screening tool covers 7 domains across 63 items: Attention Regulation, Executive Functioning, Emotional Regulation, Social Communication, Academic Persistence, Functional Impact, and Protective Factors. It may be completed by a teacher, parent, or the student. Rate how often each described behaviour is observed.\n\nResponse scale: 0 (Never) \u00b7 1 (Rarely) \u00b7 2 (Sometimes) \u00b7 3 (Often) \u00b7 4 (Very Often)",
+    noteChinese: "\u672c\u5168\u9762\u7b5b\u67e5\u5de5\u5177\u6db5\u76d663\u9879\uff0c\u5206\u4e3a7\u4e2a\u9886\u57df\uff1a\u6ce8\u610f\u529b\u8c03\u8282\u3001\u6267\u884c\u529f\u80fd\u3001\u60c5\u7eea\u8c03\u8282\u3001\u793e\u4ea4\u6c9f\u901a\u3001\u5b66\u4e1a\u575a\u6301\u6027\u3001\u529f\u80fd\u6027\u5f71\u54cd\u548c\u4fdd\u62a4\u6027\u56e0\u7d20\u3002\u53ef\u7531\u6559\u5e08\u3001\u5bb6\u957f\u6216\u5b66\u751f\u672c\u4eba\u586b\u5199\u3002\u8bf7\u8bc4\u5b9a\u6bcf\u79cd\u884c\u4e3a\u7684\u89c2\u5bdf\u9891\u7387\u3002\n\n\u56de\u5e94\u9009\u9879\uff1a0 (\u4ece\u4e0d) \u00b7 1 (\u5f88\u5c11) \u00b7 2 (\u6709\u65f6) \u00b7 3 (\u7ecf\u5e38) \u00b7 4 (\u975e\u5e38\u9891\u7e41)",
+    noteKorean: "\uc774 \uc885\ud569 \uc120\ubcc4 \ub3c4\uad6c\ub294 \uc8fc\uc758\ub825 \uc870\uc808, \uc2e4\ud589 \uae30\ub2a5, \uc815\uc11c \uc870\uc808, \uc0ac\ud68c\uc801 \uc758\uc0ac\uc18c\ud1b5, \ud559\uc5c5 \uc9c0\uc18d\uc131, \uae30\ub2a5\uc801 \uc601\ud5a5, \ubcf4\ud638 \uc694\uc778\uc758 7\uac1c \uc601\uc5ed 63\uac1c \ud56d\ubaa9\uc744 \ub2e4\ub8e8\uace0 \uc788\uc2b5\ub2c8\ub2e4. \uad50\uc0ac, \ubd80\ubaa8 \ub610\ub294 \ud559\uc0dd \ubcf8\uc778\uc774 \uc791\uc131\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uc124\uba85\ub41c \uac01 \ud589\ub3d9\uc774 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uad00\ucc30\ub418\ub294\uc9c0 \ud3c9\uac00\ud574 \uc8fc\uc138\uc694.\n\n\uc751\ub2f5 \ucca0\ub3c4: 0 (\uc804\ud600 \uc5c6\uc74c) \u00b7 1 (\uac70\uc758 \uc5c6\uc74c) \u00b7 2 (\ub54c\ub54c\ub85c) \u00b7 3 (\uc790\uc8fc) \u00b7 4 (\ub9e4\uc6b0 \uc790\uc8fc)",
+    options: [], optionsChinese: [], optionsKorean: [],
+  },
 
   // ── Domain 1: Attention Regulation ──────────────────────────────────────────
   { id: "rcep_sec1", text: "Domain 1: Attention Regulation", textChinese: "领域一：注意力调节", textKorean: "영역 1: 주의력 조절",
