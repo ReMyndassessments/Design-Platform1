@@ -19,6 +19,17 @@ const ta = (id: string, text: string, domain: string): FormQuestion => ({
   id, text, type: "textarea", domain, options: [], optionsChinese: [], optionsKorean: [],
 });
 
+const instr = (
+  id: string,
+  text: string, textChinese: string, textKorean: string,
+  note: string, noteChinese: string, noteKorean: string,
+): FormQuestion => ({
+  id, text, textChinese, textKorean,
+  type: "section_header", domain: "admin",
+  options: [], optionsChinese: [], optionsKorean: [],
+  required: false, note, noteChinese, noteKorean,
+});
+
 // ─── CDP-SR: Self-Regulation and Executive Function Profile ──────────────────
 
 export const CDP_SR_FORM: FormQuestion[] = [
@@ -134,6 +145,15 @@ export const CDP_SR_FORM: FormQuestion[] = [
 // ─── CDP-CL: Cognition & Learning Domain ────────────────────────────────────
 
 export const CDP_CL_FORM: FormQuestion[] = [
+  instr(
+    "cdp_cl_instr",
+    "CDP — Cognition & Learning",
+    "CDP — 认知与学习",
+    "CDP — 인지 및 학습",
+    "This assessment is completed by an educator or therapist who knows the learner well. For each item, rate how frequently the learner demonstrates the described behaviour in their typical learning and social environment.\n\nResponse scale: Always · Often · Rarely · Never",
+    "本量表由了解学习者的教育者或治疗师填写。请根据学习者在典型学习和社交环境中的表现，评估每项行为出现的频率。\n\n回应选项：经常 · 有时 · 很少 · 从不",
+    "이 평가는 학습자를 잘 아는 교육자 또는 치료사가 작성합니다. 학습자의 전형적인 학습 및 사회적 환경에서 각 행동이 얼마나 자주 나타나는지 평가해 주세요.\n\n응답 척도: 항상 · 자주 · 드물게 · 전혀",
+  ),
   hdr("cdp_cl_d1_hdr", "Domain 1: Organization, Planning & Task Initiation", "organization_planning"),
   q("cdp_cl_d1_1", "Can the learner prepare appropriately by collecting required items for an activity?", "organization_planning"),
   q("cdp_cl_d1_2", "Does the learner respond appropriately to a warning call to transition to a new activity?", "organization_planning"),
@@ -250,6 +270,15 @@ export const CDP_CL_FORM: FormQuestion[] = [
 // ─── CDP-CI: Communication and Interaction ───────────────────────────────────
 
 export const CDP_CI_FORM: FormQuestion[] = [
+  instr(
+    "cdp_ci_instr",
+    "CDP — Communication and Interaction",
+    "CDP — 沟通与互动",
+    "CDP — 의사소통 및 상호작용",
+    "This assessment is completed by an educator or therapist who knows the learner well. For each item, rate how frequently the learner demonstrates the described behaviour in their typical learning and social environment.\n\nResponse scale: Always · Often · Rarely · Never",
+    "本量表由了解学习者的教育者或治疗师填写。请根据学习者在典型学习和社交环境中的表现，评估每项行为出现的频率。\n\n回应选项：经常 · 有时 · 很少 · 从不",
+    "이 평가는 학습자를 잘 아는 교육자 또는 치료사가 작성합니다. 학습자의 전형적인 학습 및 사회적 환경에서 각 행동이 얼마나 자주 나타나는지 평가해 주세요.\n\n응답 척도: 항상 · 자주 · 드물게 · 전혀",
+  ),
   hdr("cdp_ci_s1_hdr", "Attention and Listening", "attention_listening"),
   q("cdp_ci_s1_1", "Does the learner respond to prompts to listen?", "attention_listening"),
   q("cdp_ci_s1_2", "Can the learner concentrate in small groups?", "attention_listening"),
@@ -360,6 +389,15 @@ export const CDP_CI_FORM: FormQuestion[] = [
 // ─── CDP-SI: Social Interaction and Social Awareness ─────────────────────────
 
 export const CDP_SI_FORM: FormQuestion[] = [
+  instr(
+    "cdp_si_instr",
+    "CDP — Social Interaction and Social Awareness",
+    "CDP — 社会互动与社会意识",
+    "CDP — 사회적 상호작용 및 사회적 인식",
+    "This assessment is completed by an educator or therapist who knows the learner well. For each item, rate how frequently the learner demonstrates the described behaviour in their typical learning and social environment.\n\nResponse scale: Always · Often · Rarely · Never",
+    "本量表由了解学习者的教育者或治疗师填写。请根据学习者在典型学习和社交环境中的表现，评估每项行为出现的频率。\n\n回应选项：经常 · 有时 · 很少 · 从不",
+    "이 평가는 학습자를 잘 아는 교육자 또는 치료사가 작성합니다. 학습자의 전형적인 학습 및 사회적 환경에서 각 행동이 얼마나 자주 나타나는지 평가해 주세요.\n\n응답 척도: 항상 · 자주 · 드물게 · 전혀",
+  ),
   hdr("cdp_si_s1_hdr", "Peer Interaction", "peer_interaction"),
   q("cdp_si_s1_1", "Does the learner interact with a peer during an activity (e.g., playing football)?", "peer_interaction"),
 

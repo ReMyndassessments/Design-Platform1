@@ -466,6 +466,16 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["academic_engagement", "off_task_behavior", "disruptive_behavior"],
     scoringConfig: { max: 4, domains: {}, thresholds: { low: 25, mild: 50, moderate: 65 } },
     formItems: [
+      { id: "behavobs_instr",
+        text: "Assessment Behavior Observation",
+        textChinese: "评估行为观察",
+        textKorean: "평가 행동 관찰",
+        type: "section_header", domain: "admin", required: false,
+        options: [], optionsChinese: [], optionsKorean: [],
+        note: "This form is completed by the assessing clinician or psychometrist during the assessment session. Record your observations of the student's behaviour, presentation, and engagement throughout the session.",
+        noteChinese: "本表格由主评临床医生或心理测量师在评估过程中填写。请记录您在整个评估过程中对学生的行为、表现和参与情况的观察。",
+        noteKorean: "이 양식은 평가 세션 동안 평가 임상가 또는 심리측정사가 작성합니다. 세션 전반에 걸쳐 학생의 행동, 발표 및 참여에 대한 관찰을 기록해 주세요.",
+      },
       { id: "q1",  text: "Student Name:*",                    textChinese: "学生姓名:*",                    textKorean: "학생 이름:*",              type: "text",     domain: "admin",                  options: [], optionsChinese: [], optionsKorean: [] },
       { id: "q2",  text: "Date*",                             textChinese: "日期*",                         textKorean: "날짜*",                    type: "text",     domain: "admin",                  options: [], optionsChinese: [], optionsKorean: [] },
       { id: "q3",  text: "Observer (Psychometrist):*",        textChinese: "观察者（心理测量师）:*",        textKorean: "관찰자 (심리측정사):*",    type: "text",     domain: "admin",                  options: [], optionsChinese: [], optionsKorean: [] },
@@ -1333,7 +1343,163 @@ async function runMigrations() {
   }
 }
 
-Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()]).then(() => {
+async function patchInstructionHeaders() {
+  type H = { id: string; text: string; textChinese: string; textKorean: string; note: string; noteChinese: string; noteKorean: string };
+  const patches: Record<string, H> = {
+    "DASS-Y": {
+      id: "dassy_instr",
+      text: "Depression Anxiety and Stress Scales – Youth Version (DASS-Y)",
+      textChinese: "抑郁焦虑压力量表 — 青少年版 (DASS-Y)",
+      textKorean: "우울 불안 스트레스 척도 — 청소년판 (DASS-Y)",
+      note: "Below are some statements. Read each one and indicate how often it is true for you during the past 2 weeks.\n\nResponse scale: Not true (0) · A little true (1) · Fairly true (2) · Very true (3)",
+      noteChinese: "以下是一些陈述。请阅读每一项，并指出在过去两周内对您来说是否属实。\n\n回应选项：不符合 (0) · 有一点符合 (1) · 相当符合 (2) · 非常符合 (3)",
+      noteKorean: "아래는 몇 가지 진술입니다. 지난 2주 동안 자신에게 얼마나 해당하는지 각 항목을 읽고 선택해 주세요.\n\n응답 척도: 해당 없음 (0) · 약간 해당 (1) · 꽤 해당 (2) · 매우 해당 (3)",
+    },
+    "DASS42": {
+      id: "dass42_instr",
+      text: "Depression Anxiety Stress Scales – Long Form (DASS-42)",
+      textChinese: "抑郁焦虑压力量表 — 完整版 (DASS-42)",
+      textKorean: "우울 불안 스트레스 척도 — 전체판 (DASS-42)",
+      note: "Please read each statement and indicate how often it applied to you over the past week.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)",
+      noteChinese: "请阅读每项陈述，并指出在过去一周内该陈述对您的适用程度。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 几乎总是 (3)",
+      noteKorean: "지난 일주일 동안 각 항목이 자신에게 얼마나 해당했는지 읽고 선택해 주세요.\n\n응답 척도: 전혀 없음 (0) · 가끔 (1) · 자주 (2) · 거의 항상 (3)",
+    },
+    "AAQ2": {
+      id: "aaq2_instr",
+      text: "Acceptance and Action Questionnaire – Version 2 (AAQ-2)",
+      textChinese: "接受与行动问卷 — 第二版 (AAQ-2)",
+      textKorean: "수용 및 행동 질문지 제2판 (AAQ-2)",
+      note: "Below is a list of statements. Please rate how true each statement is for you, from 'Never true' to 'Always true'.\n\nResponse scale: Never true (1) · Very seldom true (2) · Seldom true (3) · Sometimes true (4) · Frequently true (5) · Almost always true (6) · Always true (7)",
+      noteChinese: "以下是一组陈述。请评定每项陈述对您的适用程度，从「从不符合」到「总是符合」。\n\n回应选项：从不符合 (1) · 极少符合 (2) · 很少符合 (3) · 有时符合 (4) · 经常符合 (5) · 几乎总是符合 (6) · 总是符合 (7)",
+      noteKorean: "아래 항목들이 자신에게 얼마나 해당하는지 '전혀 해당 없음'부터 '항상 해당'까지 평가해 주세요.\n\n응답 척도: 전혀 해당 없음 (1) · 거의 해당 없음 (2) · 드물게 해당 (3) · 때때로 해당 (4) · 자주 해당 (5) · 거의 항상 해당 (6) · 항상 해당 (7)",
+    },
+    "AQ": {
+      id: "aq_instr",
+      text: "Autism Spectrum Quotient (AQ)",
+      textChinese: "自闭症谱系商数 (AQ)",
+      textKorean: "자폐 스펙트럼 지수 (AQ)",
+      note: "For each statement below, please indicate how strongly you agree or disagree. There are no right or wrong answers.\n\nResponse scale: Definitely Agree · Slightly Agree · Slightly Disagree · Definitely Disagree",
+      noteChinese: "请对以下每项陈述表明您的同意或不同意程度。没有正确或错误的答案。\n\n回应选项：非常同意 · 稍微同意 · 稍微不同意 · 非常不同意",
+      noteKorean: "아래 각 항목에 대해 얼마나 동의하거나 동의하지 않는지 표시해 주세요. 정답이나 오답은 없습니다.\n\n응답 척도: 매우 동의 · 약간 동의 · 약간 불동의 · 매우 불동의",
+    },
+    "ASSQ": {
+      id: "assq_instr",
+      text: "Autism Spectrum Screening Questionnaire (ASSQ)",
+      textChinese: "自闭症谱系筛查问卷 (ASSQ)",
+      textKorean: "자폐 스펙트럼 선별 질문지 (ASSQ)",
+      note: "This form is completed by a parent or teacher who knows the child well. For each item, rate the child's behaviour based on your observations.\n\nResponse scale: No (0) · Somewhat (1) · Yes (2)",
+      noteChinese: "本量表由了解该儿童的家长或教师填写。请根据您的观察，对每项内容评定该儿童的行为表现。\n\n回应选项：否 (0) · 有一些 (1) · 是 (2)",
+      noteKorean: "이 양식은 아동을 잘 아는 부모 또는 교사가 작성합니다. 관찰을 바탕으로 각 항목에 대해 아동의 행동을 평가해 주세요.\n\n응답 척도: 아니오 (0) · 다소 (1) · 예 (2)",
+    },
+    "BRIEFCOPE": {
+      id: "briefcope_instr",
+      text: "Brief Coping Orientation to Problems Experienced (Brief COPE)",
+      textChinese: "简易应对方式问卷 (Brief COPE)",
+      textKorean: "스트레스 대처 방식 간이 척도 (Brief COPE)",
+      note: "The following questions ask about how you have been dealing with stress or a difficult situation. For each item, indicate to what extent you have been doing it.\n\nResponse scale: 1 – I haven't been doing this at all · 2 – A little bit · 3 – A medium amount · 4 – I've been doing this a lot",
+      noteChinese: "以下问题询问您如何应对压力或困难情况。请指出您在多大程度上采取了以下行为。\n\n回应选项：1 — 完全没有这样做 · 2 — 做了一点 · 3 — 做了适度的量 · 4 — 经常这样做",
+      noteKorean: "아래 항목들은 스트레스나 어려운 상황에 어떻게 대처하는지에 관한 것입니다. 각 항목을 어느 정도 하고 있는지 표시해 주세요.\n\n응답 척도: 1 — 전혀 하지 않음 · 2 — 조금 함 · 3 — 중간 정도 함 · 4 — 많이 함",
+    },
+    "CAT-Q": {
+      id: "catq_instr",
+      text: "Camouflaging Autistic Traits Questionnaire (CAT-Q)",
+      textChinese: "自闭症特质掩饰问卷 (CAT-Q)",
+      textKorean: "자폐적 특성 위장 질문지 (CAT-Q)",
+      note: "Below are statements about behaviours and strategies that some people use in social situations. Please rate how true each statement is for you.\n\nResponse scale: Strongly Disagree (1) · Disagree (2) · Somewhat Disagree (3) · Neither Agree nor Disagree (4) · Somewhat Agree (5) · Agree (6) · Strongly Agree (7)",
+      noteChinese: "以下是关于一些人在社交情境中使用的行为和策略的陈述。请评定每项陈述对您的适用程度。\n\n回应选项：强烈不同意 (1) · 不同意 (2) · 有些不同意 (3) · 中立 (4) · 有些同意 (5) · 同意 (6) · 强烈同意 (7)",
+      noteKorean: "아래는 일부 사람들이 사회적 상황에서 사용하는 행동과 전략에 관한 진술입니다. 각 진술이 자신에게 얼마나 해당하는지 평가해 주세요.\n\n응답 척도: 매우 불동의 (1) · 불동의 (2) · 약간 불동의 (3) · 중립 (4) · 약간 동의 (5) · 동의 (6) · 매우 동의 (7)",
+    },
+    "CFI": {
+      id: "cfi_instr",
+      text: "Cognitive Flexibility Inventory (CFI)",
+      textChinese: "认知灵活性量表 (CFI)",
+      textKorean: "인지 유연성 척도 (CFI)",
+      note: "Below are a series of statements about how you think and feel. Please indicate how much you agree or disagree with each statement.\n\nResponse scale: Strongly disagree (1) · Disagree (2) · Somewhat disagree (3) · Neutral (4) · Somewhat agree (5) · Agree (6) · Strongly agree (7)",
+      noteChinese: "以下是关于您思考和感受方式的一组陈述。请表明您对每项陈述的同意或不同意程度。\n\n回应选项：强烈不同意 (1) · 不同意 (2) · 有些不同意 (3) · 中立 (4) · 有些同意 (5) · 同意 (6) · 强烈同意 (7)",
+      noteKorean: "아래는 자신이 생각하고 느끼는 방식에 관한 일련의 진술입니다. 각 진술에 얼마나 동의하거나 불동의하는지 표시해 주세요.\n\n응답 척도: 매우 불동의 (1) · 불동의 (2) · 약간 불동의 (3) · 중립 (4) · 약간 동의 (5) · 동의 (6) · 매우 동의 (7)",
+    },
+    "DERS": {
+      id: "ders_instr",
+      text: "Difficulties in Emotion Regulation Scale (DERS)",
+      textChinese: "情绪调节困难量表 (DERS)",
+      textKorean: "정서 조절 곤란 척도 (DERS)",
+      note: "Please indicate how often the following statements apply to you.\n\nResponse scale: Almost Never (1) · Sometimes (2) · About half the time (3) · Most of the time (4) · Almost always (5)",
+      noteChinese: "请指出以下陈述在多大程度上适用于您。\n\n回应选项：几乎从不 (1) · 有时 (2) · 约半数时间 (3) · 大多数时间 (4) · 几乎总是 (5)",
+      noteKorean: "아래 진술이 자신에게 얼마나 자주 해당하는지 표시해 주세요.\n\n응답 척도: 거의 없음 (1) · 가끔 (2) · 절반 정도 (3) · 대부분의 경우 (4) · 거의 항상 (5)",
+    },
+    "PSWQ": {
+      id: "pswq_instr",
+      text: "Penn State Worry Questionnaire (PSWQ)",
+      textChinese: "宾夕法尼亚州担忧问卷 (PSWQ)",
+      textKorean: "걱정 질문지 (PSWQ)",
+      note: "Please indicate to what degree each of the following statements is typical for you.\n\nResponse scale: Not at all typical (1) · Rarely typical of me (2) · Somewhat typical of me (3) · Often typical of me (4) · Very typical of me (5)",
+      noteChinese: "请指出以下每项陈述在多大程度上是您的典型表现。\n\n回应选项：完全不是 (1) · 很少如此 (2) · 有时如此 (3) · 经常如此 (4) · 非常符合 (5)",
+      noteKorean: "아래 각 진술이 자신에게 어느 정도 해당하는지 표시해 주세요.\n\n응답 척도: 전혀 해당 없음 (1) · 거의 해당 없음 (2) · 약간 해당 (3) · 자주 해당 (4) · 매우 해당 (5)",
+    },
+    "ZUNG": {
+      id: "zung_instr",
+      text: "Zung Self-Rating Depression Scale",
+      textChinese: "抑郁自评量表 (Zung SDS)",
+      textKorean: "Zung 우울 자기평가 척도",
+      note: "Below are statements about how you have been feeling recently. Please rate how often each statement applies to you.\n\nResponse scale: A little of the time (1) · Some of the time (2) · Good part of the time (3) · Most of the time (4)",
+      noteChinese: "以下是关于您近期感受的陈述。请评定每项陈述对您的适用频率。\n\n回应选项：偶尔 (1) · 有时 (2) · 大部分时间 (3) · 绝大部分时间 (4)",
+      noteKorean: "아래는 최근의 기분에 관한 진술입니다. 각 진술이 자신에게 얼마나 자주 해당하는지 평가해 주세요.\n\n응답 척도: 가끔 (1) · 어느 정도 (2) · 상당 부분 (3) · 대부분의 경우 (4)",
+    },
+    "EAT26": {
+      id: "eat26_instr",
+      text: "Eating Attitudes Test-26 (EAT-26)",
+      textChinese: "饮食态度测验 (EAT-26)",
+      textKorean: "식이 태도 검사 (EAT-26)",
+      note: "Below are statements about eating, food, and your body. Please indicate how often each statement applies to you over the past month.\n\nResponse scale: Always · Usually · Often · Sometimes · Rarely · Never",
+      noteChinese: "以下是关于饮食、食物和身体的陈述。请指出在过去一个月内，每项陈述对您的适用频率。\n\n回应选项：总是 · 通常 · 经常 · 有时 · 很少 · 从不",
+      noteKorean: "아래는 식사, 음식, 신체에 관한 진술입니다. 지난 한 달 동안 각 진술이 자신에게 얼마나 자주 해당하는지 표시해 주세요.\n\n응답 척도: 항상 · 보통 · 자주 · 가끔 · 드물게 · 전혀",
+    },
+    "ASRS": {
+      id: "asrs_instr",
+      text: "Adult ADHD Self-Report Scale v1.1 (ASRS-v1.1)",
+      textChinese: "成人注意缺陷多动障碍自评量表 v1.1 (ASRS-v1.1)",
+      textKorean: "성인 ADHD 자기보고 척도 v1.1 (ASRS-v1.1)",
+      note: "For each item, please indicate how often you have experienced each symptom over the past 6 months.\n\nResponse scale: Never · Rarely · Sometimes · Often · Very Often",
+      noteChinese: "请指出在过去6个月内，您经历以下每种症状的频率。\n\n回应选项：从不 · 很少 · 有时 · 经常 · 非常频繁",
+      noteKorean: "지난 6개월 동안 각 증상을 얼마나 자주 경험했는지 표시해 주세요.\n\n응답 척도: 전혀 없음 · 드물게 · 가끔 · 자주 · 매우 자주",
+    },
+  };
+
+  for (const [toolId, h] of Object.entries(patches)) {
+    try {
+      const rows = await db
+        .select({ formItems: assessmentToolsTable.formItems })
+        .from(assessmentToolsTable)
+        .where(eq(assessmentToolsTable.id, toolId))
+        .limit(1);
+
+      if (!rows.length || !rows[0].formItems) continue;
+
+      const items = rows[0].formItems as any[];
+      if (items[0]?.id === h.id) continue; // already patched
+
+      const instrItem = {
+        id: h.id, text: h.text, textChinese: h.textChinese, textKorean: h.textKorean,
+        type: "section_header", domain: "admin", required: false,
+        options: [], optionsChinese: [], optionsKorean: [],
+        note: h.note, noteChinese: h.noteChinese, noteKorean: h.noteKorean,
+      };
+
+      await db
+        .update(assessmentToolsTable)
+        .set({ formItems: [instrItem, ...items] })
+        .where(eq(assessmentToolsTable.id, toolId));
+
+      logger.info({ toolId }, "Patched instruction header");
+    } catch (err) {
+      logger.error({ err, toolId }, "Failed to patch instruction header");
+    }
+  }
+}
+
+Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => patchInstructionHeaders())
+  .then(() => {
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

@@ -3429,6 +3429,18 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
 // ── ReMynd Student Symptom Checklist (RSSC) ───────────────────────────────────
 export const RSSC_FORM: FormQuestion[] = [
 
+  // ── Instruction Header ─────────────────────────────────────────────────────
+  { id: "rssc_instr",
+    text: "ReMynd Student Symptom Checklist (RSSC)",
+    textChinese: "ReMynd 学生症状清单 (RSSC)",
+    textKorean: "ReMynd 학생 증상 체크리스트 (RSSC)",
+    type: "section_header", domain: "admin", required: false,
+    options: [], optionsChinese: [], optionsKorean: [],
+    note: "This form is completed by a teacher or school professional who knows the student well. For each section, please check all items that apply to this student. Leave items unchecked if they do not apply.",
+    noteChinese: "本量表由了解学生的教师或学校专业人员填写。在每个部分，请勾选所有适用于该学生的项目。如不适用，请留空。",
+    noteKorean: "이 양식은 학생을 잘 아는 교사 또는 학교 전문가가 작성합니다. 각 섹션에서 해당 학생에게 적용되는 모든 항목에 체크해 주세요. 해당 없는 항목은 비워 두세요.",
+  },
+
   // ── Admin ──────────────────────────────────────────────────────────────────
   { id: "rssc_name",     text: "Name of Student",                       textChinese: "学生姓名",           textKorean: "학생 이름",           type: "text",     domain: "admin",           required: true,  options: [], optionsChinese: [], optionsKorean: [] },
   { id: "rssc_class",    text: "Class / Homeroom of Student",           textChinese: "班级/班主任",        textKorean: "학급/담임 학급",      type: "text",     domain: "admin",           required: true,  options: [], optionsChinese: [], optionsKorean: [] },
