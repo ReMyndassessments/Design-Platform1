@@ -3320,6 +3320,19 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
     { id: "q10", text: "Overall, how would you rate this student's functioning at school?", textChinese: "总体而言，您如何评价这位学生在学校的表现？", textKorean: "전반적으로 이 학생의 학교 생활 기능을 어떻게 평가하시겠습니까?", type: "scale", domain: "general" },
   ],
   "RCS-80": [
+    {
+      id: "rcs_instr",
+      type: "section_header",
+      domain: "admin",
+      required: false,
+      text: "RCS-80 Core Screener \u2014 Observer Rating Checklist",
+      textChinese: "RCS-80\u6838\u5fc3\u7b5b\u67e5\u5de5\u5177\u2014\u89c2\u5bdf\u8005\u8bc4\u5b9a\u68c0\u67e5\u8868",
+      textKorean: "RCS-80 \ud575\uc2ec \uc120\ubcc4 \uac80\uc0ac\u2014\uad00\ucc30\uc790 \ud3c9\uc815 \uccb4\ud06c\ub9ac\uc2a4\ud2b8",
+      note: "This checklist is completed by a teacher, therapist, or other professional who observes the student regularly. For each item, indicate how often you observe the described behaviour.\n\nResponse scale: Never \u00b7 Rarely \u00b7 Sometimes \u00b7 Often \u00b7 Very Often",
+      noteChinese: "\u672c\u68c0\u67e5\u8868\u7531\u7ecf\u5e38\u89c2\u5bdf\u8be5\u5b66\u751f\u7684\u6559\u5e08\u3001\u6cbb\u7597\u5e08\u6216\u5176\u4ed6\u4e13\u4e1a\u4eba\u5458\u586b\u5199\u3002\u8bf7\u5bf9\u6bcf\u4e2a\u9879\u76ee\u6307\u51fa\u60a8\u89c2\u5bdf\u5230\u6240\u8ff0\u884c\u4e3a\u7684\u9891\u7387\u3002\n\n\u56de\u5e94\u9009\u9879\uff1a\u4ece\u4e0d \u00b7 \u5f88\u5c11 \u00b7 \u6709\u65f6 \u00b7 \u7ecf\u5e38 \u00b7 \u975e\u5e38\u9891\u7e41",
+      noteKorean: "\uc774 \uccb4\ud06c\ub9ac\uc2a4\ud2b8\ub294 \ud559\uc0dd\uc744 \uc815\uae30\uc801\uc73c\ub85c \uad00\ucc30\ud558\ub294 \uad50\uc0ac, \uce58\ub8cc\uc0ac \ub610\ub294 \uae30\ud0c0 \uc804\ubb38\uac00\uac00 \uc791\uc131\ud569\ub2c8\ub2e4. \uac01 \ud56d\ubaa9\uc5d0 \ub300\ud574 \uc124\uba85\ub41c \ud589\ub3d9\uc744 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uad00\ucc30\ud558\ub294\uc9c0 \ud45c\uc2dc\ud574 \uc8fc\uc138\uc694.\n\n\uc751\ub2f5 \ucca0\ub3c4: \uc804\ud600 \uc5c6\uc74c \u00b7 \uac70\uc758 \uc5c6\uc74c \u00b7 \uac00\ub053 \u00b7 \uc790\uc8fc \u00b7 \ub9e4\uc6b0 \uc790\uc8fc",
+      options: [], optionsChinese: [], optionsKorean: [],
+    },
     // ── Domain 1: Attention & Self-Regulation (Items 1–12) ──────────────────
     { id: "rcs_sec1", text: "Domain 1: Attention & Self-Regulation", textChinese: "领域1：注意力与自我调节", textKorean: "영역 1: 주의력 및 자기 조절", type: "section_header", domain: "attention",
       note: "Rate how often you observe the following behaviours.",
