@@ -23,7 +23,6 @@ function resolveReportRole(respondentType: string | null): "parent" | "teacher" 
 const FORM_TYPES = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"];
 
 const ITEM_TYPE_MAP: Record<string, string> = {
-  checkbox: "checkbox_group",
   radio: "radio_group",
   multiple_choice: "radio_group",
 };
@@ -63,7 +62,7 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
       optionsChinese: item.optionsChinese,
       optionsKorean: item.optionsKorean,
       domain: item.domain ?? "",
-      required: item.required ?? true,
+      required: item.required ?? false,
       note: item.note,
       noteChinese: item.noteChinese,
       noteKorean: item.noteKorean,
