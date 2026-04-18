@@ -1343,6 +1343,286 @@ async function runMigrations() {
   }
 }
 
+async function reviseLASAForm() {
+  try {
+    const rows = await db
+      .select({ formItems: assessmentToolsTable.formItems })
+      .from(assessmentToolsTable)
+      .where(eq(assessmentToolsTable.id, "LASA"))
+      .limit(1);
+
+    if (!rows.length || !rows[0].formItems) return;
+    const items = rows[0].formItems as any[];
+    // Idempotency: already revised if second item has descriptive ID
+    if (items[1]?.id === "lasa_child_info") return;
+
+    const opts0 = (o: string[]) => o;
+    const lk = (id: string, domain: string, en: string, zh: string, ko: string) => ({
+      id, type: "likert", domain, required: false,
+      text: en, textChinese: zh, textKorean: ko,
+      options: ["0","1","2","3","4"],
+      optionsChinese: ["0","1","2","3","4"],
+      optionsKorean: ["0","1","2","3","4"],
+    });
+    const sh = (id: string, domain: string, en: string, zh: string, ko: string, noteEn?: string, noteZh?: string, noteKo?: string) => ({
+      id, type: "section_header", domain, required: false,
+      text: en, textChinese: zh, textKorean: ko,
+      ...(noteEn ? { note: noteEn, noteChinese: noteZh, noteKorean: noteKo } : {}),
+      options: opts0([]), optionsChinese: opts0([]), optionsKorean: opts0([]),
+    });
+    const tf = (id: string, domain: string, en: string, zh: string, ko: string) => ({
+      id, type: "text", domain, required: false,
+      text: en, textChinese: zh, textKorean: ko,
+      options: opts0([]), optionsChinese: opts0([]), optionsKorean: opts0([]),
+    });
+
+    const HOW_EN = "How often does the child:";
+    const HOW_ZH = "\u8be5\u513f\u7ae5\u591a\u4e45\u51fa\u73b0\u4ee5\u4e0b\u60c5\u51b5\uff1a";
+    const HOW_KO = "\uc544\ub3d9\uc774 \ub2e4\uc74c\uc744 \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubcf4\uc785\ub2c8\uae4c:";
+
+    const newItems = [
+      sh("lasa_instr", "admin",
+        "Learning Ability Screening Assessment (LASA)",
+        "\u5b66\u4e60\u80fd\u529b\u7b5b\u67e5\u8bc4\u4f30 (LASA)",
+        "\ud559\uc2b5 \ub2a5\ub825 \uc120\ubcc4 \ud3c9\uac00 (LASA)",
+        "This assessment screens for potential learning difficulties across six key developmental and academic domains: Reading, Spelling & Writing, Math & Logic, Emotional Regulation, Listening & Language Processing, and Attention & Executive Function. It is completed by a teacher, parent, or professional who knows the child well. This is a screening tool only and does not diagnose a learning disability.\n\nFor each item, rate how often the behaviour has been observed over the past 3\u20136 months.\n\nResponse scale: 0 (Never) \u00b7 1 (Rarely) \u00b7 2 (Sometimes) \u00b7 3 (Frequently) \u00b7 4 (Always)",
+        "\u672c\u91cf\u8868\u7528\u4e8e\u7b5b\u67e5\u513f\u7ae5\u5728\u516d\u4e2a\u5173\u952e\u53d1\u5c55\u548c\u5b66\u672f\u9886\u57df\u4e2d\u53ef\u80fd\u5b58\u5728\u7684\u5b66\u4e60\u56f0\u96be\uff1a\u9605\u8bfb\u3001\u62fc\u5199\u4e0e\u4e66\u5199\u3001\u6570\u5b66\u4e0e\u903b\u8f91\u3001\u60c5\u7eea\u8c03\u8282\u3001\u542c\u89c9\u4e0e\u8bed\u8a00\u5904\u7406\uff0c\u4ee5\u53ca\u6ce8\u610f\u529b\u4e0e\u6267\u884c\u529f\u80fd\u3002\u7531\u4e86\u89e3\u8be5\u513f\u7ae5\u7684\u6559\u5e08\u3001\u5bb6\u957f\u6216\u4e13\u4e1a\u4eba\u5458\u586b\u5199\u3002\u672c\u5de5\u5177\u4ec5\u4e3a\u7b5b\u67e5\u5de5\u5177\uff0c\u4e0d\u80fd\u7528\u4e8e\u8bca\u65ad\u5b66\u4e60\u969c\u788d\u3002\n\n\u8bf7\u6839\u636e\u8fc7\u53bb3\u20136\u4e2a\u6708\u5185\u89c2\u5bdf\u5230\u7684\u884c\u4e3a\u9891\u7387\u8fdb\u884c\u8bc4\u5206\u3002\n\n\u56de\u5e94\u9009\u9879\uff1a0\uff08\u4ece\u4e0d\uff09\u00b7 1\uff08\u5f88\u5c11\uff09\u00b7 2\uff08\u6709\u65f6\uff09\u00b7 3\uff08\u7ecf\u5e38\uff09\u00b7 4\uff08\u603b\u662f\uff09",
+        "\uc774 \ud3c9\uac00\ub294 6\uac00\uc9c0 \uc8fc\uc694 \ubc1c\ub2ec \ubc0f \ud559\uc2b5 \uc601\uc5ed\uc5d0\uc11c \uc7a0\uc7ac\uc801\uc778 \ud559\uc2b5 \uc5b4\ub824\uc6c0\uc744 \uc120\ubcc4\ud569\ub2c8\ub2e4\uff1a \uc77d\uae30, \uccca\uc790 \ubc0f \uc4f0\uae30, \uc218\ud559 \ubc0f \ub17c\ub9ac, \uc815\uc11c \uc870\uc808, \ub4e3\uae30 \ubc0f \uc5b8\uc5b4 \ucc98\ub9ac, \uc8fc\uc758\ub825 \ubc0f \uc2e4\ud589 \uae30\ub2a5. \uc544\ub3d9\uc744 \uc798 \uc544\ub294 \uad50\uc0ac, \ubd80\ubaa8 \ub610\ub294 \uc804\ubb38\uac00\uac00 \uc791\uc131\ud569\ub2c8\ub2e4. \uc774 \ub3c4\uad6c\ub294 \uc120\ubcc4 \ub3c4\uad6c\ub85c\ub9cc \uc0ac\uc6a9\ub418\uba70 \ud559\uc2b5 \uc7a5\uc560\ub97c \uc9c4\ub2e8\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.\n\n\uac01 \ud56d\ubaa9\uc5d0 \ub300\ud574 \uc9c0\ub09c 3\ub2936\uac1c\uc6d4 \ub3d9\uc548 \uad00\ucc30\ub41c \ud589\ub3d9\uc758 \ube48\ub3c4\ub97c \ud3c9\uac00\ud574 \uc8fc\uc138\uc694.\n\n\uc751\ub2f5 \ucca0\ub3c4: 0 (\uc804\ud600) \u00b7 1 (\ub4dc\ubb3c\uac8c) \u00b7 2 (\uac00\ub07c) \u00b7 3 (\uc790\uc8fc) \u00b7 4 (\ud56d\uc0c1)",
+      ),
+
+      sh("lasa_child_info", "admin",
+        "Child Information", "\u513f\u7ae5\u4fe1\u606f", "\uc544\ub3d9 \uc815\ubcf4",
+      ),
+      tf("lasa_child_name", "admin", "Child's Full Name", "\u513f\u7ae5\u59d3\u540d", "\uc544\ub3d9 \uc131\uba85"),
+      tf("lasa_child_age", "admin", "Age", "\u5e74\u9f84", "\ub098\uc774"),
+      tf("lasa_child_gender", "admin", "Gender", "\u6027\u522b", "\uc131\ubcc4"),
+      tf("lasa_child_grade", "admin", "Grade / Year", "\u5e74\u7ea7", "\ud559\ub144"),
+
+      sh("lasa_resp_info", "admin",
+        "Respondent Information", "\u53d7\u8bbf\u8005\u4fe1\u606f", "\uc751\ub2f5\uc790 \uc815\ubcf4",
+      ),
+      tf("lasa_resp_name", "admin", "Your Name", "\u60a8\u7684\u59d3\u540d", "\uc751\ub2f5\uc790 \uc131\uba85"),
+      tf("lasa_resp_email", "admin", "Email", "\u7535\u5b50\u90ae\u4ef6", "\uc774\uba54\uc77c"),
+      tf("lasa_resp_rel", "admin", "Relationship to Child", "\u4e0e\u513f\u7ae5\u7684\u5173\u7cfb", "\uc544\ub3d9\uacfc\uc758 \uad00\uacc4"),
+
+      sh("lasa_reading_hdr", "reading",
+        "Domain A: Reading",
+        "\u9886\u57dfA\uff1a\u9605\u8bfb",
+        "\uc601\uc5ed A: \uc77d\uae30",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_r1", "reading",
+        "Mispronounce or incorrectly use certain words",
+        "\u9519\u8bef\u53d1\u97f3\u6216\u8bef\u7528\u67d0\u4e9b\u8bcd\u8bed",
+        "\ud2b9\uc815 \ub2e8\uc5b4\ub97c \uc798\ubabb \ubc1c\uc74c\ud558\uac70\ub098 \ubd80\uc801\uc808\ud558\uac8c \uc0ac\uc6a9\ud55c\ub2e4",
+      ),
+      lk("lasa_r2", "reading",
+        "Have difficulty reading unfamiliar words or rely on guessing",
+        "\u9605\u8bfb\u751f\u8bcd\u65f6\u6709\u56f0\u96be\u6216\u4f9d\u8d56\u731c\u6d4b",
+        "\ub099\uc120 \ub2e8\uc5b4\ub97c \uc77d\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\uac70\ub098 \ucd94\uce21\uc5d0 \uc758\uc874\ud55c\ub2e4",
+      ),
+      lk("lasa_r3", "reading",
+        "Pause, repeat, or make errors when reading aloud",
+        "\u6717\u8bfb\u65f6\u505c\u987f\u3001\u91cd\u590d\u6216\u51fa\u9519",
+        "\uc18c\ub9ac \ub0b4\uc5b4 \uc77d\uc744 \ub54c \uba48\uc8fc\uac70\ub098 \ubc18\ubcf5\ud558\uac70\ub098 \uc2e4\uc218\ud55c\ub2e4",
+      ),
+      lk("lasa_r4", "reading",
+        "Struggle to understand what they have read",
+        "\u96be\u4ee5\u7406\u89e3\u6240\u8bfb\u5185\u5bb9",
+        "\uc77d\uc740 \ub0b4\uc6a9\uc744 \uc774\ud574\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_r5", "reading",
+        "Avoid reading for pleasure",
+        "\u56de\u907f\u4e3a\u4e50\u8da3\u800c\u9605\u8bfb",
+        "\uc990\uac70\uc6c0\uc744 \uc704\ud55c \ub3c5\uc11c\ub97c \ud53c\ud55c\ub2e4",
+      ),
+
+      sh("lasa_writing_hdr", "writing",
+        "Domain B: Spelling & Writing",
+        "\u9886\u57dfB\uff1a\u62fc\u5199\u4e0e\u4e66\u5199",
+        "\uc601\uc5ed B: \ucca0\uc790 \ubc0f \uc4f0\uae30",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_w1", "writing",
+        "Make spelling errors in schoolwork",
+        "\u5728\u5b66\u6821\u4f5c\u4e1a\u4e2d\u51fa\u73b0\u62fc\u5199\u9519\u8bef",
+        "\ud559\uad50 \uacfc\uc81c\uc5d0\uc11c \ucca0\uc790 \uc624\ub958\ub97c \ubc94\ud55c\ub2e4",
+      ),
+      lk("lasa_w2", "writing",
+        "Have messy or unclear handwriting",
+        "\u5b57\u8ff9\u6f66\u8349\u6216\u4e0d\u6e05\u6670",
+        "\uc9c0\uc800\ubd84\ud558\uac70\ub098 \ubd88\ubd84\uba85\ud55c \ud544\uccb4\ub97c \ubcf4\uc778\ub2e4",
+      ),
+      lk("lasa_w3", "writing",
+        "Struggle with punctuation and capitalization",
+        "\u5728\u6807\u70b9\u7b26\u53f7\u548c\u5927\u5c0f\u5199\u4f7f\u7528\u4e0a\u6709\u56f0\u96be",
+        "\uad6c\ub450\uc810\uacfc \ub300\ubb38\uc790 \uc0ac\uc6a9\uc5d0 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_w4", "writing",
+        "Resist writing tasks",
+        "\u6297\u5236\u5199\u4f5c\u4efb\u52a1",
+        "\uc4f0\uae30 \uacfc\uc81c\ub97c \uac70\ubd80\ud55c\ub2e4",
+      ),
+      lk("lasa_w5", "writing",
+        "Have difficulty expressing thoughts in writing",
+        "\u96be\u4ee5\u7528\u4e66\u9762\u8868\u8fbe\u601d\u60f3",
+        "\uc0dd\uac01\uc744 \uae00\ub85c \ud45c\ud604\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+
+      sh("lasa_math_hdr", "math",
+        "Domain C: Math & Logic",
+        "\u9886\u57dfC\uff1a\u6570\u5b66\u4e0e\u903b\u8f91",
+        "\uc601\uc5ed C: \uc218\ud559 \ubc0f \ub17c\ub9ac",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_m1", "math",
+        "Confuse math symbols or operations (e.g., +, \u2212, \u00d7, \u00f7)",
+        "\u6df7\u6de4\u6570\u5b66\u7b26\u53f7\u6216\u8fd0\u7b97\uff08\u5982 +\u3001-\u3001\u00d7\u3001\u00f7\uff09",
+        "\uc218\ud559 \uae30\ud638\ub098 \uc5f0\uc0b0\uc744 \ud63c\ub3d9\ud55c\ub2e4 (\uc608: +, -, \u00d7, \u00f7)",
+      ),
+      lk("lasa_m2", "math",
+        "Have difficulty comparing numbers or fractions",
+        "\u96be\u4ee5\u6bd4\u8f83\u6570\u5b57\u6216\u5206\u6570",
+        "\uc218\ub098 \ubd84\uc218\ub97c \ube44\uad50\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_m3", "math",
+        "Reverse numbers (e.g., 18 \u2192 81)",
+        "\u6570\u5b57\u989c\u5012\uff08\u5982 18\u219281\uff09",
+        "\uc22b\uc790\ub97c \ubc18\uc804\uc2dc\ud0a8\ub2e4 (\uc608: 18 \u2192 81)",
+      ),
+      lk("lasa_m4", "math",
+        "Struggle with time-related concepts (days, weeks, hours)",
+        "\u5728\u65f6\u95f4\u76f8\u5173\u6982\u5ff5\u4e0a\u6709\u56f0\u96be\uff08\u5929\u3001\u5468\u3001\u5c0f\u65f6\uff09",
+        "\uc2dc\uac04 \uad00\ub828 \uac1c\ub150\uc744 \uc774\ud574\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4 (\ub0a0, \uc8fc, \uc2dc\uac04)",
+      ),
+      lk("lasa_m5", "math",
+        "Have difficulty distinguishing facts from fantasy",
+        "\u96be\u4ee5\u533a\u5206\u4e8b\u5b9e\u4e0e\u5e7b\u60f3",
+        "\uc0ac\uc2e4\uacfc \ud5c8\uad6c\ub97c \uad6c\ubcc4\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+
+      sh("lasa_emotional_hdr", "emotional",
+        "Domain D: Emotional Regulation & Self-Control",
+        "\u9886\u57dfD\uff1a\u60c5\u7eea\u8c03\u8282\u4e0e\u81ea\u6211\u63a7\u5236",
+        "\uc601\uc5ed D: \uc815\uc11c \uc870\uc808 \ubc0f \uc790\uae30 \ud1b5\uc81c",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_e1", "emotional",
+        "Show anxiety or frustration related to school tasks",
+        "\u8868\u73b0\u51fa\u4e0e\u5b66\u6821\u4efb\u52a1\u76f8\u5173\u7684\u7126\u8651\u6216\u632b\u6298\u611f",
+        "\ud559\uad50 \uacfc\uc81c\uc640 \uad00\ub828\ub41c \ubd88\uc548\uc774\ub098 \uc88c\uc808\uac10\uc744 \ubcf4\uc778\ub2e4",
+      ),
+      lk("lasa_e2", "emotional",
+        "Tire easily during academic work",
+        "\u5728\u5b66\u4e60\u4efb\u52a1\u4e2d\u5bb9\u6613\u75b2\u52b3",
+        "\ud559\uc2b5 \ud65c\ub3d9 \uc911 \uc27d\uac8c \ud53c\ub85c\ud574\ud55c\ub2e4",
+      ),
+      lk("lasa_e3", "emotional",
+        "Complain of physical discomfort (e.g., headaches, stomachaches)",
+        "\u6291\u6028\u8eab\u4f53\u4e0d\u9002\uff08\u5982\u5934\u75db\u3001\u80c3\u75db\uff09",
+        "\uc2e0\uccb4\uc801 \ubd88\ud3b8\ud568\uc744 \ud638\uc18c\ud55c\ub2e4 (\uc608: \ub450\ud1b5, \ubcf5\ud1b5)",
+      ),
+      lk("lasa_e4", "emotional",
+        "Express low self-confidence (e.g., \"I'm not smart\")",
+        "\u8868\u8fbe\u4f4e\u81ea\u4fe1\uff08\u4f8b\u5982\uff1a\u300c\u6211\u4e0d\u806a\u660e\u300d\uff09",
+        "\ub099\uc740 \uc790\uc2e0\uac10\uc744 \ud45c\ud604\ud55c\ub2e4 (\uc608: \"\ub098\ub294 \ub610\ub98d\ud558\uc9c0 \uc54a\uc544\")",
+      ),
+      lk("lasa_e5", "emotional",
+        "Resist authority (argue or refuse instructions)",
+        "\u6297\u5236\u6743\u5a01\uff08\u4e89\u8fa9\u6216\u62d2\u7edd\u6307\ub838\uff09",
+        "\uad8c\uc704\uc5d0 \uc800\ud56d\ud55c\ub2e4 (\uc9c0\uc2dc\uc5d0 \ubc18\ubc15\ud558\uac70\ub098 \uac70\ubd80\ud55c\ub2e4)",
+      ),
+
+      sh("lasa_listening_hdr", "listening",
+        "Domain E: Listening & Language Processing",
+        "\u9886\u57dfE\uff1a\u542c\u89c9\u4e0e\u8bed\u8a00\u5904\u7406",
+        "\uc601\uc5ed E: \ub4e3\uae30 \ubc0f \uc5b8\uc5b4 \ucc98\ub9ac",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_l1", "listening",
+        "Struggle to follow verbal instructions (especially without visuals)",
+        "\u96be\u4ee5\u9075\u5faa\u53e3\u5934\u6307\u4ee4\uff08\u5c24\u5176\u662f\u6ca1\u6709\u89c6\u89c9\u8f85\u52a9\u65f6\uff09",
+        "\uc2dc\uac01 \uc790\ub8cc \uc5c6\uc774 \uad6c\ub450 \uc9c0\uc2dc\ub97c \ub530\ub974\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_l2", "listening",
+        "Have difficulty understanding speech in noisy environments",
+        "\u5728\u566a\u6742\u73af\u5883\u4e2d\u96be\u4ee5\u7406\u89e3\u8bed\u8a00",
+        "\uc2dc\ub044\ub7ec\uc6b4 \ud658\uacbd\uc5d0\uc11c \ub9d0\uc744 \uc774\ud574\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_l3", "listening",
+        "Struggle to understand jokes or stories told aloud",
+        "\u96be\u4ee5\u7406\u89e3\u53e3\u5934\u8bb2\u8ff0\u7684\u7b11\u8bdd\u6216\u6545\u4e8b",
+        "\uad6c\ub450\ub85c \uc804\ub2ec\ub418\ub294 \ub18d\ub2f4\uc774\ub098 \uc774\uc57c\uae30\ub97c \uc774\ud574\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_l4", "listening",
+        "Have difficulty maintaining or following conversations",
+        "\u96be\u4ee5\u7ef4\u6301\u6216\u8ddf\u968f\u5bf9\u8bdd",
+        "\ub300\ud654\ub97c \uc774\uc5b4\uac00\uac70\ub098 \ub530\ub77c\uac00\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_l5", "listening",
+        "Struggle with academic vocabulary (e.g., science or history terms)",
+        "\u5728\u5b66\u672f\u8bcd\u6c47\u65b9\u9762\u6709\u56f0\u96be\uff08\u5982\u79d1\u5b66\u6216\u5386\u53f2\u672f\u8bed\uff09",
+        "\ud559\ubb38\uc801 \uc5b4\ud718\uc5d0 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4 (\uc608: \uacfc\ud559 \ub610\ub294 \uc5ed\uc0ac \uc6a9\uc5b4)",
+      ),
+
+      sh("lasa_attention_hdr", "attention",
+        "Domain F: Attention & Executive Function",
+        "\u9886\u57dfF\uff1a\u6ce8\u610f\u529b\u4e0e\u6267\u884c\u529f\u80fd",
+        "\uc601\uc5ed F: \uc8fc\uc758\ub825 \ubc0f \uc2e4\ud589 \uae30\ub2a5",
+        HOW_EN, HOW_ZH, HOW_KO,
+      ),
+      lk("lasa_a1", "attention",
+        "Have difficulty maintaining attention for more than 15 minutes",
+        "\u96be\u4ee5\u4fdd\u615515\u5206\u949f\u4ee5\u4e0a\u7684\u6ce8\u610f\u529b",
+        "15\ubd84 \uc774\uc0c1 \uc8fc\uc758\ub97c \uc720\uc9c0\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_a2", "attention",
+        "Take a long time to complete tasks",
+        "\u5b8c\u6210\u4efb\u52a1\u9700\u8981\u5f88\u957f\u65f6\u95f4",
+        "\uacfc\uc81c\ub97c \uc644\uc131\ud558\ub294 \ub370 \uc624\ub79c \uc2dc\uac04\uc774 \uac78\ub9b0\ub2e4",
+      ),
+      lk("lasa_a3", "attention",
+        "Have difficulty planning or organizing tasks",
+        "\u96be\u4ee5\u8ba1\u5212\u6216\u7ec4\u7ec7\u4efb\u52a1",
+        "\uacfc\uc81c\ub97c \uacc4\ud68d\ud558\uac70\ub098 \uc815\ub9ac\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+      lk("lasa_a4", "attention",
+        "Frequently lose items or forget important things",
+        "\u7ecf\u5e38\u4e22\u5931\u7269\u54c1\u6216\u5fd8\u8bb0\u91cd\u8981\u4e8b\u9879",
+        "\uc790\uc8fc \ubb3c\uac74\uc744 \uc78a\uc5b4\ubc84\ub9ac\uac70\ub098 \uc911\uc694\ud55c \uac83\uc744 \uc78a\uc5b4\ubc84\ub9b0\ub2e4",
+      ),
+      lk("lasa_a5", "attention",
+        "Struggle to tolerate boredom or repetitive tasks",
+        "\u96be\u4ee5\u5fcd\u53d7\u65e0\u804a\u6216\u91cd\u590d\u6027\u4efb\u52a1",
+        "\uc9c0\ub8e8\ud568\uc774\ub098 \ubc18\ubcf5\uc801\uc778 \uacfc\uc81c\ub97c \ucc38\ub294 \ub370 \uc5b4\ub839\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      ),
+
+      {
+        id: "lasa_comments",
+        type: "text",
+        domain: "admin",
+        required: false,
+        text: "Additional Comments",
+        textChinese: "\u8865\u5145\u610f\u89c1",
+        textKorean: "\ucd94\uac00 \uc758\uacac",
+        note: "Please add any additional observations or concerns about this child's learning.",
+        noteChinese: "\u8bf7\u8865\u5145\u60a8\u5bf9\u8be5\u513f\u7ae5\u5b66\u4e60\u65b9\u9762\u7684\u5176\u4ed6\u89c2\u5bdf\u6216\u62c5\u5fe7\u3002",
+        noteKorean: "\uc774 \uc544\ub3d9\uc758 \ud559\uc2b5\uc5d0 \uad00\ud55c \ucd94\uac00\uc801\uc778 \uad00\ucc30\uc774\ub098 \uc6b0\ub824 \uc0ac\ud56d\uc744 \uae30\uc7ac\ud574 \uc8fc\uc138\uc694.",
+        options: opts0([]), optionsChinese: opts0([]), optionsKorean: opts0([]),
+      },
+    ];
+
+    await db
+      .update(assessmentToolsTable)
+      .set({ formItems: newItems })
+      .where(eq(assessmentToolsTable.id, "LASA"));
+
+    logger.info("Revised LASA form items");
+  } catch (err) {
+    logger.error({ err }, "Failed to revise LASA form items");
+  }
+}
+
 async function patchInstructionHeaders() {
   type H = { id: string; text: string; textChinese: string; textKorean: string; note: string; noteChinese: string; noteKorean: string };
   const patches: Record<string, H> = {
@@ -1759,6 +2039,7 @@ async function patchInstructionHeaders() {
 }
 
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => reviseLASAForm())
   .then(() => patchInstructionHeaders())
   .then(() => {
   app.listen(port, (err) => {
