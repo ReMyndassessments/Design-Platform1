@@ -1343,6 +1343,110 @@ async function runMigrations() {
   }
 }
 
+async function reviseDYSRISKTalents() {
+  try {
+    const rows = await db
+      .select({ formItems: assessmentToolsTable.formItems })
+      .from(assessmentToolsTable)
+      .where(eq(assessmentToolsTable.id, "DYSRISK"))
+      .limit(1);
+
+    if (!rows.length || !rows[0].formItems) return;
+    const items = rows[0].formItems as any[];
+
+    // Idempotency: already revised if the talents section header has our ID
+    if (items.some((it: any) => it.id === "dys_b_talents_hdr")) return;
+
+    const talentsStart = items.findIndex((it: any) => it.id === "q25");
+    if (talentsStart === -1) return;
+
+    const o0 = (): string[] => [];
+    const ABS_EN = ["Absolutely", "Somewhat", "Rarely or Never"];
+    const ABS_ZH = ["\u7edd\u5bf9\u662f", "\u6709\u4e9b\u662f", "\u5f88\u5c11\u6216\u4ece\u4e0d"];
+    const ABS_KO = ["\uc808\ub300\uc801\uc73c\ub85c \uadf8\ub807\ub2e4", "\uc5b4\ub290 \uc815\ub3c4 \uadf8\ub807\ub2e4", "\uac70\uc758 \ub610\ub294 \uc804\ud600 \uc544\ub2c8\ub2e4"];
+
+    const behaviors = [
+      {
+        suffix: "dream",
+        en: "Frequent daydreaming or \u201czoning out\u201d",
+        zh: "\u9891\u7e41\u505a\u767d\u65e5\u68a6\u6216\u300c\u53d1\u5446\u300d",
+        ko: "\uc790\uc8fc \uba4d\ud558\ub2c8 \uc788\uac70\ub098 \u201c\uc0b4\uc8fc\u201d\uac00 \ub9d1\ud558\ub294\ub2e4",
+      },
+      {
+        suffix: "attn",
+        en: "Difficulty sustaining attention",
+        zh: "\u96be\u4ee5\u6301\u7eed\u96c6\u4e2d\u6ce8\u610f\u529b",
+        ko: "\uc8fc\uc758\ub97c \uc9c0\uc18d\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\ub2e4",
+      },
+      {
+        suffix: "handson",
+        en: "Learns best through hands-on or visual methods",
+        zh: "\u901a\u8fc7\u52a8\u624b\u6216\u89c6\u89c9\u65b9\u5f0f\u5b66\u4e60\u6548\u679c\u6700\u597d",
+        ko: "\uc2e4\uc2b5\uc774\ub098 \uc2dc\uac01\uc801 \ubc29\ubc95\uc73c\ub85c \uac00\uc7a5 \uc798 \ubc30\uc6b4\ub2e4",
+      },
+    ];
+
+    const talents = [
+      { id: "art",         en: "Art",          zh: "\u827a\u672f",     ko: "\uc608\uc220" },
+      { id: "drama",       en: "Drama",        zh: "\u621f\u5267",     ko: "\uc5f0\uadf9" },
+      { id: "music",       en: "Music",        zh: "\u97f3\u4e50",     ko: "\uc74c\uc545" },
+      { id: "sports",      en: "Sports",       zh: "\u4f53\u80b2",     ko: "\uc2a4\ud3ec\uce20" },
+      { id: "dance",       en: "Dance",        zh: "\u821e\u8e48",     ko: "\ub310\uc2a4" },
+      { id: "mechanics",   en: "Mechanics",    zh: "\u673a\u68b0",     ko: "\uae30\uacc4" },
+      { id: "story",       en: "Storytelling", zh: "\u6545\u4e8b\u8bb2\u8ff0", ko: "\uc2a4\ud1a0\ub9ac\ud154\ub9c1" },
+      { id: "business",    en: "Business",     zh: "\u5546\u4e1a",     ko: "\ube44\uc988\ub2c8\uc2a4" },
+      { id: "strategy",    en: "Strategy",     zh: "\u6218\u7565",     ko: "\uc804\ub7b5" },
+      { id: "design",      en: "Design",       zh: "\u8bbe\u8ba1",     ko: "\ub514\uc790\uc778" },
+      { id: "building",    en: "Building",     zh: "\u5efa\u9020",     ko: "\uac74\ucd95/\ub9cc\ub4e4\uae30" },
+      { id: "engineering", en: "Engineering",  zh: "\u5de5\u7a0b",     ko: "\uacf5\ud559" },
+    ];
+
+    const talentItems: any[] = [
+      {
+        id: "dys_b_talents_hdr",
+        type: "section_header", domain: "behavior", required: false,
+        text: "Talents",
+        textChinese: "\u624d\u80fd",
+        textKorean: "\uc7ac\ub2a5",
+        note: "For each talent area, rate how often the student demonstrates the three learning behaviours below. This helps identify where the student is most and least engaged.",
+        noteChinese: "\u5bf9\u4e8e\u4ee5\u4e0b\u6bcf\u4e2a\u624d\u80fd\u9886\u57df\uff0c\u8bc4\u5b9a\u5b66\u751f\u5c55\u793a\u4ee5\u4e0b\u4e09\u79cd\u5b66\u4e60\u884c\u4e3a\u7684\u9891\u7387\u3002\u8fd9\u6709\u52a9\u4e8e\u786e\u5b9a\u5b66\u751f\u53c2\u4e0e\u5ea6\u6700\u9ad8\u548c\u6700\u4f4e\u7684\u9886\u57df\u3002",
+        noteKorean: "\uc544\ub798\uc758 \uac01 \uc7ac\ub2a5 \uc601\uc5ed\uc5d0 \ub300\ud574 \ud559\uc0dd\uc774 \uc138 \uac00\uc9c0 \ud559\uc2b5 \ud589\ub3d9\uc744 \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubcf4\uc774\ub294\uc9c0 \ud3c9\uac00\ud558\uc138\uc694. \uc774\ub97c \ud1b5\ud574 \ud559\uc0dd\uc774 \uac00\uc7a5 \ub9ce\uc774 \ucc38\uc5ec\ud558\uace0 \uac00\uc7a5 \uc801\uac8c \ucc38\uc5ec\ud558\ub294 \uc601\uc5ed\uc744 \ud30c\uc545\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
+        options: o0(), optionsChinese: o0(), optionsKorean: o0(),
+      },
+      ...talents.flatMap(t => [
+        {
+          id: `dys_b_${t.id}_hdr`,
+          type: "section_header", domain: "behavior", required: false,
+          text: t.en, textChinese: t.zh, textKorean: t.ko,
+          options: o0(), optionsChinese: o0(), optionsKorean: o0(),
+        },
+        ...behaviors.map(b => ({
+          id: `dys_b_${t.id}_${b.suffix}`,
+          type: "likert", domain: "behavior", required: false,
+          text: b.en, textChinese: b.zh, textKorean: b.ko,
+          options: ABS_EN, optionsChinese: ABS_ZH, optionsKorean: ABS_KO,
+        })),
+      ]),
+    ];
+
+    // Replace the 4 old items (q25 section header + q26/q27/q28 behavior questions)
+    const newItems = [
+      ...items.slice(0, talentsStart),
+      ...talentItems,
+      ...items.slice(talentsStart + 4),
+    ];
+
+    await db
+      .update(assessmentToolsTable)
+      .set({ formItems: newItems })
+      .where(eq(assessmentToolsTable.id, "DYSRISK"));
+
+    logger.info("Revised DYSRISK Talents section");
+  } catch (err) {
+    logger.error({ err }, "Failed to revise DYSRISK Talents section");
+  }
+}
+
 async function reviseLASAForm() {
   try {
     const rows = await db
@@ -2039,6 +2143,7 @@ async function patchInstructionHeaders() {
 }
 
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => reviseDYSRISKTalents())
   .then(() => reviseLASAForm())
   .then(() => patchInstructionHeaders())
   .then(() => {
