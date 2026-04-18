@@ -20,6 +20,7 @@ const qtf = (id: string, en: string, zh: string): FormQuestion => ({
 // ─── BASC-3 TRS-A: Teacher Rating Scales – Adolescent (Ages 12–21) ────────────
 
 export const BASC3_TRS_A_FORM: FormQuestion[] = [
+  { id: "b3ta_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 教师评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3ta-1",   "Is easy to please",                                                         "易于取悦"),
   q("b3ta-2",   "Pays attention",                                                             "细心关注"),
   q("b3ta-3",   "Refuses to talk",                                                            "拒绝交谈"),
@@ -190,6 +191,7 @@ export const BASC3_TRS_A_FORM: FormQuestion[] = [
 // ─── BASC-3 PRS-A: Parent Rating Scales – Adolescent (Ages 12–21) ─────────────
 
 export const BASC3_PRS_A_FORM: FormQuestion[] = [
+  { id: "b3pa_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 家长评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3pa-1",   "Pays attention",                                                             "注意力集中"),
   q("b3pa-2",   "Makes positive comments about others",                                       "喜欢别人做出积极的评价"),
   q("b3pa-3",   "Is easily upset",                                                            "很容易生气"),
@@ -368,6 +370,7 @@ export const BASC3_PRS_A_FORM: FormQuestion[] = [
 // ─── BASC-3 TRS-C: Teacher Rating Scales – Child (Ages 6–11) ─────────────────
 
 export const BASC3_TRS_C_FORM: FormQuestion[] = [
+  { id: "b3tc_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 教师评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3tc-1",   "Pays attention",                                                             "可以专注"),
   q("b3tc-2",   "Communicates clearly",                                                       "沟通清晰"),
   q("b3tc-3",   "Transitions well",                                                           "过渡性强"),
@@ -529,6 +532,7 @@ export const BASC3_TRS_C_FORM: FormQuestion[] = [
 // ─── BASC-3 PRS-C: Parent Rating Scales – Child (Ages 6–11) ──────────────────
 
 export const BASC3_PRS_C_FORM: FormQuestion[] = [
+  { id: "b3pc_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 家长评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3pc-1",   "Pays attention",                                                             "专注"),
   q("b3pc-2",   "Makes positive comments about others",                                       "对别人做出积极的评价"),
   q("b3pc-3",   "Disobeys",                                                                   "不服从"),
@@ -710,6 +714,7 @@ export const BASC3_PRS_C_FORM: FormQuestion[] = [
 // Items 1–59 use True/False; items 60–189 use N/S/O/A
 
 export const BASC3_SRP_A_FORM: FormQuestion[] = [
+  { id: "b3sa_instr", type: "section_header", text: "BASC-3 Self-Report of Personality – Adolescent (Ages 12–21)", textChinese: "BASC-3 个性自评量表 — 青少年版（12–21岁）", textKorean: "", note: "Please read each statement and decide if it is True or False for you. Answer all items as best you can. There are no right or wrong answers.\n\nResponse scale: True · False", noteChinese: "请阅读每项陈述，并决定它对您来说是「对」还是「错」。请尽量回答所有项目，没有对错之分。\n\n回应选项：对 · 错", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   qtf("b3sa-1",  "I get along well with parents",                                             "我跟父母相处得很好"),
   qtf("b3sa-2",  "I like everyone I meet",                                                    "我喜欢我遇到的每个人"),
   qtf("b3sa-3",  "I like who I am",                                                           "我喜欢这样的我"),
@@ -905,6 +910,7 @@ export const BASC3_SRP_A_FORM: FormQuestion[] = [
 // Items 1–42 use True/False; items 43–137 use N/S/O/A
 
 export const BASC3_SRP_C_FORM: FormQuestion[] = [
+  { id: "b3sc_instr", type: "section_header", text: "BASC-3 Self-Report of Personality – Child (Ages 8–11)", textChinese: "BASC-3 个性自评量表 — 儿童版（8–11岁）", textKorean: "", note: "Please read each sentence and decide if it is True or False for you. There are no right or wrong answers. Answer all items as best you can.\n\nResponse scale: True · False", noteChinese: "请阅读每个句子，并决定它对您来说是「对」还是「错」。没有对错之分，请尽量回答所有项目。\n\n回应选项：对 · 错", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   qtf("b3sc-1",  "I often do things without thinking",                                       "我做事经常不经过思考"),
   qtf("b3sc-2",  "I like everyone I meet",                                                   "我喜欢我遇到的每个人"),
   qtf("b3sc-3",  "I feel good about myself",                                                  "自我感觉良好"),

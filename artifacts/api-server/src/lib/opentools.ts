@@ -139,6 +139,7 @@ const rdg = (id: string, en: string, zh: string, ko: string, opts: string[], opt
 
 // ─── P4-10: Parent form, Ages 4-10 (English + Chinese from document) ──────────
 export const SDQ_P4_FORM: FormQuestion[] = [
+  { id: "sdqp4_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Parent Form (Ages 4–10)", textChinese: "优势与困难问卷 (SDQ) — 家长版（4–10岁）", textKorean: "강점과 어려움 설문지 (SDQ) — 부모용 (4~10세)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of the child's behaviour over the last 6 months or this school year.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据该孩子在过去6个月或本学年内的行为作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 또는 이번 학년도 동안의 아이 행동을 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqp4_name",      "Student's name",                    "学生姓名",      "학생 이름"),
   txt("sdqp4_dob",       "Date of Birth",                     "出生日期",      "생년월일"),
   rdg("sdqp4_gender",    "Gender",                            "性别",          "성별",   ["Male","Female"], ["男","女"], ["남","여"]),
@@ -202,6 +203,7 @@ export const SDQ_P4_FORM: FormQuestion[] = [
 
 // ─── P11-18: Parent form, Ages 11-18 ─────────────────────────────────────────
 export const SDQ_P11_FORM: FormQuestion[] = [
+  { id: "sdqp11_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Parent Form (Ages 11–17)", textChinese: "优势与困难问卷 (SDQ) — 家长版（11–17岁）", textKorean: "강점과 어려움 설문지 (SDQ) — 부모용 (11~17세)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of the child's behaviour over the last 6 months or this school year.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据该孩子在过去6个月或本学年内的行为作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 또는 이번 학년도 동안의 자녀 행동을 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqp11_name",      "Student's name", "学生姓名", "학생 이름"),
   txt("sdqp11_dob",       "Date of Birth",  "出生日期", "생년월일"),
   rdg("sdqp11_gender",    "Gender",         "性别",     "성별", ["Male","Female"], ["男","女"], ["남","여"]),
@@ -265,6 +267,7 @@ export const SDQ_P11_FORM: FormQuestion[] = [
 
 // ─── T4-10: Teacher form, Ages 4-10 (English + Chinese from document) ────────
 export const SDQ_T4_FORM: FormQuestion[] = [
+  { id: "sdqt4_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Teacher Form (Ages 4–10)", textChinese: "优势与困难问卷 (SDQ) — 教师版（4–10岁）", textKorean: "강점과 어려움 설문지 (SDQ) — 교사용 (4~10세)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of the child's behaviour over the last 6 months or this school year.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据该学生在过去6个月或本学年内的行为作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 또는 이번 학년도 동안의 학생 행동을 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqt4_name",      "Student's name", "学生姓名", "학생 이름"),
   txt("sdqt4_dob",       "Date of Birth",  "出生日期", "생년월일"),
   rdg("sdqt4_gender",    "Gender",         "性别",     "성별", ["Male","Female"], ["男","女"], ["남","여"]),
@@ -328,6 +331,7 @@ export const SDQ_T4_FORM: FormQuestion[] = [
 
 // ─── T11-18: Teacher form, Ages 11-18 ────────────────────────────────────────
 export const SDQ_T11_FORM: FormQuestion[] = [
+  { id: "sdqt11_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Teacher Form (Ages 11–17)", textChinese: "优势与困难问卷 (SDQ) — 教师版（11–17岁）", textKorean: "강점과 어려움 설문지 (SDQ) — 교사용 (11~17세)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of the student's behaviour over the last 6 months or this school year.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据该学生在过去6个月或本学年内的行为作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 또는 이번 학년도 동안의 학생 행동을 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqt11_name",      "Student's name", "学生姓名", "학생 이름"),
   txt("sdqt11_dob",       "Date of Birth",  "出生日期", "생년월일"),
   rdg("sdqt11_gender",    "Gender",         "性别",     "성별", ["Male","Female"], ["男","女"], ["남","여"]),
@@ -383,6 +387,7 @@ export const SDQ_T11_FORM: FormQuestion[] = [
 
 // ─── SR11-18: Self-Report form, Ages 11-18 ───────────────────────────────────
 export const SDQ_SR11_FORM: FormQuestion[] = [
+  { id: "sdqsr11_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Self-Report (Ages 11–17)", textChinese: "优势与困难问卷 (SDQ) — 自评版（11–17岁）", textKorean: "강점과 어려움 설문지 (SDQ) — 자기 보고용 (11~17세)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of how things have generally been for you over the last 6 months.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据过去6个月内您通常的状况作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 동안 일반적으로 어떠했는지를 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqsr11_name",   "Your name",     "您的姓名", "귀하의 이름"),
   txt("sdqsr11_dob",    "Date of Birth", "出生日期", "생년월일"),
   rdg("sdqsr11_gender", "Gender",        "性别",     "성별", ["Male","Female"], ["男","女"], ["남","여"]),
@@ -441,6 +446,7 @@ export const SDQ_SR11_FORM: FormQuestion[] = [
 
 // ─── SR18+: Self-Report form, Ages 18+ ───────────────────────────────────────
 export const SDQ_SR18_FORM: FormQuestion[] = [
+  { id: "sdqsr18_instr", type: "section_header", text: "Strengths and Difficulties Questionnaire (SDQ) – Self-Report (Ages 18+)", textChinese: "优势与困难问卷 (SDQ) — 自评版（18岁及以上）", textKorean: "강점과 어려움 설문지 (SDQ) — 자기 보고용 (18세 이상)", note: "For each item, please mark Not True, Somewhat True, or Certainly True. It would help us if you answered all items as best you can even if you are not absolutely certain. Please give your answers on the basis of how things have generally been for you over the last 6 months.\n\nResponse scale: Not True (0) · Somewhat True (1) · Certainly True (2)", noteChinese: "对于每个项目，请勾选「不对」、「有点对」或「完全对」。即使您不完全确定，如果您能尽力回答所有项目，将对我们很有帮助。请根据过去6个月内您通常的状况作答。\n\n回应选项：不对 (0) · 有点对 (1) · 完全对 (2)", noteKorean: "각 항목에 대해 '그렇지 않다', '다소 그렇다', '확실히 그렇다'를 표시해 주세요. 완전히 확신하지 못하더라도 최대한 모든 항목에 답해 주시면 도움이 됩니다. 지난 6개월 동안 일반적으로 어떠했는지를 기준으로 답해 주세요.\n\n응답 척도: 그렇지 않다 (0) · 다소 그렇다 (1) · 확실히 그렇다 (2)", domain: "admin", options: [], optionsChinese: [], optionsKorean: [], required: false },
   txt("sdqsr18_name",   "Your name",     "您的姓名", "귀하의 이름"),
   txt("sdqsr18_dob",    "Date of Birth", "出生日期", "생년월일"),
   rdg("sdqsr18_gender", "Gender",        "性别",     "성별", ["Male","Female"], ["男","女"], ["남","여"]),

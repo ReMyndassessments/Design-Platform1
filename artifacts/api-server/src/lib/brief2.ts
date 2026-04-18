@@ -12,6 +12,7 @@ const q = (id: string, en: string, zh: string): FormQuestion => ({
 // ─── BRIEF-2 Parent Form (63 items) ───────────────────────────────────────────
 
 export const BRIEF2_PARENT_FORM: FormQuestion[] = [
+  { id: "b2p_instr", type: "section_header", text: "BRIEF-2 Parent Form", textChinese: "BRIEF-2 家长版", textKorean: "", note: "Please rate how often your child has shown each behaviour over the past month: Never means the behaviour does not occur, Sometimes means it occurs occasionally, Often means it occurs frequently. Rate all items even if some seem not applicable.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2)", noteChinese: "请评估您的孩子在过去一个月内表现出每种行为的频率：「从不」表示该行为不发生，「有时」表示偶尔发生，「经常」表示频繁发生。即使某些项目似乎不适用，也请对所有项目进行评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2)", noteKorean: "", domain: "executive-function", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b2p-1",  "Is fidgety",                                                                                                                         "烦躁不安"),
   q("b2p-2",  "Resists or has trouble accepting a different way to solve a problem with schoolwork, friends, tasks, etc.",                            "抵制或在解决学校作业、朋友、任务等方面的问题时有困难接受不同的解决方式"),
   q("b2p-3",  "When given three things to do, remembers only the first or last",                                                                     "在给定三件事情要做时，只记得第一件或最后一件"),
@@ -80,6 +81,7 @@ export const BRIEF2_PARENT_FORM: FormQuestion[] = [
 // ─── BRIEF-2 Self-Rating Form (55 items) ──────────────────────────────────────
 
 export const BRIEF2_SELF_FORM: FormQuestion[] = [
+  { id: "b2sr_instr", type: "section_header", text: "BRIEF-2 Self-Report Form", textChinese: "BRIEF-2 自评版", textKorean: "", note: "Please rate how often you have shown each behaviour over the past month: Never means the behaviour does not occur, Sometimes means it occurs occasionally, Often means it occurs frequently. Answer honestly — there are no right or wrong answers.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2)", noteChinese: "请评估您在过去一个月内表现出每种行为的频率：「从不」表示该行为不发生，「有时」表示偶尔发生，「经常」表示频繁发生。请诚实作答，没有对错之分。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2)", noteKorean: "", domain: "executive-function", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b2sr-1",  "I have trouble sitting still",                                                                                                                   "我很难保持静止"),
   q("b2sr-2",  "I have trouble accepting a different way to solve a problem with things such as schoolwork, friends, or tasks",                                   "我很难接受用不同的方式解决问题，比如学业、朋友或任务"),
   q("b2sr-3",  "When I am given three things to do, I remember only the first or last",                                                                          "当我被要求做三件事情时，我只记得第一项或最后一项"),
@@ -140,6 +142,7 @@ export const BRIEF2_SELF_FORM: FormQuestion[] = [
 // ─── BRIEF-2 Teacher Form (63 items) ──────────────────────────────────────────
 
 export const BRIEF2_TEACHER_FORM: FormQuestion[] = [
+  { id: "b2t_instr", type: "section_header", text: "BRIEF-2 Teacher Form", textChinese: "BRIEF-2 教师版", textKorean: "", note: "Please rate how often this student has shown each behaviour over the past month: Never means the behaviour does not occur, Sometimes means it occurs occasionally, Often means it occurs frequently. Rate all items even if some seem not applicable.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2)", noteChinese: "请评估该学生在过去一个月内表现出每种行为的频率：「从不」表示该行为不发生，「有时」表示偶尔发生，「经常」表示频繁发生。即使某些项目似乎不适用，也请对所有项目进行评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2)", noteKorean: "", domain: "executive-function", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b2t-1",  "Is fidgety",                                                                                                                         "烦躁不安"),
   q("b2t-2",  "Resists or has trouble accepting a different way to solve a problem with schoolwork, friends, tasks, etc.",                            "抵制或在解决学校作业、朋友、任务等方面的问题时有困难接受不同的解决方式"),
   q("b2t-3",  "When given three things to do, remembers only the first or last",                                                                     "在给定三件事情要做时，只记得第一件或最后一件"),
