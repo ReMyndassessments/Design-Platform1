@@ -22,6 +22,7 @@ type Question = {
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
+  rows?: Question[];
 };
 
 function normalizeType(t: string): string {
@@ -113,6 +114,55 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
               value === v ? "border-primary bg-primary text-white shadow-sm" : "border-slate-100 bg-slate-50 text-slate-600 hover:border-primary/40 hover:bg-primary/5")}>
             {display}
           </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GridRow({ row, language, opts, rowVal, setAnswer }: {
+  row: Question; language: string;
+  opts: { value: string; display: string }[];
+  rowVal: string;
+  setAnswer: (id: string, v: string) => void;
+}) {
+  const { label } = useText(row, language);
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-slate-700">{label}{row.required && <span className="text-red-400 ml-1">*</span>}</p>
+      <div className="flex flex-wrap gap-2">
+        {opts.map(({ value: v, display }) => (
+          <button key={v} type="button" onClick={() => setAnswer(row.id, v)}
+            className={cn("px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+              rowVal === v ? "border-primary bg-primary text-white shadow-sm" : "border-slate-100 bg-slate-50 text-slate-600 hover:border-primary/40 hover:bg-primary/5")}>
+            {display}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FrequencyGridField({ q, language, answers, setAnswer }: {
+  q: Question; language: string;
+  answers: Record<string, string | string[]>;
+  setAnswer: (id: string, v: string | string[]) => void;
+}) {
+  const { label, note } = useText(q, language);
+  const opts = useOpts(q, language);
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <div className="space-y-3 mt-1">
+        {(q.rows ?? []).map(row => (
+          <GridRow
+            key={row.id}
+            row={row}
+            language={language}
+            opts={opts}
+            rowVal={(answers[row.id] as string) ?? ""}
+            setAnswer={setAnswer}
+          />
         ))}
       </div>
     </div>
@@ -329,7 +379,8 @@ function PreviewQuestion({
       {type === "number"    && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} type="number" />}
       {type === "date"      && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} type="date" />}
       {type === "textarea"  && <TextareaField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
-      {type === "select"    && <SelectField   q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "select"         && <SelectField        q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "frequency_grid" && <FrequencyGridField q={q} language={language} answers={answers} setAnswer={setAnswer} />}
       {type === "signature" && (
         <div>
           <FieldLabel label={label} required={q.required} />
