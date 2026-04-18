@@ -1603,6 +1603,159 @@ async function patchInstructionHeaders() {
       logger.error({ err, toolId }, "Failed to patch instruction header");
     }
   }
+
+  // Upgrade legacy section_headers that have instructions in `text` only (no `note`, no form name)
+  const upgrades: Record<string, {
+    id: string;
+    text: string; textChinese: string; textKorean: string;
+    note: string; noteChinese: string; noteKorean: string;
+  }> = {
+    "AUDIT": {
+      id: "audit_instr",
+      text: "Alcohol Use Disorders Identification Test (AUDIT)",
+      textChinese: "酒精使用障碍识别测试 (AUDIT)",
+      textKorean: "알코올 사용 장애 식별 검사 (AUDIT)",
+      note: "Because alcohol use can affect your health and can interfere with certain medications and treatments, it is important that we ask some questions about your use of alcohol. Your answers will remain confidential. Please select the response that best describes your answer to each question.\n\nResponse scale: 0 · 1 · 2 · 3 · 4 (varies by question)",
+      noteChinese: "由于饮酒会影响您的健康并干扰某些药物和治疗，因此询问您的饮酒情况非常重要。您的回答将保密。请选择最能描述您对每个问题答案的选项。\n\n回应选项：0 · 1 · 2 · 3 · 4（因题而异）",
+      noteKorean: "음주는 건강에 영향을 미치고 특정 약물 및 치료를 방해할 수 있으므로 음주에 관한 몇 가지 질문을 드리는 것이 중요합니다. 귀하의 답변은 기밀로 유지됩니다. 각 질문에 대한 답변을 가장 잘 설명하는 항목을 선택하십시오.\n\n응답 척도: 0 · 1 · 2 · 3 · 4 (질문마다 다름)",
+    },
+    "CABS": {
+      id: "cabs_instr",
+      text: "Child/Adolescent Bullying Scale (CABS)",
+      textChinese: "儿童/青少年欺凌量表 (CABS)",
+      textKorean: "아동/청소년 괴롭힘 척도 (CABS)",
+      note: "The following questions ask about things that may have happened to you or things you may have done at school or online during the past month. Please answer honestly.\n\nResponse scale: Never · Once or Twice · 2–3 Times a Month · About Once a Week · Several Times a Week",
+      noteChinese: "以下问题询问过去一个月内可能在学校或网络上发生在您身上的事情，或您可能做过的事情。请诚实作答。\n\n回应选项：从未 · 一两次 · 每月2-3次 · 大约每周一次 · 每周几次",
+      noteKorean: "다음 질문은 지난 한 달 동안 학교나 온라인에서 귀하에게 일어났거나 귀하가 했을 수 있는 일들에 관한 것입니다. 솔직하게 답해 주십시오.\n\n응답 척도: 전혀 없음 · 1-2번 · 한 달에 2-3번 · 약 주 1회 · 주 여러 번",
+    },
+    "DASS-21": {
+      id: "dass_instr",
+      text: "Depression Anxiety Stress Scale – 21 Item (DASS-21)",
+      textChinese: "抑郁焦虑压力量表 — 21项版本 (DASS-21)",
+      textKorean: "우울 불안 스트레스 척도 – 21문항 (DASS-21)",
+      note: "Please read each statement and select a number 0, 1, 2 or 3 which indicates how much the statement applied to you over the past week.\n\nResponse scale: 0 (Did not apply to me at all) · 1 (Applied to me to some degree) · 2 (Applied to me to a considerable degree) · 3 (Applied to me very much or most of the time)",
+      noteChinese: "请阅读每一陈述，并选择0、1、2或3中的一个数字，表示该陈述在过去一周内适用于您的程度。\n\n回应选项：0（完全不适用）· 1（有时适用）· 2（相当适用）· 3（非常适用或大部分时间适用）",
+      noteKorean: "각 항목을 읽고 지난 일주일 동안 그 내용이 자신에게 얼마나 해당되었는지 0, 1, 2, 3 중 하나를 선택하십시오.\n\n응답 척도: 0 (전혀 해당 없음) · 1 (어느 정도 해당) · 2 (상당히 해당) · 3 (매우 많이 또는 대부분의 시간 해당)",
+    },
+    "GAD-7": {
+      id: "gad7_instr",
+      text: "Generalized Anxiety Disorder Scale – 7 Item (GAD-7)",
+      textChinese: "广泛性焦虑障碍量表 — 7项版本 (GAD-7)",
+      textKorean: "범불안 장애 척도 – 7문항 (GAD-7)",
+      note: "Over the last 2 weeks, how often have you been bothered by the following problems?\n\nResponse scale: Not at all · Several days · More than half the days · Nearly every day",
+      noteChinese: "在过去两周内，您受到以下问题困扰的频率如何？\n\n回应选项：从不 · 几天 · 超过一半的天数 · 几乎每天",
+      noteKorean: "지난 2주 동안 다음과 같은 문제들로 얼마나 자주 괴로움을 겪었습니까?\n\n응답 척도: 전혀 없음 · 며칠 · 절반 이상의 날 · 거의 매일",
+    },
+    "GHQ-12": {
+      id: "ghq_instr",
+      text: "General Health Questionnaire – 12 Item (GHQ-12)",
+      textChinese: "一般健康问卷 — 12项版本 (GHQ-12)",
+      textKorean: "일반 건강 질문지 – 12문항 (GHQ-12)",
+      note: "Over the past few weeks, have you been able to…\n\nResponse scale: Better than usual · Same as usual · Less than usual · Much less than usual (or similar 4-point scale varying by item)",
+      noteChinese: "在过去几周内，您是否能够……\n\n回应选项：比平时更好 · 和平时一样 · 比平时差 · 比平时差很多（各题选项有所不同）",
+      noteKorean: "지난 몇 주 동안, 당신은 다음을 할 수 있었습니까?\n\n응답 척도: 평소보다 더 잘됨 · 평소와 같음 · 평소보다 못함 · 평소보다 훨씬 못함 (항목에 따라 다름)",
+    },
+    "PHQ-9": {
+      id: "phq9_instr",
+      text: "Patient Health Questionnaire – 9 Item (PHQ-9)",
+      textChinese: "患者健康问卷 — 9项版本 (PHQ-9)",
+      textKorean: "환자 건강 설문지 – 9문항 (PHQ-9)",
+      note: "Over the last 2 weeks, how often have you been bothered by any of the following problems?\n\nResponse scale: Not at all · Several days · More than half the days · Nearly every day",
+      noteChinese: "在过去两周内，您受到以下任何问题困扰的频率如何？\n\n回应选项：从不 · 几天 · 超过一半的天数 · 几乎每天",
+      noteKorean: "지난 2주 동안 다음과 같은 문제들로 얼마나 자주 괴로움을 겪었습니까?\n\n응답 척도: 전혀 없음 · 며칠 · 절반 이상의 날 · 거의 매일",
+    },
+    "PHQ-9A": {
+      id: "phq9a_instr",
+      text: "Patient Health Questionnaire for Adolescents (PHQ-9A)",
+      textChinese: "青少年患者健康问卷 (PHQ-9A)",
+      textKorean: "청소년용 환자 건강 설문지 (PHQ-9A)",
+      note: "Over the last 2 weeks, how often have you been bothered by any of the following problems?\n\nResponse scale: Not at all · Several days · More than half the days · Nearly every day",
+      noteChinese: "在过去两周内，您受到以下任何问题困扰的频率如何？\n\n回应选项：从不 · 几天 · 超过一半的天数 · 几乎每天",
+      noteKorean: "지난 2주 동안 다음과 같은 문제들로 얼마나 자주 괴로움을 겪었습니까?\n\n응답 척도: 전혀 없음 · 며칠 · 절반 이상의 날 · 거의 매일",
+    },
+    "PSC": {
+      id: "psc_instr",
+      text: "Pediatric Symptom Checklist – 35 Item (PSC-35)",
+      textChinese: "儿科症状清单 — 35项版本 (PSC-35)",
+      textKorean: "소아 증상 체크리스트 – 35문항 (PSC-35)",
+      note: "Please mark under the heading that best fits your child.\n\nResponse scale: Never · Sometimes · Often",
+      noteChinese: "请在最符合您孩子情况的选项下打勾。\n\n回应选项：从不 · 有时 · 经常",
+      noteKorean: "자녀에게 가장 잘 맞는 항목에 표시하십시오.\n\n응답 척도: 전혀 없음 · 가끔 · 자주",
+    },
+    "PSS-10": {
+      id: "pss_instr",
+      text: "Perceived Stress Scale – 10 Item (PSS-10)",
+      textChinese: "感知压力量表 — 10项版本 (PSS-10)",
+      textKorean: "지각된 스트레스 척도 – 10문항 (PSS-10)",
+      note: "The questions in this scale ask you about your feelings and thoughts during the last month. In each case, please indicate how often you felt or thought a certain way.\n\nResponse scale: Never · Almost Never · Sometimes · Fairly Often · Very Often",
+      noteChinese: "本量表中的问题询问您上个月的感受和想法。对于每个问题，请指出您有某种感受或想法的频率。\n\n回应选项：从不 · 几乎从不 · 有时 · 相当频繁 · 非常频繁",
+      noteKorean: "이 척도의 질문은 지난 한 달 동안의 감정과 생각에 관한 것입니다. 각 항목에 대해 얼마나 자주 그런 감정이나 생각이 들었는지 표시하십시오.\n\n응답 척도: 전혀 없음 · 거의 없음 · 가끔 · 꽤 자주 · 매우 자주",
+    },
+    "RSES": {
+      id: "rses_instr",
+      text: "Rosenberg Self-Esteem Scale (RSES)",
+      textChinese: "罗森伯格自尊量表 (RSES)",
+      textKorean: "로젠버그 자아존중감 척도 (RSES)",
+      note: "Below is a list of statements dealing with your general feelings about yourself. Please indicate how strongly you agree or disagree with each statement.\n\nResponse scale: Strongly Agree · Agree · Disagree · Strongly Disagree",
+      noteChinese: "以下是一些关于您对自己总体感受的陈述。请说明您对每个陈述的同意程度。\n\n回应选项：非常同意 · 同意 · 不同意 · 非常不同意",
+      noteKorean: "아래는 자신에 대한 일반적인 감정에 관한 진술들입니다. 각 진술에 얼마나 동의하는지 표시하십시오.\n\n응답 척도: 매우 동의 · 동의 · 동의하지 않음 · 매우 동의하지 않음",
+    },
+    "SMFQ": {
+      id: "smfq_instr",
+      text: "Short Mood and Feelings Questionnaire (SMFQ)",
+      textChinese: "简短情绪与感受问卷 (SMFQ)",
+      textKorean: "간편 기분 및 감정 질문지 (SMFQ)",
+      note: "This questionnaire is about how you have been feeling or acting recently. For each question, please check the response that is closest to how you have been feeling or acting in the past two weeks.\n\nResponse scale: True · Sometimes · Not True",
+      noteChinese: "这份问卷是关于您最近的感受或行为。对于每个问题，请勾选在过去两周内最接近您感受或行为的答案。\n\n回应选项：符合 · 有时符合 · 不符合",
+      noteKorean: "이 설문지는 최근 기분이나 행동에 관한 것입니다. 각 질문에 대해 지난 2주 동안 느끼거나 행동한 것과 가장 가까운 답변을 선택하십시오.\n\n응답 척도: 그렇다 · 가끔 그렇다 · 그렇지 않다",
+    },
+    "WHO-5": {
+      id: "who5_instr",
+      text: "World Health Organization Well-Being Index (WHO-5)",
+      textChinese: "世界卫生组织幸福感指数 (WHO-5)",
+      textKorean: "세계보건기구 웰빙 지수 (WHO-5)",
+      note: "Please indicate for each of the following statements which is closest to how you have been feeling over the last two weeks.\n\nResponse scale: All of the time · Most of the time · More than half the time · Less than half the time · Some of the time · At no time",
+      noteChinese: "对于以下每一项陈述，请选出最接近您过去两周感受的选项。\n\n回应选项：所有时间 · 大部分时间 · 超过一半的时间 · 不到一半的时间 · 有时 · 从未",
+      noteKorean: "다음 각 진술에 대해 지난 2주 동안의 기분과 가장 가까운 항목을 선택하십시오.\n\n응답 척도: 항상 · 대부분 · 절반 이상 · 절반 미만 · 가끔 · 전혀",
+    },
+  };
+
+  for (const [toolId, r] of Object.entries(upgrades)) {
+    try {
+      const rows = await db
+        .select({ formItems: assessmentToolsTable.formItems })
+        .from(assessmentToolsTable)
+        .where(eq(assessmentToolsTable.id, toolId))
+        .limit(1);
+
+      if (!rows.length || !rows[0].formItems) continue;
+
+      const items = rows[0].formItems as any[];
+      const idx = items.findIndex((item: any) => item.id === r.id);
+      if (idx === -1) continue;
+      if (items[idx].note) continue; // already upgraded
+
+      const updatedItems = items.map((item: any, i: number) =>
+        i === idx
+          ? {
+              ...item,
+              text: r.text, textChinese: r.textChinese, textKorean: r.textKorean,
+              note: r.note, noteChinese: r.noteChinese, noteKorean: r.noteKorean,
+              domain: "admin",
+            }
+          : item
+      );
+
+      await db
+        .update(assessmentToolsTable)
+        .set({ formItems: updatedItems })
+        .where(eq(assessmentToolsTable.id, toolId));
+
+      logger.info({ toolId }, "Upgraded legacy instruction header");
+    } catch (err) {
+      logger.error({ err, toolId }, "Failed to upgrade legacy instruction header");
+    }
+  }
 }
 
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
