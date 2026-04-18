@@ -3,7 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -409,6 +409,17 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["attention", "hyperactivity-impulsivity", "oppositional-defiant", "conduct", "anxiety-depression", "academic-performance", "social-functioning"],
     formItems: VADPRS_FORM,
+  },
+  {
+    id: "VADTRS",
+    name: "Vanderbilt ADHD Diagnostic Teacher Rating Scale (VADTRS)",
+    category: "attention",
+    description: "Teacher rating scale for ADHD diagnosis. 44 items: q1–35 symptom frequency across Inattention, Hyperactivity-Impulsivity, Oppositional Defiant, Conduct, and Anxiety/Depression domains; q36–43 academic and classroom performance rated on a 5-point scale (Problematic→Excellent); q44 teacher name.",
+    isRemyndOwned: false,
+    respondentTypes: ["teacher1", "teacher2"],
+    scoringType: "auto",
+    domains: ["attention", "hyperactivity-impulsivity", "oppositional-defiant", "conduct", "anxiety-depression", "academic-performance", "classroom-behaviour"],
+    formItems: VADTRS_FORM,
   },
   {
     id: "BSPP",

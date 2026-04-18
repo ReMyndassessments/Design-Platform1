@@ -2932,6 +2932,74 @@ export const VADPRS_FORM: FormQuestion[] = [
   { id: "q55", text: "How does your child do in activities such as games or team play?", textChinese: "您的孩子在游戏或团队活动等活动中表现如何？", textKorean: "귀하의 자녀는 게임이나 단체 활동에서 얼마나 잘 하나요?", type: "scale", options: VADPRS_PERF, optionsChinese: VADPRS_PERF_ZH, optionsKorean: VADPRS_PERF_KO, domain: "social-functioning", required: true },
 ];
 
+// ─── VADTRS ────────────────────────────────────────────────────────────────────
+// Vanderbilt ADHD Diagnostic Teacher Rating Scale
+// Questions 1–35: frequency scale (Never / Occasionally / Often / Very Often)
+// Questions 36–43: performance scale (Problematic→Excellent) — 5 options, REVERSED vs VADPRS
+// Question 44: teacher name (text)
+const VADTRS_FREQ    = ["Never", "Occasionally", "Often", "Very Often"];
+const VADTRS_FREQ_ZH = ["从不", "偶尔", "经常", "非常频繁"];
+const VADTRS_FREQ_KO = ["전혀 아니다", "가끔 그렇다", "자주 그렇다", "매우 자주 그렇다"];
+// Performance scale: 1=Problematic (worst) → 5=Excellent (best) — opposite direction to VADPRS
+const VADTRS_PERF    = ["Problematic (1)", "Somewhat of a Problem (2)", "Average (3)", "Above Average (4)", "Excellent (5)"];
+const VADTRS_PERF_ZH = ["问题严重 (1)", "有些问题 (2)", "平均 (3)", "高于平均 (4)", "优秀 (5)"];
+const VADTRS_PERF_KO = ["문제 있음 (1)", "다소 문제 있음 (2)", "평균 (3)", "평균 이상 (4)", "우수 (5)"];
+
+export const VADTRS_FORM: FormQuestion[] = [
+  // Inattention (q1–9)
+  { id: "q1",  text: "Does not pay attention to details or makes careless mistakes, such as in homework", textChinese: "不注意细节或在作业中犯粗心错误", textKorean: "세부 사항에 주의를 기울이지 않거나, 숙제 등에서 부주의한 실수를 한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q2",  text: "Has difficulty sustaining attention to tasks or activities", textChinese: "在任务或活动中难以维持注意力", textKorean: "과제나 활동에 주의를 지속하기 어려워한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q3",  text: "Does not seem to listen when spoken to directly", textChinese: "当直接对他/她说话时，似乎没有在听", textKorean: "직접 말을 걸어도 듣지 않는 것처럼 보인다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q4",  text: "Does not follow through on instruction and fails to finish schoolwork (not due to oppositional behaviour or failure to understand)", textChinese: "不遵从指令，未能完成学校作业（并非由于对抗行为或未能理解）", textKorean: "지시를 따르지 않고 학교 과제를 끝내지 못한다(반항적 행동이나 이해 부족 때문이 아님)", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q5",  text: "Has difficulty organising tasks and activities", textChinese: "在组织和安排任务与活动方面存在困难", textKorean: "과제와 활동을 조직하는 데 어려움을 겪는다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q6",  text: "Avoids, dislikes, or is reluctant to engage in tasks that require sustaining mental effort", textChinese: "回避、不喜欢或不愿意从事需要持续脑力劳动的任务", textKorean: "지속적인 정신적 노력이 필요한 과제를 피하거나, 싫어하거나, 참여하기를 꺼린다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q7",  text: "Loses things necessary for tasks or activities (school assignments, pencils, or books)", textChinese: "丢失任务或活动所需的物品（学校作业、铅笔或书本）", textKorean: "과제나 활동에 필요한 물건(학교 숙제, 연필, 책 등)을 잃어버린다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q8",  text: "Is easily distracted by extraneous stimuli", textChinese: "容易被无关刺激分心", textKorean: "외부 자극에 쉽게 산만해진다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  { id: "q9",  text: "Is forgetful in daily activities", textChinese: "在日常活动中健忘", textKorean: "일상 활동에서 건망증이 있다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "attention", required: true },
+  // Hyperactivity-Impulsivity (q10–18)
+  { id: "q10", text: "Fidgets with hands or feet or squirms in seat", textChinese: "手或脚动来动去，或在座位上扭动身体", textKorean: "손이나 발을 꼼지락거리거나 자리에서 몸을 비틀거린다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q11", text: "Leaves seat in classroom or in other situations in which remaining seated is expected", textChinese: "在教室或其他需要保持坐姿的场合离开座位", textKorean: "교실 등 앉아 있어야 하는 상황에서 자리를 떠난다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q12", text: "Runs about or climbs excessively in situations in which remaining seated is expected", textChinese: "在需要保持坐姿的场合过度跑动或攀爬", textKorean: "앉아 있어야 하는 상황에서 지나치게 뛰어다니거나 기어오른다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q13", text: "Has difficulty playing or engaging in leisure activities quietly", textChinese: "安静地玩耍或进行休闲活动有困难", textKorean: "조용히 놀거나 여가 활동에 참여하기 어려워한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q14", text: "Is \"on the go\" or often acts as if \"driven by a motor\"", textChinese: "「忙个不停」或经常表现得像「被马达驱动一样」", textKorean: "'항상 움직이고 있거나' '모터에 의해 움직이는 것처럼' 자주 행동한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q15", text: "Talks excessively", textChinese: "说话过多", textKorean: "과도하게 말을 많이 한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q16", text: "Blurts out answers before questions have been completed", textChinese: "问题还没问完就抢着回答", textKorean: "질문이 끝나기 전에 답을 내뱉는다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q17", text: "Has difficulty waiting in line", textChinese: "排队等待有困难", textKorean: "줄을 서서 기다리기 어려워한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  { id: "q18", text: "Interrupts or intrudes on others (e.g., butts into conversations or games)", textChinese: "打断或侵扰他人（例如，插话或闯入游戏）", textKorean: "다른 사람을 방해하거나 침범한다(예: 대화나 게임에 끼어든다)", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "hyperactivity-impulsivity", required: true },
+  // Oppositional Defiant (q19–22)
+  { id: "q19", text: "Loses temper", textChinese: "发脾气", textKorean: "화를 낸다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "oppositional-defiant", required: true },
+  { id: "q20", text: "Actively defies or refuses to comply with adults' requests or rules", textChinese: "公然违抗或拒绝服从成人的要求或规则", textKorean: "성인의 요청이나 규칙에 적극적으로 반항하거나 따르기를 거부한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "oppositional-defiant", required: true },
+  { id: "q21", text: "Is angry or resentful", textChinese: "愤怒或怨恨", textKorean: "화가 나거나 원망스러워한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "oppositional-defiant", required: true },
+  { id: "q22", text: "Is spiteful and vindictive", textChinese: "怀恨在心且报复心强", textKorean: "악의적이고 보복심이 강하다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "oppositional-defiant", required: true },
+  // Conduct (q23–28)
+  { id: "q23", text: "Bullies, threatens, or intimidates others", textChinese: "欺凌、威胁或恐吓他人", textKorean: "다른 사람을 괴롭히거나, 위협하거나, 협박한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  { id: "q24", text: "Initiates physical fights", textChinese: "首先动手打架", textKorean: "먼저 신체적 싸움을 시작한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  { id: "q25", text: "Lies to obtain goods for favours or to avoid obligations (i.e., \"cons\" others)", textChinese: "为获取物品、好处或逃避义务而说谎（即「欺骗」他人）", textKorean: "물건이나 호의를 얻거나 의무를 피하기 위해 거짓말을 한다(즉, 다른 사람을 '속인다')", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  { id: "q26", text: "Is physically cruel to people", textChinese: "对他人施加身体上的残忍行为", textKorean: "사람들에게 신체적으로 잔인하게 대한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  { id: "q27", text: "Has stolen items of nontrivial value", textChinese: "偷窃过价值不菲的物品", textKorean: "사소하지 않은 가치의 물건을 훔친 적이 있다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  { id: "q28", text: "Deliberately destroys others' property", textChinese: "故意破坏他人财物", textKorean: "고의로 타인의 재산을 파괴한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "conduct", required: true },
+  // Anxiety / Depression (q29–35)
+  { id: "q29", text: "Is fearful, anxious, or worried", textChinese: "恐惧、焦虑或担忧", textKorean: "두려워하거나, 불안해하거나, 걱정한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q30", text: "Is self-conscious or easily embarrassed", textChinese: "忸怩或容易尴尬", textKorean: "남의 눈을 의식하거나 쉽게 당황한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q31", text: "Is afraid to try new things for fear of making mistakes", textChinese: "因害怕犯错而不敢尝试新事物", textKorean: "실수를 두려워하여 새로운 것을 시도하기를 두려워한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q32", text: "Feels worthless or inferior", textChinese: "感到自己无价值或不如他人", textKorean: "자신이 무가치하거나 열등하다고 느낀다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q33", text: "Blames self for problems, feels guilty", textChinese: "将问题归咎于自己，感到内疚", textKorean: "문제를 자신의 탓으로 돌리고 죄책감을 느낀다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q34", text: "Feels lonely, unwanted, or unloved; complains that \"no one loves him/her\"", textChinese: "感到孤独、不被需要或不被爱；抱怨「没人爱他/她」", textKorean: "외롭거나, 필요 없거나, 사랑받지 못한다고 느낀다; '아무도 나를 사랑하지 않아'라고 호소한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  { id: "q35", text: "Is sad, unhappy, or depressed", textChinese: "悲伤、不快乐或抑郁", textKorean: "슬프거나, 불행하거나, 우울해한다", type: "likert", options: VADTRS_FREQ, optionsChinese: VADTRS_FREQ_ZH, optionsKorean: VADTRS_FREQ_KO, domain: "anxiety-depression", required: true },
+  // Academic Performance (q36–38) — 5-point scale: Problematic→Excellent
+  { id: "q36", text: "Rate his/her academic performance in reading", textChinese: "评估他/她在阅读方面的学业表现", textKorean: "읽기 영역에서의 학업 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "academic-performance", required: true },
+  { id: "q37", text: "Rate his/her academic performance in mathematics", textChinese: "评估他/她在数学方面的学业表现", textKorean: "수학 영역에서의 학업 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "academic-performance", required: true },
+  { id: "q38", text: "Rate his/her academic performance in written expression", textChinese: "评估他/她在书面表达方面的学业表现", textKorean: "작문 영역에서의 학업 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "academic-performance", required: true },
+  // Classroom Behavioural Performance (q39–43) — 5-point scale: Problematic→Excellent
+  { id: "q39", text: "Rate his/her classroom behavioural performance in relationships with peers", textChinese: "评估他/她在与同伴关系方面的课堂行为表现", textKorean: "또래와의 관계 측면에서의 교실 행동 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "classroom-behaviour", required: true },
+  { id: "q40", text: "Rate his/her classroom behavioural performance in following directions/rules", textChinese: "评估他/她在遵守指示/规则方面的课堂行为表现", textKorean: "지시/규칙 준수 측면에서의 교실 행동 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "classroom-behaviour", required: true },
+  { id: "q41", text: "Rate his/her classroom behavioural performance in disrupting class", textChinese: "评估他/她在扰乱课堂方面的课堂行为表现", textKorean: "수업 방해 측면에서의 교실 행동 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "classroom-behaviour", required: true },
+  { id: "q42", text: "Rate his/her classroom behavioural performance in assignment completion", textChinese: "评估他/她在作业完成方面的课堂行为表现", textKorean: "과제 완성 측면에서의 교실 행동 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "classroom-behaviour", required: true },
+  { id: "q43", text: "Rate his/her classroom behavioural performance in organisational skills", textChinese: "评估他/她在组织技能方面的课堂行为表现", textKorean: "조직 능력 측면에서의 교실 행동 수행을 평가해 주십시오", type: "scale", options: VADTRS_PERF, optionsChinese: VADTRS_PERF_ZH, optionsKorean: VADTRS_PERF_KO, domain: "classroom-behaviour", required: true },
+  // Teacher identification (q44)
+  { id: "q44", text: "Name of teacher who completed this form:", textChinese: "填写本表格的教师姓名：", textKorean: "본 양식을 작성한 교사 성명:", type: "text", options: [], optionsChinese: [], optionsKorean: [], domain: "admin" },
+];
+
 // ─── QUESTION REGISTRY ───────────────────────────────────────────────────────────
 export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   REFERRAL:            REFERRAL_FORM,
@@ -2951,6 +3019,7 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   REFI:       REFI_FORM,
   RERMS:      RERMS_FORM,
   VADPRS:     VADPRS_FORM,
+  VADTRS:     VADTRS_FORM,
   BSPP:       BSPP_FORM,
   EFA:        EFA_FORM,
   RSCP:       RSCP_FORM,
