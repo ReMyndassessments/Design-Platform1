@@ -4410,6 +4410,70 @@ export const RSSC_FORM: FormQuestion[] = [
   { id: "rssc_cp12_comments", text: "Additional Comments:", textChinese: "额外评注：", textKorean: "추가 의견:", type: "textarea", domain: "cognitive_physical", options: [], optionsChinese: [], optionsKorean: [] },
 ];
 
+const ASRS_OPTIONS    = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
+const ASRS_OPTIONS_ZH = ["\u5f9e\u4e0d", "\u5f88\u5c11", "\u6709\u6642", "\u7d93\u5e38", "\u975e\u5e38\u983b\u7e41"];
+const ASRS_OPTIONS_KO = ["\uc804\ud601 \uc5c6\uc74c", "\ub4dc\ubb3c\uac8c", "\uac00\ub048", "\uc790\uc8fc", "\ub9e4\uc6b0 \uc790\uc8fc"];
+
+const asrsQ = (id: string, text: string, textChinese: string, textKorean: string, domain: string) => ({
+  id, text, textChinese, textKorean,
+  type: "likert", domain, required: true,
+  options: ASRS_OPTIONS, optionsChinese: ASRS_OPTIONS_ZH, optionsKorean: ASRS_OPTIONS_KO,
+});
+
+export const ASRS_ADHD_FORM = [
+  {
+    id: "asrs_instr",
+    type: "section_header", domain: "admin", required: false,
+    options: [], optionsChinese: [], optionsKorean: [],
+    text: "Adult ADHD Self-Report Scale v1.1 (ASRS-v1.1)",
+    textChinese: "\u6210\u4eba\u6ce8\u610f\u5c0d\u7f3a\u9677\u591a\u52d5\u969c\u7919\u81ea\u8a55\u91cf\u8868 v1.1 (ASRS-v1.1)",
+    textKorean: "\uc131\uc778 ADHD \uc790\uae30\ubcf4\uace0 \ucca0\ub3c4 v1.1 (ASRS-v1.1)",
+    note: "The Adult ADHD Self-Report Scale (ASRS-v1.1) was developed in conjunction with the World Health Organization (WHO). Please answer the questions below, rating yourself on each of the criteria shown. Think about how you have felt and conducted yourself over the past 6 months.\n\nPart A (Questions 1\u20136) serves as a screener. Part B (Questions 7\u201318) provides additional clinical information.\n\nResponse scale: Never \u00b7 Rarely \u00b7 Sometimes \u00b7 Often \u00b7 Very Often",
+    noteChinese: "\u6210\u4eba\u6ce8\u610f\u5c0d\u7f3a\u9677\u591a\u52d5\u969c\u7919\u81ea\u8a55\u91cf\u8868 (ASRS-v1.1) \u7531\u4e16\u754c\u885b\u751f\u7d44\u7e54 (WHO) \u806f\u5408\u958b\u767c\u3002\u8acb\u56de\u7b54\u4ee5\u4e0b\u554f\u984c\uff0c\u6839\u64da\u8a55\u5206\u6a19\u6e96\u70ba\u81ea\u5df1\u6253\u5206\u3002\u8acb\u601d\u8003\u60a8\u5728\u904e\u53bb6\u500b\u6708\u5167\u7684\u611f\u53d7\u548c\u884c\u70ba\u8868\u73fe\u3002\n\nA\u90e8\u5206\uff08\u554f\u984c1\u20136\uff09\u70ba\u7b5b\u67e5\u91cf\u8868\uff1bB\u90e8\u5206\uff08\u554f\u984c7\u201318\uff09\u63d0\u4f9b\u984d\u5916\u81e8\u5e8a\u4fe1\u606f\u3002\n\n\u56de\u61c9\u9078\u9805\uff1a\u5f9e\u4e0d \u00b7 \u5f88\u5c11 \u00b7 \u6709\u6642 \u00b7 \u7d93\u5e38 \u00b7 \u975e\u5e38\u983b\u7e41",
+    noteKorean: "\uc131\uc778 ADHD \uc790\uae30\ubcf4\uace0 \ucca0\ub3c4 (ASRS-v1.1)\ub294 \uc138\uacc4\ubcf4\uac74\uae30\uad6c (WHO)\uc640 \uacf5\ub3d9\uc73c\ub85c \uac1c\ubc1c\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \uc544\ub798 \uc9c8\ubb38\ub4e4\uc5d0 \ub2f5\ud558\uba74\uc11c \uc9c0\ub09c 6\uac1c\uc6d4 \ub3d9\uc548 \uc790\uc2e0\uc774 \uc5b4\ub5bb\uac8c \ub290\uaef4\uace0 \ud589\ub3d9\ud588\ub294\uc9c0 \uc0dd\uac01\ud574 \uc8fc\uc138\uc694.\n\nA \ud30c\ud2b8 (\ubb38\ud56d 1\u20136)\ub294 \uc120\ubcc4 \ub3c4\uad6c\uc785\ub2c8\ub2e4. B \ud30c\ud2b8 (\ubb38\ud56d 7\u201318)\ub294 \ucd94\uac00\uc801\uc778 \uc784\uc0c1 \uc815\ubcf4\ub97c \uc81c\uacf5\ud569\ub2c8\ub2e4.\n\n\uc751\ub2f5 \ucca0\ub3c4: \uc804\ud601 \uc5c6\uc74c \u00b7 \ub4dc\ubb3c\uac8c \u00b7 \uac00\ub048 \u00b7 \uc790\uc8fc \u00b7 \ub9e4\uc6b0 \uc790\uc8fc",
+  },
+  {
+    id: "asrs_parta",
+    type: "section_header", domain: "admin", required: false,
+    options: [], optionsChinese: [], optionsKorean: [],
+    text: "Part A",
+    textChinese: "A\u90e8\u5206",
+    textKorean: "A \ud30c\ud2b8",
+    note: "Questions 1\u20136. These items are the ASRS screener.",
+    noteChinese: "\u554f\u984c1\u20136\u3002\u6b64\u90e8\u5206\u70baASRS\u7b5b\u67e5\u9805\u76ee\u3002",
+    noteKorean: "\ubb38\ud56d 1\u20136. \uc774 \ud56d\ubaa9\ub4e4\uc740 ASRS \uc120\ubcc4 \ub3c4\uad6c\uc785\ub2c8\ub2e4.",
+  },
+  asrsQ("asrs_a1", "How often do you have trouble wrapping up the final details of a project, once the challenging parts have been done?", "\u5f53\u4e00\u500b\u9805\u76ee\u7684\u5177\u6311\u6230\u6027\u90e8\u5206\u5b8c\u6210\u5f8c\uff0c\u60a8\u591a\u5e38\u767c\u73fe\u81ea\u5df1\u96e3\u4ee5\u5b8c\u6210\u6700\u5f8c\u7684\u7d30\u7bc0\uff1f", "\ud504\ub85c\uc81d\ud2b8\uc758 \ub3c4\uc804\uc801\uc778 \ubd80\ubd84\uc744 \uc644\ub8cc\ud55c \ud6c4, \ub9c8\uc9c0\ub9c9 \uc138\ubd80 \uc0ac\ud56d\uc744 \ub9c8\ubb34\ub9ac\ud558\ub294 \ub370 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc5b4\ub824\uc6c0\uc744 \uacaa\uc2b5\ub2c8\uae4c?", "inattention"),
+  asrsQ("asrs_a2", "How often do you have difficulty getting things in order when you have to do a task that requires organization?", "\u7576\u60a8\u9700\u8981\u5b8c\u6210\u4e00\u9805\u9700\u8981\u7d44\u7e54\u7684\u4efb\u52d9\u6642\uff0c\u60a8\u591a\u5e38\u96e3\u4ee5\u5c07\u4e8b\u60c5\u6392\u5217\u6709\u5e8f\uff1f", "\uccb4\uacc4\uc801\uc778 \uc870\uc9c1\uc774 \ud544\uc694\ud55c \uacfc\uc81c\ub97c \ud560 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc21c\uc11c\ub97c \uc815\ub9ac\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\uc2b5\ub2c8\uae4c?", "inattention"),
+  asrsQ("asrs_a3", "How often do you have problems remembering appointments or obligations?", "\u60a8\u591a\u5e38\u5fd8\u8a18\u9810\u7d04\u6216\u7fa9\u52d9\uff1f", "\uc57d\uc18d\uc774\ub098 \uc758\ubb34\uc0ac\ud56d\uc744 \uae30\uc5b5\ud558\ub294 \ub370 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc5b4\ub824\uc6c0\uc744 \uacaa\uc2b5\ub2c8\uae4c?", "inattention"),
+  asrsQ("asrs_a4", "When you have a task that requires a lot of thought, how often do you avoid or delay getting started?", "\u7576\u60a8\u9700\u8981\u5b8c\u6210\u4e00\u9805\u9700\u8981\u5927\u91cf\u601d\u8003\u7684\u4efb\u52d9\u6642\uff0c\u60a8\u591a\u5e38\u56de\u907f\u6216\u5ef6\u9072\u958b\u59cb\uff1f", "\ub9ce\uc740 \uc0dd\uac01\uc774 \ud544\uc694\ud55c \uacfc\uc81c\uac00 \uc788\uc744 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc2dc\uc791\uc744 \ud53c\ud558\uac70\ub098 \ubbf8\ub8e8\uc2b5\ub2c8\uae4c?", "inattention"),
+  asrsQ("asrs_a5", "How often do you fidget or squirm with your hands or feet when you have to sit down for a long time?", "\u7576\u60a8\u9700\u8981\u9577\u6642\u9593\u5750\u7740\u6642\uff0c\u60a8\u591a\u5e38\u7528\u624b\u6216\u8173\u4e0d\u505c\u5730\u52a8\u4f86\u52d5\u53bb\uff1f", "\uc624\ub79c \uc2dc\uac04 \uc549\uc544 \uc788\uc5b4\uc57c \ud560 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc190\uc774\ub098 \ubc1c\uc744 \uae8c\uc2a4\uac70\ub9ac\uac70\ub098 \uac70\ub9c9\uac70\ub9ac\ub294\uc9c0\uc694?", "hyperactivity"),
+  asrsQ("asrs_a6", "How often do you feel overly active and compelled to do things, like you were driven by a motor?", "\u60a8\u591a\u5e38\u611f\u5230\u81ea\u5df1\u975e\u5e38\u6d3b\u8e8d\uff0c\u88ab\u5f37\u8feb\u53bb\u505a\u4e8b\uff0c\u597d\u50cf\u88ab\u99ac\u9054\u9a45\u52d5\u4e00\u6a23\uff1f", "\uc5bc\ub9c8\ub098 \uc790\uc8fc \uacfc\ub3c4\ud558\uac8c \ud65c\ub3d9\uc801\uc774\uba70 \ubb34\uc5b8\uac00\ub97c \ud574\uc57c \ud560 \uac83 \uac19\uc740 \ucda9\ub3d9\uc744 \ub290\ub07c\ub294\uc9c0\uc694, \ub9c8\uce58 \ubaa8\ud130\uc5d0 \uc758\ud574 \uc6c0\uc9c1\uc774\ub294 \uac83\ucc98\ub7fc\uc694?", "hyperactivity"),
+  {
+    id: "asrs_partb",
+    type: "section_header", domain: "admin", required: false,
+    options: [], optionsChinese: [], optionsKorean: [],
+    text: "Part B",
+    textChinese: "B\u90e8\u5206",
+    textKorean: "B \ud30c\ud2b8",
+    note: "Questions 7\u201318. These items provide additional information to support clinical assessment.",
+    noteChinese: "\u554f\u984c7\u201318\u3002\u6b64\u90e8\u5206\u63d0\u4f9b\u652f\u6301\u81e8\u5e8a\u8a55\u4f30\u7684\u984d\u5916\u4fe1\u606f\u3002",
+    noteKorean: "\ubb38\ud56d 7\u201318. \uc774 \ud56d\ubaa9\ub4e4\uc740 \uc784\uc0c1 \ud3c9\uac00\ub97c \uc9c0\uc6d0\ud558\ub294 \ucd94\uac00 \uc815\ubcf4\ub97c \uc81c\uacf5\ud569\ub2c8\ub2e4.",
+  },
+  asrsQ("asrs_b7",  "How often do you make careless mistakes when you have to work on a boring or difficult project?", "\u7576\u60a8\u9700\u8981\u5b8c\u6210\u4e00\u9805\u6c89\u9b36\u6216\u56f0\u96e3\u7684\u9805\u76ee\u6642\uff0c\u60a8\u591a\u5e38\u56e0\u7c97\u5fc3\u800c\u5fd8\u5931\u932f\u8aa4\uff1f", "\uc9c0\ub8e8\ud558\uac70\ub098 \uc5b4\ub824\uc6b4 \ud504\ub85c\uc81d\ud2b8\ub97c \ud560 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubd80\uc8fc\uc758\ud55c \uc2e4\uc218\ub97c \uc800\uc9c0\ub974\ub294\uc9c0\uc694?", "inattention"),
+  asrsQ("asrs_b8",  "How often do you have difficulty keeping your attention when you are doing boring or repetitive work?", "\u7576\u60a8\u5728\u5b8c\u6210\u6c88\u9b36\u6216\u91cd\u8907\u7684\u5de5\u4f5c\u6642\uff0c\u60a8\u591a\u5e38\u96e3\u4ee5\u6301\u7e8c\u4e13\u6ce8\uff1f", "\uc9c0\ub8e8\ud558\uac70\ub098 \ubc18\ubcf5\uc801\uc778 \uc791\uc5c5\uc744 \ud560 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc8fc\uc758\ub825\uc744 \uc720\uc9c0\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\uc9c0\uc694?", "inattention"),
+  asrsQ("asrs_b9",  "How often do you have difficulty concentrating on what people say to you, even when they are speaking to you directly?", "\u5373\u4f7f\u5225\u4eba\u76f4\u63a5\u8ddf\u60a8\u8aaa\u8a71\uff0c\u60a8\u591a\u5e38\u96e3\u4ee5\u96c6\u4e2d\u7cbe\u795e\u8074\u5462\uff1f", "\ub204\uad70\uac00 \uc9c1\uc811 \ub9d0\uc744 \uac78 \ub54c\ub3c4 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uadf8 \ub9d0\uc5d0 \uc9d1\uc911\ud558\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\uc9c0\uc694?", "inattention"),
+  asrsQ("asrs_b10", "How often do you misplace or have difficulty finding things at home or at work?", "\u60a8\u591a\u5e38\u5728\u5bb6\u4e2d\u6216\u5de5\u4f5c\u4e2d\u8fdf\u5931\u6771\u897f\u6216\u96e3\u4ee5\u627e\u5230\u6771\u897f\uff1f", "\uc9d1\uc774\ub098 \uc9c1\uc7a5\uc5d0\uc11c \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubb3c\uac74\uc744 \uc78f\uc5b4\ubc84\ub9ac\uac70\ub098 \ucc3e\uc9c0 \ubabb\ud558\ub294\uc9c0\uc694?", "inattention"),
+  asrsQ("asrs_b11", "How often are you distracted by activity or noise around you?", "\u60a8\u591a\u5e38\u56e0\u5468\u570d\u7684\u6d3b\u52d5\u6216\u566a\u97f3\u800c\u5206\u5fc3\uff1f", "\uc8fc\ubcc0\uc758 \ud65c\ub3d9\uc774\ub098 \uc18c\uc74c\uc5d0 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc8fc\uc758\uac00 \uc0b0\ub9cc\ud574\uc9c0\ub294\uc9c0\uc694?", "inattention"),
+  asrsQ("asrs_b12", "How often do you leave your seat in meetings or other situations in which you are expected to remain seated?", "\u5728\u6703\u8b70\u6216\u5176\u4ed6\u9810\u671f\u4e0d\u80fd\u96e2\u5ea7\u7684\u60c5\u6cc1\u4e0b\uff0c\u60a8\u591a\u5e38\u9000\u51fa\u5ea7\u4f4d\uff1f", "\ud68c\uc758\ub098 \uadf8 \uc678 \uc790\ub9ac\ub97c \uc9c0\ucf1c\uc57c \ud558\ub294 \uc0c1\ud669\uc5d0\uc11c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc790\ub9ac\ub97c \ub5a0\ub098\ub294\uc9c0\uc694?", "hyperactivity"),
+  asrsQ("asrs_b13", "How often do you feel restless or fidgety?", "\u60a8\u591a\u5e38\u611f\u5230\u5ea7\u7acb\u4e0d\u5b89\u6216\u5fc3\u7e4a\u610f\u4e82\uff1f", "\uc5bc\ub9c8\ub098 \uc790\uc8fc \uc548\uc808\uc815\ud558\uac70\ub098 \ud584\ub4e0\ub9ac\ub294 \ub290\ub07c\uc774 \ub4dc\ub294\uc9c0\uc694?", "hyperactivity"),
+  asrsQ("asrs_b14", "How often do you have difficulty unwinding and relaxing when you have time to yourself?", "\u7576\u60a8\u6709\u81ea\u5df1\u7684\u6642\u9593\u6642\uff0c\u60a8\u591a\u5e38\u96e3\u4ee5\u653e\u9b06\u548c\u653e\u9b06\uff1f", "\uc790\uc2e0\ub9cc\uc758 \uc2dc\uac04\uc774 \uc788\uc744 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc5d4\uc9c4\uc744 \ub044\uace0 \uc27d\uc9c0 \ubabb\ud558\ub294\uc9c0\uc694?", "hyperactivity"),
+  asrsQ("asrs_b15", "How often do you find yourself talking too much when you are in social situations?", "\u5728\u793e\u4ea4\u5834\u5408\u4e2d\uff0c\u60a8\u591a\u5e38\u767c\u73fe\u81ea\u5df1\u8aaa\u8a71\u904e\u591a\uff1f", "\uc0ac\ud68c\uc801 \uc0c1\ud669\uc5d0\uc11c \uc5bc\ub9c8\ub098 \uc790\uc8fc \ub9d0\uc744 \ub108\ubb34 \ub9ce\uc774 \ud55c\ub2e4\uace0 \ub290\ub07c\ub294\uc9c0\uc694?", "hyperactivity"),
+  asrsQ("asrs_b16", "When you're in a conversation, how often do you find yourself finishing the sentences of the people you are talking to, before they can finish them themselves?", "\u5728\u5c0d\u8a71\u4e2d\uff0c\u60a8\u591a\u5e38\u5728\u5c0d\u65b9\u8aaa\u5b8c\u4e4b\u524d\u63a5\u8012\u5c0d\u65b9\u7684\u8a71\u8a9e\uff1f", "\ub300\ud654 \uc911 \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc0c1\ub300\ubc29\uc774 \ub9d0\uc744 \ub3c4 \ub9c8\uce58\uae30 \uc804\uc5d0 \ubb38\uc7a5\uc744 \ub300\uc2e0 \ub9c8\ubb34\ub9ac\ud558\ub294\uc9c0\uc694?", "impulsivity"),
+  asrsQ("asrs_b17", "How often do you have difficulty waiting your turn in situations when turn taking is required?", "\u5728\u9700\u8981\u8f2a\u6d41\u7684\u60c5\u6cc1\u4e0b\uff0c\u60a8\u591a\u5e38\u96e3\u4ee5\u8033\u5019\u81ea\u5df1\u7684\u9806\u5e8f\uff1f", "\uc791\ub300\uae30\uac00 \ud544\uc694\ud55c \uc0c1\ud669\uc5d0\uc11c \uc5bc\ub9c8\ub098 \uc790\uc8fc \uc790\uc2e0\uc758 \ucc28\ub840\ub97c \uae30\ub2e4\ub9ac\ub294 \ub370 \uc5b4\ub824\uc6c0\uc744 \uacaa\ub294\uc9c0\uc694?", "impulsivity"),
+  asrsQ("asrs_b18", "How often do you interrupt others when they are busy?", "\u7576\u5225\u4eba\u6b63\u5fd9\u4e8e\u67d0\u4e8b\u6642\uff0c\u60a8\u591a\u5e38\u6253\u65b7\u5c0d\u65b9\uff1f", "\ub2e4\ub978 \uc0ac\ub78c\uc774 \ubc14\uc05c\uac8c \uc788\uc744 \ub54c \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubc29\ud574\ud558\ub294\uc9c0\uc694?", "impulsivity"),
+];
+
 const BFI44_OPTIONS = ["1 — Disagree Strongly", "2 — Disagree a little", "3 — Neither agree nor disagree", "4 — Agree a little", "5 — Agree Strongly"];
 const BFI44_OPTIONS_ZH = ["1 — 非常不同意", "2 — 有點不同意", "3 — 既不同意也不反對", "4 — 有點同意", "5 — 非常同意"];
 const BFI44_OPTIONS_KO = ["1 — 매우 반대", "2 — 조금 반대", "3 — 동의하지도 반대하지도 않음", "4 — 조금 동의", "5 — 매우 동의"];
