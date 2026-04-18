@@ -2206,8 +2206,9 @@ async function reviseYBOCSSCForm() {
     if (!rows.length) return;
 
     const items = (rows[0].formItems ?? []) as any[];
-    // Idempotency: already fully written if more than 10 items exist
-    if (items.length > 10) return;
+    // Idempotency: already up-to-date if first likert item has 3 options (Never/Past/Current)
+    const firstLikert = items.find((it: any) => it.type === "likert");
+    if (firstLikert?.options?.length === 3) return;
 
     await db
       .update(assessmentToolsTable)
