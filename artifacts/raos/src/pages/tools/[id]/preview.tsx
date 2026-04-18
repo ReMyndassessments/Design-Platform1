@@ -26,7 +26,6 @@ type Question = {
 
 function normalizeType(t: string): string {
   if (t === "radio" || t === "multiple_choice") return "radio_group";
-  if (t === "checkbox") return "checkbox_group";
   return t;
 }
 
@@ -154,6 +153,33 @@ function SelectField({ q, language, value, onChange }: { q: Question; language: 
         {opts.map(({ value: v, display }) => <option key={v} value={v}>{display}</option>)}
       </select>
     </div>
+  );
+}
+
+function SingleCheckboxField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
+  const { label } = useText(q, language);
+  const checked = value === "1";
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(checked ? "" : "1")}
+      className={cn(
+        "w-full flex items-start gap-3 text-left rounded-lg border px-3.5 py-3 transition-all",
+        checked ? "border-primary bg-primary/5" : "border-slate-200 bg-white hover:border-slate-300"
+      )}
+    >
+      <div className={cn(
+        "mt-0.5 w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors",
+        checked ? "border-primary bg-primary" : "border-slate-300 bg-white"
+      )}>
+        {checked && (
+          <svg viewBox="0 0 12 10" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1,5 4.5,9 11,1" />
+          </svg>
+        )}
+      </div>
+      <span className={cn("text-sm leading-relaxed", checked ? "text-primary font-medium" : "text-slate-700")}>{label}</span>
+    </button>
   );
 }
 
@@ -295,8 +321,9 @@ function PreviewQuestion({
   return (
     <div className="space-y-1 py-4 border-b border-slate-100 last:border-0">
       {itemNumber !== undefined && <p className="text-xs text-slate-400 font-normal mb-0.5">{itemNumber}.</p>}
-      {type === "radio_group"    && <RadioField    q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
-      {type === "checkbox_group" && <CheckboxField  q={q} language={language} value={arrVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "radio_group"    && <RadioField          q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "checkbox_group" && <CheckboxField       q={q} language={language} value={arrVal} onChange={v => setAnswer(q.id, v)} />}
+      {type === "checkbox"       && <SingleCheckboxField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
       {(type === "likert" || type === "scale") && <LikertField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
       {type === "text"      && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />}
       {type === "number"    && <TextField     q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} type="number" />}
