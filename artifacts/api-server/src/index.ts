@@ -1353,16 +1353,16 @@ async function reviseLASAForm() {
 
     if (!rows.length || !rows[0].formItems) return;
     const items = rows[0].formItems as any[];
-    // Idempotency: already revised if second item has descriptive ID
-    if (items[1]?.id === "lasa_child_info") return;
+    // Idempotency: already revised if second item has descriptive ID AND options are labeled
+    if (items[1]?.id === "lasa_child_info" && (items[11] as any)?.options?.[0] === "0 (Never)") return;
 
     const opts0 = (o: string[]) => o;
     const lk = (id: string, domain: string, en: string, zh: string, ko: string) => ({
       id, type: "likert", domain, required: false,
       text: en, textChinese: zh, textKorean: ko,
-      options: ["0","1","2","3","4"],
-      optionsChinese: ["0","1","2","3","4"],
-      optionsKorean: ["0","1","2","3","4"],
+      options: ["0 (Never)", "1 (Rarely)", "2 (Sometimes)", "3 (Frequently)", "4 (Always)"],
+      optionsChinese: ["0 (\u4ece\u4e0d)", "1 (\u5f88\u5c11)", "2 (\u6709\u65f6)", "3 (\u7ecf\u5e38)", "4 (\u603b\u662f)"],
+      optionsKorean: ["0 (\uc804\ud600)", "1 (\ub4dc\ubb3c\uac8c)", "2 (\uac00\ub07c)", "3 (\uc790\uc8fc)", "4 (\ud56d\uc0c1)"],
     });
     const sh = (id: string, domain: string, en: string, zh: string, ko: string, noteEn?: string, noteZh?: string, noteKo?: string) => ({
       id, type: "section_header", domain, required: false,
