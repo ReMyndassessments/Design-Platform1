@@ -33,6 +33,15 @@ const instr = (
 // ─── CDP-SR: Self-Regulation and Executive Function Profile ──────────────────
 
 export const CDP_SR_FORM: FormQuestion[] = [
+  instr(
+    "cdp_sr_instr",
+    "CDP — Self-Regulation and Executive Function",
+    "CDP — 自我调节与执行功能",
+    "CDP — 자기 조절 및 실행 기능",
+    "This assessment is completed by an educator or therapist who knows the learner well. For each item, rate how frequently the learner demonstrates the described behaviour in their typical learning and social environment.\n\nResponse scale: Always · Often · Rarely · Never",
+    "本量表由了解学习者的教育者或治疗师填写。请根据学习者在典型学习和社交环境中的表现，评估每项行为出现的频率。\n\n回应选项：经常 · 有时 · 很少 · 从不",
+    "이 평가는 학습자를 잘 아는 교육자 또는 치료사가 작성합니다. 학습자의 전형적인 학습 및 사회적 환경에서 각 행동이 얼마나 자주 나타나는지 평가해 주세요.\n\n응답 척도: 항상 · 자주 · 드물게 · 전혀",
+  ),
   hdr("cdp_sr_s1_hdr", "Section 1: Managing Emotions", "managing_emotions"),
   sub("cdp_sr_s1a_hdr", "Recognizing Emotions", "managing_emotions"),
   q("cdp_sr_s1_1", "Can the learner recognize and name their feelings and emotions?", "managing_emotions"),
