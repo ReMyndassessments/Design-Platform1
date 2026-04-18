@@ -1343,6 +1343,59 @@ async function runMigrations() {
   }
 }
 
+async function reviseHIQForm() {
+  try {
+    const rows = await db
+      .select({ formItems: assessmentToolsTable.formItems })
+      .from(assessmentToolsTable)
+      .where(eq(assessmentToolsTable.id, "HIQ"))
+      .limit(1);
+
+    if (!rows.length || !rows[0].formItems) return;
+    const items = rows[0].formItems as any[];
+
+    // Idempotency: already revised if options are labeled
+    const sampleQ = items.find((it: any) => it.type === "likert");
+    if (sampleQ?.options?.[0] === "0 (Never True)") return;
+
+    const OPT_EN = ["0 (Never True)", "1 (Sometimes True)", "2 (Often True)", "3 (Always True)"];
+    const OPT_ZH = ["0 (\u4ece\u4e0d\u771f\u5b9e)", "1 (\u6709\u65f6\u771f\u5b9e)", "2 (\u7ecf\u5e38\u771f\u5b9e)", "3 (\u603b\u662f\u771f\u5b9e)"];
+    const OPT_KO = ["0 (\uc804\ud600 \uc5c6\uc74c)", "1 (\uac00\ub053 \uadf8\ub807\ub2e4)", "2 (\uc790\uc8fc \uadf8\ub587\ub2e4)", "3 (\ud56d\uc0c1 \uadf8\ub387\ub2e4)"];
+
+    const newItems = items.map((it: any) => {
+      // Fix the instruction header note
+      if (it.id === "hiq_instr") {
+        return {
+          ...it,
+          note: "This questionnaire assesses sensitivity to sound (hyperacusis) and its impact on daily functioning, emotional well-being, and social participation. Please rate each statement based on how true it has been over the past 2\u20134 weeks. Select the response that best reflects your experience.\n\nResponse scale: 0 (Never True) \u00b7 1 (Sometimes True) \u00b7 2 (Often True) \u00b7 3 (Always True)",
+          noteChinese: "\u672c\u95ee\u5377\u8bc4\u4f30\u5bf9\u58f0\u97f3\u7684\u654f\u611f\u6027\uff08\u542c\u89c9\u8fc7\u654f\uff09\u53ca\u5176\u5bf9\u65e5\u5e38\u529f\u80fd\u3001\u60c5\u7eea\u5065\u5eb7\u548c\u793e\u4ea4\u53c2\u4e0e\u7684\u5f71\u54cd\u3002\u8bf7\u6839\u636e\u8fc7\u53bb2\u20134\u5468\u5185\u6bcf\u9879\u8868\u8ff0\u7684\u771f\u5b9e\u7a0b\u5ea6\u8fdb\u884c\u8bc4\u5206\uff0c\u9009\u62e9\u6700\u80fd\u53cd\u6620\u60a8\u4f53\u9a8c\u7684\u9009\u9879\u3002\n\n\u56de\u5e94\u9009\u9879\uff1a0 (\u4ece\u4e0d\u771f\u5b9e) \u00b7 1 (\u6709\u65f6\u771f\u5b9e) \u00b7 2 (\u7ecf\u5e38\u771f\u5b9e) \u00b7 3 (\u603b\u662f\u771f\u5b9e)",
+          noteKorean: "\uc774 \uc124\ubb38\uc9c0\ub294 \uc18c\ub9ac\uc5d0 \ub300\ud55c \ubbfc\uac10\uc131(\uccad\uac01 \uacfc\ubbfc\uc99d)\uacfc \uadf8\uac83\uc774 \uc77c\uc0c1 \uae30\ub2a5, \uc815\uc11c\uc801 \uc6d0\uc2dc\ub9ac, \uc0ac\ud68c\uc801 \ucc38\uc5ec\uc5d0 \ubbf8\uce58\ub294 \uc601\ud5a5\uc744 \ud3c9\uac00\ud569\ub2c8\ub2e4. \uc9c0\ub09c 2\u20134\uc8fc \ub3d9\uc548 \uac01 \ud56d\ubaa9\uc774 \uc5bc\ub9c8\ub098 \uc0ac\uc2e4\uc774\uc5c8\ub294\uc9c0\ub97c \ud3c9\uac00\ud558\uc2dc\uace0, \ud558\uc2e0 \uacbd\ud5d8\uc744 \uac00\uc7a5 \uc798 \ub098\ud0c0\ub0b4\ub294 \uc751\ub2f5\uc744 \uc120\ud0dd\ud574 \uc8fc\uc138\uc694.\n\n\uc751\ub2f5 \ucca0\ub3c4: 0 (\uc804\ud600 \uc5c6\uc74c) \u00b7 1 (\uac00\ub053 \uadf8\ub807\ub2e4) \u00b7 2 (\uc790\uc8fc \uadf8\ub387\ub2e4) \u00b7 3 (\ud56d\uc0c1 \uadf8\ub387\ub2e4)",
+        };
+      }
+      // Label the likert options on every question item
+      if (it.type === "likert") {
+        return {
+          ...it,
+          required: true,
+          options: OPT_EN,
+          optionsChinese: OPT_ZH,
+          optionsKorean: OPT_KO,
+        };
+      }
+      return it;
+    });
+
+    await db
+      .update(assessmentToolsTable)
+      .set({ formItems: newItems })
+      .where(eq(assessmentToolsTable.id, "HIQ"));
+
+    logger.info("Revised HIQ form options and instructions");
+  } catch (err) {
+    logger.error({ err }, "Failed to revise HIQ form");
+  }
+}
+
 async function reviseDYSRISKTalents() {
   try {
     const rows = await db
@@ -2143,6 +2196,7 @@ async function patchInstructionHeaders() {
 }
 
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => reviseHIQForm())
   .then(() => reviseDYSRISKTalents())
   .then(() => reviseLASAForm())
   .then(() => patchInstructionHeaders())
