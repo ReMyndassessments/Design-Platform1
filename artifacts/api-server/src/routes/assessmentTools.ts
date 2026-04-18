@@ -63,9 +63,11 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       optionsKorean?: string[];
       domain?: string;
       required?: boolean;
+      note?: string;
+      noteChinese?: string;
+      noteKorean?: string;
     };
     const typeMap: Record<string, string> = {
-      checkbox: "checkbox_group",
       radio: "radio_group",
       multiple_choice: "radio_group",
     };
@@ -79,7 +81,10 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       optionsChinese: item.optionsChinese,
       optionsKorean: item.optionsKorean,
       domain: item.domain ?? "",
-      required: item.required ?? true,
+      required: item.required ?? false,
+      note: item.note,
+      noteChinese: item.noteChinese,
+      noteKorean: item.noteKorean,
     }));
     res.json({ toolId: id, questions });
     return;
