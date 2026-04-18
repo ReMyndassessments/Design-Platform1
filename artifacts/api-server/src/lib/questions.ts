@@ -3000,6 +3000,89 @@ export const VADTRS_FORM: FormQuestion[] = [
   { id: "q44", text: "Name of teacher who completed this form:", textChinese: "填写本表格的教师姓名：", textKorean: "본 양식을 작성한 교사 성명:", type: "text", options: [], optionsChinese: [], optionsKorean: [], domain: "admin" },
 ];
 
+// ─── ABC ──────────────────────────────────────────────────────────────────────
+// Autism Behavior Checklist
+// Each item is a single checkbox (check if observed). No options array needed.
+// Instructions + scoring guidance rendered as note on the leading section_header.
+export const ABC_FORM: FormQuestion[] = [
+  {
+    id: "abc_instr",
+    type: "section_header",
+    text: "Instructions",
+    textChinese: "使用说明",
+    textKorean: "작성 안내",
+    note: "Observe the individual across multiple settings (home, school, or therapy sessions) for 1–2 weeks before completing this form. Check the box next to each behaviour if it is observed. Use the Comments sections to note frequency, context, or examples. Each checked item scores 1 point; sum all items to obtain the total score.\n\nScoring guide — 0–15: Minimal or no atypical behaviours · 16–35: Mildly elevated; monitor · 36–60: Moderate; consider referral for formal assessment · 61+: Significant; referral for comprehensive evaluation recommended.\n\nScores should be interpreted alongside clinical judgement, developmental history, and other assessment data. This checklist does not provide a diagnosis.",
+    noteChinese: "在完成本表格之前，请在多种环境（家庭、学校或治疗课程）中观察个体1–2周。如观察到某行为，请勾选相应项目。请在备注栏中记录频率、情境或具体示例。每个勾选项目得1分，将所有分项相加即为总分。\n\n评分参考 — 0–15：极少或未见异常行为 · 16–35：轻度偏高；持续观察 · 36–60：中度；建议转介正式评估 · 61+：显著异常；建议转介综合性评估。\n\n评分结果须结合临床判断、发育史及其他评估资料综合解读，本量表不提供诊断。",
+    noteKorean: "이 양식을 작성하기 전에 여러 환경(가정, 학교 또는 치료 세션)에서 1–2주간 개인을 관찰하십시오. 행동이 관찰되면 해당 항목의 박스에 체크하십시오. 비고란에 빈도, 맥락 또는 예시를 기록하십시오. 체크된 항목마다 1점이며 전체 합산이 총점입니다.\n\n채점 기준 — 0–15: 비전형 행동 최소 또는 없음 · 16–35: 경미하게 높음; 지속 관찰 · 36–60: 중간 정도; 공식 평가 의뢰 고려 · 61+: 유의미한 이상; 종합 평가 의뢰 권장.\n\n점수는 임상적 판단, 발달력 및 기타 평가 데이터와 함께 해석되어야 합니다. 이 체크리스트는 진단을 제공하지 않습니다.",
+    domain: "admin",
+    options: [], optionsChinese: [], optionsKorean: [],
+  },
+  // ── Domain 1: Language Behaviors ────────────────────────────────────────────
+  { id: "q1",  type: "section_header", text: "Language Behaviors", textChinese: "语言行为", textKorean: "언어 행동", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q2",  type: "checkbox", text: "Does not follow simple commands given once", textChinese: "不遵循一次给出的简单指令", textKorean: "한 번 주어진 간단한 지시를 따르지 않음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q3",  type: "checkbox", text: "Has pronoun reversal", textChinese: "存在代词反转", textKorean: "대명사 반전이 있음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q4",  type: "checkbox", text: "Speech is atonal", textChinese: "言语语调单一", textKorean: "말소리가 단조로움", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q5",  type: "checkbox", text: "Does not respond to own name among others", textChinese: "在他人中对自己的名字无反应", textKorean: "다른 사람들 사이에서 자신의 이름에 반응하지 않음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q6",  type: "checkbox", text: "Seldom says \"yes\" or \"I\"", textChinese: "很少说「是」或「我」", textKorean: "'네' 또는 '나'를 거의 말하지 않음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q7",  type: "checkbox", text: "Does not follow simple commands involving prepositions", textChinese: "不遵循涉及介词的简单指令", textKorean: "전치사가 포함된 간단한 지시를 따르지 않음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q8",  type: "checkbox", text: "Gets desired objects by gesturing", textChinese: "通过手势获取想要的物品", textKorean: "원하는 물건을 제스처로 얻음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q9",  type: "checkbox", text: "Repeats phrases or sounds over and over", textChinese: "反复重复短语或声音", textKorean: "구문이나 소리를 반복해서 되뇌임", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q10", type: "checkbox", text: "Cannot point to more than five named objects", textChinese: "无法指出超过五个被命名的物品", textKorean: "지명된 물건 5개 이상을 가리킬 수 없음", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q11", type: "checkbox", text: "Uses 0–5 spontaneous words per day to communicate wants/needs", textChinese: "每天使用0-5个自发词汇来表达需求", textKorean: "욕구/필요를 전달하기 위해 하루에 0-5개의 자발적 단어를 사용함", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q12", type: "checkbox", text: "Echoes questions/statements made by others", textChinese: "模仿他人提出的问题/陈述", textKorean: "다른 사람이 한 질문/진술을 따라함", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q13", type: "checkbox", text: "Uses 15–30 spontaneous phrases daily to communicate", textChinese: "每天使用15-30个自发短语进行交流", textKorean: "의사소통을 위해 하루에 15-30개의 자발적 구문을 사용함", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q14", type: "checkbox", text: "Learns a simple task but quickly \"forgets\"", textChinese: "学会简单任务但很快「忘记」", textKorean: "간단한 과업을 배우지만 금방 '잊어버림'", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q15", type: "checkbox", text: "Strong reactions to changes in routine/environment", textChinese: "对常规/环境变化反应强烈", textKorean: "일상/환경 변화에 대한 강한 반응", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q16", type: "checkbox", text: "Shows \"special abilities\" in one area of development", textChinese: "在某一发展领域表现出「特殊能力」", textKorean: "발달의 한 영역에서 '특별한 능력'을 보임", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q17", type: "checkbox", text: "Severe or frequent minor temper tantrums", textChinese: "严重或频繁的轻微发脾气", textKorean: "심하거나 빈번한 경미한 떼쓰기", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q18", type: "textarea", text: "Comments / Examples:", textChinese: "备注 / 示例：", textKorean: "코멘트 / 예시:", domain: "language", options: [], optionsChinese: [], optionsKorean: [] },
+  // ── Domain 2: Body and Object Use Behaviors ──────────────────────────────────
+  { id: "q19", type: "section_header", text: "Body and Object Use Behaviors", textChinese: "身体与物品使用行为", textKorean: "신체 및 물건 사용 행동", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q20", type: "checkbox", text: "Whirls self for long periods", textChinese: "长时间旋转自身", textKorean: "오랜 시간 동안 자신을 빙빙 돌림", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q21", type: "checkbox", text: "Does not use toys appropriately", textChinese: "不恰当地使用玩具", textKorean: "장난감을 적절하게 사용하지 않음", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q22", type: "checkbox", text: "Insists on keeping certain objects with self", textChinese: "坚持随身携带某些物品", textKorean: "특정 물건을 자신과 함께 두려고 고집함", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q23", type: "checkbox", text: "Rocks self for long periods", textChinese: "长时间摇晃身体", textKorean: "오랜 시간 동안 몸을 앞뒤로 흔듦", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q24", type: "checkbox", text: "Lunges or darts frequently", textChinese: "频繁地猛冲或突进", textKorean: "자주 돌진하거나 질주함", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q25", type: "checkbox", text: "Flaps hands", textChinese: "拍打双手", textKorean: "손을 퍼덕임", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q26", type: "checkbox", text: "Walks on toes", textChinese: "用脚尖走路", textKorean: "발끝으로 걷음", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q27", type: "checkbox", text: "Self-injury (head banging, biting hands, etc.)", textChinese: "自伤行为（撞头、咬手等）", textKorean: "자해 행동 (머리 부딪치기, 손 물기 등)", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q28", type: "checkbox", text: "Twirls, spins, or bangs objects frequently", textChinese: "频繁旋转、转动或敲打物品", textKorean: "물건을 자주 빙빙 돌리거나, 회전시키거나, 두드림", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q29", type: "checkbox", text: "Explores objects through touch, smell, or taste", textChinese: "通过触摸、嗅觉或味觉探索物品", textKorean: "촉각, 후각 또는 미각을 통해 물건을 탐색함", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q30", type: "checkbox", text: "Engages in complex rituals (lining up objects, etc.)", textChinese: "复杂的仪式性行为（将物品排成行等）", textKorean: "복잡한 의식 행동 (물건 줄 세우기 등)", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q31", type: "checkbox", text: "Highly destructive behavior", textChinese: "高度破坏性行为", textKorean: "매우 파괴적인 행동", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q32", type: "textarea", text: "Comments / Examples:", textChinese: "备注 / 示例：", textKorean: "코멘트 / 예시:", domain: "restrictive_repetitive_behaviors", options: [], optionsChinese: [], optionsKorean: [] },
+  // ── Domain 3: Sensory Behaviors ───────────────────────────────────────────────
+  { id: "q33", type: "section_header", text: "Sensory Behaviors", textChinese: "感觉行为", textKorean: "감각 행동", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q34", type: "checkbox", text: "Poor visual discrimination when learning", textChinese: "学习时视觉辨别能力差", textKorean: "학습 시 시각 변별력이 낮음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q35", type: "checkbox", text: "Appears not to hear; possible hearing concern", textChinese: "似乎听不见；可能存在听力问题", textKorean: "듣지 못하는 것처럼 보임; 청력 문제 가능성", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q36", type: "checkbox", text: "No startle response to loud noises", textChinese: "对巨大噪音无惊吓反应", textKorean: "큰 소리에 깜짝 놀라는 반응이 없음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q37", type: "checkbox", text: "Painful stimuli (cuts, injections) evoke no reaction", textChinese: "疼痛刺激（割伤、注射）无反应", textKorean: "통증 자극 (베임, 주사)에 반응이 없음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q38", type: "checkbox", text: "Often does not blink in bright light", textChinese: "强光下常不眨眼", textKorean: "밝은 빛에서 종종 눈을 깜빡이지 않음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q39", type: "checkbox", text: "Covers ears in response to certain sounds", textChinese: "对某些声音捂耳朵", textKorean: "특정 소리에 귀를 막음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q40", type: "checkbox", text: "Squints, frowns, or covers eyes in natural light", textChinese: "自然光下眯眼、皱眉或遮眼", textKorean: "자연광에서 눈을 가늘게 뜨거나, 찡그리거나, 눈을 가림", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q41", type: "checkbox", text: "No visual reaction to new people", textChinese: "对新出现的人无视觉反应", textKorean: "새로운 사람에게 시각적 반응이 없음", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q42", type: "checkbox", text: "Stares into space for long periods", textChinese: "长时间凝视空中", textKorean: "오랜 시간 동안 허공을 응시함", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q43", type: "textarea", text: "Comments / Examples:", textChinese: "备注 / 示例：", textKorean: "코멘트 / 예시:", domain: "sensory_processing", options: [], optionsChinese: [], optionsKorean: [] },
+  // ── Domain 4: Relating Behaviors ──────────────────────────────────────────────
+  { id: "q44", type: "section_header", text: "Relating Behaviors", textChinese: "社交关系行为", textKorean: "관계 형성 행동", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q45", type: "checkbox", text: "Frequently inattentive to social/environmental stimuli", textChinese: "经常不注意社交/环境刺激", textKorean: "사회적/환경적 자극에 자주 무관심함", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q46", type: "checkbox", text: "No social smile", textChinese: "无社交性微笑", textKorean: "사회적 미소가 없음", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q47", type: "checkbox", text: "Does not reach out when approached", textChinese: "被接近时不伸手", textKorean: "다가올 때 팔을 내밀지 않음", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q48", type: "checkbox", text: "Unresponsive to others' facial expressions or feelings", textChinese: "对他人的面部表情或情感无反应", textKorean: "타인의 표정이나 감정에 반응하지 않음", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q49", type: "checkbox", text: "Actively avoids eye contact", textChinese: "主动回避眼神接触", textKorean: "적극적으로 눈 맞춤을 피함", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q50", type: "checkbox", text: "Resists being touched or held", textChinese: "抗拒被触摸或拥抱", textKorean: "만지거나 안기는 것을 거부함", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q51", type: "checkbox", text: "Appears flaccid when held", textChinese: "被抱起时显得松软无力", textKorean: "안겼을 때 힘이 없고 축 늘어져 보임", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q52", type: "checkbox", text: "Stiff and difficult to hold", textChinese: "身体僵硬，难以抱住", textKorean: "뻣뻣하고 안기 어려움", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q53", type: "checkbox", text: "Does not imitate peers during play", textChinese: "游戏时不模仿同伴", textKorean: "놀이 시 또래를 모방하지 않음", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q54", type: "checkbox", text: "Has not developed friendships", textChinese: "尚未建立友谊关系", textKorean: "우정 관계가 발달하지 않음", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q55", type: "checkbox", text: "Often frightened or anxious", textChinese: "经常表现出恐惧或焦虑", textKorean: "자주 겁에 질리거나 불안해함", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q56", type: "checkbox", text: "\"Looks through\" people", textChinese: "「透过」人看（视线穿透性注视）", textKorean: "사람을 '통해' 본다(시선이 사람을 뚫고 지나감)", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q57", type: "textarea", text: "Comments / Examples:", textChinese: "备注 / 示例：", textKorean: "코멘트 / 사례：", domain: "social_interaction", options: [], optionsChinese: [], optionsKorean: [] },
+  // ── Domain 5: Additional Observations ────────────────────────────────────────
+  { id: "q58", type: "section_header", text: "Additional Observations", textChinese: "补充观察记录", textKorean: "추가 관찰 사항", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [] },
+  { id: "q59", type: "textarea", text: "Use this section to note other behaviours that may be relevant but are not captured in the above domains:", textChinese: "请在本部分记录其他可能相关但未包含在上述领域的行为：", textKorean: "이 섹션을 사용하여 위 영역에 포함되지 않았으나 관련될 수 있는 다른 행동을 기록하십시오：", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [] },
+];
+
 // ─── QUESTION REGISTRY ───────────────────────────────────────────────────────────
 export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   REFERRAL:            REFERRAL_FORM,
@@ -3020,6 +3103,7 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   RERMS:      RERMS_FORM,
   VADPRS:     VADPRS_FORM,
   VADTRS:     VADTRS_FORM,
+  ABC:        ABC_FORM,
   BSPP:       BSPP_FORM,
   EFA:        EFA_FORM,
   RSCP:       RSCP_FORM,

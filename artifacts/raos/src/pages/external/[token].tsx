@@ -358,6 +358,35 @@ function SelectField({ q, language, value, onChange }: { q: Question; language: 
   );
 }
 
+function SingleCheckboxField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
+  const { label } = useText(q, language);
+  const checked = value === "1";
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(checked ? "" : "1")}
+      className={cn(
+        "w-full flex items-start gap-3 text-left rounded-lg border px-3.5 py-3 transition-all",
+        checked
+          ? "border-primary bg-primary/5"
+          : "border-slate-200 bg-white hover:border-slate-300"
+      )}
+    >
+      <div className={cn(
+        "mt-0.5 w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors",
+        checked ? "border-primary bg-primary" : "border-slate-300 bg-white"
+      )}>
+        {checked && (
+          <svg viewBox="0 0 12 10" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1,5 4.5,9 11,1" />
+          </svg>
+        )}
+      </div>
+      <span className={cn("text-sm leading-relaxed", checked ? "text-primary font-medium" : "text-slate-700")}>{label}</span>
+    </button>
+  );
+}
+
 function SignatureField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label, note } = useText(q, language);
   return (
@@ -486,6 +515,7 @@ function QuestionField({ q, language, answers, setAnswer }: {
     case "checkbox_group": return <CheckboxGroupField q={q} language={language} value={arrVal} onChange={v => setAnswer(q.id, v)} />;
     case "select":         return <SelectField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
     case "signature":      return <SignatureField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
+    case "checkbox":       return <SingleCheckboxField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
     case "likert":
     case "scale":          return <LikertField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
     default:               return <TextField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
