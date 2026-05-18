@@ -41,10 +41,10 @@ const PHASE_PROGRESS: Record<string, number> = {
   assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 95, complete: 100,
 };
 const PHASE_LABELS: Record<string, string> = {
-  pre_commitment: "Intake",
+  pre_commitment: "Pre-Commitment",
   intake: "Intake",
-  setup: "Intake",
-  forms: "Intake",
+  setup: "Setup",
+  forms: "Forms",
   assessment: "Assessment",
   scoring: "Scoring",
   report: "Report",

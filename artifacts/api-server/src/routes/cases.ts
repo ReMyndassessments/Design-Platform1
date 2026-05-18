@@ -573,7 +573,19 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     ? await db.select().from(responsesTable).where(inArray(responsesTable.assignmentId, allAssignmentIds))
     : [];
 
-  const referralAnswers = responses.find(r => referralAssignmentIds.includes(r.assignmentId))?.answers as Record<string, unknown> | null ?? null;
+  // Collect ALL referral responses, labelled by respondent type so AI sees every source
+  const referralAnswers: Record<string, unknown> | null = (() => {
+    const items = assignments
+      .filter(a => REFERRAL_IDS.includes(a.toolId))
+      .map(a => {
+        const response = responses.find(r => r.assignmentId === a.id);
+        return response ? { type: a.respondentType ?? "respondent", answers: response.answers } : null;
+      })
+      .filter((x): x is { type: string; answers: unknown } => x !== null);
+    if (items.length === 0) return null;
+    if (items.length === 1) return items[0].answers as Record<string, unknown>;
+    return Object.fromEntries(items.map(item => [`${item.type}_referral`, item.answers]));
+  })();
   const intakeAnswers = responses.find(r => intakeAssignmentIds.includes(r.assignmentId))?.answers as Record<string, unknown> | null ?? null;
 
   const assessmentTools = allTools.filter(t => !ADMIN_IDS.has(t.id));

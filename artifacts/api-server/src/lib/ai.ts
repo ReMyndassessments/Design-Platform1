@@ -87,7 +87,11 @@ Age: ${intake.age != null ? `${intake.age} years old` : "Unknown"}
 Primary Referral Reason: ${intake.referralReason || "Not specified"}
 
 ═══ REFERRAL FORM RESPONSES ═══
-${intake.referralFormAnswers ? JSON.stringify(intake.referralFormAnswers, null, 2) : "No referral form data available."}
+${intake.referralFormAnswers
+  ? (Object.keys(intake.referralFormAnswers).some(k => k.endsWith("_referral"))
+    ? `Multiple referral sources provided (each key is a respondent type):\n${JSON.stringify(intake.referralFormAnswers, null, 2)}`
+    : JSON.stringify(intake.referralFormAnswers, null, 2))
+  : "No referral form data available."}
 
 ═══ PARENT INTAKE FORM RESPONSES ═══
 ${intake.parentIntakeAnswers ? JSON.stringify(intake.parentIntakeAnswers, null, 2) : "No parent intake form data available."}
