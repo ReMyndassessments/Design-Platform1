@@ -125,12 +125,22 @@ function formatAnswer(question: FormQuestion, rawAnswer: unknown, language: stri
       }
       return String(rawAnswer);
     }
-    case "signature":
-      if (rawAnswer && String(rawAnswer).length > 10) return "Signature provided";
+    case "signature": {
+      const sig = String(rawAnswer).trim();
+      if (sig.length > 0) return sig;
       return "—";
-    case "date":
+    }
+    case "date": {
       if (!rawAnswer) return "—";
-      try { return new Date(String(rawAnswer)).toLocaleDateString(); } catch { return String(rawAnswer); }
+      const s = String(rawAnswer);
+      // Parse YYYY-MM-DD without timezone conversion (avoid off-by-one from UTC parsing)
+      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [, y, m, d] = match;
+        return `${parseInt(m)}/${parseInt(d)}/${y}`;
+      }
+      try { return new Date(s).toLocaleDateString(); } catch { return s; }
+    }
     default:
       return String(rawAnswer);
   }

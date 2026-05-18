@@ -289,6 +289,43 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
   res.status(201).json({ assignments: created, batteryId: battery.id, count: created.length });
 });
 
+// ── POST /api/cases/:caseId/assignments/reset-completed ──────────────────────
+// Reset a list of completed assignments back to pending so they can be refilled
+router.post("/cases/:caseId/assignments/reset-completed", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "psychometrician") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const { assignmentIds } = req.body as { assignmentIds: string[] };
+  if (!Array.isArray(assignmentIds) || assignmentIds.length === 0) {
+    res.status(400).json({ error: "bad_request", message: "assignmentIds array is required" }); return;
+  }
+
+  // Only reset assignments that belong to this case and are completed
+  const targets = await db.select({ id: assignmentsTable.id })
+    .from(assignmentsTable)
+    .where(and(
+      eq(assignmentsTable.caseId, req.params.caseId),
+      inArray(assignmentsTable.id, assignmentIds),
+      eq(assignmentsTable.status, "completed"),
+    ));
+
+  if (targets.length === 0) {
+    res.json({ reset: 0 }); return;
+  }
+
+  const ids = targets.map(t => t.id);
+
+  // Delete existing responses for these assignments
+  await db.delete(responsesTable).where(inArray(responsesTable.assignmentId, ids));
+
+  // Reset assignment status back to pending
+  await db.update(assignmentsTable)
+    .set({ status: "pending" })
+    .where(inArray(assignmentsTable.id, ids));
+
+  res.json({ reset: ids.length });
+});
+
 // ── POST /api/cases/:caseId/send-respondent-email ────────────────────────────
 // Send one branded email to a respondent with their unique form link
 router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, res) => {

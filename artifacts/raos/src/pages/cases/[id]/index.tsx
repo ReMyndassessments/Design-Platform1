@@ -200,7 +200,7 @@ export default function CaseDetail() {
     assignedToEmail: ""
   });
   const [sendEmailTarget, setSendEmailTarget] = useState<{
-    groupKey: string; label: string; name: string; email: string; link: string; formNames: string[]; respondentRole: string;
+    groupKey: string; label: string; name: string; email: string; link: string; formNames: string[]; respondentRole: string; assignmentIds: string[];
   } | null>(null);
   const [sendEmailForm, setSendEmailForm] = useState({ name: "", email: "" });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -1439,7 +1439,7 @@ export default function CaseDetail() {
                             <div className="flex gap-2 shrink-0 flex-wrap">
                               <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}><QrCode size={15} /></Button>
                               <Button variant="outline" size="sm" className="bg-white" title="Copy link" onClick={() => copyLink(group.link)}><Copy size={15} /></Button>
-                              <Button size="sm" className="gap-1.5" onClick={() => { setSendEmailTarget({ groupKey: group.groupKey, label: group.label, name: group.name ?? "", email: group.email ?? "", link: group.link, formNames: group.forms.map(f => f.name), respondentRole: group.label }); setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" }); }}>
+                              <Button size="sm" className="gap-1.5" onClick={() => { setSendEmailTarget({ groupKey: group.groupKey, label: group.label, name: group.name ?? "", email: group.email ?? "", link: group.link, formNames: group.forms.map(f => f.name), respondentRole: group.label, assignmentIds: group.forms.map(f => f.id) }); setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" }); }}>
                                 <Send size={14} /> Send Email
                               </Button>
                             </div>
@@ -2085,6 +2085,7 @@ export default function CaseDetail() {
                               link: group.link,
                               formNames: group.forms.map(f => f.name),
                               respondentRole: group.label,
+                              assignmentIds: group.forms.map(f => f.id),
                             });
                             setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" });
                           }}>
@@ -2179,6 +2180,14 @@ export default function CaseDetail() {
                     if (!sendEmailTarget) return;
                     setIsSendingEmail(true);
                     try {
+                      // Reset any completed assignments so the respondent can resubmit
+                      if (sendEmailTarget.assignmentIds.length > 0) {
+                        await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/reset-completed`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+                          body: JSON.stringify({ assignmentIds: sendEmailTarget.assignmentIds }),
+                        });
+                      }
                       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/send-respondent-email`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
@@ -2194,6 +2203,7 @@ export default function CaseDetail() {
                       if (!r.ok) throw new Error(await r.text());
                       toast({ title: "Email sent", description: `Forms link sent to ${sendEmailForm.email}` });
                       setSendEmailTarget(null);
+                      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
                     } catch {
                       toast({ title: "Could not send email", description: "Please try again or copy the link manually.", variant: "destructive" });
                     } finally {
