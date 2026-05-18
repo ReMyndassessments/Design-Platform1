@@ -573,3 +573,43 @@ Social Deficits:
   const result = await callDeepSeek(prompt);
   return result.trim();
 }
+
+export async function translateAnswersToEnglish(
+  answers: Record<string, unknown>,
+  fromLanguage: string
+): Promise<Record<string, string>> {
+  const toTranslate: Record<string, string> = {};
+
+  function collect(obj: Record<string, unknown>, prefix = "") {
+    for (const [key, value] of Object.entries(obj)) {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof value === "string" && value.trim() && !/^\d+(\.\d+)?$/.test(value.trim()) && value !== "true" && value !== "false") {
+        toTranslate[fullKey] = value;
+      } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        collect(value as Record<string, unknown>, fullKey);
+      }
+    }
+  }
+  collect(answers);
+
+  if (Object.keys(toTranslate).length === 0) return {};
+
+  const langLabel =
+    fromLanguage === "mandarin" ? "Mandarin Chinese" :
+    fromLanguage === "cantonese" ? "Cantonese Chinese" :
+    fromLanguage === "korean" ? "Korean" : fromLanguage;
+
+  const prompt = `Translate the following form answer values from ${langLabel} to English. Keep proper nouns, names, and values already in English unchanged. Return ONLY a valid JSON object with the same keys and English-translated string values. No markdown, no explanation.
+
+${JSON.stringify(toTranslate, null, 2)}`;
+
+  try {
+    const text = await callDeepSeek(prompt, 2000);
+    const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    return JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+  } catch {
+    return {};
+  }
+}

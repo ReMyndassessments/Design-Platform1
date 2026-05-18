@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp, Languages } from "lucide-react";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
 
 interface FormQuestion {
@@ -396,6 +396,32 @@ export default function ResponseViewer() {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
 
+  // Translation state
+  const [viewInEnglish, setViewInEnglish] = useState(false);
+  const [translatedAnswers, setTranslatedAnswers] = useState<Record<string, string> | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+
+  const handleTranslate = async () => {
+    if (translatedAnswers) { setViewInEnglish(v => !v); return; }
+    setIsTranslating(true);
+    setTranslateError(null);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/response/translate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!r.ok) throw new Error("Translation failed");
+      const { translatedAnswers: ta } = await r.json() as { translatedAnswers: Record<string, string> };
+      setTranslatedAnswers(ta);
+      setViewInEnglish(true);
+    } catch {
+      setTranslateError("Could not translate — please try again.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   // Scoring state
   const [score, setScore] = useState<ScoreRecord | null>(null);
   const [isScoring, setIsScoring] = useState(false);
@@ -555,6 +581,12 @@ export default function ResponseViewer() {
 
   const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig } = data;
   const lang = response.language;
+
+  // When viewing in English, override language + merge translated free-text answers
+  const effectiveLang = viewInEnglish ? "english" : lang;
+  const effectiveAnswers: Record<string, unknown> = viewInEnglish && translatedAnswers
+    ? { ...response.answers, ...translatedAnswers }
+    : response.answers;
   const isAutoScored = scoringType === "auto";
   const isManuallyScored = scoringType === "manual";
 
@@ -661,6 +693,23 @@ export default function ResponseViewer() {
               </Button>
             )}
 
+            {/* Translate to English — shown only for non-English responses */}
+            {lang !== "english" && (
+              <Button
+                variant={viewInEnglish ? "default" : "outline"}
+                size="sm"
+                onClick={handleTranslate}
+                disabled={isTranslating}
+                className={viewInEnglish
+                  ? "gap-2 bg-amber-600 hover:bg-amber-700 text-white border-0"
+                  : "gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"}
+              >
+                {isTranslating
+                  ? <><RefreshCw size={14} className="animate-spin" /> Translating…</>
+                  : <><Languages size={14} /> {viewInEnglish ? "Viewing in English" : "View in English"}</>}
+              </Button>
+            )}
+
             <Button onClick={() => window.print()} className="gap-2 shadow-md shadow-primary/20">
               <Printer size={16} /> Print / Download PDF
             </Button>
@@ -722,8 +771,8 @@ export default function ResponseViewer() {
                       <QuestionRow
                         key={q.id}
                         question={q}
-                        answers={response.answers}
-                        language={lang}
+                        answers={effectiveAnswers}
+                        language={effectiveLang}
                         itemNumber={isHeader ? undefined : n}
                       />
                     );
@@ -740,6 +789,11 @@ export default function ResponseViewer() {
         </div>
 
         {/* Error states */}
+        {translateError && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-5 py-3 rounded-xl print-hide">
+            {translateError}
+          </div>
+        )}
         {generateError && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-5 py-3 rounded-xl print-hide">
             {generateError}

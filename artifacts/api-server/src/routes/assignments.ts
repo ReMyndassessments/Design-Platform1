@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
-import { generateIntakeSummary } from "../lib/ai.js";
+import { generateIntakeSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 
 const router = Router();
@@ -216,6 +216,34 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     .where(eq(responsesTable.id, responseRows[0].id));
 
   res.json({ summary });
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/response/translate", authMiddleware, async (req, res) => {
+  if (!await checkCaseAccess(req.userRole!, req.userId!, req.params.caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
+    .limit(1);
+  if (!assignmentRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+
+  const responseRows = await db.select().from(responsesTable)
+    .where(eq(responsesTable.assignmentId, req.params.assignmentId))
+    .limit(1);
+  if (!responseRows[0]) { res.status(404).json({ error: "not_found", message: "No response found" }); return; }
+
+  const { language, answers } = responseRows[0];
+  if (!language || language === "english") {
+    res.json({ translatedAnswers: {} });
+    return;
+  }
+
+  const translatedAnswers = await translateAnswersToEnglish(
+    answers as Record<string, unknown>,
+    language
+  );
+  res.json({ translatedAnswers });
 });
 
 router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (req, res) => {
