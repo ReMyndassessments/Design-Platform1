@@ -541,18 +541,29 @@ router.post("/external/form/:token/submit", async (req, res) => {
       "CONSENT":           "Consent Form",
     };
 
+    // Extract student info from consent answers if consent was submitted first
+    const consentAnswers = isConsentSuffix ? (answers ?? {}) as Record<string, string> : {};
+    const consentFirstName = (consentAnswers.student_first_name ?? "").trim();
+    const consentLastName  = (consentAnswers.student_last_name  ?? "").trim();
+    const consentStudentName = [consentFirstName, consentLastName].filter(Boolean).join(" ") || "Referral Pending";
+    const consentDob         = consentAnswers.student_dob   || "TBD";
+    const consentGuardian    = consentAnswers.guardian_name  || undefined;
+    const consentEmail       = consentAnswers.student_email  || undefined;
+
     // Create the case
     const caseId = nanoid();
     await db.insert(casesTable).values({
       id: caseId,
-      studentName: "Referral Pending",
-      dob: "TBD",
+      studentName: consentStudentName,
+      dob: consentDob,
       school: invite.schoolName || "TBD",
       grade: null,
       referralReason: `Referral form submitted by ${invite.toName} (${invite.toEmail})`,
       currentPhase: "pre_commitment",
       progressPercentage: 0,
       caseStatus: "active",
+      ...(consentGuardian ? { parentName: consentGuardian } : {}),
+      ...(consentEmail    ? { parentEmail: consentEmail }   : {}),
     });
 
     // Create the referral assignment (completed immediately)

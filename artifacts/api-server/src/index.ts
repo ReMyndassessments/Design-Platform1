@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { usersTable, assessmentToolsTable, batteriesTable } from "@workspace/db/schema";
+import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM } from "./lib/questions.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
@@ -9,7 +9,7 @@ import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM,
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
 import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM, FASM_FORM } from "./lib/opentools.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -2282,6 +2282,40 @@ async function reviseYBOCSSCForm() {
   }
 }
 
+async function repairPendingCasesFromConsent() {
+  try {
+    const pending = await db.select({ id: casesTable.id })
+      .from(casesTable)
+      .where(eq(casesTable.studentName, "Referral Pending"));
+    for (const c of pending) {
+      const [consentAssignment] = await db.select({ id: assignmentsTable.id })
+        .from(assignmentsTable)
+        .where(and(eq(assignmentsTable.caseId, c.id), eq(assignmentsTable.toolId, "CONSENT")))
+        .limit(1);
+      if (!consentAssignment) continue;
+      const [response] = await db.select({ answers: responsesTable.answers })
+        .from(responsesTable)
+        .where(eq(responsesTable.assignmentId, consentAssignment.id))
+        .limit(1);
+      if (!response?.answers) continue;
+      const a = response.answers as Record<string, string>;
+      const firstName = (a.student_first_name ?? "").trim();
+      const lastName  = (a.student_last_name  ?? "").trim();
+      const studentName = [firstName, lastName].filter(Boolean).join(" ");
+      if (!studentName) continue;
+      await db.update(casesTable).set({
+        studentName,
+        ...(a.student_dob  && a.student_dob  !== "TBD" ? { dob:         a.student_dob  } : {}),
+        ...(a.guardian_name                             ? { parentName:  a.guardian_name } : {}),
+        ...(a.student_email                             ? { parentEmail: a.student_email } : {}),
+      }).where(eq(casesTable.id, c.id));
+      logger.info({ caseId: c.id, studentName }, "Repaired pending case from consent data");
+    }
+  } catch (err) {
+    logger.error({ err }, "repairPendingCasesFromConsent failed");
+  }
+}
+
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
   .then(() => reviseHIQForm())
   .then(() => reviseDYSRISKTalents())
@@ -2290,6 +2324,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => reviseBFI44Form())
   .then(() => reviseYBOCSSCForm())
   .then(() => patchInstructionHeaders())
+  .then(() => repairPendingCasesFromConsent())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {
