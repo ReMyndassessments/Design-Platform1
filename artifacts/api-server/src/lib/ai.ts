@@ -94,7 +94,11 @@ ${intake.referralFormAnswers
   : "No referral form data available."}
 
 ═══ PARENT INTAKE FORM RESPONSES ═══
-${intake.parentIntakeAnswers ? JSON.stringify(intake.parentIntakeAnswers, null, 2) : "No parent intake form data available."}
+${intake.parentIntakeAnswers
+  ? (Object.keys(intake.parentIntakeAnswers).some(k => k.endsWith("_intake"))
+    ? `Multiple intake sources provided (each key is a respondent type):\n${JSON.stringify(intake.parentIntakeAnswers, null, 2)}`
+    : JSON.stringify(intake.parentIntakeAnswers, null, 2))
+  : "No parent intake form data available."}
 
 ═══ AVAILABLE ASSESSMENT TOOLS ═══
 ${toolList || "No tools available in library."}
