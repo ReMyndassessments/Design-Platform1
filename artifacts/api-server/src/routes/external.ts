@@ -451,6 +451,8 @@ router.get("/external/form/:token", async (req, res) => {
       };
       const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
       const questions = await resolveQuestions(toolId);
+      // Block consent form access if the referral hasn't been submitted yet
+      const lockedPendingReferral = isConsentSuffix && !invite.usedAt;
       res.json({
         assignmentId: rawToken,
         toolId,
@@ -461,6 +463,7 @@ router.get("/external/form/:token", async (req, res) => {
         language: "english",
         questions,
         alreadySubmitted: !!invite.usedAt,
+        lockedPendingReferral,
         isInvite: true,
       });
       return;
@@ -524,6 +527,15 @@ router.post("/external/form/:token/submit", async (req, res) => {
   if (invite) {
     if (invite.usedAt) {
       res.json({ success: true, message: "This form has already been submitted. Thank you!", nextForms: [] });
+      return;
+    }
+
+    // Block consent submission if the referral form hasn't been submitted yet
+    if (isConsentSuffix) {
+      res.status(400).json({
+        error: "referral_required",
+        message: "The referral form must be completed before submitting the consent form. Please go back and complete the referral form first.",
+      });
       return;
     }
 

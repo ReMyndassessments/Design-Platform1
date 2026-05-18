@@ -91,6 +91,8 @@ type Lang = "english" | "mandarin" | "korean";
 const PT = {
   portalSubtitle:    { english: "Assessment Portal",         mandarin: "评估门户",         korean: "평가 포털" },
   respondent:        { english: "Respondent",                mandarin: "受访者",           korean: "응답자" },
+  completeFirst:     { english: "Complete referral form first", mandarin: "请先完成推荐表格", korean: "추천 양식을 먼저 완료하세요" },
+  locked:            { english: "Locked",                    mandarin: "已锁定",           korean: "잠김" },
   assessmentProgress:{ english: "Assessment Progress",       mandarin: "评估进度",         korean: "평가 진행 상황" },
   currentPhase:      { english: "Current Phase",             mandarin: "当前阶段",         korean: "현재 단계" },
   overallProgress:   { english: "Overall Progress",          mandarin: "整体进度",         korean: "전체 진행률" },
@@ -846,34 +848,41 @@ function PortalView({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {portal.forms.map(f => {
+            {portal.forms.map((f, i) => {
               const isDone = f.status === "completed";
+              const isLocked = !isDone && i > 0 && portal.forms[i - 1].status !== "completed";
               return (
                 <div key={f.uniqueToken} className={cn(
                   "flex items-center gap-4 px-5 py-4 transition-colors",
-                  !isDone && "hover:bg-slate-50/60"
+                  !isDone && !isLocked && "hover:bg-slate-50/60"
                 )}>
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                    isDone ? "bg-emerald-100" : "bg-primary/10"
+                    isDone ? "bg-emerald-100" : isLocked ? "bg-slate-100" : "bg-primary/10"
                   )}>
                     {isDone
                       ? <ClipboardCheck size={20} className="text-emerald-600" />
+                      : isLocked
+                      ? <Lock size={20} className="text-slate-400" />
                       : <ClipboardList size={20} className="text-primary" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{f.toolName}</p>
+                    <p className={cn("text-sm font-semibold truncate", isLocked ? "text-slate-400" : "text-slate-800")}>{f.toolName}</p>
                     <span className={cn(
                       "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide mt-0.5",
-                      isDone ? "text-emerald-600" : "text-amber-600"
+                      isDone ? "text-emerald-600" : isLocked ? "text-slate-400" : "text-amber-600"
                     )}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : "bg-amber-500")} />
-                      {isDone ? t("completed", language) : t("pending", language)}
+                      <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : isLocked ? "bg-slate-300" : "bg-amber-500")} />
+                      {isDone ? t("completed", language) : isLocked ? t("completeFirst", language) : t("pending", language)}
                     </span>
                   </div>
                   {isDone ? (
                     <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle2 size={16} className="text-emerald-600" />
+                    </div>
+                  ) : isLocked ? (
+                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Lock size={14} className="text-slate-400" />
                     </div>
                   ) : (
                     <Button
@@ -1202,6 +1211,30 @@ function FormView({
           <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
           <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired.</p>
           <button onClick={onBack} className="mt-6 text-sm text-primary underline">← Back to portal</button>
+          <ReMyndFooter />
+        </div>
+      </div>
+    );
+  }
+
+  // Locked — referral form must be completed first
+  if ((form as any).lockedPendingReferral) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
+        <div className="w-full max-w-md text-center">
+          <div className="w-24 h-24 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <Lock size={44} />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-slate-900">Complete Referral Form First</h2>
+          <p className="text-slate-500 leading-relaxed max-w-xs mx-auto">
+            The referral form must be submitted before the consent form can be accessed. Please go back to your portal and complete the referral form first.
+          </p>
+          <button
+            onClick={onBack}
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors"
+          >
+            ← Back to My Forms
+          </button>
           <ReMyndFooter />
         </div>
       </div>
