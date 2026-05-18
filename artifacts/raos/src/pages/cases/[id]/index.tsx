@@ -1317,10 +1317,10 @@ export default function CaseDetail() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {INTAKE_FORM_OPTIONS.map(opt => {
-                        const alreadyAdded = intakeAssignments.some(a => a.toolId === opt.toolId);
+                        const alreadyAdded = intakeAssignments.some(a => a.toolId === opt.toolId && a.respondentType === opt.respondentType);
                         return (
                           <DropdownMenuItem
-                            key={opt.toolId}
+                            key={`${opt.toolId}-${opt.respondentType}`}
                             disabled={alreadyAdded || assigningToolId === opt.toolId}
                             onClick={async () => {
                               setAssigningToolId(opt.toolId);
