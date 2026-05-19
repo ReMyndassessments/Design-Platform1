@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -304,6 +304,54 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   res.json(formatCase(rows[0]));
+
+  // Fire-and-forget: notify newly assigned invigilator / psychometrician
+  const notifyIds: { userId: string; role: string }[] = [];
+  if (updates.assignedLeadId && updates.assignedLeadId !== existing[0].assignedLeadId) {
+    notifyIds.push({ userId: updates.assignedLeadId as string, role: "Assessment Invigilator" });
+  }
+  if (updates.assignedPsychId && updates.assignedPsychId !== existing[0].assignedPsychId) {
+    notifyIds.push({ userId: updates.assignedPsychId as string, role: "Psychometrician" });
+  }
+  if (notifyIds.length > 0) {
+    const userRows = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+      .from(usersTable)
+      .where(inArray(usersTable.id, notifyIds.map(n => n.userId)));
+
+    for (const { userId, role } of notifyIds) {
+      const user = userRows.find(u => u.id === userId);
+      if (!user?.email) continue;
+      const studentName = rows[0].studentName;
+      const loginUrl = "https://design-platform.replit.app/login";
+      sendEmail({
+        to: user.email,
+        subject: `You've been assigned to a case — ${studentName}`,
+        html: `
+          <div style="font-family:Inter,sans-serif;max-width:560px;margin:0 auto;color:#1e293b">
+            <div style="background:#0d1b2e;padding:20px 28px;border-radius:12px 12px 0 0">
+              <img src="https://design-platform.replit.app/images/remynd-logo.png" width="32" height="32" style="vertical-align:middle;margin-right:10px"/>
+              <span style="color:#fff;font-size:18px;font-weight:700;vertical-align:middle">ReMynd</span>
+              <span style="color:#94a3b8;font-size:12px;vertical-align:middle;margin-left:6px">Assessment Operating System</span>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;padding:32px 28px;border-radius:0 0 12px 12px">
+              <h2 style="margin:0 0 8px;font-size:20px;font-weight:700">Hi ${user.name},</h2>
+              <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6">
+                You have been assigned as the <strong>${role}</strong> on a new assessment case.
+              </p>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px">
+                <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em">Student</p>
+                <p style="margin:0;font-size:17px;font-weight:600;color:#0f172a">${studentName}</p>
+              </div>
+              <p style="margin:0 0 24px;color:#475569;font-size:14px;line-height:1.6">
+                Please log into RAOS to view the case details and your assigned tasks.
+              </p>
+              <a href="${loginUrl}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Log In to RAOS ↗</a>
+              <p style="margin:28px 0 0;font-size:12px;color:#94a3b8">ReMynd Student Services · This is an automated notification.</p>
+            </div>
+          </div>`,
+      }).catch(() => { /* swallow email errors — don't break the API response */ });
+    }
+  }
 });
 
 router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
