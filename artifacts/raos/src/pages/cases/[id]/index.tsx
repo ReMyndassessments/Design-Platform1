@@ -1517,6 +1517,49 @@ export default function CaseDetail() {
                       </div>
                     )}
 
+                    {/* Suggested Questions */}
+                    {(c.intakeAnalysis as any).suggestedQuestions && (() => {
+                      const sq = (c.intakeAnalysis as any).suggestedQuestions as { teacher: string[]; parent: string[] };
+                      const hasTeacher = Array.isArray(sq.teacher) && sq.teacher.length > 0;
+                      const hasParent = Array.isArray(sq.parent) && sq.parent.length > 0;
+                      if (!hasTeacher && !hasParent) return null;
+                      return (
+                        <div className="space-y-3">
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Suggested Questions</span>
+                          {hasTeacher && (
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">For Teacher</span>
+                              </div>
+                              <ol className="space-y-1.5 list-none">
+                                {sq.teacher.map((q: string, i: number) => (
+                                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 bg-indigo-50/60 border border-indigo-100 rounded px-2.5 py-1.5">
+                                    <span className="shrink-0 font-semibold text-indigo-400 mt-0.5">{i + 1}.</span>
+                                    <span>{q}</span>
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
+                          {hasParent && (
+                            <div>
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">For Parent / Guardian</span>
+                              </div>
+                              <ol className="space-y-1.5 list-none">
+                                {sq.parent.map((q: string, i: number) => (
+                                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 bg-teal-50/60 border border-teal-100 rounded px-2.5 py-1.5">
+                                    <span className="shrink-0 font-semibold text-teal-400 mt-0.5">{i + 1}.</span>
+                                    <span>{q}</span>
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Recommended Tools */}
                     {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (() => {
                       const dismissedIds = new Set<string>(

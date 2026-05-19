@@ -48,6 +48,10 @@ export type IntakeAnalysisResult = {
   riskLevel: "low" | "moderate" | "high";
   summary: string;
   flags: string[];
+  suggestedQuestions?: {
+    teacher: string[];
+    parent: string[];
+  };
 };
 
 export async function analyzeIntakeWithAI(intake: {
@@ -124,7 +128,11 @@ Return ONLY a JSON object (no markdown, no code fences) with this exact structur
   "recommendedDomains": ["attention", "executive_function", "emotional_regulation", "social_communication", "academic_persistence", "memory", "processing_speed"],
   "riskLevel": "low|moderate|high",
   "summary": "2-3 sentence clinical summary of the referral picture and key concerns",
-  "flags": ["Specific concern or pattern to watch for during assessment"]
+  "flags": ["Specific concern or pattern to watch for during assessment"],
+  "suggestedQuestions": {
+    "teacher": ["5-8 targeted questions a psychometrician should ask the teacher to get a clearer school-based picture of this student's functioning, behaviour, and academic performance"],
+    "parent": ["5-8 targeted questions a psychometrician should ask the parent/guardian to get a fuller developmental and home-context picture beyond what was captured in the intake form"]
+  }
 }`;
 
   try {
@@ -139,6 +147,12 @@ Return ONLY a JSON object (no markdown, no code fences) with this exact structur
       riskLevel: parsed.riskLevel ?? "moderate",
       summary: parsed.summary ?? "Intake analysis completed.",
       flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+      suggestedQuestions: (parsed.suggestedQuestions && typeof parsed.suggestedQuestions === "object")
+        ? {
+            teacher: Array.isArray(parsed.suggestedQuestions.teacher) ? parsed.suggestedQuestions.teacher : [],
+            parent: Array.isArray(parsed.suggestedQuestions.parent) ? parsed.suggestedQuestions.parent : [],
+          }
+        : undefined,
     };
   } catch {
     return {
