@@ -404,6 +404,12 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
 
   try {
     await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
+
+    // Persist the name/email back to all matching assignments so the portal header shows the recipient's name
+    await db.update(assignmentsTable)
+      .set({ assignedToName: toName, assignedToEmail: toEmail })
+      .where(and(eq(assignmentsTable.caseId, req.params.caseId), eq(assignmentsTable.assignedToEmail, toEmail)));
+
     res.json({ success: true });
   } catch (err: any) {
     console.error("[send-respondent-email] SMTP error:", err?.message ?? err, "code:", err?.code, "response:", err?.response);
