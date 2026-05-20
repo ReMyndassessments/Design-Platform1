@@ -62,6 +62,7 @@ type PortalData = {
   languagePreference: string;
   respondentLabel: string | null;
   respondentType: string | null;
+  assignedToName: string | null;
   forms: PortalForm[];
   reportAccess: ReportAccess | null;
   debriefMeetingUrl?: string | null;
@@ -796,9 +797,15 @@ function PortalView({
             </div>
           </div>
           <div className="ml-auto flex items-center gap-4">
-            {portal.respondentLabel && (
+            {(portal.assignedToName || portal.respondentLabel) && (
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-semibold text-white">{portal.respondentLabel}</p>
+                <p className="text-xs font-semibold text-white">
+                  {portal.assignedToName
+                    ? portal.respondentLabel
+                      ? `${portal.assignedToName} — ${portal.respondentLabel}`
+                      : portal.assignedToName
+                    : portal.respondentLabel}
+                </p>
                 <p className="text-[10px] text-slate-400">{t("respondent", language)}</p>
               </div>
             )}

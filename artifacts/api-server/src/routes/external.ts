@@ -153,6 +153,7 @@ router.get("/external/portal/:token", async (req, res) => {
       languagePreference: caseData?.languagePreference ?? "english",
       respondentLabel: assignment.respondentLabel,
       respondentType: assignment.respondentType,
+      assignedToName: assignment.assignedToName ?? null,
       forms: siblings.map(s => ({
         toolId: s.toolId,
         toolName: s.toolName,
