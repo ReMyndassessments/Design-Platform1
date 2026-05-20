@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -199,6 +199,32 @@ export default function CaseDetail() {
     assignedToName: "",
     assignedToEmail: ""
   });
+  const [editingNameKey, setEditingNameKey] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  const handleSaveRespondentName = async (group: { groupKey: string; forms: { id: string }[] }) => {
+    if (!editingNameValue.trim()) return;
+    setSavingName(true);
+    try {
+      await Promise.all(group.forms.map(f =>
+        fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${f.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ assignedToName: editingNameValue.trim() }),
+        })
+      ));
+      await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      setEditingNameKey(null);
+      toast({ title: "Name saved — portal header updated" });
+    } catch {
+      toast({ title: "Could not save name", variant: "destructive" });
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const [sendEmailTarget, setSendEmailTarget] = useState<{
     groupKey: string; label: string; name: string; email: string; link: string; formNames: string[]; respondentRole: string; assignmentIds: string[];
   } | null>(null);
@@ -2098,7 +2124,35 @@ export default function CaseDetail() {
                     <div key={group.groupKey} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-semibold text-slate-800 text-sm">{group.name ?? group.label}</span>
+                          {editingNameKey === group.groupKey ? (
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                autoFocus
+                                value={editingNameValue}
+                                onChange={e => setEditingNameValue(e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter") handleSaveRespondentName(group); if (e.key === "Escape") setEditingNameKey(null); }}
+                                placeholder="Enter name..."
+                                className="h-7 text-sm w-44"
+                              />
+                              <Button size="sm" className="h-7 px-2" disabled={savingName} onClick={() => handleSaveRespondentName(group)}>
+                                <Check size={13} />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingNameKey(null)}>
+                                <X size={13} />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-800 text-sm">{group.name ?? group.label}</span>
+                              <button
+                                title="Edit name shown on portal header"
+                                className="text-slate-300 hover:text-slate-600 transition-colors"
+                                onClick={() => { setEditingNameKey(group.groupKey); setEditingNameValue(group.name ?? ""); }}
+                              >
+                                <Pencil size={11} />
+                              </button>
+                            </div>
+                          )}
                           <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
                           {allDone
                             ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">All Complete</span>
