@@ -406,7 +406,8 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
     await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(502).json({ error: "send_failed", message: "Email could not be sent. Please try again." });
+    console.error("[send-respondent-email] SMTP error:", err?.message ?? err, "code:", err?.code, "response:", err?.response);
+    res.status(502).json({ error: "send_failed", message: err?.message ?? "Email could not be sent. Please try again." });
   }
 });
 
