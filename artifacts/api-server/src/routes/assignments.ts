@@ -402,13 +402,33 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
   </div>
 </div>`;
 
+  // Extract the unique token from the formLink so we can find the exact assignment group
+  const tokenMatch = formLink.match(/\/external\/([^/?#]+)/);
+  const portalToken = tokenMatch?.[1] ?? null;
+
   try {
     await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
 
-    // Persist the name/email back to all matching assignments so the portal header shows the recipient's name
-    await db.update(assignmentsTable)
-      .set({ assignedToName: toName, assignedToEmail: toEmail })
-      .where(and(eq(assignmentsTable.caseId, req.params.caseId), eq(assignmentsTable.assignedToEmail, toEmail)));
+    // Find the anchor assignment via its portal token, then update all siblings in the same group
+    if (portalToken) {
+      const anchor = await db.select({ id: assignmentsTable.id, respondentLabel: assignmentsTable.respondentLabel, assignedToEmail: assignmentsTable.assignedToEmail })
+        .from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
+
+      if (anchor[0]) {
+        // Match by email if stored, otherwise match by respondentLabel within this case
+        const siblings = anchor[0].assignedToEmail
+          ? await db.select({ id: assignmentsTable.id }).from(assignmentsTable)
+              .where(and(eq(assignmentsTable.caseId, req.params.caseId), eq(assignmentsTable.assignedToEmail, anchor[0].assignedToEmail!)))
+          : await db.select({ id: assignmentsTable.id }).from(assignmentsTable)
+              .where(and(eq(assignmentsTable.caseId, req.params.caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? "")));
+
+        if (siblings.length > 0) {
+          await db.update(assignmentsTable)
+            .set({ assignedToName: toName, assignedToEmail: toEmail })
+            .where(inArray(assignmentsTable.id, siblings.map(s => s.id)));
+        }
+      }
+    }
 
     res.json({ success: true });
   } catch (err: any) {
