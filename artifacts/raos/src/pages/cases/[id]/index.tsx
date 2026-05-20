@@ -207,14 +207,14 @@ export default function CaseDetail() {
     if (!editingNameValue.trim()) return;
     setSavingName(true);
     try {
-      await Promise.all(group.forms.map(f =>
+      const responses = await Promise.all(group.forms.map(f =>
         fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${f.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
           body: JSON.stringify({ assignedToName: editingNameValue.trim() }),
         })
       ));
+      if (responses.some(r => !r.ok)) throw new Error("patch failed");
       await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       setEditingNameKey(null);
       toast({ title: "Name saved — portal header updated" });
