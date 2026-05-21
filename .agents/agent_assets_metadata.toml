@@ -65,3 +65,9 @@ id = "6GuPHfcGxYCtwtliltq6d"
 uri = "file://attached_assets/reMynd_ppt_background_v2.png"
 type = "image"
 title = "ReMynd PowerPoint Background with Logo"
+
+[[outputs]]
+id = "RkUQ0PKwin0zv4SleNgzp"
+uri = "file://attached_assets/reMynd_ppt_final.png"
+type = "image"
+title = "ReMynd PowerPoint Background (with Logo)"
