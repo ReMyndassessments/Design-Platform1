@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "dLKlg_Qor3gNc28JbuYRE"
+uri = "file://attached_assets/reMynd_ppt_background.png"
+type = "image"
+title = "reMynd PowerPoint background"
 
 [[outputs]]
 id = "QBw29TkpUw8clGmW-oSVn"
@@ -42,3 +47,9 @@ id = "KUBTL4bfz1f9ZdeXB969X"
 uri = "file://attached_assets/RAOS_Invigilator_Manual_Revised.md"
 type = "text"
 title = "RAOS Invigilator Manual — Revised"
+
+[[outputs]]
+id = "28JbNgqWI0nZ_UvzFK0Vb"
+uri = "file://attached_assets/reMynd_ppt_background.png"
+type = "image"
+title = "ReMynd PowerPoint Background"
