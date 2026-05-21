@@ -85,7 +85,9 @@ router.get("/external/portal/:token", async (req, res) => {
     const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
     const caseData = caseRows[0];
 
-    const groupByEmail = !!assignment.assignedToEmail;
+    // Always group by respondentType + respondentLabel so ALL forms assigned to
+    // this role (e.g. every "Teacher 2" form) appear together, regardless of
+    // whether an email address was stored on each individual assignment.
     const siblings = await db
       .select({
         toolId: assignmentsTable.toolId,
@@ -99,12 +101,8 @@ router.get("/external/portal/:token", async (req, res) => {
       .where(
         and(
           eq(assignmentsTable.caseId, assignment.caseId),
-          groupByEmail
-            ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!)
-            : and(
-                eq(assignmentsTable.respondentType, assignment.respondentType),
-                eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
-              ),
+          eq(assignmentsTable.respondentType, assignment.respondentType),
+          eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
         )
       );
 
