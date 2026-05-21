@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
-import { eq, and, ne, asc } from "drizzle-orm";
+import { eq, and, or, ne, asc } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { Readable } from "stream";
 import { nanoid } from "nanoid";
@@ -85,9 +85,10 @@ router.get("/external/portal/:token", async (req, res) => {
     const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
     const caseData = caseRows[0];
 
-    // Always group by respondentType + respondentLabel so ALL forms assigned to
-    // this role (e.g. every "Teacher 2" form) appear together, regardless of
-    // whether an email address was stored on each individual assignment.
+    // Group by respondentType + respondentLabel, but also include any forms for
+    // this respondentType that have a blank label (assigned before the label was
+    // set). This ensures all forms — whether labelled or not — appear together.
+    const anchorLabel = assignment.respondentLabel ?? "";
     const siblings = await db
       .select({
         toolId: assignmentsTable.toolId,
@@ -102,7 +103,10 @@ router.get("/external/portal/:token", async (req, res) => {
         and(
           eq(assignmentsTable.caseId, assignment.caseId),
           eq(assignmentsTable.respondentType, assignment.respondentType),
-          eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? ""),
+          or(
+            eq(assignmentsTable.respondentLabel, anchorLabel),
+            eq(assignmentsTable.respondentLabel, ""),
+          ),
         )
       );
 
