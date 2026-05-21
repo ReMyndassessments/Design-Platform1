@@ -12,6 +12,12 @@ uri = "file://attached_assets/reMynd_ppt_background_v2.png"
 type = "image"
 title = "reMynd PPT background with logo"
 
+[[generated]]
+id = "TsK7zSKxjwZAzALiwUvoy"
+uri = "file://attached_assets/reMynd_bg_clean.png"
+type = "image"
+title = "clean navy gradient background"
+
 [[outputs]]
 id = "QBw29TkpUw8clGmW-oSVn"
 uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
