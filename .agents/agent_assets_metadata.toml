@@ -6,6 +6,12 @@ uri = "file://attached_assets/reMynd_ppt_background.png"
 type = "image"
 title = "reMynd PowerPoint background"
 
+[[generated]]
+id = "PgZQMftCqV2O4fAsSkcO6"
+uri = "file://attached_assets/reMynd_ppt_background_v2.png"
+type = "image"
+title = "reMynd PPT background with logo"
+
 [[outputs]]
 id = "QBw29TkpUw8clGmW-oSVn"
 uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
@@ -53,3 +59,9 @@ id = "28JbNgqWI0nZ_UvzFK0Vb"
 uri = "file://attached_assets/reMynd_ppt_background.png"
 type = "image"
 title = "ReMynd PowerPoint Background"
+
+[[outputs]]
+id = "6GuPHfcGxYCtwtliltq6d"
+uri = "file://attached_assets/reMynd_ppt_background_v2.png"
+type = "image"
+title = "ReMynd PowerPoint Background with Logo"
