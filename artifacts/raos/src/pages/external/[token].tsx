@@ -1532,6 +1532,7 @@ export default function ExternalFormView() {
   if (mode === "form") {
     return (
       <FormView
+        key={activeFormToken}
         activeToken={activeFormToken}
         language={language}
         setLanguage={setLanguage}
