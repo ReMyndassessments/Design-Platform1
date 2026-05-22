@@ -2317,7 +2317,51 @@ async function repairPendingCasesFromConsent() {
   }
 }
 
+async function backfillRespondentLabels() {
+  try {
+    // For every (case_id, respondent_type) that has exactly ONE distinct
+    // non-empty respondent_label, copy that label onto any assignments in
+    // the same group that were saved with an empty label.
+    const unlabelled = await db
+      .select({
+        id: assignmentsTable.id,
+        caseId: assignmentsTable.caseId,
+        respondentType: assignmentsTable.respondentType,
+      })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.respondentLabel, ""));
+
+    for (const row of unlabelled) {
+      const labelled = await db
+        .selectDistinct({ label: assignmentsTable.respondentLabel })
+        .from(assignmentsTable)
+        .where(
+          and(
+            eq(assignmentsTable.caseId, row.caseId),
+            eq(assignmentsTable.respondentType, row.respondentType),
+            ne(assignmentsTable.respondentLabel, ""),
+          )
+        );
+      // Only backfill when there is exactly one distinct label — if there
+      // are multiple (e.g. Teacher 1 and Teacher 2 for the same type) we
+      // cannot safely guess which group this assignment belongs to.
+      if (labelled.length === 1) {
+        await db
+          .update(assignmentsTable)
+          .set({ respondentLabel: labelled[0].label })
+          .where(eq(assignmentsTable.id, row.id));
+      }
+    }
+    if (unlabelled.length > 0) {
+      logger.info({ count: unlabelled.length }, "Backfilled respondent labels");
+    }
+  } catch (err) {
+    logger.error({ err }, "backfillRespondentLabels failed");
+  }
+}
+
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => backfillRespondentLabels())
   .then(() => reviseHIQForm())
   .then(() => reviseDYSRISKTalents())
   .then(() => reviseLASAForm())

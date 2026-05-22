@@ -85,9 +85,9 @@ router.get("/external/portal/:token", async (req, res) => {
     const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
     const caseData = caseRows[0];
 
-    // Group by respondentType + respondentLabel, but also include any forms for
-    // this respondentType that have a blank label (assigned before the label was
-    // set). This ensures all forms — whether labelled or not — appear together.
+    // Group by respondentType + respondentLabel (exact match).
+    // Empty-label assignments are backfilled at startup so they always carry
+    // the correct label by the time a portal is opened.
     const anchorLabel = assignment.respondentLabel ?? "";
     const siblings = await db
       .select({
@@ -103,10 +103,7 @@ router.get("/external/portal/:token", async (req, res) => {
         and(
           eq(assignmentsTable.caseId, assignment.caseId),
           eq(assignmentsTable.respondentType, assignment.respondentType),
-          or(
-            eq(assignmentsTable.respondentLabel, anchorLabel),
-            eq(assignmentsTable.respondentLabel, ""),
-          ),
+          eq(assignmentsTable.respondentLabel, anchorLabel),
         )
       );
 
