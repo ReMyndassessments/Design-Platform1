@@ -523,6 +523,110 @@ function formatAnswersForPrompt(answers: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
+interface FormItemLike {
+  id: string;
+  text: string;
+  type: string;
+  options?: string[];
+  rows?: Array<{ id: string; text: string }>;
+}
+
+function formatQuestionsAndAnswers(formItems: FormItemLike[], answers: Record<string, unknown>): string {
+  const lines: string[] = [];
+  let n = 0;
+  for (const item of formItems) {
+    if (item.type === "section_header" || item.type === "instruction") {
+      lines.push(`\n[${item.text.toUpperCase()}]`);
+      continue;
+    }
+    const answer = answers[item.id];
+    if (answer === undefined || answer === null || answer === "") continue;
+    n++;
+    let formatted = "";
+    if (item.type === "frequency_grid" && item.rows && typeof answer === "object" && !Array.isArray(answer)) {
+      const gridParts = item.rows
+        .map(row => {
+          const val = (answer as Record<string, unknown>)[row.id];
+          return val !== undefined && val !== null && val !== "" ? `${row.text}: ${val}` : null;
+        })
+        .filter(Boolean);
+      formatted = gridParts.join("; ");
+    } else if (Array.isArray(answer)) {
+      formatted = answer.length > 0 ? answer.join(", ") : "";
+    } else {
+      formatted = String(answer);
+    }
+    if (formatted) {
+      lines.push(`${n}. ${item.text.replace(/\*$/, "").trim()}: ${formatted}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+const RESPONDENT_LABEL: Record<string, string> = {
+  parent: "Parent / Guardian",
+  teacher: "Teacher", teacher1: "Teacher 1", teacher2: "Teacher 2",
+  referring_teacher: "Referring Teacher", special_needs_teacher: "Special Needs Teacher",
+  school_counselor: "School Counselor", boarding_staff: "Boarding Staff",
+  self: "Student (Self-Report)", invigilator: "Invigilator / Psychometrist",
+  clinician: "Clinician",
+};
+
+export async function generateFormSummary(params: {
+  toolId: string;
+  toolName: string;
+  respondentType: string;
+  studentName: string;
+  school: string;
+  grade: string;
+  answers: Record<string, unknown>;
+  formItems: FormItemLike[];
+}): Promise<string> {
+  const { toolName, respondentType, studentName, school, grade, answers, formItems } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+  const respondentLabel = RESPONDENT_LABEL[respondentType] ?? respondentType;
+  const formattedQA = formatQuestionsAndAnswers(formItems, answers);
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical interpretation narrative for a student's assessment file. You have been given completed responses from a "${toolName}" rating scale / assessment form, completed by the ${respondentLabel}.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Respondent: ${respondentLabel}
+
+FORM QUESTIONS AND RESPONSES:
+${formattedQA}
+
+---
+Write a professional clinical summary interpretation of these responses. Use third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Base ALL content solely on the responses provided — do not invent or assume details. Use cohesive paragraphs — no bullet points within sections.
+
+Structure the narrative using the following sections. Only include a section if the form data supports it:
+
+ASSESSMENT SUMMARY — ${toolName}
+
+Overview
+
+[Write a paragraph introducing the assessment context: what the tool measures, who completed it, and the overall pattern of responding (e.g., generally elevated, generally within normal limits, mixed pattern across domains).]
+
+Key Findings
+
+[Write one or more paragraphs describing the most clinically significant ratings. Group related areas together. Note items or domains that were notably elevated, below average, or inconsistent. Use specific response data to support your statements.]
+
+Areas of Strength
+
+[If the data shows areas of relative strength or within-normal-limits functioning, describe them here. If all areas are elevated, note that no relative strengths were identified on this measure.]
+
+Clinical Implications
+
+[Write a brief paragraph connecting the findings to potential clinical or academic impact. Note how these results align with or should be interpreted alongside other assessment data. Avoid making diagnostic statements — frame as "consistent with difficulties in..." or "suggests support may be beneficial for..."]
+
+[Write a final one-sentence or two-sentence closing statement summarising the overall clinical picture from this measure and recommending that results be interpreted in the context of the full assessment battery.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
 export async function generateAboSummary(params: {
   studentName: string;
   school: string;

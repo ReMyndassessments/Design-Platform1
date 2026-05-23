@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
-import { generateIntakeSummary, generateAboSummary, translateAnswersToEnglish } from "../lib/ai.js";
+import { generateIntakeSummary, generateAboSummary, generateFormSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 
 const router = Router();
@@ -188,22 +188,18 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     res.status(404).json({ error: "not_found", message: "Assignment not found" });
     return;
   }
-  const SUMMARY_SUPPORTED = new Set(["INTAKE", "BEHAVOBS"]);
-  if (!SUMMARY_SUPPORTED.has(assignment.toolId ?? "")) {
-    res.status(400).json({ error: "not_supported", message: "Summary generation is not available for this form" });
-    return;
-  }
+  const [responseRows, caseRows, toolRows] = await Promise.all([
+    db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id)).limit(1),
+    db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
+      .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1),
+    db.select({ name: assessmentToolsTable.name, formItems: assessmentToolsTable.formItems })
+      .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId ?? "")).limit(1),
+  ]);
 
-  const responseRows = await db.select().from(responsesTable)
-    .where(eq(responsesTable.assignmentId, assignment.id))
-    .limit(1);
   if (!responseRows[0]) {
     res.status(404).json({ error: "not_found", message: "No response submitted yet" });
     return;
   }
-
-  const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
-    .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
   const commonParams = {
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
@@ -212,9 +208,21 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     answers: responseRows[0].answers,
   };
 
-  const summary = assignment.toolId === "BEHAVOBS"
-    ? await generateAboSummary(commonParams)
-    : await generateIntakeSummary(commonParams);
+  let summary: string;
+  if (assignment.toolId === "INTAKE") {
+    summary = await generateIntakeSummary(commonParams);
+  } else if (assignment.toolId === "BEHAVOBS") {
+    summary = await generateAboSummary(commonParams);
+  } else {
+    const formItems = (toolRows[0]?.formItems as Array<{ id: string; text: string; type: string; options?: string[]; rows?: Array<{ id: string; text: string }> }>) ?? [];
+    summary = await generateFormSummary({
+      ...commonParams,
+      toolId: assignment.toolId ?? "",
+      toolName: assignment.toolName ?? toolRows[0]?.name ?? "Assessment Form",
+      respondentType: assignment.respondentType ?? "unknown",
+      formItems,
+    });
+  }
 
   await db.update(responsesTable)
     .set({ summary })
