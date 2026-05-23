@@ -563,6 +563,12 @@ export default function ResponseViewer() {
     document.body.classList.remove("print-score-only");
   }
 
+  function handlePrintRawOnly() {
+    document.body.classList.add("print-raw-only");
+    window.print();
+    document.body.classList.remove("print-raw-only");
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -607,6 +613,11 @@ export default function ResponseViewer() {
           body.print-score-only .print-qa-card { display: none !important; }
           body.print-score-only .print-summary-card { display: none !important; }
           body.print-score-only .print-hide { display: none !important; }
+        }
+        @media print {
+          body.print-raw-only .print-score-card { display: none !important; }
+          body.print-raw-only .print-summary-card { display: none !important; }
+          body.print-raw-only .print-hide { display: none !important; }
         }
       `}</style>
 
@@ -784,7 +795,19 @@ export default function ResponseViewer() {
 
           <div className="border-t border-slate-100 px-8 py-4 bg-slate-50/50 flex items-center justify-between text-xs text-slate-400">
             <span>Response ID: {response.id}</span>
-            <span>ReMynd Assessment Operating System</span>
+            <div className="flex items-center gap-2">
+              {score && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handlePrintRawOnly}
+                  className="print-hide gap-2 text-xs h-8 border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  <Printer size={13} /> Download Raw Responses PDF
+                </Button>
+              )}
+              <span>ReMynd Assessment Operating System</span>
+            </div>
           </div>
         </div>
 
