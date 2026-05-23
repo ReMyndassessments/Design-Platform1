@@ -64,7 +64,7 @@ function displayPhase(phase: string): string {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
-const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "invigilator"]);
+const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
   parent: "Parent",
@@ -443,13 +443,16 @@ export default function CaseDetail() {
     for (const a of c.assignments) {
       if (INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
       if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
+      // RASR is psychometrician-administered internally — skip it here
+      if (a.respondentType === "self" && a.respondentLabel === "Psychometrician") continue;
       const key = a.assignedToEmail
         ? `email:${a.assignedToEmail}`
         : `type:${a.respondentType}:${a.respondentLabel ?? ""}`;
       if (!groups.has(key)) {
+        const isSelf = a.respondentType === "self";
         groups.set(key, {
           groupKey: key,
-          label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType,
+          label: isSelf ? "Student Self-Report" : (RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType),
           respondentType: a.respondentType,
           name: a.assignedToName ?? null,
           email: a.assignedToEmail ?? null,
@@ -2173,7 +2176,7 @@ export default function CaseDetail() {
                           onClick={() => copyLink(group.link)}>
                           <Copy size={15} />
                         </Button>
-                        <Button size="sm" className="gap-1.5" title="Send link by email"
+                        <Button size="sm" className="gap-1.5" title={group.respondentType === "self" ? "Send portal link to invigilator" : "Send link by email"}
                           onClick={() => {
                             setSendEmailTarget({
                               groupKey: group.groupKey,
@@ -2182,12 +2185,12 @@ export default function CaseDetail() {
                               email: group.email ?? "",
                               link: group.link,
                               formNames: group.forms.map(f => f.name),
-                              respondentRole: group.label,
+                              respondentRole: group.respondentType === "self" ? "Invigilator" : group.label,
                               assignmentIds: group.forms.map(f => f.id),
                             });
                             setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" });
                           }}>
-                          <Send size={14} /> Send Email
+                          <Send size={14} /> {group.respondentType === "self" ? "Send to Invigilator" : "Send Email"}
                         </Button>
                       </div>
                     </div>
@@ -2241,9 +2244,15 @@ export default function CaseDetail() {
       <Dialog open={!!sendEmailTarget} onOpenChange={open => { if (!open) { setSendEmailTarget(null); setIsSendingEmail(false); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Forms to {sendEmailTarget?.label}</DialogTitle>
+            <DialogTitle>
+              {sendEmailTarget?.respondentRole === "Invigilator"
+                ? "Send Self-Report Forms to Invigilator"
+                : `Send Forms to ${sendEmailTarget?.label}`}
+            </DialogTitle>
             <DialogDescription>
-              An email will be sent with a link to all their assigned forms for this case.
+              {sendEmailTarget?.respondentRole === "Invigilator"
+                ? "The invigilator will receive a link to the student's self-report portal and can administer each form with the student."
+                : "An email will be sent with a link to all their assigned forms for this case."}
             </DialogDescription>
           </DialogHeader>
           {sendEmailTarget && (
