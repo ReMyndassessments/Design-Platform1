@@ -445,9 +445,10 @@ export default function CaseDetail() {
       if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
       // RASR is psychometrician-administered internally — skip it here
       if (a.respondentType === "self" && a.respondentLabel === "Psychometrician") continue;
-      const key = a.assignedToEmail
-        ? `email:${a.assignedToEmail}`
-        : `type:${a.respondentType}:${a.respondentLabel ?? ""}`;
+      // All self-report assignments share one row regardless of label
+      const key = a.respondentType === "self"
+        ? "type:self"
+        : (a.assignedToEmail ? `email:${a.assignedToEmail}` : `type:${a.respondentType}:${a.respondentLabel ?? ""}`);
       if (!groups.has(key)) {
         const isSelf = a.respondentType === "self";
         groups.set(key, {
@@ -2156,7 +2157,9 @@ export default function CaseDetail() {
                               </button>
                             </div>
                           )}
-                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
+                          {group.respondentType !== "self" && (
+                            <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.label}</span>
+                          )}
                           {allDone
                             ? <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">All Complete</span>
                             : <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">{completedCount}/{group.forms.length} done</span>
