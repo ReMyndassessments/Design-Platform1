@@ -474,9 +474,9 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     description: "A systematic direct observation tool used to measure a student's active and passive engaged time, as well as off-task and disruptive behaviors, in a classroom setting. It is designed for school-aged children and is used by psychologists and educational professionals to assess academic engagement and behavior in the natural environment.",
     isRemyndOwned: true,
     respondentTypes: ["invigilator"],
-    scoringType: "auto",
-    domains: ["academic_engagement", "off_task_behavior", "disruptive_behavior"],
-    scoringConfig: { max: 4, domains: {}, thresholds: { low: 25, mild: 50, moderate: 65 } },
+    scoringType: null,
+    domains: [],
+    scoringConfig: null,
     formItems: [
       { id: "behavobs_instr",
         text: "Assessment Behavior Observation",

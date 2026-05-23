@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
-import { generateIntakeSummary, translateAnswersToEnglish } from "../lib/ai.js";
+import { generateIntakeSummary, generateAboSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 
 const router = Router();
@@ -188,8 +188,9 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     res.status(404).json({ error: "not_found", message: "Assignment not found" });
     return;
   }
-  if (assignment.toolId !== "INTAKE") {
-    res.status(400).json({ error: "not_supported", message: "Summary generation is only available for the Parent Intake form" });
+  const SUMMARY_SUPPORTED = new Set(["INTAKE", "BEHAVOBS"]);
+  if (!SUMMARY_SUPPORTED.has(assignment.toolId ?? "")) {
+    res.status(400).json({ error: "not_supported", message: "Summary generation is not available for this form" });
     return;
   }
 
@@ -204,12 +205,16 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
   const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
-  const summary = await generateIntakeSummary({
+  const commonParams = {
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
     answers: responseRows[0].answers,
-  });
+  };
+
+  const summary = assignment.toolId === "BEHAVOBS"
+    ? await generateAboSummary(commonParams)
+    : await generateIntakeSummary(commonParams);
 
   await db.update(responsesTable)
     .set({ summary })

@@ -523,6 +523,55 @@ function formatAnswersForPrompt(answers: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
+export async function generateAboSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  answers: Record<string, unknown>;
+}): Promise<string> {
+  const { studentName, school, grade, answers } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+  const formattedAnswers = formatAnswersForPrompt(answers);
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical behavioral observation narrative for a student's assessment report. You have been given completed Assessment Behavior Observation (ABO) form data recorded by the invigilating psychometrist during the assessment session.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+
+OBSERVATION FORM DATA:
+${formattedAnswers}
+
+---
+Write a comprehensive, clinically-styled behavioral observation narrative strictly based on the data provided above. Use professional third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Do not invent, infer beyond, or add details not present in the observation data. If data is absent for a particular area, note that it was not formally recorded. Use cohesive prose paragraphs — do not use bullet points within sections.
+
+Structure the narrative exactly as follows:
+
+BEHAVIORAL OBSERVATION SUMMARY
+
+General Presentation and Appearance
+
+[Write a paragraph covering physical presentation, apparent age relative to stated age, dress and grooming, handedness, use of glasses or hearing aids, and overall first impression during the assessment.]
+
+Interpersonal Behaviour and Rapport
+
+[Write a paragraph covering how rapport was established (or not), attitude toward the examiner, speech characteristics and communication style, and the student's general affect and emotional presentation during the session.]
+
+Engagement and Task Behaviour
+
+[Write a paragraph covering the student's attitude toward the assessment tasks, concentration and attentional capacity, ability to follow instructions, persistence on difficult items, frequency of redirection required, and the number of breaks taken.]
+
+Validity and Clinical Considerations
+
+[Write a paragraph addressing whether the student understood the purpose of the evaluation, their reactions to errors or challenging items, any unusual or atypical behaviors observed, and the examiner's overall judgment of test validity. Include the psychometrist's additional test-specific observations if recorded.]
+
+[Write a brief concluding paragraph summarising the overall behavioural presentation and noting any factors that may have influenced test performance or that should be considered in the interpretation of assessment results.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
 export async function generateIntakeSummary(params: {
   studentName: string;
   school: string;

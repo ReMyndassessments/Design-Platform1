@@ -630,8 +630,8 @@ export default function ResponseViewer() {
             </Button>
           </Link>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* AI Summary — INTAKE only */}
-            {assignment.toolId === "INTAKE" && summary && (
+            {/* AI Summary — INTAKE and BEHAVOBS */}
+            {(assignment.toolId === "INTAKE" || assignment.toolId === "BEHAVOBS") && summary && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -641,7 +641,7 @@ export default function ResponseViewer() {
                 <Sparkles size={14} /> View Summary
               </Button>
             )}
-            {assignment.toolId === "INTAKE" && (
+            {(assignment.toolId === "INTAKE" || assignment.toolId === "BEHAVOBS") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -651,7 +651,10 @@ export default function ResponseViewer() {
               >
                 {isGenerating
                   ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                  : <><Sparkles size={14} /> {summary ? "Regenerate" : "Generate Summary"}</>}
+                  : <><Sparkles size={14} /> {summary
+                      ? (assignment.toolId === "BEHAVOBS" ? "Regenerate Observation Summary" : "Regenerate")
+                      : (assignment.toolId === "BEHAVOBS" ? "Generate Observation Summary" : "Generate Summary")
+                    }</>}
               </Button>
             )}
 
@@ -947,8 +950,8 @@ export default function ResponseViewer() {
           </div>
         )}
 
-        {/* Score Card — rich report with charts and narratives */}
-        {score && (() => {
+        {/* Score Card — rich report with charts and narratives (not shown for BEHAVOBS which uses narrative summary instead) */}
+        {score && assignment.toolId !== "BEHAVOBS" && (() => {
           const { domains: resolvedDomains, normalized: resolvedNorm } = resolveDomainScores(
             score.domainScores as Record<string, number | null>,
             score.normalizedScores as Record<string, number | null>,
