@@ -9,7 +9,7 @@ import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM,
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
 import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM, FASM_FORM } from "./lib/opentools.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
-import { eq, sql, and, ne } from "drizzle-orm";
+import { eq, sql, and, ne, or, isNull, isNotNull } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -2321,7 +2321,7 @@ async function backfillRespondentLabels() {
   try {
     // For every (case_id, respondent_type) that has exactly ONE distinct
     // non-empty respondent_label, copy that label onto any assignments in
-    // the same group that were saved with an empty label.
+    // the same group that were saved with a null or empty label.
     const unlabelled = await db
       .select({
         id: assignmentsTable.id,
@@ -2329,7 +2329,7 @@ async function backfillRespondentLabels() {
         respondentType: assignmentsTable.respondentType,
       })
       .from(assignmentsTable)
-      .where(eq(assignmentsTable.respondentLabel, ""));
+      .where(or(isNull(assignmentsTable.respondentLabel), eq(assignmentsTable.respondentLabel, "")));
 
     for (const row of unlabelled) {
       const labelled = await db
@@ -2339,6 +2339,7 @@ async function backfillRespondentLabels() {
           and(
             eq(assignmentsTable.caseId, row.caseId),
             eq(assignmentsTable.respondentType, row.respondentType),
+            isNotNull(assignmentsTable.respondentLabel),
             ne(assignmentsTable.respondentLabel, ""),
           )
         );

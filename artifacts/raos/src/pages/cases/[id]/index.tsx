@@ -461,6 +461,12 @@ export default function CaseDetail() {
           link: a.uniqueLink,
           forms: [],
         });
+      } else {
+        // Promote name/email from any assignment in the group that carries them,
+        // in case the first assignment processed happened to have neither.
+        const g = groups.get(key)!;
+        if (!g.name && a.assignedToName) g.name = a.assignedToName;
+        if (!g.email && a.assignedToEmail) g.email = a.assignedToEmail;
       }
       groups.get(key)!.forms.push({ id: a.id, name: a.toolName, status: a.status });
     }
