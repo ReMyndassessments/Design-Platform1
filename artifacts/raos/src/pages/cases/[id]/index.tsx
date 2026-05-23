@@ -64,7 +64,7 @@ function displayPhase(phase: string): string {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
-const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self"]);
+const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
   parent: "Parent",
@@ -446,8 +446,8 @@ export default function CaseDetail() {
       if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
       // RASR is psychometrician-administered internally — skip it here
       if (a.respondentType === "self" && a.respondentLabel === "Psychometrician") continue;
-      // All self-report assignments share one row regardless of label
-      const key = a.respondentType === "self"
+      // All self-report AND invigilator assignments share one row (same session)
+      const key = (a.respondentType === "self" || a.respondentType === "invigilator")
         ? "type:self"
         : (a.assignedToEmail ? `email:${a.assignedToEmail}` : `type:${a.respondentType}:${a.respondentLabel ?? ""}`);
       if (!groups.has(key)) {

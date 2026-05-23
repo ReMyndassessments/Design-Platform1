@@ -89,6 +89,13 @@ router.get("/external/portal/:token", async (req, res) => {
     // Empty-label assignments are backfilled at startup so they always carry
     // the correct label by the time a portal is opened.
     const anchorLabel = assignment.respondentLabel ?? "";
+    const anchorType = assignment.respondentType;
+    // When the portal is opened by a self-report respondent (or an invigilator acting
+    // on their behalf), also include invigilator-type forms (e.g. ABO) for the same case
+    // so the invigilator can complete their observation form in the same session.
+    const typeCondition = anchorType === "self"
+      ? or(eq(assignmentsTable.respondentType, "self"), eq(assignmentsTable.respondentType, "invigilator"))
+      : eq(assignmentsTable.respondentType, anchorType);
     const siblings = await db
       .select({
         toolId: assignmentsTable.toolId,
@@ -102,8 +109,11 @@ router.get("/external/portal/:token", async (req, res) => {
       .where(
         and(
           eq(assignmentsTable.caseId, assignment.caseId),
-          eq(assignmentsTable.respondentType, assignment.respondentType),
-          eq(assignmentsTable.respondentLabel, anchorLabel),
+          typeCondition,
+          or(
+            eq(assignmentsTable.respondentLabel, anchorLabel),
+            eq(assignmentsTable.respondentType, "invigilator"),
+          ),
         )
       );
 
