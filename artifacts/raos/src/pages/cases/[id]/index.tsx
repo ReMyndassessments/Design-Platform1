@@ -64,7 +64,7 @@ function displayPhase(phase: string): string {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
-const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor"]);
+const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
   parent: "Parent",
