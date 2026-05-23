@@ -230,6 +230,7 @@ export default function CaseDetail() {
   } | null>(null);
   const [sendEmailForm, setSendEmailForm] = useState({ name: "", email: "" });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [includeAbo, setIncludeAbo] = useState(false);
   const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
@@ -2244,7 +2245,7 @@ export default function CaseDetail() {
       </Dialog>
 
       {/* Send Email to Respondent */}
-      <Dialog open={!!sendEmailTarget} onOpenChange={open => { if (!open) { setSendEmailTarget(null); setIsSendingEmail(false); } }}>
+      <Dialog open={!!sendEmailTarget} onOpenChange={open => { if (!open) { setSendEmailTarget(null); setIsSendingEmail(false); setIncludeAbo(false); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -2268,7 +2269,32 @@ export default function CaseDetail() {
                     {f}
                   </div>
                 ))}
+                {includeAbo && (
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    Assessment Behavior Observation
+                  </div>
+                )}
               </div>
+              {sendEmailTarget.respondentRole === "Invigilator" && !c.assignments?.some(a => a.toolId === "BEHAVOBS") && (
+                <button
+                  type="button"
+                  onClick={() => setIncludeAbo(v => !v)}
+                  className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    includeAbo
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                    includeAbo ? "border-emerald-500 bg-emerald-500" : "border-slate-300 bg-white"
+                  }`}>
+                    {includeAbo && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                  <span>Also include Assessment Behavior Observation</span>
+                  {includeAbo && <span className="ml-auto text-xs text-emerald-600 font-normal">+ 1 form</span>}
+                </button>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="send-name">Recipient Name</Label>
                 <Input id="send-name" placeholder="e.g. Sarah Tan"
@@ -2290,6 +2316,15 @@ export default function CaseDetail() {
                     if (!sendEmailTarget) return;
                     setIsSendingEmail(true);
                     try {
+                      // Auto-assign ABO if checkbox was ticked and it isn't already on the case
+                      if (includeAbo && !c.assignments?.some(a => a.toolId === "BEHAVOBS")) {
+                        await fetch(`${BASE_URL}/api/cases/${caseId}/assignments`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+                          body: JSON.stringify({ toolId: "BEHAVOBS", respondentType: "self", respondentLabel: "" }),
+                        });
+                        await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+                      }
                       // Reset any completed assignments so the respondent can resubmit
                       if (sendEmailTarget.assignmentIds.length > 0) {
                         await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/reset-completed`, {
