@@ -76,14 +76,20 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     dueDate: dueDate ? new Date(dueDate) : null,
   }).returning();
 
-  // Stamp the current form version on the assignment for integrity tracking
+  // Freeze the library's exact formItems + version into the assignment row
   try {
-    const vRes = await db.execute(sql`SELECT version_id FROM assessment_tools WHERE id = ${toolId}`);
-    const toolVersionId = (vRes.rows?.[0] as any)?.version_id ?? null;
-    if (toolVersionId && assignment[0]) {
-      await db.execute(sql`UPDATE assignments SET tool_version_id = ${toolVersionId} WHERE id = ${assignment[0].id}`);
+    const toolRes = await db.execute(sql`SELECT version_id, form_items FROM assessment_tools WHERE id = ${toolId}`);
+    const toolRow = toolRes.rows?.[0] as any;
+    const toolVersionId = toolRow?.version_id ?? null;
+    const formItemsSnapshot = toolRow?.form_items ? JSON.stringify(toolRow.form_items) : null;
+    if (assignment[0]) {
+      await db.execute(sql`
+        UPDATE assignments
+        SET tool_version_id = ${toolVersionId}, form_items_snapshot = ${formItemsSnapshot}
+        WHERE id = ${assignment[0].id}
+      `);
     }
-  } catch { /* column may not exist on first boot before migration runs */ }
+  } catch { /* columns may not exist on first boot before migrations run */ }
 
   void writeAudit({
     eventType: "assignment.created",
@@ -355,12 +361,18 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
     created.push(newAssignment[0]);
-    // Stamp the current form version for integrity tracking
+    // Freeze the library's exact formItems + version into the assignment row
     try {
-      const vRes = await db.execute(sql`SELECT version_id FROM assessment_tools WHERE id = ${toolId}`);
-      const toolVersionId = (vRes.rows?.[0] as any)?.version_id ?? null;
-      if (toolVersionId && newAssignment[0]) {
-        await db.execute(sql`UPDATE assignments SET tool_version_id = ${toolVersionId} WHERE id = ${newAssignment[0].id}`);
+      const toolRes = await db.execute(sql`SELECT version_id, form_items FROM assessment_tools WHERE id = ${toolId}`);
+      const toolRow = toolRes.rows?.[0] as any;
+      const toolVersionId = toolRow?.version_id ?? null;
+      const formItemsSnapshot = toolRow?.form_items ? JSON.stringify(toolRow.form_items) : null;
+      if (newAssignment[0]) {
+        await db.execute(sql`
+          UPDATE assignments
+          SET tool_version_id = ${toolVersionId}, form_items_snapshot = ${formItemsSnapshot}
+          WHERE id = ${newAssignment[0].id}
+        `);
       }
     } catch { /* optional */ }
     void writeAudit({

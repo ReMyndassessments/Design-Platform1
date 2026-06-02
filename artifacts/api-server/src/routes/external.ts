@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
-import { eq, and, or, ne, asc } from "drizzle-orm";
+import { eq, and, or, ne, asc, sql } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { Readable } from "stream";
 import { nanoid } from "nanoid";
@@ -491,7 +491,37 @@ router.get("/external/form/:token", async (req, res) => {
 
   const toolId = assignment.toolId;
   const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
-  const questions = await resolveQuestions(toolId);
+
+  // Use the frozen snapshot stored at assignment-creation time so the respondent
+  // always sees the exact form that was in the library when the link was sent —
+  // even if the library is later updated by an admin.
+  let questions: Awaited<ReturnType<typeof resolveQuestions>>;
+  const snapRow = await db.execute(sql`SELECT form_items_snapshot FROM assignments WHERE id = ${assignment.id}`);
+  const snapshotJson = (snapRow.rows?.[0] as any)?.form_items_snapshot ?? null;
+  if (snapshotJson) {
+    try {
+      const stored = JSON.parse(snapshotJson) as StoredFormItem[];
+      questions = stored.map(item => ({
+        id: item.id,
+        text: item.text,
+        textChinese: item.textChinese,
+        textKorean: item.textKorean,
+        type: (ITEM_TYPE_MAP[item.type] ?? item.type) as FormQuestion["type"],
+        options: item.options,
+        optionsChinese: item.optionsChinese,
+        optionsKorean: item.optionsKorean,
+        domain: item.domain ?? "",
+        required: item.required ?? false,
+        note: item.note,
+        noteChinese: item.noteChinese,
+        noteKorean: item.noteKorean,
+      }));
+    } catch {
+      questions = await resolveQuestions(toolId);
+    }
+  } else {
+    questions = await resolveQuestions(toolId);
+  }
 
   if (!alreadySubmitted) {
     void writeAudit({

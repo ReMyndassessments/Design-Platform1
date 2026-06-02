@@ -2371,6 +2371,17 @@ async function addAssignmentToolVersionId() {
   }
 }
 
+async function addFormItemsSnapshotColumn() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE assignments ADD COLUMN IF NOT EXISTS form_items_snapshot TEXT
+    `);
+    logger.info("form_items_snapshot column ensured on assignments");
+  } catch (err) {
+    logger.error({ err }, "addFormItemsSnapshotColumn failed");
+  }
+}
+
 async function addVersionColumns() {
   try {
     await db.execute(sql`
@@ -2469,6 +2480,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => patchInstructionHeaders())
   .then(() => addVersionColumns())
   .then(() => addAssignmentToolVersionId())
+  .then(() => addFormItemsSnapshotColumn())
   .then(() => patchToolVersions())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
