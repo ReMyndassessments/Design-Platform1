@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
+import { writeAudit } from "../lib/audit.js";
 
 const storage = new ObjectStorageService();
 
@@ -492,6 +493,17 @@ router.get("/external/form/:token", async (req, res) => {
   const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
   const questions = await resolveQuestions(toolId);
 
+  if (!alreadySubmitted) {
+    void writeAudit({
+      eventType: "form.opened",
+      caseId: assignment.caseId,
+      assignmentId: assignment.id,
+      toolId,
+      ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
+      metadata: { toolName: assignment.toolName, respondentLabel: assignment.respondentLabel },
+    });
+  }
+
   res.json({
     assignmentId: assignment.id,
     toolId,
@@ -515,6 +527,14 @@ router.post("/external/form/:token/submit", async (req, res) => {
     const assignment = existingAssignmentRows[0];
     await db.insert(responsesTable).values({ id: nanoid(), assignmentId: assignment.id, answers: answers ?? {}, language: language ?? "english" });
     await db.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() }).where(eq(assignmentsTable.id, assignment.id));
+    void writeAudit({
+      eventType: "response.submitted",
+      caseId: assignment.caseId,
+      assignmentId: assignment.id,
+      toolId: assignment.toolId,
+      ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
+      metadata: { language: language ?? "english" },
+    });
     const groupByEmail = !!assignment.assignedToEmail;
     const siblings = await db.select({ toolName: assignmentsTable.toolName, uniqueToken: assignmentsTable.uniqueToken, respondentLabel: assignmentsTable.respondentLabel })
       .from(assignmentsTable)

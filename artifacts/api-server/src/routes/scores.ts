@@ -5,6 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
+import { writeAudit } from "../lib/audit.js";
 
 const router = Router();
 
@@ -111,6 +112,15 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
     }).returning();
 
     newScores.push(score[0]);
+    void writeAudit({
+      eventType: "score.computed",
+      caseId: req.params.caseId,
+      assignmentId: assignment.id,
+      toolId: assignment.toolId,
+      actorId: req.userId ?? null,
+      actorRole: req.userRole ?? null,
+      metadata: { rawScore, isManual: false, respondentType: assignment.respondentType },
+    });
   }
 
   const teacher1 = newScores.find(s => s.respondentType === "teacher1");
@@ -247,6 +257,16 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
     }).returning();
     score = rows[0];
   }
+
+  void writeAudit({
+    eventType: "score.computed",
+    caseId,
+    assignmentId,
+    toolId: assignment.toolId,
+    actorId: req.userId ?? null,
+    actorRole: req.userRole ?? null,
+    metadata: { rawScore, isManual: false, respondentType: assignment.respondentType },
+  });
 
   const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
   const teacher1 = allScores.find(s => s.respondentType === "teacher1");

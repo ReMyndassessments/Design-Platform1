@@ -2361,6 +2361,55 @@ async function backfillRespondentLabels() {
   }
 }
 
+async function addVersionColumns() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE assessment_tools ADD COLUMN IF NOT EXISTS version_id   TEXT
+    `);
+    await db.execute(sql`
+      ALTER TABLE assessment_tools ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ
+    `);
+    await db.execute(sql`
+      ALTER TABLE assessment_tools ADD COLUMN IF NOT EXISTS updated_at   TIMESTAMPTZ
+    `);
+  } catch (err) {
+    logger.error({ err }, "addVersionColumns failed");
+  }
+}
+
+async function patchToolVersions() {
+  try {
+    const rows = await db.execute(sql`
+      SELECT id, form_items, version_id, published_at FROM assessment_tools
+    `);
+    const now = new Date();
+    let patched = 0;
+    for (const row of rows.rows as { id: string; form_items: unknown; version_id: string | null; published_at: Date | null }[]) {
+      const hash = row.form_items
+        ? crypto.createHash("sha1").update(JSON.stringify(row.form_items)).digest("hex").slice(0, 12)
+        : "no-items";
+      if (!row.version_id || row.version_id !== hash) {
+        await db.execute(sql`
+          UPDATE assessment_tools
+          SET version_id   = ${hash},
+              updated_at   = ${now},
+              published_at = COALESCE(published_at, ${now})
+          WHERE id = ${row.id}
+        `);
+        patched++;
+      } else if (!row.published_at) {
+        await db.execute(sql`
+          UPDATE assessment_tools SET published_at = ${now} WHERE id = ${row.id}
+        `);
+        patched++;
+      }
+    }
+    if (patched > 0) logger.info({ patched }, "Tool versions patched");
+  } catch (err) {
+    logger.error({ err }, "patchToolVersions failed");
+  }
+}
+
 async function applyBascHistoricalCorrection() {
   try {
     await db.execute(sql`
@@ -2408,6 +2457,8 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => reviseBFI44Form())
   .then(() => reviseYBOCSSCForm())
   .then(() => patchInstructionHeaders())
+  .then(() => addVersionColumns())
+  .then(() => patchToolVersions())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
   .then(() => {

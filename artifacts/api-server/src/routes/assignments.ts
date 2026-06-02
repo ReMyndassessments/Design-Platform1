@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { generateIntakeSummary, generateAboSummary, generateFormSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
+import { writeAudit } from "../lib/audit.js";
 
 const router = Router();
 
@@ -74,6 +75,16 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     status: "not_started",
     dueDate: dueDate ? new Date(dueDate) : null,
   }).returning();
+
+  void writeAudit({
+    eventType: "assignment.created",
+    caseId: req.params.caseId,
+    assignmentId: assignment[0]?.id,
+    toolId,
+    actorId: req.userId ?? null,
+    actorRole: req.userRole ?? null,
+    metadata: { respondentType, respondentLabel, assignedToName: assignedToName ?? null },
+  });
 
   res.status(201).json(assignment[0]);
 });
@@ -335,6 +346,15 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
     created.push(newAssignment[0]);
+    void writeAudit({
+      eventType: "assignment.created",
+      caseId: req.params.caseId,
+      assignmentId: newAssignment[0]?.id,
+      toolId,
+      actorId: req.userId ?? null,
+      actorRole: req.userRole ?? null,
+      metadata: { respondentType, respondentLabel, assignedToName: assignedToName ?? null, batteryId: req.params.batteryId },
+    });
   }
 
   res.status(201).json({ assignments: created, batteryId: battery.id, count: created.length });

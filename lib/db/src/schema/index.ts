@@ -9,3 +9,4 @@ export * from "./batteries";
 export * from "./inquiries";
 export * from "./reportAccess";
 export * from "./referralInvites";
+export * from "./auditLog";
