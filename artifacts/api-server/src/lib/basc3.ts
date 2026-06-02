@@ -1,6 +1,6 @@
 import type { FormQuestion } from "./questions.js";
 
-const NSOA_EN = ["Never", "Sometimes", "Often", "Almost always"];
+const NSOA_EN = ["Never", "Sometimes", "Often", "Always"];
 const NSOA_ZH = ["从不", "有时", "经常", "总是"];
 const TF_EN   = ["True", "False"];
 const TF_ZH   = ["对", "错"];
@@ -20,7 +20,7 @@ const qtf = (id: string, en: string, zh: string): FormQuestion => ({
 // ─── BASC-3 TRS-A: Teacher Rating Scales – Adolescent (Ages 12–21) ────────────
 
 export const BASC3_TRS_A_FORM: FormQuestion[] = [
-  { id: "b3ta_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 教师评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
+  { id: "b3ta_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 教师评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (1) · Sometimes (2) · Often (3) · Always (4)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (1) · 有时 (2) · 经常 (3) · 总是 (4)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3ta-1",   "Is easy to please",                                                         "易于取悦"),
   q("b3ta-2",   "Pays attention",                                                             "细心关注"),
   q("b3ta-3",   "Refuses to talk",                                                            "拒绝交谈"),
@@ -191,7 +191,7 @@ export const BASC3_TRS_A_FORM: FormQuestion[] = [
 // ─── BASC-3 PRS-A: Parent Rating Scales – Adolescent (Ages 12–21) ─────────────
 
 export const BASC3_PRS_A_FORM: FormQuestion[] = [
-  { id: "b3pa_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 家长评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
+  { id: "b3pa_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Adolescent (Ages 12–21)", textChinese: "BASC-3 家长评定量表 — 青少年版（12–21岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (1) · Sometimes (2) · Often (3) · Always (4)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (1) · 有时 (2) · 经常 (3) · 总是 (4)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3pa-1",   "Pays attention",                                                             "注意力集中"),
   q("b3pa-2",   "Makes positive comments about others",                                       "喜欢别人做出积极的评价"),
   q("b3pa-3",   "Is easily upset",                                                            "很容易生气"),
@@ -370,7 +370,7 @@ export const BASC3_PRS_A_FORM: FormQuestion[] = [
 // ─── BASC-3 TRS-C: Teacher Rating Scales – Child (Ages 6–11) ─────────────────
 
 export const BASC3_TRS_C_FORM: FormQuestion[] = [
-  { id: "b3tc_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 教师评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
+  { id: "b3tc_instr", type: "section_header", text: "BASC-3 Teacher Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 教师评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Always. Base your ratings on the student's typical behaviour over the past 6 months.\n\nResponse scale: Never (1) · Sometimes (2) · Often (3) · Always (4)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据学生在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (1) · 有时 (2) · 经常 (3) · 总是 (4)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3tc-1",   "Pays attention",                                                             "可以专注"),
   q("b3tc-2",   "Communicates clearly",                                                       "沟通清晰"),
   q("b3tc-3",   "Transitions well",                                                           "过渡性强"),
@@ -532,7 +532,7 @@ export const BASC3_TRS_C_FORM: FormQuestion[] = [
 // ─── BASC-3 PRS-C: Parent Rating Scales – Child (Ages 6–11) ──────────────────
 
 export const BASC3_PRS_C_FORM: FormQuestion[] = [
-  { id: "b3pc_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 家长评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Almost Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (0) · Sometimes (1) · Often (2) · Almost Always (3)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (0) · 有时 (1) · 经常 (2) · 总是 (3)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
+  { id: "b3pc_instr", type: "section_header", text: "BASC-3 Parent Rating Scales – Child (Ages 6–11)", textChinese: "BASC-3 家长评定量表 — 儿童版（6–11岁）", textKorean: "", note: "Please rate each behaviour as Never, Sometimes, Often, or Always. Base your ratings on your child's typical behaviour over the past 6 months.\n\nResponse scale: Never (1) · Sometimes (2) · Often (3) · Always (4)", noteChinese: "请将每项行为评定为「从不」、「有时」、「经常」或「总是」。请根据您孩子在过去6个月内的典型行为作出评定。\n\n回应选项：从不 (1) · 有时 (2) · 经常 (3) · 总是 (4)", noteKorean: "", domain: "behavior", options: [], optionsChinese: [], optionsKorean: [], required: false },
   q("b3pc-1",   "Pays attention",                                                             "专注"),
   q("b3pc-2",   "Makes positive comments about others",                                       "对别人做出积极的评价"),
   q("b3pc-3",   "Disobeys",                                                                   "不服从"),

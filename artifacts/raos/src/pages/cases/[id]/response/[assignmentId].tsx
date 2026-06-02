@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp, Languages } from "lucide-react";
+import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp, Languages, AlertTriangle } from "lucide-react";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
 
 interface FormQuestion {
@@ -585,7 +585,7 @@ export default function ResponseViewer() {
     );
   }
 
-  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig } = data;
+  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig, bascCorrectionApplied } = data;
   const lang = response.language;
 
   // When viewing in English, override language + merge translated free-text answers
@@ -726,6 +726,36 @@ export default function ResponseViewer() {
         </div>
 
         {/* Report Card */}
+        {/* BASC Historical Response Scale Correction Disclosure */}
+        {bascCorrectionApplied && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 print-page">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900 text-sm mb-1">Response Scale Correction Notice</p>
+                <p className="text-amber-800 text-xs leading-relaxed mb-4">
+                  Due to a historical form-delivery configuration issue, this BASC form was completed using an incorrect
+                  response scale. Because re-administration was not feasible, responses were converted using a conservative
+                  midpoint correction methodology designed to preserve the respondent's intended frequency rating while
+                  minimising score inflation. Results should be interpreted with appropriate clinical and professional judgement.
+                </p>
+                <div>
+                  <p className="text-amber-900 text-xs font-semibold mb-2">Conversion Reference</p>
+                  <div className="grid grid-cols-3 text-xs text-amber-800 border border-amber-200 rounded overflow-hidden max-w-xs">
+                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-r border-amber-200">Original Value</div>
+                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-r border-amber-200">Original Label</div>
+                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-amber-200">Converted Score</div>
+                    <div className="px-3 py-1 border-b border-r border-amber-100">0</div><div className="px-3 py-1 border-b border-r border-amber-100">Never</div><div className="px-3 py-1 border-b border-amber-100">1.0</div>
+                    <div className="px-3 py-1 border-b border-r border-amber-100">1</div><div className="px-3 py-1 border-b border-r border-amber-100">Rarely</div><div className="px-3 py-1 border-b border-amber-100">1.5</div>
+                    <div className="px-3 py-1 border-b border-r border-amber-100">2</div><div className="px-3 py-1 border-b border-r border-amber-100">Sometimes</div><div className="px-3 py-1 border-b border-amber-100">2.5</div>
+                    <div className="px-3 py-1 border-r border-amber-100">3</div><div className="px-3 py-1 border-r border-amber-100">Often</div><div className="px-3 py-1">3.5</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-qa-card">
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-7 print:bg-slate-900">
             <div className="flex items-start justify-between gap-4">

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable } from "@workspace/db/schema";
-import { eq, and, ne, inArray } from "drizzle-orm";
+import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
@@ -153,6 +153,15 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
       }))
     : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
 
+  let bascCorrectionApplied = false;
+  try {
+    const bcResult = await db.execute(sql`
+      SELECT COALESCE(basc_correction_applied, FALSE) AS applied
+      FROM responses WHERE id = ${responseRows[0].id}
+    `);
+    bascCorrectionApplied = (bcResult.rows?.[0] as any)?.applied ?? false;
+  } catch { /* column may not exist on very first boot before migration runs */ }
+
   res.json({
     assignment: {
       id: assignment.id,
@@ -163,6 +172,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
       assignedToName: assignment.assignedToName,
     },
     response: responseRows[0],
+    bascCorrectionApplied,
     questions,
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",

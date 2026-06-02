@@ -2361,6 +2361,28 @@ async function backfillRespondentLabels() {
   }
 }
 
+async function applyBascHistoricalCorrection() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE responses
+      ADD COLUMN IF NOT EXISTS basc_correction_applied BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+    const result = await db.execute(sql`
+      UPDATE responses
+      SET    basc_correction_applied = TRUE
+      WHERE  basc_correction_applied = FALSE
+        AND  assignment_id IN (
+               SELECT id FROM assignments WHERE tool_id LIKE 'BASC3-%'
+             )
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      logger.info({ count: result.rowCount }, "Applied BASC historical response correction flag");
+    }
+  } catch (err) {
+    logger.error({ err }, "applyBascHistoricalCorrection failed");
+  }
+}
+
 async function migrateBehavObsToInvigilator() {
   try {
     // ABO is completed by the invigilator, not the student — ensure respondentType is correct
@@ -2386,6 +2408,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => reviseBFI44Form())
   .then(() => reviseYBOCSSCForm())
   .then(() => patchInstructionHeaders())
+  .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
   .then(() => {
   app.listen(port, (err) => {
