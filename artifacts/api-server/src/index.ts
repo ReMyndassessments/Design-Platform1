@@ -2361,6 +2361,16 @@ async function backfillRespondentLabels() {
   }
 }
 
+async function addAssignmentToolVersionId() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE assignments ADD COLUMN IF NOT EXISTS tool_version_id TEXT
+    `);
+  } catch (err) {
+    logger.error({ err }, "addAssignmentToolVersionId failed");
+  }
+}
+
 async function addVersionColumns() {
   try {
     await db.execute(sql`
@@ -2458,6 +2468,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => reviseYBOCSSCForm())
   .then(() => patchInstructionHeaders())
   .then(() => addVersionColumns())
+  .then(() => addAssignmentToolVersionId())
   .then(() => patchToolVersions())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())

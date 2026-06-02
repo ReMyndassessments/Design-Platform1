@@ -76,6 +76,15 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     dueDate: dueDate ? new Date(dueDate) : null,
   }).returning();
 
+  // Stamp the current form version on the assignment for integrity tracking
+  try {
+    const vRes = await db.execute(sql`SELECT version_id FROM assessment_tools WHERE id = ${toolId}`);
+    const toolVersionId = (vRes.rows?.[0] as any)?.version_id ?? null;
+    if (toolVersionId && assignment[0]) {
+      await db.execute(sql`UPDATE assignments SET tool_version_id = ${toolVersionId} WHERE id = ${assignment[0].id}`);
+    }
+  } catch { /* column may not exist on first boot before migration runs */ }
+
   void writeAudit({
     eventType: "assignment.created",
     caseId: req.params.caseId,
@@ -346,6 +355,14 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
       dueDate: dueDate ? new Date(dueDate) : null,
     }).returning();
     created.push(newAssignment[0]);
+    // Stamp the current form version for integrity tracking
+    try {
+      const vRes = await db.execute(sql`SELECT version_id FROM assessment_tools WHERE id = ${toolId}`);
+      const toolVersionId = (vRes.rows?.[0] as any)?.version_id ?? null;
+      if (toolVersionId && newAssignment[0]) {
+        await db.execute(sql`UPDATE assignments SET tool_version_id = ${toolVersionId} WHERE id = ${newAssignment[0].id}`);
+      }
+    } catch { /* optional */ }
     void writeAudit({
       eventType: "assignment.created",
       caseId: req.params.caseId,

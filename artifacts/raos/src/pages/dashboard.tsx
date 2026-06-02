@@ -1,12 +1,21 @@
-import { useGetDashboardStats } from "@workspace/api-client-react";
+import { useGetDashboardStats, useGetCurrentUser } from "@workspace/api-client-react";
+import { useGetValidationWarnings } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const WARNING_LABELS: Record<string, string> = {
+  basc_scale_correction: "BASC Response Scale Correction Applied",
+  form_version_changed: "Form Definition Changed After Assignment Was Sent",
+};
+
 export default function Dashboard() {
   const { data: stats, isLoading, isError } = useGetDashboardStats();
+  const { data: currentUser } = useGetCurrentUser();
+  const isPrivileged = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
+  const { data: warningsData, isLoading: warningsLoading } = useGetValidationWarnings();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (isError || !stats) return <div className="text-destructive p-4 bg-destructive/10 rounded-xl">Failed to load dashboard data.</div>;
@@ -73,8 +82,8 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} angle={-35} textAnchor="end" interval={0} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} allowDecimals={false} />
-                  <Tooltip 
-                    cursor={{fill: '#F1F5F9'}} 
+                  <Tooltip
+                    cursor={{fill: '#F1F5F9'}}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -122,6 +131,68 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Form Integrity Alerts — admin and psychometrician only */}
+      {isPrivileged && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-xl font-bold text-slate-900">Form Integrity</h2>
+            {!warningsLoading && (warningsData?.count ?? 0) > 0 && (
+              <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                {warningsData!.count} {warningsData!.count === 1 ? "alert" : "alerts"}
+              </Badge>
+            )}
+          </div>
+
+          {warningsLoading ? (
+            <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
+              <div className="animate-spin w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full" />
+              Checking form integrity…
+            </div>
+          ) : (warningsData?.count ?? 0) === 0 ? (
+            <Card className="border-none shadow-sm bg-emerald-50 border border-emerald-100">
+              <CardContent className="p-5 flex items-center gap-3">
+                <ShieldCheck size={20} className="text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-semibold text-emerald-800 text-sm">All forms verified — no integrity issues detected</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    Forms distributed to respondents match the assessment library across all languages.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {warningsData?.warnings.map((w, i) => (
+                <Card key={i} className="border-amber-200 shadow-sm bg-amber-50">
+                  <CardContent className="p-5 flex items-start gap-3">
+                    <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <p className="font-semibold text-amber-900 text-sm leading-snug">
+                          {WARNING_LABELS[w.type] ?? w.type}
+                        </p>
+                        <Link href={`/cases/${w.caseId}`}>
+                          <span className="text-xs font-medium text-amber-700 hover:text-amber-900 hover:underline whitespace-nowrap shrink-0">
+                            View Case →
+                          </span>
+                        </Link>
+                      </div>
+                      <p className="text-xs text-amber-800 mb-1">
+                        <span className="font-medium">{w.studentName}</span>
+                        {w.school ? ` · ${w.school}` : ""}
+                        {" · "}{w.toolName}
+                        {" · "}<span className="capitalize">{w.respondentLabel}</span>
+                      </p>
+                      <p className="text-xs text-amber-700 leading-relaxed">{w.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
