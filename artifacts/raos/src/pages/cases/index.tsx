@@ -13,7 +13,7 @@ export default function CasesList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: cases, isLoading } = useListCases();
   const { data: currentUser } = useGetCurrentUser();
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator";
 
   const filteredCases = cases?.filter(c => 
     c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||

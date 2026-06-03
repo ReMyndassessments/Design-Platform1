@@ -1662,7 +1662,7 @@ export default function AssessmentTools() {
   const { data: tools, isLoading } = useListAssessmentTools();
   const { data: batteries } = useListBatteries();
   const { data: user } = useGetCurrentUser();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "school_clinical_coordinator";
   const [search, setSearch] = useState("");
   const [filterRespondent, setFilterRespondent] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");

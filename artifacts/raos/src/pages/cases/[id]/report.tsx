@@ -18,7 +18,7 @@ export default function ReportEditor() {
   const [, navigate] = useLocation();
 
   const { data: currentUser } = useGetCurrentUser();
-  const canEdit = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
+  const canEdit = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator" || currentUser?.role === "psychometrician";
 
   const { data: caseData } = useGetCase(caseId);
   const updateCaseMut = useUpdateCase();

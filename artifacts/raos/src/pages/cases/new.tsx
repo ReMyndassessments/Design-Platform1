@@ -15,7 +15,7 @@ export default function NewCase() {
   const createCaseMut = useCreateCase();
   const { data: users } = useListUsers();
   const { data: currentUser } = useGetCurrentUser();
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator";
   const isLead = currentUser?.role === "assessment_invigilator";
 
   const [formData, setFormData] = useState({

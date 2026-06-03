@@ -95,7 +95,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
 };
 
 function canAdvancePhase(role: string): boolean {
-  return role === "admin";
+  return role === "admin" || role === "school_clinical_coordinator";
 }
 
 function isPhaseVisible(_role: string, _phase: string): boolean {
@@ -535,7 +535,7 @@ export default function CaseDetail() {
     : null;
 
   const filteredTools = tools?.filter(t => {
-    if (role === "admin") return true;
+    if ((role === "admin" || role === "school_clinical_coordinator") || role === "school_clinical_coordinator") return true;
     if (role === "assessment_invigilator") return true;
     if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
     return true;
@@ -919,7 +919,7 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {role === "admin" && (
+          {(role === "admin" || role === "school_clinical_coordinator") && (
             <>
               <Button variant="outline" className="bg-white gap-2" onClick={handleOpenEdit}>
                 <Edit size={16} /> Edit
@@ -929,7 +929,7 @@ export default function CaseDetail() {
               </Button>
             </>
           )}
-          {role === "admin" && c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
+          {(role === "admin" || role === "school_clinical_coordinator") && c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
             <Button
               variant="outline"
               className="bg-white gap-1.5"
@@ -1045,7 +1045,7 @@ export default function CaseDetail() {
       </Card>
 
       {/* ── Report Workspace ── Collaborative doc (all phases) + approvals (scoring → final_review) */}
-      {(role === 'admin' || role === 'psychometrician') && (
+      {((role === 'admin' || role === 'school_clinical_coordinator') || role === 'psychometrician') && (
         <>
           {/* Collaborative Working Document */}
           <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
@@ -1147,7 +1147,7 @@ export default function CaseDetail() {
                           <p className="text-xs text-slate-400">{adminApproved ? "Approved" : "Pending approval"}</p>
                         </div>
                       </div>
-                      {role === "admin" && (
+                      {(role === "admin" || role === "school_clinical_coordinator") && (
                         <Button
                           size="sm"
                           variant={adminApproved ? "outline" : "default"}
@@ -1170,7 +1170,7 @@ export default function CaseDetail() {
                         <div>
                           <p className="text-sm font-medium text-slate-800">Psychometrician (Abegail)</p>
                           <p className="text-xs text-slate-400">
-                            {psychApproved ? "Approved" : role === "admin" ? "Pending — Abegail hasn't signed off yet" : "Pending approval"}
+                            {psychApproved ? "Approved" : (role === "admin" || role === "school_clinical_coordinator") ? "Pending — Abegail hasn't signed off yet" : "Pending approval"}
                           </p>
                         </div>
                       </div>
@@ -1188,7 +1188,7 @@ export default function CaseDetail() {
                             {psychApproved ? "Unmark" : "Mark as Final"}
                           </Button>
                         )}
-                        {role === "admin" && (
+                        {(role === "admin" || role === "school_clinical_coordinator") && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -1222,7 +1222,7 @@ export default function CaseDetail() {
                     ) : attachError ? (
                       <div className="flex items-center gap-3">
                         <p className="text-xs text-red-600 flex-1">{attachError}</p>
-                        {role === "admin" && (
+                        {(role === "admin" || role === "school_clinical_coordinator") && (
                           <Button
                             size="sm"
                             onClick={() => { autoAttachFiredRef.current = false; handleAttachReport(); }}
@@ -1247,7 +1247,7 @@ export default function CaseDetail() {
       )}
 
       {/* Final Review Banner */}
-      {c.currentPhase === 'final_review' && role === 'admin' && (
+      {c.currentPhase === 'final_review' && (role === 'admin' || role === 'school_clinical_coordinator') && (
         <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
@@ -1266,7 +1266,7 @@ export default function CaseDetail() {
       )}
 
       {/* Report Access Panel — visible to admin from scoring phase onwards */}
-      {role === "admin" && ['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
+      {(role === "admin" || role === "school_clinical_coordinator") && ['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
         <ReportAccessPanel
           caseId={c.id}
           studentName={c.studentName ?? undefined}
@@ -1347,7 +1347,7 @@ export default function CaseDetail() {
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">1</span>
                   Pre-Assessment Intake Forms
                 </CardTitle>
-                {(role === "admin" || role === "psychometrician") && (
+                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm">Add Form</Button>
@@ -1392,7 +1392,7 @@ export default function CaseDetail() {
                   <div className="p-10 text-center text-slate-500 flex flex-col items-center gap-2">
                     <FileBarChart size={28} className="text-slate-300" />
                     <p className="text-sm">No intake forms added yet.</p>
-                    {(role === "admin" || role === "psychometrician") && (
+                    {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                       <p className="text-xs text-slate-400">Use "Add Form" above to add the Referral, Intake, and Consent forms.</p>
                     )}
                   </div>
@@ -1437,7 +1437,7 @@ export default function CaseDetail() {
                               <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}><ExternalLink size={16} /></Button>
                             </>
                           )}
-                          {(role === "admin" || role === "psychometrician") && (
+                          {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                             <Button variant="outline" size="sm" className="bg-white text-red-500 hover:text-red-700 hover:border-red-300" title="Remove" onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}>
                               <Trash2 size={16} />
                             </Button>
@@ -1447,7 +1447,7 @@ export default function CaseDetail() {
                     ))}
                   </div>
                 )}
-                {intakeRespondentGroups.length > 0 && (role === "admin" || role === "psychometrician") && (
+                {intakeRespondentGroups.length > 0 && ((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                   <div className="border-t">
                     <div className="px-6 py-3 flex items-center gap-2 bg-slate-50/70">
                       <Send size={14} className="text-primary" />
@@ -1634,7 +1634,7 @@ export default function CaseDetail() {
                                       )}
                                     </div>
                                   </div>
-                                  {(role === "admin" || role === "psychometrician") && (
+                                  {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                                     <div className="flex gap-2 mt-2 pt-2 border-t border-blue-50">
                                       <Button
                                         size="sm"
@@ -1663,7 +1663,7 @@ export default function CaseDetail() {
                       );
                     })()}
 
-                    {role === "admin" && (
+                    {(role === "admin" || role === "school_clinical_coordinator") && (
                       <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">
                         {analyzeIntakeMut.isPending ? "Re-analyzing..." : "Re-run Analysis"}
                       </Button>
@@ -1671,7 +1671,7 @@ export default function CaseDetail() {
                   </div>
                 ) : (
                   <div className="text-center py-6">
-                    {role === "admin" ? (
+                    {(role === "admin" || role === "school_clinical_coordinator") ? (
                       <>
                         <p className="text-sm text-slate-500 mb-4">No AI analysis run yet for this case.</p>
                         <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -1724,7 +1724,7 @@ export default function CaseDetail() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
 
-                  {role !== "admin" ? (
+                  {(role !== "admin" && role !== "school_clinical_coordinator") ? (
                     /* ── Invigilator / read-only view ── */
                     <div className="space-y-3">
                       {isCustom ? (
@@ -1887,7 +1887,7 @@ export default function CaseDetail() {
                   )}
 
                   {/* Assessment date / time — admin only */}
-                  {role === "admin" && (
+                  {(role === "admin" || role === "school_clinical_coordinator") && (
                   <div className="pt-2 border-t border-emerald-100 space-y-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Assessment Date &amp; Time</p>
                     {c.assessmentMeetingDate && assessmentDateDraft === "" ? (
@@ -1972,7 +1972,7 @@ export default function CaseDetail() {
                     </Button>
                   </Link>
                 )}
-                {(role === "admin" || role === "psychometrician") && (
+                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
                       <LayoutGrid size={13} /> Assign by Product
@@ -2087,7 +2087,7 @@ export default function CaseDetail() {
                             </Button>
                           </Link>
                         )}
-                        {(role === "admin" || role === "psychometrician") && (
+                        {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                           <Button
                             variant="outline" size="sm"
                             className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
@@ -2108,7 +2108,7 @@ export default function CaseDetail() {
         )}
 
         {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
-      {(role === "admin" || role === "psychometrician") && !hideAssignments && (
+      {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && !hideAssignments && (
         <Card className="border-none shadow-md">
           <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
             <Users size={17} className="text-primary" />

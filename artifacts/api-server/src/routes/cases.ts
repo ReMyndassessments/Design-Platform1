@@ -133,6 +133,10 @@ function prevPhase(current: string): string {
   return PHASE_ORDER[idx - 1];
 }
 
+function isAdminLike(role?: string): boolean {
+  return role === "admin" || role === "school_clinical_coordinator";
+}
+
 function canAccessCase(role: string, _userId: string, c: typeof casesTable.$inferSelect, userSchool?: string): boolean {
   if (role === "school_clinical_coordinator") {
     return !!userSchool && c.school === userSchool;
@@ -288,7 +292,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
   const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate"];
-  const allowed = req.userRole === "admin" ? [...baseAllowed, ...adminFields] : baseAllowed;
+  const allowed = isAdminLike(req.userRole) ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {
     if (req.body[key] !== undefined) {
@@ -373,7 +377,7 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     return;
   }
   const { userRole } = req;
-  if (userRole !== "admin") {
+  if (!isAdminLike(userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can advance case phases" });
     return;
   }
@@ -390,7 +394,7 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
 
 // ── Admin: step case back one phase ───────────────────────────────────────────
 router.post("/cases/:caseId/step-back", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
+  if (!isAdminLike(req.userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can step back a phase" });
     return;
   }
@@ -478,7 +482,7 @@ router.post("/cases/:caseId/debrief-invite", authMiddleware, async (req, res) =>
 
 // ── Create Jitsi Moderated Meeting ────────────────────────────────────────────
 router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+  if (!isAdminLike(req.userRole) && req.userRole !== "assessment_invigilator") {
     res.status(403).json({ error: "forbidden" }); return;
   }
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
@@ -509,7 +513,7 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
 });
 
 router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
+  if (!isAdminLike(req.userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can delete cases" });
     return;
   }
@@ -591,7 +595,7 @@ router.post("/cases/:caseId/self-report", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
+  if (!isAdminLike(req.userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can run AI intake analysis" });
     return;
   }
