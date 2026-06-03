@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   CheckCircle2, School, Users, ClipboardList, ShieldCheck, Clock,
   ChevronRight, ArrowRight, Brain, FileText, MessageSquare, Phone,
-  BookOpen, Heart, Star, Zap
+  BookOpen, Heart, Star, Zap, Building2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
@@ -435,11 +435,11 @@ export default function Portal() {
           </p>
 
           {/* Tab selector — floats at bottom of hero */}
-          <div className="mt-8 flex rounded-xl bg-white/[0.06] border border-white/[0.08] p-1 gap-1 max-w-xs mx-auto">
+          <div className="mt-8 flex rounded-xl bg-white/[0.06] border border-white/[0.08] p-1 gap-1 max-w-sm mx-auto">
             <button
               onClick={() => handleTabChange("school")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all",
                 tab === "school"
                   ? "bg-white text-indigo-700 shadow-sm"
                   : "text-slate-400 hover:text-slate-200"
@@ -450,7 +450,7 @@ export default function Portal() {
             <button
               onClick={() => handleTabChange("parent")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all",
                 tab === "parent"
                   ? "bg-white text-teal-700 shadow-sm"
                   : "text-slate-400 hover:text-slate-200"
@@ -458,6 +458,12 @@ export default function Portal() {
             >
               <Users size={13} /> {p.tabParent}
             </button>
+            <Link
+              href="/partner-schools"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:bg-white/10 hover:text-purple-300 whitespace-nowrap"
+            >
+              <Building2 size={13} /> {p.tabPartner}
+            </Link>
           </div>
         </div>
       </header>

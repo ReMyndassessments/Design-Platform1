@@ -51,6 +51,7 @@ export const translations = {
       heroDesc: "ReMynd delivers thorough, compassionate psychoeducational assessments that identify how a student learns, thinks, and experiences the world — and what they need to thrive.",
       tabSchool: "Schools",
       tabParent: "Parents",
+      tabPartner: "Partner Schools",
       faqTitle: "Frequently asked questions",
 
       // School content
@@ -266,6 +267,7 @@ export const translations = {
       heroDesc: "ReMynd 提供全面、专业的心理教育评估，识别学生的学习、思考和体验世界的方式——以及他们需要什么支持才能茁壮成长。",
       tabSchool: "学校",
       tabParent: "家长",
+      tabPartner: "合作学校",
       faqTitle: "常见问题",
 
       school: {
@@ -476,6 +478,7 @@ export const translations = {
       heroDesc: "ReMynd는 학생이 어떻게 배우고, 생각하고, 세상을 경험하는지 파악하는 철저하고 따뜻한 심리교육 평가를 제공합니다 — 그리고 그들이 성장하기 위해 무엇이 필요한지 알아냅니다.",
       tabSchool: "학교",
       tabParent: "부모",
+      tabPartner: "파트너 학교",
       faqTitle: "자주 묻는 질문",
 
       school: {
