@@ -8,12 +8,16 @@ import { nanoid } from "nanoid";
 
 const router = Router();
 
+const ASSIGNABLE_ROLES = ["assessment_invigilator", "psychometrician", "school_clinical_coordinator"] as const;
+type AssignableRole = typeof ASSIGNABLE_ROLES[number];
+
 function formatUser(u: typeof usersTable.$inferSelect) {
   return {
     id: u.id,
     name: u.name,
     email: u.email,
     role: u.role,
+    schoolName: u.schoolName ?? null,
     createdAt: u.createdAt,
   };
 }
@@ -66,6 +70,7 @@ router.get("/users", authMiddleware, async (req, res) => {
     name: usersTable.name,
     email: usersTable.email,
     role: usersTable.role,
+    schoolName: usersTable.schoolName,
     createdAt: usersTable.createdAt,
   }).from(usersTable);
   res.json(users);
@@ -76,6 +81,7 @@ router.get("/users/assignable", authMiddleware, async (req, res) => {
     id: usersTable.id,
     name: usersTable.name,
     role: usersTable.role,
+    schoolName: usersTable.schoolName,
   }).from(usersTable);
   res.json(users);
 });
@@ -86,13 +92,17 @@ router.post("/users", authMiddleware, async (req, res) => {
     return;
   }
 
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, school_name } = req.body;
   if (!name?.trim() || !email?.trim() || !password?.trim()) {
     res.status(400).json({ error: "bad_request", message: "name, email, and password are required" });
     return;
   }
-  if (!["assessment_invigilator", "psychometrician"].includes(role)) {
-    res.status(400).json({ error: "bad_request", message: "Role must be assessment_invigilator or psychometrician" });
+  if (!(ASSIGNABLE_ROLES as readonly string[]).includes(role)) {
+    res.status(400).json({ error: "bad_request", message: "Invalid role" });
+    return;
+  }
+  if (role === "school_clinical_coordinator" && !school_name?.trim()) {
+    res.status(400).json({ error: "bad_request", message: "school_name is required for school_clinical_coordinator" });
     return;
   }
 
@@ -108,6 +118,7 @@ router.post("/users", authMiddleware, async (req, res) => {
     email: email.trim().toLowerCase(),
     passwordHash: hashPassword(password),
     role,
+    schoolName: role === "school_clinical_coordinator" ? (school_name?.trim() ?? null) : null,
   }).returning();
 
   res.status(201).json(formatUser(newUser[0]));
@@ -120,7 +131,7 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
   }
 
   const { id } = req.params;
-  const { name, email, role } = req.body;
+  const { name, email, role, school_name } = req.body;
 
   const target = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!target[0]) {
@@ -137,17 +148,25 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
     return;
   }
 
-  if (!name?.trim() && !email?.trim() && !role) {
-    res.status(400).json({ error: "bad_request", message: "Provide at least name, email, or role to update" });
+  if (!name?.trim() && !email?.trim() && !role && school_name === undefined) {
+    res.status(400).json({ error: "bad_request", message: "Provide at least one field to update" });
     return;
   }
 
-  if (role && !["assessment_invigilator", "psychometrician"].includes(role)) {
-    res.status(400).json({ error: "bad_request", message: "Role must be assessment_invigilator or psychometrician" });
+  if (role && !(ASSIGNABLE_ROLES as readonly string[]).includes(role)) {
+    res.status(400).json({ error: "bad_request", message: "Invalid role" });
     return;
   }
 
-  // Check email uniqueness if changing
+  const effectiveRole = role ?? target[0].role;
+  if (effectiveRole === "school_clinical_coordinator") {
+    const effectiveName = school_name !== undefined ? school_name : target[0].schoolName;
+    if (!effectiveName?.trim()) {
+      res.status(400).json({ error: "bad_request", message: "school_name is required for school_clinical_coordinator" });
+      return;
+    }
+  }
+
   if (email?.trim()) {
     const normalised = email.trim().toLowerCase();
     if (normalised !== target[0].email) {
@@ -163,6 +182,11 @@ router.patch("/users/:id", authMiddleware, async (req, res) => {
   if (name?.trim()) updates.name = name.trim();
   if (email?.trim()) updates.email = email.trim().toLowerCase();
   if (role) updates.role = role;
+  if (school_name !== undefined) {
+    updates.schoolName = school_name?.trim() || null;
+  } else if (role && role !== "school_clinical_coordinator") {
+    updates.schoolName = null;
+  }
 
   const updated = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
   res.json(formatUser(updated[0]));

@@ -25,6 +25,7 @@ export const UserRole = {
   admin: "admin",
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
+  school_clinical_coordinator: "school_clinical_coordinator",
 } as const;
 
 export interface User {
@@ -32,6 +33,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  schoolName?: string | null;
   createdAt: string;
 }
 
@@ -42,6 +44,7 @@ export const CreateUserRequestRole = {
   admin: "admin",
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
+  school_clinical_coordinator: "school_clinical_coordinator",
 } as const;
 
 export interface CreateUserRequest {
@@ -49,6 +52,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   role: CreateUserRequestRole;
+  school_name?: string | null;
 }
 
 export type UpdateUserRequestRole =
@@ -58,6 +62,7 @@ export const UpdateUserRequestRole = {
   admin: "admin",
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
+  school_clinical_coordinator: "school_clinical_coordinator",
 } as const;
 
 export interface UpdateUserRequest {
@@ -65,6 +70,7 @@ export interface UpdateUserRequest {
   email?: string;
   password?: string;
   role?: UpdateUserRequestRole;
+  school_name?: string | null;
 }
 
 export interface LoginRequest {
@@ -229,21 +235,11 @@ export interface IntakeAnalysis {
   flags?: string[];
 }
 
-export interface ReferralInviteSource {
-  token: string;
-  formId: string;
-  toName: string | null;
-  toEmail: string | null;
-  schoolName: string | null;
-  usedAt: string | null;
-}
-
 export type CaseDetail = Case & {
   assignments?: Assignment[];
   scores?: Score[];
   intakeData?: CaseDetailIntakeData;
   intakeAnalysis?: IntakeAnalysis | null;
-  referralInvite?: ReferralInviteSource | null;
 };
 
 export type CreateCaseRequestLanguagePreference =

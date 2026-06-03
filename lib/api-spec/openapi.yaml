@@ -881,7 +881,10 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+        schoolName:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -898,7 +901,10 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+        school_name:
+          type: string
+          nullable: true
       required: [name, email, password, role]
 
     UpdateUserRequest:
@@ -912,7 +918,10 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+        school_name:
+          type: string
+          nullable: true
 
     LoginRequest:
       type: object

@@ -12,4 +12,5 @@ export const UserRole = {
   admin: "admin",
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
+  school_clinical_coordinator: "school_clinical_coordinator",
 } as const;

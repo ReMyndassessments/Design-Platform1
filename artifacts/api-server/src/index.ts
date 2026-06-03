@@ -2468,6 +2468,21 @@ async function migrateBehavObsToInvigilator() {
   }
 }
 
+async function addCoordinatorSupport() {
+  try {
+    await db.execute(sql`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'school_clinical_coordinator'`);
+    logger.info("school_clinical_coordinator enum value ensured");
+  } catch (err) {
+    logger.warn({ err }, "addCoordinatorSupport enum step skipped");
+  }
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS school_name TEXT`);
+    logger.info("school_name column ensured on users");
+  } catch (err) {
+    logger.error({ err }, "addCoordinatorSupport column failed");
+  }
+}
+
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
   .then(() => backfillRespondentLabels())
   .then(() => migrateBehavObsToInvigilator())
@@ -2484,6 +2499,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => patchToolVersions())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
+  .then(() => addCoordinatorSupport())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

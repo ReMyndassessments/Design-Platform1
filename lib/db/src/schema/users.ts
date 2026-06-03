@@ -6,6 +6,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "admin",
   "assessment_invigilator",
   "psychometrician",
+  "school_clinical_coordinator",
 ]);
 
 export const usersTable = pgTable("users", {
@@ -14,6 +15,7 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("assessment_invigilator"),
+  schoolName: text("school_name"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
