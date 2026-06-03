@@ -184,7 +184,7 @@ export default function PartnerSchoolsPage() {
             {ps.ctaNote}
           </p>
           <Link
-            href="/portal?tab=school"
+            href="/partner-inquiry"
             className="inline-flex items-center gap-2 bg-white text-purple-700 font-bold px-7 py-3 rounded-xl hover:bg-purple-50 transition-colors text-sm shadow-lg"
           >
             {ps.ctaBtn}

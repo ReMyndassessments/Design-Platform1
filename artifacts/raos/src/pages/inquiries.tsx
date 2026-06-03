@@ -28,17 +28,26 @@ import { cn } from "@/lib/utils";
 
 interface Inquiry {
   id: string;
-  inquiryType: "school" | "parent";
+  inquiryType: "school" | "parent" | "partner_school";
   status: "new" | "contacted" | "converted" | "closed";
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
+  wechatId: string | null;
+  whatsappId: string | null;
   organisation: string | null;
   role: string | null;
   studentName: string | null;
   studentAge: string | null;
   yearGroup: string | null;
   message: string;
+  // Partner school specific
+  schoolType: string | null;
+  schoolLocation: string | null;
+  enrollment: string | null;
+  currentSupport: string | null;
+  howHeard: string | null;
+  timeline: string | null;
   createdAt: string;
 }
 
@@ -407,11 +416,15 @@ export default function InquiriesPage() {
                       className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         inq.inquiryType === "school"
                           ? "bg-indigo-100"
+                          : inq.inquiryType === "partner_school"
+                          ? "bg-purple-100"
                           : "bg-teal-100"
                       }`}
                     >
                       {inq.inquiryType === "school" ? (
                         <School size={18} className="text-indigo-600" />
+                      ) : inq.inquiryType === "partner_school" ? (
+                        <Building2 size={18} className="text-purple-600" />
                       ) : (
                         <User size={18} className="text-teal-600" />
                       )}
@@ -424,11 +437,17 @@ export default function InquiriesPage() {
                         >
                           {cfg.label}
                         </span>
-                        <span className="text-xs text-slate-400 capitalize">
-                          {inq.inquiryType}
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          inq.inquiryType === "partner_school"
+                            ? "bg-purple-100 text-purple-700"
+                            : "text-slate-400"
+                        }`}>
+                          {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-500 truncate">{inq.contactEmail}</p>
+                      <p className="text-sm text-slate-500 truncate">
+                        {inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -471,42 +490,87 @@ export default function InquiriesPage() {
 
               {isOpen && (
                 <CardContent className="pt-0 pb-5 border-t border-slate-100">
-                  <div className="grid sm:grid-cols-2 gap-5 mt-4">
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                        Contact Details
-                      </h4>
-                      <div className="space-y-2">
-                        <InfoRow icon={Mail} label="Email" value={inq.contactEmail} href={`mailto:${inq.contactEmail}`} />
-                        {inq.contactPhone && <InfoRow icon={Phone} label="Phone" value={inq.contactPhone} />}
-                        {inq.organisation && <InfoRow icon={Building2} label="Organisation" value={inq.organisation} />}
-                        {inq.role && <InfoRow icon={User} label="Role" value={inq.role} />}
-                        <InfoRow icon={Calendar} label="Submitted" value={formatDate(inq.createdAt)} />
-                      </div>
-                    </div>
-
-                    {(inq.studentName || inq.studentAge || inq.yearGroup) && (
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                          Student Details
-                        </h4>
-                        <div className="space-y-2">
-                          {inq.studentName && <InfoRow icon={User} label="Name" value={inq.studentName} />}
-                          {inq.studentAge && <InfoRow icon={User} label="Age" value={inq.studentAge} />}
-                          {inq.yearGroup && <InfoRow icon={User} label="Year Group" value={inq.yearGroup} />}
+                  {inq.inquiryType === "partner_school" ? (
+                    // Partner school expanded view
+                    <div className="mt-4 space-y-5">
+                      <div className="grid sm:grid-cols-2 gap-5">
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">School</h4>
+                          <div className="space-y-2">
+                            {inq.organisation && <InfoRow icon={Building2} label="Name" value={inq.organisation} />}
+                            {inq.schoolType && <InfoRow icon={Building2} label="Type" value={inq.schoolType} />}
+                            {inq.schoolLocation && <InfoRow icon={Building2} label="Location" value={inq.schoolLocation} />}
+                            {inq.enrollment && <InfoRow icon={User} label="Enrollment" value={inq.enrollment} />}
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Contact</h4>
+                          <div className="space-y-2">
+                            <InfoRow icon={Mail} label="Email" value={inq.contactEmail} href={`mailto:${inq.contactEmail}`} />
+                            {inq.role && <InfoRow icon={User} label="Title" value={inq.role} />}
+                            {inq.contactPhone && <InfoRow icon={Phone} label="Phone" value={inq.contactPhone} />}
+                            {inq.wechatId && <InfoRow icon={User} label="WeChat" value={inq.wechatId} />}
+                            {inq.whatsappId && <InfoRow icon={Phone} label="WhatsApp" value={inq.whatsappId} />}
+                            <InfoRow icon={Calendar} label="Submitted" value={formatDate(inq.createdAt)} />
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="mt-5">
-                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                      Message / Reason
-                    </h4>
-                    <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                      {inq.message}
+                      {inq.currentSupport && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Current Support</h4>
+                          <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{inq.currentSupport}</div>
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Reason for Interest</h4>
+                        <div className="bg-purple-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{inq.message}</div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {inq.timeline && (
+                          <div className="bg-slate-50 rounded-xl px-4 py-3">
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Timeline</p>
+                            <p className="text-sm text-slate-700">{inq.timeline}</p>
+                          </div>
+                        )}
+                        {inq.howHeard && (
+                          <div className="bg-slate-50 rounded-xl px-4 py-3">
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">How They Heard</p>
+                            <p className="text-sm text-slate-700">{inq.howHeard}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // School / parent expanded view
+                    <>
+                      <div className="grid sm:grid-cols-2 gap-5 mt-4">
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Contact Details</h4>
+                          <div className="space-y-2">
+                            <InfoRow icon={Mail} label="Email" value={inq.contactEmail} href={`mailto:${inq.contactEmail}`} />
+                            {inq.contactPhone && <InfoRow icon={Phone} label="Phone" value={inq.contactPhone} />}
+                            {inq.organisation && <InfoRow icon={Building2} label="Organisation" value={inq.organisation} />}
+                            {inq.role && <InfoRow icon={User} label="Role" value={inq.role} />}
+                            <InfoRow icon={Calendar} label="Submitted" value={formatDate(inq.createdAt)} />
+                          </div>
+                        </div>
+                        {(inq.studentName || inq.studentAge || inq.yearGroup) && (
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Student Details</h4>
+                            <div className="space-y-2">
+                              {inq.studentName && <InfoRow icon={User} label="Name" value={inq.studentName} />}
+                              {inq.studentAge && <InfoRow icon={User} label="Age" value={inq.studentAge} />}
+                              {inq.yearGroup && <InfoRow icon={User} label="Year Group" value={inq.yearGroup} />}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-5">
+                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Message / Reason</h4>
+                        <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{inq.message}</div>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               )}
             </Card>

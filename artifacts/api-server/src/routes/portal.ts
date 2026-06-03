@@ -38,10 +38,19 @@ router.post("/portal/inquiry", async (req, res) => {
     return;
   }
 
-  if (!["school", "parent"].includes(inquiryType)) {
+  if (!["school", "parent", "partner_school"].includes(inquiryType)) {
     res.status(400).json({ error: "bad_request", message: "Invalid inquiry type" });
     return;
   }
+
+  const {
+    schoolType,
+    schoolLocation,
+    enrollment,
+    currentSupport,
+    howHeard,
+    timeline,
+  } = req.body;
 
   const row = await db.insert(inquiriesTable).values({
     id: nanoid(),
@@ -49,12 +58,20 @@ router.post("/portal/inquiry", async (req, res) => {
     contactName,
     contactEmail,
     contactPhone: contactPhone || null,
+    wechatId: wechatId || null,
+    whatsappId: whatsappId || null,
     organisation: organisation || null,
     role: role || null,
     studentName: studentName || null,
     studentAge: studentAge || null,
     yearGroup: yearGroup || null,
     message,
+    schoolType: schoolType || null,
+    schoolLocation: schoolLocation || null,
+    enrollment: enrollment || null,
+    currentSupport: currentSupport || null,
+    howHeard: howHeard || null,
+    timeline: timeline || null,
     status: "new",
   }).returning();
 
@@ -73,6 +90,12 @@ router.post("/portal/inquiry", async (req, res) => {
         message,
         wechatId,
         whatsappId,
+        schoolType,
+        schoolLocation,
+        enrollment,
+        currentSupport,
+        howHeard,
+        timeline,
       },
       notifyEmails
     ).then((fromAddress) => {

@@ -1,18 +1,25 @@
 import nodemailer from "nodemailer";
 
 export interface InquiryEmailData {
-  inquiryType: "school" | "parent";
+  inquiryType: "school" | "parent" | "partner_school";
   contactName: string;
   contactEmail: string;
   contactPhone?: string;
+  wechatId?: string;
+  whatsappId?: string;
   organisation?: string;
   role?: string;
   studentName?: string;
   studentAge?: string;
   yearGroup?: string;
   message: string;
-  wechatId?: string;
-  whatsappId?: string;
+  // Partner school specific
+  schoolType?: string;
+  schoolLocation?: string;
+  enrollment?: string;
+  currentSupport?: string;
+  howHeard?: string;
+  timeline?: string;
 }
 
 function getTransport() {
@@ -38,6 +45,10 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
   });
 }
 
+function makeRow(label: string, value: string) {
+  return `<tr><td style="padding:6px 12px;font-weight:600;color:#475569;white-space:nowrap;vertical-align:top">${label}</td><td style="padding:6px 12px;color:#0f172a">${value}</td></tr>`;
+}
+
 export async function sendInquiryNotification(
   data: InquiryEmailData,
   notifyEmails: string | string[]
@@ -45,32 +56,62 @@ export async function sendInquiryNotification(
   const transport = getTransport();
   const fromUser = process.env.GMAIL_USER!;
   const toList = Array.isArray(notifyEmails) ? notifyEmails.join(", ") : notifyEmails;
-  const typeLabel = data.inquiryType === "school" ? "School" : "Parent";
 
-  const rows = [
-    ["Type", typeLabel],
-    ["Contact Name", data.contactName],
-    ["Email", data.contactEmail],
-    data.contactPhone ? ["Phone", data.contactPhone] : null,
-    data.wechatId ? ["WeChat ID", data.wechatId] : null,
-    data.whatsappId ? ["WhatsApp ID", data.whatsappId] : null,
-    data.organisation ? ["Organisation", data.organisation] : null,
-    data.role ? ["Role", data.role] : null,
-    data.studentName ? ["Student Name", data.studentName] : null,
-    data.studentAge ? ["Student Age", data.studentAge] : null,
-    data.yearGroup ? ["Year Group", data.yearGroup] : null,
-    ["Message", data.message],
-  ]
-    .filter(Boolean)
-    .map(
-      (r) =>
-        `<tr><td style="padding:6px 12px;font-weight:600;color:#475569;white-space:nowrap;vertical-align:top">${r![0]}</td><td style="padding:6px 12px;color:#0f172a">${r![1]}</td></tr>`
-    )
-    .join("");
+  let typeLabel: string;
+  let headerColor: string;
+  let rows: string;
+
+  if (data.inquiryType === "partner_school") {
+    typeLabel = "Partner School";
+    headerColor = "#5b21b6";
+
+    const rowData: Array<[string, string | undefined]> = [
+      ["School Name", data.organisation],
+      ["School Type", data.schoolType],
+      ["Location", data.schoolLocation],
+      ["Enrollment", data.enrollment],
+      ["Contact Name", data.contactName],
+      ["Job Title", data.role],
+      ["Email", data.contactEmail],
+      ["Phone", data.contactPhone],
+      ["WeChat ID", data.wechatId],
+      ["WhatsApp", data.whatsappId],
+      ["Current Support", data.currentSupport],
+      ["Reason for Interest", data.message],
+      ["How They Heard", data.howHeard],
+      ["Timeline", data.timeline],
+    ];
+    rows = rowData
+      .filter(([, v]) => v)
+      .map(([l, v]) => makeRow(l, v!))
+      .join("");
+  } else {
+    typeLabel = data.inquiryType === "school" ? "School" : "Parent";
+    headerColor = "#1e293b";
+
+    const rowData: Array<[string, string | undefined | null]> = [
+      ["Type", typeLabel],
+      ["Contact Name", data.contactName],
+      ["Email", data.contactEmail],
+      data.contactPhone ? ["Phone", data.contactPhone] : null,
+      data.wechatId ? ["WeChat ID", data.wechatId] : null,
+      data.whatsappId ? ["WhatsApp ID", data.whatsappId] : null,
+      data.organisation ? ["Organisation", data.organisation] : null,
+      data.role ? ["Role", data.role] : null,
+      data.studentName ? ["Student Name", data.studentName] : null,
+      data.studentAge ? ["Student Age", data.studentAge] : null,
+      data.yearGroup ? ["Year Group", data.yearGroup] : null,
+      ["Message", data.message],
+    ] as any;
+    rows = rowData
+      .filter(Boolean)
+      .map((r: any) => makeRow(r[0], r[1]))
+      .join("");
+  }
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:#1e293b;padding:24px 28px;border-radius:12px 12px 0 0">
+      <div style="background:${headerColor};padding:24px 28px;border-radius:12px 12px 0 0">
         <h1 style="margin:0;color:#fff;font-size:18px">New ${typeLabel} Inquiry — ReMynd Student Services</h1>
       </div>
       <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px 28px">
