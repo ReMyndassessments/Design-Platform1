@@ -33,12 +33,13 @@ export default function NewCase() {
   });
 
   const isPsych = currentUser?.role === "psychometrician";
+  const isCoordinator = currentUser?.role === "school_clinical_coordinator";
 
   useEffect(() => {
-    if (currentUser && !isAdmin) {
+    if (currentUser && !isAdmin && !isCoordinator) {
       setLocation("/cases");
     }
-  }, [currentUser, isAdmin, setLocation]);
+  }, [currentUser, isAdmin, isCoordinator, setLocation]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -46,8 +47,10 @@ export default function NewCase() {
       setFormData(prev => ({ ...prev, assignedLeadId: currentUser.id }));
     } else if (isPsych) {
       setFormData(prev => ({ ...prev, assignedPsychId: currentUser.id }));
+    } else if (isCoordinator && currentUser.schoolName) {
+      setFormData(prev => ({ ...prev, school: currentUser.schoolName! }));
     }
-  }, [isLead, isPsych, currentUser?.id]);
+  }, [isLead, isPsych, isCoordinator, currentUser?.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -97,7 +100,10 @@ export default function NewCase() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">School *</label>
-                <Input name="school" required value={formData.school} onChange={handleChange} />
+                {isCoordinator
+                  ? <Input name="school" required value={formData.school} readOnly className="bg-slate-50 cursor-not-allowed text-slate-500" />
+                  : <Input name="school" required value={formData.school} onChange={handleChange} />
+                }
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Grade</label>

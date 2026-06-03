@@ -8,11 +8,16 @@ const router = Router();
 
 router.get("/dashboard/stats", authMiddleware, async (req, res) => {
   const { userId, userRole } = req;
+  const userSchool = req.userSchool;
   const allCases = userRole === "admin"
     ? await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`)
-    : await db.select().from(casesTable)
-        .where(or(eq(casesTable.assignedLeadId, userId!), eq(casesTable.assignedPsychId, userId!)))
-        .orderBy(sql`${casesTable.updatedAt} DESC`);
+    : userRole === "school_clinical_coordinator"
+      ? (userSchool
+          ? await db.select().from(casesTable).where(eq(casesTable.school, userSchool)).orderBy(sql`${casesTable.updatedAt} DESC`)
+          : [])
+      : await db.select().from(casesTable)
+          .where(or(eq(casesTable.assignedLeadId, userId!), eq(casesTable.assignedPsychId, userId!)))
+          .orderBy(sql`${casesTable.updatedAt} DESC`);
 
   const totalCases = allCases.length;
   const activeCases = allCases.filter(c => c.caseStatus === "active").length;

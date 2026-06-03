@@ -133,7 +133,10 @@ function prevPhase(current: string): string {
   return PHASE_ORDER[idx - 1];
 }
 
-function canAccessCase(_role: string, _userId: string, _c: typeof casesTable.$inferSelect): boolean {
+function canAccessCase(role: string, _userId: string, c: typeof casesTable.$inferSelect, userSchool?: string): boolean {
+  if (role === "school_clinical_coordinator") {
+    return !!userSchool && c.school === userSchool;
+  }
   return true;
 }
 
@@ -170,7 +173,12 @@ function formatCase(c: typeof casesTable.$inferSelect) {
 }
 
 router.get("/cases", authMiddleware, async (req, res) => {
-  const cases = await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
+  const { userRole, userSchool } = req;
+  const cases = userRole === "school_clinical_coordinator"
+    ? (userSchool
+        ? await db.select().from(casesTable).where(eq(casesTable.school, userSchool)).orderBy(sql`${casesTable.updatedAt} DESC`)
+        : [])
+    : await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
   res.json(cases.map(formatCase));
 });
 
@@ -237,7 +245,7 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   const c = rows[0];
-  if (!canAccessCase(req.userRole!, req.userId!, c)) {
+  if (!canAccessCase(req.userRole!, req.userId!, c, req.userSchool)) {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
@@ -272,7 +280,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (!canAccessCase(req.userRole!, req.userId!, existing[0])) {
+  if (!canAccessCase(req.userRole!, req.userId!, existing[0], req.userSchool)) {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
@@ -360,7 +368,7 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0], req.userSchool)) {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
@@ -685,7 +693,7 @@ router.post("/cases/:caseId/dismiss-recommended-tool", authMiddleware, async (re
   if (!toolId) { res.status(400).json({ error: "toolId required" }); return; }
   const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!rows[0]) { res.status(404).json({ error: "not_found" }); return; }
-  if (!canAccessCase(req.userRole!, req.userId!, rows[0])) {
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0], req.userSchool)) {
     res.status(403).json({ error: "forbidden" }); return;
   }
   const current = (rows[0].intakeAnalysis as Record<string, unknown> | null) ?? {};

@@ -6,6 +6,7 @@ declare global {
     interface Request {
       userId?: string;
       userRole?: string;
+      userSchool?: string;
     }
   }
 }
@@ -37,5 +38,6 @@ export async function authMiddleware(
 
   req.userId = userId;
   req.userRole = user.role;
+  req.userSchool = user.schoolName ?? undefined;
   next();
 }

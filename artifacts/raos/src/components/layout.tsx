@@ -249,7 +249,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user?.name || "User"}</p>
-              <p className="text-xs text-slate-400 truncate capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-xs text-slate-400 truncate capitalize">{user?.role?.replace(/_/g, ' ')}</p>
+              {user?.role === "school_clinical_coordinator" && user?.schoolName && (
+                <p className="text-[10px] text-purple-400 truncate mt-0.5">{user.schoolName}</p>
+              )}
             </div>
           </div>
           <button 
