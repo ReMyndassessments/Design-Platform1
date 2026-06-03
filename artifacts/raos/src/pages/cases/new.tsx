@@ -153,6 +153,7 @@ export default function NewCase() {
               </div>
             </div>
 
+            {!isCoordinator && (<>
             <hr className="my-8" />
             <h3 className="text-lg font-display font-semibold mb-4 text-slate-800">Team Assignment</h3>
             {isAdmin ? (
@@ -191,7 +192,8 @@ export default function NewCase() {
                 {isLead ? "You will be assigned as Assessment Lead for this case." : "Your administrator will assign team members to this case."}
               </p>
             )}
-            
+            </>)}
+
             <div className="pt-6 flex justify-end gap-3">
               <Link href="/cases">
                 <Button variant="outline" type="button">Cancel</Button>
