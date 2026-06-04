@@ -67,15 +67,15 @@ const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "R
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
-  parent: "Parent",
-  teacher1: "Teacher 1",
-  teacher2: "Teacher 2",
-  self: "Student Self-Report",
+  parent: "Parent Assessment Package",
+  teacher1: "Teacher Assessment Package 1",
+  teacher2: "Teacher Assessment Package 2",
+  self: "Student Self-Report Package",
   school_counselor: "School Counselor",
   special_needs_teacher: "Special Needs Teacher",
   referring_teacher: "Referring Teacher",
   boarding_staff: "Boarding Staff",
-  invigilator: "Invigilator",
+  invigilator: "Assessment Administration Team",
 };
 
 
@@ -84,14 +84,14 @@ const RESPONDENT_TYPES_IN_MODAL = [
 ] as const;
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
-  parent:            "Parent",
-  teacher:           "Teacher",
-  teacher1:          "Teacher 1",
-  teacher2:          "Teacher 2",
+  parent:            "Parent Assessment Package",
+  teacher:           "Teacher Assessment Package",
+  teacher1:          "Teacher Assessment Package 1",
+  teacher2:          "Teacher Assessment Package 2",
   referring_teacher: "Referring Teacher",
   boarding_staff:    "Boarding Staff",
-  self:              "Self-Report (Guided)",
-  invigilator:       "Invigilator",
+  self:              "Student Self-Report Package",
+  invigilator:       "Assessment Administration Team",
 };
 
 function canAdvancePhase(role: string): boolean {
