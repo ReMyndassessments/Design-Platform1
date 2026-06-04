@@ -2468,6 +2468,23 @@ async function migrateBehavObsToInvigilator() {
   }
 }
 
+async function syncAssignmentToolNames() {
+  try {
+    const result = await db.execute(sql`
+      UPDATE assignments a
+      SET tool_name = at.name
+      FROM assessment_tools at
+      WHERE a.tool_id = at.id
+        AND (a.tool_name IS NULL OR a.tool_name != at.name)
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      logger.info({ count: result.rowCount }, "Synced assignment tool_name values to full names from assessment_tools");
+    }
+  } catch (err) {
+    logger.error({ err }, "syncAssignmentToolNames failed");
+  }
+}
+
 async function addCoordinatorSupport() {
   try {
     await db.execute(sql`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'school_clinical_coordinator'`);
@@ -2500,6 +2517,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
   .then(() => addCoordinatorSupport())
+  .then(() => syncAssignmentToolNames())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {
