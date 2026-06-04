@@ -412,11 +412,12 @@ export default function CaseDetail() {
             caseId,
             data: {
               toolId,
+              toolName: toolData.name ?? toolId,
               respondentType: rt as CreateAssignmentRequestRespondentType,
               respondentLabel: slot.name || (RESPONDENT_TYPE_LABELS[rt] ?? rt),
               assignedToName: slot.name || undefined,
               assignedToEmail: slot.email || undefined,
-            }
+            } as any
           });
           totalCreated++;
         }
@@ -759,9 +760,10 @@ export default function CaseDetail() {
           caseId,
           data: {
             toolId: rec.toolId,
+            toolName: rec.name,
             respondentType: rt as CreateAssignmentRequestRespondentType,
             respondentLabel: RESPONDENT_LABELS[rt] ?? rt,
-          },
+          } as any,
         });
         count++;
       }
@@ -862,11 +864,12 @@ export default function CaseDetail() {
             caseId,
             data: {
               toolId,
+              toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
               respondentType: respondentType as CreateAssignmentRequestRespondentType,
               respondentLabel: newAssignment.respondentLabel,
               assignedToName: newAssignment.assignedToName,
               assignedToEmail: newAssignment.assignedToEmail,
-            }
+            } as any
           });
           count++;
         }
@@ -1366,9 +1369,10 @@ export default function CaseDetail() {
                                   caseId,
                                   data: {
                                     toolId: opt.toolId,
+                                    toolName: opt.label,
                                     respondentType: opt.respondentType as CreateAssignmentRequestRespondentType,
                                     respondentLabel: opt.respondentLabel,
-                                  },
+                                  } as any,
                                 });
                                 toast({ title: `${opt.label} added` });
                                 queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
