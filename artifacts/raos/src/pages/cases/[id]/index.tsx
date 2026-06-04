@@ -1369,7 +1369,7 @@ export default function CaseDetail() {
                                   caseId,
                                   data: {
                                     toolId: opt.toolId,
-                                    toolName: opt.label,
+                                    toolName: tools?.find(t => t.id === opt.toolId)?.name ?? opt.label,
                                     respondentType: opt.respondentType as CreateAssignmentRequestRespondentType,
                                     respondentLabel: opt.respondentLabel,
                                   } as any,
