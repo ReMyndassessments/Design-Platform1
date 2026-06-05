@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -246,6 +246,9 @@ export default function CaseDetail() {
   const [generatingAssessmentRoom, setGeneratingAssessmentRoom] = useState(false);
   const [showAssessmentManualPaste, setShowAssessmentManualPaste] = useState(false);
   const [formModalUrl, setFormModalUrl] = useState<string | null>(null);
+  const [addSecondParentOpen, setAddSecondParentOpen] = useState(false);
+  const [secondParentForm, setSecondParentForm] = useState({ name: "", email: "" });
+  const [isAddingSecondParent, setIsAddingSecondParent] = useState(false);
   const [assessmentDateDraft, setAssessmentDateDraft] = useState("");
   const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
   const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
@@ -774,6 +777,49 @@ export default function CaseDetail() {
       toast({ title: "Error assigning tool", variant: "destructive" });
     } finally {
       setAssigningToolId(null);
+    }
+  };
+
+  const handleAddSecondParent = async () => {
+    const parentAssignments = (c?.assignments ?? []).filter(a =>
+      a.respondentType === "parent" &&
+      a.respondentLabel !== "Second Parent / Guardian" &&
+      !INTAKE_TOOL_IDS.has(a.toolId ?? "")
+    );
+    const seen = new Set<string>();
+    const toolsToAdd = parentAssignments.filter(a => {
+      if (seen.has(a.toolId ?? "")) return false;
+      seen.add(a.toolId ?? "");
+      return true;
+    });
+    if (toolsToAdd.length === 0) {
+      toast({ title: "No parent forms to duplicate", variant: "destructive" });
+      return;
+    }
+    setIsAddingSecondParent(true);
+    try {
+      for (const a of toolsToAdd) {
+        await createAssignmentMut.mutateAsync({
+          caseId,
+          data: {
+            toolId: a.toolId ?? "",
+            toolName: a.toolName ?? a.toolId ?? "",
+            respondentType: "parent" as CreateAssignmentRequestRespondentType,
+            respondentLabel: "Second Parent / Guardian",
+            assignedToName: secondParentForm.name.trim() || undefined,
+            assignedToEmail: secondParentForm.email.trim() || undefined,
+          } as any,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
+      toast({ title: "Second parent / guardian added", description: `${toolsToAdd.length} form${toolsToAdd.length !== 1 ? "s" : ""} created with a separate portal link.` });
+      setAddSecondParentOpen(false);
+      setSecondParentForm({ name: "", email: "" });
+    } catch {
+      toast({ title: "Failed to add second parent", variant: "destructive" });
+    } finally {
+      setIsAddingSecondParent(false);
     }
   };
 
@@ -2212,12 +2258,75 @@ export default function CaseDetail() {
                 })}
               </div>
             )}
+            {(() => {
+              const hasParentPackage = (c?.assignments ?? []).some(a =>
+                a.respondentType === "parent" &&
+                a.respondentLabel !== "Second Parent / Guardian" &&
+                !INTAKE_TOOL_IDS.has(a.toolId ?? "")
+              );
+              const hasSecondParent = (c?.assignments ?? []).some(a =>
+                a.respondentType === "parent" &&
+                a.respondentLabel === "Second Parent / Guardian"
+              );
+              if (!hasParentPackage || hasSecondParent) return null;
+              return (
+                <div className="px-5 py-3 border-t border-slate-100">
+                  <button
+                    className="text-xs text-slate-400 hover:text-primary flex items-center gap-1.5 transition-colors"
+                    onClick={() => setAddSecondParentOpen(true)}
+                  >
+                    <UserPlus size={12} /> Add second parent / guardian
+                  </button>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
         )}
       </div>
 
       {/* Modals */}
+
+      {/* Add Second Parent / Guardian */}
+      <Dialog open={addSecondParentOpen} onOpenChange={open => { if (!open) { setAddSecondParentOpen(false); setSecondParentForm({ name: "", email: "" }); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Second Parent / Guardian</DialogTitle>
+            <DialogDescription>
+              This creates a separate portal link with the same assessment forms, for a second parent or guardian. Name and email are optional — you can send or share the link manually later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-1">
+            <div>
+              <Label className="text-xs text-slate-600 mb-1 block">Name <span className="text-slate-400">(optional)</span></Label>
+              <Input
+                placeholder="e.g. Jane Smith"
+                value={secondParentForm.name}
+                onChange={e => setSecondParentForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-600 mb-1 block">Email <span className="text-slate-400">(optional)</span></Label>
+              <Input
+                type="email"
+                placeholder="e.g. jane@email.com"
+                value={secondParentForm.email}
+                onChange={e => setSecondParentForm(f => ({ ...f, email: e.target.value }))}
+                onKeyDown={e => { if (e.key === "Enter") handleAddSecondParent(); }}
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => { setAddSecondParentOpen(false); setSecondParentForm({ name: "", email: "" }); }}>
+              Cancel
+            </Button>
+            <Button className="flex-1" disabled={isAddingSecondParent} onClick={handleAddSecondParent}>
+              {isAddingSecondParent ? "Adding…" : "Add & Create Link"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!deleteAssignmentTarget} onOpenChange={open => { if (!open) setDeleteAssignmentTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
