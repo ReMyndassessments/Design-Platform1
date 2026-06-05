@@ -1365,7 +1365,8 @@ function FormView({
             let counter = 0;
             return (form.questions as Question[]).map(q => {
               const isSection = q.type === "section_header";
-              if (!isSection) counter++;
+              if (isSection) counter = 0;
+              else counter++;
               const num = isSection ? undefined : counter;
               return (
                 <div key={q.id} id={`q-${q.id}`}>
