@@ -2500,6 +2500,49 @@ async function addCoordinatorSupport() {
   }
 }
 
+async function backfillRscaSnapshots() {
+  try {
+    // Old RSCA assignments (completed before the 44-item REL/REA additions) have no snapshot.
+    // Backfill them with the original MAS-only 21-item slice (rsca_instr + rsca1-rsca20)
+    // so the admin response view shows only the questions that were actually presented.
+    const masResult = await db.execute(sql`
+      UPDATE assignments
+      SET form_items_snapshot = (
+        SELECT jsonb_agg(elem ORDER BY idx)::text
+        FROM (
+          SELECT elem, (row_number() OVER ()) - 1 AS idx
+          FROM assessment_tools, jsonb_array_elements(form_items::jsonb) AS elem
+          WHERE id = 'RSCA'
+        ) t
+        WHERE idx < 21
+      )
+      WHERE tool_id = 'RSCA'
+        AND form_items_snapshot IS NULL
+    `);
+    if ((masResult.rowCount ?? 0) > 0) {
+      logger.info({ count: masResult.rowCount }, "Backfilled old RSCA assignments with MAS-only snapshot");
+    }
+
+    // Not-started RSCA assignments that have only 21 items in snapshot (old version)
+    // should be upgraded to the full 67-item snapshot so respondents see all 64 questions.
+    const fullResult = await db.execute(sql`
+      UPDATE assignments
+      SET form_items_snapshot = (
+        SELECT form_items::text FROM assessment_tools WHERE id = 'RSCA'
+      )
+      WHERE tool_id = 'RSCA'
+        AND status = 'not_started'
+        AND form_items_snapshot IS NOT NULL
+        AND jsonb_array_length(form_items_snapshot::jsonb) < 67
+    `);
+    if ((fullResult.rowCount ?? 0) > 0) {
+      logger.info({ count: fullResult.rowCount }, "Upgraded not-started RSCA assignments to full 67-item snapshot");
+    }
+  } catch (err) {
+    logger.error({ err }, "backfillRscaSnapshots failed");
+  }
+}
+
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
   .then(() => backfillRespondentLabels())
   .then(() => migrateBehavObsToInvigilator())
@@ -2518,6 +2561,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => repairPendingCasesFromConsent())
   .then(() => addCoordinatorSupport())
   .then(() => syncAssignmentToolNames())
+  .then(() => backfillRscaSnapshots())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

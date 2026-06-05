@@ -151,7 +151,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
-  const [toolRows, existingScoreRows] = await Promise.all([
+  const [toolRows, existingScoreRows, snapRow] = await Promise.all([
     db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
     db.select().from(scoresTable)
@@ -161,6 +161,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         eq(scoresTable.respondentType, assignment.respondentType)
       ))
       .limit(1),
+    db.execute(sql`SELECT form_items_snapshot FROM assignments WHERE id = ${assignment.id}`),
   ]);
 
   const ITEM_TYPE_MAP: Record<string, string> = {
@@ -169,15 +170,35 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     multiple_choice: "radio_group",
   };
   type StoredItem = { id: string; text: string; textChinese?: string; textKorean?: string; type: string; options?: string[]; optionsChinese?: string[]; optionsKorean?: string[]; domain?: string; required?: boolean; note?: string; noteChinese?: string; noteKorean?: string };
-  const rawItems = toolRows[0]?.formItems;
-  const questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
-    ? (rawItems as StoredItem[]).map(item => ({
+
+  const snapshotJson = (snapRow.rows?.[0] as any)?.form_items_snapshot ?? null;
+  let questions: StoredItem[];
+  if (snapshotJson) {
+    try {
+      const snapshotItems = JSON.parse(snapshotJson) as StoredItem[];
+      questions = snapshotItems.map(item => ({
         ...item,
         type: ITEM_TYPE_MAP[item.type] ?? item.type,
         domain: item.domain ?? "",
         required: item.required ?? true,
-      }))
-    : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+      }));
+    } catch {
+      const rawItems = toolRows[0]?.formItems;
+      questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
+        ? (rawItems as StoredItem[]).map(item => ({ ...item, type: ITEM_TYPE_MAP[item.type] ?? item.type, domain: item.domain ?? "", required: item.required ?? true }))
+        : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+    }
+  } else {
+    const rawItems = toolRows[0]?.formItems;
+    questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
+      ? (rawItems as StoredItem[]).map(item => ({
+          ...item,
+          type: ITEM_TYPE_MAP[item.type] ?? item.type,
+          domain: item.domain ?? "",
+          required: item.required ?? true,
+        }))
+      : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+  }
 
   let bascCorrectionApplied = false;
   try {
