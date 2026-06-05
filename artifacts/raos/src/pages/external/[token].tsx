@@ -1360,35 +1360,41 @@ function FormView({
         </div>
 
         {/* Questions */}
-        <div className="space-y-5">
-          {(() => {
-            let counter = 0;
-            return (form.questions as Question[]).map(q => {
-              const isSection = q.type === "section_header";
-              if (isSection) counter = 0;
-              else counter++;
-              const num = isSection ? undefined : counter;
-              return (
-                <div key={q.id} id={`q-${q.id}`}>
-                  {isSection ? (
-                    <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
-                  ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                      <div className="flex gap-3">
-                        <span className="text-sm font-bold text-slate-400 font-mono w-7 flex-shrink-0 mt-0.5 select-none">
-                          {num}.
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
+        {(() => {
+          // Pre-compute per-section display numbers: resets to 1 after every section_header
+          const questionNums = new Map<string, number>();
+          let n = 0;
+          for (const q of (form.questions as Question[])) {
+            if (q.type === "section_header") { n = 0; }
+            else { n += 1; questionNums.set(q.id, n); }
+          }
+          return (
+            <div className="space-y-5">
+              {(form.questions as Question[]).map(q => {
+                const isSection = q.type === "section_header";
+                const num = questionNums.get(q.id);
+                return (
+                  <div key={q.id} id={`q-${q.id}`}>
+                    {isSection ? (
+                      <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
+                    ) : (
+                      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                        <div className="flex gap-3">
+                          <span className="text-sm font-bold text-slate-400 font-mono w-7 flex-shrink-0 mt-0.5 select-none">
+                            {num}.
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <QuestionField q={q} language={language} answers={answers} setAnswer={setAnswer} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            });
-          })()}
-        </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {validationError && (
           <div className="mt-5 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
