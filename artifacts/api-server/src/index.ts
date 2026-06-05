@@ -392,7 +392,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     id: "RSCA",
     name: "Resiliency Scales for Children and Adolescents",
     category: "social-emotional",
-    description: "Measures resilience across three domains: Sense of Mastery, Sense of Relatedness, and Emotional Reactivity. 20 items rated on a 5-point frequency scale.",
+    description: "Measures resilience across three domains: Sense of Mastery (20 items), Sense of Relatedness (24 items), and Emotional Reactivity (20 items). 64 items rated on a 5-point frequency scale (Never–Almost Always).",
     isRemyndOwned: false,
     respondentTypes: ["self"],
     scoringType: "manual",
