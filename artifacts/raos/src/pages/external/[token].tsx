@@ -673,6 +673,8 @@ function PortalView({
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
   const allDone = pendingCount === 0;
+  const ADMIN_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
+  const adminFormsAllDone = portal.forms.filter(f => ADMIN_TOOL_IDS.has(f.toolId)).every(f => f.status === "completed");
 
   // Report download state
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -855,9 +857,9 @@ function PortalView({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {portal.forms.map((f, i) => {
+            {portal.forms.map((f) => {
               const isDone = f.status === "completed";
-              const isLocked = !isDone && i > 0 && portal.forms[i - 1].status !== "completed";
+              const isLocked = !isDone && !ADMIN_TOOL_IDS.has(f.toolId) && !adminFormsAllDone;
               return (
                 <div key={f.uniqueToken} className={cn(
                   "flex items-center gap-4 px-5 py-4 transition-colors",
