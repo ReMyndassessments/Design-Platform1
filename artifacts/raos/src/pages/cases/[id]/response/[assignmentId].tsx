@@ -805,7 +805,7 @@ export default function ResponseViewer() {
                   let n = 0;
                   return questions.map(q => {
                     const isHeader = q.type === "section_header";
-                    if (!isHeader) n++;
+                    if (isHeader) { n = 0; } else { n++; }
                     return (
                       <QuestionRow
                         key={q.id}
