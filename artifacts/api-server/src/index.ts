@@ -2538,6 +2538,23 @@ async function backfillRscaSnapshots() {
     if ((fullResult.rowCount ?? 0) > 0) {
       logger.info({ count: fullResult.rowCount }, "Upgraded not-started RSCA assignments to full 67-item snapshot");
     }
+
+    // Universal backfill: any remaining assignment with no snapshot gets the current live
+    // form_items frozen in. This covers all other forms (BASC3, BRIEF2, SDQ, etc.) that
+    // pre-date the snapshot feature. Because the RSCA-specific step above already ran,
+    // old RSCA completed assignments already have the correct 21-item MAS snapshot and
+    // won't be overwritten here.
+    const universalResult = await db.execute(sql`
+      UPDATE assignments a
+      SET form_items_snapshot = at.form_items::text
+      FROM assessment_tools at
+      WHERE a.tool_id = at.id
+        AND a.form_items_snapshot IS NULL
+        AND at.form_items IS NOT NULL
+    `);
+    if ((universalResult.rowCount ?? 0) > 0) {
+      logger.info({ count: universalResult.rowCount }, "Universal snapshot backfill: froze live form_items into old assignments");
+    }
   } catch (err) {
     logger.error({ err }, "backfillRscaSnapshots failed");
   }
