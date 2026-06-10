@@ -1,4 +1,12 @@
-export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null, debriefMeetingDate?: string | null): string {
+function buildAccessCodeBlockEN(code: string): string {
+  return `<div style="background:#f0f4ff;border:2px solid #c7d7fd;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
+    <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:0.05em">Your secure access code</p>
+    <p style="margin:0;font-size:36px;font-weight:800;letter-spacing:0.18em;color:#1d4ed8;font-family:monospace">${code}</p>
+    <p style="margin:10px 0 0;font-size:11px;color:#6b7280">You will be asked to enter this 6-digit code when you open your report link. Keep this email for your records.</p>
+  </div>`;
+}
+
+export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null, debriefMeetingDate?: string | null, accessCode?: string): string {
   const dateRow = debriefMeetingDate
     ? `<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#166534">Scheduled: ${debriefMeetingDate}</p>`
     : "";
@@ -18,6 +26,7 @@ export function buildTeacherEmail(studentName: string, link: string, debriefMeet
     <p style="text-align:center;margin:28px 0">
       <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
     </p>
+    ${accessCode ? buildAccessCodeBlockEN(accessCode) : ""}
     ${debriefBlock}
     <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>

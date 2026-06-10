@@ -461,23 +461,16 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       if (!email?.trim()) continue;
       const token = randomUUID();
       const link = `${base}/external/${token}`;
+      const otherCode = generateAccessCode();
       await db.insert(reportTokensTable).values({
-        id: randomUUID(), caseId, role: "other", email: email.trim(), token, accessCode: generateAccessCode(),
+        id: randomUUID(), caseId, role: "other", email: email.trim(), token, accessCode: otherCode,
         recipientName: name?.trim() || null,
         sentAt: new Date(),
       });
       await sendEmail({
         to: email.trim(),
         subject: `Assessment Report Ready — ${studentName}`,
-        html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-          <h2 style="color:#0a1628">Assessment report available</h2>
-          <p>With the consent of ${studentName}'s parent/guardian, you have been given access to their psychoeducational assessment report.</p>
-          <p style="text-align:center;margin:28px 0">
-            <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-          </p>
-          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-          <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-        </div>`,
+        html: buildTeacherEmail(studentName, link, undefined, undefined, otherCode),
       });
     }
 
@@ -487,23 +480,15 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       for (const staff of internalStaff) {
         const token = randomUUID();
         const roleLabel = staff.role === "assessment_invigilator" ? "Assessment Invigilator" : "Psychometrician";
+        const staffCode = generateAccessCode();
         await db.insert(reportTokensTable).values({
-          id: randomUUID(), caseId, role: "other", email: staff.email, token, accessCode: generateAccessCode(),
+          id: randomUUID(), caseId, role: "other", email: staff.email, token, accessCode: staffCode,
           recipientName: staff.name, sentAt: new Date(),
         });
         await sendEmail({
           to: staff.email,
           subject: `Assessment Report Ready — ${studentName}`,
-          html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0a1628">Final report ready for download</h2>
-            <p>Hi ${staff.name} (${roleLabel}), the final assessment report for <strong>${studentName}</strong> is now available.</p>
-            <p style="text-align:center;margin:28px 0">
-              <a href="${base}/external/${token}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-            </p>
-            <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-            <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-          </div>`,
+          html: buildTeacherEmail(studentName, `${base}/external/${token}`, undefined, undefined, staffCode),
         });
       }
     }
@@ -664,7 +649,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
     const link = `${base}/external/${t.token}`;
     let html: string;
     if (t.role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate);
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined);
     } else {
       html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate);
     }
@@ -698,7 +683,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
     const link = `${base}/external/${token}`;
     let html: string;
     if (role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate);
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, accessCode);
     } else {
       html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate);
     }
@@ -748,7 +733,7 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
     await sendEmail({
       to: teacherToken.email,
       subject: `Assessment Report Now Available — ${studentName}`,
-      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : null, caseRow?.debriefMeetingDate ?? null),
+      html: buildTeacherEmail(studentName, link, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : null, caseRow?.debriefMeetingDate ?? null, teacherToken.accessCode ?? undefined),
     });
     // Mark sentAt now that the email has actually been sent
     await db.update(reportTokensTable)
@@ -947,15 +932,7 @@ router.post("/report-access/:token/permission", async (req, res) => {
       await sendEmail({
         to: teacherToken.email,
         subject: `Assessment Report Now Available — ${caseRow.studentName}`,
-        html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-          <h2 style="color:#0a1628">Report access granted</h2>
-          <p>The parent has given consent for the school to access the assessment report for <strong>${caseRow.studentName}</strong>. You can now download your copy:</p>
-          <p style="text-align:center;margin:28px 0">
-            <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
-          </p>
-          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
-          <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>
-        </div>`,
+        html: buildTeacherEmail(caseRow.studentName ?? "your student", link, caseRow.debriefMeetingUrl ? makeDebriefJoinUrl(base, caseRow.studentName ?? "", caseRow.debriefMeetingUrl) : null, caseRow.debriefMeetingDate ?? null, teacherToken.accessCode ?? undefined),
       });
       // Mark sentAt now that the email has actually been sent
       await db.update(reportTokensTable)
