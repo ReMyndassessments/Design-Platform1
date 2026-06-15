@@ -859,18 +859,21 @@ function PortalView({
           <div className="divide-y divide-slate-100">
             {portal.forms.map((f) => {
               const isDone = f.status === "completed";
-              const isLocked = !isDone && !ADMIN_TOOL_IDS.has(f.toolId) && !adminFormsAllDone;
+              const isExaminerOnly = f.toolId === "RPPI";
+              const isLocked = !isDone && !isExaminerOnly && !ADMIN_TOOL_IDS.has(f.toolId) && !adminFormsAllDone;
               return (
                 <div key={f.uniqueToken} className={cn(
                   "flex items-center gap-4 px-5 py-4 transition-colors",
-                  !isDone && !isLocked && "hover:bg-slate-50/60"
+                  !isDone && !isLocked && !isExaminerOnly && "hover:bg-slate-50/60"
                 )}>
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                    isDone ? "bg-emerald-100" : isLocked ? "bg-slate-100" : "bg-primary/10"
+                    isDone ? "bg-emerald-100" : isExaminerOnly ? "bg-violet-100" : isLocked ? "bg-slate-100" : "bg-primary/10"
                   )}>
                     {isDone
                       ? <ClipboardCheck size={20} className="text-emerald-600" />
+                      : isExaminerOnly
+                      ? <ClipboardList size={20} className="text-violet-500" />
                       : isLocked
                       ? <Lock size={20} className="text-slate-400" />
                       : <ClipboardList size={20} className="text-primary" />}
@@ -879,16 +882,20 @@ function PortalView({
                     <p className={cn("text-sm font-semibold truncate", isLocked ? "text-slate-400" : "text-slate-800")}>{f.toolName}</p>
                     <span className={cn(
                       "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide mt-0.5",
-                      isDone ? "text-emerald-600" : isLocked ? "text-slate-400" : "text-amber-600"
+                      isDone ? "text-emerald-600" : isExaminerOnly ? "text-violet-600" : isLocked ? "text-slate-400" : "text-amber-600"
                     )}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : isLocked ? "bg-slate-300" : "bg-amber-500")} />
-                      {isDone ? t("completed", language) : isLocked ? t("completeFirst", language) : t("pending", language)}
+                      <span className={cn("w-1.5 h-1.5 rounded-full", isDone ? "bg-emerald-500" : isExaminerOnly ? "bg-violet-500" : isLocked ? "bg-slate-300" : "bg-amber-500")} />
+                      {isDone ? t("completed", language) : isExaminerOnly ? "Examiner administered" : isLocked ? t("completeFirst", language) : t("pending", language)}
                     </span>
                   </div>
                   {isDone ? (
                     <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle2 size={16} className="text-emerald-600" />
                     </div>
+                  ) : isExaminerOnly ? (
+                    <span className="text-xs text-violet-500 font-semibold shrink-0 bg-violet-50 border border-violet-200 rounded-full px-3 py-1">
+                      In-person only
+                    </span>
                   ) : isLocked ? (
                     <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <Lock size={14} className="text-slate-400" />
@@ -1251,9 +1258,9 @@ function FormView({
   }
 
   // RPPI is examiner-administered — cannot be filled via external link
-  const isRppiForm = (form as any).toolId === "RPPI"
-    || (form as any).isExaminerAdministered
-    || (form.questions as Question[]).some(q => q.type === "rppi_item" || q.type === "rppi_admin");
+  const isRppiForm = form.toolName.toLowerCase().includes("rppi")
+    || (form as any).isExaminerAdministered === true
+    || (form as any).toolId === "RPPI";
   if (isRppiForm) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
