@@ -65,6 +65,7 @@ import InquiriesPage from "@/pages/inquiries";
 import PartnerSchoolsPage from "@/pages/partner-schools";
 import PartnerInquiryPage from "@/pages/partner-inquiry";
 import NotFound from "@/pages/not-found";
+import RppiAdminPage from "@/pages/cases/[id]/rppi";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,9 @@ function Router() {
       </Route>
       <Route path="/cases/:id/response/:assignmentId">
         {() => <ProtectedRoute component={ResponseViewer} />}
+      </Route>
+      <Route path="/cases/:id/rppi/:assignmentId">
+        {() => <ProtectedRoute component={RppiAdminPage} />}
       </Route>
       <Route path="/tools">
         {() => <ProtectedRoute component={AssessmentTools} />}

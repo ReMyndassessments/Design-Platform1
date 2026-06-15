@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM } from "./lib/questions.js";
+import { RPPI_FORM_ITEMS, RPPI_SCORING_CONFIG } from "./lib/rppi.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -1072,6 +1073,20 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["ocd", "obsessions", "compulsions"],
     scoringConfig: null,
     // formItems intentionally omitted — form items were added manually in production and are preserved by the upsert logic
+  },
+  {
+    id: "RPPI",
+    name: "ReMynd Phonological Processing Index (RPPI)",
+    category: "Reading / Dyslexia Risk / Phonological Processing",
+    description: "The ReMynd Phonological Processing Index (RPPI) is a structured examiner-administered tool for identifying phonological processing weaknesses associated with reading and spelling difficulty. It is not a diagnostic dyslexia test. Results should be interpreted alongside academic achievement, developmental history, classroom performance, and other RAOS assessment findings.",
+    isRemyndOwned: true,
+    respondentTypes: ["invigilator"],
+    scoringType: "manual",
+    domains: ["rhyming", "blending", "segmentation", "deletion", "substitution", "nonword", "pa_composite"],
+    scoringConfig: RPPI_SCORING_CONFIG as unknown as ScoringConfig,
+    formItems: RPPI_FORM_ITEMS,
+    ageRange: "7–18",
+    estimatedTime: "20–25 minutes",
   },
 ];
 

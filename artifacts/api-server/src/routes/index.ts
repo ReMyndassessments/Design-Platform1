@@ -12,6 +12,7 @@ import batteriesRouter from "./batteries";
 import portalRouter from "./portal";
 import storageRouter from "./storage";
 import reportAccessRouter from "./reportAccess";
+import rppiRouter from "./rppi";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(batteriesRouter);
 router.use(portalRouter);
 router.use(storageRouter);
 router.use(reportAccessRouter);
+router.use(rppiRouter);
 
 export default router;

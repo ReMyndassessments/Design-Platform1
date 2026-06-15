@@ -2103,9 +2103,23 @@ export default function CaseDetail() {
                       
                       <div className="flex gap-2 flex-wrap">
                         {a.status === 'completed' ? (
-                          <Link href={`/cases/${caseId}/response/${a.id}`}>
-                            <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
-                              <Eye size={14} /> View Response
+                          a.toolId === 'RPPI' ? (
+                            <Link href={`/cases/${caseId}/rppi/${a.id}`}>
+                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                <Eye size={14} /> View RPPI
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Link href={`/cases/${caseId}/response/${a.id}`}>
+                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                <Eye size={14} /> View Response
+                              </Button>
+                            </Link>
+                          )
+                        ) : a.toolId === 'RPPI' ? (
+                          <Link href={`/cases/${caseId}/rppi/${a.id}`}>
+                            <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                              <Play size={14} /> Administer RPPI
                             </Button>
                           </Link>
                         ) : (
