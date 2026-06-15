@@ -80,7 +80,7 @@ const RESPONDENT_LABELS: Record<string, string> = {
 
 
 const RESPONDENT_TYPES_IN_MODAL = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "examiner", "invigilator",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator",
 ] as const;
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
