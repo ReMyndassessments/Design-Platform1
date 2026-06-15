@@ -922,6 +922,48 @@ OUTPUT FORMAT (JSON only, no markdown, no explanation):
   return { passage: parsed.passage, wordCount, questions: parsed.questions };
 }
 
+export async function generateRrfaPassage(params: {
+  age: number;
+  grade: string;
+  language: string;
+  topic: string;
+  passageType: "60-second" | "full-passage";
+}): Promise<{ passage: string; wordCount: number }> {
+  const { age, grade, language, topic, passageType } = params;
+
+  const wordRange =
+    passageType === "60-second"
+      ? (age <= 8 ? "80–120 words" : age <= 10 ? "120–180 words" : age <= 12 ? "180–260 words" : age <= 15 ? "260–360 words" : "360–500 words")
+      : (age <= 8 ? "120–180 words" : age <= 10 ? "180–260 words" : age <= 12 ? "260–380 words" : age <= 15 ? "380–520 words" : "520–700 words");
+
+  const langLabel =
+    language === "mandarin" ? "Simplified Mandarin Chinese" :
+    language === "cantonese" ? "Traditional Chinese (Cantonese)" :
+    language === "korean" ? "Korean" : "English";
+
+  const prompt = `You are a specialist educational assessment author creating a reading fluency passage for a psychoeducational oral reading assessment.
+
+PASSAGE REQUIREMENTS:
+- Student age: ${age} years old, Grade: ${grade || "not specified"}
+- Language: ${langLabel}
+- Topic: ${topic || "General Knowledge"}
+- Length: Strictly ${wordRange}
+- Style: Factual, engaging, neutral, age-appropriate. Varied sentence lengths (mix of short and longer sentences) to assess prosody. No cultural bias. No references to disability, mental health, or assessment.
+- Format: Continuous prose only (no headers, bullet points, lists, or dialogue)
+- Reading fluency focus: The passage should flow naturally when read aloud. Avoid overly complex punctuation. Include a natural mix of common and slightly challenging vocabulary appropriate for the age.
+
+OUTPUT FORMAT (JSON only, no markdown, no explanation):
+{"passage": "Full passage text here..."}`;
+
+  const raw = await callDeepSeek(prompt, 1200);
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as { passage: string };
+  const wordCount = parsed.passage.trim().split(/\s+/).length;
+  return { passage: parsed.passage, wordCount };
+}
+
 export async function generateRdaSummary(params: {
   studentName: string;
   school: string;

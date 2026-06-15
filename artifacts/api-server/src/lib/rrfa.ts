@@ -1,6 +1,10 @@
 export interface RrfaAnswers {
   mode: string;
   passageType: "60-second" | "full-passage";
+  passage?: string;
+  passageLanguage?: string;
+  passageTopic?: string;
+  passageWordCount?: number;
   wordsRead: number | null;
   errors: number | null;
   selfCorrections: number | null;

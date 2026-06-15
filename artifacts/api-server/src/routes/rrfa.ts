@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { calculateRrfaScores } from "../lib/rrfa.js";
 import type { RrfaAnswers } from "../lib/rrfa.js";
+import { generateRrfaPassage } from "../lib/ai.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
 
@@ -46,6 +47,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrfa", authMiddleware, asyn
         status: assignment.status,
         toolId: assignment.toolId,
         toolName: assignment.toolName,
+        uniqueToken: assignment.uniqueToken,
         submittedAt: assignment.submittedAt,
         createdAt: assignment.createdAt,
       },
@@ -57,6 +59,72 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrfa", authMiddleware, asyn
   } catch (err) {
     logger.error({ err }, "GET /rrfa failed");
     return res.status(500).json({ error: "Failed to load RRFA session" });
+  }
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/rrfa/generate-passage", authMiddleware, async (req, res) => {
+  try {
+    const { caseId, assignmentId } = req.params;
+    const { age, grade, language, topic, passageType } = req.body as {
+      age: number;
+      grade: string;
+      language: string;
+      topic: string;
+      passageType: "60-second" | "full-passage";
+    };
+
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .limit(1);
+
+    if (!assignment || assignment.toolId !== "RRFA") {
+      return res.status(404).json({ error: "RRFA assignment not found" });
+    }
+
+    const result = await generateRrfaPassage({ age, grade, language, topic, passageType });
+    return res.json(result);
+  } catch (err) {
+    logger.error({ err }, "POST /rrfa/generate-passage failed");
+    return res.status(500).json({ error: "Failed to generate passage" });
+  }
+});
+
+router.get("/public/rrfa-passage/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, token))
+      .limit(1);
+
+    if (!assignment || assignment.toolId !== "RRFA") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const snapResult = await db.execute(sql`SELECT metadata FROM assignments WHERE id = ${assignment.id}`);
+    const snapRow = snapResult.rows?.[0] as { metadata?: Record<string, unknown> } | undefined;
+    const draft = (snapRow?.metadata as Record<string, unknown> | null)?.rrfaDraft as Record<string, unknown> | null ?? null;
+
+    const [existingResponse] = await db
+      .select({ answers: responsesTable.answers })
+      .from(responsesTable)
+      .where(eq(responsesTable.assignmentId, assignment.id))
+      .limit(1);
+
+    const source = (existingResponse?.answers as Record<string, unknown> | null) ?? draft;
+    const passage = (source?.passage as string | undefined) ?? "";
+    const passageTopic = (source?.passageTopic as string | undefined) ?? "";
+    const passageWordCount = (source?.passageWordCount as number | undefined) ?? 0;
+
+    if (!passage) return res.status(404).json({ error: "Passage not yet generated" });
+
+    return res.json({ passage, passageTopic, passageWordCount });
+  } catch (err) {
+    logger.error({ err }, "GET /public/rrfa-passage failed");
+    return res.status(500).json({ error: "Failed to load passage" });
   }
 });
 

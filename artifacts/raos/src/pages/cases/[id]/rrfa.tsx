@@ -7,11 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Play, Square, RotateCcw, Eye } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Play, Square, RotateCcw, Eye, Share2, Copy, Mail, MessageCircle, X, BookOpen } from "lucide-react";
 
 interface RrfaAnswers {
   mode: string;
   passageType: "60-second" | "full-passage";
+  passage?: string;
+  passageLanguage?: string;
+  passageTopic?: string;
+  passageWordCount?: number;
   wordsRead: number | null;
   errors: number | null;
   selfCorrections: number | null;
@@ -50,6 +55,13 @@ function ratingToRisk(r: string) {
 }
 
 const EXAMINER_RATINGS = ["Fluent and Expressive", "Mildly Slow", "Moderately Slow", "Significantly Slow"];
+const PASSAGE_LANGUAGES = [
+  { value: "english", label: "English" },
+  { value: "mandarin", label: "Mandarin" },
+  { value: "cantonese", label: "Cantonese" },
+  { value: "korean", label: "Korean" },
+];
+const PASSAGE_TOPICS = ["General Knowledge", "Animals", "Nature & Environment", "Science & Technology", "History & Culture", "Sports & Recreation", "Food & Nutrition", "Community & Society"];
 
 function fmtTime(secs: number) {
   const m = Math.floor(secs / 60);
@@ -63,6 +75,11 @@ export default function RrfaAdminPage() {
 
   const [mode, setMode] = useState("In-Person");
   const [passageType, setPassageType] = useState<"60-second" | "full-passage">("60-second");
+  const [passage, setPassage] = useState("");
+  const [passageLanguage, setPassageLanguage] = useState("english");
+  const [passageTopic, setPassageTopic] = useState("General Knowledge");
+  const [passageWordCount, setPassageWordCount] = useState(0);
+  const [generatingPassage, setGeneratingPassage] = useState(false);
   const [wordsRead, setWordsRead] = useState<string>("");
   const [errors, setErrors] = useState<string>("");
   const [selfCorrections, setSelfCorrections] = useState<string>("");
@@ -75,6 +92,7 @@ export default function RrfaAdminPage() {
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
 
   // Timer
@@ -118,6 +136,10 @@ export default function RrfaAdminPage() {
     if (source) {
       setMode(source.mode ?? "In-Person");
       setPassageType(source.passageType ?? "60-second");
+      setPassage(source.passage ?? "");
+      setPassageLanguage(source.passageLanguage ?? "english");
+      setPassageTopic(source.passageTopic ?? "General Knowledge");
+      setPassageWordCount(source.passageWordCount ?? 0);
       setWordsRead(source.wordsRead != null ? String(source.wordsRead) : "");
       setErrors(source.errors != null ? String(source.errors) : "");
       setSelfCorrections(source.selfCorrections != null ? String(source.selfCorrections) : "");
@@ -134,6 +156,10 @@ export default function RrfaAdminPage() {
   const buildAnswers = useCallback((): RrfaAnswers => ({
     mode,
     passageType,
+    passage,
+    passageLanguage,
+    passageTopic,
+    passageWordCount,
     wordsRead: wordsRead !== "" ? Number(wordsRead) : null,
     errors: errors !== "" ? Number(errors) : null,
     selfCorrections: selfCorrections !== "" ? Number(selfCorrections) : null,
@@ -141,7 +167,7 @@ export default function RrfaAdminPage() {
     readingTimeSeconds,
     examinerRating,
     generalNotes,
-  }), [mode, passageType, wordsRead, errors, selfCorrections, hesitations, readingTimeSeconds, examinerRating, generalNotes]);
+  }), [mode, passageType, passage, passageLanguage, passageTopic, passageWordCount, wordsRead, errors, selfCorrections, hesitations, readingTimeSeconds, examinerRating, generalNotes]);
 
   const saveDraft = useCallback(async () => {
     setSaving(true);
@@ -157,12 +183,42 @@ export default function RrfaAdminPage() {
   }, [caseId, assignmentId, buildAnswers]);
 
   const isCompleted = data?.assignment?.status === "completed";
+  const studentViewUrl = data?.assignment?.uniqueToken
+    ? `${window.location.origin}${import.meta.env.BASE_URL}student-view/rrfa/${data.assignment.uniqueToken}`
+    : null;
 
   useEffect(() => {
     if (!initialized || isCompleted) return;
     const t = setTimeout(() => saveDraft(), 2000);
     return () => clearTimeout(t);
-  }, [mode, passageType, wordsRead, errors, selfCorrections, hesitations, readingTimeSeconds, examinerRating, generalNotes, initialized]);
+  }, [mode, passageType, passage, passageLanguage, passageTopic, passageWordCount, wordsRead, errors, selfCorrections, hesitations, readingTimeSeconds, examinerRating, generalNotes, initialized]);
+
+  const handleGeneratePassage = async () => {
+    const caseData = data?.case;
+    if (!caseData?.dob) {
+      toast({ title: "Student DOB required", description: "Date of birth must be set on the case to generate a passage.", variant: "destructive" });
+      return;
+    }
+    setGeneratingPassage(true);
+    try {
+      const age = calcAge(caseData.dob);
+      const grade = caseData.grade ?? "";
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rrfa/generate-passage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        body: JSON.stringify({ age, grade, language: passageLanguage, topic: passageTopic, passageType }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const { passage: p, wordCount } = await r.json();
+      setPassage(p);
+      setPassageWordCount(wordCount);
+      toast({ title: "Passage generated", description: `${wordCount} words · ready to share with student.` });
+    } catch {
+      toast({ title: "Generation failed", description: "Could not generate passage. Please try again.", variant: "destructive" });
+    } finally {
+      setGeneratingPassage(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!examinerRating) {
@@ -256,6 +312,11 @@ export default function RrfaAdminPage() {
                 <span className="text-xs text-slate-400 hidden sm:block">
                   {saving ? <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Saving…</span> : "Auto-saving"}
                 </span>
+                {passage && studentViewUrl && (
+                  <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
+                    <Share2 size={13} /> Share Passage
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={saveDraft} disabled={saving} className="gap-1.5">
                   <Save size={13} /> Save Draft
                 </Button>
@@ -316,6 +377,68 @@ export default function RrfaAdminPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Passage Generation */}
+        <div className="mb-6 bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen size={15} className="text-slate-500" />
+              <h2 className="text-sm font-semibold text-slate-700">Reading Passage</h2>
+            </div>
+            {!isCompleted && (
+              <Button size="sm" onClick={handleGeneratePassage} disabled={generatingPassage} className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                {generatingPassage ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : <><Sparkles size={13} /> {passage ? "Regenerate" : "Generate Passage"}</>}
+              </Button>
+            )}
+          </div>
+
+          {!isCompleted && (
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-xs text-slate-500 mb-1.5 block">Language</label>
+                <Select value={passageLanguage} onValueChange={setPassageLanguage} disabled={isCompleted}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PASSAGE_LANGUAGES.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1.5 block">Topic</label>
+                <Select value={passageTopic} onValueChange={setPassageTopic} disabled={isCompleted}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PASSAGE_TOPICS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {passage ? (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-400">{passageWordCount} words · {passageLanguage} · {passageTopic}</span>
+                {studentViewUrl && !isCompleted && (
+                  <button onClick={() => setShareOpen(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    <Share2 size={12} /> Share with student
+                  </button>
+                )}
+              </div>
+              <p className="text-sm leading-7 text-slate-800 font-serif whitespace-pre-wrap">{passage}</p>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
+              {generatingPassage
+                ? "Generating a reading passage tailored to the student…"
+                : "No passage yet. Click Generate Passage to create one for the student to read aloud."}
+            </div>
+          )}
         </div>
 
         {/* Timer */}
@@ -391,15 +514,15 @@ export default function RrfaAdminPage() {
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Examiner Rating</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {EXAMINER_RATINGS.map(r => {
-              const risk = ratingToRisk(r);
+              const riskVal = ratingToRisk(r);
               const selected = examinerRating === r;
               return (
                 <button key={r} onClick={() => !isCompleted && setExaminerRating(r)}
                   className={`p-3 rounded-lg text-sm font-medium border text-left transition-colors ${selected ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-700 border-slate-200 hover:border-violet-300"} ${isCompleted ? "opacity-70 cursor-default" : "cursor-pointer"}`}>
                   {r}
-                  {selected && risk && (
+                  {selected && riskVal && (
                     <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-normal ${selected ? "bg-white/20 text-white" : ""}`}>
-                      → {riskLabel(risk)}
+                      → {riskLabel(riskVal)}
                     </span>
                   )}
                 </button>
@@ -460,6 +583,54 @@ export default function RrfaAdminPage() {
           </div>
         )}
       </div>
+
+      {shareOpen && studentViewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShareOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Share Reading Passage</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Send this link to the student. They open it on their device and read aloud while you time and score here.</p>
+              </div>
+              <button onClick={() => setShareOpen(false)} className="ml-4 text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="flex items-center gap-2 mb-5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <span className="flex-1 text-xs text-slate-600 font-mono truncate">{studentViewUrl}</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(studentViewUrl); toast({ title: "Link copied!" }); }}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 shrink-0"
+              >
+                <Copy size={13} /> Copy
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <a
+                href={`mailto:?subject=Reading%20Fluency%20Passage&body=Please%20open%20this%20link%20on%20your%20device%20to%20read%20the%20passage%3A%0A%0A${encodeURIComponent(studentViewUrl)}`}
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-xl py-4 transition-colors"
+              >
+                <Mail size={22} className="text-blue-600" />
+                <span className="text-xs font-medium text-slate-700">Email</span>
+              </a>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent("Please open this link on your device to read the passage:\n\n" + studentViewUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-green-50 border border-slate-200 hover:border-green-200 rounded-xl py-4 transition-colors"
+              >
+                <MessageCircle size={22} className="text-green-600" />
+                <span className="text-xs font-medium text-slate-700">WhatsApp</span>
+              </a>
+              <a
+                href={`sms:?body=${encodeURIComponent("Reading passage link: " + studentViewUrl)}`}
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 rounded-xl py-4 transition-colors"
+              >
+                <Share2 size={22} className="text-violet-600" />
+                <span className="text-xs font-medium text-slate-700">SMS</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
