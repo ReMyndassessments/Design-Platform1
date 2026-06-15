@@ -1080,7 +1080,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     category: "Reading / Dyslexia Risk / Phonological Processing",
     description: "The ReMynd Phonological Processing Index (RPPI) is a structured examiner-administered tool for identifying phonological processing weaknesses associated with reading and spelling difficulty. It is not a diagnostic dyslexia test. Results should be interpreted alongside academic achievement, developmental history, classroom performance, and other RAOS assessment findings.",
     isRemyndOwned: true,
-    respondentTypes: ["invigilator"],
+    respondentTypes: ["self"],
     scoringType: "manual",
     domains: ["rhyming", "blending", "segmentation", "deletion", "substitution", "nonword", "pa_composite"],
     scoringConfig: RPPI_SCORING_CONFIG as unknown as ScoringConfig,

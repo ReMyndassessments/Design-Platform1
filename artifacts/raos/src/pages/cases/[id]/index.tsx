@@ -2063,16 +2063,21 @@ export default function CaseDetail() {
                         self: 8,
                         invigilator: 9,
                       };
-                      const aOrder = ORDER[a.respondentType] ?? 5;
-                      const bOrder = ORDER[b.respondentType] ?? 5;
+                      // RPPI (examiner-administered) sorts with self-report regardless of stored respondentType
+                      const aType = a.toolId === "RPPI" ? "self" : a.respondentType;
+                      const bType = b.toolId === "RPPI" ? "self" : b.respondentType;
+                      const aOrder = ORDER[aType] ?? 5;
+                      const bOrder = ORDER[bType] ?? 5;
                       return aOrder - bOrder;
                     })
                     .reduce<{ type: string; label: string; items: NonNullable<typeof c.assignments> }[]>((groups, a) => {
+                      // RPPI always groups with self-report regardless of stored respondentType
+                      const groupType = a.toolId === "RPPI" ? "self" : a.respondentType;
                       const last = groups[groups.length - 1];
-                      if (last && last.type === a.respondentType) {
+                      if (last && last.type === groupType) {
                         last.items.push(a);
                       } else {
-                        groups.push({ type: a.respondentType, label: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, items: [a] });
+                        groups.push({ type: groupType, label: RESPONDENT_TYPE_LABELS[groupType] ?? groupType, items: [a] });
                       }
                       return groups;
                     }, [])
