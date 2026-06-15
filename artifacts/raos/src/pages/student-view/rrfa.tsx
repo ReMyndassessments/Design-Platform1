@@ -31,6 +31,7 @@ export default function RrfaStudentView() {
   const [started, setStarted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const [timeUp, setTimeUp] = useState(false);
+  const [finishedEarly, setFinishedEarly] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -98,13 +99,13 @@ export default function RrfaStudentView() {
       <div className="border-b border-slate-100 px-6 py-4 flex items-center gap-3">
         <BookOpen size={16} className="text-slate-400" />
         <span className="text-sm font-semibold text-slate-500 tracking-wide uppercase">Reading Fluency Assessment</span>
-        {is60 && started && !timeUp && (
+        {is60 && started && !timeUp && !finishedEarly && (
           <div className={`ml-auto flex items-center gap-2 text-sm font-mono font-bold tabular-nums px-3 py-1 rounded-full ${secondsLeft <= 10 ? "bg-red-50 text-red-600" : secondsLeft <= 20 ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-600"}`}>
             <Clock size={13} />
             {secondsLeft}s
           </div>
         )}
-        {(!is60 || (!started && !timeUp)) && (
+        {(!is60 || (!started && !timeUp && !finishedEarly)) && (
           <span className="ml-auto text-xs text-slate-400">
             {is60 ? "Waiting for your examiner to start…" : "Read the passage aloud. Take your time."}
           </span>
@@ -131,16 +132,37 @@ export default function RrfaStudentView() {
             </div>
           )}
 
+          {/* Finished early */}
+          {is60 && finishedEarly && !timeUp && (
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <div className="text-5xl mb-2">✅</div>
+              <p className="text-lg font-semibold text-slate-800">Well done!</p>
+              <p className="text-sm text-slate-500">Please wait for your examiner.</p>
+            </div>
+          )}
+
           {/* Passage — always shown for full-passage; shown only during active countdown for 60-second */}
-          {(!is60 || (started && !timeUp)) && (
+          {(!is60 || (started && !timeUp && !finishedEarly)) && (
             <p className="text-lg leading-8 text-slate-800 whitespace-pre-wrap font-serif">
               {data.passage}
             </p>
           )}
 
+          {/* Finished early button — shown during active 60-second reading */}
+          {is60 && started && !timeUp && !finishedEarly && (
+            <div className="mt-10 flex justify-center">
+              <button
+                onClick={() => setFinishedEarly(true)}
+                className="text-sm text-slate-400 hover:text-slate-600 border border-slate-200 hover:border-slate-300 rounded-xl px-6 py-3 transition-colors"
+              >
+                I've finished reading
+              </button>
+            </div>
+          )}
+
           {!is60 && (
             <p className="mt-10 text-center text-sm text-slate-400">
-              When you have finished reading, let your examiner know.
+              Please wait for your examiner.
             </p>
           )}
         </div>
