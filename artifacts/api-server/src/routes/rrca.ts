@@ -47,6 +47,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrca", authMiddleware, asyn
         status: assignment.status,
         toolId: assignment.toolId,
         toolName: assignment.toolName,
+        uniqueToken: assignment.uniqueToken,
         submittedAt: assignment.submittedAt,
         createdAt: assignment.createdAt,
       },
@@ -58,6 +59,43 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrca", authMiddleware, asyn
   } catch (err) {
     logger.error({ err }, "GET /rrca failed");
     return res.status(500).json({ error: "Failed to load RRCA session" });
+  }
+});
+
+router.get("/public/rrca-passage/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, token))
+      .limit(1);
+
+    if (!assignment || assignment.toolId !== "RRCA") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const snapResult = await db.execute(sql`SELECT metadata FROM assignments WHERE id = ${assignment.id}`);
+    const snapRow = snapResult.rows?.[0] as { metadata?: Record<string, unknown> } | undefined;
+    const draft = (snapRow?.metadata as Record<string, unknown> | null)?.rrcaDraft as Record<string, unknown> | null ?? null;
+
+    const [existingResponse] = await db
+      .select({ answers: responsesTable.answers })
+      .from(responsesTable)
+      .where(eq(responsesTable.assignmentId, assignment.id))
+      .limit(1);
+
+    const source = (existingResponse?.answers as Record<string, unknown> | null) ?? draft;
+    const passage = (source?.passage as string | undefined) ?? "";
+    const passageTopic = (source?.passageTopic as string | undefined) ?? "";
+    const passageWordCount = (source?.passageWordCount as number | undefined) ?? 0;
+
+    if (!passage) return res.status(404).json({ error: "Passage not yet generated" });
+
+    return res.json({ passage, passageTopic, passageWordCount });
+  } catch (err) {
+    logger.error({ err }, "GET /public/rrca-passage failed");
+    return res.status(500).json({ error: "Failed to load passage" });
   }
 });
 
