@@ -478,7 +478,7 @@ export default function RppiAdminPage() {
     queryKey: [`/api/cases/${caseId}/assignments/${assignmentId}/rppi`],
     queryFn: async () => {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rppi`, {
-        credentials: "include",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
       });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
@@ -510,8 +510,7 @@ export default function RppiAdminPage() {
     try {
       await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rppi/draft`, {
         method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
         body: JSON.stringify(buildAnswers()),
       });
       setSavedAt(new Date());
@@ -538,8 +537,7 @@ export default function RppiAdminPage() {
     try {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rppi/submit`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
         body: JSON.stringify(buildAnswers()),
       });
       if (!r.ok) throw new Error(await r.text());
