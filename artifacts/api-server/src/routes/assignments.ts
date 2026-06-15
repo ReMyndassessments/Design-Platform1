@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
-import { generateIntakeSummary, generateAboSummary, generateFormSummary, generateRppiSummary, translateAnswersToEnglish } from "../lib/ai.js";
+import { generateIntakeSummary, generateAboSummary, generateFormSummary, generateRppiSummary, generateRdaSummary, generateRrfaSummary, generateRrcaSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 
@@ -293,6 +293,74 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
       rapidNaming: (scoreNotes.rapidNaming ?? (answers.rapidNaming ?? {})) as Parameters<typeof generateRppiSummary>[0]["rapidNaming"],
       mode: (scoreNotes.mode as string) ?? (answers.mode as string) ?? "Unknown",
       generalNotes: (scoreNotes.generalNotes as string) ?? (answers.generalNotes as string) ?? "",
+    });
+  } else if (assignment.toolId === "RDA") {
+    const [rdaScore] = await db.select().from(scoresTable)
+      .where(and(eq(scoresTable.caseId, req.params.caseId), eq(scoresTable.toolId, "RDA")))
+      .limit(1);
+    const sn = (rdaScore?.notes ? JSON.parse(rdaScore.notes as string) : {}) as Record<string, unknown>;
+    const ans = responseRows[0].answers as Record<string, unknown>;
+    summary = await generateRdaSummary({
+      studentName: commonParams.studentName,
+      school: commonParams.school,
+      grade: commonParams.grade,
+      rawScore: (sn.rawScore as number) ?? 0,
+      maxScore: (sn.maxScore as number) ?? 20,
+      percentage: (sn.percentage as number) ?? 0,
+      riskLevel: (sn.riskLevel as string) ?? "low",
+      correctCount: (sn.correctCount as number) ?? 0,
+      partialCount: (sn.partialCount as number) ?? 0,
+      incorrectCount: (sn.incorrectCount as number) ?? 0,
+      interpretationText: (sn.interpretationText as string) ?? "",
+      mode: (sn.mode as string) ?? (ans.mode as string) ?? "Unknown",
+      generalNotes: (sn.generalNotes as string) ?? (ans.generalNotes as string) ?? "",
+    });
+  } else if (assignment.toolId === "RRFA") {
+    const [rrfaScore] = await db.select().from(scoresTable)
+      .where(and(eq(scoresTable.caseId, req.params.caseId), eq(scoresTable.toolId, "RRFA")))
+      .limit(1);
+    const sn = (rrfaScore?.notes ? JSON.parse(rrfaScore.notes as string) : {}) as Record<string, unknown>;
+    const ans = responseRows[0].answers as Record<string, unknown>;
+    summary = await generateRrfaSummary({
+      studentName: commonParams.studentName,
+      school: commonParams.school,
+      grade: commonParams.grade,
+      wordsPerMinute: (sn.wordsPerMinute as number | null) ?? null,
+      accuracyPercentage: (sn.accuracyPercentage as number | null) ?? null,
+      fluencyRating: (sn.fluencyRating as string) ?? (ans.examinerRating as string) ?? "",
+      riskLevel: (sn.riskLevel as string) ?? "low",
+      passageType: (sn.passageType as string) ?? (ans.passageType as string) ?? "",
+      wordsRead: (sn.wordsRead as number | null) ?? null,
+      errors: (sn.errors as number | null) ?? null,
+      selfCorrections: (sn.selfCorrections as number | null) ?? null,
+      hesitations: (sn.hesitations as number | null) ?? null,
+      readingTimeSeconds: (sn.readingTimeSeconds as number | null) ?? null,
+      interpretationText: (sn.interpretationText as string) ?? "",
+      mode: (sn.mode as string) ?? (ans.mode as string) ?? "Unknown",
+      generalNotes: (sn.generalNotes as string) ?? (ans.generalNotes as string) ?? "",
+    });
+  } else if (assignment.toolId === "RRCA") {
+    const [rrcaScore] = await db.select().from(scoresTable)
+      .where(and(eq(scoresTable.caseId, req.params.caseId), eq(scoresTable.toolId, "RRCA")))
+      .limit(1);
+    const sn = (rrcaScore?.notes ? JSON.parse(rrcaScore.notes as string) : {}) as Record<string, unknown>;
+    const ans = responseRows[0].answers as Record<string, unknown>;
+    summary = await generateRrcaSummary({
+      studentName: commonParams.studentName,
+      school: commonParams.school,
+      grade: commonParams.grade,
+      rawScore: (sn.rawScore as number) ?? 0,
+      maxScore: (sn.maxScore as number) ?? 10,
+      percentage: (sn.percentage as number) ?? 0,
+      riskLevel: (sn.riskLevel as string) ?? "low",
+      literalScore: (sn.literalScore as number) ?? 0,
+      inferentialScore: (sn.inferentialScore as number) ?? 0,
+      vocabularyScore: (sn.vocabularyScore as number) ?? 0,
+      passageTopic: (sn.passageTopic as string) ?? (ans.passageTopic as string) ?? "",
+      passageDifficulty: (sn.passageDifficulty as string) ?? (ans.passageDifficulty as string) ?? "expected",
+      interpretationText: (sn.interpretationText as string) ?? "",
+      mode: (sn.mode as string) ?? (ans.mode as string) ?? "Unknown",
+      generalNotes: (sn.generalNotes as string) ?? (ans.generalNotes as string) ?? "",
     });
   } else {
     const formItems = (toolRows[0]?.formItems as Array<{ id: string; text: string; type: string; options?: string[]; rows?: Array<{ id: string; text: string }> }>) ?? [];

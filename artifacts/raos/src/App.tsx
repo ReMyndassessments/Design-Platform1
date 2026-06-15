@@ -66,6 +66,10 @@ import PartnerSchoolsPage from "@/pages/partner-schools";
 import PartnerInquiryPage from "@/pages/partner-inquiry";
 import NotFound from "@/pages/not-found";
 import RppiAdminPage from "@/pages/cases/[id]/rppi";
+import RdaAdminPage from "@/pages/cases/[id]/rda";
+import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
+import RrcaAdminPage from "@/pages/cases/[id]/rrca";
+import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
 
 const queryClient = new QueryClient();
 
@@ -143,6 +147,18 @@ function Router() {
       </Route>
       <Route path="/cases/:id/rppi/:assignmentId">
         {() => <ProtectedRoute component={RppiAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/rda/:assignmentId">
+        {() => <ProtectedRoute component={RdaAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/rrfa/:assignmentId">
+        {() => <ProtectedRoute component={RrfaAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/rrca/:assignmentId">
+        {() => <ProtectedRoute component={RrcaAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/literacy-dashboard">
+        {() => <ProtectedRoute component={LiteracyDashboardPage} />}
       </Route>
       <Route path="/tools">
         {() => <ProtectedRoute component={AssessmentTools} />}

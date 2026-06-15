@@ -5,6 +5,9 @@ import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmen
 import type { ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM } from "./lib/questions.js";
 import { RPPI_FORM_ITEMS, RPPI_SCORING_CONFIG } from "./lib/rppi.js";
+import { RDA_SCORING_CONFIG } from "./lib/rda.js";
+import { RRFA_SCORING_CONFIG } from "./lib/rrfa.js";
+import { RRCA_SCORING_CONFIG } from "./lib/rrca.js";
 import { CDP_SR_FORM, CDP_CL_FORM, CDP_CI_FORM, CDP_SI_FORM } from "./lib/cdp.js";
 import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM, BASC3_SRP_A_FORM, BASC3_SRP_C_FORM } from "./lib/basc3.js";
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
@@ -1085,6 +1088,42 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["rhyming", "blending", "segmentation", "deletion", "substitution", "nonword", "pa_composite"],
     scoringConfig: RPPI_SCORING_CONFIG as unknown as ScoringConfig,
     formItems: RPPI_FORM_ITEMS,
+  },
+  {
+    id: "RDA",
+    name: "ReMynd Decoding Assessment (RDA)",
+    category: "Reading / Dyslexia Risk / Phonological Processing",
+    description: "The ReMynd Decoding Assessment (RDA) is an examiner-administered tool measuring the ability to decode unfamiliar nonwords. It assesses phonics, sound-symbol mapping, and decoding efficiency in students aged 7–18. Administration time: 5–10 minutes.",
+    isRemyndOwned: true,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["decoding"],
+    scoringConfig: RDA_SCORING_CONFIG as unknown as ScoringConfig,
+    formItems: [],
+  },
+  {
+    id: "RRFA",
+    name: "ReMynd Reading Fluency Assessment (RRFA)",
+    category: "Reading / Dyslexia Risk / Phonological Processing",
+    description: "The ReMynd Reading Fluency Assessment (RRFA) is an examiner-administered tool measuring reading accuracy, efficiency, and automaticity through timed oral passage reading. It calculates words per minute and accuracy percentage in students aged 7–18. Administration time: 5 minutes.",
+    isRemyndOwned: true,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["fluency"],
+    scoringConfig: RRFA_SCORING_CONFIG as unknown as ScoringConfig,
+    formItems: [],
+  },
+  {
+    id: "RRCA",
+    name: "ReMynd Reading Comprehension Assessment (RRCA)",
+    category: "Reading / Dyslexia Risk / Phonological Processing",
+    description: "The ReMynd Reading Comprehension Assessment (RRCA) is an examiner-administered tool using AI-generated age-appropriate passages to measure reading comprehension across literal, inferential, and vocabulary dimensions in students aged 7–18. Administration time: 10–15 minutes.",
+    isRemyndOwned: true,
+    respondentTypes: ["self"],
+    scoringType: "manual",
+    domains: ["comprehension"],
+    scoringConfig: RRCA_SCORING_CONFIG as unknown as ScoringConfig,
+    formItems: [],
   },
 ];
 

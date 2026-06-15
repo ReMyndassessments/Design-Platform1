@@ -13,6 +13,9 @@ import portalRouter from "./portal";
 import storageRouter from "./storage";
 import reportAccessRouter from "./reportAccess";
 import rppiRouter from "./rppi";
+import rdaRouter from "./rda";
+import rrfaRouter from "./rrfa";
+import rrcaRouter from "./rrca";
 
 const router: IRouter = Router();
 
@@ -30,5 +33,8 @@ router.use(portalRouter);
 router.use(storageRouter);
 router.use(reportAccessRouter);
 router.use(rppiRouter);
+router.use(rdaRouter);
+router.use(rrfaRouter);
+router.use(rrcaRouter);
 
 export default router;

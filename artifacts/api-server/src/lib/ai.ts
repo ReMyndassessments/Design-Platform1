@@ -848,6 +848,292 @@ Clinical Implications
   return result.trim();
 }
 
+export async function generateRrcaPassage(params: {
+  age: number;
+  grade: string;
+  language: string;
+  difficulty: string;
+  topic: string;
+}): Promise<{ passage: string; wordCount: number; questions: Array<{ id: string; text: string; type: "literal" | "inferential" | "vocabulary" }> }> {
+  const { age, grade, language, difficulty, topic } = params;
+
+  const wordRange =
+    age <= 8  ? "100–150 words" :
+    age <= 10 ? "150–220 words" :
+    age <= 12 ? "220–320 words" :
+    age <= 15 ? "320–450 words" : "450–600 words";
+
+  const difficultyLabel =
+    difficulty === "below" ? "Below Age Expectation (simpler vocabulary, shorter sentences)" :
+    difficulty === "above" ? "Above Age Expectation (richer vocabulary, more complex sentences)" :
+    "Age Expected (appropriate vocabulary and sentence complexity for age)";
+
+  const langLabel =
+    language === "mandarin" ? "Simplified Mandarin Chinese" :
+    language === "cantonese" ? "Traditional Chinese (Cantonese)" :
+    language === "korean" ? "Korean" : "English";
+
+  const topicLabel = topic || "General Knowledge";
+
+  const prompt = `You are a specialist educational assessment author creating an examiner-administered reading comprehension passage for a psychoeducational assessment.
+
+PASSAGE REQUIREMENTS:
+- Student age: ${age} years old, Grade: ${grade || "not specified"}
+- Language: ${langLabel}
+- Difficulty level: ${difficultyLabel}
+- Topic: ${topicLabel}
+- Length: Strictly ${wordRange}
+- Style: Factual, engaging, neutral, age-appropriate. No cultural bias. No references to disability, mental health, or assessment.
+- Format: Continuous prose (no headers, bullet points, or lists)
+
+QUESTION REQUIREMENTS:
+Generate exactly 10 questions about the passage:
+- 5 Literal questions (answers explicitly stated in the text)
+- 3 Inferential questions (require reasoning beyond the text)
+- 2 Vocabulary questions (ask about meaning of a word or phrase used in the passage)
+
+OUTPUT FORMAT (JSON only, no markdown, no explanation):
+{
+  "passage": "Full passage text here...",
+  "questions": [
+    {"id": "q1", "text": "Question text here?", "type": "literal"},
+    {"id": "q2", "text": "Question text here?", "type": "literal"},
+    {"id": "q3", "text": "Question text here?", "type": "literal"},
+    {"id": "q4", "text": "Question text here?", "type": "literal"},
+    {"id": "q5", "text": "Question text here?", "type": "literal"},
+    {"id": "q6", "text": "Question text here?", "type": "inferential"},
+    {"id": "q7", "text": "Question text here?", "type": "inferential"},
+    {"id": "q8", "text": "Question text here?", "type": "inferential"},
+    {"id": "q9", "text": "What does the word '...' mean in this passage?", "type": "vocabulary"},
+    {"id": "q10", "text": "What does the phrase '...' mean in this passage?", "type": "vocabulary"}
+  ]
+}`;
+
+  const raw = await callDeepSeek(prompt, 2000);
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1)) as {
+    passage: string;
+    questions: Array<{ id: string; text: string; type: "literal" | "inferential" | "vocabulary" }>;
+  };
+
+  const wordCount = parsed.passage.trim().split(/\s+/).length;
+  return { passage: parsed.passage, wordCount, questions: parsed.questions };
+}
+
+export async function generateRdaSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  rawScore: number;
+  maxScore: number;
+  percentage: number;
+  riskLevel: string;
+  correctCount: number;
+  partialCount: number;
+  incorrectCount: number;
+  interpretationText: string;
+  mode: string;
+  generalNotes: string;
+}): Promise<string> {
+  const { studentName, school, grade, rawScore, maxScore, percentage, riskLevel, correctCount, partialCount, incorrectCount, interpretationText, mode, generalNotes } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+
+  const riskLabel =
+    riskLevel === "low" ? "Low Concern (85–100%)" :
+    riskLevel === "mild" ? "Mild Concern (70–84%)" :
+    riskLevel === "moderate" ? "Moderate Concern (50–69%)" : "Significant Concern (below 50%)";
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical interpretation narrative for a student's decoding assessment profile.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Administration Mode: ${mode}
+
+RDA RESULTS:
+- Total Score: ${rawScore} / ${maxScore} (${percentage}%)
+- Correct (full credit): ${correctCount}
+- Partially Correct / Self-Corrected: ${partialCount}
+- Incorrect / No Response: ${incorrectCount}
+- Risk Level: ${riskLabel}
+
+SYSTEM INTERPRETATION:
+${interpretationText}
+
+EXAMINER NOTES:
+${generalNotes || "None recorded."}
+
+---
+Write a professional clinical interpretation narrative of this RDA (ReMynd Decoding Assessment) profile. Use third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Base ALL content solely on the data provided.
+
+Structure as follows:
+
+RDA ASSESSMENT SUMMARY
+
+Overview
+[Introduce the RDA: what it measures (decoding of unfamiliar nonwords, phonics, sound-symbol mapping, decoding efficiency), how it was administered, and the overall result.]
+
+Decoding and Nonword Reading
+[Describe ${firstName}'s performance on the 20-item nonword decoding task. Reference the total score (${rawScore}/${maxScore}, ${percentage}%), the risk level (${riskLabel}), and any patterns in correct, partial, or incorrect responses. Relate findings to phonics knowledge and decoding efficiency.]
+
+Clinical Implications
+[Synthesise the decoding profile. Frame implications for literacy support. Note whether findings are consistent with a decoding profile associated with phonics difficulty or dyslexia risk, using appropriate clinical hedging. Do NOT make a diagnosis. Close with a note that results should be interpreted alongside RPPI, RRFA, RRCA, and other RAOS assessment findings.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
+export async function generateRrfaSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  wordsPerMinute: number | null;
+  accuracyPercentage: number | null;
+  fluencyRating: string;
+  riskLevel: string;
+  passageType: string;
+  wordsRead: number | null;
+  errors: number | null;
+  selfCorrections: number | null;
+  hesitations: number | null;
+  readingTimeSeconds: number | null;
+  interpretationText: string;
+  mode: string;
+  generalNotes: string;
+}): Promise<string> {
+  const { studentName, school, grade, wordsPerMinute, accuracyPercentage, fluencyRating, riskLevel, passageType, wordsRead, errors, selfCorrections, hesitations, readingTimeSeconds, interpretationText, mode, generalNotes } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+
+  const riskLabel =
+    riskLevel === "low" ? "Low Concern" :
+    riskLevel === "mild" ? "Mild Concern" :
+    riskLevel === "moderate" ? "Moderate Concern" : "Significant Concern";
+
+  const mins = readingTimeSeconds != null ? Math.floor(readingTimeSeconds / 60) : null;
+  const secs = readingTimeSeconds != null ? readingTimeSeconds % 60 : null;
+  const timeStr = mins != null && secs != null ? `${mins}m ${secs}s` : "Not recorded";
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical interpretation narrative for a student's reading fluency assessment profile.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Administration Mode: ${mode}
+
+RRFA RESULTS:
+- Passage Type: ${passageType === "60-second" ? "60-Second Reading" : "Full Passage Reading"}
+- Words Read: ${wordsRead ?? "Not recorded"}
+- Errors: ${errors ?? "Not recorded"}
+- Self-Corrections: ${selfCorrections ?? "Not recorded"}
+- Hesitations: ${hesitations ?? "Not recorded"}
+- Reading Time: ${timeStr}
+- Words Per Minute: ${wordsPerMinute ?? "Not calculated"}
+- Accuracy: ${accuracyPercentage != null ? `${accuracyPercentage}%` : "Not calculated"}
+- Examiner Rating: ${fluencyRating || "Not rated"}
+- Risk Level: ${riskLabel}
+
+SYSTEM INTERPRETATION:
+${interpretationText}
+
+EXAMINER NOTES:
+${generalNotes || "None recorded."}
+
+---
+Write a professional clinical interpretation narrative of this RRFA (ReMynd Reading Fluency Assessment) profile. Use third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Base ALL content solely on the data provided.
+
+Structure as follows:
+
+RRFA ASSESSMENT SUMMARY
+
+Overview
+[Introduce the RRFA: what it measures (reading accuracy, fluency, and automaticity through timed oral passage reading), how it was administered, and the overall pattern of performance.]
+
+Reading Fluency
+[Describe ${firstName}'s performance: words per minute, accuracy percentage, examiner rating, and the risk level. Note any patterns with errors, self-corrections, and hesitations. Relate findings to reading automaticity and fluency development.]
+
+Clinical Implications
+[Synthesise the fluency profile. Frame implications for reading support. Note whether findings suggest a need for fluency intervention, using appropriate clinical hedging. Do NOT make a diagnosis. Close with a note that results should be interpreted alongside RPPI, RDA, RRCA, and other RAOS assessment findings.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
+export async function generateRrcaSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  rawScore: number;
+  maxScore: number;
+  percentage: number;
+  riskLevel: string;
+  literalScore: number;
+  inferentialScore: number;
+  vocabularyScore: number;
+  passageTopic: string;
+  passageDifficulty: string;
+  interpretationText: string;
+  mode: string;
+  generalNotes: string;
+}): Promise<string> {
+  const { studentName, school, grade, rawScore, maxScore, percentage, riskLevel, literalScore, inferentialScore, vocabularyScore, passageTopic, passageDifficulty, interpretationText, mode, generalNotes } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+
+  const riskLabel =
+    riskLevel === "low" ? "Low Concern (85–100%)" :
+    riskLevel === "mild" ? "Mild Concern (70–84%)" :
+    riskLevel === "moderate" ? "Moderate Concern (50–69%)" : "Significant Concern (below 50%)";
+
+  const diffLabel =
+    passageDifficulty === "below" ? "Below Age Expectation" :
+    passageDifficulty === "above" ? "Above Age Expectation" : "Age Expected";
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical interpretation narrative for a student's reading comprehension assessment profile.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Administration Mode: ${mode}
+
+RRCA RESULTS:
+- Passage Difficulty: ${diffLabel}
+- Passage Topic: ${passageTopic || "Not specified"}
+- Total Score: ${rawScore} / ${maxScore} (${percentage}%)
+- Literal Comprehension: ${literalScore} / 5
+- Inferential Comprehension: ${inferentialScore} / 3
+- Vocabulary: ${vocabularyScore} / 2
+- Risk Level: ${riskLabel}
+
+SYSTEM INTERPRETATION:
+${interpretationText}
+
+EXAMINER NOTES:
+${generalNotes || "None recorded."}
+
+---
+Write a professional clinical interpretation narrative of this RRCA (ReMynd Reading Comprehension Assessment) profile. Use third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Base ALL content solely on the data provided.
+
+Structure as follows:
+
+RRCA ASSESSMENT SUMMARY
+
+Overview
+[Introduce the RRCA: what it measures (reading comprehension using an AI-generated passage across literal, inferential, and vocabulary dimensions), how it was administered, and the overall pattern of performance.]
+
+Reading Comprehension
+[Describe ${firstName}'s performance across the three comprehension dimensions: literal (${literalScore}/5), inferential (${inferentialScore}/3), and vocabulary (${vocabularyScore}/2). Discuss relative strengths and areas of difficulty. Reference the overall score (${rawScore}/${maxScore}, ${percentage}%, ${riskLabel}).]
+
+Clinical Implications
+[Synthesise the comprehension profile. Note whether difficulties appear to be broadly based or specific to a particular comprehension dimension. Frame implications for literacy and language support. Do NOT make a diagnosis. Close with a note that results should be interpreted alongside RPPI, RDA, RRFA, and other RAOS assessment findings.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
 export async function translateAnswersToEnglish(
   answers: Record<string, unknown>,
   fromLanguage: string

@@ -358,6 +358,9 @@ export default function CaseDetail() {
   const CDP_TOOL_IDS = new Set(["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"]);
   const hasCdpBattery = c?.assignments?.some(a => CDP_TOOL_IDS.has(a.toolId ?? ""));
 
+  const LITERACY_TOOL_IDS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
+  const hasLiteracyBattery = c?.assignments?.some(a => LITERACY_TOOL_IDS.has(a.toolId ?? ""));
+
   // ── Product assignment state ─────────────────────────────────────────────────
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
@@ -1475,24 +1478,38 @@ export default function CaseDetail() {
                         </div>
                         <div className="flex gap-2 flex-wrap">
                           {a.status === 'completed' ? (
-                            <Link href={`/cases/${caseId}/response/${a.id}`}>
-                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
-                                <Eye size={14} /> View Response
-                              </Button>
-                            </Link>
-                          ) : a.toolId === 'RPPI' ? (
-                            <Link href={`/cases/${caseId}/rppi/${a.id}`}>
-                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
-                                <Play size={14} /> Administer RPPI
-                              </Button>
-                            </Link>
-                          ) : (
-                            <>
-                              <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }}><QrCode size={16} /></Button>
-                              <Button variant="outline" size="sm" className="bg-white" title="Copy Link" onClick={() => copyLink(a.uniqueLink)}><Copy size={16} /></Button>
-                              <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}><ExternalLink size={16} /></Button>
-                            </>
-                          )}
+                            (() => {
+                              const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                              return ep2 ? (
+                                <Link href={`/cases/${caseId}/${ep2}/${a.id}`}>
+                                  <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                    <Eye size={14} /> View {a.toolId}
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Link href={`/cases/${caseId}/response/${a.id}`}>
+                                  <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                    <Eye size={14} /> View Response
+                                  </Button>
+                                </Link>
+                              );
+                            })()
+                          ) : (() => {
+                            const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                            return ep2 ? (
+                              <Link href={`/cases/${caseId}/${ep2}/${a.id}`}>
+                                <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                                  <Play size={14} /> Administer {a.toolId}
+                                </Button>
+                              </Link>
+                            ) : (
+                              <>
+                                <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }}><QrCode size={16} /></Button>
+                                <Button variant="outline" size="sm" className="bg-white" title="Copy Link" onClick={() => copyLink(a.uniqueLink)}><Copy size={16} /></Button>
+                                <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}><ExternalLink size={16} /></Button>
+                              </>
+                            );
+                          })()}
                           {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                             <Button variant="outline" size="sm" className="bg-white text-red-500 hover:text-red-700 hover:border-red-300" title="Remove" onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}>
                               <Trash2 size={16} />
@@ -2020,6 +2037,14 @@ export default function CaseDetail() {
                 Build Assessment Battery
               </CardTitle>
               <div className="flex gap-2">
+                {hasLiteracyBattery && (
+                  <Link href={`/cases/${caseId}/literacy-dashboard`}>
+                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
+                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Literacy</span>
+                      Dashboard
+                    </Button>
+                  </Link>
+                )}
                 {hasCdpBattery && (
                   <Link href={`/cases/${caseId}/cdp`}>
                     <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
@@ -2063,16 +2088,18 @@ export default function CaseDetail() {
                         self: 8,
                         invigilator: 9,
                       };
-                      // RPPI (examiner-administered) sorts with self-report regardless of stored respondentType
-                      const aType = a.toolId === "RPPI" ? "self" : a.respondentType;
-                      const bType = b.toolId === "RPPI" ? "self" : b.respondentType;
+                      // Examiner-administered tools sort with self-report regardless of stored respondentType
+                      const EXAMINER_TOOLS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
+                      const aType = EXAMINER_TOOLS.has(a.toolId ?? "") ? "self" : a.respondentType;
+                      const bType = EXAMINER_TOOLS.has(b.toolId ?? "") ? "self" : b.respondentType;
                       const aOrder = ORDER[aType] ?? 5;
                       const bOrder = ORDER[bType] ?? 5;
                       return aOrder - bOrder;
                     })
                     .reduce<{ type: string; label: string; items: NonNullable<typeof c.assignments> }[]>((groups, a) => {
-                      // RPPI always groups with self-report regardless of stored respondentType
-                      const groupType = a.toolId === "RPPI" ? "self" : a.respondentType;
+                      // Examiner-administered tools always group with self-report
+                      const EXAMINER_TOOLS_G = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
+                      const groupType = EXAMINER_TOOLS_G.has(a.toolId ?? "") ? "self" : a.respondentType;
                       const last = groups[groups.length - 1];
                       if (last && last.type === groupType) {
                         last.items.push(a);
@@ -2114,26 +2141,32 @@ export default function CaseDetail() {
                       
                       <div className="flex gap-2 flex-wrap">
                         {a.status === 'completed' ? (
-                          a.toolId === 'RPPI' ? (
-                            <Link href={`/cases/${caseId}/rppi/${a.id}`}>
-                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
-                                <Eye size={14} /> View RPPI
+                          (() => {
+                            const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                            return examinerPath ? (
+                              <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
+                                <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                  <Eye size={14} /> View {a.toolId}
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Link href={`/cases/${caseId}/response/${a.id}`}>
+                                <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
+                                  <Eye size={14} /> View Response
+                                </Button>
+                              </Link>
+                            );
+                          })()
+                        ) : (() => {
+                          const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                          return examinerPath ? (
+                            <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
+                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                                <Play size={14} /> Administer {a.toolId}
                               </Button>
                             </Link>
-                          ) : (
-                            <Link href={`/cases/${caseId}/response/${a.id}`}>
-                              <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
-                                <Eye size={14} /> View Response
-                              </Button>
-                            </Link>
-                          )
-                        ) : a.toolId === 'RPPI' ? (
-                          <Link href={`/cases/${caseId}/rppi/${a.id}`}>
-                            <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
-                              <Play size={14} /> Administer RPPI
-                            </Button>
-                          </Link>
-                        ) : (
+                          ) : null;
+                        })() ?? (
                           <>
                             <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" title="Show QR Code">
                               <QrCode size={16} />
