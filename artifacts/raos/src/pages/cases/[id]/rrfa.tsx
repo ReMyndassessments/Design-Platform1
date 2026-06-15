@@ -100,10 +100,20 @@ export default function RrfaAdminPage() {
   const [timerElapsed, setTimerElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startTimer = () => {
+  const startTimer = async () => {
     if (timerRunning) return;
     setTimerRunning(true);
     timerRef.current = setInterval(() => setTimerElapsed(e => e + 1), 1000);
+    if (passage && passageType === "60-second") {
+      try {
+        await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rrfa/start-student`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        });
+      } catch {
+        // non-critical — timer still runs locally
+      }
+    }
   };
   const stopTimer = () => {
     if (!timerRunning) return;

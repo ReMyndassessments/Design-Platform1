@@ -118,13 +118,56 @@ router.get("/public/rrfa-passage/:token", async (req, res) => {
     const passage = (source?.passage as string | undefined) ?? "";
     const passageTopic = (source?.passageTopic as string | undefined) ?? "";
     const passageWordCount = (source?.passageWordCount as number | undefined) ?? 0;
+    const passageType = (source?.passageType as string | undefined) ?? "full-passage";
 
     if (!passage) return res.status(404).json({ error: "Passage not yet generated" });
 
-    return res.json({ passage, passageTopic, passageWordCount });
+    return res.json({ passage, passageTopic, passageWordCount, passageType });
   } catch (err) {
     logger.error({ err }, "GET /public/rrfa-passage failed");
     return res.status(500).json({ error: "Failed to load passage" });
+  }
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/rrfa/start-student", authMiddleware, async (req, res) => {
+  try {
+    const { caseId, assignmentId } = req.params;
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .limit(1);
+    if (!assignment || assignment.toolId !== "RRFA") {
+      return res.status(404).json({ error: "RRFA assignment not found" });
+    }
+    await db.execute(
+      sql`UPDATE assignments SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"rrfaStudentStarted": true}'::jsonb WHERE id = ${assignmentId}`
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST /rrfa/start-student failed");
+    return res.status(500).json({ error: "Failed to start student" });
+  }
+});
+
+router.get("/public/rrfa-status/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, token))
+      .limit(1);
+    if (!assignment || assignment.toolId !== "RRFA") {
+      return res.status(404).json({ error: "Not found" });
+    }
+    const snapResult = await db.execute(sql`SELECT metadata FROM assignments WHERE id = ${assignment.id}`);
+    const snapRow = snapResult.rows?.[0] as { metadata?: Record<string, unknown> } | undefined;
+    const studentStarted = !!(snapRow?.metadata as Record<string, unknown> | null)?.rrfaStudentStarted;
+    return res.json({ studentStarted });
+  } catch (err) {
+    logger.error({ err }, "GET /public/rrfa-status failed");
+    return res.status(500).json({ error: "Failed to get status" });
   }
 });
 
