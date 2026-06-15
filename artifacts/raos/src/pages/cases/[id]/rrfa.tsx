@@ -80,6 +80,8 @@ export default function RrfaAdminPage() {
   const [passageTopic, setPassageTopic] = useState("General Knowledge");
   const [passageWordCount, setPassageWordCount] = useState(0);
   const [generatingPassage, setGeneratingPassage] = useState(false);
+  const [hoveredWordIdx, setHoveredWordIdx] = useState<number | null>(null);
+  const [selectedWordIdx, setSelectedWordIdx] = useState<number | null>(null);
   const [wordsRead, setWordsRead] = useState<string>("");
   const [errors, setErrors] = useState<string>("");
   const [selfCorrections, setSelfCorrections] = useState<string>("");
@@ -440,7 +442,50 @@ export default function RrfaAdminPage() {
                   </button>
                 )}
               </div>
-              <p className="text-sm leading-7 text-slate-800 font-serif whitespace-pre-wrap">{passage}</p>
+              {isCompleted ? (
+                <p className="text-sm leading-7 text-slate-800 font-serif whitespace-pre-wrap">{passage}</p>
+              ) : (
+                <>
+                  <p className="text-sm leading-7 text-slate-800 font-serif select-none">
+                    {passage.trim().split(/\s+/).map((word, i) => (
+                      <span key={i}>
+                        <span
+                          onMouseEnter={() => setHoveredWordIdx(i)}
+                          onMouseLeave={() => setHoveredWordIdx(null)}
+                          onClick={() => {
+                            setSelectedWordIdx(i);
+                            setWordsRead(String(i + 1));
+                          }}
+                          className={`cursor-pointer rounded px-0.5 transition-colors relative ${
+                            selectedWordIdx !== null && i <= selectedWordIdx
+                              ? i === selectedWordIdx
+                                ? "bg-violet-300 text-violet-900"
+                                : "bg-violet-100 text-violet-800"
+                              : hoveredWordIdx !== null && i <= hoveredWordIdx
+                              ? i === hoveredWordIdx
+                                ? "bg-blue-200 text-blue-900"
+                                : "bg-blue-50 text-blue-800"
+                              : ""
+                          }`}
+                        >
+                          {word}
+                          {hoveredWordIdx === i && (
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-mono rounded px-1.5 py-0.5 whitespace-nowrap pointer-events-none z-10">
+                              {i + 1}
+                            </span>
+                          )}
+                        </span>
+                        {i < passage.trim().split(/\s+/).length - 1 ? " " : ""}
+                      </span>
+                    ))}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-3">
+                    {selectedWordIdx !== null
+                      ? `Words read set to ${selectedWordIdx + 1} — click a different word to change`
+                      : "Click the last word the student read to auto-fill the word count"}
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-200 rounded-lg">
