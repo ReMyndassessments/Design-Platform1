@@ -741,6 +741,113 @@ Social Deficits:
   return result.trim();
 }
 
+export async function generateRppiSummary(params: {
+  studentName: string;
+  school: string;
+  grade: string;
+  normalizedScores: Record<string, number>;
+  paRisk: string;
+  nonwordRisk: string;
+  rapidRisk: string;
+  overallRisk: string;
+  interpretationText: string;
+  rapidNaming: {
+    letters: { time?: string; errors?: string; corrections?: string; rating?: string };
+    digits:  { time?: string; errors?: string; corrections?: string; rating?: string };
+  };
+  mode: string;
+  generalNotes: string;
+}): Promise<string> {
+  const { studentName, school, grade, normalizedScores, paRisk, nonwordRisk, rapidRisk, overallRisk, interpretationText, rapidNaming, mode, generalNotes } = params;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+
+  const riskLabel = (r: string) =>
+    r === "low" ? "Within Typical Limits" :
+    r === "mild" ? "Mild Concern" :
+    r === "moderate" ? "Moderate Concern" : "Significant Concern";
+
+  const DOMAIN_LABELS: Record<string, string> = {
+    rhyming:      "Rhyming Awareness",
+    blending:     "Phoneme Blending",
+    segmentation: "Phoneme Segmentation",
+    deletion:     "Phoneme Deletion",
+    substitution: "Phoneme Substitution",
+    nonword:      "Phonological Memory (Nonword Repetition)",
+    pa_composite: "Phonological Awareness Composite",
+  };
+
+  const domainLines = Object.entries(DOMAIN_LABELS)
+    .map(([key, label]) => {
+      const pct = normalizedScores[key];
+      return pct !== undefined ? `- ${label}: ${pct}% accuracy (${riskLabel(pct >= 85 ? "low" : pct >= 70 ? "mild" : pct >= 50 ? "moderate" : "significant")})` : null;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  const rnLines = [
+    rapidNaming.letters.time   ? `- Task A (Letters): ${rapidNaming.letters.time}s, ${rapidNaming.letters.errors ?? 0} errors, ${rapidNaming.letters.corrections ?? 0} self-corrections → ${rapidNaming.letters.rating ?? "Not rated"}` : null,
+    rapidNaming.digits.time    ? `- Task B (Digits): ${rapidNaming.digits.time}s, ${rapidNaming.digits.errors ?? 0} errors, ${rapidNaming.digits.corrections ?? 0} self-corrections → ${rapidNaming.digits.rating ?? "Not rated"}` : null,
+  ].filter(Boolean).join("\n");
+
+  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical interpretation narrative for a student's phonological processing profile.
+
+STUDENT INFORMATION:
+- Full Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Administration Mode: ${mode}
+
+RPPI DOMAIN SCORES:
+${domainLines}
+
+RAPID NAMING RESULTS:
+${rnLines || "Not administered"}
+
+RISK SUMMARY:
+- Phonological Awareness (PA Composite): ${riskLabel(paRisk)}
+- Phonological Memory (Nonword Repetition): ${riskLabel(nonwordRisk)}
+- Rapid Naming: ${riskLabel(rapidRisk)}
+- Overall Profile Risk: ${riskLabel(overallRisk)}
+
+SYSTEM INTERPRETATION:
+${interpretationText || "No automated interpretation recorded."}
+
+EXAMINER NOTES:
+${generalNotes || "None recorded."}
+
+---
+Write a professional clinical interpretation narrative of this RPPI profile. Use third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Base ALL content solely on the data provided — do not invent or assume details. Use cohesive paragraphs — no bullet points within sections.
+
+Structure the narrative as follows:
+
+RPPI ASSESSMENT SUMMARY
+
+Overview
+
+[Introduce the assessment: what the RPPI measures (phonological processing skills including phonological awareness, phonological memory, and rapid naming), how it was administered, and the overall pattern of performance.]
+
+Phonological Awareness
+
+[Describe ${firstName}'s performance across the five PA subdomains (Rhyming, Blending, Segmentation, Deletion, Substitution) and the composite score. Note areas of strength and difficulty, citing specific accuracy percentages. Relate findings to typical literacy skill development.]
+
+Phonological Memory
+
+[Describe performance on the Nonword Repetition task. Discuss what this reflects about the student's ability to hold and manipulate novel phonological information and any implications for learning new vocabulary or decoding unfamiliar words.]
+
+Rapid Naming
+
+[Describe performance on the Rapid Letter and Digit Naming tasks. Discuss speed, accuracy, and self-correction patterns. Connect to reading fluency and automatic word recognition.]
+
+Clinical Implications
+
+[Synthesise the overall phonological profile. Describe the pattern of risk (e.g., isolated PA difficulty vs broad phonological deficit). Frame implications for literacy, reading, and spelling support. Note whether findings are consistent with a phonological processing profile associated with dyslexia risk, using appropriate clinical hedging. Do NOT make a diagnosis.]
+
+[Write a brief closing sentence or two noting that results should be interpreted alongside other RAOS assessment findings, academic achievement data, developmental history, and classroom observations.]`;
+
+  const result = await callDeepSeek(prompt);
+  return result.trim();
+}
+
 export async function translateAnswersToEnglish(
   answers: Record<string, unknown>,
   fromLanguage: string

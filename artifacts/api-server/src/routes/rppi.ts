@@ -58,6 +58,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rppi", authMiddleware, asyn
       formItems,
       draft: draft ?? null,
       existingAnswers: existingResponse ? (existingResponse.answers as unknown) : null,
+      summary: existingResponse?.summary ?? null,
     });
   } catch (err) {
     logger.error({ err }, "GET /rppi failed");

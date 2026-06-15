@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
-import { generateIntakeSummary, generateAboSummary, generateFormSummary, translateAnswersToEnglish } from "../lib/ai.js";
+import { generateIntakeSummary, generateAboSummary, generateFormSummary, generateRppiSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 
@@ -270,6 +270,30 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     summary = await generateIntakeSummary(commonParams);
   } else if (assignment.toolId === "BEHAVOBS") {
     summary = await generateAboSummary(commonParams);
+  } else if (assignment.toolId === "RPPI") {
+    // Fetch score row for domain scores and risk levels
+    const [rppiScore] = await db.select().from(scoresTable)
+      .where(and(
+        eq(scoresTable.caseId, req.params.caseId),
+        eq(scoresTable.toolId, "RPPI")
+      ))
+      .limit(1);
+    const scoreNotes = (rppiScore?.notes ? JSON.parse(rppiScore.notes as string) : {}) as Record<string, unknown>;
+    const answers = responseRows[0].answers as Record<string, unknown>;
+    summary = await generateRppiSummary({
+      studentName: commonParams.studentName,
+      school: commonParams.school,
+      grade: commonParams.grade,
+      normalizedScores: (rppiScore?.normalizedScores ?? {}) as Record<string, number>,
+      paRisk: (scoreNotes.paRisk as string) ?? "low",
+      nonwordRisk: (scoreNotes.nonwordRisk as string) ?? "low",
+      rapidRisk: (scoreNotes.rapidRisk as string) ?? "low",
+      overallRisk: (scoreNotes.overallRisk as string) ?? "low",
+      interpretationText: (scoreNotes.interpretationText as string) ?? "",
+      rapidNaming: (scoreNotes.rapidNaming ?? (answers.rapidNaming ?? {})) as Parameters<typeof generateRppiSummary>[0]["rapidNaming"],
+      mode: (scoreNotes.mode as string) ?? (answers.mode as string) ?? "Unknown",
+      generalNotes: (scoreNotes.generalNotes as string) ?? (answers.generalNotes as string) ?? "",
+    });
   } else {
     const formItems = (toolRows[0]?.formItems as Array<{ id: string; text: string; type: string; options?: string[]; rows?: Array<{ id: string; text: string }> }>) ?? [];
     summary = await generateFormSummary({

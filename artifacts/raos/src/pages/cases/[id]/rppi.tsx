@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Save, CheckCircle2, Clock, AlertTriangle, ChevronDown, ChevronRight,
-  Mic, Hash, BookOpen, Info, Loader2, FileCheck, Play, Square, RotateCcw
+  Mic, Hash, BookOpen, Info, Loader2, FileCheck, Play, Square, RotateCcw,
+  Sparkles, Printer, RefreshCw
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -53,6 +54,7 @@ interface RppiSession {
   formItems: FormItem[];
   draft: RppiAnswers | null;
   existingAnswers: RppiAnswers | null;
+  summary: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -666,6 +668,9 @@ export default function RppiAdminPage() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -689,8 +694,28 @@ export default function RppiAdminPage() {
       setMode(source.mode ?? "Virtual");
       setGeneralNotes(source.generalNotes ?? "");
     }
+    if (data.summary) setSummary(data.summary);
     setInitialized(true);
   }, [data, initialized]);
+
+  const handleGenerateSummary = async () => {
+    setIsGenerating(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/response/summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const { summary: s } = await r.json();
+      setSummary(s);
+      setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      toast({ title: "Summary generated", description: "AI clinical summary is ready." });
+    } catch {
+      toast({ title: "Summary failed", description: "Could not generate summary. Please try again.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const buildAnswers = useCallback((): RppiAnswers => ({
     mode,
@@ -789,9 +814,22 @@ export default function RppiAdminPage() {
           </div>
           <div className="flex items-center gap-2">
             {isCompleted ? (
-              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1">
-                <CheckCircle2 size={12} /> Submitted
-              </Badge>
+              <>
+                {summary && (
+                  <Button variant="ghost" size="sm" onClick={() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="gap-1.5 text-violet-600 hover:text-violet-700 hidden sm:flex">
+                    <Sparkles size={14} /> View Summary
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={handleGenerateSummary} disabled={isGenerating} className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50">
+                  {isGenerating ? <><RefreshCw size={13} className="animate-spin" /> Generating…</> : <><Sparkles size={13} /> {summary ? "Regenerate" : "Generate Summary"}</>}
+                </Button>
+                <Button size="sm" onClick={() => window.print()} className="gap-1.5">
+                  <Printer size={13} /> Print / Download PDF
+                </Button>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1 hidden sm:flex">
+                  <CheckCircle2 size={12} /> Submitted
+                </Badge>
+              </>
             ) : (
               <>
                 <span className="text-xs text-slate-400 hidden sm:block">
@@ -824,6 +862,22 @@ export default function RppiAdminPage() {
           <div className="mb-4 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
             <CheckCircle2 size={16} />
             <span>This RPPI session has been submitted. Results are saved to the case profile. To amend, contact your Assessment Lead.</span>
+          </div>
+        )}
+
+        {/* ── AI Summary panel ── */}
+        {isCompleted && summary && (
+          <div ref={summaryRef} className="mb-6 bg-white border border-violet-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 bg-violet-50 border-b border-violet-100">
+              <Sparkles size={14} className="text-violet-600" />
+              <span className="text-sm font-semibold text-violet-800">AI Clinical Summary</span>
+              <span className="ml-auto text-[10px] text-violet-400 bg-violet-100 rounded-full px-2 py-0.5">AI-generated · Review before use</span>
+            </div>
+            <div className="p-5">
+              <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap leading-relaxed text-sm">
+                {summary}
+              </div>
+            </div>
           </div>
         )}
 
