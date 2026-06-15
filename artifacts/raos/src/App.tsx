@@ -70,6 +70,7 @@ import RdaAdminPage from "@/pages/cases/[id]/rda";
 import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
 import RrcaAdminPage from "@/pages/cases/[id]/rrca";
 import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
+import RdaStudentView from "@/pages/student-view/rda";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/portal" component={Portal} />
       <Route path="/external/:token" component={ExternalFormView} />
+      <Route path="/student-view/rda" component={RdaStudentView} />
       <Route path="/join/:room" component={JoinMeetingPage} />
       <Route path="/meet/:room" component={QuickMeetPage} />
       <Route path="/" component={LandingPage} />

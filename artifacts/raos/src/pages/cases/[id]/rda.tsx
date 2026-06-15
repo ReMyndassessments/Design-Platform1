@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Eye, EyeOff, Monitor } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Eye, EyeOff, Monitor, Share2, Copy, Mail, MessageCircle, X } from "lucide-react";
 
 const RDA_ITEMS = [
   { id: "rda_1",  word: "mip" },
@@ -98,7 +98,10 @@ export default function RdaAdminPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [studentView, setStudentView] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
+
+  const studentViewUrl = `${window.location.origin}${import.meta.env.BASE_URL}student-view/rda`;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["rda", caseId, assignmentId],
@@ -267,6 +270,9 @@ export default function RdaAdminPage() {
                 <Button variant="outline" size="sm" onClick={() => setStudentView(true)} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
                   <Monitor size={13} /> Student View
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
+                  <Share2 size={13} /> Share
+                </Button>
                 <Button variant="outline" size="sm" onClick={saveDraft} disabled={saving} className="gap-1.5">
                   <Save size={13} /> Save Draft
                 </Button>
@@ -424,6 +430,59 @@ export default function RdaAdminPage() {
           </div>
         )}
       </div>
+
+      {/* Share Student View dialog */}
+      {shareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShareOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Share Student View</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Send this link to the student. They open it on their own device and read the words aloud while you score here.</p>
+              </div>
+              <button onClick={() => setShareOpen(false)} className="ml-4 text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+
+            {/* URL box */}
+            <div className="flex items-center gap-2 mb-5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+              <span className="flex-1 text-xs text-slate-600 font-mono truncate">{studentViewUrl}</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(studentViewUrl); toast({ title: "Link copied!" }); }}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 shrink-0"
+              >
+                <Copy size={13} /> Copy
+              </button>
+            </div>
+
+            {/* Share options */}
+            <div className="grid grid-cols-3 gap-3">
+              <a
+                href={`mailto:?subject=Reading%20Assessment%20Link&body=Please%20open%20this%20link%20on%20your%20device%20to%20begin%20the%20reading%20assessment%3A%0A%0A${encodeURIComponent(studentViewUrl)}`}
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-xl py-4 transition-colors"
+              >
+                <Mail size={22} className="text-blue-600" />
+                <span className="text-xs font-medium text-slate-700">Email</span>
+              </a>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent("Please open this link on your device to begin the reading assessment:\n\n" + studentViewUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-green-50 border border-slate-200 hover:border-green-200 rounded-xl py-4 transition-colors"
+              >
+                <MessageCircle size={22} className="text-green-600" />
+                <span className="text-xs font-medium text-slate-700">WhatsApp</span>
+              </a>
+              <a
+                href={`sms:?body=${encodeURIComponent("Reading assessment link: " + studentViewUrl)}`}
+                className="flex flex-col items-center gap-2 bg-slate-50 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 rounded-xl py-4 transition-colors"
+              >
+                <Share2 size={22} className="text-violet-600" />
+                <span className="text-xs font-medium text-slate-700">SMS</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
