@@ -82,7 +82,7 @@ function computeScores(items: Record<string, ItemResponse>) {
     else { incorrect++; }
   }
   const pct = max > 0 ? Math.round((raw / max) * 100) : 0;
-  return { raw, max, pct, correct, partial, incorrect, risk: rdaRiskLevel(pct) };
+  return { raw, max, pct, correct, partial, incorrect, risk: max > 0 ? rdaRiskLevel(pct) : null };
 }
 
 export default function RdaAdminPage() {
@@ -305,8 +305,8 @@ export default function RdaAdminPage() {
               <div className="text-sm font-semibold text-slate-600">{scores.correct}✓ {scores.partial}½ {scores.incorrect}✗</div>
               <div className="text-xs text-slate-500 mt-0.5">Correct / Partial / Incorrect</div>
             </div>
-            <div className={`rounded-lg p-3 text-center border ${riskColor(scores.risk)}`}>
-              <div className="text-sm font-bold">{riskLabel(scores.risk)}</div>
+            <div className={`rounded-lg p-3 text-center border ${scores.risk ? riskColor(scores.risk) : "bg-slate-50 text-slate-400 border-slate-200"}`}>
+              <div className="text-sm font-bold">{scores.risk ? riskLabel(scores.risk) : "—"}</div>
               <div className="text-xs mt-0.5 opacity-70">Risk Level</div>
             </div>
           </div>
