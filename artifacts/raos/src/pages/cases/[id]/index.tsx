@@ -80,7 +80,7 @@ const RESPONDENT_LABELS: Record<string, string> = {
 
 
 const RESPONDENT_TYPES_IN_MODAL = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "examiner", "invigilator",
 ] as const;
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
@@ -91,6 +91,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   referring_teacher: "Referring Teacher",
   boarding_staff:    "Boarding Staff",
   self:              "Student Self-Report Package",
+  examiner:          "Examiner-Administered Battery",
   invigilator:       "Assessment Administration Team",
 };
 
@@ -2086,20 +2087,21 @@ export default function CaseDetail() {
                         special_needs_teacher: 6,
                         school_counselor: 7,
                         self: 8,
-                        invigilator: 9,
+                        examiner: 9,
+                        invigilator: 10,
                       };
-                      // Examiner-administered tools sort with self-report regardless of stored respondentType
+                      // Examiner-administered tools always sort as "examiner" regardless of stored respondentType
                       const EXAMINER_TOOLS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
-                      const aType = EXAMINER_TOOLS.has(a.toolId ?? "") ? "self" : a.respondentType;
-                      const bType = EXAMINER_TOOLS.has(b.toolId ?? "") ? "self" : b.respondentType;
+                      const aType = EXAMINER_TOOLS.has(a.toolId ?? "") ? "examiner" : a.respondentType;
+                      const bType = EXAMINER_TOOLS.has(b.toolId ?? "") ? "examiner" : b.respondentType;
                       const aOrder = ORDER[aType] ?? 5;
                       const bOrder = ORDER[bType] ?? 5;
                       return aOrder - bOrder;
                     })
                     .reduce<{ type: string; label: string; items: NonNullable<typeof c.assignments> }[]>((groups, a) => {
-                      // Examiner-administered tools always group with self-report
+                      // Examiner-administered tools always group as "examiner" regardless of stored respondentType
                       const EXAMINER_TOOLS_G = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
-                      const groupType = EXAMINER_TOOLS_G.has(a.toolId ?? "") ? "self" : a.respondentType;
+                      const groupType = EXAMINER_TOOLS_G.has(a.toolId ?? "") ? "examiner" : a.respondentType;
                       const last = groups[groups.length - 1];
                       if (last && last.type === groupType) {
                         last.items.push(a);
@@ -2122,6 +2124,11 @@ export default function CaseDetail() {
                           {CDP_TOOL_IDS.has(a.toolId ?? "") && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-100 text-violet-700 border border-violet-200 uppercase tracking-wide">
                               CDP
+                            </span>
+                          )}
+                          {LITERACY_TOOL_IDS.has(a.toolId ?? "") && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200 uppercase tracking-wide">
+                              Literacy
                             </span>
                           )}
                           {a.respondentType === "invigilator" && (
