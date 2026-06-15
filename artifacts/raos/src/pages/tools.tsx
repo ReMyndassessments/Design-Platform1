@@ -1689,7 +1689,7 @@ export default function AssessmentTools() {
       !q ||
       (t.name ?? "").toLowerCase().includes(q) ||
       (t.description ?? "").toLowerCase().includes(q) ||
-      (t.domains ?? []).some((d: string) => d.toLowerCase().includes(q));
+      (Array.isArray(t.domains) ? t.domains : []).some((d: string) => d.toLowerCase().includes(q));
     const matchRespondent =
       filterRespondent === "all" || (t.respondentTypes ?? []).includes(filterRespondent);
     const matchCategory =

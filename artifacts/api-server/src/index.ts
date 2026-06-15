@@ -475,7 +475,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     description: "A systematic direct observation tool used to measure a student's active and passive engaged time, as well as off-task and disruptive behaviors, in a classroom setting. It is designed for school-aged children and is used by psychologists and educational professionals to assess academic engagement and behavior in the natural environment.",
     isRemyndOwned: true,
     respondentTypes: ["invigilator"],
-    scoringType: null,
+    scoringType: "manual",
     domains: [],
     scoringConfig: null,
     formItems: [
@@ -1085,8 +1085,6 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["rhyming", "blending", "segmentation", "deletion", "substitution", "nonword", "pa_composite"],
     scoringConfig: RPPI_SCORING_CONFIG as unknown as ScoringConfig,
     formItems: RPPI_FORM_ITEMS,
-    ageRange: "7–18",
-    estimatedTime: "20–25 minutes",
   },
 ];
 
