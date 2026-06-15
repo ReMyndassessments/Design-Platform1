@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Save, CheckCircle2, Clock, AlertTriangle, ChevronDown, ChevronRight,
-  Mic, Hash, BookOpen, Info, Loader2, FileCheck
+  Mic, Hash, BookOpen, Info, Loader2, FileCheck, Play, Square, RotateCcw
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -277,6 +277,50 @@ function DomainSection({ domain, label, items, answers, onChange }: {
   );
 }
 
+// ─── Stopwatch hook ───────────────────────────────────────────────────────────
+
+function useStopwatch() {
+  const [elapsed, setElapsed] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef(0);
+  const elapsedRef = useRef(0);
+
+  const start = useCallback(() => {
+    if (isRunning) return;
+    startTimeRef.current = Date.now() - elapsedRef.current * 1000;
+    intervalRef.current = setInterval(() => {
+      const next = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      elapsedRef.current = next;
+      setElapsed(next);
+    }, 100);
+    setIsRunning(true);
+  }, [isRunning]);
+
+  const stop = useCallback((): number => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsRunning(false);
+    return elapsedRef.current;
+  }, []);
+
+  const reset = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    elapsedRef.current = 0;
+    setIsRunning(false);
+    setElapsed(0);
+  }, []);
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  return { elapsed, isRunning, start, stop, reset };
+}
+
+function formatStopwatch(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 // ─── Rapid naming grid ────────────────────────────────────────────────────────
 
 function RapidNamingGrid({ symbols, rows = 5 }: { symbols: string[]; rows?: number }) {
@@ -305,13 +349,23 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
   const letterItem = items.find(i => i.id === "rppi_d7_letters");
   const digitItem  = items.find(i => i.id === "rppi_d7_digits");
 
+  const lettersTimer = useStopwatch();
+  const digitsTimer  = useStopwatch();
+
   const updateTask = (task: "letters" | "digits", field: keyof RapidNamingData, value: string) => {
     onChange({ ...rapidNaming, [task]: { ...rapidNaming[task], [field]: value } });
   };
 
   const RnTaskCard = ({ task, title, item, grid }: { task: "letters" | "digits"; title: string; item?: FormItem; grid: string[] }) => {
-    const data = rapidNaming[task];
+    const data  = rapidNaming[task];
+    const timer = task === "letters" ? lettersTimer : digitsTimer;
     const ratingRisk = data.rating === "Typical" ? "low" : data.rating === "Mild Concern" ? "mild" : data.rating === "Moderate Concern" ? "moderate" : data.rating === "Significant Concern" ? "significant" : null;
+
+    const handleStop = () => {
+      const secs = timer.stop();
+      if (secs > 0) updateTask(task, "time", String(secs));
+    };
+
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden">
         <div className="px-4 py-3 bg-slate-50 flex items-center gap-2">
@@ -330,6 +384,49 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
               <span>{item.note}</span>
             </div>
           )}
+
+          {/* ── Stopwatch ── */}
+          <div className="flex items-center gap-4 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+            <span className={`font-mono text-3xl font-bold tabular-nums w-20 text-center select-none ${timer.isRunning ? "text-emerald-700" : timer.elapsed > 0 ? "text-slate-800" : "text-slate-400"}`}>
+              {formatStopwatch(timer.elapsed)}
+            </span>
+            <div className="flex items-center gap-2">
+              {!timer.isRunning ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={timer.start}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8 px-3"
+                >
+                  <Play size={13} /> Start
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleStop}
+                  className="bg-red-600 hover:bg-red-700 text-white gap-1.5 h-8 px-3"
+                >
+                  <Square size={13} /> Stop
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={timer.reset}
+                disabled={timer.elapsed === 0 && !timer.isRunning}
+                className="h-8 px-2"
+              >
+                <RotateCcw size={13} />
+              </Button>
+            </div>
+            {!timer.isRunning && timer.elapsed > 0 && (
+              <span className="text-xs text-emerald-600 font-medium">Time auto-filled ✓</span>
+            )}
+            <span className="ml-auto text-xs text-slate-400 hidden sm:block">Student completes the full grid</span>
+          </div>
+
           <RapidNamingGrid symbols={grid} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
