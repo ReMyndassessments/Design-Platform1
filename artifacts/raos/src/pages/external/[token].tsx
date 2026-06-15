@@ -1250,6 +1250,34 @@ function FormView({
     );
   }
 
+  // RPPI is examiner-administered — cannot be filled via external link
+  const isRppiForm = (form.questions as Question[]).some(q => q.type === "rppi_item" || q.type === "rppi_admin");
+  if (isRppiForm) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
+        <div className="w-full max-w-md text-center">
+          <div className="w-20 h-20 bg-violet-100 text-violet-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm text-4xl">
+            🎙️
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-slate-900">Examiner-Administered Assessment</h2>
+          <p className="text-slate-500 leading-relaxed max-w-xs mx-auto mb-2">
+            The <strong>ReMynd Phonological Processing Index (RPPI)</strong> must be administered directly by a trained examiner — it cannot be completed through this link.
+          </p>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
+            If you are an examiner, please use the <strong>Administer RPPI</strong> button from the student's case profile.
+          </p>
+          <button
+            onClick={onBack}
+            className="mt-8 inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white text-sm font-semibold rounded-xl shadow-md hover:bg-slate-700 transition-colors"
+          >
+            ← Back to Portal
+          </button>
+          <ReMyndFooter />
+        </div>
+      </div>
+    );
+  }
+
   // Already submitted — show thank you and back button
   if (form.alreadySubmitted || submitted) {
     return (

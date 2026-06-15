@@ -151,53 +151,73 @@ function ItemRow({ item, itemNum, answer, onChange }: {
   answer: ItemAnswer;
   onChange: (a: ItemAnswer) => void;
 }) {
+  const borderColor = answer.excluded
+    ? "border-slate-200"
+    : answer.score === 1 ? "border-emerald-300"
+    : answer.score === 0.5 ? "border-amber-300"
+    : answer.score === 0 ? "border-red-300"
+    : "border-slate-200";
+
+  const bgColor = answer.excluded
+    ? "bg-slate-50 opacity-60"
+    : answer.score === 1 ? "bg-emerald-50/30"
+    : answer.score === 0.5 ? "bg-amber-50/30"
+    : answer.score === 0 ? "bg-red-50/20"
+    : "bg-white";
+
   return (
-    <div className={`border rounded-lg p-4 transition-colors ${answer.excluded ? "bg-slate-50 border-slate-200 opacity-60" : answer.score === 1 ? "bg-emerald-50/40 border-emerald-200" : answer.score === 0.5 ? "bg-amber-50/40 border-amber-200" : answer.score === 0 ? "bg-red-50/30 border-red-200" : "bg-white border-slate-200 hover:border-slate-300"}`}>
-      <div className="flex gap-4">
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold mt-0.5">
+    <div className={`border-2 rounded-xl overflow-hidden transition-colors ${borderColor} ${bgColor}`}>
+      {/* Prompt bar — what the examiner reads aloud */}
+      <div className="bg-slate-900 px-4 py-3 flex items-start gap-3">
+        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center mt-0.5">
           {itemNum}
-        </div>
+        </span>
         <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-            <div className="flex-1">
-              <p className="font-mono font-semibold text-slate-800 text-sm mb-1">{item.text}</p>
-              {item.note && (
-                <p className="text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded px-2 py-1 inline-block font-medium">
-                  {item.note}
-                </p>
-              )}
-            </div>
-            <div className="flex-shrink-0">
-              <ScoreSelect
-                value={answer.score}
-                excluded={answer.excluded}
-                onChange={v => onChange({ ...answer, score: v })}
-                onExclude={v => onChange({ ...answer, excluded: v })}
-              />
-            </div>
+          <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase block mb-1">Say aloud</span>
+          <p className="text-white font-semibold text-base leading-snug tracking-wide">{item.text}</p>
+        </div>
+      </div>
+
+      {/* Expected answer hint */}
+      {item.note && (
+        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+          <span className="text-emerald-600 text-xs font-bold">✓ Expected:</span>
+          <span className="text-emerald-800 text-sm font-medium">{item.note}</span>
+        </div>
+      )}
+
+      {/* Scoring row */}
+      <div className="px-4 pt-3 pb-3 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <label className="text-xs text-slate-500 font-medium block mb-1">Student's verbal response</label>
+            <Input
+              value={answer.response}
+              onChange={e => onChange({ ...answer, response: e.target.value })}
+              placeholder="Type what the student said…"
+              className="text-sm h-9"
+              disabled={answer.excluded}
+            />
           </div>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-slate-500 font-medium block mb-1">Student's verbal response</label>
-              <Input
-                value={answer.response}
-                onChange={e => onChange({ ...answer, response: e.target.value })}
-                placeholder="Type what the student said…"
-                className="text-sm h-8"
-                disabled={answer.excluded}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-500 font-medium block mb-1">Notes (optional)</label>
-              <Input
-                value={answer.notes}
-                onChange={e => onChange({ ...answer, notes: e.target.value })}
-                placeholder="e.g. hesitated, self-corrected…"
-                className="text-sm h-8"
-                disabled={answer.excluded}
-              />
-            </div>
+          <div className="flex-shrink-0">
+            <label className="text-xs text-slate-500 font-medium block mb-1">Score</label>
+            <ScoreSelect
+              value={answer.score}
+              excluded={answer.excluded}
+              onChange={v => onChange({ ...answer, score: v })}
+              onExclude={v => onChange({ ...answer, excluded: v })}
+            />
           </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 font-medium block mb-1">Examiner notes (optional)</label>
+          <Input
+            value={answer.notes}
+            onChange={e => onChange({ ...answer, notes: e.target.value })}
+            placeholder="e.g. hesitated, self-corrected, distracted…"
+            className="text-sm h-8"
+            disabled={answer.excluded}
+          />
         </div>
       </div>
     </div>

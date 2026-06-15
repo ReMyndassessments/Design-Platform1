@@ -1480,6 +1480,12 @@ export default function CaseDetail() {
                                 <Eye size={14} /> View Response
                               </Button>
                             </Link>
+                          ) : a.toolId === 'RPPI' ? (
+                            <Link href={`/cases/${caseId}/rppi/${a.id}`}>
+                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                                <Play size={14} /> Administer RPPI
+                              </Button>
+                            </Link>
                           ) : (
                             <>
                               <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }}><QrCode size={16} /></Button>
