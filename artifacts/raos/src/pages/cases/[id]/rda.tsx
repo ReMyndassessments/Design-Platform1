@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Eye } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Eye, EyeOff, Monitor } from "lucide-react";
 
 const RDA_ITEMS = [
   { id: "rda_1",  word: "mip" },
@@ -97,6 +97,7 @@ export default function RdaAdminPage() {
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [studentView, setStudentView] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -198,6 +199,30 @@ export default function RdaAdminPage() {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-sm">Failed to load RDA session.</div>;
 
+  if (studentView) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <span className="text-sm text-slate-400 font-medium tracking-wide uppercase">ReMynd Decoding Assessment</span>
+          <Button onClick={() => setStudentView(false)} className="gap-2 bg-slate-800 hover:bg-slate-900 text-white">
+            <EyeOff size={14} /> Return to Scoring
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-8 py-10">
+          <p className="text-center text-slate-400 text-sm mb-10">Read each word aloud. Take your time.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto">
+            {RDA_ITEMS.map((item, idx) => (
+              <div key={item.id} className="flex flex-col items-center gap-2 bg-slate-50 rounded-2xl py-6 px-4 border border-slate-100">
+                <span className="text-xs text-slate-400 font-medium">{idx + 1}</span>
+                <span className="text-4xl font-bold text-slate-800 tracking-wide font-mono">{item.word}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -239,6 +264,9 @@ export default function RdaAdminPage() {
                 <span className="text-xs text-slate-400 hidden sm:block">
                   {saving ? <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Saving…</span> : "Auto-saving"}
                 </span>
+                <Button variant="outline" size="sm" onClick={() => setStudentView(true)} className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
+                  <Monitor size={13} /> Student View
+                </Button>
                 <Button variant="outline" size="sm" onClick={saveDraft} disabled={saving} className="gap-1.5">
                   <Save size={13} /> Save Draft
                 </Button>
