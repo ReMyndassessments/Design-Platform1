@@ -27,7 +27,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rppi", authMiddleware, asyn
     if (assignment.toolId !== "RPPI") return res.status(400).json({ error: "Assignment is not an RPPI session" });
 
     const [caseRow] = await db
-      .select({ studentName: casesTable.studentName, dateOfBirth: casesTable.dateOfBirth, id: casesTable.id })
+      .select({ studentName: casesTable.studentName, dob: casesTable.dob, id: casesTable.id })
       .from(casesTable)
       .where(eq(casesTable.id, caseId))
       .limit(1);

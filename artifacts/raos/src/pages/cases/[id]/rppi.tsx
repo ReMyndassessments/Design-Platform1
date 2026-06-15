@@ -49,7 +49,7 @@ interface FormItem {
 
 interface RppiSession {
   assignment: { id: string; status: string; toolName: string; submittedAt?: string; createdAt?: string };
-  case: { studentName: string; dateOfBirth?: string; id: string } | null;
+  case: { studentName: string; dob?: string; id: string } | null;
   formItems: FormItem[];
   draft: RppiAnswers | null;
   existingAnswers: RppiAnswers | null;
@@ -588,7 +588,7 @@ export default function RppiAdminPage() {
             </h1>
             {data.case && (
               <p className="text-xs text-slate-500 truncate">
-                {data.case.studentName}{data.case.dateOfBirth ? ` · Age ${calcAge(data.case.dateOfBirth)}` : ""} · Case {caseId.slice(0, 8)}
+                {data.case.studentName}{data.case.dob ? ` · Age ${calcAge(data.case.dob)}` : ""} · Case {caseId.slice(0, 8)}
               </p>
             )}
           </div>

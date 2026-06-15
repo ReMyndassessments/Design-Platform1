@@ -2395,6 +2395,17 @@ async function addFormItemsSnapshotColumn() {
   }
 }
 
+async function addAssignmentMetadataColumn() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE assignments ADD COLUMN IF NOT EXISTS metadata JSONB
+    `);
+    logger.info("metadata column ensured on assignments");
+  } catch (err) {
+    logger.error({ err }, "addAssignmentMetadataColumn failed");
+  }
+}
+
 async function addVersionColumns() {
   try {
     await db.execute(sql`
@@ -2586,6 +2597,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addVersionColumns())
   .then(() => addAssignmentToolVersionId())
   .then(() => addFormItemsSnapshotColumn())
+  .then(() => addAssignmentMetadataColumn())
   .then(() => patchToolVersions())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
