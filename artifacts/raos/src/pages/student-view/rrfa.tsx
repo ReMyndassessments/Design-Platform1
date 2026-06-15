@@ -127,7 +127,7 @@ export default function RrfaStudentView() {
             <div className="flex flex-col items-center gap-3 py-16 text-center">
               <div className="text-5xl mb-2">⏱️</div>
               <p className="text-lg font-semibold text-slate-800">Time's up!</p>
-              <p className="text-sm text-slate-500">Let your examiner know where you stopped reading.</p>
+              <p className="text-sm text-slate-500">Well done. Please wait for your examiner.</p>
             </div>
           )}
 
