@@ -2059,7 +2059,7 @@ export default function CaseDetail() {
                     <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
                       <LayoutGrid size={13} /> Assign by Product
                     </Button>
-                    <Button size="sm" onClick={() => setAddAssignmentModalOpen(true)}>Add Assignment</Button>
+                    <Button size="sm" onClick={() => { setNewAssignment({ toolIds: [], respondentTypes: [], respondentLabel: "", assignedToName: "", assignedToEmail: "" }); setAddAssignmentModalOpen(true); }}>Add Assignment</Button>
                   </>
                 )}
               </div>
