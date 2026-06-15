@@ -544,6 +544,7 @@ router.get("/external/form/:token", async (req, res) => {
     language: caseData?.languagePreference ?? "english",
     questions,
     alreadySubmitted,
+    isExaminerAdministered: toolId === "RPPI",
   });
 });
 

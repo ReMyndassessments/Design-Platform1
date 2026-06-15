@@ -1251,7 +1251,9 @@ function FormView({
   }
 
   // RPPI is examiner-administered — cannot be filled via external link
-  const isRppiForm = (form.questions as Question[]).some(q => q.type === "rppi_item" || q.type === "rppi_admin");
+  const isRppiForm = (form as any).toolId === "RPPI"
+    || (form as any).isExaminerAdministered
+    || (form.questions as Question[]).some(q => q.type === "rppi_item" || q.type === "rppi_admin");
   if (isRppiForm) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
