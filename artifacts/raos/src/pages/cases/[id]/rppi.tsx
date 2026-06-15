@@ -321,6 +321,26 @@ function formatStopwatch(secs: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+// ─── Rapid naming auto-scorer ─────────────────────────────────────────────────
+// Adjusted time = raw seconds + (errors × 3) + (self-corrections × 1)
+// Thresholds (50-item grid):  ≤50 → Typical | 51–75 → Mild | 76–110 → Moderate | >110 → Significant
+
+function computeRapidNamingRating(
+  time: string, errors: string, corrections: string
+): { rating: string; adjustedTime: number } | null {
+  const t = parseFloat(time);
+  if (!t || t <= 0) return null;
+  const e = parseFloat(errors) || 0;
+  const c = parseFloat(corrections) || 0;
+  const adj = t + e * 3 + c * 1;
+  const rating =
+    adj <= 50  ? "Typical" :
+    adj <= 75  ? "Mild Concern" :
+    adj <= 110 ? "Moderate Concern" :
+                 "Significant Concern";
+  return { rating, adjustedTime: Math.round(adj * 10) / 10 };
+}
+
 // ─── Rapid naming grid ────────────────────────────────────────────────────────
 
 function RapidNamingGrid({ symbols, rows = 5 }: { symbols: string[]; rows?: number }) {
@@ -352,14 +372,52 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
   const lettersTimer = useStopwatch();
   const digitsTimer  = useStopwatch();
 
+  const [lettersOverride, setLettersOverride] = useState(false);
+  const [digitsOverride,  setDigitsOverride]  = useState(false);
+
   const updateTask = (task: "letters" | "digits", field: keyof RapidNamingData, value: string) => {
     onChange({ ...rapidNaming, [task]: { ...rapidNaming[task], [field]: value } });
   };
 
+  // Auto-score letters whenever time / errors / corrections change (unless overridden)
+  useEffect(() => {
+    if (lettersOverride) return;
+    const result = computeRapidNamingRating(
+      rapidNaming.letters.time, rapidNaming.letters.errors, rapidNaming.letters.corrections
+    );
+    const next = result?.rating ?? "";
+    if (next !== rapidNaming.letters.rating) {
+      onChange({ ...rapidNaming, letters: { ...rapidNaming.letters, rating: next } });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rapidNaming.letters.time, rapidNaming.letters.errors, rapidNaming.letters.corrections, lettersOverride]);
+
+  // Auto-score digits
+  useEffect(() => {
+    if (digitsOverride) return;
+    const result = computeRapidNamingRating(
+      rapidNaming.digits.time, rapidNaming.digits.errors, rapidNaming.digits.corrections
+    );
+    const next = result?.rating ?? "";
+    if (next !== rapidNaming.digits.rating) {
+      onChange({ ...rapidNaming, digits: { ...rapidNaming.digits, rating: next } });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rapidNaming.digits.time, rapidNaming.digits.errors, rapidNaming.digits.corrections, digitsOverride]);
+
   const RnTaskCard = ({ task, title, item, grid }: { task: "letters" | "digits"; title: string; item?: FormItem; grid: string[] }) => {
-    const data  = rapidNaming[task];
-    const timer = task === "letters" ? lettersTimer : digitsTimer;
+    const data     = rapidNaming[task];
+    const timer    = task === "letters" ? lettersTimer : digitsTimer;
+    const override = task === "letters" ? lettersOverride : digitsOverride;
+    const setOverride = task === "letters" ? setLettersOverride : setDigitsOverride;
+
+    const autoResult = computeRapidNamingRating(data.time, data.errors, data.corrections);
     const ratingRisk = data.rating === "Typical" ? "low" : data.rating === "Mild Concern" ? "mild" : data.rating === "Moderate Concern" ? "moderate" : data.rating === "Significant Concern" ? "significant" : null;
+    const ratingColour = ratingRisk === "low" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+      : ratingRisk === "mild"     ? "bg-sky-100 text-sky-800 border-sky-200"
+      : ratingRisk === "moderate" ? "bg-amber-100 text-amber-800 border-amber-200"
+      : ratingRisk === "significant" ? "bg-red-100 text-red-800 border-red-200"
+      : "bg-slate-100 text-slate-500 border-slate-200";
 
     const handleStop = () => {
       const secs = timer.stop();
@@ -428,7 +486,7 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
           </div>
 
           <RapidNamingGrid symbols={grid} />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-slate-600 block mb-1">Time (seconds)</label>
               <Input type="number" min="0" value={data.time} onChange={e => updateTask(task, "time", e.target.value)} placeholder="e.g. 45" className="text-sm h-9" />
@@ -441,11 +499,36 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
               <label className="text-xs font-medium text-slate-600 block mb-1">Self-corrections</label>
               <Input type="number" min="0" value={data.corrections} onChange={e => updateTask(task, "corrections", e.target.value)} placeholder="0" className="text-sm h-9" />
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 block mb-1">Examiner rating</label>
+          </div>
+
+          {/* ── Auto-scored rating ── */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-600">Rating</span>
+                {!override && (
+                  <span className="text-[10px] bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 font-medium">Auto-scored</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-slate-400 hover:text-slate-700 underline underline-offset-2 transition-colors"
+                onClick={() => {
+                  if (override) {
+                    setOverride(false);
+                  } else {
+                    setOverride(true);
+                  }
+                }}
+              >
+                {override ? "Use auto-score" : "Override"}
+              </button>
+            </div>
+
+            {override ? (
               <Select value={data.rating} onValueChange={v => updateTask(task, "rating", v)}>
-                <SelectTrigger className="text-sm h-9">
-                  <SelectValue placeholder="Rating…" />
+                <SelectTrigger className="text-sm h-9 bg-white">
+                  <SelectValue placeholder="Select rating…" />
                 </SelectTrigger>
                 <SelectContent>
                   {RAPID_NAMING_RATINGS.map(r => (
@@ -453,7 +536,22 @@ function RapidNamingSection({ items, rapidNaming, onChange }: {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            ) : (
+              <>
+                {autoResult ? (
+                  <div className="flex items-center gap-3">
+                    <Badge className={`text-sm px-3 py-1 border font-semibold ${ratingColour}`}>
+                      {autoResult.rating}
+                    </Badge>
+                    <span className="text-xs text-slate-500">
+                      {parseFloat(data.time)}s + {parseFloat(data.errors) || 0} errors×3 + {parseFloat(data.corrections) || 0} corrections×1 = <strong>{autoResult.adjustedTime}s adjusted</strong>
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Enter time above to auto-score</p>
+                )}
+              </>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 block mb-1">Notes</label>
