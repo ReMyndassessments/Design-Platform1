@@ -363,7 +363,8 @@ export default function CaseDetail() {
   const hasLiteracyBattery = c?.assignments?.some(a => LITERACY_TOOL_IDS.has(a.toolId ?? ""));
 
   const REMYND_AUTO_TOOL_IDS = new Set(["RCS-80", "RASR", "RASR-OBS", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP", "RCEP-CORE", "BSPP", "RDA"]);
-  const hasRemyndBattery = c?.assignments?.some(
+  const isAtOrPastScoring = ["scoring", "report", "final_review", "debrief", "complete"].includes(c?.currentPhase ?? "");
+  const hasRemyndBattery = isAtOrPastScoring && c?.assignments?.some(
     a => REMYND_AUTO_TOOL_IDS.has(a.toolId ?? "") && a.status === "completed"
   );
 
