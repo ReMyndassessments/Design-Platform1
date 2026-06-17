@@ -4,6 +4,7 @@ import { scoresTable, casesTable, assessmentToolsTable, assignmentsTable, respon
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateRemyndIndexInsights } from "../lib/ai.js";
+import { buildDomainMap, computeDomainScores, normalizeScores } from "../lib/scoringHelpers.js";
 import { nanoid } from "nanoid";
 
 const router = Router();
@@ -44,31 +45,7 @@ function getRiskBandForThresholds(score: number, t: ToolThresholds): "low" | "mi
   return "elevated";
 }
 
-type ToolConfig = { thresholds: ToolThresholds; domains: Record<string, string>; formItems: { id: string; domain?: string }[]; scaleMax: number };
-
-function computeDomainScores(answers: Record<string, unknown>, domainMap: Record<string, string>): Record<string, number> {
-  const buckets: Record<string, number[]> = {};
-  for (const [key, value] of Object.entries(answers)) {
-    const domain = domainMap[key] ?? "general";
-    if (!buckets[domain]) buckets[domain] = [];
-    const num = typeof value === "number" ? value : parseFloat(String(value));
-    if (!isNaN(num)) buckets[domain].push(num);
-  }
-  const result: Record<string, number> = {};
-  for (const [domain, vals] of Object.entries(buckets)) {
-    if (vals.length === 0) continue;
-    result[domain] = Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
-  }
-  return result;
-}
-
-function normalizeScores(scores: Record<string, number>, max = 5): Record<string, number> {
-  const result: Record<string, number> = {};
-  for (const [k, v] of Object.entries(scores)) {
-    result[k] = Math.round((v / max) * 100);
-  }
-  return result;
-}
+type ToolConfig = { thresholds: ToolThresholds; domains: Record<string, string>; scaleMax: number };
 
 async function getRemyndToolIds(): Promise<Set<string>> {
   try {
@@ -96,7 +73,7 @@ async function getToolNameMap(): Promise<Map<string, string>> {
 async function getToolConfigMap(): Promise<Map<string, ToolConfig>> {
   try {
     const toolRows = await db
-      .select({ id: assessmentToolsTable.id, scoringConfig: assessmentToolsTable.scoringConfig, formItems: assessmentToolsTable.formItems })
+      .select({ id: assessmentToolsTable.id, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable);
     const map = new Map<string, ToolConfig>();
     for (const row of toolRows) {
@@ -117,8 +94,7 @@ async function getToolConfigMap(): Promise<Map<string, ToolConfig>> {
           domains[key] = (val as { label?: string })?.label ?? key;
         }
       }
-      const formItems = (Array.isArray(row.formItems) ? row.formItems : []) as { id: string; domain?: string }[];
-      map.set(row.id, { thresholds, domains, formItems, scaleMax: cfg?.max ?? 5 });
+      map.set(row.id, { thresholds, domains, scaleMax: cfg?.max ?? 5 });
     }
     return map;
   } catch {
@@ -176,12 +152,19 @@ async function buildIndexData(caseId: string) {
     scoreMap.set(key, score);
   }
 
-  // 2b. Auto-score any completed ReMynd assignment that has no score record yet.
-  //     Fetch submitted response data and compute scores using the same algorithm
-  //     as POST /scores/calculate, then persist so subsequent loads are instant.
-  const unscored = remyndAssignments.filter(
-    a => !scoreMap.has(`${a.toolId}::${a.respondentType ?? ""}`)
-  );
+  // 2b. Auto-score any completed ReMynd assignment that:
+  //     (a) has no score record yet, or
+  //     (b) has a "general-only" score (domain map was empty during a previous run).
+  //     Fetch submitted response data, compute scores using buildDomainMap (which uses
+  //     SAMPLE_QUESTIONS as fallback), then persist so subsequent loads are instant.
+  const isGeneralOnly = (score: typeof allScoreRows[0]) => {
+    const keys = Object.keys((score.domainScores ?? {}) as Record<string, number>);
+    return keys.length === 1 && keys[0] === "general";
+  };
+  const unscored = remyndAssignments.filter(a => {
+    const existing = scoreMap.get(`${a.toolId}::${a.respondentType ?? ""}`);
+    return !existing || isGeneralOnly(existing);
+  });
 
   if (unscored.length > 0) {
     const unscoredIds = unscored.map(a => a.id);
@@ -199,24 +182,21 @@ async function buildIndexData(caseId: string) {
       }
     }
 
+    // Pre-build domain maps once per unique toolId (buildDomainMap queries the DB
+    // and falls back to SAMPLE_QUESTIONS, which is required for tools without formItems).
+    const domainMapCache = new Map<string, Record<string, string>>();
+    const uniqueToolIds = [...new Set(unscored.map(a => a.toolId))];
+    await Promise.all(uniqueToolIds.map(async toolId => {
+      domainMapCache.set(toolId, await buildDomainMap(toolId));
+    }));
+
     for (const assignment of unscored) {
       const response = latestResponse.get(assignment.id);
       if (!response?.answers) continue;
 
       const config = toolConfigMap.get(assignment.toolId);
       const scaleMax = config?.scaleMax ?? 5;
-
-      // Build questionId → domain map: prefer tool's stored formItems, fall back to
-      // assignment's form snapshot (stored as formItemsSnapshot on the assignment row).
-      const formItemSource: { id: string; domain?: string }[] =
-        (config?.formItems && config.formItems.length > 0)
-          ? config.formItems
-          : ((assignment as Record<string, unknown>).formItemsSnapshot as { id: string; domain?: string }[] ?? []);
-
-      const domainMap: Record<string, string> = {};
-      for (const item of formItemSource) {
-        if (item.id && item.domain) domainMap[item.id] = item.domain;
-      }
+      const domainMap = domainMapCache.get(assignment.toolId) ?? {};
 
       const answers = response.answers as Record<string, unknown>;
       const rawDomainScores = computeDomainScores(answers, domainMap);
@@ -227,26 +207,37 @@ async function buildIndexData(caseId: string) {
       const rawScore = vals.reduce((a, b) => a + b, 0) / vals.length;
 
       try {
-        const [saved] = await db.insert(scoresTable).values({
-          id: nanoid(),
-          caseId: assignment.caseId,
-          toolId: assignment.toolId,
-          toolName: assignment.toolName,
-          respondentType: assignment.respondentType,
-          rawScore,
-          domainScores: rawDomainScores,
-          normalizedScores: normalized,
-          hasHighDiscrepancy: false,
-          isManual: false,
-        }).returning();
+        const key = `${assignment.toolId}::${assignment.respondentType ?? ""}`;
+        const existingBad = scoreMap.get(key);
+        let saved: typeof allScoreRows[0] | undefined;
 
-        if (saved) {
-          const key = `${saved.toolId}::${saved.respondentType ?? ""}`;
-          scoreMap.set(key, saved);
+        if (existingBad && isGeneralOnly(existingBad)) {
+          // Update the bad "general-only" record in place with correct domain scores
+          const rows = await db.update(scoresTable)
+            .set({ rawScore, domainScores: rawDomainScores, normalizedScores: normalized })
+            .where(eq(scoresTable.id, existingBad.id))
+            .returning();
+          saved = rows[0];
+        } else {
+          // Insert a fresh score record
+          const rows = await db.insert(scoresTable).values({
+            id: nanoid(),
+            caseId: assignment.caseId,
+            toolId: assignment.toolId,
+            toolName: assignment.toolName,
+            respondentType: assignment.respondentType,
+            rawScore,
+            domainScores: rawDomainScores,
+            normalizedScores: normalized,
+            hasHighDiscrepancy: false,
+            isManual: false,
+          }).returning();
+          saved = rows[0];
         }
+
+        if (saved) scoreMap.set(`${saved.toolId}::${saved.respondentType ?? ""}`, saved);
       } catch {
-        // Non-fatal: if insert fails (e.g. duplicate race condition) the existing
-        // score record is already in scoreMap from the earlier query.
+        // Non-fatal: race condition or constraint error — existing record stays in scoreMap.
       }
     }
   }
