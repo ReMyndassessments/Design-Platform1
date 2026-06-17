@@ -467,7 +467,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     description: "Boarding staff profile of student wellbeing, adjustment, social functioning, safety, and daily living skills. 54 items across 6 domains.",
     isRemyndOwned: true,
     respondentTypes: ["boarding_staff", "teacher1"],
-    scoringType: "manual",
+    scoringType: "auto",
     domains: ["boarding_adjustment", "emotional_distress", "social_functioning", "risk_behaviors", "strengths_and_resilience"],
     formItems: BSPP_FORM,
   },
