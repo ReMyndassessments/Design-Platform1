@@ -16,6 +16,7 @@ import rppiRouter from "./rppi";
 import rdaRouter from "./rda";
 import rrfaRouter from "./rrfa";
 import rrcaRouter from "./rrca";
+import remyndIndexRouter from "./remynd-index";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(rppiRouter);
 router.use(rdaRouter);
 router.use(rrfaRouter);
 router.use(rrcaRouter);
+router.use(remyndIndexRouter);
 
 export default router;

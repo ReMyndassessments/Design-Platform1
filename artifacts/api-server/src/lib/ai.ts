@@ -1215,3 +1215,89 @@ ${JSON.stringify(toTranslate, null, 2)}`;
     return {};
   }
 }
+
+const DOMAIN_LABELS_AI: Record<string, string> = {
+  attention: "Attention",
+  executive_function: "Executive Function",
+  emotional_regulation: "Emotional Regulation",
+  social_communication: "Social Communication",
+  academic_persistence: "Academic Persistence",
+  sustained_attention: "Sustained Attention",
+  distractibility: "Distractibility",
+  impulse_regulation: "Impulse Regulation",
+  task_initiation: "Task Initiation",
+  behavioral_modulation: "Behavioral Modulation",
+  attention_regulation: "Attention Regulation",
+  executive_functioning: "Executive Functioning",
+  functional_impact: "Functional Impact",
+  protective_factors: "Protective Factors",
+  working_memory: "Working Memory",
+  planning: "Planning & Organization",
+  inhibition: "Inhibition",
+  cognitive_flexibility: "Cognitive Flexibility",
+  self_monitoring: "Self-Monitoring",
+  organization: "Organization",
+  internalizing: "Internalizing",
+  externalizing: "Externalizing",
+};
+
+const RESPONDENT_LABEL_AI: Record<string, string> = {
+  parent: "Parent/Guardian",
+  teacher1: "Teacher 1",
+  teacher2: "Teacher 2",
+  self: "Student (Self)",
+  school_counselor: "School Counselor",
+  boarding_staff: "Boarding Staff",
+  referring_teacher: "Referring Teacher",
+};
+
+export async function generateRemyndIndexInsights(
+  caseProfile: { studentName: string; school: string; grade: string; referralReason: string },
+  tools: Array<{
+    toolName: string;
+    respondents: Array<{ respondentType: string; normalizedScores: Record<string, number> }>;
+  }>
+): Promise<string> {
+  const { studentName, school, grade, referralReason } = caseProfile;
+  const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
+
+  const scoreSummary = tools.map(tool => {
+    const respLines = tool.respondents.map(r => {
+      const label = RESPONDENT_LABEL_AI[r.respondentType] ?? r.respondentType;
+      const domainLines = Object.entries(r.normalizedScores)
+        .map(([d, v]) => `  - ${DOMAIN_LABELS_AI[d] ?? d}: ${v}/100`)
+        .join("\n");
+      return `  ${label}:\n${domainLines}`;
+    }).join("\n");
+    return `${tool.toolName}:\n${respLines}`;
+  }).join("\n\n");
+
+  const prompt = `You are a psychoeducational specialist writing a clinical interpretation narrative for a formal assessment report. You have been provided with data from the ReMynd Assessment Operating System (RAOS) — a suite of proprietary rating scales completed by multiple respondents.
+
+STUDENT PROFILE:
+- Name: ${studentName}
+- School: ${school || "Not specified"}
+- Grade: ${grade || "Not specified"}
+- Referral Reason: ${referralReason || "Not specified"}
+
+NORMALIZED SCORE DATA (0 = no concern, 100 = maximum concern):
+Risk bands: 0–25 = Low, 26–50 = Mild, 51–65 = Moderate, 66–100 = Elevated
+
+${scoreSummary}
+
+Write a professional clinical interpretation narrative (4–6 paragraphs) addressing:
+1. Overall functional profile and primary areas of concern based on the cross-informant data.
+2. Per-domain interpretation with convergent (agreeing) and divergent (discrepant) respondent findings, noting which informants report elevated concerns and which do not.
+3. Contextual factors that may explain discrepancies (e.g., setting differences, rater perspective, protective factors).
+4. Functional implications for ${firstName}'s academic performance, social engagement, and daily functioning.
+5. Recommended next steps or assessment directions (e.g., further clinical interview, classroom observation, diagnostic formulation).
+
+Write in formal, professional psychoeducational language suitable for a school psychological report. Use ${firstName}'s first name after the initial introduction. Do not invent data not present in the scores. Do not include disclaimers about AI limitations. Format as flowing paragraphs — no headers, no bullet points.`;
+
+  try {
+    const narrative = await callDeepSeek(prompt, 1800);
+    return narrative.trim();
+  } catch {
+    return `Clinical interpretation narrative could not be generated at this time. Please review the score data above and consult with the assessing psychologist for interpretation.`;
+  }
+}

@@ -70,6 +70,7 @@ import RdaAdminPage from "@/pages/cases/[id]/rda";
 import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
 import RrcaAdminPage from "@/pages/cases/[id]/rrca";
 import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
+import RemyndDashboardPage from "@/pages/cases/[id]/remynd-dashboard";
 import RdaStudentView from "@/pages/student-view/rda";
 import RrcaStudentView from "@/pages/student-view/rrca";
 import RrfaStudentView from "@/pages/student-view/rrfa";
@@ -165,6 +166,9 @@ function Router() {
       </Route>
       <Route path="/cases/:id/literacy-dashboard">
         {() => <ProtectedRoute component={LiteracyDashboardPage} />}
+      </Route>
+      <Route path="/cases/:id/remynd-dashboard">
+        {() => <ProtectedRoute component={RemyndDashboardPage} />}
       </Route>
       <Route path="/tools">
         {() => <ProtectedRoute component={AssessmentTools} />}

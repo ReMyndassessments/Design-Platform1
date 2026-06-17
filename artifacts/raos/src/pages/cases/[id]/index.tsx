@@ -362,6 +362,9 @@ export default function CaseDetail() {
   const LITERACY_TOOL_IDS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
   const hasLiteracyBattery = c?.assignments?.some(a => LITERACY_TOOL_IDS.has(a.toolId ?? ""));
 
+  const REMYND_AUTO_TOOL_IDS = new Set(["RCS-80", "RASR", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP"]);
+  const hasRemyndBattery = c?.assignments?.some(a => REMYND_AUTO_TOOL_IDS.has(a.toolId ?? ""));
+
   // ── Product assignment state ─────────────────────────────────────────────────
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
@@ -2042,6 +2045,14 @@ export default function CaseDetail() {
                   <Link href={`/cases/${caseId}/literacy-dashboard`}>
                     <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
                       <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Literacy</span>
+                      Dashboard
+                    </Button>
+                  </Link>
+                )}
+                {hasRemyndBattery && (
+                  <Link href={`/cases/${caseId}/remynd-dashboard`}>
+                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
+                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">ReMynd</span>
                       Dashboard
                     </Button>
                   </Link>
