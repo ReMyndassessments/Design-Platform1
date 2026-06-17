@@ -363,7 +363,9 @@ export default function CaseDetail() {
   const hasLiteracyBattery = c?.assignments?.some(a => LITERACY_TOOL_IDS.has(a.toolId ?? ""));
 
   const REMYND_AUTO_TOOL_IDS = new Set(["RCS-80", "RASR", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP"]);
-  const hasRemyndBattery = c?.assignments?.some(a => REMYND_AUTO_TOOL_IDS.has(a.toolId ?? ""));
+  const hasRemyndBattery = c?.assignments?.some(
+    a => REMYND_AUTO_TOOL_IDS.has(a.toolId ?? "") && a.status === "completed"
+  );
 
   // ── Product assignment state ─────────────────────────────────────────────────
   const [productModalOpen, setProductModalOpen] = useState(false);

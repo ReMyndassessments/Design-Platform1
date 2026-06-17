@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
 } from "recharts";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const DOMAIN_LABELS: Record<string, string> = {
   attention: "Attention",
@@ -58,29 +58,21 @@ function rLabel(key: string): string {
   return RESPONDENT_LABEL[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-const RESPONDENT_COLORS: Record<string, string> = {
-  parent: "#6366f1",
-  teacher1: "#14b8a6",
-  teacher2: "#8b5cf6",
-  self: "#f59e0b",
-  school_counselor: "#06b6d4",
-  boarding_staff: "#84cc16",
-  referring_teacher: "#f97316",
-  invigilator: "#ec4899",
-};
-
-function rColor(key: string): string {
-  return RESPONDENT_COLORS[key] ?? "#6b7280";
-}
-
 type RiskBand = "low" | "mild" | "moderate" | "elevated";
 
-const RISK_META: Record<RiskBand, { label: string; bg: string; text: string; border: string; hex: string }> = {
-  low:      { label: "Low",      bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200", hex: "#10b981" },
-  mild:     { label: "Mild",     bg: "bg-amber-50",   text: "text-amber-800",   border: "border-amber-200",   hex: "#f59e0b" },
-  moderate: { label: "Moderate", bg: "bg-orange-50",  text: "text-orange-800",  border: "border-orange-200",  hex: "#f97316" },
-  elevated: { label: "Elevated", bg: "bg-red-50",     text: "text-red-800",     border: "border-red-200",     hex: "#ef4444" },
+const RISK_META: Record<RiskBand, { label: string; bg: string; text: string; border: string; hex: string; tailwindBg: string }> = {
+  low:      { label: "Low",      bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200", hex: "#10b981", tailwindBg: "#ecfdf5" },
+  mild:     { label: "Mild",     bg: "bg-amber-50",   text: "text-amber-800",   border: "border-amber-200",   hex: "#f59e0b", tailwindBg: "#fffbeb" },
+  moderate: { label: "Moderate", bg: "bg-orange-50",  text: "text-orange-800",  border: "border-orange-200",  hex: "#f97316", tailwindBg: "#fff7ed" },
+  elevated: { label: "Elevated", bg: "bg-red-50",     text: "text-red-800",     border: "border-red-200",     hex: "#ef4444", tailwindBg: "#fef2f2" },
 };
+
+const RISK_BAND_LEGEND = [
+  { band: "low" as RiskBand, range: "0–25" },
+  { band: "mild" as RiskBand, range: "26–50" },
+  { band: "moderate" as RiskBand, range: "51–65" },
+  { band: "elevated" as RiskBand, range: "66–100" },
+];
 
 function getRiskBand(score: number): RiskBand {
   if (score <= 25) return "low";
@@ -94,16 +86,16 @@ function getRiskBand(score: number): RiskBand {
 interface Respondent {
   respondentType: string;
   respondentLabel: string;
+  domainScores: Record<string, number>;
   normalizedScores: Record<string, number>;
   rawScore: number;
 }
 
 interface Discrepancy {
   domain: string;
-  spread: number;
+  rawSpread: number;
   isHigh: boolean;
-  min: number;
-  max: number;
+  normalizedSpread: number;
 }
 
 interface ToolData {
@@ -128,17 +120,59 @@ interface RemyndIndexResponse {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function RiskBadge({ score }: { score: number }) {
+function RiskBadge({ score, size = "sm" }: { score: number; size?: "sm" | "xs" }) {
   const band = getRiskBand(score);
   const m = RISK_META[band];
   return (
-    <Badge className={`text-[10px] border ${m.bg} ${m.text} ${m.border} font-medium`}>
+    <Badge className={`border ${m.bg} ${m.text} ${m.border} font-medium ${size === "xs" ? "text-[9px] px-1 py-0" : "text-[10px]"}`}>
       {m.label}
     </Badge>
   );
 }
 
-function ToolComparisonCard({ tool }: { tool: ToolData }) {
+/** Single-respondent: horizontal bar chart, bars colored by domain risk band */
+function SingleRespondentChart({ tool }: { tool: ToolData }) {
+  const r = tool.respondents[0];
+  const chartData = tool.domains.map(domain => ({
+    domainLabel: dLabel(domain),
+    value: r.normalizedScores[domain] ?? 0,
+    band: getRiskBand(r.normalizedScores[domain] ?? 0),
+  }));
+
+  return (
+    <div>
+      <p className="text-[11px] text-slate-500 mb-2">
+        Respondent: <span className="font-medium text-slate-700">{r.respondentLabel}</span>
+        <span className="ml-2 text-slate-400">— bars colored by risk band</span>
+      </p>
+      <ResponsiveContainer width="100%" height={Math.max(180, tool.domains.length * 36)}>
+        <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 50, left: 0, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "#64748b" }} unit="%" />
+          <YAxis type="category" dataKey="domainLabel" tick={{ fontSize: 10, fill: "#64748b" }} width={130} />
+          <ReferenceLine x={25} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine x={50} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine x={65} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
+          <Tooltip
+            formatter={(val: number, _name: string, props) => {
+              const band = getRiskBand(val);
+              return [`${val}/100 — ${RISK_META[band].label}`, "Concern Level"];
+            }}
+            contentStyle={{ fontSize: 11, borderRadius: 6 }}
+          />
+          <Bar dataKey="value" maxBarSize={18} radius={[0, 3, 3, 0]}>
+            {chartData.map((entry, idx) => (
+              <Cell key={idx} fill={RISK_META[entry.band].hex} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Multi-respondent: grouped vertical bar chart, each bar colored by its own risk band */
+function MultiRespondentChart({ tool }: { tool: ToolData }) {
   const respondentTypes = tool.respondents.map(r => r.respondentType);
 
   const chartData = tool.domains.map(domain => {
@@ -150,10 +184,62 @@ function ToolComparisonCard({ tool }: { tool: ToolData }) {
     return row;
   });
 
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <span className="text-[11px] text-slate-500">Bars colored by risk band · Bar order (L→R):</span>
+        {respondentTypes.map((rt, i) => (
+          <span key={rt} className="text-[10px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+            {i + 1}. {rLabel(rt)}
+          </span>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={chartData} margin={{ top: 8, right: 16, left: -10, bottom: 52 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis
+            dataKey="domainLabel"
+            tick={{ fontSize: 10, fill: "#64748b" }}
+            angle={-35}
+            textAnchor="end"
+            interval={0}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fontSize: 10, fill: "#64748b" }}
+            label={{ value: "Concern %", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "#94a3b8" }}
+          />
+          <ReferenceLine y={25} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine y={65} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
+          <Tooltip
+            formatter={(val: number, name: string) => {
+              const band = getRiskBand(val);
+              return [`${val}/100 — ${RISK_META[band].label}`, rLabel(name)];
+            }}
+            contentStyle={{ fontSize: 11, borderRadius: 6 }}
+          />
+          {respondentTypes.map(rt => (
+            <Bar key={rt} dataKey={rt} maxBarSize={20} radius={[3, 3, 0, 0]}>
+              {chartData.map((entry, domainIdx) => {
+                const score = (entry[rt] as number) ?? 0;
+                const band = getRiskBand(score);
+                return <Cell key={domainIdx} fill={RISK_META[band].hex} />;
+              })}
+            </Bar>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ToolComparisonCard({ tool }: { tool: ToolData }) {
+  const isSingle = tool.respondents.length === 1;
   const highDiscrepDomains = tool.discrepancies.filter(d => d.isHigh);
 
   return (
-    <Card className="mb-4 overflow-hidden">
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
           <BarChart3 size={14} className="text-violet-500" />
@@ -164,48 +250,30 @@ function ToolComparisonCard({ tool }: { tool: ToolData }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4 px-5 pb-5">
-        {chartData.length === 0 ? (
+        {tool.domains.length === 0 ? (
           <p className="text-sm text-slate-400 italic">No domain scores available.</p>
+        ) : isSingle ? (
+          <SingleRespondentChart tool={tool} />
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} margin={{ top: 8, right: 16, left: -10, bottom: 48 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="domainLabel"
-                tick={{ fontSize: 10, fill: "#64748b" }}
-                angle={-35}
-                textAnchor="end"
-                interval={0}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 10, fill: "#64748b" }}
-                label={{ value: "Concern %", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "#94a3b8" }}
-              />
-              <ReferenceLine y={25} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
-              <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
-              <ReferenceLine y={65} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
-              <Tooltip
-                formatter={(val: number, name: string) => [`${val}/100`, rLabel(name)]}
-                contentStyle={{ fontSize: 11, borderRadius: 6 }}
-              />
-              <Legend
-                formatter={(val: string) => <span style={{ fontSize: 11, color: "#475569" }}>{rLabel(val)}</span>}
-                wrapperStyle={{ paddingTop: 36 }}
-              />
-              {respondentTypes.map(rt => (
-                <Bar key={rt} dataKey={rt} fill={rColor(rt)} radius={[3, 3, 0, 0]} maxBarSize={28} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+          <MultiRespondentChart tool={tool} />
         )}
+
+        {/* Risk band legend */}
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
+          {RISK_BAND_LEGEND.map(({ band, range }) => (
+            <span key={band} className="flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
+              {RISK_META[band].label} ({range})
+            </span>
+          ))}
+        </div>
 
         {highDiscrepDomains.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="text-[10px] text-amber-700 font-medium mr-1">⚠ Significant discrepancy (≥1.5 raw pts):</span>
             {highDiscrepDomains.map(d => (
               <span key={d.domain} className="inline-flex items-center gap-1 text-[10px] bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
-                <AlertTriangle size={9} />
-                {dLabel(d.domain)} — {Math.round(d.spread)}pt spread
+                {dLabel(d.domain)} ({d.rawSpread.toFixed(1)} raw pts)
               </span>
             ))}
           </div>
@@ -215,7 +283,89 @@ function ToolComparisonCard({ tool }: { tool: ToolData }) {
   );
 }
 
-function RemyndIndexSection({ index }: { index: Record<string, IndexEntry> }) {
+/** True heatmap: rows = domains, columns = each tool × respondent combination */
+function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
+  // Build column definitions
+  const columns = tools.flatMap(tool =>
+    tool.respondents.map(r => ({
+      key: `${tool.toolId}::${r.respondentType}`,
+      toolName: tool.toolName,
+      toolId: tool.toolId,
+      respondentType: r.respondentType,
+      respondentLabel: r.respondentLabel,
+      normalizedScores: r.normalizedScores,
+    }))
+  );
+
+  // All unique domains across all tools
+  const allDomains = [...new Set(tools.flatMap(t => t.domains))];
+
+  if (columns.length === 0 || allDomains.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+        <CardTitle className="text-sm font-semibold text-slate-800">Risk Heatmap — Domain × Respondent Matrix</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-3 px-5 pb-5 overflow-x-auto">
+        <table className="text-xs border-collapse min-w-max w-full">
+          <thead>
+            <tr>
+              <th className="text-left py-2 pr-3 font-medium text-slate-500 sticky left-0 bg-white w-36 min-w-[9rem]">
+                Domain
+              </th>
+              {columns.map(col => (
+                <th key={col.key} className="py-1.5 px-2 text-center font-medium text-slate-500 min-w-[80px]">
+                  <div className="text-[10px] font-semibold text-violet-700 truncate max-w-[80px]">{col.toolName}</div>
+                  <div className="text-[9px] font-normal text-slate-400 truncate max-w-[80px]">{col.respondentLabel}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {allDomains.map(domain => (
+              <tr key={domain} className="border-t border-slate-100">
+                <td className="py-2 pr-3 font-medium text-slate-700 sticky left-0 bg-white text-[11px]">
+                  {dLabel(domain)}
+                </td>
+                {columns.map(col => {
+                  const score = col.normalizedScores[domain];
+                  if (score === undefined) {
+                    return (
+                      <td key={col.key} className="py-1.5 px-2 text-center text-[10px] text-slate-300">—</td>
+                    );
+                  }
+                  const band = getRiskBand(score);
+                  const m = RISK_META[band];
+                  return (
+                    <td
+                      key={col.key}
+                      className={`py-1.5 px-2 text-center font-semibold text-[11px] ${m.text}`}
+                      style={{ backgroundColor: m.tailwindBg }}
+                      title={`${dLabel(domain)} · ${col.toolName} · ${col.respondentLabel}: ${score}/100 (${m.label})`}
+                    >
+                      {score}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
+          {RISK_BAND_LEGEND.map(({ band, range }) => (
+            <span key={band} className="flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
+              {RISK_META[band].label} ({range}) · "—" = not assessed by this tool
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RemyndIndexSection({ index, tools }: { index: Record<string, IndexEntry>; tools: ToolData[] }) {
   const entries = Object.entries(index).sort((a, b) => b[1].average - a[1].average);
   if (entries.length === 0) return null;
 
@@ -228,6 +378,7 @@ function RemyndIndexSection({ index }: { index: Record<string, IndexEntry> }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Radar chart */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
             <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -249,18 +400,27 @@ function RemyndIndexSection({ index }: { index: Record<string, IndexEntry> }) {
                   fillOpacity={0.3}
                   strokeWidth={2}
                 />
-                <Tooltip formatter={(v: number) => [`${v}/100`, "Avg Concern"]} contentStyle={{ fontSize: 11, borderRadius: 6 }} />
+                <Tooltip
+                  formatter={(v: number) => {
+                    const band = getRiskBand(v);
+                    return [`${v}/100 — ${RISK_META[band].label}`, "Cross-Tool Avg"];
+                  }}
+                  contentStyle={{ fontSize: 11, borderRadius: 6 }}
+                />
               </RadarChart>
             </ResponsiveContainer>
-            <p className="text-center text-[10px] text-slate-400 mt-1">Larger area = higher cross-informant concern</p>
+            <p className="text-center text-[10px] text-slate-400 mt-1">
+              Larger area = higher cross-informant concern
+            </p>
           </CardContent>
         </Card>
 
+        {/* Domain bar summary */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
             <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
               <TrendingUp size={14} className="text-violet-500" />
-              Domain Risk Summary
+              Domain Average Summary
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-3 px-5 pb-5">
@@ -285,61 +445,36 @@ function RemyndIndexSection({ index }: { index: Record<string, IndexEntry> }) {
                 );
               })}
             </div>
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
+              {RISK_BAND_LEGEND.map(({ band, range }) => (
+                <span key={band} className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
+                  {RISK_META[band].label} ({range})
+                </span>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
-          <CardTitle className="text-sm font-semibold text-slate-800">Risk Heatmap</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-3 px-5 pb-5 overflow-x-auto">
-          <table className="w-full text-xs border-collapse min-w-max">
-            <thead>
-              <tr>
-                <th className="text-left py-1.5 pr-3 font-medium text-slate-500 w-36">Domain</th>
-                <th className="py-1.5 px-2 font-medium text-slate-500 w-16">Avg</th>
-                <th className="py-1.5 px-2 font-medium text-slate-500 w-20">Risk Band</th>
-                <th className="py-1.5 px-2 font-medium text-slate-500 text-left">Sources</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(([domain, e]) => {
-                const band = getRiskBand(e.average);
-                const m = RISK_META[band];
-                return (
-                  <tr key={domain} className={`border-t border-slate-100 ${m.bg}`}>
-                    <td className={`py-1.5 pr-3 font-medium ${m.text}`}>{dLabel(domain)}</td>
-                    <td className={`py-1.5 px-2 text-center font-bold ${m.text}`}>{e.average}</td>
-                    <td className="py-1.5 px-2">
-                      <Badge className={`text-[9px] border ${m.bg} ${m.text} ${m.border}`}>{m.label}</Badge>
-                    </td>
-                    <td className={`py-1.5 px-2 text-[10px] ${m.text} opacity-80`}>
-                      {[...new Set(e.sources)].join("; ")}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+      {/* True heatmap matrix */}
+      <CrossToolHeatmap tools={tools} />
     </div>
   );
 }
 
 function DiscrepancySection({ tools }: { tools: ToolData[] }) {
-  const allDiscrepancies: Array<{ label: string; spread: number; isHigh: boolean }> = [];
+  const allDiscrepancies: Array<{ label: string; normalizedSpread: number; isHigh: boolean }> = [];
   for (const tool of tools) {
     for (const d of tool.discrepancies) {
       allDiscrepancies.push({
         label: `${dLabel(d.domain)} (${tool.toolName})`,
-        spread: d.spread,
+        normalizedSpread: d.normalizedSpread,
         isHigh: d.isHigh,
       });
     }
   }
-  const sorted = allDiscrepancies.sort((a, b) => b.spread - a.spread).slice(0, 12);
+  const sorted = allDiscrepancies.sort((a, b) => b.normalizedSpread - a.normalizedSpread).slice(0, 12);
   if (sorted.length === 0) return null;
 
   return (
@@ -352,37 +487,38 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
       </CardHeader>
       <CardContent className="pt-4 px-5 pb-5">
         <p className="text-[11px] text-slate-500 mb-3">
-          Domains where respondents disagree most (score spread in normalized %). ≥20pt spread is flagged.
+          Domains where respondents disagree most (raw domain spread ≥ 1.5 pts flagged; chart shows normalized equivalent).
         </p>
-        <ResponsiveContainer width="100%" height={Math.max(180, sorted.length * 28)}>
-          <BarChart data={sorted} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 4 }}>
+        <ResponsiveContainer width="100%" height={Math.max(160, sorted.length * 30)}>
+          <BarChart data={sorted} layout="vertical" margin={{ top: 4, right: 50, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "#64748b" }} unit="pt" />
-            <YAxis type="category" dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} width={160} />
-            <ReferenceLine x={20} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1.5} />
-            <Tooltip formatter={(v: number) => [`${Math.round(v)}pt`, "Spread"]} contentStyle={{ fontSize: 11, borderRadius: 6 }} />
-            <Bar dataKey="spread" radius={[0, 3, 3, 0]} maxBarSize={16}>
+            <YAxis type="category" dataKey="label" tick={{ fontSize: 9, fill: "#64748b" }} width={170} />
+            <Tooltip
+              formatter={(v: number, _n: string, p) => [
+                `${Math.round(v)}pt normalized spread${p.payload.isHigh ? " — Clinically Significant" : ""}`,
+                "Discrepancy",
+              ]}
+              contentStyle={{ fontSize: 11, borderRadius: 6 }}
+            />
+            <Bar dataKey="normalizedSpread" radius={[0, 3, 3, 0]} maxBarSize={16}>
               {sorted.map((entry, idx) => (
                 <Cell key={idx} fill={entry.isHigh ? "#f97316" : "#94a3b8"} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-        <p className="text-[10px] text-slate-400 mt-2">Orange dashed line = 20pt threshold. Orange bars indicate clinically significant disagreement.</p>
+        <p className="text-[10px] text-slate-400 mt-2">
+          Orange = clinically significant discrepancy (raw spread ≥ 1.5 pts). Grey = within acceptable range.
+        </p>
       </CardContent>
     </Card>
   );
 }
 
-function AIInsightsSection({
-  caseId,
-  cachedInsights,
-}: {
-  caseId: string;
-  cachedInsights: string | null;
-}) {
+function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedInsights: string | null }) {
   const queryClient = useQueryClient();
-  const [localInsights, setLocalInsights] = useState<string | null>(cachedInsights);
+  const [localInsights, setLocalInsights] = useState<string | null>(null);
 
   const generateMut = useMutation({
     mutationFn: async () => {
@@ -395,7 +531,7 @@ function AIInsightsSection({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message ?? "Failed to generate insights");
+        throw new Error((body as { message?: string }).message ?? "Failed to generate insights");
       }
       return res.json() as Promise<{ insights: string }>;
     },
@@ -501,7 +637,6 @@ export default function RemyndDashboardPage() {
           .no-print { display: none !important; }
           .print-header { display: block !important; }
           body, html { background: white !important; }
-          .print-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
           .recharts-wrapper { break-inside: avoid; }
           .page-break-before { break-before: page; }
         }
@@ -511,6 +646,7 @@ export default function RemyndDashboardPage() {
       `}</style>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* Screen navigation */}
         <div className="flex items-center justify-between mb-6 no-print">
           <Link href={`/cases/${caseId}`}>
             <Button variant="ghost" size="sm" className="gap-1.5 text-slate-600">
@@ -527,16 +663,25 @@ export default function RemyndDashboardPage() {
           </Button>
         </div>
 
+        {/* Print-only header */}
         <div className="print-header mb-6 border-b pb-4">
           <div className="flex items-center gap-2 mb-1">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="h-5 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <img
+              src="/images/remynd-logo.png"
+              alt="ReMynd"
+              className="h-5 object-contain"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
             <span className="text-sm font-semibold text-slate-700">ReMynd Assessment Operating System</span>
           </div>
           <h1 className="text-lg font-bold text-slate-900">ReMynd Scoring Dashboard</h1>
-          <p className="text-sm text-slate-500">{studentName} · {school} · Generated {today}</p>
+          <p className="text-sm text-slate-500">
+            {studentName} · {school} · Case ID: {caseId} · Generated {today}
+          </p>
         </div>
 
-        <div className="mb-6">
+        {/* Screen header */}
+        <div className="mb-6 no-print">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
               <Brain size={18} className="text-violet-600" />
@@ -544,18 +689,22 @@ export default function RemyndDashboardPage() {
             <div>
               <h1 className="text-xl font-bold text-slate-900">ReMynd Scoring Dashboard</h1>
               {studentName && (
-                <p className="text-sm text-slate-500">{studentName}{school ? ` · ${school}` : ""} · {today}</p>
+                <p className="text-sm text-slate-500">
+                  {studentName}{school ? ` · ${school}` : ""} · Case {caseId} · {today}
+                </p>
               )}
             </div>
           </div>
         </div>
 
+        {/* Loading */}
         {isLoading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 size={28} className="animate-spin text-violet-400" />
           </div>
         )}
 
+        {/* Error */}
         {!isLoading && indexError && (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="pt-6 flex items-center gap-2 text-red-700 text-sm">
@@ -564,22 +713,29 @@ export default function RemyndDashboardPage() {
           </Card>
         )}
 
+        {/* Empty state */}
         {!isLoading && !indexError && !hasData && (
           <Card className="border-dashed border-slate-200">
             <CardContent className="pt-10 pb-10 text-center">
               <BarChart3 size={32} className="text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-600 mb-1">No ReMynd Scores Yet</p>
-              <p className="text-xs text-slate-400">Complete at least one ReMynd auto-scored tool (e.g. RCS-80, REFI, RSCP) to see the dashboard.</p>
+              <p className="text-xs text-slate-400">
+                Complete at least one ReMynd auto-scored tool (e.g. RCS-80, REFI, RSCP) to see the dashboard.
+              </p>
             </CardContent>
           </Card>
         )}
 
+        {/* Dashboard content */}
         {!isLoading && !indexError && hasData && indexData && (
           <div className="space-y-6">
+            {/* Section 1: Per-tool respondent comparison */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-sm font-semibold text-slate-800">Per-Tool Respondent Comparison</h2>
-                <span className="text-xs text-slate-400">{indexData.tools.length} tool{indexData.tools.length !== 1 ? "s" : ""}</span>
+                <span className="text-xs text-slate-400">
+                  {indexData.tools.length} tool{indexData.tools.length !== 1 ? "s" : ""}
+                </span>
               </div>
               <div className="space-y-4">
                 {indexData.tools.map(tool => (
@@ -588,28 +744,33 @@ export default function RemyndDashboardPage() {
               </div>
             </section>
 
+            {/* Section 2: ReMynd Index */}
             {Object.keys(indexData.index).length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <h2 className="text-sm font-semibold text-slate-800">ReMynd Index — Cross-Tool Summary</h2>
                 </div>
-                <RemyndIndexSection index={indexData.index} />
+                <RemyndIndexSection index={indexData.index} tools={indexData.tools} />
               </section>
             )}
 
+            {/* Section 3: Discrepancy analysis */}
             {indexData.tools.some(t => t.discrepancies.length > 0) && (
               <section className="page-break-before">
                 <DiscrepancySection tools={indexData.tools} />
               </section>
             )}
 
+            {/* Section 4: AI commentary */}
             <section>
               <AIInsightsSection caseId={caseId ?? ""} cachedInsights={indexData.cachedInsights} />
             </section>
 
+            {/* Footer */}
             <div className="text-[10px] text-slate-400 text-center pt-2 pb-6">
               ReMynd RAOS · Risk bands: Low (0–25) · Mild (26–50) · Moderate (51–65) · Elevated (66–100)
               · Scores normalized 0–100 where higher = greater reported concern.
+              · Discrepancy threshold: raw domain spread ≥ 1.5 pts.
             </div>
           </div>
         )}

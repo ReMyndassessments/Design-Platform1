@@ -54,18 +54,25 @@ async function getToolNameMap(): Promise<Map<string, string>> {
 
 async function getCachedInsights(caseId: string): Promise<string | null> {
   try {
-    const result = await db.execute(sql`SELECT remynd_insights_cache FROM cases WHERE id = ${caseId}`);
-    return (result.rows?.[0] as Record<string, unknown>)?.remynd_insights_cache as string ?? null;
+    const result = await db.execute(sql`
+      SELECT intake_analysis->>'remyndInsights' AS insights
+      FROM cases WHERE id = ${caseId}
+    `);
+    return (result.rows?.[0] as Record<string, unknown>)?.insights as string ?? null;
   } catch {
     return null;
   }
 }
 
-async function ensureInsightsCacheColumn(): Promise<void> {
+async function setCachedInsights(caseId: string, insights: string): Promise<void> {
   try {
-    await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS remynd_insights_cache TEXT`);
+    await db.execute(sql`
+      UPDATE cases
+      SET intake_analysis = COALESCE(intake_analysis, '{}'::jsonb) || jsonb_build_object('remyndInsights', ${insights}::text)
+      WHERE id = ${caseId}
+    `);
   } catch {
-    // column already exists or no permission — non-fatal
+    // Non-fatal — insights still returned to client
   }
 }
 
@@ -88,7 +95,7 @@ async function buildIndexData(caseId: string) {
   for (const [toolId, scores] of byTool) {
     const domainSet = new Set<string>();
     for (const score of scores) {
-      for (const d of Object.keys((score.normalizedScores ?? {}) as Record<string, number>)) {
+      for (const d of Object.keys((score.domainScores ?? {}) as Record<string, number>)) {
         domainSet.add(d);
       }
     }
@@ -97,20 +104,33 @@ async function buildIndexData(caseId: string) {
     const respondents = scores.map(score => ({
       respondentType: score.respondentType ?? "unknown",
       respondentLabel: RESPONDENT_LABEL[score.respondentType ?? ""] ?? score.respondentType ?? "Unknown",
+      // Raw domain scores (0–5 scale) — used for discrepancy threshold calculation
+      domainScores: (score.domainScores ?? {}) as Record<string, number>,
+      // Normalized domain scores (0–100) — used for visualization
       normalizedScores: (score.normalizedScores ?? {}) as Record<string, number>,
       rawScore: score.rawScore ?? 0,
     }));
 
+    // Per-domain discrepancy: compare RAW domain scores, flag spread ≥ 1.5
     const discrepancies = domains.map(domain => {
       const vals = respondents
-        .map(r => r.normalizedScores[domain])
+        .map(r => r.domainScores[domain])
         .filter((v): v is number => v !== undefined && v !== null);
       if (vals.length < 2) return null;
       const min = Math.min(...vals);
       const max = Math.max(...vals);
       const spread = max - min;
-      return { domain, spread, isHigh: spread >= 20, min, max };
-    }).filter((d): d is NonNullable<typeof d> => d !== null && d.spread > 0);
+      return {
+        domain,
+        rawSpread: spread,
+        isHigh: spread >= 1.5,
+        // Normalized spread for chart display
+        normalizedSpread: Math.round(
+          (respondents.map(r => r.normalizedScores[domain]).filter((v): v is number => v !== undefined).reduce((a, b) => Math.max(a, b), 0)) -
+          (respondents.map(r => r.normalizedScores[domain]).filter((v): v is number => v !== undefined).reduce((a, b) => Math.min(a, b), Infinity))
+        ),
+      };
+    }).filter((d): d is NonNullable<typeof d> => d !== null);
 
     tools.push({
       toolId,
@@ -121,7 +141,7 @@ async function buildIndexData(caseId: string) {
     });
   }
 
-  // Build cross-tool domain index
+  // Build cross-tool domain Index: average normalized scores per domain
   const domainAcc = new Map<string, { total: number; count: number; sources: string[] }>();
   for (const tool of tools) {
     for (const respondent of tool.respondents) {
@@ -196,13 +216,8 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
     toolsForAI
   );
 
-  // Cache in cases table
-  await ensureInsightsCacheColumn();
-  try {
-    await db.execute(sql`UPDATE cases SET remynd_insights_cache = ${insights} WHERE id = ${caseId}`);
-  } catch {
-    // Non-fatal
-  }
+  // Cache in case intake_analysis JSONB (additive, no schema change required)
+  await setCachedInsights(caseId, insights);
 
   res.json({ insights });
 });
