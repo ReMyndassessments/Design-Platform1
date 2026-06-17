@@ -74,10 +74,13 @@ const RISK_BAND_LEGEND = [
   { band: "elevated" as RiskBand, range: "66–100" },
 ];
 
-function getRiskBand(score: number): RiskBand {
-  if (score <= 25) return "low";
-  if (score <= 50) return "mild";
-  if (score <= 65) return "moderate";
+type ToolThresholds = { low: number; mild: number; moderate: number };
+const DEFAULT_THRESHOLDS: ToolThresholds = { low: 25, mild: 50, moderate: 65 };
+
+function getRiskBand(score: number, t: ToolThresholds = DEFAULT_THRESHOLDS): RiskBand {
+  if (score <= t.low) return "low";
+  if (score <= t.mild) return "mild";
+  if (score <= t.moderate) return "moderate";
   return "elevated";
 }
 
@@ -101,6 +104,7 @@ interface Discrepancy {
 interface ToolData {
   toolId: string;
   toolName: string;
+  thresholds: ToolThresholds;
   domains: string[];
   respondents: Respondent[];
   discrepancies: Discrepancy[];
@@ -133,10 +137,11 @@ function RiskBadge({ score, size = "sm" }: { score: number; size?: "sm" | "xs" }
 /** Single-respondent: horizontal bar chart, bars colored by domain risk band */
 function SingleRespondentChart({ tool }: { tool: ToolData }) {
   const r = tool.respondents[0];
+  const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
   const chartData = tool.domains.map(domain => ({
     domainLabel: dLabel(domain),
     value: r.normalizedScores[domain] ?? 0,
-    band: getRiskBand(r.normalizedScores[domain] ?? 0),
+    band: getRiskBand(r.normalizedScores[domain] ?? 0, t),
   }));
 
   return (
@@ -150,12 +155,12 @@ function SingleRespondentChart({ tool }: { tool: ToolData }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
           <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: "#64748b" }} unit="%" />
           <YAxis type="category" dataKey="domainLabel" tick={{ fontSize: 10, fill: "#64748b" }} width={130} />
-          <ReferenceLine x={25} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
-          <ReferenceLine x={50} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
-          <ReferenceLine x={65} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine x={t.low} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine x={t.mild} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine x={t.moderate} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
           <Tooltip
-            formatter={(val: number, _name: string, props) => {
-              const band = getRiskBand(val);
+            formatter={(val: number) => {
+              const band = getRiskBand(val, t);
               return [`${val}/100 — ${RISK_META[band].label}`, "Concern Level"];
             }}
             contentStyle={{ fontSize: 11, borderRadius: 6 }}
@@ -173,6 +178,7 @@ function SingleRespondentChart({ tool }: { tool: ToolData }) {
 
 /** Multi-respondent: grouped vertical bar chart, each bar colored by its own risk band */
 function MultiRespondentChart({ tool }: { tool: ToolData }) {
+  const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
   const respondentTypes = tool.respondents.map(r => r.respondentType);
 
   const chartData = tool.domains.map(domain => {
@@ -209,12 +215,12 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
             tick={{ fontSize: 10, fill: "#64748b" }}
             label={{ value: "Concern %", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "#94a3b8" }}
           />
-          <ReferenceLine y={25} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
-          <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
-          <ReferenceLine y={65} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine y={t.low} stroke="#10b981" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine y={t.mild} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth={1} />
+          <ReferenceLine y={t.moderate} stroke="#f97316" strokeDasharray="3 2" strokeWidth={1} />
           <Tooltip
             formatter={(val: number, name: string) => {
-              const band = getRiskBand(val);
+              const band = getRiskBand(val, t);
               return [`${val}/100 — ${RISK_META[band].label}`, rLabel(name)];
             }}
             contentStyle={{ fontSize: 11, borderRadius: 6 }}
@@ -223,7 +229,7 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
             <Bar key={rt} dataKey={rt} maxBarSize={20} radius={[3, 3, 0, 0]}>
               {chartData.map((entry, domainIdx) => {
                 const score = (entry[rt] as number) ?? 0;
-                const band = getRiskBand(score);
+                const band = getRiskBand(score, t);
                 return <Cell key={domainIdx} fill={RISK_META[band].hex} />;
               })}
             </Bar>
@@ -294,6 +300,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
       respondentType: r.respondentType,
       respondentLabel: r.respondentLabel,
       normalizedScores: r.normalizedScores,
+      thresholds: tool.thresholds ?? DEFAULT_THRESHOLDS,
     }))
   );
 
@@ -335,7 +342,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                       <td key={col.key} className="py-1.5 px-2 text-center text-[10px] text-slate-300">—</td>
                     );
                   }
-                  const band = getRiskBand(score);
+                  const band = getRiskBand(score, col.thresholds);
                   const m = RISK_META[band];
                   return (
                     <td
@@ -426,7 +433,7 @@ function RemyndIndexSection({ index, tools }: { index: Record<string, IndexEntry
           <CardContent className="pt-3 px-5 pb-5">
             <div className="space-y-2.5">
               {entries.map(([domain, e]) => {
-                const band = getRiskBand(e.average);
+                const band = (e.riskBand as RiskBand) in RISK_META ? (e.riskBand as RiskBand) : getRiskBand(e.average);
                 const m = RISK_META[band];
                 return (
                   <div key={domain} className="flex items-center gap-3">
@@ -439,7 +446,7 @@ function RemyndIndexSection({ index, tools }: { index: Record<string, IndexEntry
                     </div>
                     <div className="w-8 text-right text-[10px] text-slate-500 flex-shrink-0">{e.average}</div>
                     <div className="w-20 flex-shrink-0">
-                      <RiskBadge score={e.average} />
+                      <Badge className={`border ${m.bg} ${m.text} ${m.border} font-medium text-[10px]`}>{m.label}</Badge>
                     </div>
                   </div>
                 );
@@ -474,7 +481,7 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
       });
     }
   }
-  const sorted = allDiscrepancies.sort((a, b) => b.normalizedSpread - a.normalizedSpread).slice(0, 12);
+  const sorted = allDiscrepancies.sort((a, b) => b.normalizedSpread - a.normalizedSpread);
   if (sorted.length === 0) return null;
 
   return (

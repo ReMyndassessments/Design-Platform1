@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { scoresTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { scoresTable, casesTable, assessmentToolsTable, assignmentsTable } from "@workspace/db/schema";
+import { eq, sql, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateRemyndIndexInsights } from "../lib/ai.js";
 
@@ -124,13 +124,35 @@ async function setCachedInsights(caseId: string, insights: string): Promise<void
 }
 
 async function buildIndexData(caseId: string) {
-  const [allScores, remyndToolIds, toolNameMap, toolConfigMap] = await Promise.all([
-    db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
+  const [remyndToolIds, toolNameMap, toolConfigMap] = await Promise.all([
     getRemyndToolIds(),
     getToolNameMap(),
     getToolConfigMap(),
   ]);
-  const remyndScores = allScores.filter(s => remyndToolIds.has(s.toolId));
+
+  // 1. Drive from completed assignments — only include ReMynd tools that are fully scored
+  const allAssignments = await db
+    .select()
+    .from(assignmentsTable)
+    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed")));
+  const remyndAssignments = allAssignments.filter(a => remyndToolIds.has(a.toolId));
+
+  if (remyndAssignments.length === 0) return { tools: [], index: {} };
+
+  // 2. Fetch all score rows for this case, then deduplicate per (toolId, respondentType)
+  //    by keeping the last row encountered (query returns rows in insertion order,
+  //    so later = more recent rescoring).
+  const allScoreRows = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
+  const scoreMap = new Map<string, typeof allScoreRows[0]>();
+  for (const score of allScoreRows) {
+    const key = `${score.toolId}::${score.respondentType ?? ""}`;
+    scoreMap.set(key, score);
+  }
+
+  // 3. Map each completed ReMynd assignment to its deduplicated score
+  const remyndScores = remyndAssignments
+    .map(a => scoreMap.get(`${a.toolId}::${a.respondentType ?? ""}`))
+    .filter((s): s is NonNullable<typeof s> => s !== undefined);
 
   if (remyndScores.length === 0) return { tools: [], index: {} };
 
