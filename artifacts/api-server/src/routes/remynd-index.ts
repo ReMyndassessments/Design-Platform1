@@ -33,12 +33,17 @@ function canAccessCase(role: string, c: { school?: string | null }, userSchool?:
   return true;
 }
 
-function getRiskBand(score: number): "low" | "mild" | "moderate" | "elevated" {
-  if (score <= 25) return "low";
-  if (score <= 50) return "mild";
-  if (score <= 65) return "moderate";
+type ToolThresholds = { low: number; mild: number; moderate: number };
+const DEFAULT_THRESHOLDS: ToolThresholds = { low: 25, mild: 50, moderate: 65 };
+
+function getRiskBandForThresholds(score: number, t: ToolThresholds): "low" | "mild" | "moderate" | "elevated" {
+  if (score <= t.low) return "low";
+  if (score <= t.mild) return "mild";
+  if (score <= t.moderate) return "moderate";
   return "elevated";
 }
+
+type ToolConfig = { thresholds: ToolThresholds; domains: Record<string, string> };
 
 async function getRemyndToolIds(): Promise<Set<string>> {
   try {
@@ -58,6 +63,37 @@ async function getToolNameMap(): Promise<Map<string, string>> {
   try {
     const toolRows = await db.select({ id: assessmentToolsTable.id, name: assessmentToolsTable.name }).from(assessmentToolsTable);
     return new Map(toolRows.map(t => [t.id, t.name]));
+  } catch {
+    return new Map();
+  }
+}
+
+async function getToolConfigMap(): Promise<Map<string, ToolConfig>> {
+  try {
+    const toolRows = await db
+      .select({ id: assessmentToolsTable.id, scoringConfig: assessmentToolsTable.scoringConfig })
+      .from(assessmentToolsTable);
+    const map = new Map<string, ToolConfig>();
+    for (const row of toolRows) {
+      const cfg = row.scoringConfig as {
+        thresholds?: { low?: number; mild?: number; moderate?: number };
+        domains?: Record<string, { label?: string }>;
+      } | null | undefined;
+      const raw = cfg?.thresholds;
+      const thresholds: ToolThresholds = {
+        low: raw?.low ?? DEFAULT_THRESHOLDS.low,
+        mild: raw?.mild ?? DEFAULT_THRESHOLDS.mild,
+        moderate: raw?.moderate ?? DEFAULT_THRESHOLDS.moderate,
+      };
+      const domains: Record<string, string> = {};
+      if (cfg?.domains && typeof cfg.domains === "object") {
+        for (const [key, val] of Object.entries(cfg.domains)) {
+          domains[key] = (val as { label?: string })?.label ?? key;
+        }
+      }
+      map.set(row.id, { thresholds, domains });
+    }
+    return map;
   } catch {
     return new Map();
   }
@@ -88,9 +124,12 @@ async function setCachedInsights(caseId: string, insights: string): Promise<void
 }
 
 async function buildIndexData(caseId: string) {
-  const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
-  const remyndToolIds = await getRemyndToolIds();
-  const toolNameMap = await getToolNameMap();
+  const [allScores, remyndToolIds, toolNameMap, toolConfigMap] = await Promise.all([
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
+    getRemyndToolIds(),
+    getToolNameMap(),
+    getToolConfigMap(),
+  ]);
   const remyndScores = allScores.filter(s => remyndToolIds.has(s.toolId));
 
   if (remyndScores.length === 0) return { tools: [], index: {} };
@@ -102,15 +141,39 @@ async function buildIndexData(caseId: string) {
     byTool.get(score.toolId)!.push(score);
   }
 
-  const tools = [];
+  const tools: Array<{
+    toolId: string;
+    toolName: string;
+    thresholds: ToolThresholds;
+    domains: string[];
+    respondents: Array<{
+      respondentType: string;
+      respondentLabel: string;
+      domainScores: Record<string, number>;
+      normalizedScores: Record<string, number>;
+      rawScore: number;
+    }>;
+    discrepancies: Array<{
+      domain: string;
+      rawSpread: number;
+      isHigh: boolean;
+      normalizedSpread: number;
+    }>;
+  }> = [];
+
   for (const [toolId, scores] of byTool) {
-    const domainSet = new Set<string>();
+    const config = toolConfigMap.get(toolId);
+    const thresholds = config?.thresholds ?? DEFAULT_THRESHOLDS;
+
+    // Canonical domain list: from scoringConfig.domains keys (fallback to score payload keys)
+    const configDomains = config?.domains ? Object.keys(config.domains) : [];
+    const scoreKeySet = new Set<string>();
     for (const score of scores) {
       for (const d of Object.keys((score.domainScores ?? {}) as Record<string, number>)) {
-        domainSet.add(d);
+        scoreKeySet.add(d);
       }
     }
-    const domains = [...domainSet];
+    const domains = configDomains.length > 0 ? configDomains : [...scoreKeySet];
 
     const respondents = scores.map(score => ({
       respondentType: score.respondentType ?? "unknown",
@@ -143,33 +206,46 @@ async function buildIndexData(caseId: string) {
       };
     }).filter((d): d is NonNullable<typeof d> => d !== null);
 
-    tools.push({
-      toolId,
-      toolName: toolNameMap.get(toolId) ?? toolId,
-      domains,
-      respondents,
-      discrepancies,
-    });
+    tools.push({ toolId, toolName: toolNameMap.get(toolId) ?? toolId, thresholds, domains, respondents, discrepancies });
   }
 
-  // Build cross-tool domain Index: average normalized scores per domain
-  const domainAcc = new Map<string, { total: number; count: number; sources: string[] }>();
+  // Build cross-tool domain Index: average normalized scores per domain.
+  // Track the most conservative (lowest) moderate threshold across contributing
+  // tool-respondent pairs so risk band classification is not under-reported.
+  const domainAcc = new Map<string, {
+    total: number;
+    count: number;
+    sources: string[];
+    minMild: number;
+    minModerate: number;
+  }>();
+
   for (const tool of tools) {
     for (const respondent of tool.respondents) {
       for (const [domain, score] of Object.entries(respondent.normalizedScores)) {
-        if (!domainAcc.has(domain)) domainAcc.set(domain, { total: 0, count: 0, sources: [] });
+        if (!domainAcc.has(domain)) {
+          domainAcc.set(domain, {
+            total: 0, count: 0, sources: [],
+            minMild: tool.thresholds.mild,
+            minModerate: tool.thresholds.moderate,
+          });
+        }
         const entry = domainAcc.get(domain)!;
         entry.total += score;
         entry.count++;
         entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minMild = Math.min(entry.minMild, tool.thresholds.mild);
+        entry.minModerate = Math.min(entry.minModerate, tool.thresholds.moderate);
       }
     }
   }
 
   const index: Record<string, { average: number; sources: string[]; riskBand: string }> = {};
-  for (const [domain, { total, count, sources }] of domainAcc) {
+  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
     const average = Math.round(total / count);
-    index[domain] = { average, sources, riskBand: getRiskBand(average) };
+    // Use the most conservative thresholds from contributing tools so risk is not under-reported
+    const indexThresholds: ToolThresholds = { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate };
+    index[domain] = { average, sources, riskBand: getRiskBandForThresholds(average, indexThresholds) };
   }
 
   return { tools, index };
@@ -195,8 +271,9 @@ router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
 
 // POST /cases/:caseId/remynd-index/insights
 router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, res) => {
-  if (!isAdminLike(req.userRole)) {
-    res.status(403).json({ error: "forbidden", message: "Only admins and coordinators can generate insights" });
+  // Block data-collection-only role; all other authenticated users with case access may generate
+  if (req.userRole === "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden", message: "Invigilators cannot generate clinical narratives" });
     return;
   }
 
@@ -211,7 +288,7 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
   }
 
   const caseData = caseRows[0] as Record<string, unknown>;
-  const { tools } = await buildIndexData(caseId);
+  const { tools, index } = await buildIndexData(caseId);
 
   if (tools.length === 0) {
     res.status(400).json({ error: "no_scores", message: "No ReMynd scores available to analyse." });
@@ -226,24 +303,8 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
     })),
   }));
 
-  // Build the aggregated index map to pass to AI for holistic interpretation
-  const indexForAI: Record<string, { average: number; riskBand: string; sources: string[] }> = {};
-  for (const tool of tools) {
-    for (const r of tool.respondents) {
-      for (const [domain] of Object.entries(r.normalizedScores)) {
-        if (!indexForAI[domain]) indexForAI[domain] = { average: 0, riskBand: "", sources: [] };
-        indexForAI[domain].sources.push(`${tool.toolName} / ${r.respondentType}`);
-      }
-    }
-  }
-  // Compute averages and risk bands for the index map
-  for (const [domain, entry] of Object.entries(indexForAI)) {
-    const scores = tools.flatMap(t =>
-      t.respondents.map(r => r.normalizedScores[domain]).filter((v): v is number => v !== undefined)
-    );
-    entry.average = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-    entry.riskBand = entry.average <= 25 ? "low" : entry.average <= 50 ? "mild" : entry.average <= 65 ? "moderate" : "elevated";
-  }
+  // Use the correctly-computed index (with per-tool thresholds) for holistic AI interpretation
+  const indexForAI = index;
 
   const insights = await generateRemyndIndexInsights(
     {
