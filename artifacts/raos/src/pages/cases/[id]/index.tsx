@@ -362,7 +362,7 @@ export default function CaseDetail() {
   const LITERACY_TOOL_IDS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
   const hasLiteracyBattery = c?.assignments?.some(a => LITERACY_TOOL_IDS.has(a.toolId ?? ""));
 
-  const REMYND_AUTO_TOOL_IDS = new Set(["RCS-80", "RASR", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP"]);
+  const REMYND_AUTO_TOOL_IDS = new Set(["RCS-80", "RASR", "RASR-OBS", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP", "RCEP-CORE", "BSPP", "RDA"]);
   const hasRemyndBattery = c?.assignments?.some(
     a => REMYND_AUTO_TOOL_IDS.has(a.toolId ?? "") && a.status === "completed"
   );
