@@ -22,6 +22,17 @@ const RESPONDENT_LABEL: Record<string, string> = {
   invigilator: "Invigilator",
 };
 
+function isAdminLike(role?: string): boolean {
+  return role === "admin" || role === "school_clinical_coordinator";
+}
+
+function canAccessCase(role: string, c: { school?: string | null }, userSchool?: string): boolean {
+  if (role === "school_clinical_coordinator") {
+    return !!userSchool && c.school === userSchool;
+  }
+  return true;
+}
+
 function getRiskBand(score: number): "low" | "mild" | "moderate" | "elevated" {
   if (score <= 25) return "low";
   if (score <= 50) return "mild";
@@ -168,9 +179,13 @@ async function buildIndexData(caseId: string) {
 router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
 
-  const caseRows = await db.select({ id: casesTable.id })
-    .from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+
+  if (!canAccessCase(req.userRole!, caseRows[0], req.userSchool)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
 
   const { tools, index } = await buildIndexData(caseId);
   const cachedInsights = await getCachedInsights(caseId);
@@ -180,8 +195,8 @@ router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
 
 // POST /cases/:caseId/remynd-index/insights
 router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, res) => {
-  if (req.userRole === "assessment_invigilator") {
-    res.status(403).json({ error: "forbidden" });
+  if (!isAdminLike(req.userRole)) {
+    res.status(403).json({ error: "forbidden", message: "Only admins and coordinators can generate insights" });
     return;
   }
 
@@ -189,6 +204,11 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
 
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+
+  if (!canAccessCase(req.userRole!, caseRows[0], req.userSchool)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
 
   const caseData = caseRows[0] as Record<string, unknown>;
   const { tools } = await buildIndexData(caseId);
