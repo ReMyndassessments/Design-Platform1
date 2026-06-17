@@ -475,7 +475,7 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
   for (const tool of tools) {
     for (const d of tool.discrepancies) {
       allDiscrepancies.push({
-        label: `${dLabel(d.domain)} (${tool.toolName})`,
+        label: `${dLabel(d.domain)} (${tool.toolId})`,
         normalizedSpread: d.normalizedSpread,
         isHigh: d.isHigh,
       });
