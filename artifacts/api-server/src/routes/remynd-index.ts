@@ -206,6 +206,25 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
     })),
   }));
 
+  // Build the aggregated index map to pass to AI for holistic interpretation
+  const indexForAI: Record<string, { average: number; riskBand: string; sources: string[] }> = {};
+  for (const tool of tools) {
+    for (const r of tool.respondents) {
+      for (const [domain] of Object.entries(r.normalizedScores)) {
+        if (!indexForAI[domain]) indexForAI[domain] = { average: 0, riskBand: "", sources: [] };
+        indexForAI[domain].sources.push(`${tool.toolName} / ${r.respondentType}`);
+      }
+    }
+  }
+  // Compute averages and risk bands for the index map
+  for (const [domain, entry] of Object.entries(indexForAI)) {
+    const scores = tools.flatMap(t =>
+      t.respondents.map(r => r.normalizedScores[domain]).filter((v): v is number => v !== undefined)
+    );
+    entry.average = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    entry.riskBand = entry.average <= 25 ? "low" : entry.average <= 50 ? "mild" : entry.average <= 65 ? "moderate" : "elevated";
+  }
+
   const insights = await generateRemyndIndexInsights(
     {
       studentName: String(caseData.studentName ?? "Student"),
@@ -213,7 +232,8 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
       grade: String(caseData.grade ?? ""),
       referralReason: String(caseData.referralReason ?? ""),
     },
-    toolsForAI
+    toolsForAI,
+    indexForAI
   );
 
   // Cache in case intake_analysis JSONB (additive, no schema change required)

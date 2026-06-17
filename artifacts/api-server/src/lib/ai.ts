@@ -1256,7 +1256,8 @@ export async function generateRemyndIndexInsights(
   tools: Array<{
     toolName: string;
     respondents: Array<{ respondentType: string; normalizedScores: Record<string, number> }>;
-  }>
+  }>,
+  indexData?: Record<string, { average: number; riskBand: string; sources: string[] }>
 ): Promise<string> {
   const { studentName, school, grade, referralReason } = caseProfile;
   const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
@@ -1272,6 +1273,14 @@ export async function generateRemyndIndexInsights(
     return `${tool.toolName}:\n${respLines}`;
   }).join("\n\n");
 
+  const indexSummary = indexData && Object.keys(indexData).length > 0
+    ? "\n\nREMYND INDEX (cross-tool averages):\n" +
+      Object.entries(indexData)
+        .sort((a, b) => b[1].average - a[1].average)
+        .map(([d, e]) => `  - ${DOMAIN_LABELS_AI[d] ?? d}: ${e.average}/100 (${e.riskBand.charAt(0).toUpperCase() + e.riskBand.slice(1)}) — ${[...new Set(e.sources)].slice(0, 3).join("; ")}`)
+        .join("\n")
+    : "";
+
   const prompt = `You are a psychoeducational specialist writing a clinical interpretation narrative for a formal assessment report. You have been provided with data from the ReMynd Assessment Operating System (RAOS) — a suite of proprietary rating scales completed by multiple respondents.
 
 STUDENT PROFILE:
@@ -1283,10 +1292,10 @@ STUDENT PROFILE:
 NORMALIZED SCORE DATA (0 = no concern, 100 = maximum concern):
 Risk bands: 0–25 = Low, 26–50 = Mild, 51–65 = Moderate, 66–100 = Elevated
 
-${scoreSummary}
+${scoreSummary}${indexSummary}
 
 Write a professional clinical interpretation narrative (4–6 paragraphs) addressing:
-1. Overall functional profile and primary areas of concern based on the cross-informant data.
+1. Overall functional profile and primary areas of concern based on the cross-informant and cross-tool ReMynd Index data.
 2. Per-domain interpretation with convergent (agreeing) and divergent (discrepant) respondent findings, noting which informants report elevated concerns and which do not.
 3. Contextual factors that may explain discrepancies (e.g., setting differences, rater perspective, protective factors).
 4. Functional implications for ${firstName}'s academic performance, social engagement, and daily functioning.

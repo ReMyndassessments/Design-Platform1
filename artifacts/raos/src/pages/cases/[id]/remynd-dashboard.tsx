@@ -525,7 +525,7 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
       const res = await fetch(`${BASE_URL}/api/cases/${caseId}/remynd-index/insights`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
           "Content-Type": "application/json",
         },
       });
@@ -599,12 +599,12 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
 export default function RemyndDashboardPage() {
   const { id: caseId } = useParams<{ id: string }>();
 
+  const authHeader = { Authorization: `Bearer ${localStorage.getItem("raos_token")}` };
+
   const { data: caseData, isLoading: loadingCase } = useQuery({
     queryKey: ["case", caseId],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/cases/${caseId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const res = await fetch(`${BASE_URL}/api/cases/${caseId}`, { headers: authHeader });
       if (!res.ok) throw new Error("Failed to load case");
       return res.json();
     },
@@ -614,9 +614,7 @@ export default function RemyndDashboardPage() {
   const { data: indexData, isLoading: loadingIndex, error: indexError } = useQuery<RemyndIndexResponse>({
     queryKey: ["remynd-index", caseId],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/cases/${caseId}/remynd-index`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      const res = await fetch(`${BASE_URL}/api/cases/${caseId}/remynd-index`, { headers: authHeader });
       if (!res.ok) throw new Error("Failed to load ReMynd index");
       return res.json();
     },
@@ -639,6 +637,12 @@ export default function RemyndDashboardPage() {
           body, html { background: white !important; }
           .recharts-wrapper { break-inside: avoid; }
           .page-break-before { break-before: page; }
+          /* Hide AppLayout sidebar (fixed left nav) */
+          .fixed.z-40 { display: none !important; }
+          /* Hide mobile menu button and any other fixed overlays */
+          .fixed.z-50 { display: none !important; }
+          /* Make the layout container block so content fills full width */
+          .flex.min-h-screen { display: block !important; }
         }
         @media screen {
           .print-header { display: none; }
