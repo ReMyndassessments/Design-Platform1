@@ -2,7 +2,7 @@ import { useParams, Link } from "wouter";
 import { useGetCaseScores, useCalculateScores, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileText, TrendingUp, Users, ClipboardList } from "lucide-react";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileText, TrendingUp, Users, ClipboardList, Download } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -728,9 +728,24 @@ export default function ScoringView() {
   }
   const toolGroups = Object.values(byTool).map(byRespondent => Object.values(byRespondent));
 
+  const handleDownloadPDF = () => window.print();
+
   return (
     <div className="space-y-6 animate-fade-in pb-20">
-      <div className="flex items-center justify-between mb-4">
+      {/* Print-only header */}
+      <div className="print-only mb-6 pb-4 border-b-2 border-slate-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">ReMynd Assessment Operating System</p>
+            <h1 className="text-2xl font-bold text-slate-900">Scoring &amp; Analysis Report</h1>
+            <p className="text-slate-500 text-sm mt-0.5">Case: {studentName} · Generated {today}</p>
+          </div>
+          <img src="/images/remynd-logo.png" alt="ReMynd" className="h-10 w-10 object-contain" />
+        </div>
+      </div>
+
+      {/* Screen-only page header */}
+      <div className="flex items-center justify-between mb-4 no-print">
         <div className="flex items-center space-x-4">
           <Link href={`/cases/${caseId}`}>
             <Button variant="ghost" size="icon" className="rounded-full">
@@ -738,15 +753,20 @@ export default function ScoringView() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold font-display text-slate-900">Scoring & Analysis</h1>
+            <h1 className="text-3xl font-bold font-display text-slate-900">Scoring &amp; Analysis</h1>
             <p className="text-slate-500 text-sm">Case: {studentName}</p>
           </div>
         </div>
-        {!isInvigilator && (
-          <Button onClick={handleRecalculate} disabled={calcMut.isPending} variant="outline" className="bg-white">
-            <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
+        <div className="flex items-center gap-2">
+          {!isInvigilator && (
+            <Button onClick={handleRecalculate} disabled={calcMut.isPending} variant="outline" className="bg-white">
+              <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
+            </Button>
+          )}
+          <Button onClick={handleDownloadPDF} variant="outline" className="bg-white">
+            <Download size={16} className="mr-2" /> Download PDF
           </Button>
-        )}
+        </div>
       </div>
 
       {toolGroups.length === 0 ? (
@@ -755,13 +775,14 @@ export default function ScoringView() {
         </Card>
       ) : (
         <div className="space-y-16">
-          {toolGroups.map(group => (
-            <ToolScoreSection
-              key={group[0].toolId}
-              toolScores={group}
-              studentName={studentName}
-              today={today}
-            />
+          {toolGroups.map((group, idx) => (
+            <div key={group[0].toolId} className={idx > 0 ? "print-tool-section" : ""}>
+              <ToolScoreSection
+                toolScores={group}
+                studentName={studentName}
+                today={today}
+              />
+            </div>
           ))}
         </div>
       )}

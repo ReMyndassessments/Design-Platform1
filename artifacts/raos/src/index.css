@@ -144,3 +144,67 @@
 .glass-panel {
   @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
 }
+
+/* ── Print / PDF styles ──────────────────────────────────────────────────── */
+.print-only { display: none; }
+
+@media print {
+  /* Hide non-content chrome */
+  .no-print { display: none !important; }
+
+  /* Show print-only elements */
+  .print-only { display: block !important; }
+
+  /* Full-width layout — remove sidebar space */
+  body { background: white !important; }
+  .flex.min-h-screen { display: block !important; }
+  main {
+    width: 100% !important;
+    padding: 1.5rem 2rem !important;
+    overflow: visible !important;
+  }
+  main > div {
+    overflow: visible !important;
+    animation: none !important;
+  }
+
+  /* Strip decorative shadows and simplify card borders */
+  [class*="shadow"] { box-shadow: none !important; }
+  .border-none { border: 1px solid #e2e8f0 !important; }
+
+  /* Page break before every tool section except the first */
+  .print-tool-section {
+    break-before: page;
+    page-break-before: always;
+    padding-top: 1rem;
+  }
+
+  /* Keep cards together — avoid breaking in the middle of a card */
+  .rounded-lg, [class*="Card"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Charts: give them a fixed height so Recharts renders them */
+  .recharts-responsive-container {
+    min-height: 300px !important;
+    height: 300px !important;
+  }
+
+  /* Remove gradient backgrounds on band cards */
+  [class*="bg-emerald-50"],
+  [class*="bg-sky-50"],
+  [class*="bg-amber-50"],
+  [class*="bg-red-50"],
+  [class*="bg-orange-50"],
+  [class*="bg-slate-50"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Remove bottom padding added for mobile scroll */
+  .pb-20 { padding-bottom: 0 !important; }
+
+  /* Ensure text colours print */
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
