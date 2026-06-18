@@ -21,7 +21,7 @@ function summerPx(priceStr: string): string {
   return Math.round(n * (1 - SUMMER_DISCOUNT)).toLocaleString();
 }
 
-function PriceTag({ price, summer }: { price: string; summer?: boolean }) {
+function PriceTag({ price, summer, summerLabel = "–20% summer" }: { price: string; summer?: boolean; summerLabel?: string }) {
   const discounted = summerPx(price);
   return (
     <div>
@@ -29,7 +29,7 @@ function PriceTag({ price, summer }: { price: string; summer?: boolean }) {
         <div className="flex items-center gap-1.5 mb-0.5">
           <span className="text-xs text-slate-400 line-through">{price} RMB</span>
           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
-            <Sun size={8} className="flex-shrink-0" /> –20% summer
+            <Sun size={8} className="flex-shrink-0" /> {summerLabel}
           </span>
         </div>
       )}
@@ -68,7 +68,7 @@ export default function AssessmentServicesPage() {
               <img src="/images/remynd-logo.png" alt="ReMynd" className="h-9 w-9 object-contain" />
               <div className="leading-none">
                 <p className="text-sm font-extrabold text-slate-900 tracking-tight">ReMynd</p>
-                <p className="text-[10px] font-medium text-slate-500 tracking-wide">Student Services</p>
+                <p className="text-[10px] font-medium text-slate-500 tracking-wide">{a.navBrandSub}</p>
               </div>
             </div>
           </Link>
@@ -97,7 +97,7 @@ export default function AssessmentServicesPage() {
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20 md:py-28 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 py-1.5 mb-7">
             <Award size={12} className="text-amber-400" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">{a.pricingBadge}</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 whitespace-nowrap">{a.pricingBadge}</span>
           </div>
 
           <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-5">
@@ -197,7 +197,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Section 1</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.sectionLabels[0]}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s1Title}</h2>
             <p className="text-slate-500 text-sm max-w-lg mx-auto">{a.s1Sub}</p>
           </div>
@@ -222,7 +222,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Section 2</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.sectionLabels[1]}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s2Title}</h2>
             <p className="text-slate-500 text-sm max-w-lg mx-auto">{a.s2Sub}</p>
           </div>
@@ -243,7 +243,7 @@ export default function AssessmentServicesPage() {
                   <BestForList items={a.t1BestFor} />
                 </div>
                 <div className="md:text-right flex-shrink-0">
-                  <PriceTag price="4,500" summer />
+                  <PriceTag price="4,500" summer summerLabel={a.summerDiscountLabel} />
                   <p className="text-[10px] text-slate-400 mt-1">{a.t1PerStudent}</p>
                 </div>
               </div>
@@ -261,7 +261,7 @@ export default function AssessmentServicesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {a.tier2.map(item => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                  <PriceTag price={item.price} summer />
+                  <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
@@ -281,7 +281,7 @@ export default function AssessmentServicesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {a.tier3.map(item => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                  <PriceTag price={item.price} summer />
+                  <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
@@ -325,7 +325,7 @@ export default function AssessmentServicesPage() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm text-blue-300/60 line-through">16,500 RMB</span>
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 rounded-full">
-                          <Sun size={8} /> –20% summer
+                          <Sun size={8} /> {a.summerDiscountLabel}
                         </span>
                       </div>
                       <div className="flex items-baseline gap-2">
@@ -393,14 +393,14 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-teal-500 mb-3">Section 3</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-teal-500 mb-3">{a.sectionLabels[2]}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s3Title}</h2>
             <p className="text-slate-500 text-sm max-w-xl mx-auto">{a.s3Sub}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {a.parentServices.map(item => (
               <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                <PriceTag price={item.price} summer />
+                <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
               </div>
@@ -420,7 +420,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Section 4</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.sectionLabels[3]}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s4Title}</h2>
             <p className="text-slate-500 text-sm">{a.s4Sub}</p>
           </div>
@@ -451,7 +451,7 @@ export default function AssessmentServicesPage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 md:p-12 shadow-sm">
             <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-4">Section 5</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-4">{a.sectionLabels[4]}</p>
               <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">{a.s5Title}</h2>
               <p className="text-slate-500 text-sm mb-7">{a.s5Body}</p>
               <p className="text-sm font-semibold text-slate-700 mb-4">{a.s5AccessTitle}</p>
@@ -477,7 +477,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <div className="max-w-2xl mx-auto text-center">
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-3">Section 6</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-3">{a.sectionLabels[5]}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">{a.s6Title}</h2>
             <p className="text-slate-500 text-sm mb-8">{a.s6Sub}</p>
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-8 text-left">

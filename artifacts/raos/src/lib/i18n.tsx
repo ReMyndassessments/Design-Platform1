@@ -294,6 +294,9 @@ export const translations = {
       summerDesc: "20% off 2026–2027 school year pricing — available for assessments booked this summer.",
       summerBookBtn: "Book a Summer Assessment",
       summerParentBtn: "Parent Enquiry",
+      navBrandSub: "Student Services",
+      summerDiscountLabel: "–20% summer",
+      sectionLabels: ["Section 1", "Section 2", "Section 3", "Section 4", "Section 5", "Section 6"],
       summerUseCases: [
         { title: "Summer Assessments", desc: "Identify concerns before the new school year begins" },
         { title: "Summer Study Plans", desc: "Tailored learning plans ready for September" },
@@ -662,6 +665,9 @@ export const translations = {
       summerDesc: "2026–2027 学年收费八折——适用于本夏季预约的评估。",
       summerBookBtn: "预约暑期评估",
       summerParentBtn: "家长咨询",
+      navBrandSub: "学生服务",
+      summerDiscountLabel: "–20% 夏季",
+      sectionLabels: ["第一部分", "第二部分", "第三部分", "第四部分", "第五部分", "第六部分"],
       summerUseCases: [
         { title: "暑期评估", desc: "在新学年开始前识别问题" },
         { title: "暑期学习计划", desc: "九月前准备好定制化学习方案" },
@@ -1030,6 +1036,9 @@ export const translations = {
       summerDesc: "2026–2027 학년도 요금 20% 할인 — 이번 여름에 예약한 평가에 적용됩니다.",
       summerBookBtn: "여름 평가 예약",
       summerParentBtn: "학부모 문의",
+      navBrandSub: "학생 서비스",
+      summerDiscountLabel: "–20% 여름",
+      sectionLabels: ["섹션 1", "섹션 2", "섹션 3", "섹션 4", "섹션 5", "섹션 6"],
       summerUseCases: [
         { title: "여름 평가", desc: "새 학년이 시작되기 전에 우려 사항을 파악합니다" },
         { title: "여름 학습 계획", desc: "9월에 맞춰 맞춤형 학습 계획 준비" },
