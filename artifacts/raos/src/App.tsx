@@ -64,6 +64,7 @@ import TeamPage from "@/pages/team";
 import InquiriesPage from "@/pages/inquiries";
 import PartnerSchoolsPage from "@/pages/partner-schools";
 import PartnerInquiryPage from "@/pages/partner-inquiry";
+import AssessmentServicesPage from "@/pages/assessment-services";
 import NotFound from "@/pages/not-found";
 import RppiAdminPage from "@/pages/cases/[id]/rppi";
 import RdaAdminPage from "@/pages/cases/[id]/rda";
@@ -190,6 +191,7 @@ function Router() {
       </Route>
       <Route path="/partner-schools" component={PartnerSchoolsPage} />
       <Route path="/partner-inquiry" component={PartnerInquiryPage} />
+      <Route path="/assessment-services" component={AssessmentServicesPage} />
 
       <Route component={NotFound} />
     </Switch>

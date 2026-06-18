@@ -165,6 +165,30 @@ export default function LandingPage() {
                 </div>
               </div>
             </Link>
+
+            {/* Assessment Services card */}
+            <Link href="/assessment-services">
+              <div className="group border border-amber-200 hover:border-amber-400 hover:bg-amber-50/40 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-md bg-amber-50/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 group-hover:bg-amber-100 flex items-center justify-center transition-colors border border-amber-200 flex-shrink-0">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-amber-500">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm font-semibold text-gray-800">Explore Assessment Services</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">2026–2027</span>
+                      </div>
+                      <p className="text-xs text-gray-400">View school-facing assessment options, pricing, and referral pathways.</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-amber-500 transition-colors flex-shrink-0" />
+                </div>
+              </div>
+            </Link>
           </div>
 
           <p className="mt-10 text-xs text-gray-300 text-center">
