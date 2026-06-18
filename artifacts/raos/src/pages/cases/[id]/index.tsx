@@ -2060,30 +2060,6 @@ export default function CaseDetail() {
                     <LayoutGrid size={13} /> Dashboards
                   </Button>
                 </Link>
-                {hasLiteracyBattery && (
-                  <Link href={`/cases/${caseId}/literacy-dashboard`}>
-                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
-                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Literacy</span>
-                      Dashboard
-                    </Button>
-                  </Link>
-                )}
-                {hasRemyndBattery && (
-                  <Link href={`/cases/${caseId}/remynd-dashboard`}>
-                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
-                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">ReMynd</span>
-                      Dashboard
-                    </Button>
-                  </Link>
-                )}
-                {hasCdpBattery && (
-                  <Link href={`/cases/${caseId}/cdp`}>
-                    <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
-                      <span className="text-[11px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">CDP</span>
-                      View Profile
-                    </Button>
-                  </Link>
-                )}
                 {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
