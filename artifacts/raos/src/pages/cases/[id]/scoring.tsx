@@ -13,6 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 // ── Tools that score higher = better (strengths-based) ───────────────────────
 const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
 
+// ── Non-clinical domains to exclude from all charts ───────────────────────────
+const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin_info", "instructions", "general_info", "identifying_info"]);
+
+// ── Label formatter: DOMAIN_LABELS first, then snake_case → Title Case ────────
+function formatDomainLabel(key: string): string {
+  if (DOMAIN_LABELS[key]) return DOMAIN_LABELS[key];
+  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ── Domain display labels ─────────────────────────────────────────────────────
 const DOMAIN_LABELS: Record<string, string> = {
   // Deficit-model tools
@@ -393,10 +402,14 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   const higherIsBetter = HIGHER_IS_BETTER_TOOLS.has(toolId);
 
   const domains = new Set<string>();
-  toolScores.forEach(s => Object.keys(s.normalizedScores).forEach(d => domains.add(d)));
+  toolScores.forEach(s =>
+    Object.keys(s.normalizedScores)
+      .filter(d => !NON_CLINICAL_DOMAINS.has(d))
+      .forEach(d => domains.add(d))
+  );
 
   const radarData = Array.from(domains).map(domain => {
-    const pt: any = { subject: DOMAIN_LABELS[domain] ?? domain };
+    const pt: any = { subject: formatDomainLabel(domain) };
     toolScores.forEach(s => { pt[s.respondentType] = (s.normalizedScores as Record<string, number>)[domain] || 0; });
     return pt;
   });
@@ -410,6 +423,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   const allByDomain: Record<string, number[]> = {};
   for (const s of toolScores) {
     for (const [domain, val] of Object.entries(s.normalizedScores as Record<string, number>)) {
+      if (NON_CLINICAL_DOMAINS.has(domain)) continue;
       if (!allByDomain[domain]) allByDomain[domain] = [];
       allByDomain[domain].push(val);
     }
@@ -498,12 +512,24 @@ function ToolScoreSection({ toolScores, studentName, today }: {
           <CardContent>
             <div className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={radarData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
+                <BarChart data={radarData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 10 }} angle={-35} textAnchor="end" interval={0} />
+                  <XAxis
+                    dataKey="subject"
+                    tick={{ fill: '#475569', fontSize: 10 }}
+                    angle={-40}
+                    textAnchor="end"
+                    interval={0}
+                    height={90}
+                    tickFormatter={(v: string) => v.length > 20 ? v.slice(0, 18) + "…" : v}
+                  />
                   <YAxis domain={[0, 100]} tick={{ fill: '#475569' }} />
-                  <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                  <Tooltip
+                    cursor={{ fill: '#f1f5f9' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number, name: string) => [value, name.toUpperCase()]}
+                  />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '8px' }} />
                   {respondentTypes.map((type, i) => (
                     <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
                   ))}
