@@ -101,9 +101,9 @@ export default function AssessmentServicesPage() {
           </div>
 
           <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-5">
-            {a.heroTitle.split("Assessment Services")[0]}
+            {a.heroTitle1}
             <br />
-            <span className="text-blue-300">Assessment Services</span>
+            <span className="text-blue-300">{a.heroTitle2}</span>
           </h1>
           <p className="text-base md:text-lg text-blue-200 font-medium mb-8 max-w-2xl mx-auto leading-relaxed">
             {a.heroSubtitle}

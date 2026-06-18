@@ -279,7 +279,8 @@ export const translations = {
     assessmentServices: {
       referStudent: "Refer a Student",
       pricingBadge: "2026–2027 School Year Pricing",
-      heroTitle: "ReMynd Student Support Assessment Services",
+      heroTitle1: "ReMynd Student Support",
+      heroTitle2: "Assessment Services",
       heroSubtitle: "Comprehensive Assessment, Early Identification & Practical Support Planning for International Schools",
       heroBoxTitle: "Helping Schools Move From Concern to Coordinated Support",
       heroBoxBody: "Every school has students who struggle academically, emotionally, socially, behaviourally, or organisationally. The challenge is not simply recognising that a student is struggling.",
@@ -646,7 +647,8 @@ export const translations = {
     assessmentServices: {
       referStudent: "转介学生",
       pricingBadge: "2026–2027 学年收费",
-      heroTitle: "ReMynd 学生支持评估服务",
+      heroTitle1: "ReMynd 学生支持",
+      heroTitle2: "评估服务",
       heroSubtitle: "面向国际学校的全面评估、早期识别与实用支持计划",
       heroBoxTitle: "帮助学校从关切走向协调支持",
       heroBoxBody: "每所学校都有在学业、情感、社交、行为或自我管理方面遇到困难的学生。挑战不仅仅在于察觉到学生正在挣扎。",
@@ -1013,7 +1015,8 @@ export const translations = {
     assessmentServices: {
       referStudent: "학생 의뢰",
       pricingBadge: "2026–2027 학년도 요금",
-      heroTitle: "ReMynd 학생 지원 평가 서비스",
+      heroTitle1: "ReMynd 학생 지원",
+      heroTitle2: "평가 서비스",
       heroSubtitle: "국제학교를 위한 종합 평가, 조기 식별 및 실용적인 지원 계획",
       heroBoxTitle: "학교가 우려에서 협력적 지원으로 나아가도록 돕습니다",
       heroBoxBody: "모든 학교에는 학업적, 정서적, 사회적, 행동적 또는 자기 조절 측면에서 어려움을 겪는 학생들이 있습니다. 과제는 단순히 학생이 어려움을 겪고 있다는 것을 인식하는 것이 아닙니다.",
