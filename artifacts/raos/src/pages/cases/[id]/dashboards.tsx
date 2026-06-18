@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2, Zap, Activity, Cpu, Users, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ASSESSMENT_PRODUCTS } from "@/lib/products";
@@ -15,6 +15,63 @@ function authHeaders() {
 const REMYND_AUTO_PREFIXES = ["RCS-80","RASR","RCEP","REFI","RERMS","RSCP","RARPS","RFII","RSSC","RSCA","RARI","EFA"];
 const CDP_TOOL_IDS    = new Set(["CDP-CL","CDP-SI","CDP-SR","CDP-CI"]);
 const LITERACY_TOOL_IDS = new Set(["RRCA","RRFA","RPPI","RDA"]);
+
+// Battery tiles — appear automatically when any of their forms are assigned
+const BATTERY_TILE_DEFS: Array<{
+  id: string;
+  title: string;
+  subtitle: string;
+  tag: string;
+  tagColor: string;
+  icon: React.ReactNode;
+  toolIds: Set<string>;
+}> = [
+  {
+    id: "snap",
+    title: "SNAP-IV Dashboard",
+    subtitle: "SNAP-IV 26 cross-informant ADHD rating scales",
+    tag: "SNAP-IV",
+    tagColor: "bg-orange-100 text-orange-700",
+    icon: <Zap size={22} className="text-orange-500" />,
+    toolIds: new Set(["SNAPIV26"]),
+  },
+  {
+    id: "basc3",
+    title: "BASC-3 Dashboard",
+    subtitle: "Behavior Assessment System for Children — multi-informant",
+    tag: "BASC-3",
+    tagColor: "bg-rose-100 text-rose-700",
+    icon: <Activity size={22} className="text-rose-500" />,
+    toolIds: new Set(["BASC3-PRS-A","BASC3-TRS-A","BASC3-SRP-A","BASC3-PRS-C","BASC3-TRS-C","BASC3-SRP-C","BASC3-PRS-P","BASC3-TRS-P"]),
+  },
+  {
+    id: "brief2",
+    title: "BRIEF-2 Dashboard",
+    subtitle: "Behavior Rating Inventory of Executive Function",
+    tag: "BRIEF-2",
+    tagColor: "bg-cyan-100 text-cyan-700",
+    icon: <Cpu size={22} className="text-cyan-500" />,
+    toolIds: new Set(["BRIEF2-P","BRIEF2-T","BRIEF2-SR"]),
+  },
+  {
+    id: "sdq",
+    title: "SDQ Dashboard",
+    subtitle: "Strengths and Difficulties Questionnaire — multi-informant",
+    tag: "SDQ",
+    tagColor: "bg-teal-100 text-teal-700",
+    icon: <Users size={22} className="text-teal-500" />,
+    toolIds: new Set(["SDQ-P4","SDQ-T4","SDQ-SR4","SDQ-P11","SDQ-T11","SDQ-SR"]),
+  },
+  {
+    id: "vanderbilt",
+    title: "Vanderbilt Dashboard",
+    subtitle: "Vanderbilt ADHD Diagnostic Rating Scales",
+    tag: "Vanderbilt",
+    tagColor: "bg-amber-100 text-amber-700",
+    icon: <Target size={22} className="text-amber-500" />,
+    toolIds: new Set(["VADPRS","VADTRS"]),
+  },
+];
 
 function isRemyndAuto(toolId: string): boolean {
   return REMYND_AUTO_PREFIXES.some(p => toolId === p || toolId.startsWith(p + "-"));
@@ -86,6 +143,24 @@ export default function DashboardsHub() {
   const cdpCompletion      = completionForSet(assignments, t => CDP_TOOL_IDS.has(t));
   const literacyCompletion = completionForSet(assignments, t => LITERACY_TOOL_IDS.has(t));
 
+  // Auto-detect battery tiles
+  const batteryTiles: DashTile[] = BATTERY_TILE_DEFS
+    .map(def => {
+      const completion = completionForSet(assignments, t => def.toolIds.has(t));
+      if (completion.matched === 0) return null;
+      return {
+        id: def.id,
+        title: def.title,
+        subtitle: def.subtitle,
+        tag: def.tag,
+        tagColor: def.tagColor,
+        icon: def.icon,
+        href: `/cases/${caseId}/scoring`,
+        ...completion,
+      };
+    })
+    .filter(Boolean) as DashTile[];
+
   const candidateTiles: (DashTile | null)[] = [
     productIds.length > 0 ? {
       id: "product",
@@ -132,7 +207,7 @@ export default function DashboardsHub() {
     } : null,
   ];
 
-  const tiles = candidateTiles.filter(Boolean) as DashTile[];
+  const tiles = [...(candidateTiles.filter(Boolean) as DashTile[]), ...batteryTiles];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-fade-in">
