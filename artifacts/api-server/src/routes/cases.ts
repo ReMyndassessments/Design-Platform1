@@ -184,7 +184,35 @@ router.get("/cases", authMiddleware, async (req, res) => {
         ? await db.select().from(casesTable).where(eq(casesTable.school, userSchool)).orderBy(sql`${casesTable.updatedAt} DESC`)
         : [])
     : await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
-  res.json(cases.map(formatCase));
+
+  // Bulk-compute product completion % for cases that have products assigned
+  const productCaseIds = cases
+    .filter(c => ((c.productIds as string[]) ?? []).length > 0)
+    .map(c => c.id);
+
+  const productCompletionMap = new Map<string, number>();
+  if (productCaseIds.length > 0) {
+    const rows = await db
+      .select({ caseId: assignmentsTable.caseId, status: assignmentsTable.status })
+      .from(assignmentsTable)
+      .where(inArray(assignmentsTable.caseId, productCaseIds));
+
+    const stats = new Map<string, { total: number; done: number }>();
+    for (const row of rows) {
+      if (!stats.has(row.caseId)) stats.set(row.caseId, { total: 0, done: 0 });
+      const s = stats.get(row.caseId)!;
+      s.total++;
+      if (row.status === "completed" || row.status === "scored") s.done++;
+    }
+    for (const [caseId, s] of stats) {
+      if (s.total > 0) productCompletionMap.set(caseId, Math.round((s.done / s.total) * 100));
+    }
+  }
+
+  res.json(cases.map(c => ({
+    ...formatCase(c),
+    productCompletionPct: productCompletionMap.get(c.id) ?? null,
+  })));
 });
 
 router.post("/cases", authMiddleware, async (req, res) => {

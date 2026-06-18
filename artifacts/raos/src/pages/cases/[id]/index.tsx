@@ -396,14 +396,29 @@ export default function CaseDetail() {
   const handleProductChange = (productId: string) => {
     setSelectedProductId(productId);
     if (!productId) { setProductRespondentSlots([]); return; }
+
+    // Pre-fill name/email from existing case contacts (first match per respondent type)
+    const contactsByRT = new Map<string, { name: string; email: string }>();
+    for (const a of (c?.assignments ?? [])) {
+      if (!contactsByRT.has(a.respondentType) && (a.assignedToName || a.assignedToEmail)) {
+        contactsByRT.set(a.respondentType, {
+          name: a.assignedToName ?? "",
+          email: a.assignedToEmail ?? "",
+        });
+      }
+    }
+
     const rtInfos = getProductRTInfo(productId, tools);
-    setProductRespondentSlots(rtInfos.map(info => ({
-      respondentType: info.rt,
-      label: RESPONDENT_TYPE_LABELS[info.rt] ?? info.rt,
-      selected: DEFAULT_SELECTED_RTS.has(info.rt),
-      name: "",
-      email: "",
-    })));
+    setProductRespondentSlots(rtInfos.map(info => {
+      const contact = contactsByRT.get(info.rt);
+      return {
+        respondentType: info.rt,
+        label: RESPONDENT_TYPE_LABELS[info.rt] ?? info.rt,
+        selected: DEFAULT_SELECTED_RTS.has(info.rt),
+        name: contact?.name ?? "",
+        email: contact?.email ?? "",
+      };
+    }));
   };
 
   const handleAssignProduct = async () => {

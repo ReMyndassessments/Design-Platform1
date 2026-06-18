@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function CasesList() {
@@ -86,32 +86,48 @@ export default function CasesList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCases?.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-slate-50/50 cursor-pointer transition-colors">
-                    <TableCell className="font-medium text-slate-900">
-                      <div>{c.studentName}</div>
-                      <div className="text-xs text-slate-500 font-normal mt-0.5">ID: {c.id.substring(0,8)}</div>
-                    </TableCell>
-                    <TableCell>{getPhaseBadge(c.currentPhase)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center min-w-[120px]">
-                        <div className="w-full h-2 bg-slate-100 rounded-full mr-3 overflow-hidden">
-                          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{width: `${c.progressPercentage}%`}} />
+                {filteredCases?.map((c) => {
+                  const ext = c as typeof c & { productCompletionPct?: number | null };
+                  const hasProducts = (c.productIds?.length ?? 0) > 0;
+                  const productPct = ext.productCompletionPct ?? null;
+                  return (
+                    <TableRow key={c.id} className="hover:bg-slate-50/50 cursor-pointer transition-colors">
+                      <TableCell className="font-medium text-slate-900">
+                        <div>{c.studentName}</div>
+                        <div className="text-xs text-slate-500 font-normal mt-0.5">ID: {c.id.substring(0,8)}</div>
+                      </TableCell>
+                      <TableCell>{getPhaseBadge(c.currentPhase)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center min-w-[120px]">
+                          <div className="w-full h-2 bg-slate-100 rounded-full mr-3 overflow-hidden">
+                            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{width: `${c.progressPercentage}%`}} />
+                          </div>
+                          <span className="text-xs text-slate-500 font-medium">{c.progressPercentage}%</span>
                         </div>
-                        <span className="text-xs text-slate-500 font-medium">{c.progressPercentage}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getRiskBadge(c.riskLevel)}</TableCell>
-                    <TableCell className="text-slate-500 text-sm">{formatDate(c.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/cases/${c.id}`}>
-                        <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
-                          View
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        {hasProducts && (
+                          <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+                            <Package size={11} className="text-primary/60 shrink-0" />
+                            <span>
+                              {productPct !== null
+                                ? <><span className="font-medium text-primary/80">{productPct}%</span> forms complete</>
+                                : <span className="italic">No forms yet</span>
+                              }
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>{getRiskBadge(c.riskLevel)}</TableCell>
+                      <TableCell className="text-slate-500 text-sm">{formatDate(c.createdAt)}</TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/cases/${c.id}`}>
+                          <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
+                            View
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filteredCases?.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-slate-500">

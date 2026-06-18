@@ -4,6 +4,9 @@ import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable } from 
 import { eq, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
+import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
+
+export type { AssessmentProductDef };
 
 const router = Router();
 
@@ -15,140 +18,7 @@ function canAccessCase(role: string, c: typeof casesTable.$inferSelect, userScho
   return true;
 }
 
-// ── Static product definitions (canonical — must stay in sync with raos/src/lib/products.ts) ──
-
-export type AssessmentProductDef = {
-  id: string;
-  name: string;
-  market: "schools" | "parents" | "corporate" | "universities" | "specialized";
-  toolIds: string[];
-};
-
-export const PRODUCTS_LIST: AssessmentProductDef[] = [
-  // Schools
-  {
-    id: "comprehensive-psych-profile",
-    name: "Comprehensive Psychoeducational Profile & Support Plan",
-    market: "schools",
-    toolIds: ["REFERRAL","INTAKE","CONSENT","RCS-80","BEHAVOBS","BASC3-PRS-A","BASC3-PRS-C","BRIEF2-P","SDQ-P","SDQ-P11","RCADS","SCDQPF","BASC3-TRS-A","BASC3-TRS-C","BRIEF2-T","SDQ-T","SDQ-T11","BSPP","BASC3-SRP-A","BASC3-SRP-C","BRIEF2-SR","BYI2","RSCA","REFI","RFII","RSCP","RARPS","FASM"],
-  },
-  {
-    id: "school-snapshot",
-    name: "School Wellbeing & Learning Snapshot",
-    market: "schools",
-    toolIds: ["RCS-80","RASR","RERMS","RSSC","RSCP","SDQ-P","SDQ-T","SDQ-SR","PSC"],
-  },
-  {
-    id: "focused-support",
-    name: "Focused Student Support Assessment",
-    market: "schools",
-    toolIds: ["RCS-80","RCEP-CORE","REFI","RFII","RARPS","RSCP","BASC3-TRS-A","BASC3-PRS-A","BASC3-TRS-C","BASC3-PRS-C","BRIEF2-P","BRIEF2-T","BRIEF2-SR"],
-  },
-  {
-    id: "sen-learning-support",
-    name: "Learning Support Decision System (SEN)",
-    market: "schools",
-    toolIds: ["RCS-80","RCEP-CORE","REFI","RFII","RARPS","RASR","SCAS","RCADS","BYI2","RSCA","EFA"],
-  },
-  {
-    id: "boarding-wellbeing",
-    name: "Boarding Student Adjustment & Wellbeing",
-    market: "schools",
-    toolIds: ["REFERRAL-BOARDING","BSPP","RERMS","RSCP","RFII","WHO-5","PSS-10","SDQ-SR","GAD-7"],
-  },
-  // Parents
-  {
-    id: "why-struggling",
-    name: "Why Is My Child Struggling?",
-    market: "parents",
-    toolIds: ["REFERRAL-PARENT","INTAKE","RCS-80","RASR","RSCP","RARPS","RFII","RCADS","BYI2"],
-  },
-  {
-    id: "ef-coaching",
-    name: "Executive Function Coaching Assessment",
-    market: "parents",
-    toolIds: ["REFERRAL-PARENT","REFI","RASR","BRIEF2-SR"],
-  },
-  {
-    id: "emotional-wellbeing",
-    name: "Emotional Wellbeing Check",
-    market: "parents",
-    toolIds: ["REFERRAL-PARENT","RERMS","DASS-21","GAD-7","PHQ-9"],
-  },
-  {
-    id: "school-readiness",
-    name: "School Readiness / Transition Assessment",
-    market: "parents",
-    toolIds: ["REFERRAL-PARENT","RSSC","RERMS","REFI","SDQ-SR","WHO-5"],
-  },
-  // Corporate
-  {
-    id: "employee-wellbeing",
-    name: "Employee Wellbeing & Burnout Screen",
-    market: "corporate",
-    toolIds: ["REFERRAL-CORP","PSS-10","DASS-21","RSES","GHQ-12"],
-  },
-  {
-    id: "leadership-profiling",
-    name: "Leadership / High-Performer Profiling",
-    market: "corporate",
-    toolIds: ["REFERRAL-CORP","REFI","RERMS","RSES"],
-  },
-  {
-    id: "graduate-readiness",
-    name: "Graduate / Intern Readiness Assessment",
-    market: "corporate",
-    toolIds: ["REFERRAL-CORP","REFI","RSCA","RSES","GHQ-12"],
-  },
-  // Universities
-  {
-    id: "intl-student",
-    name: "International Student Adjustment Assessment",
-    market: "universities",
-    toolIds: ["REFERRAL-UNI","RERMS","PSS-10","DASS-21","RSCA","WHO-5","RSES"],
-  },
-  {
-    id: "academic-risk",
-    name: "Academic Risk Early Warning System",
-    market: "universities",
-    toolIds: ["REFERRAL-UNI","RCS-80","RCEP-CORE","REFI","RFII","RARPS","RERMS","RASR"],
-  },
-  // Specialized
-  {
-    id: "cdp",
-    name: "ReMynd Child Development Profile (CDP)",
-    market: "specialized",
-    toolIds: ["CDP-CL","CDP-SI","CDP-SR","CDP-CI"],
-  },
-  {
-    id: "hidden-struggler",
-    name: "Hidden Struggler Assessment",
-    market: "specialized",
-    toolIds: ["REFI","RFII","RSCA","RERMS","RCADS","BYI2"],
-  },
-  {
-    id: "underachievement",
-    name: "Underachievement Profile",
-    market: "specialized",
-    toolIds: ["RCS-80","RCEP-CORE","RASR","RARPS","REFI","RFII"],
-  },
-  {
-    id: "digital-distraction",
-    name: "Digital Distraction & Focus Assessment",
-    market: "specialized",
-    toolIds: ["RASR","REFI","BYI2"],
-  },
-];
-
 const PRODUCTS_BY_ID = new Map(PRODUCTS_LIST.map(p => [p.id, p]));
-
-const MARKET_LABELS: Record<string, string> = {
-  schools: "Schools",
-  parents: "Parents",
-  corporate: "Corporate",
-  universities: "Universities",
-  specialized: "Specialized",
-};
 
 // ── GET /api/products ─────────────────────────────────────────────────────────
 router.get("/products", authMiddleware, (_req, res) => {
