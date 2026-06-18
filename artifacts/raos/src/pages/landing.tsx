@@ -180,7 +180,7 @@ export default function LandingPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-0.5">
                         <p className="text-sm font-semibold text-gray-800">Explore Assessment Services</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full">2026–2027</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">2026–2027</span>
                       </div>
                       <p className="text-xs text-gray-400">View school-facing assessment options, pricing, and referral pathways.</p>
                     </div>
