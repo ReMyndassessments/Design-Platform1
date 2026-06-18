@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useGetCaseScores, useCalculateScores, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, AlertTriangle, FileText, TrendingUp, Users, ClipboardList, Download } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileText, TrendingUp, Users, ClipboardList, Download, SlidersHorizontal } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -15,6 +18,45 @@ const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
 
 // ── Non-clinical domains to exclude from all charts ───────────────────────────
 const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin_info", "instructions", "general_info", "identifying_info"]);
+
+// ── Admin/non-clinical tools hidden by default in the scoring dashboard ───────
+const DEFAULT_EXCLUDED_TOOLS = new Set(["CONSENT", "REFERRAL", "INTAKE", "SESQ"]);
+
+// ── Battery definitions — tools that share a common norm group / scale ────────
+// When 2+ tools from the same battery have scores, they are merged into a
+// single multi-respondent section instead of appearing as separate sections.
+const BATTERY_GROUPS: Array<{ batteryId: string; batteryName: string; toolIds: string[] }> = [
+  {
+    batteryId: "BASC3-A",
+    batteryName: "BASC-3 Adolescent Rating Scales (Ages 12–21)",
+    toolIds: ["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A"],
+  },
+  {
+    batteryId: "BASC3-C",
+    batteryName: "BASC-3 Child Rating Scales (Ages 6–11)",
+    toolIds: ["BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"],
+  },
+  {
+    batteryId: "BASC3-P",
+    batteryName: "BASC-3 Preschool Rating Scales (Ages 2–5)",
+    toolIds: ["BASC3-PRS-P", "BASC3-TRS-P"],
+  },
+  {
+    batteryId: "BRIEF2",
+    batteryName: "BRIEF-2 (Behavior Rating Inventory of Executive Function)",
+    toolIds: ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"],
+  },
+  {
+    batteryId: "SDQ-11",
+    batteryName: "Strengths and Difficulties Questionnaire (Ages 11–18)",
+    toolIds: ["SDQ-P11", "SDQ-T11", "SDQ-SR"],
+  },
+  {
+    batteryId: "VANDERBILT",
+    batteryName: "Vanderbilt ADHD Diagnostic Rating Scales",
+    toolIds: ["VADPRS", "VADTRS"],
+  },
+];
 
 // ── Label formatter: DOMAIN_LABELS first, then snake_case → Title Case ────────
 function formatDomainLabel(key: string): string {
@@ -697,6 +739,29 @@ export default function ScoringView() {
   const calcMut = useCalculateScores();
   const isInvigilator = currentUser?.role === "assessment_invigilator";
 
+  // ── Tool filter — persisted per case in localStorage ──────────────────────
+  const storageKey = `scoring-hidden-tools-${caseId}`;
+  const [hiddenToolIds, setHiddenToolIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set(DEFAULT_EXCLUDED_TOOLS);
+    } catch {
+      return new Set(DEFAULT_EXCLUDED_TOOLS);
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(hiddenToolIds)));
+  }, [hiddenToolIds, storageKey]);
+
+  const toggleTool = (toolId: string) => {
+    setHiddenToolIds(prev => {
+      const next = new Set(prev);
+      next.has(toolId) ? next.delete(toolId) : next.add(toolId);
+      return next;
+    });
+  };
+
   const handleRecalculate = () => {
     calcMut.mutate({ caseId }, {
       onSuccess: () => {
@@ -726,7 +791,36 @@ export default function ScoringView() {
       byTool[tid][rtype] = s;
     }
   }
-  const toolGroups = Object.values(byTool).map(byRespondent => Object.values(byRespondent));
+
+  // Merge battery tools: when 2+ forms from the same battery have scores,
+  // flatten them into one group tagged with the battery id/name.
+  const processedToolIds = new Set<string>();
+  const allToolGroups: any[][] = [];
+
+  for (const battery of BATTERY_GROUPS) {
+    const matched = battery.toolIds.filter(tid => byTool[tid]);
+    if (matched.length >= 2) {
+      const merged = matched.flatMap(tid =>
+        Object.values(byTool[tid]).map((s: any) => ({
+          ...s,
+          toolId: battery.batteryId,
+          toolName: battery.batteryName,
+        }))
+      );
+      allToolGroups.push(merged);
+      matched.forEach(tid => processedToolIds.add(tid));
+    }
+  }
+
+  // Standalone tools (not part of a merged battery)
+  for (const [toolId, byRespondent] of Object.entries(byTool)) {
+    if (!processedToolIds.has(toolId)) {
+      allToolGroups.push(Object.values(byRespondent));
+    }
+  }
+
+  const toolGroups = allToolGroups.filter(group => !hiddenToolIds.has(group[0]?.toolId ?? ""));
+  const hiddenCount = allToolGroups.length - toolGroups.length;
 
   const handleDownloadPDF = () => window.print();
 
@@ -763,6 +857,73 @@ export default function ScoringView() {
               <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
             </Button>
           )}
+
+          {/* Tool filter popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="bg-white relative">
+                <SlidersHorizontal size={16} className="mr-2" />
+                Tools
+                {hiddenCount > 0 && (
+                  <span className="ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                    {hiddenCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="p-3 border-b flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-800">Assessment Forms</p>
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setHiddenToolIds(new Set())}
+                  >
+                    Show all
+                  </button>
+                  <span className="text-slate-300">·</span>
+                  <button
+                    className="text-xs text-slate-500 hover:underline"
+                    onClick={() => setHiddenToolIds(new Set(DEFAULT_EXCLUDED_TOOLS))}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-72 overflow-y-auto py-1">
+                {allToolGroups.map(group => {
+                  const toolId = group[0]?.toolId ?? "unknown";
+                  const toolName = group[0]?.toolName ?? toolId;
+                  const isVisible = !hiddenToolIds.has(toolId);
+                  const isBattery = BATTERY_GROUPS.some(b => b.batteryId === toolId);
+                  return (
+                    <label
+                      key={toolId}
+                      className="flex items-start gap-3 px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={isVisible}
+                        onCheckedChange={() => toggleTool(toolId)}
+                        className="mt-0.5 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-slate-800 leading-snug">{toolName}</p>
+                        {isBattery && (
+                          <p className="text-[10px] text-primary font-medium mt-0.5 uppercase tracking-wide">Battery · Multi-respondent</p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="p-3 border-t bg-slate-50">
+                <p className="text-xs text-slate-500">
+                  {toolGroups.length} of {allToolGroups.length} forms shown
+                </p>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Button onClick={handleDownloadPDF} variant="outline" className="bg-white">
             <Download size={16} className="mr-2" /> Download PDF
           </Button>
