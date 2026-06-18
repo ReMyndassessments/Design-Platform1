@@ -1,11 +1,14 @@
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2, AlertTriangle, BarChart3, Brain, Printer, Sparkles, RefreshCw, TrendingUp } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ArrowLeft, Loader2, AlertTriangle, BarChart3, Brain, Printer, Sparkles, RefreshCw, TrendingUp, Settings2, Save } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
@@ -116,10 +119,39 @@ interface IndexEntry {
   riskBand: string;
 }
 
+interface DashboardConfig {
+  includedToolIds: string[] | null;
+  hiddenSections: string[];
+}
+
 interface RemyndIndexResponse {
   tools: ToolData[];
   index: Record<string, IndexEntry>;
   cachedInsights: string | null;
+  dashboardConfig: DashboardConfig | null;
+}
+
+function computeFilteredIndex(tools: ToolData[]): Record<string, IndexEntry> {
+  const domainAcc = new Map<string, { total: number; count: number; sources: string[] }>();
+  for (const tool of tools) {
+    for (const respondent of tool.respondents) {
+      for (const [domain, score] of Object.entries(respondent.normalizedScores)) {
+        if (!domainAcc.has(domain)) {
+          domainAcc.set(domain, { total: 0, count: 0, sources: [] });
+        }
+        const entry = domainAcc.get(domain)!;
+        entry.total += score;
+        entry.count++;
+        entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+      }
+    }
+  }
+  const result: Record<string, IndexEntry> = {};
+  for (const [domain, { total, count, sources }] of domainAcc) {
+    const average = Math.round(total / count);
+    result[domain] = { average, sources, riskBand: getRiskBand(average) };
+  }
+  return result;
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -601,6 +633,155 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
   );
 }
 
+// ── Configure Panel (Sheet) ───────────────────────────────────────────────────
+
+const SECTION_LABELS: Record<string, string> = {
+  remyndIndex: "ReMynd Index (Radar + Heatmap)",
+  discrepancy: "Discrepancy Analysis",
+  aiInsights: "AI Clinical Interpretation",
+};
+
+function ConfigurePanel({
+  open,
+  onOpenChange,
+  allTools,
+  config,
+  onChange,
+  isSaving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  allTools: ToolData[];
+  config: DashboardConfig;
+  onChange: (config: DashboardConfig) => void;
+  isSaving: boolean;
+}) {
+  const includedSet = new Set(config.includedToolIds ?? allTools.map(t => t.toolId));
+  const hiddenSet = new Set(config.hiddenSections);
+
+  function toggleTool(toolId: string) {
+    const next = new Set(includedSet);
+    if (next.has(toolId)) {
+      next.delete(toolId);
+    } else {
+      next.add(toolId);
+    }
+    const allIncluded = allTools.every(t => next.has(t.toolId));
+    onChange({
+      ...config,
+      includedToolIds: allIncluded ? null : [...next],
+    });
+  }
+
+  function toggleSection(key: string) {
+    const next = new Set(hiddenSet);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    onChange({ ...config, hiddenSections: [...next] });
+  }
+
+  function resetAll() {
+    onChange({ includedToolIds: null, hiddenSections: [] });
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-80 sm:w-96 overflow-y-auto">
+        <SheetHeader className="mb-4">
+          <SheetTitle className="flex items-center gap-2 text-base">
+            <Settings2 size={15} className="text-violet-500" />
+            Configure Dashboard
+          </SheetTitle>
+          <p className="text-xs text-slate-500 mt-1">
+            Customise which tools and sections appear in this case's dashboard. Changes are saved automatically.
+          </p>
+        </SheetHeader>
+
+        {/* Tool selection */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tools</h3>
+            <span className="text-[10px] text-slate-400">
+              {includedSet.size} / {allTools.length} included
+            </span>
+          </div>
+          <div className="space-y-2">
+            {allTools.map(tool => {
+              const checked = includedSet.has(tool.toolId);
+              return (
+                <label
+                  key={tool.toolId}
+                  className="flex items-start gap-2.5 cursor-pointer group select-none"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => toggleTool(tool.toolId)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className={`text-sm font-medium leading-tight transition-colors ${checked ? "text-slate-800" : "text-slate-400 line-through"}`}>
+                      {tool.toolName}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {tool.toolId} · {tool.respondents.length} respondent{tool.respondents.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 my-4" />
+
+        {/* Section visibility */}
+        <div className="mb-5">
+          <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2.5">Sections</h3>
+          <div className="space-y-3">
+            {(["remyndIndex", "discrepancy", "aiInsights"] as const).map(key => {
+              const visible = !hiddenSet.has(key);
+              return (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className={`text-sm transition-colors ${visible ? "text-slate-700" : "text-slate-400"}`}>
+                    {SECTION_LABELS[key]}
+                  </span>
+                  <Switch
+                    checked={visible}
+                    onCheckedChange={() => toggleSection(key)}
+                    className="shrink-0"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 my-4" />
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={resetAll}
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            Reset to defaults
+          </button>
+          {isSaving && (
+            <span className="flex items-center gap-1 text-[10px] text-violet-500">
+              <Save size={10} /> Saving…
+            </span>
+          )}
+          {!isSaving && (
+            <span className="text-[10px] text-slate-400">Auto-saved</span>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RemyndDashboardPage() {
@@ -627,6 +808,64 @@ export default function RemyndDashboardPage() {
     },
     enabled: !!caseId,
   });
+
+  // ── Dashboard config state ────────────────────────────────────────────────
+  const [configOpen, setConfigOpen] = useState(false);
+  const [localConfig, setLocalConfig] = useState<DashboardConfig | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configInitializedRef = useRef(false);
+
+  // Initialize config from API response on first load
+  useEffect(() => {
+    if (!indexData || configInitializedRef.current) return;
+    configInitializedRef.current = true;
+    const saved = indexData.dashboardConfig;
+    const allToolIds = indexData.tools.map(t => t.toolId);
+    if (saved) {
+      // Merge: add any newly scored tools not in the saved list to included set
+      const includedToolIds = saved.includedToolIds
+        ? [...new Set([...saved.includedToolIds, ...allToolIds.filter(id => !saved.includedToolIds!.includes(id))])]
+        : null;
+      const allIncluded = !includedToolIds || allToolIds.every(id => includedToolIds.includes(id));
+      setLocalConfig({
+        includedToolIds: allIncluded ? null : includedToolIds,
+        hiddenSections: saved.hiddenSections ?? [],
+      });
+    } else {
+      setLocalConfig({ includedToolIds: null, hiddenSections: [] });
+    }
+  }, [indexData]);
+
+  // Debounced save when config changes
+  const saveMut = useMutation({
+    mutationFn: async (cfg: DashboardConfig) => {
+      const res = await fetch(`${BASE_URL}/api/cases/${caseId}/remynd-dashboard-config`, {
+        method: "PATCH",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify(cfg),
+      });
+      if (!res.ok) throw new Error("Failed to save config");
+    },
+    onSettled: () => setIsSaving(false),
+  });
+
+  function handleConfigChange(next: DashboardConfig) {
+    setLocalConfig(next);
+    setIsSaving(true);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveMut.mutate(next);
+    }, 800);
+  }
+
+  // ── Derived filtered data ─────────────────────────────────────────────────
+  const allTools = indexData?.tools ?? [];
+  const activeTools = localConfig?.includedToolIds
+    ? allTools.filter(t => localConfig.includedToolIds!.includes(t.toolId))
+    : allTools;
+  const filteredIndex = computeFilteredIndex(activeTools);
+  const hiddenSections = new Set(localConfig?.hiddenSections ?? []);
 
   const studentName = caseData?.studentName ?? "";
   const school = caseData?.school ?? "";
@@ -664,15 +903,42 @@ export default function RemyndDashboardPage() {
               <ArrowLeft size={14} /> Back to Case
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-slate-200 text-slate-600"
-            onClick={() => window.print()}
-          >
-            <Printer size={13} /> Print / Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            {hasData && localConfig && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+                onClick={() => setConfigOpen(true)}
+              >
+                <Settings2 size={13} /> Configure
+                {(localConfig.includedToolIds !== null || localConfig.hiddenSections.length > 0) && (
+                  <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                )}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-slate-200 text-slate-600"
+              onClick={() => window.print()}
+            >
+              <Printer size={13} /> Print / Export PDF
+            </Button>
+          </div>
         </div>
+
+        {/* Configure panel */}
+        {hasData && localConfig && (
+          <ConfigurePanel
+            open={configOpen}
+            onOpenChange={setConfigOpen}
+            allTools={allTools}
+            config={localConfig}
+            onChange={handleConfigChange}
+            isSaving={isSaving}
+          />
+        )}
 
         {/* Print-only header */}
         <div className="print-header mb-6 border-b pb-4">
@@ -745,37 +1011,60 @@ export default function RemyndDashboardPage() {
               <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-sm font-semibold text-slate-800">Per-Tool Respondent Comparison</h2>
                 <span className="text-xs text-slate-400">
-                  {indexData.tools.length} tool{indexData.tools.length !== 1 ? "s" : ""}
+                  {activeTools.length} of {allTools.length} tool{allTools.length !== 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="space-y-4">
-                {indexData.tools.map(tool => (
-                  <ToolComparisonCard key={tool.toolId} tool={tool} />
-                ))}
-              </div>
+
+              {activeTools.length === 0 ? (
+                <Card className="border-dashed border-violet-200 bg-violet-50/40">
+                  <CardContent className="pt-8 pb-8 text-center">
+                    <Settings2 size={24} className="text-violet-300 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-slate-600 mb-1">All tools are hidden</p>
+                    <p className="text-xs text-slate-400 mb-4">
+                      Re-enable at least one tool in the dashboard configuration to see scores.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+                      onClick={() => setConfigOpen(true)}
+                    >
+                      <Settings2 size={12} /> Open Configure
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {activeTools.map(tool => (
+                    <ToolComparisonCard key={tool.toolId} tool={tool} />
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Section 2: ReMynd Index */}
-            {Object.keys(indexData.index).length > 0 && (
+            {!hiddenSections.has("remyndIndex") && Object.keys(filteredIndex).length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <h2 className="text-sm font-semibold text-slate-800">ReMynd Index — Cross-Tool Summary</h2>
                 </div>
-                <RemyndIndexSection index={indexData.index} tools={indexData.tools} />
+                <RemyndIndexSection index={filteredIndex} tools={activeTools} />
               </section>
             )}
 
             {/* Section 3: Discrepancy analysis */}
-            {indexData.tools.some(t => t.discrepancies.length > 0) && (
+            {!hiddenSections.has("discrepancy") && activeTools.some(t => t.discrepancies.length > 0) && (
               <section className="page-break-before">
-                <DiscrepancySection tools={indexData.tools} />
+                <DiscrepancySection tools={activeTools} />
               </section>
             )}
 
             {/* Section 4: AI commentary */}
-            <section>
-              <AIInsightsSection caseId={caseId ?? ""} cachedInsights={indexData.cachedInsights} />
-            </section>
+            {!hiddenSections.has("aiInsights") && (
+              <section>
+                <AIInsightsSection caseId={caseId ?? ""} cachedInsights={indexData.cachedInsights} />
+              </section>
+            )}
 
             {/* Footer */}
             <div className="text-[10px] text-slate-400 text-center pt-2 pb-6">

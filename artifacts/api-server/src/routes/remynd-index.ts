@@ -102,6 +102,24 @@ async function getToolConfigMap(): Promise<Map<string, ToolConfig>> {
   }
 }
 
+async function getDashboardConfig(caseId: string): Promise<{ includedToolIds: string[] | null; hiddenSections: string[] } | null> {
+  try {
+    const result = await db.execute(sql`
+      SELECT intake_analysis->'remyndDashboardConfig' AS config
+      FROM cases WHERE id = ${caseId}
+    `);
+    const raw = (result.rows?.[0] as Record<string, unknown>)?.config;
+    if (!raw || typeof raw !== "object") return null;
+    const cfg = raw as Record<string, unknown>;
+    return {
+      includedToolIds: Array.isArray(cfg.includedToolIds) ? (cfg.includedToolIds as string[]) : null,
+      hiddenSections: Array.isArray(cfg.hiddenSections) ? (cfg.hiddenSections as string[]) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function getCachedInsights(caseId: string): Promise<string | null> {
   try {
     const result = await db.execute(sql`
@@ -378,10 +396,46 @@ router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
     return;
   }
 
-  const { tools, index } = await buildIndexData(caseId);
-  const cachedInsights = await getCachedInsights(caseId);
+  const [{ tools, index }, cachedInsights, dashboardConfig] = await Promise.all([
+    buildIndexData(caseId),
+    getCachedInsights(caseId),
+    getDashboardConfig(caseId),
+  ]);
 
-  res.json({ tools, index, cachedInsights });
+  res.json({ tools, index, cachedInsights, dashboardConfig });
+});
+
+// PATCH /cases/:caseId/remynd-dashboard-config
+router.patch("/cases/:caseId/remynd-dashboard-config", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const { includedToolIds, hiddenSections } = req.body as {
+    includedToolIds: string[] | null;
+    hiddenSections: string[];
+  };
+
+  if (includedToolIds !== null && !Array.isArray(includedToolIds)) {
+    res.status(400).json({ error: "invalid_input", message: "includedToolIds must be an array or null" });
+    return;
+  }
+  if (!Array.isArray(hiddenSections)) {
+    res.status(400).json({ error: "invalid_input", message: "hiddenSections must be an array" });
+    return;
+  }
+
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  if (!canAccessCase(req.userRole!, caseRows[0], req.userSchool)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" }); return;
+  }
+
+  const configJson = JSON.stringify({ includedToolIds, hiddenSections });
+  await db.execute(sql`
+    UPDATE cases
+    SET intake_analysis = COALESCE(intake_analysis, '{}'::jsonb) || jsonb_build_object('remyndDashboardConfig', ${configJson}::jsonb)
+    WHERE id = ${caseId}
+  `);
+
+  res.json({ ok: true });
 });
 
 // POST /cases/:caseId/remynd-index/insights
