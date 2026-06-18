@@ -102,7 +102,7 @@ async function getToolConfigMap(): Promise<Map<string, ToolConfig>> {
   }
 }
 
-async function getDashboardConfig(caseId: string): Promise<{ includedToolIds: string[] | null; hiddenSections: string[] } | null> {
+async function getDashboardConfig(caseId: string): Promise<{ excludedToolIds: string[]; hiddenSections: string[] } | null> {
   try {
     const result = await db.execute(sql`
       SELECT intake_analysis->'remyndDashboardConfig' AS config
