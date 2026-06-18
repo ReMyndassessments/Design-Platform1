@@ -112,7 +112,7 @@ async function getDashboardConfig(caseId: string): Promise<{ includedToolIds: st
     if (!raw || typeof raw !== "object") return null;
     const cfg = raw as Record<string, unknown>;
     return {
-      includedToolIds: Array.isArray(cfg.includedToolIds) ? (cfg.includedToolIds as string[]) : null,
+      excludedToolIds: Array.isArray(cfg.excludedToolIds) ? (cfg.excludedToolIds as string[]) : [],
       hiddenSections: Array.isArray(cfg.hiddenSections) ? (cfg.hiddenSections as string[]) : [],
     };
   } catch {
@@ -408,13 +408,13 @@ router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
 // PATCH /cases/:caseId/remynd-dashboard-config
 router.patch("/cases/:caseId/remynd-dashboard-config", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const { includedToolIds, hiddenSections } = req.body as {
-    includedToolIds: string[] | null;
+  const { excludedToolIds, hiddenSections } = req.body as {
+    excludedToolIds: string[];
     hiddenSections: string[];
   };
 
-  if (includedToolIds !== null && !Array.isArray(includedToolIds)) {
-    res.status(400).json({ error: "invalid_input", message: "includedToolIds must be an array or null" });
+  if (!Array.isArray(excludedToolIds)) {
+    res.status(400).json({ error: "invalid_input", message: "excludedToolIds must be an array" });
     return;
   }
   if (!Array.isArray(hiddenSections)) {
@@ -428,7 +428,7 @@ router.patch("/cases/:caseId/remynd-dashboard-config", authMiddleware, async (re
     res.status(403).json({ error: "forbidden", message: "Access denied" }); return;
   }
 
-  const configJson = JSON.stringify({ includedToolIds, hiddenSections });
+  const configJson = JSON.stringify({ excludedToolIds, hiddenSections });
   await db.execute(sql`
     UPDATE cases
     SET intake_analysis = COALESCE(intake_analysis, '{}'::jsonb) || jsonb_build_object('remyndDashboardConfig', ${configJson}::jsonb)
@@ -457,11 +457,40 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
   }
 
   const caseData = caseRows[0] as Record<string, unknown>;
-  const { tools, index } = await buildIndexData(caseId);
+  const [{ tools: allTools, index: fullIndex }, dashboardCfg] = await Promise.all([
+    buildIndexData(caseId),
+    getDashboardConfig(caseId),
+  ]);
+
+  // Apply dashboard config tool exclusions so AI only analyses the tools the clinician chose to show
+  const excludedToolIds = new Set(dashboardCfg?.excludedToolIds ?? []);
+  const tools = excludedToolIds.size > 0
+    ? allTools.filter(t => !excludedToolIds.has(t.toolId))
+    : allTools;
 
   if (tools.length === 0) {
     res.status(400).json({ error: "no_scores", message: "No ReMynd scores available to analyse." });
     return;
+  }
+
+  // Recompute index from filtered tools (mirrors backend buildIndexData logic)
+  const domainAcc = new Map<string, { total: number; count: number; sources: string[]; minMild: number; minModerate: number }>();
+  for (const tool of tools) {
+    for (const respondent of tool.respondents) {
+      for (const [domain, score] of Object.entries(respondent.normalizedScores as Record<string, number>)) {
+        if (!domainAcc.has(domain)) domainAcc.set(domain, { total: 0, count: 0, sources: [], minMild: tool.thresholds.mild, minModerate: tool.thresholds.moderate });
+        const entry = domainAcc.get(domain)!;
+        entry.total += score; entry.count++;
+        entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minMild = Math.min(entry.minMild, tool.thresholds.mild);
+        entry.minModerate = Math.min(entry.minModerate, tool.thresholds.moderate);
+      }
+    }
+  }
+  const filteredIndex: Record<string, { average: number; sources: string[]; riskBand: string }> = {};
+  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
+    const average = Math.round(total / count);
+    filteredIndex[domain] = { average, sources, riskBand: getRiskBandForThresholds(average, { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate }) };
   }
 
   const toolsForAI = tools.map(t => ({
@@ -472,8 +501,7 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
     })),
   }));
 
-  // Use the correctly-computed index (with per-tool thresholds) for holistic AI interpretation
-  const indexForAI = index;
+  const indexForAI = excludedToolIds.size > 0 ? filteredIndex : fullIndex;
 
   const insights = await generateRemyndIndexInsights(
     {

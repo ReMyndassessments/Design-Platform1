@@ -120,7 +120,7 @@ interface IndexEntry {
 }
 
 interface DashboardConfig {
-  includedToolIds: string[] | null;
+  excludedToolIds: string[];
   hiddenSections: string[];
 }
 
@@ -132,24 +132,31 @@ interface RemyndIndexResponse {
 }
 
 function computeFilteredIndex(tools: ToolData[]): Record<string, IndexEntry> {
-  const domainAcc = new Map<string, { total: number; count: number; sources: string[] }>();
+  const domainAcc = new Map<string, {
+    total: number; count: number; sources: string[];
+    minMild: number; minModerate: number;
+  }>();
   for (const tool of tools) {
+    const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
     for (const respondent of tool.respondents) {
       for (const [domain, score] of Object.entries(respondent.normalizedScores)) {
         if (!domainAcc.has(domain)) {
-          domainAcc.set(domain, { total: 0, count: 0, sources: [] });
+          domainAcc.set(domain, { total: 0, count: 0, sources: [], minMild: t.mild, minModerate: t.moderate });
         }
         const entry = domainAcc.get(domain)!;
         entry.total += score;
         entry.count++;
         entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minMild = Math.min(entry.minMild, t.mild);
+        entry.minModerate = Math.min(entry.minModerate, t.moderate);
       }
     }
   }
   const result: Record<string, IndexEntry> = {};
-  for (const [domain, { total, count, sources }] of domainAcc) {
+  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
     const average = Math.round(total / count);
-    result[domain] = { average, sources, riskBand: getRiskBand(average) };
+    const thresholds: ToolThresholds = { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate };
+    result[domain] = { average, sources, riskBand: getRiskBand(average, thresholds) };
   }
   return result;
 }
@@ -656,21 +663,17 @@ function ConfigurePanel({
   onChange: (config: DashboardConfig) => void;
   isSaving: boolean;
 }) {
-  const includedSet = new Set(config.includedToolIds ?? allTools.map(t => t.toolId));
+  const excludedSet = new Set(config.excludedToolIds);
   const hiddenSet = new Set(config.hiddenSections);
 
   function toggleTool(toolId: string) {
-    const next = new Set(includedSet);
+    const next = new Set(excludedSet);
     if (next.has(toolId)) {
       next.delete(toolId);
     } else {
       next.add(toolId);
     }
-    const allIncluded = allTools.every(t => next.has(t.toolId));
-    onChange({
-      ...config,
-      includedToolIds: allIncluded ? null : [...next],
-    });
+    onChange({ ...config, excludedToolIds: [...next] });
   }
 
   function toggleSection(key: string) {
@@ -684,7 +687,7 @@ function ConfigurePanel({
   }
 
   function resetAll() {
-    onChange({ includedToolIds: null, hiddenSections: [] });
+    onChange({ excludedToolIds: [], hiddenSections: [] });
   }
 
   return (
@@ -705,12 +708,12 @@ function ConfigurePanel({
           <div className="flex items-center justify-between mb-2.5">
             <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Tools</h3>
             <span className="text-[10px] text-slate-400">
-              {includedSet.size} / {allTools.length} included
+              {allTools.length - excludedSet.size} / {allTools.length} included
             </span>
           </div>
           <div className="space-y-2">
             {allTools.map(tool => {
-              const checked = includedSet.has(tool.toolId);
+              const checked = !excludedSet.has(tool.toolId);
               return (
                 <label
                   key={tool.toolId}
@@ -821,20 +824,10 @@ export default function RemyndDashboardPage() {
     if (!indexData || configInitializedRef.current) return;
     configInitializedRef.current = true;
     const saved = indexData.dashboardConfig;
-    const allToolIds = indexData.tools.map(t => t.toolId);
-    if (saved) {
-      // Merge: add any newly scored tools not in the saved list to included set
-      const includedToolIds = saved.includedToolIds
-        ? [...new Set([...saved.includedToolIds, ...allToolIds.filter(id => !saved.includedToolIds!.includes(id))])]
-        : null;
-      const allIncluded = !includedToolIds || allToolIds.every(id => includedToolIds.includes(id));
-      setLocalConfig({
-        includedToolIds: allIncluded ? null : includedToolIds,
-        hiddenSections: saved.hiddenSections ?? [],
-      });
-    } else {
-      setLocalConfig({ includedToolIds: null, hiddenSections: [] });
-    }
+    setLocalConfig({
+      excludedToolIds: saved?.excludedToolIds ?? [],
+      hiddenSections: saved?.hiddenSections ?? [],
+    });
   }, [indexData]);
 
   // Debounced save when config changes
@@ -861,8 +854,9 @@ export default function RemyndDashboardPage() {
 
   // ── Derived filtered data ─────────────────────────────────────────────────
   const allTools = indexData?.tools ?? [];
-  const activeTools = localConfig?.includedToolIds
-    ? allTools.filter(t => localConfig.includedToolIds!.includes(t.toolId))
+  const excludedSet = new Set(localConfig?.excludedToolIds ?? []);
+  const activeTools = excludedSet.size > 0
+    ? allTools.filter(t => !excludedSet.has(t.toolId))
     : allTools;
   const filteredIndex = computeFilteredIndex(activeTools);
   const hiddenSections = new Set(localConfig?.hiddenSections ?? []);
@@ -912,7 +906,7 @@ export default function RemyndDashboardPage() {
                 onClick={() => setConfigOpen(true)}
               >
                 <Settings2 size={13} /> Configure
-                {(localConfig.includedToolIds !== null || localConfig.hiddenSections.length > 0) && (
+                {(localConfig.excludedToolIds.length > 0 || localConfig.hiddenSections.length > 0) && (
                   <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
                 )}
               </Button>
