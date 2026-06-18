@@ -2632,6 +2632,23 @@ async function backfillRscaSnapshots() {
   }
 }
 
+async function purgeInvalidScores() {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM scores
+      WHERE EXISTS (
+        SELECT 1 FROM jsonb_each_text(normalized_scores) AS kv(k, v)
+        WHERE v ~ '^-?[0-9]+(\.[0-9]+)?$' AND v::numeric > 100
+      )
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      logger.info({ count: result.rowCount }, "Purged scores with out-of-range normalized values (>100)");
+    }
+  } catch (err) {
+    logger.error({ err }, "purgeInvalidScores failed");
+  }
+}
+
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
   .then(() => backfillRespondentLabels())
   .then(() => migrateBehavObsToInvigilator())
@@ -2653,6 +2670,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => syncAssignmentToolNames())
   .then(() => backfillRscaSnapshots())
   .then(() => addCaseProductIds())
+  .then(() => purgeInvalidScores())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {
