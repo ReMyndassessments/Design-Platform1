@@ -143,6 +143,9 @@ export default function ProductDashboardPage() {
   const products: any[] = pd?.products ?? [];
   const allTools: any[] = allToolsData ?? [];
 
+  const totalCompleted = products.reduce((sum: number, p: any) =>
+    sum + p.effectiveTools.filter((t: any) => getToolStatus(t.assignments) === "completed").length, 0);
+
   const currentCustomize = customizeProductId ? products.find(p => p.productId === customizeProductId) : null;
   const currentDraft = customizeProductId ? (overrideDrafts[customizeProductId] ?? { addedToolIds: [], removedToolIds: [] }) : null;
 
@@ -171,9 +174,10 @@ export default function ProductDashboardPage() {
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+            className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 disabled:opacity-40"
             onClick={() => generateReport(null)}
-            disabled={reportLoading}
+            disabled={reportLoading || totalCompleted === 0}
+            title={totalCompleted === 0 ? "Complete at least one tool to generate a report" : undefined}
           >
             {reportLoading && !reportProductId ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             Full Report
@@ -234,9 +238,10 @@ export default function ProductDashboardPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50"
+                    className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50 disabled:opacity-40"
                     onClick={() => generateReport(product.productId)}
-                    disabled={reportLoading}
+                    disabled={reportLoading || completedCount === 0}
+                    title={completedCount === 0 ? "Complete at least one tool to generate a report" : undefined}
                   >
                     {reportLoading && reportProductId === product.productId ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                     AI Report
@@ -281,28 +286,59 @@ export default function ProductDashboardPage() {
                     const isAdded = product.addedToolIds.includes(tool.toolId);
                     const isDefault = product.defaultToolIds.includes(tool.toolId);
                     return (
-                      <div key={tool.toolId} className="px-5 py-2.5 flex items-center gap-3">
-                        <StatusIcon status={status} />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-xs font-medium text-slate-800">{tool.toolName}</span>
-                          <span className="ml-2 text-[10px] text-slate-400">{tool.toolId}</span>
-                          {isAdded && <span className="ml-2 text-[9px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">added</span>}
-                        </div>
-                        {tool.assignments.length > 0 && (
-                          <div className="flex gap-1 flex-wrap justify-end">
-                            {tool.assignments.map((a: any) => (
-                              <span key={a.id} className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                                a.status === "completed" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : a.status === "in_progress" ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : "bg-slate-100 text-slate-500 border border-slate-200"
-                              }`}>
-                                {a.respondentLabel || a.respondentType}
-                              </span>
-                            ))}
+                      <div key={tool.toolId} className="px-5 py-2.5 space-y-1.5">
+                        <div className="flex items-center gap-3">
+                          <StatusIcon status={status} />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-medium text-slate-800">{tool.toolName}</span>
+                            <span className="ml-2 text-[10px] text-slate-400">{tool.toolId}</span>
+                            {isAdded && <span className="ml-2 text-[9px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">added</span>}
                           </div>
-                        )}
-                        {!tool.isAssigned && (
-                          <span className="text-[9px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-full">not assigned</span>
+                          {tool.assignments.length > 0 && (
+                            <div className="flex gap-1 flex-wrap justify-end">
+                              {tool.assignments.map((a: any) => (
+                                <span key={a.id} className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                                  a.status === "completed" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : a.status === "in_progress" ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : "bg-slate-100 text-slate-500 border border-slate-200"
+                                }`}>
+                                  {a.respondentLabel || a.respondentType}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {!tool.isAssigned && (
+                            <span className="text-[9px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-full">not assigned</span>
+                          )}
+                        </div>
+                        {/* Score summaries — only shown when tool is completed and has score data */}
+                        {status === "completed" && tool.scores && tool.scores.length > 0 && (
+                          <div className="ml-5 space-y-1.5">
+                            {(tool.scores as any[]).map((s: any, si: number) => {
+                              const domainEntries = Object.entries(s.domainScores ?? {}) as [string, number][];
+                              if (domainEntries.length === 0) return null;
+                              return (
+                                <div key={si} className="rounded-md bg-slate-50 border border-slate-100 px-3 py-2">
+                                  <p className="text-[10px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">
+                                    {s.respondentType} scores
+                                    {s.rawScore != null && <span className="ml-2 normal-case font-normal text-slate-400">Total: {Number(s.rawScore).toFixed(1)}</span>}
+                                  </p>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                    {domainEntries.map(([domain, raw]) => {
+                                      const norm = (s.normalizedScores ?? {})[domain];
+                                      return (
+                                        <span key={domain} className="text-[10px] text-slate-600">
+                                          <span className="font-medium">{domain}:</span> {Number(raw).toFixed(1)}
+                                          {norm !== undefined && <span className="text-slate-400"> (n: {Number(norm).toFixed(1)})</span>}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                  {s.notes && <p className="text-[10px] text-slate-400 mt-1.5 italic">"{s.notes}"</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     );

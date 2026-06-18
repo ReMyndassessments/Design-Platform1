@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, assessmentToolsTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
@@ -169,9 +169,10 @@ router.get("/products", authMiddleware, (_req, res) => {
 router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
 
-  const [caseRows, assignments] = await Promise.all([
+  const [caseRows, assignments, scores] = await Promise.all([
     db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1),
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
   ]);
 
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
@@ -205,6 +206,12 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
     : [];
   const toolsById = new Map(toolRows.map(t => [t.id, t]));
   const assignedToolIds = new Set(assignments.map(a => a.toolId));
+  // Score lookup by toolId (may have multiple respondents)
+  const scoresByTool = new Map<string, typeof scores>();
+  for (const s of scores) {
+    if (!scoresByTool.has(s.toolId)) scoresByTool.set(s.toolId, []);
+    scoresByTool.get(s.toolId)!.push(s);
+  }
 
   const products = caseProductIds.map(pid => {
     const product = PRODUCTS_BY_ID.get(pid);
@@ -225,6 +232,13 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
         respondentType: a.respondentType,
         respondentLabel: a.respondentLabel,
       }));
+      const toolScores = (scoresByTool.get(toolId) ?? []).map(s => ({
+        respondentType: s.respondentType,
+        rawScore: s.rawScore,
+        domainScores: s.domainScores as Record<string, number>,
+        normalizedScores: s.normalizedScores as Record<string, number>,
+        notes: s.notes,
+      }));
       return {
         toolId,
         toolName: tool?.name ?? toolId,
@@ -234,6 +248,7 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
         scoringType: tool?.scoringType ?? "manual",
         isAssigned: assignedToolIds.has(toolId),
         assignments: toolAssignments,
+        scores: toolScores,
       };
     });
 
@@ -322,9 +337,10 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
   const { caseId } = req.params;
   const { productId } = req.body as { productId?: string };
 
-  const [caseRows, assignments] = await Promise.all([
+  const [caseRows, assignments, allScores] = await Promise.all([
     db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1),
     db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
   ]);
 
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
@@ -333,6 +349,13 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
   if (!canAccessCase(req.userRole!, c, req.userSchool)) {
     res.status(403).json({ error: "forbidden" }); return;
   }
+
+  // Fetch tool names for score entries
+  const scoreToolIds = [...new Set(allScores.map(s => s.toolId))];
+  const scoreToolRows = scoreToolIds.length > 0
+    ? await db.select().from(assessmentToolsTable).where(inArray(assessmentToolsTable.id, scoreToolIds))
+    : [];
+  const scoreToolNameMap = new Map(scoreToolRows.map(t => [t.id, t.name]));
 
   const caseProductIds = (c.productIds as string[]) ?? [];
   const targetIds = productId ? [productId] : caseProductIds;
@@ -351,6 +374,20 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
     const completedTools = assignedTools.filter(t =>
       assignments.filter(a => a.toolId === t).every(a => a.status === "completed")
     );
+
+    // Build toolScores from completed tools' score records
+    const toolScores = allScores
+      .filter(s => completedTools.includes(s.toolId))
+      .map(s => ({
+        toolId: s.toolId,
+        toolName: scoreToolNameMap.get(s.toolId) ?? s.toolName ?? s.toolId,
+        respondentType: s.respondentType,
+        rawScore: s.rawScore,
+        domainScores: (s.domainScores as Record<string, number>) ?? {},
+        normalizedScores: (s.normalizedScores as Record<string, number>) ?? {},
+        notes: s.notes,
+      }));
+
     return {
       productId: pid,
       productName: product.name,
@@ -359,8 +396,9 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
       assignedToolCount: assignedTools.length,
       completedToolCount: completedTools.length,
       completedToolIds: completedTools,
+      toolScores,
     };
-  }).filter(Boolean) as NonNullable<ReturnType<typeof PRODUCTS_BY_ID.get>> extends never ? never : any[];
+  }).filter(Boolean) as any[];
 
   // Gate: require at least one completed tool across targeted products
   const totalCompleted = productSummaries.reduce((sum: number, p: any) => sum + (p?.completedToolCount ?? 0), 0);
@@ -373,7 +411,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
     studentName: c.studentName,
     school: c.school,
     grade: c.grade ?? undefined,
-    products: productSummaries as any[],
+    products: productSummaries,
   });
 
   // Persist to intakeAnalysis

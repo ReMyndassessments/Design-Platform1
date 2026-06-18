@@ -1,8 +1,9 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ASSESSMENT_PRODUCTS } from "@/lib/products";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -12,7 +13,7 @@ function authHeaders() {
 }
 
 const REMYND_AUTO_PREFIXES = ["RCS-80","RASR","RCEP","REFI","RERMS","RSCP","RARPS","RFII","RSSC","RSCA","RARI","EFA"];
-const CDP_TOOL_IDS   = new Set(["CDP-CL","CDP-SI","CDP-SR","CDP-CI"]);
+const CDP_TOOL_IDS    = new Set(["CDP-CL","CDP-SI","CDP-SR","CDP-CI"]);
 const LITERACY_TOOL_IDS = new Set(["RRCA","RRFA","RPPI","RDA"]);
 
 function isRemyndAuto(toolId: string): boolean {
@@ -21,8 +22,14 @@ function isRemyndAuto(toolId: string): boolean {
 
 function completionForSet(assignments: any[], matchFn: (toolId: string) => boolean) {
   const matched = assignments.filter((a: any) => matchFn(a.toolId ?? ""));
-  const completed = matched.filter((a: any) => a.status === "completed");
-  return { matched: matched.length, completed: completed.length };
+  const uniqueTools = new Set(matched.map((a: any) => a.toolId as string));
+  // Completion = number of unique tools where every assignment is completed
+  let completedTools = 0;
+  for (const tid of uniqueTools) {
+    const toolAssignments = matched.filter((a: any) => a.toolId === tid);
+    if (toolAssignments.every((a: any) => a.status === "completed")) completedTools++;
+  }
+  return { matched: uniqueTools.size, completed: completedTools };
 }
 
 interface DashTile {
@@ -66,18 +73,18 @@ export default function DashboardsHub() {
   const assignments: any[] = c.assignments ?? [];
   const productIds: string[] = (c.productIds as string[]) ?? [];
 
+  // Build the set of tool IDs that belong to any assigned product
+  const productToolSet = new Set<string>();
+  for (const pid of productIds) {
+    const product = ASSESSMENT_PRODUCTS.find(p => p.id === pid);
+    if (product) product.toolIds.forEach(t => productToolSet.add(t));
+  }
+
   // Compute completions per dashboard
+  const productCompletion  = completionForSet(assignments, t => productToolSet.has(t));
   const remyndCompletion   = completionForSet(assignments, isRemyndAuto);
   const cdpCompletion      = completionForSet(assignments, t => CDP_TOOL_IDS.has(t));
   const literacyCompletion = completionForSet(assignments, t => LITERACY_TOOL_IDS.has(t));
-
-  // Product completion: all assignments whose tool is in any of the assigned products
-  // (simple heuristic: any assigned tool in the RAOS product list)
-  const productCompletion = (() => {
-    const total = assignments.length;
-    const done  = assignments.filter((a: any) => a.status === "completed").length;
-    return { matched: total, completed: done };
-  })();
 
   const candidateTiles: (DashTile | null)[] = [
     productIds.length > 0 ? {
@@ -147,7 +154,6 @@ export default function DashboardsHub() {
         </div>
       </div>
 
-      {/* Available tiles */}
       {tiles.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tiles.map(tile => {
@@ -164,25 +170,21 @@ export default function DashboardsHub() {
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tile.tagColor}`}>
                           {tile.tag}
                         </span>
-                        {allDone && (
-                          <CheckCircle2 size={12} className="text-emerald-500" />
-                        )}
+                        {allDone && <CheckCircle2 size={12} className="text-emerald-500" />}
                       </div>
                       <p className="font-semibold text-slate-800 text-sm leading-tight">{tile.title}</p>
                       <p className="text-xs text-slate-500 mt-1">{tile.subtitle}</p>
-                      {tile.matched > 0 && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 bg-slate-200 rounded-full h-1 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-violet-500 transition-all"
-                              style={{ width: `${Math.round((tile.completed / tile.matched) * 100)}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-slate-400 flex-shrink-0">
-                            {tile.completed}/{tile.matched}
-                          </span>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 bg-slate-200 rounded-full h-1 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-violet-500 transition-all"
+                            style={{ width: tile.matched > 0 ? `${Math.round((tile.completed / tile.matched) * 100)}%` : "0%" }}
+                          />
                         </div>
-                      )}
+                        <span className="text-[10px] text-slate-400 flex-shrink-0">
+                          {tile.completed}/{tile.matched}
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -192,7 +194,6 @@ export default function DashboardsHub() {
         </div>
       )}
 
-      {/* Empty state */}
       {tiles.length === 0 && (
         <div className="flex flex-col items-center py-16 text-center">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -200,7 +201,7 @@ export default function DashboardsHub() {
           </div>
           <p className="text-slate-700 font-medium mb-1">No dashboards available yet</p>
           <p className="text-sm text-slate-500 max-w-sm">
-            Dashboards appear once assessments are assigned to this case. Go to the case page to add products or individual tools.
+            Dashboards appear once assessments are assigned to this case.
           </p>
           <Link href={`/cases/${caseId}`}>
             <Button variant="outline" className="mt-5">Go to Case</Button>

@@ -1311,45 +1311,90 @@ Write in formal, professional psychoeducational language suitable for a school p
   }
 }
 
+export type ProductToolScore = {
+  toolId: string;
+  toolName: string;
+  respondentType: string;
+  rawScore?: number | null;
+  domainScores: Record<string, number>;
+  normalizedScores: Record<string, number>;
+  notes?: string | null;
+};
+
+export type ProductReportInput = {
+  productId: string;
+  productName: string;
+  market: string;
+  effectiveToolCount: number;
+  assignedToolCount: number;
+  completedToolCount: number;
+  completedToolIds: string[];
+  toolScores: ProductToolScore[];
+};
+
 export async function generateProductReport(params: {
   studentName: string;
   school: string;
   grade?: string;
-  products: Array<{
-    productId: string;
-    productName: string;
-    market: string;
-    effectiveToolCount: number;
-    assignedToolCount: number;
-    completedToolCount: number;
-    completedToolIds: string[];
-  }>;
+  products: ProductReportInput[];
 }): Promise<string> {
   const { studentName, school, grade, products } = params;
   const firstName = studentName.split(" ")[0] ?? studentName;
 
-  const productLines = products.map(p =>
-    `- ${p.productName} (${p.completedToolCount} of ${p.effectiveToolCount} tools completed)`
-  ).join("\n");
+  function formatDomainScores(domainScores: Record<string, number>, normalizedScores: Record<string, number>): string {
+    return Object.entries(domainScores)
+      .map(([domain, raw]) => {
+        const norm = normalizedScores[domain];
+        const normStr = norm !== undefined ? `, normalised: ${norm.toFixed(1)}` : "";
+        return `      • ${domain}: ${raw.toFixed(1)}${normStr}`;
+      })
+      .join("\n");
+  }
 
-  const prompt = `You are a senior ReMynd psychoeducational report writer. Generate a professional summary section for the following assessment context.
+  const productBlocks = products.map(p => {
+    const scoreBlocks = p.toolScores.map(s => {
+      const domainBlock = Object.keys(s.domainScores).length > 0
+        ? `\n    Domain Scores:\n${formatDomainScores(s.domainScores, s.normalizedScores)}`
+        : "";
+      const rawBlock = s.rawScore != null ? `\n    Total Score: ${s.rawScore.toFixed(1)}` : "";
+      const notesBlock = s.notes ? `\n    Examiner Notes: ${s.notes}` : "";
+      return `  — ${s.toolName} (Respondent: ${s.respondentType})${rawBlock}${domainBlock}${notesBlock}`;
+    }).join("\n");
+
+    return `PACKAGE: ${p.productName}
+Status: ${p.completedToolCount} of ${p.effectiveToolCount} tools completed
+${p.toolScores.length > 0 ? `Completed Tool Scores:\n${scoreBlocks}` : "(No score data available)"}`;
+  }).join("\n\n");
+
+  const prompt = `You are a senior ReMynd psychoeducational report writer. Generate a structured clinical report narrative based on real assessment score data provided below.
 
 CLIENT: ${studentName}
 SCHOOL: ${school}${grade ? ` | GRADE: ${grade}` : ""}
 
-ASSESSMENT PACKAGES ADMINISTERED:
-${productLines}
+${productBlocks}
 
-Write a concise, professional report introduction section (3–4 paragraphs) that:
-1. Introduces the assessment context and purpose of the assessment package(s) administered.
-2. Briefly describes what each product/package measures and its clinical relevance.
-3. Notes the completeness of the assessment battery.
-4. Frames the scope and limitations of the report.
+---
+Write a structured professional report with the following sections (use plain section headings — no markdown):
 
-Write in formal, professional psychoeducational language suitable for a school psychological report. Refer to the client by first name ("${firstName}") after the initial introduction. Do not invent specific score data. Format as flowing paragraphs — no bullet points, no headers.`;
+Presenting Concerns & Referral Context
+[Describe the referral context and reason for assessment based on the packages used. Do not invent referral details not evidenced by the data.]
+
+Assessment Methods & Battery Overview
+[Name the assessment packages used, what each measures, and the completion status of the battery.]
+
+Findings by Domain
+[For each package with completed scores, interpret the domain score data. Name specific domains, reference normalised scores where available to indicate severity (e.g. elevated, at-risk, within normal limits), and describe the functional significance. Do not invent scores not present in the data. If a domain has no data, do not discuss it.]
+
+Cross-Informant Comparison
+[If multiple respondents reported scores on the same or related instruments, describe convergence or discrepancy. If only one respondent type is present, note this briefly and omit this section.]
+
+Summary & Recommendations
+[Synthesise key findings into a clinically meaningful profile. Frame recommendations based on the pattern of results. Use appropriate hedging — do not diagnose. Recommend next steps for intervention, further assessment, or support.]
+
+Write in formal, professional psychoeducational language suitable for a school or clinical report. Refer to the client as "${firstName}" after the initial introduction. Base ALL score interpretation solely on the data provided — never fabricate score values. Use third-person throughout.`;
 
   try {
-    const narrative = await callDeepSeek(prompt, 1200);
+    const narrative = await callDeepSeek(prompt, 2400);
     return narrative.trim();
   } catch {
     return `Product report narrative could not be generated at this time. Please review the assessment data and consult with the assessing psychologist.`;
