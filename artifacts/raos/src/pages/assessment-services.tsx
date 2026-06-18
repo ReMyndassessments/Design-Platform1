@@ -143,7 +143,7 @@ const FLAGSHIP_QUESTIONS = [
   "What interventions should be prioritised?",
 ];
 
-const SUMMER_DISCOUNT = 0.15;
+const SUMMER_DISCOUNT = 0.20;
 
 function summerPx(priceStr: string): string {
   const n = parseInt(priceStr.replace(/,/g, ""), 10);
@@ -158,7 +158,7 @@ function PriceTag({ price, summer }: { price: string; summer?: boolean }) {
         <div className="flex items-center gap-1.5 mb-0.5">
           <span className="text-xs text-slate-400 line-through">{price} RMB</span>
           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
-            <Sun size={8} className="flex-shrink-0" /> –15% summer
+            <Sun size={8} className="flex-shrink-0" /> –20% summer
           </span>
         </div>
       )}
@@ -281,10 +281,10 @@ export default function AssessmentServicesPage() {
               </div>
               <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
                 <span className="text-slate-400 text-xl block mb-1 font-semibold">Save</span>
-                15% Off All Assessments
+                20% Off All Assessments
               </h2>
               <p className="text-slate-400 text-sm font-medium mb-5">
-                2025–2026 school year pricing — available throughout summer until the new school year begins.
+                20% off 2026–2027 school year pricing — available for assessments booked this summer.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center lg:items-start gap-3">
@@ -460,11 +460,11 @@ export default function AssessmentServicesPage() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm text-blue-300/60 line-through">16,500 RMB</span>
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 rounded-full">
-                          <Sun size={8} /> –15% summer
+                          <Sun size={8} /> –20% summer
                         </span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-extrabold text-white">14,025</span>
+                        <span className="text-3xl font-extrabold text-white">13,200</span>
                         <span className="text-base font-semibold text-blue-300">RMB</span>
                       </div>
                     </div>
