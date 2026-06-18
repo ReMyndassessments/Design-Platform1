@@ -17,6 +17,8 @@ async function checkCaseAccess(_role: string, _userId: string, caseId: string): 
   return !!rows[0];
 }
 
+const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin_info", "instructions", "general_info", "identifying_info"]);
+
 /** Build a questionId → domain lookup from the tool's canonical or DB-stored question list. */
 async function buildDomainMap(toolId: string): Promise<Record<string, string>> {
   const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
@@ -48,6 +50,7 @@ function computeDomainScores(answers: Record<string, unknown>, domainMap: Record
   const domains: Record<string, number[]> = {};
   for (const [key, value] of Object.entries(answers)) {
     const domain = domainMap[key] ?? "general";
+    if (NON_CLINICAL_DOMAINS.has(domain)) continue;
     if (!domains[domain]) domains[domain] = [];
     const numVal = typeof value === "number" ? value : parseFloat(String(value));
     if (!isNaN(numVal)) domains[domain].push(numVal);
@@ -63,7 +66,7 @@ function computeDomainScores(answers: Record<string, unknown>, domainMap: Record
 function normalize(scores: Record<string, number>, max = 5): Record<string, number> {
   const result: Record<string, number> = {};
   for (const [k, v] of Object.entries(scores)) {
-    result[k] = Math.round((v / max) * 100);
+    result[k] = Math.min(100, Math.max(0, Math.round((v / max) * 100)));
   }
   return result;
 }

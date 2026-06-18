@@ -416,7 +416,11 @@ function ToolScoreSection({ toolScores, studentName, today }: {
 
   const colors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6'];
 
-  const allValues = toolScores.flatMap(s => Object.values(s.normalizedScores as Record<string, number>));
+  const allValues = toolScores.flatMap(s =>
+    Object.entries(s.normalizedScores as Record<string, number>)
+      .filter(([d]) => !NON_CLINICAL_DOMAINS.has(d))
+      .map(([, v]) => v)
+  );
   const overallAvg = allValues.length > 0 ? allValues.reduce((a, b) => a + b, 0) / allValues.length : 0;
 
   const avgByDomain: Record<string, number> = {};
@@ -636,7 +640,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                 <tbody>
                   {Array.from(domains).map(domain => (
                     <tr key={domain} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-2 pr-4 text-slate-700">{DOMAIN_LABELS[domain] ?? domain}</td>
+                      <td className="py-2 pr-4 text-slate-700">{formatDomainLabel(domain)}</td>
                       {respondentTypes.map(type => {
                         const score = toolScores.find(s => s.respondentType === type);
                         const val = score ? (score.normalizedScores as Record<string, number>)[domain] ?? "—" : "—";
@@ -711,14 +715,18 @@ export default function ScoringView() {
   const studentName = caseData?.studentName ?? "the student";
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-  // Group scores by toolId so each tool renders independently
-  const byTool: Record<string, any[]> = {};
+  // Group scores by toolId, keeping only the latest per respondentType
+  const byTool: Record<string, Record<string, any>> = {};
   for (const s of (scores ?? [])) {
     const tid = s.toolId ?? "unknown";
-    if (!byTool[tid]) byTool[tid] = [];
-    byTool[tid].push(s);
+    const rtype = s.respondentType ?? "unknown";
+    if (!byTool[tid]) byTool[tid] = {};
+    const existing = byTool[tid][rtype];
+    if (!existing || new Date(s.generatedAt) > new Date(existing.generatedAt)) {
+      byTool[tid][rtype] = s;
+    }
   }
-  const toolGroups = Object.values(byTool);
+  const toolGroups = Object.values(byTool).map(byRespondent => Object.values(byRespondent));
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
