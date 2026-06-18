@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { LanguageSwitcherLight } from "@/lib/i18n";
 import {
   Eye, Users, Lightbulb, GitBranch, CheckCircle2, ArrowRight,
-  Star, Building2, ChevronRight, Award,
+  Star, Building2, ChevronRight, Award, Sun, Sparkles, BookOpen, ClipboardCheck,
 } from "lucide-react";
 
 const WHY_CARDS = [
@@ -143,11 +143,29 @@ const FLAGSHIP_QUESTIONS = [
   "What interventions should be prioritised?",
 ];
 
-function PriceTag({ price }: { price: string }) {
+const SUMMER_DISCOUNT = 0.15;
+
+function summerPx(priceStr: string): string {
+  const n = parseInt(priceStr.replace(/,/g, ""), 10);
+  return Math.round(n * (1 - SUMMER_DISCOUNT)).toLocaleString();
+}
+
+function PriceTag({ price, summer }: { price: string; summer?: boolean }) {
+  const discounted = summerPx(price);
   return (
-    <div className="flex items-baseline gap-1">
-      <span className="text-2xl font-extrabold text-slate-900">{price}</span>
-      <span className="text-sm font-semibold text-slate-500">RMB</span>
+    <div>
+      {summer && (
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-xs text-slate-400 line-through">{price} RMB</span>
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
+            <Sun size={8} className="flex-shrink-0" /> –15% summer
+          </span>
+        </div>
+      )}
+      <div className="flex items-baseline gap-1">
+        <span className="text-2xl font-extrabold text-slate-900">{summer ? discounted : price}</span>
+        <span className="text-sm font-semibold text-slate-500">RMB</span>
+      </div>
     </div>
   );
 }
@@ -247,6 +265,66 @@ export default function AssessmentServicesPage() {
         </div>
       </section>
 
+      {/* ── SUMMER PROMO BANNER ── */}
+      <section className="relative overflow-hidden bg-slate-800 py-12">
+        <div className="absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        />
+        <div className="relative z-10 max-w-5xl mx-auto px-6">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+
+            {/* Left: offer details */}
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-4">
+                <Sun size={13} className="text-amber-400" />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300">Limited Summer Offer · 2025</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
+                <span className="text-slate-400 text-xl block mb-1 font-semibold">Save</span>
+                15% Off All Assessments
+              </h2>
+              <p className="text-slate-400 text-sm font-medium mb-5">
+                2025–2026 school year pricing — available throughout summer until the new school year begins.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center lg:items-start gap-3">
+                <Link href="/portal?tab=school">
+                  <button className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-sm px-7 py-3 rounded-xl transition-colors">
+                    <Sparkles size={15} /> Book a Summer Assessment
+                  </button>
+                </Link>
+                <Link href="/portal?tab=parent">
+                  <button className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-slate-300 font-semibold text-sm px-6 py-3 rounded-xl transition-colors">
+                    Parent Enquiry <ArrowRight size={14} />
+                  </button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: three use-case cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3 w-full lg:w-auto lg:max-w-sm xl:max-w-none xl:w-80">
+              {[
+                { icon: Sun, title: "Summer Assessments", desc: "Identify concerns before the new school year begins" },
+                { icon: BookOpen, title: "Summer Study Plans", desc: "Tailored learning plans ready for September" },
+                { icon: ClipboardCheck, title: "Individual Education Plans", desc: "IEPs in place before the first day of school" },
+              ].map(item => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="bg-white/8 border border-white/10 rounded-2xl p-4">
+                    <div className="w-8 h-8 rounded-lg bg-amber-400/20 flex items-center justify-center mb-2">
+                      <Icon size={15} className="text-amber-400" />
+                    </div>
+                    <p className="text-white font-bold text-xs mb-1">{item.title}</p>
+                    <p className="text-slate-400 text-[11px] leading-snug">{item.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* ── SECTION 1: WHY SCHOOLS ── */}
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">
@@ -299,7 +377,7 @@ export default function AssessmentServicesPage() {
                   <BestForList items={["Wellbeing screening", "Student reviews", "School transitions", "MTSS Tier 1", "Early identification"]} />
                 </div>
                 <div className="md:text-right flex-shrink-0">
-                  <PriceTag price="4,500" />
+                  <PriceTag price="4,500" summer />
                   <p className="text-[10px] text-slate-400 mt-1">per student</p>
                 </div>
               </div>
@@ -317,7 +395,7 @@ export default function AssessmentServicesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {TIER2.map(item => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                  <PriceTag price={item.price} />
+                  <PriceTag price={item.price} summer />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
@@ -337,7 +415,7 @@ export default function AssessmentServicesPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {TIER3.map(item => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                  <PriceTag price={item.price} />
+                  <PriceTag price={item.price} summer />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
@@ -378,9 +456,17 @@ export default function AssessmentServicesPage() {
 
                 <div className="grid md:grid-cols-2 gap-8">
                   <div>
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-3xl font-extrabold text-white">16,500</span>
-                      <span className="text-base font-semibold text-blue-300">RMB</span>
+                    <div className="mb-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm text-blue-300/60 line-through">16,500 RMB</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                          <Sun size={8} /> –15% summer
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-extrabold text-white">14,025</span>
+                        <span className="text-base font-semibold text-blue-300">RMB</span>
+                      </div>
                     </div>
                     <h3 className="text-xl md:text-2xl font-extrabold text-white mb-3 leading-snug">
                       Comprehensive Psychoeducational Profile & Support Plan
@@ -451,7 +537,7 @@ export default function AssessmentServicesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {PARENT_SERVICES.map(item => (
               <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                <PriceTag price={item.price} />
+                <PriceTag price={item.price} summer />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
               </div>
