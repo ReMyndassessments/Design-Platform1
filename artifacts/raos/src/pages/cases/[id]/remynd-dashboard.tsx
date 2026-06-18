@@ -16,6 +16,14 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+// Non-clinical domain keys — filtered out of all charts
+const NON_CLINICAL_DOMAINS = new Set([
+  "admin", "referral", "demographic", "admin_info", "instructions",
+  "general_info", "identifying_info",
+]);
+
+const RADAR_MAX_SPOKES = 15; // Max domains shown on the radar chart
+
 const DOMAIN_LABELS: Record<string, string> = {
   attention: "Attention",
   executive_function: "Executive Function",
@@ -177,11 +185,12 @@ function RiskBadge({ score, size = "sm" }: { score: number; size?: "sm" | "xs" }
 function SingleRespondentChart({ tool }: { tool: ToolData }) {
   const r = tool.respondents[0];
   const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
-  const chartData = tool.domains.map(domain => ({
-    domainLabel: dLabel(domain),
-    value: r.normalizedScores[domain] ?? 0,
-    band: getRiskBand(r.normalizedScores[domain] ?? 0, t),
-  }));
+  const chartData = tool.domains
+    .filter(domain => !NON_CLINICAL_DOMAINS.has(domain))
+    .map(domain => {
+      const value = Math.min(100, Math.max(0, r.normalizedScores[domain] ?? 0));
+      return { domainLabel: dLabel(domain), value, band: getRiskBand(value, t) };
+    });
 
   return (
     <div>
@@ -220,14 +229,16 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
   const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
   const respondentTypes = tool.respondents.map(r => r.respondentType);
 
-  const chartData = tool.domains.map(domain => {
-    const row: Record<string, string | number> = { domainLabel: dLabel(domain) };
-    for (const r of tool.respondents) {
-      const val = r.normalizedScores[domain];
-      if (val !== undefined) row[r.respondentType] = val;
-    }
-    return row;
-  });
+  const chartData = tool.domains
+    .filter(domain => !NON_CLINICAL_DOMAINS.has(domain))
+    .map(domain => {
+      const row: Record<string, string | number> = { domainLabel: dLabel(domain) };
+      for (const r of tool.respondents) {
+        const val = r.normalizedScores[domain];
+        if (val !== undefined) row[r.respondentType] = Math.min(100, Math.max(0, val));
+      }
+      return row;
+    });
 
   return (
     <div>
@@ -423,11 +434,14 @@ function RemyndIndexSection({ index, tools, hiddenCharts }: {
   const showBarSummary = !hiddenCharts.has("remyndIndex.barSummary");
   const showHeatmap = !hiddenCharts.has("remyndIndex.heatmap");
 
-  const radarData = entries.map(([domain, e]) => ({
-    domain: dLabel(domain),
-    score: e.average,
-    fullMark: 100,
-  }));
+  const radarData = entries
+    .filter(([domain, e]) => !NON_CLINICAL_DOMAINS.has(domain) && e.average > 0)
+    .slice(0, RADAR_MAX_SPOKES)
+    .map(([domain, e]) => ({
+      domain: dLabel(domain),
+      score: Math.min(100, Math.max(0, e.average)),
+      fullMark: 100,
+    }));
 
   return (
     <div className="space-y-4">

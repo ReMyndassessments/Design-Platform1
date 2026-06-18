@@ -13,6 +13,12 @@ const REMYND_AUTO_TOOL_IDS = new Set([
   "RCS-80", "RASR", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP",
 ]);
 
+// Domain keys that are demographic/admin fields — never clinical scores
+const NON_CLINICAL_DOMAINS = new Set([
+  "admin", "referral", "demographic", "admin_info", "instructions",
+  "general_info", "identifying_info",
+]);
+
 const RESPONDENT_LABEL: Record<string, string> = {
   parent: "Parent / Guardian",
   teacher1: "Teacher 1",
@@ -306,7 +312,8 @@ async function buildIndexData(caseId: string) {
         scoreKeySet.add(d);
       }
     }
-    const domains = configDomains.length > 0 ? configDomains : [...scoreKeySet];
+    const rawDomains = configDomains.length > 0 ? configDomains : [...scoreKeySet];
+    const domains = rawDomains.filter(d => !NON_CLINICAL_DOMAINS.has(d));
 
     const respondents = scores.map(score => ({
       respondentType: score.respondentType ?? "unknown",
@@ -356,6 +363,7 @@ async function buildIndexData(caseId: string) {
   for (const tool of tools) {
     for (const respondent of tool.respondents) {
       for (const [domain, score] of Object.entries(respondent.normalizedScores)) {
+        if (NON_CLINICAL_DOMAINS.has(domain)) continue;
         if (!domainAcc.has(domain)) {
           domainAcc.set(domain, {
             total: 0, count: 0, sources: [],
