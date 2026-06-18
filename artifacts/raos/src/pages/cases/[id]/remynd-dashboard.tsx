@@ -411,9 +411,17 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
   );
 }
 
-function RemyndIndexSection({ index, tools }: { index: Record<string, IndexEntry>; tools: ToolData[] }) {
+function RemyndIndexSection({ index, tools, hiddenCharts }: {
+  index: Record<string, IndexEntry>;
+  tools: ToolData[];
+  hiddenCharts: Set<string>;
+}) {
   const entries = Object.entries(index).sort((a, b) => b[1].average - a[1].average);
   if (entries.length === 0) return null;
+
+  const showRadar = !hiddenCharts.has("remyndIndex.radar");
+  const showBarSummary = !hiddenCharts.has("remyndIndex.barSummary");
+  const showHeatmap = !hiddenCharts.has("remyndIndex.heatmap");
 
   const radarData = entries.map(([domain, e]) => ({
     domain: dLabel(domain),
@@ -423,88 +431,92 @@ function RemyndIndexSection({ index, tools }: { index: Record<string, IndexEntry
 
   return (
     <div className="space-y-4">
+      {(showRadar || showBarSummary) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Radar chart */}
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Brain size={14} className="text-violet-500" />
-              ReMynd Index — Cross-Tool Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart cx="50%" cy="50%" outerRadius="72%" data={radarData}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="domain" tick={{ fontSize: 9, fill: "#64748b" }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: "#94a3b8" }} />
-                <Radar
-                  name="Avg Concern"
-                  dataKey="score"
-                  stroke="#6366f1"
-                  fill="#6366f1"
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                />
-                <Tooltip
-                  formatter={(v: number) => {
-                    const band = getRiskBand(v);
-                    return [`${v}/100 — ${RISK_META[band].label}`, "Cross-Tool Avg"];
-                  }}
-                  contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-            <p className="text-center text-[10px] text-slate-400 mt-1">
-              Larger area = higher cross-informant concern
-            </p>
-          </CardContent>
-        </Card>
+        {showRadar && (
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+              <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Brain size={14} className="text-violet-500" />
+                ReMynd Index — Cross-Tool Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart cx="50%" cy="50%" outerRadius="72%" data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="domain" tick={{ fontSize: 9, fill: "#64748b" }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: "#94a3b8" }} />
+                  <Radar
+                    name="Avg Concern"
+                    dataKey="score"
+                    stroke="#6366f1"
+                    fill="#6366f1"
+                    fillOpacity={0.3}
+                    strokeWidth={2}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => {
+                      const band = getRiskBand(v);
+                      return [`${v}/100 — ${RISK_META[band].label}`, "Cross-Tool Avg"];
+                    }}
+                    contentStyle={{ fontSize: 11, borderRadius: 6 }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+              <p className="text-center text-[10px] text-slate-400 mt-1">
+                Larger area = higher cross-informant concern
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Domain bar summary */}
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <TrendingUp size={14} className="text-violet-500" />
-              Domain Average Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-3 px-5 pb-5">
-            <div className="space-y-2.5">
-              {entries.map(([domain, e]) => {
-                const band = (e.riskBand as RiskBand) in RISK_META ? (e.riskBand as RiskBand) : getRiskBand(e.average);
-                const m = RISK_META[band];
-                return (
-                  <div key={domain} className="flex items-center gap-3">
-                    <div className="w-32 flex-shrink-0 text-xs text-slate-700 font-medium truncate">{dLabel(domain)}</div>
-                    <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${e.average}%`, backgroundColor: m.hex }}
-                      />
+        {showBarSummary && (
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+              <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <TrendingUp size={14} className="text-violet-500" />
+                Domain Average Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-3 px-5 pb-5">
+              <div className="space-y-2.5">
+                {entries.map(([domain, e]) => {
+                  const band = (e.riskBand as RiskBand) in RISK_META ? (e.riskBand as RiskBand) : getRiskBand(e.average);
+                  const m = RISK_META[band];
+                  return (
+                    <div key={domain} className="flex items-center gap-3">
+                      <div className="w-32 flex-shrink-0 text-xs text-slate-700 font-medium truncate">{dLabel(domain)}</div>
+                      <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${e.average}%`, backgroundColor: m.hex }}
+                        />
+                      </div>
+                      <div className="w-8 text-right text-[10px] text-slate-500 flex-shrink-0">{e.average}</div>
+                      <div className="w-20 flex-shrink-0">
+                        <Badge className={`border ${m.bg} ${m.text} ${m.border} font-medium text-[10px]`}>{m.label}</Badge>
+                      </div>
                     </div>
-                    <div className="w-8 text-right text-[10px] text-slate-500 flex-shrink-0">{e.average}</div>
-                    <div className="w-20 flex-shrink-0">
-                      <Badge className={`border ${m.bg} ${m.text} ${m.border} font-medium text-[10px]`}>{m.label}</Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-3 mt-4 flex-wrap">
-              {RISK_BAND_LEGEND.map(({ band, range }) => (
-                <span key={band} className="flex items-center gap-1 text-[10px] text-slate-400">
-                  <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
-                  {RISK_META[band].label} ({range})
-                </span>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
+                {RISK_BAND_LEGEND.map(({ band, range }) => (
+                  <span key={band} className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
+                    {RISK_META[band].label} ({range})
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+      )}
 
-      {/* True heatmap matrix */}
-      <CrossToolHeatmap tools={tools} />
+      {/* Heatmap matrix */}
+      {showHeatmap && <CrossToolHeatmap tools={tools} />}
     </div>
   );
 }
@@ -642,11 +654,6 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
 
 // ── Configure Panel (Sheet) ───────────────────────────────────────────────────
 
-const SECTION_LABELS: Record<string, string> = {
-  remyndIndex: "ReMynd Index (Radar + Heatmap)",
-  discrepancy: "Discrepancy Analysis",
-  aiInsights: "AI Clinical Interpretation",
-};
 
 function ConfigurePanel({
   open,
@@ -744,12 +751,48 @@ function ConfigurePanel({
         <div className="mb-5">
           <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2.5">Sections</h3>
           <div className="space-y-3">
-            {(["remyndIndex", "discrepancy", "aiInsights"] as const).map(key => {
+            {/* ReMynd Index — master toggle + sub-chart toggles */}
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <span className={`text-sm transition-colors ${!hiddenSet.has("remyndIndex") ? "text-slate-700" : "text-slate-400"}`}>
+                  ReMynd Index
+                </span>
+                <Switch
+                  checked={!hiddenSet.has("remyndIndex")}
+                  onCheckedChange={() => toggleSection("remyndIndex")}
+                  className="shrink-0"
+                />
+              </div>
+              {!hiddenSet.has("remyndIndex") && (
+                <div className="ml-4 mt-2 space-y-2 border-l-2 border-slate-100 pl-3">
+                  {([
+                    ["remyndIndex.radar", "Radar Chart"],
+                    ["remyndIndex.barSummary", "Domain Bar Summary"],
+                    ["remyndIndex.heatmap", "Heatmap Matrix"],
+                  ] as const).map(([key, label]) => (
+                    <div key={key} className="flex items-center justify-between gap-3">
+                      <span className={`text-xs transition-colors ${!hiddenSet.has(key) ? "text-slate-600" : "text-slate-400"}`}>
+                        {label}
+                      </span>
+                      <Switch
+                        checked={!hiddenSet.has(key)}
+                        onCheckedChange={() => toggleSection(key)}
+                        className="shrink-0 scale-90"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Discrepancy and AI Insights */}
+            {(["discrepancy", "aiInsights"] as const).map(key => {
+              const labels: Record<string, string> = { discrepancy: "Discrepancy Analysis", aiInsights: "AI Clinical Interpretation" };
               const visible = !hiddenSet.has(key);
               return (
                 <div key={key} className="flex items-center justify-between gap-3">
                   <span className={`text-sm transition-colors ${visible ? "text-slate-700" : "text-slate-400"}`}>
-                    {SECTION_LABELS[key]}
+                    {labels[key]}
                   </span>
                   <Switch
                     checked={visible}
@@ -1042,7 +1085,7 @@ export default function RemyndDashboardPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <h2 className="text-sm font-semibold text-slate-800">ReMynd Index — Cross-Tool Summary</h2>
                 </div>
-                <RemyndIndexSection index={filteredIndex} tools={activeTools} />
+                <RemyndIndexSection index={filteredIndex} tools={activeTools} hiddenCharts={hiddenSections} />
               </section>
             )}
 
