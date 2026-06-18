@@ -435,6 +435,17 @@ export default function CaseDetail() {
           totalCreated++;
         }
       }
+      // Also register this product in the case's productIds array
+      const currentProductIds: string[] = (c as any).productIds ?? [];
+      if (!currentProductIds.includes(selectedProductId)) {
+        try {
+          await fetch(`${BASE_URL}/api/cases/${caseId}/product-ids`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token") ?? ""}` },
+            body: JSON.stringify({ productIds: [...currentProductIds, selectedProductId] }),
+          });
+        } catch { /* non-fatal */ }
+      }
       toast({ title: "Product assigned", description: `${totalCreated} form${totalCreated !== 1 ? "s" : ""} assigned across ${selectedSlots.length} respondent${selectedSlots.length !== 1 ? "s" : ""}.` });
       setProductModalOpen(false);
       setSelectedProductId("");
@@ -2044,6 +2055,11 @@ export default function CaseDetail() {
                 Build Assessment Battery
               </CardTitle>
               <div className="flex gap-2">
+                <Link href={`/cases/${caseId}/dashboards`}>
+                  <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
+                    <LayoutGrid size={13} /> Dashboards
+                  </Button>
+                </Link>
                 {hasLiteracyBattery && (
                   <Link href={`/cases/${caseId}/literacy-dashboard`}>
                     <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">

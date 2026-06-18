@@ -2548,6 +2548,15 @@ async function syncAssignmentToolNames() {
   }
 }
 
+async function addCaseProductIds() {
+  try {
+    await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS product_ids JSONB NOT NULL DEFAULT '[]'`);
+    logger.info("product_ids column ensured on cases");
+  } catch (err) {
+    logger.error({ err }, "addCaseProductIds failed");
+  }
+}
+
 async function addCoordinatorSupport() {
   try {
     await db.execute(sql`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'school_clinical_coordinator'`);
@@ -2643,6 +2652,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addCoordinatorSupport())
   .then(() => syncAssignmentToolNames())
   .then(() => backfillRscaSnapshots())
+  .then(() => addCaseProductIds())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

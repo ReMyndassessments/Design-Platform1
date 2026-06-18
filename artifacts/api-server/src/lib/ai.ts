@@ -1310,3 +1310,48 @@ Write in formal, professional psychoeducational language suitable for a school p
     return `Clinical interpretation narrative could not be generated at this time. Please review the score data above and consult with the assessing psychologist for interpretation.`;
   }
 }
+
+export async function generateProductReport(params: {
+  studentName: string;
+  school: string;
+  grade?: string;
+  products: Array<{
+    productId: string;
+    productName: string;
+    market: string;
+    effectiveToolCount: number;
+    assignedToolCount: number;
+    completedToolCount: number;
+    completedToolIds: string[];
+  }>;
+}): Promise<string> {
+  const { studentName, school, grade, products } = params;
+  const firstName = studentName.split(" ")[0] ?? studentName;
+
+  const productLines = products.map(p =>
+    `- ${p.productName} (${p.completedToolCount} of ${p.effectiveToolCount} tools completed)`
+  ).join("\n");
+
+  const prompt = `You are a senior ReMynd psychoeducational report writer. Generate a professional summary section for the following assessment context.
+
+CLIENT: ${studentName}
+SCHOOL: ${school}${grade ? ` | GRADE: ${grade}` : ""}
+
+ASSESSMENT PACKAGES ADMINISTERED:
+${productLines}
+
+Write a concise, professional report introduction section (3–4 paragraphs) that:
+1. Introduces the assessment context and purpose of the assessment package(s) administered.
+2. Briefly describes what each product/package measures and its clinical relevance.
+3. Notes the completeness of the assessment battery.
+4. Frames the scope and limitations of the report.
+
+Write in formal, professional psychoeducational language suitable for a school psychological report. Refer to the client by first name ("${firstName}") after the initial introduction. Do not invent specific score data. Format as flowing paragraphs — no bullet points, no headers.`;
+
+  try {
+    const narrative = await callDeepSeek(prompt, 1200);
+    return narrative.trim();
+  } catch {
+    return `Product report narrative could not be generated at this time. Please review the assessment data and consult with the assessing psychologist.`;
+  }
+}

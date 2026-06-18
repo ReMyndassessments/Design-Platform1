@@ -6,8 +6,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Check } from "lucide-react";
 import { Link } from "wouter";
+import { ALL_PRODUCTS_BY_MARKET, MARKET_LABELS } from "@/lib/products";
+
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+function authHeaders() {
+  const token = localStorage.getItem("raos_token");
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+const MARKET_COLORS: Record<string, string> = {
+  Schools: "border-violet-200 bg-violet-50",
+  Parents: "border-sky-200 bg-sky-50",
+  Corporate: "border-amber-200 bg-amber-50",
+  Universities: "border-teal-200 bg-teal-50",
+  Specialized: "border-rose-200 bg-rose-50",
+};
+
+const MARKET_BADGE: Record<string, string> = {
+  Schools: "bg-violet-100 text-violet-700",
+  Parents: "bg-sky-100 text-sky-700",
+  Corporate: "bg-amber-100 text-amber-700",
+  Universities: "bg-teal-100 text-teal-700",
+  Specialized: "bg-rose-100 text-rose-700",
+};
 
 export default function NewCase() {
   const [, setLocation] = useLocation();
@@ -31,6 +55,9 @@ export default function NewCase() {
     assignedLeadId: "",
     assignedPsychId: ""
   });
+
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [showProductPicker, setShowProductPicker] = useState(false);
 
   const isPsych = currentUser?.role === "psychometrician";
   const isCoordinator = currentUser?.role === "school_clinical_coordinator";
@@ -56,14 +83,31 @@ export default function NewCase() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  function toggleProduct(id: string) {
+    setSelectedProductIds(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     createCaseMut.mutate({ data: formData }, {
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
+        if (selectedProductIds.length > 0) {
+          try {
+            await fetch(`${BASE_URL}/api/cases/${data.id}/product-ids`, {
+              method: "PATCH",
+              headers: authHeaders(),
+              body: JSON.stringify({ productIds: selectedProductIds }),
+            });
+          } catch {
+            // Non-fatal — case is still created
+          }
+        }
         toast({ title: "Success", description: "Case created successfully." });
         setLocation(`/cases/${data.id}`);
       },
-      onError: (err) => {
+      onError: () => {
         toast({ title: "Error", description: "Failed to create case.", variant: "destructive" });
       }
     });
@@ -111,9 +155,9 @@ export default function NewCase() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Language Preference *</label>
-                <select 
-                  name="languagePreference" 
-                  value={formData.languagePreference} 
+                <select
+                  name="languagePreference"
+                  value={formData.languagePreference}
                   onChange={handleChange}
                   className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
                 >
@@ -126,11 +170,11 @@ export default function NewCase() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Referral Reason *</label>
-              <Textarea 
-                name="referralReason" 
-                required 
-                value={formData.referralReason} 
-                onChange={handleChange} 
+              <Textarea
+                name="referralReason"
+                required
+                value={formData.referralReason}
+                onChange={handleChange}
                 className="min-h-[120px]"
                 placeholder="Describe why the student is being referred for assessment..."
               />
@@ -160,9 +204,9 @@ export default function NewCase() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Assessment Lead</label>
-                  <select 
-                    name="assignedLeadId" 
-                    value={formData.assignedLeadId} 
+                  <select
+                    name="assignedLeadId"
+                    value={formData.assignedLeadId}
                     onChange={handleChange}
                     className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
                   >
@@ -174,9 +218,9 @@ export default function NewCase() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Psychometrician</label>
-                  <select 
-                    name="assignedPsychId" 
-                    value={formData.assignedPsychId} 
+                  <select
+                    name="assignedPsychId"
+                    value={formData.assignedPsychId}
                     onChange={handleChange}
                     className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
                   >
@@ -193,6 +237,94 @@ export default function NewCase() {
               </p>
             )}
             </>)}
+
+            {/* ── Assessment Products ──────────────────────────────────── */}
+            <hr className="my-8" />
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-display font-semibold text-slate-800 flex items-center gap-2">
+                  <LayoutGrid size={18} className="text-violet-500" />
+                  Assessment Products
+                  <span className="text-xs font-normal text-slate-400">(optional)</span>
+                </h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Associate one or more named battery products with this case. You can add or change these later.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50 flex-shrink-0"
+                onClick={() => setShowProductPicker(v => !v)}
+              >
+                <LayoutGrid size={13} />
+                {showProductPicker ? "Hide" : "Select Products"}
+                {selectedProductIds.length > 0 && (
+                  <span className="ml-1 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {selectedProductIds.length}
+                  </span>
+                )}
+              </Button>
+            </div>
+
+            {/* Selected summary pills */}
+            {selectedProductIds.length > 0 && !showProductPicker && (
+              <div className="flex flex-wrap gap-2">
+                {selectedProductIds.map(id => {
+                  const product = ALL_PRODUCTS_BY_MARKET.flatMap(g => g.items).find(p => p.id === id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => toggleProduct(id)}
+                      className="flex items-center gap-1.5 text-xs bg-violet-100 text-violet-700 border border-violet-200 px-2.5 py-1 rounded-full hover:bg-violet-200 transition-colors"
+                    >
+                      {product?.name ?? id}
+                      <span className="text-violet-400">×</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {showProductPicker && (
+              <div className="space-y-5">
+                {ALL_PRODUCTS_BY_MARKET.map(group => (
+                  <div key={group.market}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${MARKET_BADGE[group.market] ?? "bg-slate-100 text-slate-600"}`}>
+                        {group.market}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {group.items.map(product => {
+                        const isSelected = selectedProductIds.includes(product.id);
+                        return (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => toggleProduct(product.id)}
+                            className={`flex items-start gap-3 text-left p-3 rounded-lg border transition-all ${
+                              isSelected
+                                ? `${MARKET_COLORS[group.market] ?? "bg-violet-50 border-violet-200"} ring-1 ring-violet-400`
+                                : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                              isSelected ? "bg-violet-600 border-violet-600" : "border-slate-300"
+                            }`}>
+                              {isSelected && <Check size={11} className="text-white" />}
+                            </div>
+                            <span className="text-xs font-medium text-slate-800 leading-snug">{product.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="pt-6 flex justify-end gap-3">
               <Link href="/cases">

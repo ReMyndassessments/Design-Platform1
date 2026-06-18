@@ -17,6 +17,7 @@ import rdaRouter from "./rda";
 import rrfaRouter from "./rrfa";
 import rrcaRouter from "./rrca";
 import remyndIndexRouter from "./remynd-index";
+import productsRouter from "./products";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(rdaRouter);
 router.use(rrfaRouter);
 router.use(rrcaRouter);
 router.use(remyndIndexRouter);
+router.use(productsRouter);
 
 export default router;

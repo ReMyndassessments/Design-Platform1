@@ -71,6 +71,8 @@ import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
 import RrcaAdminPage from "@/pages/cases/[id]/rrca";
 import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
 import RemyndDashboardPage from "@/pages/cases/[id]/remynd-dashboard";
+import DashboardsHub from "@/pages/cases/[id]/dashboards";
+import ProductDashboard from "@/pages/cases/[id]/product-dashboard";
 import RdaStudentView from "@/pages/student-view/rda";
 import RrcaStudentView from "@/pages/student-view/rrca";
 import RrfaStudentView from "@/pages/student-view/rrfa";
@@ -163,6 +165,12 @@ function Router() {
       </Route>
       <Route path="/cases/:id/rrca/:assignmentId">
         {() => <ProtectedRoute component={RrcaAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/dashboards">
+        {() => <ProtectedRoute component={DashboardsHub} />}
+      </Route>
+      <Route path="/cases/:id/product-dashboard">
+        {() => <ProtectedRoute component={ProductDashboard} />}
       </Route>
       <Route path="/cases/:id/literacy-dashboard">
         {() => <ProtectedRoute component={LiteracyDashboardPage} />}
