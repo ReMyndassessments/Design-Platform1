@@ -833,13 +833,17 @@ export default function ScoringView() {
     }
   }
 
-  // When arriving from a specific battery dashboard, restrict to that battery only
+  // When arriving from a specific battery dashboard, restrict to that battery only.
+  // On a battery-focused page the tool-visibility toggle is bypassed — the user
+  // always wants to see the battery they came from regardless of hidden state.
   const visibleToolGroups = batteryFilter
     ? allToolGroups.filter(group => batteryFilter.ids.has(group[0]?.toolId ?? ""))
     : allToolGroups;
 
-  const toolGroups = visibleToolGroups.filter(group => !hiddenToolIds.has(group[0]?.toolId ?? ""));
-  const hiddenCount = visibleToolGroups.length - toolGroups.length;
+  const toolGroups = batteryFilter
+    ? visibleToolGroups
+    : visibleToolGroups.filter(group => !hiddenToolIds.has(group[0]?.toolId ?? ""));
+  const hiddenCount = batteryFilter ? 0 : visibleToolGroups.length - toolGroups.length;
 
   const handleDownloadPDF = () => window.print();
 
@@ -879,7 +883,8 @@ export default function ScoringView() {
             </Button>
           )}
 
-          {/* Tool filter popover */}
+          {/* Tool filter popover — hidden on battery-focused views */}
+          {!batteryFilter && (
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="bg-white relative">
@@ -944,6 +949,7 @@ export default function ScoringView() {
               </div>
             </PopoverContent>
           </Popover>
+          )}
 
           <Button onClick={handleDownloadPDF} variant="outline" className="bg-white">
             <Download size={16} className="mr-2" /> Download PDF
