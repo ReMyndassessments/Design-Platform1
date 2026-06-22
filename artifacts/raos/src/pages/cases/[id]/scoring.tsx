@@ -616,15 +616,20 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                     height={90}
                     tickFormatter={(v: string) => v.length > 20 ? v.slice(0, 18) + "…" : v}
                   />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#475569' }} />
+                  <YAxis
+                    domain={[0, (dataMax: number) => Math.min(100, Math.max(30, Math.ceil(dataMax * 1.15)))]}
+                    tick={{ fill: '#475569' }}
+                    tickFormatter={(v: number) => `${v}`}
+                    label={{ value: '/ 100', angle: -90, position: 'insideLeft', offset: 12, style: { fill: '#94a3b8', fontSize: 11 } }}
+                  />
                   <Tooltip
                     cursor={{ fill: '#f1f5f9' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number, name: string) => [value, name.toUpperCase()]}
+                    formatter={(value: number, name: string) => [`${value} / 100`, name.toUpperCase()]}
                   />
                   <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '8px' }} />
                   {respondentTypes.map((type, i) => (
-                    <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
+                    <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} minPointSize={3} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
