@@ -1,0 +1,1 @@
+- [BASC-3 & BRIEF-2 domain maps](basc3-brief2-domain-maps.md) — per-item subscale lookup tables live in basc3.ts and brief2.ts; radar charts depend on these being correct.

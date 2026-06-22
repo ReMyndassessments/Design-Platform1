@@ -3,10 +3,81 @@ import type { FormQuestion } from "./questions.js";
 const NSO_EN = ["Never", "Sometimes", "Often"];
 const NSO_ZH = ["从不", "有时", "经常"];
 
+// ── BRIEF-2 item → clinical subscale mapping ─────────────────────────────────
+// Based on Gioia, G.A., Isquith, P.K., Guy, S.C., & Kenworthy, L. (2015).
+// BRIEF-2: Behavior Rating Inventory of Executive Function, 2nd Edition.
+const B2_DOMAIN: Record<string, string> = {
+  // ── Parent Form (b2p, 63 items) ───────────────────────────────────────────
+  "b2p-1":"inhibit",        "b2p-2":"shift",          "b2p-3":"working_memory",
+  "b2p-4":"self_monitor",   "b2p-5":"organization_of_materials","b2p-6":"emotional_control",
+  "b2p-7":"plan_organize",  "b2p-8":"organization_of_materials","b2p-9":"initiate",
+  "b2p-10":"inhibit",       "b2p-11":"shift",          "b2p-12":"working_memory",
+  "b2p-13":"self_monitor",  "b2p-14":"emotional_control","b2p-15":"plan_organize",
+  "b2p-16":"emotional_control","b2p-17":"shift",       "b2p-18":"working_memory",
+  "b2p-19":"plan_organize", "b2p-20":"self_monitor",   "b2p-21":"plan_organize",
+  "b2p-22":"emotional_control","b2p-23":"initiate",    "b2p-24":"inhibit",
+  "b2p-25":"initiate",      "b2p-26":"self_monitor",   "b2p-27":"emotional_control",
+  "b2p-28":"working_memory","b2p-29":"task_monitor",   "b2p-30":"inhibit",
+  "b2p-31":"shift",         "b2p-32":"working_memory", "b2p-33":"organization_of_materials",
+  "b2p-34":"emotional_control","b2p-35":"plan_organize","b2p-36":"working_memory",
+  "b2p-37":"organization_of_materials","b2p-38":"initiate","b2p-39":"inhibit",
+  "b2p-40":"shift",         "b2p-41":"working_memory", "b2p-42":"task_monitor",
+  "b2p-43":"emotional_control","b2p-44":"plan_organize","b2p-45":"organization_of_materials",
+  "b2p-46":"working_memory","b2p-47":"task_monitor",   "b2p-48":"inhibit",
+  "b2p-49":"shift",         "b2p-50":"initiate",       "b2p-51":"emotional_control",
+  "b2p-52":"plan_organize", "b2p-53":"organization_of_materials","b2p-54":"working_memory",
+  "b2p-55":"initiate",      "b2p-56":"emotional_control","b2p-57":"initiate",
+  "b2p-58":"shift",         "b2p-59":"plan_organize",  "b2p-60":"shift",
+  "b2p-61":"plan_organize", "b2p-62":"inhibit",        "b2p-63":"organization_of_materials",
+  // ── Teacher Form (b2t, 63 items) ─────────────────────────────────────────
+  "b2t-1":"inhibit",        "b2t-2":"shift",          "b2t-3":"working_memory",
+  "b2t-4":"self_monitor",   "b2t-5":"organization_of_materials","b2t-6":"emotional_control",
+  "b2t-7":"plan_organize",  "b2t-8":"organization_of_materials","b2t-9":"initiate",
+  "b2t-10":"inhibit",       "b2t-11":"shift",          "b2t-12":"working_memory",
+  "b2t-13":"self_monitor",  "b2t-14":"emotional_control","b2t-15":"plan_organize",
+  "b2t-16":"emotional_control","b2t-17":"shift",       "b2t-18":"working_memory",
+  "b2t-19":"plan_organize", "b2t-20":"self_monitor",   "b2t-21":"plan_organize",
+  "b2t-22":"emotional_control","b2t-23":"initiate",    "b2t-24":"inhibit",
+  "b2t-25":"initiate",      "b2t-26":"self_monitor",   "b2t-27":"emotional_control",
+  "b2t-28":"working_memory","b2t-29":"task_monitor",   "b2t-30":"inhibit",
+  "b2t-31":"shift",         "b2t-32":"working_memory", "b2t-33":"organization_of_materials",
+  "b2t-34":"emotional_control","b2t-35":"plan_organize","b2t-36":"working_memory",
+  "b2t-37":"organization_of_materials","b2t-38":"initiate","b2t-39":"inhibit",
+  "b2t-40":"shift",         "b2t-41":"working_memory", "b2t-42":"task_monitor",
+  "b2t-43":"emotional_control","b2t-44":"plan_organize","b2t-45":"organization_of_materials",
+  "b2t-46":"working_memory","b2t-47":"task_monitor",   "b2t-48":"inhibit",
+  "b2t-49":"shift",         "b2t-50":"initiate",       "b2t-51":"emotional_control",
+  "b2t-52":"plan_organize", "b2t-53":"organization_of_materials","b2t-54":"working_memory",
+  "b2t-55":"initiate",      "b2t-56":"emotional_control","b2t-57":"initiate",
+  // Teacher-specific items 58-63 differ from Parent form
+  "b2t-58":"inhibit",       "b2t-59":"self_monitor",   "b2t-60":"shift",
+  "b2t-61":"working_memory","b2t-62":"initiate",       "b2t-63":"shift",
+  // ── Self-Report Form (b2sr, 55 items) ────────────────────────────────────
+  "b2sr-1":"inhibit",       "b2sr-2":"shift",          "b2sr-3":"working_memory",
+  "b2sr-4":"self_monitor",  "b2sr-5":"organization_of_materials","b2sr-6":"emotional_control",
+  "b2sr-7":"plan_organize", "b2sr-8":"organization_of_materials","b2sr-9":"initiate",
+  "b2sr-10":"inhibit",      "b2sr-11":"shift",         "b2sr-12":"working_memory",
+  "b2sr-13":"self_monitor", "b2sr-14":"emotional_control","b2sr-15":"plan_organize",
+  "b2sr-16":"emotional_control","b2sr-17":"shift",     "b2sr-18":"working_memory",
+  "b2sr-19":"plan_organize","b2sr-20":"self_monitor",  "b2sr-21":"plan_organize",
+  "b2sr-22":"emotional_control","b2sr-23":"initiate",  "b2sr-24":"inhibit",
+  "b2sr-25":"initiate",     "b2sr-26":"self_monitor",  "b2sr-27":"emotional_control",
+  "b2sr-28":"working_memory","b2sr-29":"task_monitor", "b2sr-30":"inhibit",
+  "b2sr-31":"shift",        "b2sr-32":"task_monitor",  "b2sr-33":"initiate",
+  "b2sr-34":"plan_organize","b2sr-35":"plan_organize", "b2sr-36":"working_memory",
+  "b2sr-37":"plan_organize","b2sr-38":"initiate",      "b2sr-39":"inhibit",
+  "b2sr-40":"shift",        "b2sr-41":"working_memory","b2sr-42":"task_monitor",
+  "b2sr-43":"emotional_control","b2sr-44":"initiate",  "b2sr-45":"shift",
+  "b2sr-46":"working_memory","b2sr-47":"plan_organize","b2sr-48":"self_monitor",
+  "b2sr-49":"inhibit",      "b2sr-50":"self_monitor",  "b2sr-51":"shift",
+  "b2sr-52":"plan_organize","b2sr-53":"shift",         "b2sr-54":"working_memory",
+  "b2sr-55":"plan_organize",
+};
+
 const q = (id: string, en: string, zh: string): FormQuestion => ({
   id, text: en, textChinese: zh, textKorean: "",
   type: "likert", options: NSO_EN, optionsChinese: NSO_ZH, optionsKorean: [],
-  domain: "executive-function", required: true,
+  domain: B2_DOMAIN[id] ?? "executive-function", required: true,
 });
 
 // ─── BRIEF-2 Parent Form (63 items) ───────────────────────────────────────────
