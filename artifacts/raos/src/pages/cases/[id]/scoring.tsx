@@ -503,6 +503,8 @@ function ToolScoreSection({ toolScores, studentName, today }: {
     return pt;
   });
 
+  const respondentTypes = Array.from(new Set(toolScores.map(s => s.respondentType)));
+
   // Bar chart: remove all-zero domains, sort by average desc, cap at 15
   const barData = radarData
     .map(pt => {
@@ -536,7 +538,6 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   }
 
   const overallBand = getBand(overallAvg, higherIsBetter);
-  const respondentTypes = Array.from(new Set(toolScores.map(s => s.respondentType)));
 
   return (
     <div className="space-y-6">
