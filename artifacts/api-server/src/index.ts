@@ -726,7 +726,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_TRS_A_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BASC3-PRS-A",
@@ -738,7 +738,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_PRS_A_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BASC3-TRS-C",
@@ -750,7 +750,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_TRS_C_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BASC3-PRS-C",
@@ -762,7 +762,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_PRS_C_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BASC3-SRP-A",
@@ -774,7 +774,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_SRP_A_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BASC3-SRP-C",
@@ -786,7 +786,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["behavior"],
     formItems: BASC3_SRP_C_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 3 },
   },
   {
     id: "BRIEF2-P",
@@ -798,7 +798,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["executive-function"],
     formItems: BRIEF2_PARENT_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 2 },
   },
   {
     id: "BRIEF2-SR",
@@ -810,7 +810,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["executive-function"],
     formItems: BRIEF2_SELF_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 2 },
   },
   {
     id: "BRIEF2-T",
@@ -822,7 +822,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["executive-function"],
     formItems: BRIEF2_TEACHER_FORM,
-    scoringConfig: null,
+    scoringConfig: { max: 2 },
   },
   // ── Public Domain / Open-Access Screening Tools ──────────────────────────
   {

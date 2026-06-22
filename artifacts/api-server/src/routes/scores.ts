@@ -87,10 +87,6 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   const newScores = [];
 
   for (const assignment of completedAssignments) {
-    const existingScore = await db.select().from(scoresTable)
-      .where(eq(scoresTable.caseId, req.params.caseId))
-      .limit(1);
-
     const responses = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id));
     if (responses.length === 0) continue;
 
@@ -100,6 +96,16 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
     const domainScores = computeDomainScores(latestResponse.answers as Record<string, unknown>, domainMap);
     const normalizedScores = normalize(domainScores, scaleMax);
     const rawScore = Object.values(domainScores).reduce((a, b) => a + b, 0) / Object.keys(domainScores).length;
+
+    // Remove stale auto-computed scores for this tool+respondent before inserting fresh ones.
+    await db.delete(scoresTable).where(
+      and(
+        eq(scoresTable.caseId, req.params.caseId),
+        eq(scoresTable.toolId, assignment.toolId),
+        eq(scoresTable.respondentType, assignment.respondentType),
+        eq(scoresTable.isManual, false)
+      )
+    );
 
     const score = await db.insert(scoresTable).values({
       id: nanoid(),
