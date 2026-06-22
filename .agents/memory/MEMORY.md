@@ -1,1 +1,1 @@
-- [BASC-3 & BRIEF-2 domain maps](basc3-brief2-domain-maps.md) — per-item subscale lookup tables live in basc3.ts and brief2.ts; radar charts depend on these being correct.
+- [BASC-3 bar chart overcrowding](basc3-bar-chart.md) — merged BASC-3 battery has 27+ domains; bar chart must use a filtered/sorted top-N subset, not the full radarData.

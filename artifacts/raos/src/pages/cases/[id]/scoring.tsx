@@ -503,6 +503,16 @@ function ToolScoreSection({ toolScores, studentName, today }: {
     return pt;
   });
 
+  // Bar chart: remove all-zero domains, sort by average desc, cap at 15
+  const barData = radarData
+    .map(pt => {
+      const vals = respondentTypes.map(t => (pt[t] as number) || 0);
+      return { ...pt, _avg: vals.reduce((a, b) => a + b, 0) / Math.max(vals.filter(v => v > 0).length, 1) };
+    })
+    .filter(pt => respondentTypes.some(t => (pt[t] as number) > 0))
+    .sort((a, b) => b._avg - a._avg)
+    .slice(0, 15);
+
   const colors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6'];
 
   const allValues = toolScores.flatMap(s =>
@@ -605,7 +615,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
           <CardContent>
             <div className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={radarData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <BarChart data={barData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis
                     dataKey="subject"
@@ -629,7 +639,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                   />
                   <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '8px' }} />
                   {respondentTypes.map((type, i) => (
-                    <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} minPointSize={3} />
+                    <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
