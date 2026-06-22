@@ -19,6 +19,24 @@ async function checkCaseAccess(_role: string, _userId: string, caseId: string): 
 
 const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin_info", "instructions", "general_info", "identifying_info"]);
 
+/** Map text option labels to numeric values so scoring works regardless of whether the
+ *  form stored the answer as a raw number, a numeric string, or an option label string. */
+const LABEL_TO_NUMBER: Record<string, number> = {
+  "never": 0, "sometimes": 1, "often": 2, "almost always": 3,
+  "true": 1, "false": 0, "yes": 1, "no": 0,
+  "not at all": 0, "just a little": 1, "pretty much": 2, "very much": 3,
+  "not true": 0, "somewhat true": 1, "certainly true": 2,
+  "never/rarely": 0, "occasionally": 1, "frequently": 2, "almost/always": 3,
+};
+
+function labelToNum(value: unknown): number | null {
+  if (typeof value === "number") return value;
+  const s = String(value).trim();
+  const n = parseFloat(s);
+  if (!isNaN(n)) return n;
+  return LABEL_TO_NUMBER[s.toLowerCase()] ?? null;
+}
+
 /** Build a questionId → domain lookup from the tool's canonical or DB-stored question list. */
 async function buildDomainMap(toolId: string): Promise<Record<string, string>> {
   const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
@@ -52,8 +70,8 @@ function computeDomainScores(answers: Record<string, unknown>, domainMap: Record
     const domain = domainMap[key] ?? "general";
     if (NON_CLINICAL_DOMAINS.has(domain)) continue;
     if (!domains[domain]) domains[domain] = [];
-    const numVal = typeof value === "number" ? value : parseFloat(String(value));
-    if (!isNaN(numVal)) domains[domain].push(numVal);
+    const numVal = labelToNum(value);
+    if (numVal !== null) domains[domain].push(numVal);
   }
   const result: Record<string, number> = {};
   for (const [domain, vals] of Object.entries(domains)) {
