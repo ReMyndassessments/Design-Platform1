@@ -155,7 +155,7 @@ export default function DashboardsHub() {
         tag: def.tag,
         tagColor: def.tagColor,
         icon: def.icon,
-        href: `/cases/${caseId}/scoring`,
+        href: `/cases/${caseId}/scoring?battery=${def.id}`,
         ...completion,
       };
     })

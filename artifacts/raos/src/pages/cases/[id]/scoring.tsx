@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, useSearch, Link } from "wouter";
 import { useGetCaseScores, useCalculateScores, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,17 @@ const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin
 
 // ── Admin/non-clinical tools hidden by default in the scoring dashboard ───────
 const DEFAULT_EXCLUDED_TOOLS = new Set(["CONSENT", "REFERRAL", "INTAKE", "SESQ"]);
+
+// ── Battery filter map — maps dashboard tile IDs to the batteryId / toolId
+// values that scoring.tsx uses internally. Used when arriving from a specific
+// battery dashboard card via ?battery=<tileId>.
+const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = {
+  snap:       { label: "SNAP-IV Dashboard",     ids: new Set(["SNAPIV26"]) },
+  basc3:      { label: "BASC-3 Dashboard",      ids: new Set(["BASC3-A", "BASC3-C", "BASC3-P"]) },
+  brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
+  sdq:        { label: "SDQ Dashboard",         ids: new Set(["SDQ-11", "SDQ-4"]) },
+  vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
+};
 
 // ── Battery definitions — tools that share a common norm group / scale ────────
 // When 2+ tools from the same battery have scores, they are merged into a
@@ -730,6 +741,9 @@ function ToolScoreSection({ toolScores, studentName, today }: {
 export default function ScoringView() {
   const params = useParams();
   const caseId = params.id as string;
+  const search = useSearch();
+  const batteryParam = new URLSearchParams(search).get("battery") ?? "";
+  const batteryFilter = BATTERY_FILTER_MAP[batteryParam] ?? null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -819,8 +833,13 @@ export default function ScoringView() {
     }
   }
 
-  const toolGroups = allToolGroups.filter(group => !hiddenToolIds.has(group[0]?.toolId ?? ""));
-  const hiddenCount = allToolGroups.length - toolGroups.length;
+  // When arriving from a specific battery dashboard, restrict to that battery only
+  const visibleToolGroups = batteryFilter
+    ? allToolGroups.filter(group => batteryFilter.ids.has(group[0]?.toolId ?? ""))
+    : allToolGroups;
+
+  const toolGroups = visibleToolGroups.filter(group => !hiddenToolIds.has(group[0]?.toolId ?? ""));
+  const hiddenCount = visibleToolGroups.length - toolGroups.length;
 
   const handleDownloadPDF = () => window.print();
 
@@ -841,13 +860,15 @@ export default function ScoringView() {
       {/* Screen-only page header */}
       <div className="flex items-center justify-between mb-4 no-print">
         <div className="flex items-center space-x-4">
-          <Link href={`/cases/${caseId}`}>
+          <Link href={batteryFilter ? `/cases/${caseId}/dashboards` : `/cases/${caseId}`}>
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft size={20} />
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold font-display text-slate-900">Scoring &amp; Analysis</h1>
+            <h1 className="text-3xl font-bold font-display text-slate-900">
+              {batteryFilter ? batteryFilter.label : "Scoring & Analysis"}
+            </h1>
             <p className="text-slate-500 text-sm">Case: {studentName}</p>
           </div>
         </div>
