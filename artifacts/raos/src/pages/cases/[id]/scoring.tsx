@@ -449,7 +449,7 @@ function getCrossInformantNarrative(scores: any[], studentName: string): string 
 function getRecommendationsNarrative(domains: string[], scores: any[], higherIsBetter: boolean): string {
   const allNormalizedByDomain: Record<string, number[]> = {};
   for (const s of scores) {
-    for (const [domain, val] of Object.entries(s.normalizedScores as Record<string, number>)) {
+    for (const [domain, val] of Object.entries((s.normalizedScores ?? {}) as Record<string, number>)) {
       if (!allNormalizedByDomain[domain]) allNormalizedByDomain[domain] = [];
       allNormalizedByDomain[domain].push(val);
     }
@@ -492,14 +492,14 @@ function ToolScoreSection({ toolScores, studentName, today }: {
 
   const domains = new Set<string>();
   toolScores.forEach(s =>
-    Object.keys(s.normalizedScores)
+    Object.keys(s.normalizedScores ?? {})
       .filter(d => !NON_CLINICAL_DOMAINS.has(d))
       .forEach(d => domains.add(d))
   );
 
   const radarData = Array.from(domains).map(domain => {
     const pt: any = { subject: formatDomainLabel(domain) };
-    toolScores.forEach(s => { pt[s.respondentType] = (s.normalizedScores as Record<string, number>)[domain] || 0; });
+    toolScores.forEach(s => { pt[s.respondentType] = ((s.normalizedScores ?? {}) as Record<string, number>)[domain] || 0; });
     return pt;
   });
 
@@ -518,7 +518,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   const colors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6'];
 
   const allValues = toolScores.flatMap(s =>
-    Object.entries(s.normalizedScores as Record<string, number>)
+    Object.entries((s.normalizedScores ?? {}) as Record<string, number>)
       .filter(([d]) => !NON_CLINICAL_DOMAINS.has(d))
       .map(([, v]) => v)
   );
@@ -527,7 +527,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   const avgByDomain: Record<string, number> = {};
   const allByDomain: Record<string, number[]> = {};
   for (const s of toolScores) {
-    for (const [domain, val] of Object.entries(s.normalizedScores as Record<string, number>)) {
+    for (const [domain, val] of Object.entries((s.normalizedScores ?? {}) as Record<string, number>)) {
       if (NON_CLINICAL_DOMAINS.has(domain)) continue;
       if (!allByDomain[domain]) allByDomain[domain] = [];
       allByDomain[domain].push(val);
