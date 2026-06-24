@@ -314,7 +314,7 @@ function ScoringCriteriaEditor({
 
   const domainKeys = derivedDomains.length > 0
     ? derivedDomains
-    : Object.keys(scoringConfig.domains);
+    : Object.keys(scoringConfig.domains ?? {});
 
   function updateDomain(key: string, patch: Partial<ScoringConfigDomain>) {
     const domains = getDomainsWithDefaults();

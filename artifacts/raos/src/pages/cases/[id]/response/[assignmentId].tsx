@@ -224,7 +224,7 @@ function resolveDomainScores(
   normalizedScores: Record<string, number | null>,
   scoringConfig?: ScoringConfig | null,
 ): { domains: Record<string, number>; normalized: Record<string, number> } {
-  const canonicalDomains = scoringConfig ? Object.keys(scoringConfig.domains) : [];
+  const canonicalDomains = scoringConfig?.domains ? Object.keys(scoringConfig.domains) : [];
   const resolved: Record<string, number[]> = {};
   const resolvedNorm: Record<string, number[]> = {};
 
@@ -446,7 +446,7 @@ export default function ResponseViewer() {
       if (data.existingScore.isManual) {
         setManualRawScore(String(data.existingScore.rawScore ?? ""));
         const domainStrings: Record<string, string> = {};
-        for (const [k, v] of Object.entries(data.existingScore.domainScores)) {
+        for (const [k, v] of Object.entries(data.existingScore.domainScores ?? {})) {
           domainStrings[k] = String(v);
         }
         setManualDomainScores(domainStrings);
