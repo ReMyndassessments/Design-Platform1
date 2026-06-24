@@ -183,7 +183,7 @@ function computeFilteredIndex(tools: ToolData[]): Record<string, IndexEntry> {
   for (const tool of tools) {
     const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
     for (const respondent of tool.respondents) {
-      for (const [domain, score] of Object.entries(respondent.normalizedScores)) {
+      for (const [domain, score] of Object.entries(respondent.normalizedScores ?? {})) {
         if (!domainAcc.has(domain)) {
           domainAcc.set(domain, { total: 0, count: 0, sources: [], minMild: t.mild, minModerate: t.moderate });
         }

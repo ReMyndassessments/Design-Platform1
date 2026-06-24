@@ -228,7 +228,7 @@ function resolveDomainScores(
   const resolved: Record<string, number[]> = {};
   const resolvedNorm: Record<string, number[]> = {};
 
-  for (const [key, val] of Object.entries(domainScores)) {
+  for (const [key, val] of Object.entries(domainScores ?? {})) {
     const norm = normalizedScores[key];
     if (canonicalDomains.includes(key) || (!scoringConfig && !QUESTION_TO_DOMAIN[key.toLowerCase()])) {
       if (!resolved[key]) { resolved[key] = []; resolvedNorm[key] = []; }
