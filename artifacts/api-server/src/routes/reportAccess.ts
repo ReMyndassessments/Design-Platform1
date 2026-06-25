@@ -627,7 +627,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   const debriefDate = caseRow.debriefMeetingDate ?? null;
 
   // Extra manually-entered recipients from the UI
-  const extraEmails: { email: string; name?: string; role?: "parent" | "teacher" }[] =
+  const extraEmails: { email: string; name?: string; role?: "parent" | "teacher" | "other" }[] =
     Array.isArray(req.body?.extraEmails) ? req.body.extraEmails : [];
   const excludeTokenIds: string[] =
     Array.isArray(req.body?.excludeTokenIds) ? req.body.excludeTokenIds : [];
@@ -667,7 +667,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
 
     const token = randomUUID();
     const accessCode = generateAccessCode();
-    const role: "parent" | "teacher" = e.role === "teacher" ? "teacher" : "parent";
+    const role: "parent" | "teacher" | "other" = e.role === "teacher" ? "teacher" : e.role === "other" ? "other" : "parent";
 
     await db.insert(reportTokensTable).values({
       id: randomUUID(),

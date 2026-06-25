@@ -94,8 +94,8 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [showManualPaste, setShowManualPaste] = useState(false);
   const [sendingDebriefInvite, setSendingDebriefInvite] = useState(false);
   const [debriefExtraEmail, setDebriefExtraEmail] = useState("");
-  const [debriefExtraRole, setDebriefExtraRole] = useState<"parent" | "teacher">("parent");
-  const [debriefExtraEmails, setDebriefExtraEmails] = useState<{ email: string; role: "parent" | "teacher" }[]>([]);
+  const [debriefExtraRole, setDebriefExtraRole] = useState<"parent" | "teacher" | "other">("parent");
+  const [debriefExtraEmails, setDebriefExtraEmails] = useState<{ email: string; role: "parent" | "teacher" | "other" }[]>([]);
   const [debriefSkippedTokenIds, setDebriefSkippedTokenIds] = useState<string[]>([]);
   const [lastDebriefSend, setLastDebriefSend] = useState<{ sentAt: Date; count: number; emails: string[] } | null>(null);
 
@@ -688,6 +688,28 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   <Video size={11}/> Join as Host
                 </Button>
               )}
+              {debriefMeetingUrl && (
+                <Button size="sm" variant="outline"
+                  className="h-7 text-xs border-green-300 text-green-800 hover:bg-green-100 gap-1"
+                  onClick={() => {
+                    const studentParam = studentName ? `&student=${encodeURIComponent(studentName)}` : "";
+                    let path: string;
+                    if (debriefMeetingUrl.includes("meet.ffmuc.net")) {
+                      const slug = debriefMeetingUrl.split("/").pop() ?? "meeting";
+                      path = `/join/${slug}?type=debrief${studentParam}`;
+                    } else if (debriefMeetingUrl.includes("meet.jit.si")) {
+                      const slug = debriefMeetingUrl.split("/").pop() ?? "meeting";
+                      path = `/join/${slug}?jitsiRoom=${encodeURIComponent(debriefMeetingUrl.replace("https://meet.jit.si/", ""))}&type=debrief${studentParam}`;
+                    } else {
+                      path = `/join/debrief?type=debrief${studentParam}&redirectUrl=${encodeURIComponent(debriefMeetingUrl)}`;
+                    }
+                    const fullUrl = `${window.location.origin}${path}`;
+                    navigator.clipboard.writeText(fullUrl);
+                    toast({ title: "Join link copied", description: "Share this link via WhatsApp, WeChat, or any other channel." });
+                  }}>
+                  <Copy size={11}/> Copy Join Link
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="h-7 text-xs border-green-300 text-green-800 hover:bg-green-100"
                 onClick={() => { setDebriefUrlDraft(debriefMeetingUrl); setEditingDebriefUrl(true); }}>
                 <Pencil size={11} className="mr-1"/> Edit
@@ -891,8 +913,8 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             {debriefExtraEmails.map((entry, i) => (
               <div key={i} className="flex items-center gap-2 bg-white/70 rounded-lg border border-green-100 px-3 py-1.5">
                 <UserPlus size={11} className="text-green-600 shrink-0"/>
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${entry.role === "teacher" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
-                  {entry.role === "teacher" ? "Teacher" : "Parent"}
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${entry.role === "teacher" ? "bg-blue-100 text-blue-700" : entry.role === "other" ? "bg-slate-100 text-slate-600" : "bg-purple-100 text-purple-700"}`}>
+                  {entry.role === "teacher" ? "Teacher" : entry.role === "other" ? "Other" : "Parent"}
                 </span>
                 <span className="text-[11px] text-slate-500 truncate flex-1">{entry.email}</span>
                 <button onClick={() => setDebriefExtraEmails(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-300 hover:text-red-500 shrink-0">
@@ -905,11 +927,12 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             <div className="flex gap-1.5">
               <select
                 value={debriefExtraRole}
-                onChange={e => setDebriefExtraRole(e.target.value as "parent" | "teacher")}
+                onChange={e => setDebriefExtraRole(e.target.value as "parent" | "teacher" | "other")}
                 className="rounded-md border border-green-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-400 h-7 shrink-0"
               >
                 <option value="parent">Parent</option>
                 <option value="teacher">Teacher</option>
+                <option value="other">Other</option>
               </select>
               <input
                 type="email"
