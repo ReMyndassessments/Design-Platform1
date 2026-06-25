@@ -97,6 +97,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [debriefExtraRole, setDebriefExtraRole] = useState<"parent" | "teacher">("parent");
   const [debriefExtraEmails, setDebriefExtraEmails] = useState<{ email: string; role: "parent" | "teacher" }[]>([]);
   const [debriefSkippedTokenIds, setDebriefSkippedTokenIds] = useState<string[]>([]);
+  const [lastDebriefSend, setLastDebriefSend] = useState<{ sentAt: Date; count: number; emails: string[] } | null>(null);
 
   const [debriefDateDraft, setDebriefDateDraft] = useState("");
   const [debriefTz, setDebriefTz] = useState("Asia/Singapore");
@@ -329,7 +330,12 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.message ?? "Failed");
-      toast({ title: `Debrief invitation sent`, description: `${data.sent} recipient${data.sent !== 1 ? "s" : ""} notified with the meeting link and report access.` });
+      const sentEmails: string[] = [];
+      if (parentToken && !debriefSkippedTokenIds.includes(parentToken.id)) sentEmails.push(parentToken.email);
+      if (teacherToken && !debriefSkippedTokenIds.includes(teacherToken.id)) sentEmails.push(teacherToken.email);
+      debriefExtraEmails.forEach(e => sentEmails.push(e.email));
+      setLastDebriefSend({ sentAt: new Date(), count: data.sent, emails: sentEmails });
+      toast({ title: `Debrief invitation sent`, description: `${data.sent} recipient${data.sent !== 1 ? "s" : ""} notified.` });
       setDebriefExtraEmails([]);
       setDebriefExtraEmail("");
     } catch (e: any) {
@@ -823,33 +829,61 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
 
             {/* Existing token holders — hidden once X is clicked */}
             {parentToken && !debriefSkippedTokenIds.includes(parentToken.id) && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-white/70 px-3 py-1.5">
-                <UserPlus size={11} className="text-green-600 shrink-0"/>
-                <span className="text-[11px] text-slate-600 font-medium">Parent</span>
-                <span className="text-[11px] text-slate-400">—</span>
-                <span className="text-[11px] text-slate-500 truncate flex-1">{parentToken.email}</span>
-                <button
-                  title="Remove from this send"
-                  onClick={() => setDebriefSkippedTokenIds(prev => [...prev, parentToken.id])}
-                  className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <X size={11}/>
-                </button>
+              <div className="rounded-lg border border-green-100 bg-white/70 px-3 py-2 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <UserPlus size={11} className="text-green-600 shrink-0"/>
+                  <span className="text-[11px] text-slate-600 font-medium">Parent</span>
+                  <span className="text-[11px] text-slate-400">—</span>
+                  <span className="text-[11px] text-slate-500 truncate flex-1">{parentToken.email}</span>
+                  <button
+                    title="Remove from this send"
+                    onClick={() => setDebriefSkippedTokenIds(prev => [...prev, parentToken.id])}
+                    className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <X size={11}/>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 pl-4">
+                  {parentToken.downloadedAt
+                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Report downloaded {new Date(parentToken.downloadedAt).toLocaleDateString()}</span>
+                    : parentToken.sentAt
+                      ? <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={9}/> Report sent {new Date(parentToken.sentAt).toLocaleDateString()} — not yet opened</span>
+                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
+                  }
+                </div>
               </div>
             )}
             {teacherToken && !debriefSkippedTokenIds.includes(teacherToken.id) && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-white/70 px-3 py-1.5">
-                <UserPlus size={11} className="text-green-600 shrink-0"/>
-                <span className="text-[11px] text-slate-600 font-medium">School</span>
-                <span className="text-[11px] text-slate-400">—</span>
-                <span className="text-[11px] text-slate-500 truncate flex-1">{teacherToken.email}</span>
-                <button
-                  title="Remove from this send"
-                  onClick={() => setDebriefSkippedTokenIds(prev => [...prev, teacherToken.id])}
-                  className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <X size={11}/>
-                </button>
+              <div className="rounded-lg border border-green-100 bg-white/70 px-3 py-2 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <UserPlus size={11} className="text-green-600 shrink-0"/>
+                  <span className="text-[11px] text-slate-600 font-medium">School</span>
+                  <span className="text-[11px] text-slate-400">—</span>
+                  <span className="text-[11px] text-slate-500 truncate flex-1">{teacherToken.email}</span>
+                  <button
+                    title="Remove from this send"
+                    onClick={() => setDebriefSkippedTokenIds(prev => [...prev, teacherToken.id])}
+                    className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <X size={11}/>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 pl-4">
+                  {teacherToken.downloadedAt
+                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Report downloaded {new Date(teacherToken.downloadedAt).toLocaleDateString()}</span>
+                    : teacherToken.sentAt
+                      ? <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={9}/> Report sent {new Date(teacherToken.sentAt).toLocaleDateString()} — not yet opened</span>
+                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when no token holders exist */}
+            {!parentToken && !teacherToken && (
+              <div className="flex items-start gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                <AlertTriangle size={11} className="shrink-0 mt-0.5 text-slate-400"/>
+                <span>No report access tokens found for this case. Recipients added below will receive the meeting link only (without a personalised report link).</span>
               </div>
             )}
 
@@ -907,12 +941,23 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             </div>
           </div>
 
+          {/* Blocking reason banners */}
           {!debriefMeetingUrl && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
               <AlertTriangle size={12} className="shrink-0"/>
               Save a debrief meeting link above before sending.
             </div>
           )}
+          {debriefMeetingUrl && (() => {
+            const activeTokenCount = [parentToken, teacherToken].filter(t => t && !debriefSkippedTokenIds.includes(t.id)).length;
+            const totalRecipients = activeTokenCount + debriefExtraEmails.length;
+            return totalRecipients === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500">
+                <AlertTriangle size={12} className="shrink-0 text-slate-400"/>
+                Add at least one recipient above to enable sending.
+              </div>
+            ) : null;
+          })()}
 
           {(() => {
             const activeTokenCount = [parentToken, teacherToken].filter(t => t && !debriefSkippedTokenIds.includes(t.id)).length;
@@ -931,6 +976,29 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
               </Button>
             );
           })()}
+
+          {/* Last-sent record — persists for this session */}
+          {lastDebriefSend && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-700">
+                <CheckCircle2 size={12} className="shrink-0"/>
+                <span className="text-[11px] font-semibold">
+                  Invitation sent — {lastDebriefSend.count} recipient{lastDebriefSend.count !== 1 ? "s" : ""} notified
+                  {" "}at {lastDebriefSend.sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              {lastDebriefSend.emails.length > 0 && (
+                <ul className="pl-5 space-y-0.5">
+                  {lastDebriefSend.emails.map(em => (
+                    <li key={em} className="text-[10px] text-emerald-600 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-emerald-400 shrink-0"/>
+                      {em}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
 
