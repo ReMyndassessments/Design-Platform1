@@ -635,7 +635,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   const tokens = await db.select().from(reportTokensTable)
     .where(and(
       eq(reportTokensTable.caseId, req.params.id),
-      sql`${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%'`
+      sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`
     ));
 
   // Filter out any token IDs the admin has explicitly excluded
