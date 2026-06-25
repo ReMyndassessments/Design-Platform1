@@ -859,6 +859,13 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   <span className="text-[11px] text-slate-400">—</span>
                   <span className="text-[11px] text-slate-500 truncate flex-1">{parentToken.email}</span>
                   <button
+                    title="Copy direct report download link"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/external/report/${parentToken.id}/download`); toast({ title: "Report download link copied", description: "Send this link directly to the parent — clicking it downloads the PDF." }); }}
+                    className="shrink-0 text-slate-300 hover:text-emerald-600 transition-colors"
+                  >
+                    <Download size={11}/>
+                  </button>
+                  <button
                     title="Copy portal link"
                     onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${parentToken.token}`); toast({ title: "Portal link copied", description: parentToken.email }); }}
                     className="shrink-0 text-slate-300 hover:text-indigo-500 transition-colors"
@@ -896,6 +903,13 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   <span className="text-[11px] text-slate-600 font-medium">School</span>
                   <span className="text-[11px] text-slate-400">—</span>
                   <span className="text-[11px] text-slate-500 truncate flex-1">{teacherToken.email}</span>
+                  <button
+                    title="Copy direct report download link"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/api/external/report/${teacherToken.id}/download`); toast({ title: "Report download link copied", description: "Send this link directly to the school — clicking it downloads the PDF." }); }}
+                    className="shrink-0 text-slate-300 hover:text-emerald-600 transition-colors"
+                  >
+                    <Download size={11}/>
+                  </button>
                   <button
                     title="Copy portal link"
                     onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${teacherToken.token}`); toast({ title: "Portal link copied", description: teacherToken.email }); }}
