@@ -873,20 +873,18 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                     <X size={11}/>
                   </button>
                 </div>
-                <div className="flex items-center gap-2 pl-4">
+                <div className="flex items-center gap-1.5 flex-wrap pl-4 pt-0.5">
                   {parentToken.downloadedAt
-                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Report downloaded {new Date(parentToken.downloadedAt).toLocaleDateString()}</span>
+                    ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-700 border-emerald-300 bg-emerald-50 gap-0.5"><Download size={8}/> Downloaded {new Date(parentToken.downloadedAt).toLocaleDateString()}</Badge>
                     : parentToken.sentAt
-                      ? <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={9}/> Report sent {new Date(parentToken.sentAt).toLocaleDateString()} — not yet opened</span>
-                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
+                      ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-slate-500 border-slate-300 bg-slate-50 gap-0.5"><Mail size={8}/> Sent {new Date(parentToken.sentAt).toLocaleDateString()} · not opened</Badge>
+                      : <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber-700 border-amber-300 bg-amber-50 gap-0.5"><AlertTriangle size={8}/> Not yet sent</Badge>
                   }
-                </div>
-                <div className="flex items-center gap-2 pl-4">
                   {parentToken.permissionGranted === true
-                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> School access released by parent</span>
+                    ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-700 border-emerald-300 bg-emerald-50 gap-0.5"><ShieldCheck size={8}/> School access released</Badge>
                     : parentToken.permissionGranted === false
-                      ? <span className="text-[10px] text-red-500 flex items-center gap-1"><X size={9}/> Parent withheld school access</span>
-                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> School consent not yet given</span>
+                      ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-red-600 border-red-300 bg-red-50 gap-0.5"><X size={8}/> School access withheld</Badge>
+                      : <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber-700 border-amber-300 bg-amber-50 gap-0.5"><AlertTriangle size={8}/> School consent pending</Badge>
                   }
                 </div>
               </div>
@@ -913,22 +911,20 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                     <X size={11}/>
                   </button>
                 </div>
-                <div className="flex items-center gap-2 pl-4">
+                <div className="flex items-center gap-1.5 flex-wrap pl-4 pt-0.5">
                   {teacherToken.downloadedAt
-                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Report downloaded {new Date(teacherToken.downloadedAt).toLocaleDateString()}</span>
+                    ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-700 border-emerald-300 bg-emerald-50 gap-0.5"><Download size={8}/> Downloaded {new Date(teacherToken.downloadedAt).toLocaleDateString()}</Badge>
                     : teacherToken.sentAt
-                      ? <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={9}/> Report sent {new Date(teacherToken.sentAt).toLocaleDateString()} — not yet opened</span>
-                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
+                      ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-slate-500 border-slate-300 bg-slate-50 gap-0.5"><Mail size={8}/> Sent {new Date(teacherToken.sentAt).toLocaleDateString()} · not opened</Badge>
+                      : <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber-700 border-amber-300 bg-amber-50 gap-0.5"><AlertTriangle size={8}/> Not yet sent</Badge>
                   }
-                </div>
-                <div className="flex items-center gap-2 pl-4">
                   {teacherToken.adminOverride
-                    ? <span className="text-[10px] text-indigo-600 flex items-center gap-1"><CheckCircle2 size={9}/> Access unlocked by admin override</span>
+                    ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-indigo-600 border-indigo-300 bg-indigo-50 gap-0.5"><ShieldCheck size={8}/> Admin override</Badge>
                     : teacherToken.permissionGranted === true
-                      ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Parent released school copy</span>
+                      ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-700 border-emerald-300 bg-emerald-50 gap-0.5"><ShieldCheck size={8}/> Parent released</Badge>
                       : teacherToken.permissionGranted === false
-                        ? <span className="text-[10px] text-red-500 flex items-center gap-1"><X size={9}/> Parent withheld school access</span>
-                        : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Waiting for parent to release school copy</span>
+                        ? <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-red-600 border-red-300 bg-red-50 gap-0.5"><X size={8}/> Parent withheld</Badge>
+                        : <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber-700 border-amber-300 bg-amber-50 gap-0.5"><AlertTriangle size={8}/> Awaiting parent consent</Badge>
                   }
                 </div>
               </div>
