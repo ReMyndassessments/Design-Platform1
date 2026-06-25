@@ -138,7 +138,7 @@ router.get("/external/portal/:token", async (req, res) => {
               downloadedAt: tok.downloadedAt,
               permissionGranted: tok.permissionGranted,
               adminOverride: tok.adminOverride,
-              blocked: tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride,
+              blocked: (tok.role === "teacher" || tok.role === "other") && !tok.permissionGranted && !tok.adminOverride,
               hasAccessCode: !!tok.accessCode,
             };
           }
@@ -196,7 +196,7 @@ router.get("/external/portal/:token", async (req, res) => {
       hasAccessCode: !!reportTok.accessCode,
       permissionGranted: reportTok.permissionGranted,
       adminOverride: reportTok.adminOverride,
-      blocked: reportTok.role === "teacher" && !reportTok.permissionGranted && !reportTok.adminOverride,
+      blocked: (reportTok.role === "teacher" || reportTok.role === "other") && !reportTok.permissionGranted && !reportTok.adminOverride,
     } : null;
 
     // Map internal phases to the 5 phases visible to respondents
@@ -295,7 +295,7 @@ router.get("/external/report/:tokenId/download", async (req, res) => {
     }
   }
 
-  if (tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride) {
+  if ((tok.role === "teacher" || tok.role === "other") && !tok.permissionGranted && !tok.adminOverride) {
     res.status(403).json({ error: "awaiting_consent", message: "Parent consent is required before downloading." });
     return;
   }
@@ -357,10 +357,13 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
     .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
     .where(eq(reportTokensTable.id, tok.id));
 
-  // Also unlock / re-lock all teacher tokens for this case so they reflect the parent's decision
+  // Also unlock / re-lock all teacher and other tokens for this case so they reflect the parent's decision
   await db.update(reportTokensTable)
     .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(reportTokensTable.caseId, tok.caseId), eq(reportTokensTable.role, "teacher")));
+    .where(and(
+      eq(reportTokensTable.caseId, tok.caseId),
+      sql`${reportTokensTable.role} IN ('teacher', 'other')`
+    ));
 
   const { sendEmail } = await import("../lib/outlookEmail.js");
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, tok.caseId));
