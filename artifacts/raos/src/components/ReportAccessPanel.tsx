@@ -881,6 +881,14 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                       : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
                   }
                 </div>
+                <div className="flex items-center gap-2 pl-4">
+                  {parentToken.permissionGranted === true
+                    ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> School access released by parent</span>
+                    : parentToken.permissionGranted === false
+                      ? <span className="text-[10px] text-red-500 flex items-center gap-1"><X size={9}/> Parent withheld school access</span>
+                      : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> School consent not yet given</span>
+                  }
+                </div>
               </div>
             )}
             {teacherToken && !debriefSkippedTokenIds.includes(teacherToken.id) && (
@@ -911,6 +919,16 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                     : teacherToken.sentAt
                       ? <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock size={9}/> Report sent {new Date(teacherToken.sentAt).toLocaleDateString()} — not yet opened</span>
                       : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Report not yet sent</span>
+                  }
+                </div>
+                <div className="flex items-center gap-2 pl-4">
+                  {teacherToken.adminOverride
+                    ? <span className="text-[10px] text-indigo-600 flex items-center gap-1"><CheckCircle2 size={9}/> Access unlocked by admin override</span>
+                    : teacherToken.permissionGranted === true
+                      ? <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle2 size={9}/> Parent released school copy</span>
+                      : teacherToken.permissionGranted === false
+                        ? <span className="text-[10px] text-red-500 flex items-center gap-1"><X size={9}/> Parent withheld school access</span>
+                        : <span className="text-[10px] text-amber-500 flex items-center gap-1"><AlertTriangle size={9}/> Waiting for parent to release school copy</span>
                   }
                 </div>
               </div>
