@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface ReportToken {
   id: string;
+  token: string;
   role: "parent" | "teacher" | "other";
   email: string;
   recipientName?: string | null;
@@ -858,6 +859,13 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   <span className="text-[11px] text-slate-400">—</span>
                   <span className="text-[11px] text-slate-500 truncate flex-1">{parentToken.email}</span>
                   <button
+                    title="Copy portal link"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${parentToken.token}`); toast({ title: "Portal link copied", description: parentToken.email }); }}
+                    className="shrink-0 text-slate-300 hover:text-indigo-500 transition-colors"
+                  >
+                    <Copy size={11}/>
+                  </button>
+                  <button
                     title="Remove from this send"
                     onClick={() => setDebriefSkippedTokenIds(prev => [...prev, parentToken.id])}
                     className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
@@ -882,6 +890,13 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   <span className="text-[11px] text-slate-600 font-medium">School</span>
                   <span className="text-[11px] text-slate-400">—</span>
                   <span className="text-[11px] text-slate-500 truncate flex-1">{teacherToken.email}</span>
+                  <button
+                    title="Copy portal link"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${teacherToken.token}`); toast({ title: "Portal link copied", description: teacherToken.email }); }}
+                    className="shrink-0 text-slate-300 hover:text-indigo-500 transition-colors"
+                  >
+                    <Copy size={11}/>
+                  </button>
                   <button
                     title="Remove from this send"
                     onClick={() => setDebriefSkippedTokenIds(prev => [...prev, teacherToken.id])}
