@@ -140,6 +140,24 @@ const PT = {
   },
   meetingScheduled:  { english: "Scheduled:", mandarin: "预定时间：", korean: "예정 일시:" },
   joinMeeting:       { english: "Join Debrief Meeting", mandarin: "加入汇报会议", korean: "디브리핑 미팅 참여" },
+  accessCodeProtected: {
+    english:  "This report is protected. Please enter the access code provided to you to continue.",
+    mandarin: "此报告受保护。请输入提供给您的访问码以继续。",
+    korean:   "이 보고서는 보호되어 있습니다. 계속하려면 제공된 접근 코드를 입력하세요.",
+  },
+  accessCodePlaceholder: { english: "6-digit code", mandarin: "6位数字码", korean: "6자리 코드" },
+  accessCodeConfirm:     { english: "Confirm",      mandarin: "确认",       korean: "확인" },
+  accessCodeChecking:    { english: "Checking…",    mandarin: "验证中…",    korean: "확인 중…" },
+  accessCodeIncorrect: {
+    english:  "Incorrect access code. Please check with the person who shared this link.",
+    mandarin: "访问码不正确。请与分享此链接的人确认。",
+    korean:   "잘못된 접근 코드입니다. 링크를 공유한 담당자에게 확인하세요.",
+  },
+  accessCodeNetworkError: {
+    english:  "Could not verify. Please check your connection and try again.",
+    mandarin: "无法验证。请检查您的网络连接后重试。",
+    korean:   "확인할 수 없습니다. 인터넷 연결을 확인하고 다시 시도하세요.",
+  },
 } satisfies Record<string, Record<Lang, string>>;
 
 function t(key: keyof typeof PT, language: string): string {
@@ -709,10 +727,10 @@ function PortalView({
         sessionStorage.setItem(`raos_code_${portal.reportAccess.tokenId}`, pinInput.trim());
         setPinVerified(true);
       } else {
-        setPinError("Incorrect access code. Please check with the person who shared this link.");
+        setPinError(t("accessCodeIncorrect", language));
       }
     } catch {
-      setPinError("Could not verify. Please check your connection and try again.");
+      setPinError(t("accessCodeNetworkError", language));
     } finally {
       setPinChecking(false);
     }
@@ -941,14 +959,14 @@ function PortalView({
               {portal.reportAccess.hasAccessCode && !pinVerified ? (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-600">
-                    This report is protected. Please enter the access code provided to you to continue.
+                    {t("accessCodeProtected", language)}
                   </p>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
-                      placeholder="6-digit code"
+                      placeholder={t("accessCodePlaceholder", language)}
                       value={pinInput}
                       onChange={e => { setPinInput(e.target.value.replace(/\D/g, "")); setPinError(""); }}
                       onKeyDown={e => { if (e.key === "Enter") handleVerifyPin(); }}
@@ -959,7 +977,7 @@ function PortalView({
                       disabled={pinChecking || pinInput.length < 6}
                       className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
                     >
-                      {pinChecking ? "Checking…" : "Confirm"}
+                      {pinChecking ? t("accessCodeChecking", language) : t("accessCodeConfirm", language)}
                     </button>
                   </div>
                   {pinError && (
