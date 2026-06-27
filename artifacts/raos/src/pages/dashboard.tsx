@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useGetDashboardStats, useGetCurrentUser } from "@workspace/api-client-react";
 import { useGetValidationWarnings } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle } from "lucide-react";
+import { FileText, Users, AlertCircle, CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, X } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -16,6 +17,11 @@ export default function Dashboard() {
   const { data: currentUser } = useGetCurrentUser();
   const isPrivileged = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
   const { data: warningsData, isLoading: warningsLoading } = useGetValidationWarnings();
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const visibleWarnings = (warningsData?.warnings ?? []).filter(w => {
+    const key = `${w.caseId}__${w.type}__${w.toolName}__${w.respondentLabel}`;
+    return !dismissedKeys.has(key);
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (isError || !stats) return <div className="text-destructive p-4 bg-destructive/10 rounded-xl">Failed to load dashboard data.</div>;
@@ -137,9 +143,9 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-xl font-bold text-slate-900">Form Integrity</h2>
-            {!warningsLoading && (warningsData?.count ?? 0) > 0 && (
+            {!warningsLoading && visibleWarnings.length > 0 && (
               <Badge variant="destructive" className="text-xs px-2 py-0.5">
-                {warningsData!.count} {warningsData!.count === 1 ? "alert" : "alerts"}
+                {visibleWarnings.length} {visibleWarnings.length === 1 ? "alert" : "alerts"}
               </Badge>
             )}
           </div>
@@ -149,7 +155,7 @@ export default function Dashboard() {
               <div className="animate-spin w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full" />
               Checking form integrity…
             </div>
-          ) : (warningsData?.count ?? 0) === 0 ? (
+          ) : visibleWarnings.length === 0 ? (
             <Card className="border-none shadow-sm bg-emerald-50 border border-emerald-100">
               <CardContent className="p-5 flex items-center gap-3">
                 <ShieldCheck size={20} className="text-emerald-600 shrink-0" />
@@ -163,32 +169,44 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {warningsData?.warnings.map((w, i) => (
-                <Card key={i} className="border-amber-200 shadow-sm bg-amber-50">
-                  <CardContent className="p-5 flex items-start gap-3">
-                    <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 mb-1">
-                        <p className="font-semibold text-amber-900 text-sm leading-snug">
-                          {WARNING_LABELS[w.type] ?? w.type}
+              {visibleWarnings.map((w, i) => {
+                const key = `${w.caseId}__${w.type}__${w.toolName}__${w.respondentLabel}`;
+                return (
+                  <Card key={i} className="border-amber-200 shadow-sm bg-amber-50">
+                    <CardContent className="p-5 flex items-start gap-3">
+                      <AlertTriangle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-1">
+                          <p className="font-semibold text-amber-900 text-sm leading-snug">
+                            {WARNING_LABELS[w.type] ?? w.type}
+                          </p>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <Link href={`/cases/${w.caseId}`}>
+                              <span className="text-xs font-medium text-amber-700 hover:text-amber-900 hover:underline whitespace-nowrap">
+                                View Case →
+                              </span>
+                            </Link>
+                            <button
+                              title="Dismiss alert"
+                              onClick={() => setDismissedKeys(prev => new Set([...prev, key]))}
+                              className="text-amber-400 hover:text-amber-700 transition-colors"
+                            >
+                              <X size={14}/>
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-amber-800 mb-1">
+                          <span className="font-medium">{w.studentName}</span>
+                          {w.school ? ` · ${w.school}` : ""}
+                          {" · "}{w.toolName}
+                          {" · "}<span className="capitalize">{w.respondentLabel}</span>
                         </p>
-                        <Link href={`/cases/${w.caseId}`}>
-                          <span className="text-xs font-medium text-amber-700 hover:text-amber-900 hover:underline whitespace-nowrap shrink-0">
-                            View Case →
-                          </span>
-                        </Link>
+                        <p className="text-xs text-amber-700 leading-relaxed">{w.description}</p>
                       </div>
-                      <p className="text-xs text-amber-800 mb-1">
-                        <span className="font-medium">{w.studentName}</span>
-                        {w.school ? ` · ${w.school}` : ""}
-                        {" · "}{w.toolName}
-                        {" · "}<span className="capitalize">{w.respondentLabel}</span>
-                      </p>
-                      <p className="text-xs text-amber-700 leading-relaxed">{w.description}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
