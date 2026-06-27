@@ -17,7 +17,19 @@ export default function Dashboard() {
   const { data: currentUser } = useGetCurrentUser();
   const isPrivileged = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
   const { data: warningsData, isLoading: warningsLoading } = useGetValidationWarnings();
-  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("raos_dismissed_warnings");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const dismiss = (key: string) => {
+    setDismissedKeys(prev => {
+      const next = new Set([...prev, key]);
+      try { localStorage.setItem("raos_dismissed_warnings", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
   const visibleWarnings = (warningsData?.warnings ?? []).filter(w => {
     const key = `${w.caseId}__${w.type}__${w.toolName}__${w.respondentLabel}`;
     return !dismissedKeys.has(key);
@@ -188,7 +200,7 @@ export default function Dashboard() {
                             </Link>
                             <button
                               title="Dismiss alert"
-                              onClick={() => setDismissedKeys(prev => new Set([...prev, key]))}
+                              onClick={() => dismiss(key)}
                               className="text-amber-400 hover:text-amber-700 transition-colors"
                             >
                               <X size={14}/>
