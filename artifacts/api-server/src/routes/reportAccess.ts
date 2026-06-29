@@ -129,12 +129,18 @@ function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: 
 
 function buildBobbyAiBlock(credentials?: string | null): string {
   if (!credentials) return "";
+  const caseIdMatch = credentials.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
+  const codeMatch   = credentials.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+  const deepLink = caseIdMatch && codeMatch
+    ? `https://bobby-agent-os.replit.app/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
+    : "https://bobby-agent-os.replit.app/intervention";
   return `<div style="background:#fdf4ff;border:2px solid #e9d5ff;border-radius:10px;padding:16px 20px;margin:24px 0">
     <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em">🧠 Progress Monitoring Portal</p>
-    <p style="margin:0 0 12px;font-size:13px;color:#6d28d9">Your child's 12-month intervention and progress monitoring portal is now active. Use the link and credentials below to access it at any time.</p>
-    <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#4c1d95">Portal: <a href="https://bobby-ai.com/intervention" style="color:#7c3aed" target="_blank">https://bobby-ai.com/intervention</a></p>
-    <div style="background:#ede9fe;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:13px;color:#4c1d95;word-break:break-all">${credentials}</div>
-    <p style="margin:10px 0 0;font-size:11px;color:#7c3aed">Keep these credentials — you will need them each time you log in.</p>
+    <p style="margin:0 0 16px;font-size:13px;color:#6d28d9">Your child's 12-month intervention and progress monitoring portal is now active. Click the button below to access it directly — no login required.</p>
+    <p style="text-align:center;margin:0 0 14px">
+      <a href="${deepLink}" style="background:#7c3aed;color:#fff;padding:11px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">Open Progress Portal ↗</a>
+    </p>
+    <div style="background:#ede9fe;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:12px;color:#4c1d95;word-break:break-all">${credentials}</div>
   </div>`;
 }
 

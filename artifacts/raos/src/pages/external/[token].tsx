@@ -1196,22 +1196,33 @@ function PortalView({
                   ? "자녀의 맞춤형 진행 모니터링 포털이 활성화되었습니다. 언제든지 로그인하여 중재 이정표를 확인하고 자료에 접근하세요."
                   : "Your child's personalised progress monitoring portal is now active. Log in at any time to track intervention milestones and access resources."}
               </p>
-              <div className="rounded-xl bg-white border border-purple-200 p-3 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">
-                  {language === "mandarin" ? "门户访问" : language === "korean" ? "포털 접속" : "Portal Access"}
-                </p>
-                <a
-                  href="https://bobby-ai.com/intervention"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-semibold text-purple-700 underline underline-offset-2 block"
-                >
-                  bobby-ai.com/intervention ↗
-                </a>
-                <pre className="text-xs text-purple-900 font-mono whitespace-pre-wrap break-all bg-purple-50 rounded-lg px-3 py-2 border border-purple-100">
-                  {portal.bobbyAiPortalCredentials}
-                </pre>
-              </div>
+              {(() => {
+                const creds = portal.bobbyAiPortalCredentials ?? "";
+                const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
+                const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+                const deepLink = caseIdMatch && codeMatch
+                  ? `https://bobby-agent-os.replit.app/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
+                  : "https://bobby-agent-os.replit.app/intervention";
+                return (
+                  <div className="rounded-xl bg-white border border-purple-200 p-3 space-y-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">
+                      {language === "mandarin" ? "门户访问" : language === "korean" ? "포털 접속" : "Portal Access"}
+                    </p>
+                    <a
+                      href={deepLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition-colors"
+                    >
+                      {language === "mandarin" ? "打开进度门户" : language === "korean" ? "진행 포털 열기" : "Open Progress Portal"}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                    <pre className="text-[10px] text-purple-700 font-mono whitespace-pre-wrap break-all bg-purple-50 rounded-lg px-3 py-2 border border-purple-100 leading-relaxed">
+                      {creds}
+                    </pre>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
