@@ -557,6 +557,14 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/external/${token.token}`);
+                  toast({ title: "Portal link copied", description: `${roleLabel} — ${token.email}` });
+                }}
+                className="text-[10px] text-violet-500 hover:text-violet-700 flex items-center gap-1">
+                <Copy size={9}/> Copy Link
+              </button>
               <button onClick={() => { setEditingToken(token.id); setEditEmail(token.email); }}
                 className="text-[10px] text-slate-400 hover:text-slate-600 underline">Edit</button>
               <button onClick={() => handleResend(token.id, token.email)}
@@ -576,6 +584,14 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
         {isOther && (
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/external/${token.token}`);
+                toast({ title: "Portal link copied", description: `${roleLabel} — ${token.email}` });
+              }}
+              className="text-[10px] text-violet-500 hover:text-violet-700 flex items-center gap-1">
+              <Copy size={9}/> Copy Link
+            </button>
             <button onClick={() => handleResend(token.id, token.email)}
               className="text-[10px] text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
               <RefreshCw size={9}/> Resend
