@@ -715,19 +715,23 @@ function PortalView({
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  // Reset + re-fetch prompts whenever language changes
+  // Effect 1: reset prompts whenever language changes
   useEffect(() => {
     setSuggestedPrompts([]);
     setPromptsLoaded(false);
-    if (chatOpen) {
-      setPromptsLoading(true);
-      fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}&language=${language}`)
-        .then(r => r.ok ? r.json() : { prompts: [] })
-        .then((data: { prompts?: string[] }) => setSuggestedPrompts(data.prompts ?? []))
-        .catch(() => {})
-        .finally(() => { setPromptsLoading(false); setPromptsLoaded(true); });
-    }
   }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Effect 2: fetch prompts whenever chat is open and prompts not yet loaded
+  // (chains from Effect 1 — language change resets promptsLoaded → this re-fires)
+  useEffect(() => {
+    if (!chatOpen || promptsLoaded || promptsLoading) return;
+    setPromptsLoading(true);
+    fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}&language=${language}`)
+      .then(r => r.ok ? r.json() : { prompts: [] })
+      .then((data: { prompts?: string[] }) => setSuggestedPrompts(data.prompts ?? []))
+      .catch(() => {})
+      .finally(() => { setPromptsLoading(false); setPromptsLoaded(true); });
+  }, [chatOpen, promptsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPrompts = async () => {
     if (promptsLoaded || promptsLoading) return;
