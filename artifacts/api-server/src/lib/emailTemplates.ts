@@ -6,7 +6,18 @@ function buildAccessCodeBlockEN(code: string): string {
   </div>`;
 }
 
-export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null, debriefMeetingDate?: string | null, accessCode?: string): string {
+function buildBobbyAiBlockEN(credentials?: string | null): string {
+  if (!credentials) return "";
+  return `<div style="background:#fdf4ff;border:2px solid #e9d5ff;border-radius:10px;padding:16px 20px;margin:24px 0">
+    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em">🧠 Progress Monitoring Portal</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#6d28d9">The student's 12-month intervention and progress monitoring portal is now active. Use the link and credentials below to access it at any time.</p>
+    <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#4c1d95">Portal: <a href="https://bobby-ai.com/intervention" style="color:#7c3aed" target="_blank">https://bobby-ai.com/intervention</a></p>
+    <div style="background:#ede9fe;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:13px;color:#4c1d95;word-break:break-all">${credentials}</div>
+    <p style="margin:10px 0 0;font-size:11px;color:#7c3aed">Keep these credentials — you will need them each time you log in.</p>
+  </div>`;
+}
+
+export function buildTeacherEmail(studentName: string, link: string, debriefMeetingUrl?: string | null, debriefMeetingDate?: string | null, accessCode?: string, bobbyAiCredentials?: string | null): string {
   const dateRow = debriefMeetingDate
     ? `<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#166534">Scheduled: ${debriefMeetingDate}</p>`
     : "";
@@ -28,6 +39,7 @@ export function buildTeacherEmail(studentName: string, link: string, debriefMeet
     </p>
     ${accessCode ? buildAccessCodeBlockEN(accessCode) : ""}
     ${debriefBlock}
+    ${buildBobbyAiBlockEN(bobbyAiCredentials)}
     <p style="font-size:13px;color:#64748b">This link is unique to you. Please do not share it.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
     <p style="font-size:12px;color:#94a3b8">ReMynd Student Services · Confidential</p>

@@ -127,7 +127,18 @@ function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: 
   </div>`;
 }
 
-function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string, debriefMeetingUrl?: string, debriefMeetingDate?: string | null): string {
+function buildBobbyAiBlock(credentials?: string | null): string {
+  if (!credentials) return "";
+  return `<div style="background:#fdf4ff;border:2px solid #e9d5ff;border-radius:10px;padding:16px 20px;margin:24px 0">
+    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em">🧠 Progress Monitoring Portal</p>
+    <p style="margin:0 0 12px;font-size:13px;color:#6d28d9">Your child's 12-month intervention and progress monitoring portal is now active. Use the link and credentials below to access it at any time.</p>
+    <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#4c1d95">Portal: <a href="https://bobby-ai.com/intervention" style="color:#7c3aed" target="_blank">https://bobby-ai.com/intervention</a></p>
+    <div style="background:#ede9fe;border-radius:8px;padding:10px 14px;font-family:monospace;font-size:13px;color:#4c1d95;word-break:break-all">${credentials}</div>
+    <p style="margin:10px 0 0;font-size:11px;color:#7c3aed">Keep these credentials — you will need them each time you log in.</p>
+  </div>`;
+}
+
+function buildParentEmail(lang: Lang, studentName: string, schoolName: string, link: string, accessCode?: string, debriefMeetingUrl?: string, debriefMeetingDate?: string | null, bobbyAiCredentials?: string | null): string {
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
     <h2 style="color:#0a1628">${EMAIL_COPY.parentHeading[lang]}</h2>
     <p>${EMAIL_COPY.parentBody[lang](studentName)}</p>
@@ -137,6 +148,7 @@ function buildParentEmail(lang: Lang, studentName: string, schoolName: string, l
     </p>
     ${accessCode ? buildAccessCodeBlock(lang, accessCode) : ""}
     ${debriefMeetingUrl ? buildDebriefMeetingBlock(lang, debriefMeetingUrl, debriefMeetingDate) : ""}
+    ${buildBobbyAiBlock(bobbyAiCredentials)}
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentConsent[lang](schoolName)}</p>
     <p style="font-size:13px;color:#64748b">${EMAIL_COPY.parentUniqueLink[lang]}</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
@@ -645,13 +657,15 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   let sent = 0;
 
   // Send to existing token holders (they get a report access link)
+  const bobbyAiCreds = (caseRow as any).bobbyAiPortalCredentials ?? null;
+
   for (const t of activeTokens) {
     const link = `${base}/external/${t.token}`;
     let html: string;
     if (t.role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined);
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined, bobbyAiCreds);
     } else {
-      html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate);
+      html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate, bobbyAiCreds);
     }
     await sendEmail({ to: t.email, subject, html });
     sent++;
@@ -683,9 +697,9 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
     const link = `${base}/external/${token}`;
     let html: string;
     if (role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, accessCode);
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, accessCode, bobbyAiCreds);
     } else {
-      html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate);
+      html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate, bobbyAiCreds);
     }
     await sendEmail({ to: e.email.trim(), subject, html });
     sent++;

@@ -173,6 +173,7 @@ router.get("/external/portal/:token", async (req, res) => {
       reportAccess,
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
       debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
+      bobbyAiPortalCredentials: caseData?.bobbyAiPortalCredentials ?? null,
     });
     return;
   }
@@ -220,6 +221,7 @@ router.get("/external/portal/:token", async (req, res) => {
       reportAccess,
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
       debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
+      bobbyAiPortalCredentials: (caseData as any)?.bobbyAiPortalCredentials ?? null,
     });
     return;
   }
@@ -731,6 +733,132 @@ router.post("/external/form/:token/submit", async (req, res) => {
 
   // Token not found in assignments or invites
   res.status(404).json({ error: "not_found", message: "Form link not found" });
+});
+
+// ── AI: resolve case from any portal token ────────────────────────────────────
+async function getCaseFromPortalToken(token: string): Promise<{ caseId: string; role: string } | null> {
+  const [assignment] = await db.select({ caseId: assignmentsTable.caseId, respondentType: assignmentsTable.respondentType })
+    .from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, token)).limit(1);
+  if (assignment) return { caseId: assignment.caseId, role: assignment.respondentType ?? "parent" };
+  const [tok] = await db.select({ caseId: reportTokensTable.caseId, role: reportTokensTable.role })
+    .from(reportTokensTable).where(eq(reportTokensTable.token, token)).limit(1);
+  if (tok) return { caseId: tok.caseId, role: tok.role };
+  return null;
+}
+
+async function callDeepSeekChat(systemPrompt: string, messages: Array<{ role: string; content: string }>, maxTokens = 1200): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
+  const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!resp.ok) throw new Error(`DeepSeek error ${resp.status}`);
+  const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+// ── AI: generate dynamic prompts for this child's specific profile ────────────
+router.get("/external/portal/:token/prompts", async (req, res) => {
+  const info = await getCaseFromPortalToken(req.params.token);
+  if (!info) { res.status(404).json({ error: "not_found" }); return; }
+
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
+  if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
+
+  const role = (req.query.role as string) === "teacher" ? "teacher" : "parent";
+  const intake = caseRow.intakeAnalysis as any;
+  const domains: string[] = Array.isArray(intake?.recommendedDomains) ? intake.recommendedDomains : [];
+  const flags: string[] = Array.isArray(intake?.flags) ? intake.flags : [];
+  const summary: string = intake?.summary ?? "";
+
+  const systemPrompt = `You are a specialist helping ${role === "parent" ? "a parent" : "a teacher"} understand a child's psychoeducational assessment report. 
+Generate 6 practical, specific suggested questions this ${role} might want to ask about the child's assessment results.
+The questions must be directly relevant to this child's specific profile — NOT generic.
+For parents: focus on home strategies, conversations with the child, emotional support, explaining results to the child.
+For teachers: focus on classroom accommodations, intervention strategies, communication with parents, seating/grouping, curriculum adjustments.
+Return ONLY a JSON array of 6 strings. No markdown, no explanation.`;
+
+  const userMsg = `Child: ${caseRow.studentName}, Grade: ${caseRow.grade ?? "not specified"}, School: ${caseRow.school}
+Referral reason: ${caseRow.referralReason}
+Key areas of concern: ${domains.join(", ") || "general learning and behaviour"}
+Clinical flags: ${flags.join("; ") || "none noted"}
+Summary: ${summary}
+Role: ${role}`;
+
+  try {
+    const raw = await callDeepSeekChat(systemPrompt, [{ role: "user", content: userMsg }], 600);
+    const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+    const arrStart = cleaned.indexOf("[");
+    const arrEnd = cleaned.lastIndexOf("]");
+    const prompts = arrStart !== -1 ? JSON.parse(cleaned.slice(arrStart, arrEnd + 1)) : [];
+    res.json({ prompts: Array.isArray(prompts) ? prompts.slice(0, 6) : [] });
+  } catch {
+    res.json({ prompts: [] });
+  }
+});
+
+// ── AI: chat about the report ─────────────────────────────────────────────────
+router.post("/external/portal/:token/chat", async (req, res) => {
+  const info = await getCaseFromPortalToken(req.params.token);
+  if (!info) { res.status(404).json({ error: "not_found" }); return; }
+
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
+  if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
+
+  const { message, history, role: reqRole } = req.body as {
+    message: string;
+    history: Array<{ role: string; content: string }>;
+    role?: string;
+  };
+  if (!message?.trim()) { res.status(400).json({ error: "message required" }); return; }
+
+  const role = reqRole === "teacher" ? "teacher" : "parent";
+  const intake = caseRow.intakeAnalysis as any;
+  const domains: string[] = Array.isArray(intake?.recommendedDomains) ? intake.recommendedDomains : [];
+  const summary: string = intake?.summary ?? "";
+  const flags: string[] = Array.isArray(intake?.flags) ? intake.flags : [];
+
+  const systemPrompt = `You are a warm, knowledgeable educational psychologist AI helping ${role === "parent" ? "a parent" : "a teacher"} understand and act on the psychoeducational assessment report for ${caseRow.studentName}.
+
+STUDENT PROFILE:
+- Name: ${caseRow.studentName}
+- Grade: ${caseRow.grade ?? "not specified"}
+- School: ${caseRow.school}
+- Referral reason: ${caseRow.referralReason}
+- Key areas assessed: ${domains.join(", ") || "general learning and behaviour"}
+- Clinical summary: ${summary}
+- Notable flags: ${flags.join("; ") || "none"}
+
+YOUR ROLE:
+${role === "parent"
+  ? "Help this parent understand what the results mean for their child at home and in daily life. Give practical, caring advice about how to support their child, have positive conversations with them about the results, and implement recommended strategies at home."
+  : "Help this teacher understand the assessment findings and how to translate them into classroom practice. Give concrete, evidence-based suggestions for accommodations, seating, instruction strategies, intervention approaches, and communication with parents."}
+
+GUIDELINES:
+- Be warm, practical, and encouraging — never clinical or alarming
+- Use plain language, avoid jargon; if you must use a term, explain it simply
+- Keep responses concise (3-5 short paragraphs max)
+- Always end with one concrete next step they can take today
+- Do NOT provide a diagnosis; this is a screening report, use language like "the results suggest..." or "the assessment indicates..."`;
+
+  const messages = [
+    ...(Array.isArray(history) ? history.slice(-8) : []),
+    { role: "user", content: message.trim() },
+  ];
+
+  try {
+    const reply = await callDeepSeekChat(systemPrompt, messages, 800);
+    res.json({ reply });
+  } catch {
+    res.status(500).json({ error: "ai_error", reply: "I'm sorry, I could not process your question right now. Please try again." });
+  }
 });
 
 export default router;
