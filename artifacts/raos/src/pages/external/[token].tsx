@@ -1201,8 +1201,8 @@ function PortalView({
                 const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
                 const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
                 const deepLink = caseIdMatch && codeMatch
-                  ? `https://bobby-agent-os.replit.app/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
-                  : "https://bobby-agent-os.replit.app/intervention";
+                  ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
+                  : "https://bobby-ai.com/intervention";
                 return (
                   <div className="rounded-xl bg-white border border-purple-200 p-3 space-y-2.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">

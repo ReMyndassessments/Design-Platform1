@@ -132,8 +132,8 @@ function buildBobbyAiBlock(credentials?: string | null): string {
   const caseIdMatch = credentials.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
   const codeMatch   = credentials.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
   const deepLink = caseIdMatch && codeMatch
-    ? `https://bobby-agent-os.replit.app/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
-    : "https://bobby-agent-os.replit.app/intervention";
+    ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
+    : "https://bobby-ai.com/intervention";
   return `<div style="background:#fdf4ff;border:2px solid #e9d5ff;border-radius:10px;padding:16px 20px;margin:24px 0">
     <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em">🧠 Progress Monitoring Portal</p>
     <p style="margin:0 0 16px;font-size:13px;color:#6d28d9">Your child's 12-month intervention and progress monitoring portal is now active. Click the button below to access it directly — no login required.</p>
