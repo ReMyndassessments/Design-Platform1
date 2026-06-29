@@ -1177,15 +1177,25 @@ function PortalView({
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-purple-900">Progress Monitoring Portal</p>
-                  <p className="text-[11px] text-purple-600">12-month intervention tracking</p>
+                  <p className="text-sm font-bold text-purple-900">
+                    {language === "mandarin" ? "进度监测平台" : language === "korean" ? "진행 모니터링 포털" : "Progress Monitoring Portal"}
+                  </p>
+                  <p className="text-[11px] text-purple-600">
+                    {language === "mandarin" ? "12个月干预追踪" : language === "korean" ? "12개월 중재 추적" : "12-month intervention tracking"}
+                  </p>
                 </div>
               </div>
               <p className="text-xs text-purple-700 leading-relaxed">
-                Your child's personalised progress monitoring portal is now active. Log in at any time to track intervention milestones and access resources.
+                {language === "mandarin"
+                  ? "您孩子的个性化进度监测平台现已激活。随时登录查看干预里程碑并获取相关资源。"
+                  : language === "korean"
+                  ? "자녀의 맞춤형 진행 모니터링 포털이 활성화되었습니다. 언제든지 로그인하여 중재 이정표를 확인하고 자료에 접근하세요."
+                  : "Your child's personalised progress monitoring portal is now active. Log in at any time to track intervention milestones and access resources."}
               </p>
               <div className="rounded-xl bg-white border border-purple-200 p-3 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">Portal Access</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">
+                  {language === "mandarin" ? "门户访问" : language === "korean" ? "포털 접속" : "Portal Access"}
+                </p>
                 <a
                   href="https://bobby-ai.com/intervention"
                   target="_blank"
@@ -1216,8 +1226,12 @@ function PortalView({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-indigo-900">Ask ReMynd AI</p>
-                  <p className="text-[11px] text-indigo-600">Get personalised guidance about the report results</p>
+                  <p className="text-sm font-bold text-indigo-900">
+                    {language === "mandarin" ? "咨询 ReMynd AI" : language === "korean" ? "ReMynd AI에게 질문하기" : "Ask ReMynd AI"}
+                  </p>
+                  <p className="text-[11px] text-indigo-600">
+                    {language === "mandarin" ? "获取针对报告结果的个性化建议" : language === "korean" ? "보고서 결과에 대한 맞춤형 안내 받기" : "Get personalised guidance about the report results"}
+                  </p>
                 </div>
                 <ChevronRight size={16} className="text-indigo-400 shrink-0"/>
               </button>
@@ -1231,8 +1245,12 @@ function PortalView({
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-white">ReMynd AI Assistant</p>
-                    <p className="text-[10px] text-indigo-200">Personalised to {portal.studentName}'s results</p>
+                    <p className="text-xs font-bold text-white">
+                      {language === "mandarin" ? "ReMynd AI 助手" : language === "korean" ? "ReMynd AI 어시스턴트" : "ReMynd AI Assistant"}
+                    </p>
+                    <p className="text-[10px] text-indigo-200">
+                      {language === "mandarin" ? `专为 ${portal.studentName} 的评估结果定制` : language === "korean" ? `${portal.studentName}의 결과에 맞춤 설정됨` : `Personalised to ${portal.studentName}'s results`}
+                    </p>
                   </div>
                   <button onClick={() => setChatOpen(false)} className="text-white/70 hover:text-white transition-colors">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1245,10 +1263,13 @@ function PortalView({
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0" style={{ maxHeight: "280px" }}>
                   {chatMessages.length === 0 && (
                     <div className="space-y-2">
-                      <p className="text-[11px] text-indigo-600 font-medium">Suggested questions for you:</p>
+                      <p className="text-[11px] text-indigo-600 font-medium">
+                        {language === "mandarin" ? "为您推荐的问题：" : language === "korean" ? "추천 질문:" : "Suggested questions for you:"}
+                      </p>
                       {promptsLoading && (
                         <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                          <Loader2 size={11} className="animate-spin"/> Loading personalised questions…
+                          <Loader2 size={11} className="animate-spin"/>
+                          {language === "mandarin" ? "正在生成个性化问题…" : language === "korean" ? "맞춤 질문 생성 중…" : "Loading personalised questions…"}
                         </div>
                       )}
                       {suggestedPrompts.map((p, i) => (
@@ -1292,7 +1313,13 @@ function PortalView({
                   <div className="flex gap-2 items-end">
                     <textarea
                       rows={2}
-                      placeholder={role === "teacher" ? "Ask about classroom strategies, accommodations…" : "Ask about supporting your child at home…"}
+                      placeholder={
+                        language === "mandarin"
+                          ? (role === "teacher" ? "询问课堂策略、调整措施…" : "询问如何在家支持您的孩子…")
+                          : language === "korean"
+                          ? (role === "teacher" ? "교실 전략, 지원 방법에 대해 질문하세요…" : "집에서 자녀를 지원하는 방법을 질문하세요…")
+                          : (role === "teacher" ? "Ask about classroom strategies, accommodations…" : "Ask about supporting your child at home…")
+                      }
                       value={chatInput}
                       onChange={e => setChatInput(e.target.value)}
                       onKeyDown={e => {
@@ -1315,7 +1342,7 @@ function PortalView({
                       className="mt-2 text-[10px] text-indigo-400 hover:text-indigo-600 underline underline-offset-2 w-full text-center"
                       onClick={() => { setChatMessages([]); setPromptsLoaded(false); setSuggestedPrompts([]); loadPrompts(); }}
                     >
-                      Start new conversation
+                      {language === "mandarin" ? "开始新对话" : language === "korean" ? "새 대화 시작" : "Start new conversation"}
                     </button>
                   )}
                 </div>
