@@ -715,11 +715,25 @@ function PortalView({
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+  // Reset + re-fetch prompts whenever language changes
+  useEffect(() => {
+    setSuggestedPrompts([]);
+    setPromptsLoaded(false);
+    if (chatOpen) {
+      setPromptsLoading(true);
+      fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}&language=${language}`)
+        .then(r => r.ok ? r.json() : { prompts: [] })
+        .then((data: { prompts?: string[] }) => setSuggestedPrompts(data.prompts ?? []))
+        .catch(() => {})
+        .finally(() => { setPromptsLoading(false); setPromptsLoaded(true); });
+    }
+  }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadPrompts = async () => {
     if (promptsLoaded || promptsLoading) return;
     setPromptsLoading(true);
     try {
-      const resp = await fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}`);
+      const resp = await fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}&language=${language}`);
       if (resp.ok) {
         const data = await resp.json() as { prompts: string[] };
         setSuggestedPrompts(data.prompts ?? []);
@@ -747,6 +761,7 @@ function PortalView({
           message: text,
           history: chatMessages.map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.content })),
           role,
+          language,
         }),
       });
       const data = await resp.json() as { reply?: string };

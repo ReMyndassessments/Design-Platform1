@@ -773,16 +773,19 @@ router.get("/external/portal/:token/prompts", async (req, res) => {
   if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
 
   const role = (req.query.role as string) === "teacher" ? "teacher" : "parent";
+  const rawLang = (req.query.language as string) ?? "english";
+  const langLabel = rawLang === "mandarin" ? "Simplified Chinese (Mandarin)" : rawLang === "korean" ? "Korean" : "English";
   const intake = caseRow.intakeAnalysis as any;
   const domains: string[] = Array.isArray(intake?.recommendedDomains) ? intake.recommendedDomains : [];
   const flags: string[] = Array.isArray(intake?.flags) ? intake.flags : [];
   const summary: string = intake?.summary ?? "";
 
-  const systemPrompt = `You are a specialist helping ${role === "parent" ? "a parent" : "a teacher"} understand a child's psychoeducational assessment report. 
+  const systemPrompt = `You are a specialist helping ${role === "parent" ? "a parent" : "a teacher"} understand a child's psychoeducational assessment report.
 Generate 6 practical, specific suggested questions this ${role} might want to ask about the child's assessment results.
 The questions must be directly relevant to this child's specific profile — NOT generic.
 For parents: focus on home strategies, conversations with the child, emotional support, explaining results to the child.
 For teachers: focus on classroom accommodations, intervention strategies, communication with parents, seating/grouping, curriculum adjustments.
+IMPORTANT: Write ALL 6 questions in ${langLabel}. Do not use any other language.
 Return ONLY a JSON array of 6 strings. No markdown, no explanation.`;
 
   const userMsg = `Child: ${caseRow.studentName}, Grade: ${caseRow.grade ?? "not specified"}, School: ${caseRow.school}
@@ -812,14 +815,17 @@ router.post("/external/portal/:token/chat", async (req, res) => {
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
   if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
 
-  const { message, history, role: reqRole } = req.body as {
+  const { message, history, role: reqRole, language: reqLang } = req.body as {
     message: string;
     history: Array<{ role: string; content: string }>;
     role?: string;
+    language?: string;
   };
   if (!message?.trim()) { res.status(400).json({ error: "message required" }); return; }
 
   const role = reqRole === "teacher" ? "teacher" : "parent";
+  const rawLang = reqLang ?? "english";
+  const langLabel = rawLang === "mandarin" ? "Simplified Chinese (Mandarin)" : rawLang === "korean" ? "Korean" : "English";
   const intake = caseRow.intakeAnalysis as any;
   const domains: string[] = Array.isArray(intake?.recommendedDomains) ? intake.recommendedDomains : [];
   const summary: string = intake?.summary ?? "";
