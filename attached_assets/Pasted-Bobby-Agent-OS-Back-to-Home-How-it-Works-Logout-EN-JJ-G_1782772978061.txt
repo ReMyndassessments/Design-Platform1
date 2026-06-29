@@ -1,0 +1,175 @@
+Bobby Agent OS
+Back to Home ? How it Works Logout
+EN
+中文
+한국어
+JJ-G7-042's Progress
+🔄
+Cycle
+1
+of 4
+Case: CASE-HZO62U
+2026-06-23 to 2027-06-23
+active
+
+Chat with Team
+6
+Active Goals
+0
+Progress Entries
+-
+Avg. Progress
+Intervention Goals
++ Add Goal
+Executive Function
+Edit
+Delete
+Develop independent executive functioning skills including planning, organization, task initiation, and self-monitoring to complete assignments with decreasing adult support.
+
+Baseline: Consistent difficulties across all executive function domains per BRIEF-2 and REFI ratings; Global Executive Composite T-scores in impaired range (75-80).
+Target: Demonstrate age-appropriate executive function skills as measured by improved BRIEF-2 and REFI ratings within the average range.
+Check-in: Weekly
+Entries: 0
+Emotional Regulation
+Edit
+Delete
+Improve emotional regulation by identifying emotions, using calming strategies, and reducing the frequency and intensity of emotional outbursts.
+
+Baseline: Frequent emotional outbursts, frustration intolerance, prolonged recovery from upset; BASC-3 Externalizing T-score 70-88; BRIEF-2 Emotion Regulation Index T-scores 67-84.
+Target: Reduce frequency of emotional outbursts by 50% and decrease recovery time to within 10 minutes as reported by teachers and parents.
+Check-in: Weekly
+Entries: 0
+Anxiety Management
+Edit
+Delete
+Reduce anxiety-driven avoidance and fear of mistakes through cognitive-behavioral strategies and gradual exposure to challenging tasks.
+
+Baseline: Self-reported significant worry about mistakes, performance anxiety, and task delay; Beck Anxiety Inventory T-score 67 (95.5th percentile); DASS-Y Depression score in moderate range.
+Target: Reduce self-reported anxiety symptoms to within normal range on standardized measures (Beck Anxiety Inventory T-score below 60).
+Check-in: Weekly
+Entries: 0
+Self-Concept
+Edit
+Delete
+Strengthen self-concept and self-efficacy by identifying personal strengths, celebrating effort, and developing a positive internal narrative.
+
+Baseline: Very low self-concept; Beck Self-Concept Inventory T-score 25 (1st percentile); BASC-3 Personal Adjustment T-score 26 (2nd percentile).
+Target: Increase self-concept scores to within average range (T-score above 40) on self-report measures.
+Check-in: Weekly
+Entries: 0
+Adaptive Functioning
+Edit
+Delete
+Develop independent living skills including personal organization, time management, sleep hygiene, and self-care routines in boarding and home settings.
+
+Baseline: Significant difficulties with room organization, bedtime routines, and personal responsibility; boarding staff report 'always untidy' and 'always sleeps late.'
+Target: Independently maintain organized living space and adhere to bedtime schedule with 80% consistency over a 4-week period.
+Check-in: Weekly
+Entries: 0
+Social Skills
+Edit
+Delete
+Improve social interactions by reducing bossy/controlling behaviors, respecting peer boundaries, and managing frustration in social situations.
+
+Baseline: Described as bossy and controlling; peer conflict when expectations unmet; boarding staff note 'very happy until he doesn't get what he wants.'
+Target: Demonstrate appropriate social behavior (sharing, turn-taking, accepting 'no') in 4 out of 5 observed peer interactions.
+Check-in: Weekly
+Entries: 0
+Progress Over Time
+Log progress to see charts
+Log Progress
+Select Goal (optional)
+
+General observation
+Observation / Notes
+Describe what you observed today...
+Progress Rating (1-5)
+1
+2
+3
+4
+5
+Date 
+06/29/2026
+Your Role 
+Teacher
+Log Progress
+Print & Reports
+Generate printable documents for offline tracking or sharing progress with your team.
+
+
+📋
+Offline Tracking Form
+Print blank form for handwritten notes
+
+📊
+Progress Report
+Generate summary of all logged progress
+Recent Activity
+No activity recorded yet. Use the Log Progress form above to add your first observation.
+×
+Welcome to the Case Portal
+This portal helps you track your student's intervention progress over time. Here's everything you need to know to get started.
+
+1.
+Understanding Your Dashboard
+After signing in, you'll see a personalized dashboard for your student with:
+
+Summary Cards - Quick overview of goals, progress entries, and average rating
+Intervention Goals - The specific goals set for your student with baseline and target values
+Progress Charts - Visual line graphs showing progress ratings over time for each goal
+Recent Activity - A feed of all progress entries logged by teachers and parents
+2.
+Logging Progress
+Regular progress logging is essential for tracking your student's growth. To log progress:
+
+Select a Goal - Choose which intervention goal this observation relates to, or leave as "General observation" for overall notes
+Write Your Observation - Describe what you observed. Be specific about behaviors, achievements, or challenges
+Rate Progress (1-5) - Give an honest assessment of how the student is progressing toward their goal
+Set the Date - Use today's date or select a past date if logging a previous observation
+Select Your Role - Indicate whether you're logging as a teacher or parent
+Tip: Try to log progress at least once per week. Consistent entries help build a clear picture of your student's journey.
+3.
+Understanding Progress Ratings
+The 1-5 rating scale helps quantify progress toward each goal:
+
+1
+2
+3
+4
+5
+1 - Significant Difficulty - Student is struggling considerably with this goal
+2 - Some Difficulty - Progress is below expectations, additional support needed
+3 - Making Progress - Student is on track with expected development
+4 - Good Progress - Student is exceeding expectations
+5 - Excellent Progress - Student has mastered or nearly mastered this goal
+4.
+Reading Progress Charts
+Each goal with logged progress shows a line chart displaying ratings over time. Use these charts to:
+
+Identify trends - Is progress generally improving, stable, or declining?
+Spot patterns - Are there certain times when progress dips or improves?
+Celebrate wins - Visual evidence of improvement is motivating for everyone!
+Inform decisions - Use data to discuss adjustments to the intervention plan
+5.
+Collaboration Between Teachers & Parents
+This portal allows both teachers and parents to log observations. Each entry shows who logged it, creating a complete picture of the student's progress across environments.
+
+Remember: Communication is key! When you notice something important, log it so the whole team stays informed.
+6.
+Monitoring Cycles & Timeline
+Your intervention case follows a structured 12-month monitoring period divided into 4 cycles of 3 months each:
+
+4 Monitoring Cycles - Each cycle lasts 3 months (approximately 12 weeks). The cycle badge at the top of your dashboard shows which cycle you're currently in (e.g., "Cycle 2 of 4").
+Cycle Transitions - When a cycle ends, you'll see a review modal where you can review your progress and continue to the next cycle. All your data is preserved across cycles.
+Cycle Warnings - A warning banner appears when your current cycle is ending soon, giving you time to review progress and prepare for the next cycle.
+After 4 Cycles - After completing all 4 cycles (12 months total), the case becomes read-only. Download your progress reports before this date!
+Important: Use the "Print & Reports" section to download your Progress Report and Offline Tracking Forms before the case expires. All progress data is preserved when you advance to a new cycle.
+7.
+Print & Reports
+Download and print essential documents from your dashboard:
+
+Offline Tracking Form - A printable 12-week tracking sheet for handwritten progress notes when you're away from the computer
+Progress Report - A comprehensive summary with goal statistics, trends (improving/stable/declining), average ratings, and recent entries - perfect for IEP meetings or parent conferences
+Got it, let's get started!
+ Don't show this automatically next time
