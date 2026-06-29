@@ -1351,7 +1351,7 @@ export default function CaseDetail() {
       )}
 
       {/* Report Access Panel — visible to admin from scoring phase onwards */}
-      {(role === "admin" || role === "school_clinical_coordinator") && ['scoring', 'report', 'final_review', 'debrief'].includes(c.currentPhase) && (
+      {(role === "admin" || role === "school_clinical_coordinator") && ['scoring', 'report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase) && (
         <ReportAccessPanel
           caseId={c.id}
           studentName={c.studentName ?? undefined}
