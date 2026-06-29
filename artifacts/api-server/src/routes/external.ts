@@ -747,19 +747,20 @@ async function getCaseFromPortalToken(token: string): Promise<{ caseId: string; 
 }
 
 async function callDeepSeekChat(systemPrompt: string, messages: Array<{ role: string; content: string }>, maxTokens = 1200): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
-  const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseUrl = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ?? "https://api.openai.com").replace(/\/$/, "");
+  if (!apiKey) throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY not configured");
+  const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: "gpt-5-mini",
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature: 0.7,
       max_tokens: maxTokens,
     }),
   });
-  if (!resp.ok) throw new Error(`DeepSeek error ${resp.status}`);
+  if (!resp.ok) throw new Error(`OpenAI error ${resp.status}: ${await resp.text()}`);
   const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? "";
 }
