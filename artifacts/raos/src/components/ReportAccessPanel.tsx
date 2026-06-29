@@ -110,7 +110,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [savingDebriefDate, setSavingDebriefDate] = useState(false);
 
   const isDebrief = currentPhase === "debrief";
-  const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief";
+  const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief" && currentPhase !== "complete";
   const hasUploads = uploads.length > 0;
 
   // Upload form state
