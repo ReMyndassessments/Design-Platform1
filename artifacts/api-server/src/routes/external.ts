@@ -898,17 +898,7 @@ router.post("/external/portal-login", async (req, res) => {
     return;
   }
 
-  // Extract access code from stored credentials and compare
-  const credRaw = c.bobbyAiPortalCredentials ?? "";
-  const codeMatch = credRaw.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
-  const storedCode = codeMatch ? codeMatch[1].trim() : null;
-
-  if (!storedCode || storedCode !== String(accessCode).trim()) {
-    res.status(401).json({ error: "invalid_credentials", message: "Access Code is incorrect." });
-    return;
-  }
-
-  // Find the first available portal token for this case (prefer parent, then teacher)
+  // Find all report tokens for this case
   const tokenRows = await db
     .select()
     .from(reportTokensTable)
@@ -920,13 +910,20 @@ router.post("/external/portal-login", async (req, res) => {
     return;
   }
 
-  // Prefer parent token, then teacher
-  const token =
-    tokenRows.find((t) => t.role === "parent") ??
-    tokenRows.find((t) => t.role === "teacher") ??
-    tokenRows[0];
+  // Validate the submitted access code against the report token access codes.
+  // This is the same 6-digit code already included in the recipient's email — one code for everything.
+  const submittedCode = String(accessCode).trim();
+  const matchedToken =
+    tokenRows.find((t) => t.accessCode === submittedCode && t.role === "parent") ??
+    tokenRows.find((t) => t.accessCode === submittedCode && t.role === "teacher") ??
+    tokenRows.find((t) => t.accessCode === submittedCode);
 
-  res.json({ token: token.token });
+  if (!matchedToken) {
+    res.status(401).json({ error: "invalid_credentials", message: "Access Code is incorrect." });
+    return;
+  }
+
+  res.json({ token: matchedToken.token });
 });
 
 export default router;

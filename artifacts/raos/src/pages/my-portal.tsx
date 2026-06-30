@@ -63,9 +63,9 @@ export default function MyPortalLogin() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           <p className="text-sm text-slate-600 mb-6 text-center leading-relaxed">
-            Enter your <span className="font-semibold text-slate-800">Bobby-AI Case ID</span> and{" "}
-            <span className="font-semibold text-slate-800">Access Code</span> to access your portal.
-            These were provided in your debrief email.
+            Enter your <span className="font-semibold text-slate-800">Case ID</span> and the{" "}
+            <span className="font-semibold text-slate-800">6-digit Access Code</span> from your report email —
+            the same code you use to download your report.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
