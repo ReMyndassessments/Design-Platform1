@@ -177,8 +177,8 @@ export default function LandingPage() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-800 mb-0.5">Access My Portal</p>
-                      <p className="text-xs text-gray-400">Sign in with your email &amp; access code</p>
+                      <p className="text-sm font-semibold text-slate-800 mb-0.5">{l.myPortal}</p>
+                      <p className="text-xs text-gray-400">{l.myPortalDesc}</p>
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
