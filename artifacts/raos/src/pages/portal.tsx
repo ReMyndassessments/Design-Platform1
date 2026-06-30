@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   CheckCircle2, School, Users, ClipboardList, ShieldCheck, Clock,
   ChevronRight, ArrowRight, Brain, FileText, MessageSquare, Phone,
-  BookOpen, Heart, Star, Zap, Building2
+  BookOpen, Heart, Star, Zap, Building2, KeyRound, Download, Bot, Video, TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
@@ -49,6 +49,61 @@ const emptyForm: InquiryForm = {
   yearGroup: "",
   message: "",
 };
+
+const FEATURE_ICONS: React.ElementType[] = [Download, Bot, TrendingUp, Video];
+
+function PortalAccessBlock({ pa, accentColor }: {
+  pa: { title: string; intro: string; howTitle: string; steps: string[]; features: { label: string; desc: string }[]; note: string };
+  accentColor: "indigo" | "teal";
+}) {
+  const accent = accentColor === "indigo"
+    ? { bg: "bg-indigo-50", border: "border-indigo-100", text: "text-indigo-600", badge: "bg-indigo-100", num: "bg-indigo-600" }
+    : { bg: "bg-teal-50", border: "border-teal-100", text: "text-teal-600", badge: "bg-teal-100", num: "bg-teal-600" };
+
+  return (
+    <div className={`rounded-2xl border ${accent.border} ${accent.bg} p-6 space-y-5`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-xl ${accent.badge} flex items-center justify-center flex-shrink-0`}>
+          <KeyRound size={16} className={accent.text} />
+        </div>
+        <h4 className="font-bold text-slate-900 text-base">{pa.title}</h4>
+      </div>
+
+      <p className="text-sm text-slate-600 leading-relaxed">{pa.intro}</p>
+
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{pa.howTitle}</p>
+        <ol className="space-y-2">
+          {pa.steps.map((s, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className={`flex-shrink-0 w-5 h-5 rounded-full ${accent.num} text-white text-[10px] font-bold flex items-center justify-center mt-0.5`}>{i + 1}</span>
+              <span className="text-sm text-slate-700">{s}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-2">
+        {pa.features.map(({ label, desc }, i) => {
+          const Icon = FEATURE_ICONS[i] ?? CheckCircle2;
+          return (
+            <div key={label} className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-white/80">
+              <div className={`w-7 h-7 rounded-lg ${accent.badge} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                <Icon size={13} className={accent.text} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-800">{label}</p>
+                <p className="text-xs text-slate-500 leading-snug mt-0.5">{desc}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-slate-500 italic">{pa.note}</p>
+    </div>
+  );
+}
 
 function Step({ number, title, description, icon: Icon }: { number: number; title: string; description: string; icon: React.ElementType }) {
   const { t } = useI18n();
@@ -111,6 +166,8 @@ function SchoolContent({ onInquire }: { onInquire: () => void }) {
           ))}
         </div>
       </div>
+
+      <PortalAccessBlock pa={s.portalAccess} accentColor="indigo" />
 
       <div className="text-center pt-2">
         <Button onClick={onInquire} size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
@@ -175,6 +232,8 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
         <h4 className="font-semibold text-slate-900 mb-1">{p.privacyTitle}</h4>
         <p className="text-sm text-slate-600">{p.privacy}</p>
       </div>
+
+      <PortalAccessBlock pa={p.portalAccess} accentColor="teal" />
 
       <div className="text-center pt-2">
         <Button onClick={onInquire} size="lg" className="bg-teal-600 hover:bg-teal-700 text-white gap-2">

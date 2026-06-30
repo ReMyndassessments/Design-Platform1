@@ -72,6 +72,23 @@ export const translations = {
         ],
         assessTitle: "What we assess",
         assessAreas: ["Executive Function", "Attention & ADHD", "Learning Difficulties", "Social-Emotional Wellbeing", "Autism Spectrum", "Anxiety & Mood", "Behaviour & Regulation", "Sensory Processing"],
+        portalAccess: {
+          title: "Assessment Portal Access",
+          intro: "Once a report has been issued, designated school recipients — teachers, coordinators, and additional staff — receive a secure email in English with a portal link and a unique 6-digit access code.",
+          howTitle: "How to sign in",
+          steps: [
+            "Go to the ReMynd homepage and click \"Access My Portal\"",
+            "Enter the email address the report was sent to",
+            "Enter your 6-digit access code from the report email",
+          ],
+          features: [
+            { label: "Report Download", desc: "Securely download the full assessment report using your access code" },
+            { label: "AI Report Q&A", desc: "Ask questions about the report findings in plain language" },
+            { label: "Debrief Meeting Link", desc: "Join the scheduled debrief session directly from the portal" },
+            { label: "Intervention Tracker", desc: "View the student's Bobby-AI intervention progress" },
+          ],
+          note: "Your access code does not expire. Return to the portal at any time using your email and the same 6-digit code.",
+        },
         cta: "Refer a Student",
         ctaNote: "Takes around 3 minutes. We'll be in touch within one business day.",
         faqs: [
@@ -109,6 +126,23 @@ export const translations = {
         ],
         privacyTitle: "Your child's privacy is protected",
         privacy: "All information shared is strictly confidential. Reports are released only to authorised individuals with your written consent. Data is handled in accordance with applicable privacy legislation.",
+        portalAccess: {
+          title: "Your Assessment Portal",
+          intro: "After your debrief session, you receive a secure email with a link to your personal portal — available in your preferred language. The portal gives you ongoing access to your child's report and support tools.",
+          howTitle: "How to return to your portal",
+          steps: [
+            "Go to the ReMynd homepage and click \"Access My Portal\"",
+            "Enter the email address your report was sent to",
+            "Enter the 6-digit access code from your report email",
+          ],
+          features: [
+            { label: "Report Download", desc: "Download your child's full assessment report securely at any time" },
+            { label: "AI Support Chat", desc: "Ask questions about the report findings in your preferred language" },
+            { label: "Intervention Tracker", desc: "Track your child's progress through the Bobby-AI support programme" },
+            { label: "Debrief Meeting Link", desc: "Access your debrief session link directly from the portal" },
+          ],
+          note: "Your access code does not expire — you can return to the portal whenever you need it.",
+        },
         cta: "Make an Enquiry",
         ctaNote: "No obligation. We'll get back to you within one business day.",
         faqs: [
@@ -447,6 +481,23 @@ export const translations = {
         ],
         assessTitle: "我们的评估内容",
         assessAreas: ["执行功能", "注意力与多动症", "学习障碍", "社会情感健康", "自闭症谱系", "焦虑与情绪", "行为与调节", "感觉处理"],
+        portalAccess: {
+          title: "评估门户访问",
+          intro: "一旦报告发布，指定的学校收件人——教师、协调员和其他工作人员——将收到一封英文安全电子邮件，其中包含门户链接和唯一的6位访问码。",
+          howTitle: "如何登录",
+          steps: [
+            "前往 ReMynd 主页，点击「访问我的门户」",
+            "输入报告发送到的电子邮件地址",
+            "输入报告电子邮件中的6位访问码",
+          ],
+          features: [
+            { label: "报告下载", desc: "使用访问码安全下载完整的评估报告" },
+            { label: "AI 报告问答", desc: "用简单的语言询问报告发现的问题" },
+            { label: "汇报会议链接", desc: "直接从门户加入预定的汇报会议" },
+            { label: "干预追踪器", desc: "查看学生的 Bobby-AI 干预进度" },
+          ],
+          note: "您的访问码永不过期。随时使用您的电子邮件和相同的6位密码返回门户。",
+        },
         cta: "转介学生",
         ctaNote: "大约需要3分钟。我们将在一个工作日内与您联系。",
         faqs: [
@@ -483,6 +534,23 @@ export const translations = {
         ],
         privacyTitle: "您孩子的隐私受到保护",
         privacy: "所有共享的信息均严格保密。报告仅在您的书面同意下发布给授权人员。数据按照适用的隐私立法处理。",
+        portalAccess: {
+          title: "您的评估门户",
+          intro: "在您的汇报会议后，您将收到一封带有个人门户链接的安全电子邮件——以您的首选语言提供。门户为您提供对孩子报告和支持工具的持续访问。",
+          howTitle: "如何返回您的门户",
+          steps: [
+            "前往 ReMynd 主页，点击「访问我的门户」",
+            "输入报告发送到的电子邮件地址",
+            "输入报告电子邮件中的6位访问码",
+          ],
+          features: [
+            { label: "报告下载", desc: "随时安全下载孩子的完整评估报告" },
+            { label: "AI 支持聊天", desc: "用您的首选语言询问关于报告发现的问题" },
+            { label: "干预追踪器", desc: "通过 Bobby-AI 支持计划跟踪孩子的进度" },
+            { label: "汇报会议链接", desc: "直接从门户访问汇报会议链接" },
+          ],
+          note: "您的访问码永不过期——随时需要都可以返回门户。",
+        },
         cta: "提出咨询",
         ctaNote: "无需承担义务。我们将在一个工作日内回复您。",
         faqs: [
@@ -818,6 +886,23 @@ export const translations = {
         ],
         assessTitle: "평가 영역",
         assessAreas: ["실행 기능", "주의력 및 ADHD", "학습 장애", "사회정서적 웰빙", "자폐 스펙트럼", "불안 및 기분", "행동 및 조절", "감각 처리"],
+        portalAccess: {
+          title: "평가 포털 접근",
+          intro: "보고서가 발행되면 지정된 학교 수신자(교사, 코디네이터, 추가 직원)는 포털 링크와 고유한 6자리 액세스 코드가 포함된 영문 보안 이메일을 받습니다.",
+          howTitle: "로그인 방법",
+          steps: [
+            "ReMynd 홈페이지로 이동하여 \"내 포털 접근\"을 클릭합니다",
+            "보고서가 전송된 이메일 주소를 입력합니다",
+            "보고서 이메일의 6자리 액세스 코드를 입력합니다",
+          ],
+          features: [
+            { label: "보고서 다운로드", desc: "액세스 코드를 사용하여 전체 평가 보고서를 안전하게 다운로드" },
+            { label: "AI 보고서 Q&A", desc: "보고서 결과에 대해 쉬운 언어로 질문하기" },
+            { label: "디브리핑 미팅 링크", desc: "포털에서 직접 예정된 디브리핑 세션에 참가" },
+            { label: "개입 추적기", desc: "학생의 Bobby-AI 개입 진행 상황 확인" },
+          ],
+          note: "액세스 코드는 만료되지 않습니다. 언제든지 이메일과 동일한 6자리 코드로 포털에 돌아올 수 있습니다.",
+        },
         cta: "학생 의뢰",
         ctaNote: "약 3분이 소요됩니다. 영업일 1일 이내로 연락드리겠습니다.",
         faqs: [
@@ -854,6 +939,23 @@ export const translations = {
         ],
         privacyTitle: "자녀의 개인 정보가 보호됩니다",
         privacy: "공유된 모든 정보는 엄격히 기밀로 유지됩니다. 보고서는 귀하의 서면 동의를 받은 권한 있는 사람에게만 공개됩니다. 데이터는 관련 개인 정보 보호 법률에 따라 처리됩니다.",
+        portalAccess: {
+          title: "나의 평가 포털",
+          intro: "디브리핑 세션 후, 개인 포털 링크가 포함된 보안 이메일을 받게 됩니다. 포털은 선호하는 언어로 제공되며 자녀의 보고서와 지원 도구에 지속적으로 접근할 수 있습니다.",
+          howTitle: "포털에 돌아오는 방법",
+          steps: [
+            "ReMynd 홈페이지로 이동하여 \"내 포털 접근\"을 클릭합니다",
+            "보고서가 전송된 이메일 주소를 입력합니다",
+            "보고서 이메일의 6자리 액세스 코드를 입력합니다",
+          ],
+          features: [
+            { label: "보고서 다운로드", desc: "언제든지 자녀의 전체 평가 보고서를 안전하게 다운로드" },
+            { label: "AI 지원 채팅", desc: "선호하는 언어로 보고서 결과에 대해 질문하기" },
+            { label: "개입 추적기", desc: "Bobby-AI 지원 프로그램을 통해 자녀의 진행 상황 추적" },
+            { label: "디브리핑 미팅 링크", desc: "포털에서 직접 디브리핑 세션 링크에 접근" },
+          ],
+          note: "액세스 코드는 만료되지 않습니다 — 필요할 때마다 포털에 돌아올 수 있습니다.",
+        },
         cta: "문의하기",
         ctaNote: "의무 없음. 영업일 1일 이내로 답변드리겠습니다.",
         faqs: [
