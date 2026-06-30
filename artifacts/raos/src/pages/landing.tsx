@@ -177,11 +177,8 @@ export default function LandingPage() {
                       </svg>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm font-semibold text-slate-800">Access My Portal</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">Families</span>
-                      </div>
-                      <p className="text-xs text-gray-400">Sign in with your Case ID &amp; Access Code</p>
+                      <p className="text-sm font-semibold text-slate-800 mb-0.5">Access My Portal</p>
+                      <p className="text-xs text-gray-400">Sign in with your email &amp; access code</p>
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
