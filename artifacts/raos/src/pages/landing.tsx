@@ -218,16 +218,6 @@ export default function LandingPage() {
             {l.authorised}
           </p>
 
-          <div className="mt-4 flex justify-center">
-            <Link href="/cases">
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-indigo-500 transition-colors cursor-pointer">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
-                </svg>
-                Case Portal
-              </span>
-            </Link>
-          </div>
         </div>
       </div>
 
