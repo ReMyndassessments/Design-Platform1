@@ -872,54 +872,46 @@ GUIDELINES:
 // Body: { caseId: string, accessCode: string }
 // Returns the portal token for the given case if credentials match and case is in debrief/complete phase.
 router.post("/external/portal-login", async (req, res) => {
-  const { caseId, accessCode } = req.body ?? {};
+  const { email, accessCode } = req.body ?? {};
 
-  if (!caseId || !accessCode) {
-    res.status(400).json({ error: "bad_request", message: "Case ID and Access Code are required." });
+  if (!email || !accessCode) {
+    res.status(400).json({ error: "bad_request", message: "Email and Access Code are required." });
     return;
   }
 
-  // Look up the case by stored Bobby-AI Case ID
-  const caseRows = await db
-    .select()
-    .from(casesTable)
-    .where(eq(casesTable.bobbyAiCaseId, String(caseId).trim()))
-    .limit(1);
-
-  const c = caseRows[0];
-  if (!c) {
-    res.status(401).json({ error: "invalid_credentials", message: "No matching case found. Please check your Case ID." });
-    return;
-  }
-
-  // Only allow access in debrief or complete phase
-  if (c.currentPhase !== "debrief" && c.currentPhase !== "complete") {
-    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
-    return;
-  }
-
-  // Find all report tokens for this case
+  // Look up the report token by email + access code
   const tokenRows = await db
     .select()
     .from(reportTokensTable)
-    .where(eq(reportTokensTable.caseId, c.id))
-    .limit(10);
+    .where(
+      and(
+        sql`lower(${reportTokensTable.email}) = lower(${String(email).trim()})`,
+        eq(reportTokensTable.accessCode, String(accessCode).trim())
+      )
+    )
+    .limit(5);
 
   if (!tokenRows.length) {
-    res.status(403).json({ error: "no_token", message: "No portal access has been set up for this case yet." });
+    res.status(401).json({ error: "invalid_credentials", message: "Email address or Access Code is incorrect." });
     return;
   }
 
-  // Validate the submitted access code against the report token access codes.
-  // This is the same 6-digit code already included in the recipient's email — one code for everything.
-  const submittedCode = String(accessCode).trim();
+  // Prefer parent token, then teacher, then any
   const matchedToken =
-    tokenRows.find((t) => t.accessCode === submittedCode && t.role === "parent") ??
-    tokenRows.find((t) => t.accessCode === submittedCode && t.role === "teacher") ??
-    tokenRows.find((t) => t.accessCode === submittedCode);
+    tokenRows.find((t) => t.role === "parent") ??
+    tokenRows.find((t) => t.role === "teacher") ??
+    tokenRows[0];
 
-  if (!matchedToken) {
-    res.status(401).json({ error: "invalid_credentials", message: "Access Code is incorrect." });
+  // Check the linked case is in debrief or complete phase
+  const caseRows = await db
+    .select()
+    .from(casesTable)
+    .where(eq(casesTable.id, matchedToken.caseId))
+    .limit(1);
+
+  const c = caseRows[0];
+  if (!c || (c.currentPhase !== "debrief" && c.currentPhase !== "complete")) {
+    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
     return;
   }
 

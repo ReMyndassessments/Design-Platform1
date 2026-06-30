@@ -5,7 +5,7 @@ const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function MyPortalLogin() {
   const [, navigate] = useLocation();
-  const [caseId, setCaseId] = useState("");
+  const [email, setEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,7 @@ export default function MyPortalLogin() {
       const res = await fetch(`${apiBase}/api/external/portal-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId: caseId.trim(), accessCode: accessCode.trim() }),
+        body: JSON.stringify({ email: email.trim(), accessCode: accessCode.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -63,24 +63,23 @@ export default function MyPortalLogin() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           <p className="text-sm text-slate-600 mb-6 text-center leading-relaxed">
-            Enter your <span className="font-semibold text-slate-800">Case ID</span> and the{" "}
-            <span className="font-semibold text-slate-800">6-digit Access Code</span> from your report email —
-            the same code you use to download your report.
+            Enter the <span className="font-semibold text-slate-800">email address</span> your report was sent to, and the{" "}
+            <span className="font-semibold text-slate-800">6-digit Access Code</span> included in that email.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                Case ID
+                Email Address
               </label>
               <input
-                type="text"
-                value={caseId}
-                onChange={(e) => setCaseId(e.target.value)}
-                placeholder="e.g. CASE-HZ062U"
-                autoComplete="username"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
                 required
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition font-mono"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
               />
             </div>
 
@@ -110,7 +109,7 @@ export default function MyPortalLogin() {
 
             <button
               type="submit"
-              disabled={loading || !caseId || !accessCode}
+              disabled={loading || !email || !accessCode}
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-semibold transition-colors shadow-sm"
             >
               {loading ? (
