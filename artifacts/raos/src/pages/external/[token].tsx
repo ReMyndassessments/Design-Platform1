@@ -715,10 +715,14 @@ function PortalView({
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  // Effect 1: reset prompts whenever language changes
+  // Banner state: shown when language changes while a conversation is in progress
+  const [showLangBanner, setShowLangBanner] = useState(false);
+
+  // Effect 1: reset prompts whenever language changes; show banner if mid-conversation
   useEffect(() => {
     setSuggestedPrompts([]);
     setPromptsLoaded(false);
+    if (chatMessages.length > 0) setShowLangBanner(true);
   }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect 2: fetch prompts whenever chat is open and prompts not yet loaded
@@ -1276,6 +1280,29 @@ function PortalView({
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0" style={{ maxHeight: "280px" }}>
+                  {showLangBanner && chatMessages.length > 0 && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 flex items-start gap-2.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          {language === "mandarin"
+                            ? "语言已切换。开始新对话以用中文接收回复。"
+                            : language === "korean"
+                            ? "언어가 변경되었습니다. 새 대화를 시작하면 한국어로 응답을 받을 수 있습니다."
+                            : "Language changed. Start a new conversation to get responses in English."}
+                        </p>
+                        <button
+                          className="mt-1.5 text-[11px] font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                          onClick={() => { setChatMessages([]); setShowLangBanner(false); setPromptsLoaded(false); setSuggestedPrompts([]); }}
+                        >
+                          {language === "mandarin" ? "开始新对话 →" : language === "korean" ? "새 대화 시작 →" : "Start new conversation →"}
+                        </button>
+                      </div>
+                      <button onClick={() => setShowLangBanner(false)} className="text-amber-400 hover:text-amber-600 shrink-0">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  )}
                   {chatMessages.length === 0 && (
                     <div className="space-y-2">
                       <p className="text-[11px] text-indigo-600 font-medium">
