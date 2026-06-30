@@ -35,6 +35,17 @@ export default function MyPortalLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
+      <div className="absolute top-4 left-4">
+        <a
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-200 rounded-xl px-4 py-2.5 shadow-sm transition-all duration-150"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+          </svg>
+          Home
+        </a>
+      </div>
       <div className="w-full max-w-md">
         {/* Logo / branding */}
         <div className="text-center mb-8">
