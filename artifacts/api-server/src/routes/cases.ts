@@ -333,6 +333,14 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
   if (updates.currentPhase) {
     updates.progressPercentage = PHASE_PROGRESS[updates.currentPhase as string] ?? 0;
   }
+
+  // Auto-extract bobbyAiCaseId whenever credentials are updated
+  if (updates.bobbyAiPortalCredentials !== undefined) {
+    const raw = updates.bobbyAiPortalCredentials ?? "";
+    const match = raw.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
+    (updates as Record<string, unknown>)["bobbyAiCaseId"] = match ? match[1].trim() : null;
+  }
+
   // If the working doc URL is being changed, reset both approvals
   if (updates.workingDocUrl !== undefined && updates.workingDocUrl !== existing[0].workingDocUrl) {
     updates.adminApprovedReport = false;

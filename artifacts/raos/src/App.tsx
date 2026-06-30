@@ -57,6 +57,7 @@ import ExternalFormView from "@/pages/external/[token]";
 import JoinMeetingPage from "@/pages/join/[room]";
 import QuickMeetPage from "@/pages/meet/[room]";
 import Portal from "@/pages/portal";
+import MyPortalLogin from "@/pages/my-portal";
 import LandingPage from "@/pages/landing";
 import AssessmentTools from "@/pages/tools";
 import FormPreviewPage from "@/pages/tools/[id]/preview";
@@ -121,6 +122,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/portal" component={Portal} />
+      <Route path="/my-portal" component={MyPortalLogin} />
       <Route path="/external/:token" component={ExternalFormView} />
       <Route path="/student-view/rda" component={RdaStudentView} />
       <Route path="/student-view/rrca/:token" component={RrcaStudentView} />

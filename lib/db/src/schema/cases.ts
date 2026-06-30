@@ -53,6 +53,7 @@ export const casesTable = pgTable("cases", {
   debriefMeetingUrl: text("debrief_meeting_url"),
   debriefMeetingDate: text("debrief_meeting_date"),
   bobbyAiPortalCredentials: text("bobby_ai_portal_credentials"),
+  bobbyAiCaseId: text("bobby_ai_case_id"),
   productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
   intakeData: jsonb("intake_data"),
   intakeAnalysis: jsonb("intake_analysis"),

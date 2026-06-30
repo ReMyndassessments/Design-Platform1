@@ -867,4 +867,66 @@ GUIDELINES:
   }
 });
 
+// ── Portal credential login ───────────────────────────────────────────────────
+// POST /api/external/portal-login
+// Body: { caseId: string, accessCode: string }
+// Returns the portal token for the given case if credentials match and case is in debrief/complete phase.
+router.post("/external/portal-login", async (req, res) => {
+  const { caseId, accessCode } = req.body ?? {};
+
+  if (!caseId || !accessCode) {
+    res.status(400).json({ error: "bad_request", message: "Case ID and Access Code are required." });
+    return;
+  }
+
+  // Look up the case by stored Bobby-AI Case ID
+  const caseRows = await db
+    .select()
+    .from(casesTable)
+    .where(eq(casesTable.bobbyAiCaseId, String(caseId).trim()))
+    .limit(1);
+
+  const c = caseRows[0];
+  if (!c) {
+    res.status(401).json({ error: "invalid_credentials", message: "No matching case found. Please check your Case ID." });
+    return;
+  }
+
+  // Only allow access in debrief or complete phase
+  if (c.currentPhase !== "debrief" && c.currentPhase !== "complete") {
+    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
+    return;
+  }
+
+  // Extract access code from stored credentials and compare
+  const credRaw = c.bobbyAiPortalCredentials ?? "";
+  const codeMatch = credRaw.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+  const storedCode = codeMatch ? codeMatch[1].trim() : null;
+
+  if (!storedCode || storedCode !== String(accessCode).trim()) {
+    res.status(401).json({ error: "invalid_credentials", message: "Access Code is incorrect." });
+    return;
+  }
+
+  // Find the first available portal token for this case (prefer parent, then teacher)
+  const tokenRows = await db
+    .select()
+    .from(reportTokensTable)
+    .where(eq(reportTokensTable.caseId, c.id))
+    .limit(10);
+
+  if (!tokenRows.length) {
+    res.status(403).json({ error: "no_token", message: "No portal access has been set up for this case yet." });
+    return;
+  }
+
+  // Prefer parent token, then teacher
+  const token =
+    tokenRows.find((t) => t.role === "parent") ??
+    tokenRows.find((t) => t.role === "teacher") ??
+    tokenRows[0];
+
+  res.json({ token: token.token });
+});
+
 export default router;

@@ -166,6 +166,29 @@ export default function LandingPage() {
               </div>
             </Link>
 
+            {/* My Portal card */}
+            <Link href="/my-portal">
+              <div className="group border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-md bg-indigo-50/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors border border-indigo-100 flex-shrink-0">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-500">
+                        <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm font-semibold text-slate-800">Access My Portal</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">Families</span>
+                      </div>
+                      <p className="text-xs text-gray-400">Sign in with your Case ID &amp; Access Code</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                </div>
+              </div>
+            </Link>
+
             {/* Assessment Services card */}
             <Link href="/assessment-services">
               <div className="group border border-amber-200 hover:border-amber-400 hover:bg-amber-50/40 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-md bg-amber-50/20">
