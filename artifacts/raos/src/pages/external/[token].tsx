@@ -928,6 +928,18 @@ function PortalView({
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 space-y-5">
 
+        {/* Primary portal notice */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <p className="text-[11px] text-indigo-700 leading-snug">
+            {language === "mandarin"
+              ? `这是 ${portal.studentName} 的主要家长/教师门户。您可以在此提交表格、访问报告并跟踪干预进度。`
+              : language === "korean"
+              ? `이 포털은 ${portal.studentName}의 주요 학부모/교사 포털입니다. 양식 제출, 보고서 열람, 중재 진행 추적을 여기서 모두 하실 수 있습니다.`
+              : `This is your primary ReMynd portal for ${portal.studentName}. Submit forms, access reports, and track intervention progress — all from here.`}
+          </p>
+        </div>
+
         {/* Phase Tracker */}
         <PhaseTracker
           currentPhase={portal.currentPhase}
@@ -1174,62 +1186,67 @@ function PortalView({
           </div>
         )}
 
-        {/* Bobby-AI Progress Portal Card */}
-        {portal.bobbyAiPortalCredentials && (
-          <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50 shadow-sm overflow-hidden">
-            <div className="px-5 pt-5 pb-4 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/>
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-purple-900">
-                    {language === "mandarin" ? "进度监测平台" : language === "korean" ? "진행 모니터링 포털" : "Progress Monitoring Portal"}
-                  </p>
-                  <p className="text-[11px] text-purple-600">
-                    {language === "mandarin" ? "12个月干预追踪" : language === "korean" ? "12개월 중재 추적" : "12-month intervention tracking"}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-purple-700 leading-relaxed">
-                {language === "mandarin"
-                  ? "您孩子的个性化进度监测平台现已激活。随时登录查看干预里程碑并获取相关资源。"
-                  : language === "korean"
-                  ? "자녀의 맞춤형 진행 모니터링 포털이 활성화되었습니다. 언제든지 로그인하여 중재 이정표를 확인하고 자료에 접근하세요."
-                  : "Your child's personalised progress monitoring portal is now active. Log in at any time to track intervention milestones and access resources."}
-              </p>
-              {(() => {
-                const creds = portal.bobbyAiPortalCredentials ?? "";
-                const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
-                const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
-                const deepLink = caseIdMatch && codeMatch
-                  ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
-                  : "https://bobby-ai.com/intervention";
-                return (
-                  <div className="rounded-xl bg-white border border-purple-200 p-3 space-y-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">
-                      {language === "mandarin" ? "门户访问" : language === "korean" ? "포털 접속" : "Portal Access"}
-                    </p>
-                    <a
-                      href={deepLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition-colors"
-                    >
-                      {language === "mandarin" ? "打开进度门户" : language === "korean" ? "진행 포털 열기" : "Open Progress Portal"}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    </a>
-                    <pre className="text-[10px] text-purple-700 font-mono whitespace-pre-wrap break-all bg-purple-50 rounded-lg px-3 py-2 border border-purple-100 leading-relaxed">
-                      {creds}
-                    </pre>
+        {/* Intervention Progress Tracker Card */}
+        {portal.bobbyAiPortalCredentials && (() => {
+          const creds = portal.bobbyAiPortalCredentials ?? "";
+          const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
+          const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+          const deepLink = caseIdMatch && codeMatch
+            ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
+            : "https://bobby-ai.com/intervention";
+          return (
+            <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50 shadow-sm overflow-hidden">
+              <div className="px-5 pt-5 pb-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center shrink-0">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-purple-900">
+                        {language === "mandarin" ? "干预进度追踪" : language === "korean" ? "중재 진행 추적" : "Intervention Progress Tracker"}
+                      </p>
+                      <p className="text-[11px] text-purple-600">
+                        {language === "mandarin" ? "12个月监测 · 通过本门户访问" : language === "korean" ? "12개월 모니터링 · 이 포털에서 바로 이용" : "12-month monitoring · accessible from this portal"}
+                      </p>
+                    </div>
                   </div>
-                );
-              })()}
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-purple-400 border border-purple-200 rounded-full px-2 py-0.5 shrink-0">
+                    Bobby AI
+                  </span>
+                </div>
+
+                <p className="text-xs text-purple-700 leading-relaxed">
+                  {language === "mandarin"
+                    ? `无需前往 Bobby AI 网站——直接在此处点击下方按钮，即可进入 ${portal.studentName} 的进度仪表板。`
+                    : language === "korean"
+                    ? `Bobby AI 사이트에 별도로 방문하실 필요가 없습니다. 아래 버튼을 클릭하면 바로 ${portal.studentName}의 진행 대시보드로 이동합니다.`
+                    : `No need to visit the Bobby AI site separately — click below to go straight to ${portal.studentName}'s progress dashboard.`}
+                </p>
+
+                <a
+                  href={deepLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition-colors shadow-sm"
+                >
+                  {language === "mandarin" ? "查看进度仪表板" : language === "korean" ? "진행 대시보드 보기" : "View Progress Dashboard"}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </a>
+
+                <p className="text-[10px] text-purple-400 text-center">
+                  {language === "mandarin"
+                    ? <>您也可以直接访问 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>
+                    : language === "korean"
+                    ? <>또는 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a>에서 직접 접속할 수도 있습니다</>
+                    : <>You can also access directly at <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* AI Chat Panel */}
         {portal.reportAccess && (
