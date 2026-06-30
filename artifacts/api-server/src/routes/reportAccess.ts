@@ -593,15 +593,25 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, t.caseId));
     const studentName = caseRow?.studentName ?? "your student";
     const schoolName = caseRow?.school ?? "the school";
-    const resendLang = normLang(caseRow?.languagePreference);
     const base = getBaseUrl(req);
     const link = `${base}/external/${t.token}`;
+    const debriefJoinUrl = caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined;
+    const debriefDate = caseRow?.debriefMeetingDate ?? null;
 
-    await sendEmail({
-      to: email,
-      subject: EMAIL_COPY.parentSubject[resendLang](studentName),
-      html: buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow?.debriefMeetingDate ?? null),
-    });
+    let subject: string;
+    let html: string;
+
+    if (t.role === "parent") {
+      const resendLang = normLang(caseRow?.languagePreference);
+      subject = EMAIL_COPY.parentSubject[resendLang](studentName);
+      html = buildParentEmail(resendLang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate);
+    } else {
+      // Teachers and all other recipients always get English
+      subject = `Your assessment report for ${studentName}`;
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl ?? null, debriefDate, t.accessCode ?? undefined);
+    }
+
+    await sendEmail({ to: email, subject, html });
 
     await db.update(reportTokensTable)
       .set({ sentAt: new Date(), updatedAt: new Date() })
@@ -668,10 +678,11 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   for (const t of activeTokens) {
     const link = `${base}/external/${t.token}`;
     let html: string;
-    if (t.role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined, bobbyAiCreds);
-    } else {
+    if (t.role === "parent") {
       html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate, bobbyAiCreds);
+    } else {
+      // Teachers and other recipients always get English
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined, bobbyAiCreds);
     }
     await sendEmail({ to: t.email, subject, html });
     sent++;
@@ -702,10 +713,11 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
 
     const link = `${base}/external/${token}`;
     let html: string;
-    if (role === "teacher") {
-      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, accessCode, bobbyAiCreds);
-    } else {
+    if (role === "parent") {
       html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate, bobbyAiCreds);
+    } else {
+      // Teachers and other recipients always get English
+      html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, accessCode, bobbyAiCreds);
     }
     await sendEmail({ to: e.email.trim(), subject, html });
     sent++;
