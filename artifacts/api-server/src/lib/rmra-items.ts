@@ -459,7 +459,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       robot_factory: "The factory built 3,476 robots. Decompose 3,476 using blocks.",
       treasure_builder: "The treasure is worth 3,476 coins. Show 3,476 using blocks and explain.",
     },
-    exactAnswer: "3000 + 400 + 70 + 6",
+    exactAnswer: 3476,
     primaryConstruct: "4-digit place value decomposition",
     secondaryConstructs: ["expanded form", "place value understanding"],
     strategyOptions: ["guessed", "decomposed incorrectly", "used expanded form correctly", "used blocks and explained each"],
