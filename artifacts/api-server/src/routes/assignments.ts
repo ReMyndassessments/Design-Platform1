@@ -51,7 +51,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   }
 
   const { userRole } = req;
-  if (userRole !== "admin" && userRole !== "psychometrician") {
+  if (userRole !== "admin" && userRole !== "psychometrician" && userRole !== "school_clinical_coordinator") {
     res.status(403).json({ error: "forbidden", message: "Only administrators and psychometricians can assign forms" });
     return;
   }
