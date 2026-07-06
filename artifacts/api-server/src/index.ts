@@ -1375,6 +1375,20 @@ const CANONICAL_BATTERIES: (typeof batteriesTable.$inferInsert)[] = [
     scoringNotes: "BRIEF-2 scoring is performed externally. All forms use Never (N) / Sometimes (S) / Often (O) frequency ratings. Raw scores convert to T-scores and percentile ranks via the BRIEF-2 normative software. Clinical scales group into three composite indices: Behavioral Regulation Index (BRI), Emotion Regulation Index (ERI), and Cognitive Regulation Index (CRI), which together form the Global Executive Composite (GEC).",
   },
   {
+    id: "RMRA",
+    name: "ReMynd Mathematical Reasoning Assessment (RMRA)",
+    description: "A structured examiner-administered assessment of mathematical reasoning, problem solving, and metacognitive strategy use across 13 domains in students aged 5–16. Supports identification of dyscalculia risk and mathematical learning difficulties. Administration time: 30–60 minutes (full) or 15–25 minutes (brief).",
+    toolIds: ["RMRA"],
+    isRemyndOwned: true,
+    domains: [
+      "Number Sense", "Place Value", "Addition Reasoning", "Subtraction Reasoning",
+      "Multiplicative Thinking", "Division Thinking", "Fractions", "Measurement",
+      "Patterns & Early Algebra", "Geometry & Spatial Reasoning", "Mathematical Language",
+      "Problem Solving & Executive Function", "Response to Productive Struggle",
+    ],
+    scoringNotes: "RMRA scoring is performed live by the examiner during administration. Domain scores are computed as a percentage across accuracy, reasoning, strategy level, hint dependency, productive struggle, and confidence. A composite score determines domain level: Strength ≥75%, Developing 50–74%, Vulnerable 25–49%, High Concern <25%.",
+  },
+  {
     id: "SCREENING",
     name: "Public Domain / Open-Access Screening Measures",
     description: "A curated collection of freely available, validated screening and wellbeing instruments covering emotional health, behaviour, anxiety, depression, stress, self-esteem, and wellbeing. Suitable for initial screening and progress monitoring across child, adolescent, and adult populations.",
