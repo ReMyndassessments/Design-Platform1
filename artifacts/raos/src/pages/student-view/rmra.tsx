@@ -1055,19 +1055,84 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
 function NumberBondVisual({ total, accent }: { total: number; accent: string }) {
+  const [leftVal, setLeftVal] = useState("");
+  const [rightVal, setRightVal] = useState("");
+  const [active, setActive] = useState<"left" | "right" | null>(null);
+
+  const handleKey = (key: string) => {
+    const setter = active === "left" ? setLeftVal : setRightVal;
+    const cur = active === "left" ? leftVal : rightVal;
+    if (key === "⌫") { setter(cur.slice(0, -1)); return; }
+    if (key === "✓") { setActive(null); return; }
+    if (cur.length >= 4) return;
+    setter(cur + key);
+  };
+
+  const leftFilled = leftVal !== "";
+  const rightFilled = rightVal !== "";
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Number bond — how does it break apart?</p>
-      <svg viewBox="0 0 200 145" className="w-48 mx-auto">
+      <p className={TASK_LABEL}>Tap the circles to fill in the parts</p>
+      <svg viewBox="0 0 200 145" className="w-48 mx-auto" style={{ overflow: "visible" }}>
+        {/* Total node */}
         <circle cx={100} cy={35} r={28} fill={accent + "20"} stroke={accent} strokeWidth={2.5} />
         <text x={100} y={41} textAnchor="middle" fontSize={18} fill="#1e293b" fontWeight="bold">{total}</text>
+        {/* Arms */}
         <line x1={78} y1={58} x2={55} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         <line x1={122} y1={58} x2={145} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
-        <circle cx={50} cy={115} r={24} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
-        <text x={50} y={121} textAnchor="middle" fontSize={16} fill="#94a3b8" fontWeight="bold">?</text>
-        <circle cx={150} cy={115} r={24} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
-        <text x={150} y={121} textAnchor="middle" fontSize={16} fill="#94a3b8" fontWeight="bold">?</text>
+        {/* Left part */}
+        <circle cx={50} cy={115} r={26}
+          fill={active === "left" ? accent + "30" : leftFilled ? accent + "20" : "#f1f5f9"}
+          stroke={active === "left" ? accent : leftFilled ? accent : "#94a3b8"}
+          strokeWidth={active === "left" ? 2.5 : 2}
+          strokeDasharray={leftFilled || active === "left" ? "none" : "5,3"}
+          style={{ cursor: "pointer" }}
+          onClick={() => setActive(active === "left" ? null : "left")}
+        />
+        <text x={50} y={121} textAnchor="middle" fontSize={leftFilled ? 16 : 18}
+          fill={leftFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
+          style={{ pointerEvents: "none" }}>
+          {leftFilled ? leftVal : "?"}
+        </text>
+        {/* Right part */}
+        <circle cx={150} cy={115} r={26}
+          fill={active === "right" ? accent + "30" : rightFilled ? accent + "20" : "#f1f5f9"}
+          stroke={active === "right" ? accent : rightFilled ? accent : "#94a3b8"}
+          strokeWidth={active === "right" ? 2.5 : 2}
+          strokeDasharray={rightFilled || active === "right" ? "none" : "5,3"}
+          style={{ cursor: "pointer" }}
+          onClick={() => setActive(active === "right" ? null : "right")}
+        />
+        <text x={150} y={121} textAnchor="middle" fontSize={rightFilled ? 16 : 18}
+          fill={rightFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
+          style={{ pointerEvents: "none" }}>
+          {rightFilled ? rightVal : "?"}
+        </text>
       </svg>
+
+      {/* Inline numpad — shown only when a circle is active */}
+      {active && (
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <p className="text-xs text-slate-500 font-medium">
+            Entering {active} part
+          </p>
+          <div className="bg-slate-100 rounded-xl px-4 py-2 text-xl font-bold text-slate-800 min-w-[80px] text-center tracking-widest">
+            {(active === "left" ? leftVal : rightVal) || "—"}
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-1">
+            {["1","2","3","4","5","6","7","8","9","⌫","0","✓"].map(k => (
+              <button key={k} onClick={() => handleKey(k)}
+                className={`w-12 h-12 rounded-xl text-base font-bold transition-colors ${
+                  k === "✓" ? "bg-emerald-500 text-white hover:bg-emerald-600" :
+                  k === "⌫" ? "bg-slate-300 text-slate-700 hover:bg-slate-400" :
+                  "bg-white border border-slate-200 text-slate-800 hover:bg-slate-50"
+                }`}
+              >{k}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
