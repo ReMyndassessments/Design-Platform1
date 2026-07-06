@@ -159,41 +159,29 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: 
   // This guarantees a full ESTIMATION_FLASH_MS window regardless of poll delay.
   const receivedAtRef = useRef<number | null>(null);
 
-  const calcRemaining = () => {
-    if (!timerStartedAt || receivedAtRef.current === null) return ESTIMATION_FLASH_MS;
-    return Math.max(0, ESTIMATION_FLASH_MS - (Date.now() - receivedAtRef.current));
-  };
-
-  const [msLeft, setMsLeft] = useState(ESTIMATION_FLASH_MS);
   const [dotsHidden, setDotsHidden] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isEstimation) return;
     if (!timerStartedAt) {
       // Timer reset — clear received time, go back to waiting state
       receivedAtRef.current = null;
-      setMsLeft(ESTIMATION_FLASH_MS);
       setDotsHidden(false);
-      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       return;
     }
     // First time we receive this timer signal — record local time as countdown start
     if (receivedAtRef.current === null) {
       receivedAtRef.current = Date.now();
     }
-    const remaining = calcRemaining();
-    if (remaining <= 0) { setMsLeft(0); setDotsHidden(true); return; }
-    setMsLeft(remaining);
+    const elapsed = Date.now() - receivedAtRef.current;
+    const remaining = Math.max(0, ESTIMATION_FLASH_MS - elapsed);
+    if (remaining <= 0) { setDotsHidden(true); return; }
     setDotsHidden(false);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    const TICK = 100;
-    intervalRef.current = setInterval(() => {
-      const left = calcRemaining();
-      setMsLeft(left);
-      if (left <= 0) { clearInterval(intervalRef.current!); setDotsHidden(true); }
-    }, TICK);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setDotsHidden(true), remaining);
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, [taskId, isEstimation, timerStartedAt]);
 
   if (isComparison) {
@@ -229,10 +217,6 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: 
   const cellSize = Math.min(36, Math.floor(220 / cols));
   const W = cols * cellSize + 20; const H = rows * cellSize + 20;
 
-  // Countdown ring dimensions
-  const R = 22; const CIRC = 2 * Math.PI * R;
-  const progress = msLeft / ESTIMATION_FLASH_MS;
-
   return (
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>
@@ -254,38 +238,15 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: 
           <p className="text-center text-slate-500 text-sm">Speak your answer aloud</p>
         </div>
       ) : (
-        /* Dots visible + countdown ring */
-        <>
-          {isEstimation && (
-            <div className="flex justify-center mb-2">
-              <svg width={56} height={56} viewBox="0 0 56 56">
-                <circle cx={28} cy={28} r={R} fill="none" stroke="#e2e8f0" strokeWidth={4} />
-                <circle
-                  cx={28} cy={28} r={R}
-                  fill="none"
-                  stroke={accent}
-                  strokeWidth={4}
-                  strokeDasharray={CIRC}
-                  strokeDashoffset={CIRC * (1 - progress)}
-                  strokeLinecap="round"
-                  transform="rotate(-90 28 28)"
-                  style={{ transition: "stroke-dashoffset 0.1s linear" }}
-                />
-                <text x={28} y={33} textAnchor="middle" fontSize={16} fontWeight="700" fill={accent}>
-                  {Math.ceil(msLeft / 1000)}
-                </text>
-              </svg>
-            </div>
-          )}
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
-            {Array.from({ length: count }, (_, i) => {
-              const col = i % cols; const row = Math.floor(i / cols);
-              const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-              const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-              return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
-            })}
-          </svg>
-        </>
+        /* Dots visible — no visual timer, 3s auto-hides via timeout */
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
+          {Array.from({ length: count }, (_, i) => {
+            const col = i % cols; const row = Math.floor(i / cols);
+            const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+            const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+            return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+          })}
+        </svg>
       )}
     </div>
   );

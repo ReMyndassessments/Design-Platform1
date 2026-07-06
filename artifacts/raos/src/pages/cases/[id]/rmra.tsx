@@ -994,11 +994,23 @@ export default function RmraAdminPage() {
             </div>
           </div>
 
-          {/* Estimation flash-timer status banner (no button — button is co-located with timer below) */}
-          {currentTask.taskType === "estimation" && !isCompleted && stimulusTimerStartedAt && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2">
-              <Zap size={13} className="text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-800 font-medium">Stimulus shown — student sees dots for 3 s, then must estimate</p>
+          {/* Estimation flash trigger — own section above scoring */}
+          {currentTask.taskType === "estimation" && !isCompleted && (
+            <div className="mb-4">
+              {!stimulusTimerStartedAt ? (
+                <Button
+                  onClick={handleShowAndStartTimer}
+                  className="bg-amber-500 hover:bg-amber-600 text-white gap-1.5 text-sm"
+                >
+                  <Zap size={13} />
+                  Show &amp; Start Flash
+                </Button>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <Zap size={13} className="text-amber-500 shrink-0" />
+                  <p className="text-xs text-amber-800 font-medium">Stimulus shown — student sees dots for 3 s, then must estimate</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1214,21 +1226,7 @@ export default function RmraAdminPage() {
                 <label className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5 block">
                   <Timer size={11} className="text-slate-400" /> Response Timer
                 </label>
-                {/* Stimulus flash button — shown inline with timer for estimation tasks */}
-                {currentTask.taskType === "estimation" && !isCompleted && (
-                  <div className="mb-2">
-                    <Button
-                      size="sm"
-                      onClick={handleShowAndStartTimer}
-                      disabled={!!stimulusTimerStartedAt}
-                      className={`h-7 gap-1.5 text-xs ${stimulusTimerStartedAt ? "bg-amber-100 text-amber-700 border border-amber-300 cursor-default hover:bg-amber-100" : "bg-amber-500 hover:bg-amber-600 text-white"}`}
-                    >
-                      <Zap size={11} />
-                      {stimulusTimerStartedAt ? "Stimulus Shown ✓" : "Show & Start Flash"}
-                    </Button>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                   <span className={`font-mono text-xl font-bold tabular-nums ${timerRunning ? "text-violet-600" : "text-slate-800"}`}>
                     {fmtTime(timerElapsed)}
                   </span>
