@@ -1634,8 +1634,7 @@ export default function CaseDetail() {
         })()}
 
         {/* ── Parent Interview Notes ── visible from intake phase onward ── */}
-        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") &&
-          ["intake", "setup", "forms", "assessment", "scoring", "report", "final_review", "debrief", "complete"].includes(c.currentPhase) && (
+        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (
           <Card className="border-none shadow-md bg-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2 text-slate-800">
