@@ -556,6 +556,8 @@ export function RmraReportPanel({
   const [bobbyStates, setBobbyStates] = useState<
     Record<string, { loading: boolean; content: string | null; expanded: boolean }>
   >({});
+  const [interventionNotes, setInterventionNotes] = useState<Record<string, string>>({});
+  const [pmTargets, setPmTargets] = useState<Record<string, string>>({});
 
   const domainScores = (session.domainScores ?? {}) as Record<string, DomainScore>;
 
@@ -959,6 +961,69 @@ export function RmraReportPanel({
                       </li>
                     ))}
                   </ul>
+                  <div className="px-4 py-3 bg-slate-50 border-t">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Examiner Notes</p>
+                    <textarea
+                      className="w-full text-xs text-slate-700 bg-white border border-slate-200 rounded-md px-2.5 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400 min-h-[52px]"
+                      placeholder="Add intervention notes, modifications, or context for this domain…"
+                      value={interventionNotes[domain] ?? ""}
+                      onChange={e => setInterventionNotes(prev => ({ ...prev, [domain]: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Progress Monitoring Targets */}
+      {weakDomains.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Target size={14} className="text-indigo-500" /> Progress Monitoring Targets
+            </CardTitle>
+            <p className="text-xs text-slate-400 mt-0.5">
+              SMART monitoring targets for identified areas of need. Edit each target to reflect the student's context before sharing.
+            </p>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3">
+            {weakDomains.map(domain => {
+              const score = domainScores[domain];
+              const info = INTERVENTION_MAP[domain];
+              if (!score || !info) return null;
+              const defaultTarget =
+                `By [review date], the student will demonstrate improved performance in ${info.label} with ≥${score.level === "high_concern" ? 60 : 75}% accuracy across 3 consecutive assessment sessions.\n` +
+                `Focus area: ${info.strategies[0] ?? "targeted intervention"}\n` +
+                `Measurement: Curriculum-based assessment probes, teacher observation, and RMRA follow-up screening.`;
+              const current = pmTargets[domain] ?? "";
+              return (
+                <div key={domain} className={`border rounded-lg overflow-hidden ${score.level === "high_concern" ? "border-red-200" : "border-orange-200"}`}>
+                  <div className={`px-4 py-2 flex items-center gap-2 ${score.level === "high_concern" ? "bg-red-50" : "bg-orange-50"}`}>
+                    <Badge className={`text-[10px] border ${LEVEL_BG[score.level]} shrink-0`}>
+                      {LEVEL_LABELS[score.level]}
+                    </Badge>
+                    <span className="text-sm font-semibold text-slate-800">{info.label}</span>
+                    <span className="text-xs text-slate-400 ml-auto">Accuracy: {score.accuracy}%</span>
+                  </div>
+                  <div className="px-4 py-3">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Monitoring Target</p>
+                    <textarea
+                      className="w-full text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400 min-h-[80px]"
+                      placeholder={defaultTarget}
+                      value={current}
+                      onChange={e => setPmTargets(prev => ({ ...prev, [domain]: e.target.value }))}
+                    />
+                    {!current && (
+                      <button
+                        className="mt-1.5 text-[11px] text-violet-600 hover:text-violet-800 underline"
+                        onClick={() => setPmTargets(prev => ({ ...prev, [domain]: defaultTarget }))}
+                      >
+                        Use template target
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -561,24 +561,38 @@ async function handleStudentConfidence(req: Request, res: Response) {
       .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
-    if (!assignment) return res.status(404).json({ error: "Session not found" });
+    let sessionId: string;
+    let sessionAgeBand: string;
 
-    const [session] = await db
-      .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
-      .from(rmraSessionsTable)
-      .where(and(
-        eq(rmraSessionsTable.assignmentId, assignment.id),
-        eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
-      ))
-      .limit(1);
-
-    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (!assignment) {
+      // Standalone: token IS the session id (caseId IS NULL)
+      const [standalone] = await db
+        .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
+        .from(rmraSessionsTable)
+        .where(and(eq(rmraSessionsTable.id, sessionToken), isNull(rmraSessionsTable.caseId)))
+        .limit(1);
+      if (!standalone) return res.status(404).json({ error: "Session not found" });
+      sessionId = standalone.id;
+      sessionAgeBand = standalone.ageBand ?? "upper_primary";
+    } else {
+      const [linked] = await db
+        .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
+        .from(rmraSessionsTable)
+        .where(and(
+          eq(rmraSessionsTable.assignmentId, assignment.id),
+          eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+        ))
+        .limit(1);
+      if (!linked) return res.status(404).json({ error: "Session not found" });
+      sessionId = linked.id;
+      sessionAgeBand = linked.ageBand ?? "upper_primary";
+    }
 
     const [existing] = await db
       .select({ id: rmraTaskResponsesTable.id })
       .from(rmraTaskResponsesTable)
       .where(and(
-        eq(rmraTaskResponsesTable.sessionId, session.id),
+        eq(rmraTaskResponsesTable.sessionId, sessionId),
         eq(rmraTaskResponsesTable.taskId, taskId),
       ))
       .limit(1);
@@ -590,13 +604,12 @@ async function handleStudentConfidence(req: Request, res: Response) {
     } else {
       const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
       const domain = itemMeta?.domain ?? "Unknown";
-      const ageBand = session.ageBand ?? "upper_primary";
       await db.insert(rmraTaskResponsesTable).values({
         id: nanoid(),
-        sessionId: session.id,
+        sessionId,
         taskId,
         domain,
-        ageBand,
+        ageBand: sessionAgeBand,
         confidenceRating: rating,
         hintLevel: 0,
         attempts: 1,
@@ -822,11 +835,21 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/bobby-agent", authMiddlewar
       secondary: "Secondary (Ages 14–16)",
     };
 
-    const ctx = RMRA_DOMAINS
+    const highConcernCount = RMRA_DOMAINS.filter(d => scores[d]?.level === "high_concern").length;
+    const vulnerableCount = RMRA_DOMAINS.filter(d => scores[d]?.level === "vulnerable").length;
+    const riskLevel = highConcernCount >= 5
+      ? `Elevated (${highConcernCount} domains at High Concern — formal dyscalculia evaluation recommended)`
+      : highConcernCount >= 3
+        ? `Moderate (${highConcernCount} domains at High Concern — targeted dyscalculia screening recommended)`
+        : highConcernCount >= 1 || vulnerableCount >= 3
+          ? `Low-Moderate (${highConcernCount} High Concern, ${vulnerableCount} Vulnerable — continued monitoring recommended)`
+          : `Low (no significant dyscalculia indicators across domains)`;
+
+    const ctx = `DYSCALCULIA RISK LEVEL: ${riskLevel}\n\n` + RMRA_DOMAINS
       .filter(d => scores[d])
       .map(d => {
         const s = scores[d];
-        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Confidence ${s.confidence}%, Level: ${s.level.replace("_", " ")}`;
+        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Hint Dependency ${s.hintDependency}%, Confidence ${s.confidence}%, Level: ${s.level.replace(/_/g, " ")}`;
       }).join("\n");
 
     const ageBandLabel = AGE_BAND_LABELS[session.ageBand] ?? session.ageBand;
@@ -1026,11 +1049,21 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
       secondary: "Secondary (Ages 14–16)",
     };
 
-    const ctx = RMRA_DOMAINS
+    const highConcernCountS = RMRA_DOMAINS.filter(d => scores[d]?.level === "high_concern").length;
+    const vulnerableCountS = RMRA_DOMAINS.filter(d => scores[d]?.level === "vulnerable").length;
+    const riskLevelS = highConcernCountS >= 5
+      ? `Elevated (${highConcernCountS} domains at High Concern — formal dyscalculia evaluation recommended)`
+      : highConcernCountS >= 3
+        ? `Moderate (${highConcernCountS} domains at High Concern — targeted dyscalculia screening recommended)`
+        : highConcernCountS >= 1 || vulnerableCountS >= 3
+          ? `Low-Moderate (${highConcernCountS} High Concern, ${vulnerableCountS} Vulnerable — continued monitoring recommended)`
+          : `Low (no significant dyscalculia indicators across domains)`;
+
+    const ctx = `DYSCALCULIA RISK LEVEL: ${riskLevelS}\n\n` + RMRA_DOMAINS
       .filter(d => scores[d])
       .map(d => {
         const s = scores[d];
-        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Confidence ${s.confidence}%, Level: ${s.level.replace("_", " ")}`;
+        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Hint Dependency ${s.hintDependency}%, Confidence ${s.confidence}%, Level: ${s.level.replace(/_/g, " ")}`;
       }).join("\n");
 
     const content = await callDeepSeekRmra(BOBBY_PROMPTS[action](ctx, AGE_BAND_LABELS[session.ageBand] ?? session.ageBand), 2500);
@@ -1038,6 +1071,211 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
   } catch (err) {
     logger.error({ err }, "POST standalone bobby-agent failed");
     return res.status(500).json({ error: "Failed to generate content" });
+  }
+});
+
+// ── Standalone: Items (public, no auth) ──────────────────────────────────────
+
+router.get("/rmra/standalone/sessions/:sessionId/items", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const [session] = await db
+      .select({ ageBand: rmraSessionsTable.ageBand, version: rmraSessionsTable.version })
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const ageBand = (req.query.ageBand as string) || session.ageBand || "upper_primary";
+    const version = (req.query.version as string) || session.version || "full";
+    const items = getItemsForSession(ageBand as any, version as any);
+    return res.json({ items });
+  } catch (err) {
+    logger.error({ err }, "GET standalone items failed");
+    return res.status(500).json({ error: "Failed to load item bank" });
+  }
+});
+
+// ── Standalone: Update session (public, no auth) ──────────────────────────────
+
+router.patch("/rmra/standalone/sessions/:sessionId", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const [existing] = await db
+      .select({ id: rmraSessionsTable.id, startedAt: rmraSessionsTable.startedAt })
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+    if (!existing) return res.status(404).json({ error: "Session not found" });
+
+    const { generalNotes, status, currentTaskId, ageBand, version, theme } = req.body;
+    const updates: Partial<typeof rmraSessionsTable.$inferInsert> = { updatedAt: new Date() };
+    if (generalNotes !== undefined) updates.generalNotes = generalNotes;
+    if (status !== undefined) updates.status = status;
+    if (currentTaskId !== undefined) updates.currentTaskId = currentTaskId;
+    if (ageBand !== undefined) updates.ageBand = ageBand;
+    if (version !== undefined) updates.version = version;
+    if (theme !== undefined) updates.theme = theme;
+    if (status === "in_progress" && !existing.startedAt) updates.startedAt = new Date();
+
+    const [session] = await db
+      .update(rmraSessionsTable)
+      .set(updates)
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .returning();
+
+    return res.json({ session });
+  } catch (err) {
+    logger.error({ err }, "PATCH standalone session failed");
+    return res.status(500).json({ error: "Failed to update session" });
+  }
+});
+
+// ── Standalone: Save task response (public, no auth) ──────────────────────────
+
+router.post("/rmra/standalone/sessions/:sessionId/tasks/:taskId/response", async (req: Request, res: Response) => {
+  try {
+    const { sessionId, taskId } = req.params;
+    const [session] = await db
+      .select({ id: rmraSessionsTable.id, status: rmraSessionsTable.status, ageBand: rmraSessionsTable.ageBand })
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const body = req.body as {
+      domain?: string; ageBand?: string; accuracy?: number; reasoning?: number;
+      strategyLevel?: number; strategyLabel?: string; hintLevel?: number;
+      attempts?: number; selfCorrection?: boolean; confidenceRating?: number;
+      responseTimeSeconds?: number; firstResponse?: string; finalResponse?: string;
+      productiveStrugglePersistence?: number; productiveStruggleFlexibility?: number;
+      productiveStruggleEmotionalRegulation?: number; productiveStruggleErrorRecovery?: number;
+      productiveStruggleHelpUtilization?: number; discontinued?: boolean;
+      discontinuationReason?: string; examinerNotes?: string;
+    };
+
+    const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
+    const [existing] = await db
+      .select({ id: rmraTaskResponsesTable.id })
+      .from(rmraTaskResponsesTable)
+      .where(and(eq(rmraTaskResponsesTable.sessionId, sessionId), eq(rmraTaskResponsesTable.taskId, taskId)))
+      .limit(1);
+
+    const values = {
+      sessionId,
+      domain: body.domain ?? itemMeta?.domain ?? "Unknown",
+      taskId,
+      ageBand: body.ageBand ?? session.ageBand ?? "upper_primary",
+      accuracy: body.accuracy ?? null,
+      reasoning: body.reasoning ?? null,
+      strategyLevel: body.strategyLevel ?? null,
+      strategyLabel: body.strategyLabel ?? null,
+      hintLevel: body.hintLevel ?? 0,
+      attempts: body.attempts ?? 1,
+      selfCorrection: body.selfCorrection ?? false,
+      confidenceRating: body.confidenceRating ?? null,
+      responseTimeSeconds: body.responseTimeSeconds ?? null,
+      firstResponse: body.firstResponse ?? null,
+      finalResponse: body.finalResponse ?? null,
+      productiveStrugglePersistence: body.productiveStrugglePersistence ?? null,
+      productiveStruggleFlexibility: body.productiveStruggleFlexibility ?? null,
+      productiveStruggleEmotionalRegulation: body.productiveStruggleEmotionalRegulation ?? null,
+      productiveStruggleErrorRecovery: body.productiveStruggleErrorRecovery ?? null,
+      productiveStruggleHelpUtilization: body.productiveStruggleHelpUtilization ?? null,
+      discontinued: body.discontinued ?? false,
+      discontinuationReason: body.discontinuationReason ?? null,
+      examinerNotes: body.examinerNotes ?? null,
+      updatedAt: new Date(),
+    };
+
+    let response;
+    if (existing[0]) {
+      [response] = await db.update(rmraTaskResponsesTable).set(values).where(eq(rmraTaskResponsesTable.id, existing[0].id)).returning();
+    } else {
+      [response] = await db.insert(rmraTaskResponsesTable).values({ id: nanoid(), ...values }).returning();
+    }
+
+    if (session.status === "not_started") {
+      await db.update(rmraSessionsTable)
+        .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
+        .where(eq(rmraSessionsTable.id, sessionId));
+    }
+
+    return res.json({ response });
+  } catch (err) {
+    logger.error({ err }, "POST standalone task response failed");
+    return res.status(500).json({ error: "Failed to save task response" });
+  }
+});
+
+// ── Standalone: Complete session — calculate domain scores (public, no auth) ──
+
+router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const responses = await db
+      .select()
+      .from(rmraTaskResponsesTable)
+      .where(eq(rmraTaskResponsesTable.sessionId, sessionId));
+
+    const domainScores: Record<string, {
+      accuracy: number; reasoning: number; strategyLevel: number;
+      hintDependency: number; productiveStruggle: number; confidence: number;
+      tasksAdministered: number; tasksDiscontinued: number;
+      level: "strength" | "developing" | "vulnerable" | "high_concern";
+    }> = {};
+
+    const avg = (vals: (number | null)[]) => {
+      const filtered = vals.filter((v): v is number => v !== null);
+      return filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0;
+    };
+
+    for (const domain of RMRA_DOMAINS) {
+      const domainResponses = responses.filter(r => r.domain === domain && !r.discontinued);
+      const discontinued = responses.filter(r => r.domain === domain && r.discontinued).length;
+      if (domainResponses.length === 0) continue;
+
+      const accuracy = avg(domainResponses.map(r => r.accuracy)) / 2 * 100;
+      const reasoning = avg(domainResponses.map(r => r.reasoning)) / 4 * 100;
+      const strategyLevel = avg(domainResponses.map(r => r.strategyLevel)) / 14 * 100;
+      const hintDependency = avg(domainResponses.map(r => r.hintLevel)) / 4 * 100;
+
+      const psScores = domainResponses
+        .filter(r => r.productiveStrugglePersistence !== null)
+        .map(r => avg([r.productiveStrugglePersistence, r.productiveStruggleFlexibility,
+          r.productiveStruggleEmotionalRegulation, r.productiveStruggleErrorRecovery,
+          r.productiveStruggleHelpUtilization]));
+      const productiveStruggle = psScores.length > 0 ? avg(psScores) / 4 * 100 : 0;
+      const confidence = avg(domainResponses.map(r => r.confidenceRating)) / 4 * 100;
+      const composite = (accuracy * 0.35) + (reasoning * 0.3) + (strategyLevel * 0.2) + (confidence * 0.15);
+      const level: "strength" | "developing" | "vulnerable" | "high_concern" =
+        composite >= 75 ? "strength" : composite >= 50 ? "developing" : composite >= 25 ? "vulnerable" : "high_concern";
+
+      domainScores[domain] = {
+        accuracy: Math.round(accuracy), reasoning: Math.round(reasoning),
+        strategyLevel: Math.round(strategyLevel), hintDependency: Math.round(hintDependency),
+        productiveStruggle: Math.round(productiveStruggle), confidence: Math.round(confidence),
+        tasksAdministered: domainResponses.length, tasksDiscontinued: discontinued, level,
+      };
+    }
+
+    const [updatedSession] = await db
+      .update(rmraSessionsTable)
+      .set({ status: "completed", completedAt: new Date(), domainScores, updatedAt: new Date() })
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .returning();
+
+    return res.json({ session: updatedSession, domainScores });
+  } catch (err) {
+    logger.error({ err }, "POST standalone complete failed");
+    return res.status(500).json({ error: "Failed to complete session" });
   }
 });
 
