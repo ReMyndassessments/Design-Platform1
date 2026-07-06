@@ -153,6 +153,7 @@ type TaskResponseState = {
   selfCorrection: boolean;
   confidenceRating: number | null;
   responseTimeSeconds: number | null;
+  studentAnswer: string;
   firstResponse: string;
   finalResponse: string;
   examinerNotes: string;
@@ -171,7 +172,7 @@ function emptyResponse(): TaskResponseState {
   return {
     accuracy: null, reasoning: null, strategyLevel: null, strategyLabel: null,
     hintLevel: 0, attempts: 1, selfCorrection: false, confidenceRating: null,
-    responseTimeSeconds: null, firstResponse: "", finalResponse: "",
+    responseTimeSeconds: null, studentAnswer: "", firstResponse: "", finalResponse: "",
     examinerNotes: "", productiveStrugglePersistence: null,
     productiveStruggleFlexibility: null, productiveStruggleEmotionalRegulation: null,
     productiveStruggleErrorRecovery: null, productiveStruggleHelpUtilization: null,
@@ -301,6 +302,7 @@ export default function RmraAdminPage() {
             selfCorrection: resp.selfCorrection ?? false,
             confidenceRating: resp.confidenceRating ?? null,
             responseTimeSeconds: resp.responseTimeSeconds ?? null,
+            studentAnswer: resp.studentAnswer ?? "",
             firstResponse: resp.firstResponse ?? "",
             finalResponse: resp.finalResponse ?? "",
             examinerNotes: resp.examinerNotes ?? "",
@@ -334,8 +336,8 @@ export default function RmraAdminPage() {
     };
   }, []);
 
-  // Poll for student-submitted confidence ratings while session is active.
-  // Only updates confidenceRating — never overwrites examiner-entered scores.
+  // Poll for student-submitted data (confidence + typed answer) while session is active.
+  // Only updates student-submitted fields — never overwrites examiner-entered scores.
   useEffect(() => {
     if (!sessionId || !caseId || session?.status === "completed") return;
     const poll = async () => {
@@ -345,17 +347,23 @@ export default function RmraAdminPage() {
         });
         if (!r.ok) return;
         const data = await r.json();
-        const serverResponses: Array<{ taskId: string; confidenceRating: number | null }> = data.responses ?? [];
+        const serverResponses: Array<{ taskId: string; confidenceRating: number | null; studentAnswer?: string | null }> = data.responses ?? [];
         setResponses(prev => {
           let changed = false;
           const next = { ...prev };
           for (const sr of serverResponses) {
-            if (sr.confidenceRating !== null && sr.confidenceRating !== undefined) {
-              const existing = prev[sr.taskId];
-              if (!existing || existing.confidenceRating !== sr.confidenceRating) {
-                next[sr.taskId] = { ...(existing ?? emptyResponse()), confidenceRating: sr.confidenceRating };
-                changed = true;
-              }
+            const existing = prev[sr.taskId];
+            const updates: Partial<TaskResponseState> = {};
+            if (sr.confidenceRating !== null && sr.confidenceRating !== undefined &&
+                (!existing || existing.confidenceRating !== sr.confidenceRating)) {
+              updates.confidenceRating = sr.confidenceRating;
+            }
+            if (sr.studentAnswer && (!existing || existing.studentAnswer !== sr.studentAnswer)) {
+              updates.studentAnswer = sr.studentAnswer;
+            }
+            if (Object.keys(updates).length > 0) {
+              next[sr.taskId] = { ...(existing ?? emptyResponse()), ...updates };
+              changed = true;
             }
           }
           return changed ? next : prev;
@@ -1014,6 +1022,12 @@ export default function RmraAdminPage() {
                   <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
                     <div className="font-medium text-emerald-700 mb-0.5">Expected Answer</div>
                     <div className="text-emerald-900 font-mono">{String(currentTask.exactAnswer)}</div>
+                  </div>
+                )}
+                {currentResponse.studentAnswer && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="font-medium text-amber-700 mb-0.5">Student Submitted</div>
+                    <div className="text-amber-900 font-mono font-bold text-base">{currentResponse.studentAnswer}</div>
                   </div>
                 )}
                 {currentTask.expectedAnswerRange && (

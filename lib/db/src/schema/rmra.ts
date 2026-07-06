@@ -64,6 +64,7 @@ export const rmraTaskResponsesTable = pgTable("rmra_task_responses", {
   productiveStruggleEmotionalRegulation: integer("productive_struggle_emotional_regulation"),
   productiveStruggleErrorRecovery: integer("productive_struggle_error_recovery"),
   productiveStruggleHelpUtilization: integer("productive_struggle_help_utilization"),
+  studentAnswer: text("student_answer"),
   discontinued: boolean("discontinued").notNull().default(false),
   discontinuationReason: text("discontinuation_reason"),
   examinerNotes: text("examiner_notes"),

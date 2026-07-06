@@ -628,10 +628,94 @@ async function handleStudentConfidence(req: Request, res: Response) {
   }
 }
 
+async function handleStudentAnswer(req: Request, res: Response) {
+  try {
+    const { sessionToken } = req.params as { sessionToken: string };
+    const { taskId, answer } = req.body as { taskId?: string; answer?: string };
+
+    if (typeof answer !== "string" || !answer.trim()) {
+      return res.status(400).json({ error: "answer is required" });
+    }
+    if (typeof taskId !== "string" || !taskId.trim()) {
+      return res.status(400).json({ error: "taskId is required" });
+    }
+
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
+      .limit(1);
+
+    let sessionId: string;
+    let sessionAgeBand: string;
+
+    if (!assignment) {
+      const [standalone] = await db
+        .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
+        .from(rmraSessionsTable)
+        .where(and(eq(rmraSessionsTable.id, sessionToken), isNull(rmraSessionsTable.caseId)))
+        .limit(1);
+      if (!standalone) return res.status(404).json({ error: "Session not found" });
+      sessionId = standalone.id;
+      sessionAgeBand = standalone.ageBand ?? "upper_primary";
+    } else {
+      const [linked] = await db
+        .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
+        .from(rmraSessionsTable)
+        .where(and(
+          eq(rmraSessionsTable.assignmentId, assignment.id),
+          eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+        ))
+        .limit(1);
+      if (!linked) return res.status(404).json({ error: "Session not found" });
+      sessionId = linked.id;
+      sessionAgeBand = linked.ageBand ?? "upper_primary";
+    }
+
+    const [existing] = await db
+      .select({ id: rmraTaskResponsesTable.id })
+      .from(rmraTaskResponsesTable)
+      .where(and(
+        eq(rmraTaskResponsesTable.sessionId, sessionId),
+        eq(rmraTaskResponsesTable.taskId, taskId),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db.update(rmraTaskResponsesTable)
+        .set({ studentAnswer: answer.trim(), updatedAt: new Date() })
+        .where(eq(rmraTaskResponsesTable.id, existing.id));
+    } else {
+      const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
+      const domain = itemMeta?.domain ?? "Unknown";
+      await db.insert(rmraTaskResponsesTable).values({
+        id: nanoid(),
+        sessionId,
+        taskId,
+        domain,
+        ageBand: sessionAgeBand,
+        studentAnswer: answer.trim(),
+        hintLevel: 0,
+        attempts: 1,
+        selfCorrection: false,
+        discontinued: false,
+      }).onConflictDoNothing();
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST student answer failed");
+    return res.status(500).json({ error: "Failed to save answer" });
+  }
+}
+
 // Register at both spec path (/rmra/student/...) and original public path
 router.get("/rmra/student/:sessionToken", handleStudentPoll);
 router.get("/public/rmra/student/:sessionToken", handleStudentPoll);
 router.post("/rmra/student/:sessionToken/confidence", handleStudentConfidence);
+router.post("/public/rmra/student/:sessionToken/confidence", handleStudentConfidence);
+router.post("/rmra/student/:sessionToken/answer", handleStudentAnswer);
+router.post("/public/rmra/student/:sessionToken/answer", handleStudentAnswer);
 router.post("/public/rmra/student/:sessionToken/confidence", handleStudentConfidence);
 
 // ── AI Report Generation ───────────────────────────────────────────────────────

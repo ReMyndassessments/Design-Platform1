@@ -1054,7 +1054,7 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
-function NumberBondVisual({ total, part1, part2, accent }: { total: number; part1?: number; part2?: number; accent: string }) {
+function NumberBondVisual({ total, part1, part2, accent, onAnswer }: { total: number; part1?: number; part2?: number; accent: string; onAnswer?: (answer: string) => void }) {
   // addition mode: parts are known, student enters the total
   // decomposition mode: total is known, student enters the parts
   const additionMode = part1 !== undefined && part2 !== undefined;
@@ -1068,7 +1068,15 @@ function NumberBondVisual({ total, part1, part2, accent }: { total: number; part
     const setter = active === "total" ? setTotalVal : active === "left" ? setLeftVal : setRightVal;
     const cur = active === "total" ? totalVal : active === "left" ? leftVal : rightVal;
     if (key === "⌫") { setter(cur.slice(0, -1)); return; }
-    if (key === "✓") { setActive(null); return; }
+    if (key === "✓") {
+      setActive(null);
+      if (additionMode && totalVal) onAnswer?.(totalVal);
+      else if (!additionMode) {
+        const parts = [leftVal, rightVal].filter(Boolean);
+        if (parts.length > 0) onAnswer?.(parts.join(" + "));
+      }
+      return;
+    }
     if (cur.length >= 5) return;
     setter(cur + key);
   };
@@ -1353,7 +1361,7 @@ function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string 
 
 // ── Task Visual Router ────────────────────────────────────────────────────────
 
-function TaskVisual({ task, theme, flashPhase }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase }) {
+function TaskVisual({ task, theme, flashPhase, onAnswer }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase; onAnswer?: (answer: string) => void }) {
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
@@ -1370,7 +1378,7 @@ function TaskVisual({ task, theme, flashPhase }: { task: TaskData; theme: ThemeK
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} onAnswer={onAnswer} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
@@ -1650,7 +1658,15 @@ export default function RmraStudentView() {
 
         {/* Visual stimulus — always white card */}
         <div className="rounded-2xl shadow-sm overflow-hidden">
-          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} />
+          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} onAnswer={async (answer) => {
+          try {
+            await fetch(`${BASE_URL}/api/public/rmra/student/${token}/answer`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer, taskId: task.id }),
+            });
+          } catch { }
+        }} />
         </div>
 
         {/* Confidence slider */}

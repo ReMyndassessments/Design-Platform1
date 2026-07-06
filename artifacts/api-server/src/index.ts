@@ -2722,6 +2722,15 @@ async function ensureRmraTimerStartedAtColumn() {
   }
 }
 
+async function ensureStudentAnswerColumn() {
+  try {
+    await db.execute(sql`ALTER TABLE rmra_task_responses ADD COLUMN IF NOT EXISTS student_answer TEXT`);
+    logger.info("student_answer column ensured on rmra_task_responses");
+  } catch (err) {
+    logger.error({ err }, "ensureStudentAnswerColumn failed");
+  }
+}
+
 async function ensureRmraTaskResponseUniqueIndex() {
   try {
     await db.execute(sql`
@@ -2857,6 +2866,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createRmraAccessCodesTable())
   .then(() => ensureRmraExaminerTokenColumn())
   .then(() => ensureRmraTimerStartedAtColumn())
+  .then(() => ensureStudentAnswerColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => {
   app.listen(port, (err) => {
