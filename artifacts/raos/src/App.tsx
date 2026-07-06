@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -42,50 +42,54 @@ class PageErrorBoundary extends React.Component<
 
 setAuthTokenGetter(() => localStorage.getItem("raos_token"));
 
-// Pages
-import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import CasesList from "@/pages/cases/index";
-import NewCase from "@/pages/cases/new";
-import CaseDetail from "@/pages/cases/[id]/index";
-import ScoringView from "@/pages/cases/[id]/scoring";
-import ReportEditor from "@/pages/cases/[id]/report";
-import GuidedSelfReport from "@/pages/cases/[id]/self-report";
-import CdpProfilePage from "@/pages/cases/[id]/cdp";
-import ResponseViewer from "@/pages/cases/[id]/response/[assignmentId]";
-import ExternalFormView from "@/pages/external/[token]";
-import JoinMeetingPage from "@/pages/join/[room]";
-import QuickMeetPage from "@/pages/meet/[room]";
-import Portal from "@/pages/portal";
-import MyPortalLogin from "@/pages/my-portal";
-import LandingPage from "@/pages/landing";
-import AssessmentTools from "@/pages/tools";
-import FormPreviewPage from "@/pages/tools/[id]/preview";
-import TeamPage from "@/pages/team";
-import InquiriesPage from "@/pages/inquiries";
-import PartnerSchoolsPage from "@/pages/partner-schools";
-import PartnerInquiryPage from "@/pages/partner-inquiry";
-import AssessmentServicesPage from "@/pages/assessment-services";
-import NotFound from "@/pages/not-found";
-import RppiAdminPage from "@/pages/cases/[id]/rppi";
-import RdaAdminPage from "@/pages/cases/[id]/rda";
-import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
-import RrcaAdminPage from "@/pages/cases/[id]/rrca";
-import RmraAdminPage from "@/pages/cases/[id]/rmra";
-import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
-import RemyndDashboardPage from "@/pages/cases/[id]/remynd-dashboard";
-import DashboardsHub from "@/pages/cases/[id]/dashboards";
-import ProductDashboard from "@/pages/cases/[id]/product-dashboard";
-import RdaStudentView from "@/pages/student-view/rda";
-import RrcaStudentView from "@/pages/student-view/rrca";
-import RrfaStudentView from "@/pages/student-view/rrfa";
-import RmraStudentView from "@/pages/student-view/rmra";
-import RmraLandingPage from "@/pages/rmra-landing";
-import RmraStandaloneSessionPage from "@/pages/rmra-session";
+const Login = React.lazy(() => import("@/pages/login"));
+const Dashboard = React.lazy(() => import("@/pages/dashboard"));
+const CasesList = React.lazy(() => import("@/pages/cases/index"));
+const NewCase = React.lazy(() => import("@/pages/cases/new"));
+const CaseDetail = React.lazy(() => import("@/pages/cases/[id]/index"));
+const ScoringView = React.lazy(() => import("@/pages/cases/[id]/scoring"));
+const ReportEditor = React.lazy(() => import("@/pages/cases/[id]/report"));
+const GuidedSelfReport = React.lazy(() => import("@/pages/cases/[id]/self-report"));
+const CdpProfilePage = React.lazy(() => import("@/pages/cases/[id]/cdp"));
+const ResponseViewer = React.lazy(() => import("@/pages/cases/[id]/response/[assignmentId]"));
+const ExternalFormView = React.lazy(() => import("@/pages/external/[token]"));
+const JoinMeetingPage = React.lazy(() => import("@/pages/join/[room]"));
+const QuickMeetPage = React.lazy(() => import("@/pages/meet/[room]"));
+const Portal = React.lazy(() => import("@/pages/portal"));
+const MyPortalLogin = React.lazy(() => import("@/pages/my-portal"));
+const LandingPage = React.lazy(() => import("@/pages/landing"));
+const AssessmentTools = React.lazy(() => import("@/pages/tools"));
+const FormPreviewPage = React.lazy(() => import("@/pages/tools/[id]/preview"));
+const TeamPage = React.lazy(() => import("@/pages/team"));
+const InquiriesPage = React.lazy(() => import("@/pages/inquiries"));
+const PartnerSchoolsPage = React.lazy(() => import("@/pages/partner-schools"));
+const PartnerInquiryPage = React.lazy(() => import("@/pages/partner-inquiry"));
+const AssessmentServicesPage = React.lazy(() => import("@/pages/assessment-services"));
+const NotFound = React.lazy(() => import("@/pages/not-found"));
+const RppiAdminPage = React.lazy(() => import("@/pages/cases/[id]/rppi"));
+const RdaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rda"));
+const RrfaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrfa"));
+const RrcaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrca"));
+const RmraAdminPage = React.lazy(() => import("@/pages/cases/[id]/rmra"));
+const LiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/literacy-dashboard"));
+const RemyndDashboardPage = React.lazy(() => import("@/pages/cases/[id]/remynd-dashboard"));
+const DashboardsHub = React.lazy(() => import("@/pages/cases/[id]/dashboards"));
+const ProductDashboard = React.lazy(() => import("@/pages/cases/[id]/product-dashboard"));
+const RdaStudentView = React.lazy(() => import("@/pages/student-view/rda"));
+const RrcaStudentView = React.lazy(() => import("@/pages/student-view/rrca"));
+const RrfaStudentView = React.lazy(() => import("@/pages/student-view/rrfa"));
+const RmraStudentView = React.lazy(() => import("@/pages/student-view/rmra"));
+const RmraLandingPage = React.lazy(() => import("@/pages/rmra-landing"));
+const RmraStandaloneSessionPage = React.lazy(() => import("@/pages/rmra-session"));
 
 const queryClient = new QueryClient();
 
-// Protected Route Wrapper
+const PageFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-950">
+    <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+  </div>
+);
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useGetCurrentUser({
@@ -123,92 +127,93 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/portal" component={Portal} />
-      <Route path="/my-portal" component={MyPortalLogin} />
-      <Route path="/external/:token" component={ExternalFormView} />
-      <Route path="/student-view/rda" component={RdaStudentView} />
-      <Route path="/student-view/rrca/:token" component={RrcaStudentView} />
-      <Route path="/student-view/rrfa/:token" component={RrfaStudentView} />
-      <Route path="/student-view/rmra/:token" component={RmraStudentView} />
-      {/* Spec-aligned alias: /rmra/student/:sessionToken → same view */}
-      <Route path="/rmra/student/:token" component={RmraStudentView} />
-      <Route path="/rmra" component={RmraLandingPage} />
-      <Route path="/rmra/session/:sessionId" component={RmraStandaloneSessionPage} />
-      <Route path="/join/:room" component={JoinMeetingPage} />
-      <Route path="/meet/:room" component={QuickMeetPage} />
-      <Route path="/" component={LandingPage} />
-      <Route path="/dashboard">
-        {() => <ProtectedRoute component={Dashboard} />}
-      </Route>
-      <Route path="/cases">
-        {() => <ProtectedRoute component={CasesList} />}
-      </Route>
-      <Route path="/cases/new">
-        {() => <ProtectedRoute component={NewCase} />}
-      </Route>
-      <Route path="/cases/:id/cdp">
-        {() => <ProtectedRoute component={CdpProfilePage} />}
-      </Route>
-      <Route path="/cases/:id/scoring">
-        {() => <ProtectedRoute component={ScoringView} />}
-      </Route>
-      <Route path="/cases/:id">
-        {() => <ProtectedRoute component={CaseDetail} />}
-      </Route>
-      <Route path="/cases/:id/report">
-        {() => <ProtectedRoute component={ReportEditor} />}
-      </Route>
-      <Route path="/cases/:id/self-report">
-        {() => <ProtectedRoute component={GuidedSelfReport} />}
-      </Route>
-      <Route path="/cases/:id/response/:assignmentId">
-        {() => <ProtectedRoute component={ResponseViewer} />}
-      </Route>
-      <Route path="/cases/:id/rppi/:assignmentId">
-        {() => <ProtectedRoute component={RppiAdminPage} />}
-      </Route>
-      <Route path="/cases/:id/rda/:assignmentId">
-        {() => <ProtectedRoute component={RdaAdminPage} />}
-      </Route>
-      <Route path="/cases/:id/rrfa/:assignmentId">
-        {() => <ProtectedRoute component={RrfaAdminPage} />}
-      </Route>
-      <Route path="/cases/:id/rrca/:assignmentId">
-        {() => <ProtectedRoute component={RrcaAdminPage} />}
-      </Route>
-      <Route path="/cases/:id/rmra/:assignmentId">
-        {() => <ProtectedRoute component={RmraAdminPage} />}
-      </Route>
-      <Route path="/cases/:id/dashboards">
-        {() => <ProtectedRoute component={DashboardsHub} />}
-      </Route>
-      <Route path="/cases/:id/product-dashboard">
-        {() => <ProtectedRoute component={ProductDashboard} />}
-      </Route>
-      <Route path="/cases/:id/literacy-dashboard">
-        {() => <ProtectedRoute component={LiteracyDashboardPage} />}
-      </Route>
-      <Route path="/cases/:id/remynd-dashboard">
-        {() => <ProtectedRoute component={RemyndDashboardPage} />}
-      </Route>
-      <Route path="/tools">
-        {() => <ProtectedRoute component={AssessmentTools} />}
-      </Route>
-      <Route path="/tools/:id/preview" component={FormPreviewPage} />
-      <Route path="/team">
-        {() => <ProtectedRoute component={TeamPage} />}
-      </Route>
-      <Route path="/inquiries">
-        {() => <ProtectedRoute component={InquiriesPage} />}
-      </Route>
-      <Route path="/partner-schools" component={PartnerSchoolsPage} />
-      <Route path="/partner-inquiry" component={PartnerInquiryPage} />
-      <Route path="/assessment-services" component={AssessmentServicesPage} />
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/login" component={Login} />
+        <Route path="/portal" component={Portal} />
+        <Route path="/my-portal" component={MyPortalLogin} />
+        <Route path="/external/:token" component={ExternalFormView} />
+        <Route path="/student-view/rda" component={RdaStudentView} />
+        <Route path="/student-view/rrca/:token" component={RrcaStudentView} />
+        <Route path="/student-view/rrfa/:token" component={RrfaStudentView} />
+        <Route path="/student-view/rmra/:token" component={RmraStudentView} />
+        <Route path="/rmra/student/:token" component={RmraStudentView} />
+        <Route path="/rmra" component={RmraLandingPage} />
+        <Route path="/rmra/session/:sessionId" component={RmraStandaloneSessionPage} />
+        <Route path="/join/:room" component={JoinMeetingPage} />
+        <Route path="/meet/:room" component={QuickMeetPage} />
+        <Route path="/" component={LandingPage} />
+        <Route path="/dashboard">
+          {() => <ProtectedRoute component={Dashboard} />}
+        </Route>
+        <Route path="/cases">
+          {() => <ProtectedRoute component={CasesList} />}
+        </Route>
+        <Route path="/cases/new">
+          {() => <ProtectedRoute component={NewCase} />}
+        </Route>
+        <Route path="/cases/:id/cdp">
+          {() => <ProtectedRoute component={CdpProfilePage} />}
+        </Route>
+        <Route path="/cases/:id/scoring">
+          {() => <ProtectedRoute component={ScoringView} />}
+        </Route>
+        <Route path="/cases/:id">
+          {() => <ProtectedRoute component={CaseDetail} />}
+        </Route>
+        <Route path="/cases/:id/report">
+          {() => <ProtectedRoute component={ReportEditor} />}
+        </Route>
+        <Route path="/cases/:id/self-report">
+          {() => <ProtectedRoute component={GuidedSelfReport} />}
+        </Route>
+        <Route path="/cases/:id/response/:assignmentId">
+          {() => <ProtectedRoute component={ResponseViewer} />}
+        </Route>
+        <Route path="/cases/:id/rppi/:assignmentId">
+          {() => <ProtectedRoute component={RppiAdminPage} />}
+        </Route>
+        <Route path="/cases/:id/rda/:assignmentId">
+          {() => <ProtectedRoute component={RdaAdminPage} />}
+        </Route>
+        <Route path="/cases/:id/rrfa/:assignmentId">
+          {() => <ProtectedRoute component={RrfaAdminPage} />}
+        </Route>
+        <Route path="/cases/:id/rrca/:assignmentId">
+          {() => <ProtectedRoute component={RrcaAdminPage} />}
+        </Route>
+        <Route path="/cases/:id/rmra/:assignmentId">
+          {() => <ProtectedRoute component={RmraAdminPage} />}
+        </Route>
+        <Route path="/cases/:id/dashboards">
+          {() => <ProtectedRoute component={DashboardsHub} />}
+        </Route>
+        <Route path="/cases/:id/product-dashboard">
+          {() => <ProtectedRoute component={ProductDashboard} />}
+        </Route>
+        <Route path="/cases/:id/literacy-dashboard">
+          {() => <ProtectedRoute component={LiteracyDashboardPage} />}
+        </Route>
+        <Route path="/cases/:id/remynd-dashboard">
+          {() => <ProtectedRoute component={RemyndDashboardPage} />}
+        </Route>
+        <Route path="/tools">
+          {() => <ProtectedRoute component={AssessmentTools} />}
+        </Route>
+        <Route path="/tools/:id/preview" component={FormPreviewPage} />
+        <Route path="/team">
+          {() => <ProtectedRoute component={TeamPage} />}
+        </Route>
+        <Route path="/inquiries">
+          {() => <ProtectedRoute component={InquiriesPage} />}
+        </Route>
+        <Route path="/partner-schools" component={PartnerSchoolsPage} />
+        <Route path="/partner-inquiry" component={PartnerInquiryPage} />
+        <Route path="/assessment-services" component={AssessmentServicesPage} />
 
-      <Route component={NotFound} />
-    </Switch>
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
