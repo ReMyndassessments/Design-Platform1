@@ -144,12 +144,37 @@ const CARD_INNER = "rounded-xl border border-slate-200 p-4 bg-white";
 // ── Visual: Dot Array ─────────────────────────────────────────────────────────
 // Structured groups for subitizing; scattered for estimation
 
+const ESTIMATION_FLASH_MS = 3000;
+
 function DotArrayVisual({ taskId, dotCount, taskType, accent }: {
   taskId: string; dotCount: number; taskType: string; accent: string;
 }) {
   const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
   const isComparison = taskType === "quantity_comparison";
+  const isEstimation = taskType === "estimation";
+
+  // Flash timer: show dots for ESTIMATION_FLASH_MS then hide them
+  const [msLeft, setMsLeft] = useState(isEstimation ? ESTIMATION_FLASH_MS : 0);
+  const [dotsHidden, setDotsHidden] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!isEstimation) return;
+    setMsLeft(ESTIMATION_FLASH_MS);
+    setDotsHidden(false);
+    const TICK = 100;
+    let remaining = ESTIMATION_FLASH_MS;
+    intervalRef.current = setInterval(() => {
+      remaining -= TICK;
+      setMsLeft(Math.max(0, remaining));
+      if (remaining <= 0) {
+        clearInterval(intervalRef.current!);
+        setDotsHidden(true);
+      }
+    }, TICK);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [taskId, isEstimation]);
 
   if (isComparison) {
     // Side-by-side two groups
@@ -184,17 +209,56 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent }: {
   const cellSize = Math.min(36, Math.floor(220 / cols));
   const W = cols * cellSize + 20; const H = rows * cellSize + 20;
 
+  // Countdown ring dimensions
+  const R = 22; const CIRC = 2 * Math.PI * R;
+  const progress = msLeft / ESTIMATION_FLASH_MS;
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>{taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
-        {Array.from({ length: count }, (_, i) => {
-          const col = i % cols; const row = Math.floor(i / cols);
-          const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-          const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-          return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
-        })}
-      </svg>
+      <p className={TASK_LABEL}>
+        {taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}
+      </p>
+
+      {isEstimation && !dotsHidden && (
+        <div className="flex justify-center mb-2">
+          <svg width={56} height={56} viewBox="0 0 56 56">
+            <circle cx={28} cy={28} r={R} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+            <circle
+              cx={28} cy={28} r={R}
+              fill="none"
+              stroke={accent}
+              strokeWidth={4}
+              strokeDasharray={CIRC}
+              strokeDashoffset={CIRC * (1 - progress)}
+              strokeLinecap="round"
+              transform="rotate(-90 28 28)"
+              style={{ transition: "stroke-dashoffset 0.1s linear" }}
+            />
+            <text x={28} y={33} textAnchor="middle" fontSize={16} fontWeight="700" fill={accent}>
+              {Math.ceil(msLeft / 1000)}
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {dotsHidden ? (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <div className="text-5xl">🤔</div>
+          <p className="text-center font-semibold text-slate-700 text-lg">
+            What's your estimate?
+          </p>
+          <p className="text-center text-slate-500 text-sm">Speak your answer aloud</p>
+        </div>
+      ) : (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
+          {Array.from({ length: count }, (_, i) => {
+            const col = i % cols; const row = Math.floor(i / cols);
+            const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+            const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+            return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+          })}
+        </svg>
+      )}
     </div>
   );
 }
