@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";

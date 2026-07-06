@@ -1264,6 +1264,7 @@ router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request
     const domainScores: Record<string, {
       accuracy: number; reasoning: number; strategyLevel: number;
       hintDependency: number; productiveStruggle: number; confidence: number;
+      calibrationDelta: number;
       tasksAdministered: number; tasksDiscontinued: number;
       level: "strength" | "developing" | "vulnerable" | "high_concern";
     }> = {};
@@ -1294,10 +1295,14 @@ router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request
       const level: "strength" | "developing" | "vulnerable" | "high_concern" =
         composite >= 75 ? "strength" : composite >= 50 ? "developing" : composite >= 25 ? "vulnerable" : "high_concern";
 
+      // calibrationDelta: positive = overconfident (confidence > accuracy), negative = underconfident
+      const calibrationDelta = Math.round(confidence - accuracy);
+
       domainScores[domain] = {
         accuracy: Math.round(accuracy), reasoning: Math.round(reasoning),
         strategyLevel: Math.round(strategyLevel), hintDependency: Math.round(hintDependency),
         productiveStruggle: Math.round(productiveStruggle), confidence: Math.round(confidence),
+        calibrationDelta,
         tasksAdministered: domainResponses.length, tasksDiscontinued: discontinued, level,
       };
     }

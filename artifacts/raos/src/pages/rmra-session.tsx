@@ -126,7 +126,9 @@ export default function RmraStandaloneSessionPage() {
     if (!sessionId) return;
     (async () => {
       try {
-        const r = await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`);
+        const r = await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`, {
+          headers: { "X-Examiner-Token": examinerToken },
+        });
         if (!r.ok) {
           const err = await r.json().catch(() => ({ error: "Session not found" }));
           setError(err.error ?? "Session not found");
@@ -171,7 +173,8 @@ export default function RmraStandaloneSessionPage() {
         const ageBand = (session as any).ageBand ?? "upper_primary";
         const version = (session as any).version ?? "full";
         const r = await fetch(
-          `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/items?ageBand=${ageBand}&version=${version}`
+          `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/items?ageBand=${ageBand}&version=${version}`,
+          { headers: { "X-Examiner-Token": examinerToken } }
         );
         if (r.ok) {
           const data = await r.json();
