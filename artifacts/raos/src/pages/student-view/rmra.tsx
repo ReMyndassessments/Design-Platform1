@@ -154,44 +154,44 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: 
   const isComparison = taskType === "quantity_comparison";
   const isEstimation = taskType === "estimation";
 
-  // Server-driven flash timer: starts when examiner broadcasts timerStartedAt
-  const calcRemaining = () =>
-    timerStartedAt
-      ? Math.max(0, ESTIMATION_FLASH_MS - (Date.now() - new Date(timerStartedAt).getTime()))
-      : ESTIMATION_FLASH_MS;
+  // Client-side flash timer: countdown starts from the moment the student's
+  // browser first receives a non-null timerStartedAt, not from the server timestamp.
+  // This guarantees a full ESTIMATION_FLASH_MS window regardless of poll delay.
+  const receivedAtRef = useRef<number | null>(null);
 
-  const [msLeft, setMsLeft] = useState(calcRemaining);
-  const [dotsHidden, setDotsHidden] = useState(() =>
-    isEstimation && timerStartedAt
-      ? Date.now() - new Date(timerStartedAt).getTime() >= ESTIMATION_FLASH_MS
-      : false
-  );
+  const calcRemaining = () => {
+    if (!timerStartedAt || receivedAtRef.current === null) return ESTIMATION_FLASH_MS;
+    return Math.max(0, ESTIMATION_FLASH_MS - (Date.now() - receivedAtRef.current));
+  };
+
+  const [msLeft, setMsLeft] = useState(ESTIMATION_FLASH_MS);
+  const [dotsHidden, setDotsHidden] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!isEstimation) return;
     if (!timerStartedAt) {
-      // Examiner hasn't started the timer yet — stay in waiting state
+      // Timer reset — clear received time, go back to waiting state
+      receivedAtRef.current = null;
       setMsLeft(ESTIMATION_FLASH_MS);
       setDotsHidden(false);
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       return;
+    }
+    // First time we receive this timer signal — record local time as countdown start
+    if (receivedAtRef.current === null) {
+      receivedAtRef.current = Date.now();
     }
     const remaining = calcRemaining();
-    if (remaining <= 0) {
-      setMsLeft(0);
-      setDotsHidden(true);
-      return;
-    }
+    if (remaining <= 0) { setMsLeft(0); setDotsHidden(true); return; }
     setMsLeft(remaining);
     setDotsHidden(false);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     const TICK = 100;
     intervalRef.current = setInterval(() => {
       const left = calcRemaining();
       setMsLeft(left);
-      if (left <= 0) {
-        clearInterval(intervalRef.current!);
-        setDotsHidden(true);
-      }
+      if (left <= 0) { clearInterval(intervalRef.current!); setDotsHidden(true); }
     }, TICK);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [taskId, isEstimation, timerStartedAt]);
@@ -1485,11 +1485,17 @@ export default function RmraStudentView() {
     finally { setLoading(false); }
   }, [token]);
 
+  // Poll faster (1s) when on an estimation task waiting for the trigger, so the
+  // student receives the signal within ~1s and always gets a near-full 3s flash.
+  const isEstimationWaiting =
+    state?.currentTask?.taskType === "estimation" && !state?.timerStartedAt;
+  const activePollMs = isEstimationWaiting ? 1000 : POLL_MS;
+
   useEffect(() => {
     fetchState();
-    const interval = setInterval(fetchState, POLL_MS);
+    const interval = setInterval(fetchState, activePollMs);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, activePollMs]);
 
   // Reset confidence rating when task changes
   useEffect(() => {
