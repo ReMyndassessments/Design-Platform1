@@ -133,7 +133,10 @@ export default function RmraStandaloneSessionPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const studentUrl = `${window.location.origin}${BASE_URL}/student-view/rmra/${sessionId}`;
+  const replDevDomain = (import.meta.env as any).VITE_REPLIT_DEV_DOMAIN as string | undefined;
+  const studentUrl = replDevDomain
+    ? `https://${replDevDomain}${BASE_URL}/student-view/rmra/${sessionId}`
+    : `${window.location.origin}${BASE_URL}/student-view/rmra/${sessionId}`;
 
   useEffect(() => {
     if (!sessionId) return;
