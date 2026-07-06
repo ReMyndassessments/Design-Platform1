@@ -261,52 +261,84 @@ function NumberLineVisual({ scaleMin, scaleMax, accent }: {
 
 // ── Visual: Base Ten Blocks ───────────────────────────────────────────────────
 
+type BlockKey = "th" | "h" | "t" | "o";
+const BLOCK_DEFS: { key: BlockKey; label: string; name: string; color: string; w: number; h: number }[] = [
+  { key: "th", label: "1000", name: "Th.", color: "#6366f1", w: 30, h: 30 },
+  { key: "h",  label: "100",  name: "H.",  color: "#0ea5e9", w: 24, h: 24 },
+  { key: "t",  label: "10",   name: "T.",  color: "#10b981", w: 10, h: 40 },
+  { key: "o",  label: "1",    name: "O.",  color: "#f59e0b", w: 14, h: 14 },
+];
+
 function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
   thousands: number; hundreds: number; tens: number; ones: number; accent: string;
 }) {
-  const DEFS = [
-    { key: "thousands", label: "Th", value: 1000, color: "#6366f1", w: 32, h: 32 },
-    { key: "hundreds", label: "H", value: 100, color: "#0ea5e9", w: 26, h: 26 },
-    { key: "tens", label: "T", value: 10, color: "#10b981", w: 12, h: 44 },
-    { key: "ones", label: "O", value: 1, color: accent, w: 16, h: 16 },
-  ];
-  // Shown blocks (from visualParams) — student can tap to select/highlight
-  const shown = { thousands, hundreds, tens, ones } as Record<string, number>;
-  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+  // Workspace: student builds their answer by dragging blocks from the palette
+  const [ws, setWs] = useState<Record<BlockKey, number>>({ th: 0, h: 0, t: 0, o: 0 });
+  const dragKey = useRef<BlockKey | null>(null);
+  const [dropping, setDropping] = useState(false);
 
-  const toggle = (key: string) => setHighlighted(prev => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
+  // Palette block counts from the stimulus
+  const palette: Record<BlockKey, number> = {
+    th: Math.min(thousands, 5), h: Math.min(hundreds, 5),
+    t: Math.min(tens, 9), o: Math.min(ones, 9),
+  };
 
-  const groups = DEFS.filter(d => (shown[d.key] ?? 0) > 0);
+  const addToWorkspace = (key: BlockKey) => setWs(w => ({ ...w, [key]: Math.min((w[key] ?? 0) + 1, 9) }));
+  const removeFromWorkspace = (key: BlockKey) => setWs(w => ({ ...w, [key]: Math.max((w[key] ?? 0) - 1, 0) }));
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropping(false);
+    if (dragKey.current) { addToWorkspace(dragKey.current); dragKey.current = null; }
+  };
+
+  const Block = ({ color, w, h }: { color: string; w: number; h: number }) => (
+    <div style={{ width: w, height: h, backgroundColor: color + "40", border: `2.5px solid ${color}`, borderRadius: 3, flexShrink: 0 }} />
+  );
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Count the blocks — tap a group to highlight it</p>
-      {groups.length === 0 ? (
-        <p className="text-slate-400 text-sm text-center py-4">No blocks to display</p>
-      ) : (
-        <div className="flex items-end justify-center gap-6 py-2">
-          {groups.map(({ key, label, color, w, h }) => {
-            const count = Math.min(shown[key] ?? 0, 9);
-            const isHl = highlighted.has(key);
-            return (
-              <button key={key} onClick={() => toggle(key)}
-                className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all ${isHl ? "border-current bg-slate-100 scale-105" : "border-transparent hover:border-slate-200"}`}
-                style={{ borderColor: isHl ? color : undefined }}>
-                <div className={`flex flex-col items-center gap-1 ${key === "ones" ? "flex-row flex-wrap justify-center max-w-[72px]" : ""}`}>
-                  {Array.from({ length: count }).map((_, i) => (
-                    <div key={i} style={{ width: w, height: h, backgroundColor: color + (isHl ? "60" : "28"), border: `2px solid ${color}`, borderRadius: 4, transition: "background-color 0.15s" }} />
-                  ))}
-                </div>
-                <span className="text-[10px] font-bold" style={{ color }}>{count} {label}</span>
-              </button>
-            );
-          })}
+      <p className={TASK_LABEL}>Drag blocks into the workspace — build the number</p>
+
+      {/* Palette (stimulus) */}
+      <div className="flex items-end justify-center gap-3 pb-2 border-b border-slate-100 mb-2">
+        {BLOCK_DEFS.filter(d => palette[d.key] > 0).map(({ key, label, color, w, h }) => (
+          <div key={key} className="flex flex-col items-center gap-1">
+            <div className="flex flex-col gap-0.5 items-center cursor-grab active:cursor-grabbing"
+              draggable
+              onDragStart={() => { dragKey.current = key; }}
+              onClick={() => addToWorkspace(key)}
+            >
+              {Array.from({ length: palette[key] }, (_, i) => (
+                <Block key={i} color={color} w={w} h={h} />
+              ))}
+            </div>
+            <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Drop Zone / Workspace */}
+      <div
+        className={`min-h-[64px] rounded-xl border-2 border-dashed p-2 transition-colors ${dropping ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-slate-50"}`}
+        onDragOver={e => { e.preventDefault(); setDropping(true); }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={handleDrop}
+      >
+        <p className="text-[10px] text-slate-400 text-center mb-1">
+          {Object.values(ws).every(v => v === 0) ? "Drag or tap blocks above ↑ to add here" : "Workspace"}
+        </p>
+        <div className="flex items-end gap-3 flex-wrap justify-center">
+          {BLOCK_DEFS.filter(d => ws[d.key] > 0).map(({ key, label, color, w, h }) => (
+            <button key={key} onClick={() => removeFromWorkspace(key)}
+              className="flex flex-col items-center gap-0.5 hover:opacity-70 transition-opacity"
+              title={`Remove ${label}`}>
+              {Array.from({ length: ws[key] }, (_, i) => <Block key={i} color={color} w={w} h={h} />)}
+              <span className="text-[9px] font-bold" style={{ color }}>{ws[key]}×{label}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -317,29 +349,50 @@ function FractionBarVisual({ numerator, denominator, accent }: {
   numerator: number; denominator: number; accent: string;
 }) {
   const den = Math.max(denominator, 2);
-  const [selected, setSelected] = useState(0);
-  const W = 280; const H = 52; const cellW = W / den;
+  const [selected, setSelected] = useState(0); // number of shaded cells (0 = student hasn't answered)
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragging = useRef(false);
+  const W = 280; const H = 52; const PAD = 10;
+  const barW = W - PAD * 2;
+  const cellW = barW / den;
 
-  const handleCell = (i: number) => {
-    // Tapping rightmost selected cell deselects it; otherwise extend selection
-    setSelected(prev => (i + 1 === prev ? i : i + 1));
+  const posToCount = (clientX: number) => {
+    if (!svgRef.current) return selected;
+    const rect = svgRef.current.getBoundingClientRect();
+    const relX = (clientX - rect.left) / rect.width * W - PAD;
+    return Math.max(0, Math.min(den, Math.round(relX / cellW)));
   };
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap the parts — how many are shaded?</p>
-      <svg viewBox={`0 0 ${W + 20} ${H + 10}`} className="w-full max-w-xs mx-auto touch-none select-none">
+      <p className={TASK_LABEL}>Drag to shade — how many parts?</p>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 24}`}
+        className="w-full max-w-xs mx-auto touch-none select-none"
+        style={{ cursor: "col-resize" }}
+        onMouseDown={e => { dragging.current = true; setSelected(posToCount(e.clientX)); }}
+        onMouseMove={e => { if (dragging.current) setSelected(posToCount(e.clientX)); }}
+        onMouseUp={() => { dragging.current = false; }}
+        onMouseLeave={() => { dragging.current = false; }}
+        onTouchStart={e => { dragging.current = true; setSelected(posToCount(e.touches[0].clientX)); e.preventDefault(); }}
+        onTouchMove={e => { if (dragging.current) setSelected(posToCount(e.touches[0].clientX)); e.preventDefault(); }}
+        onTouchEnd={() => { dragging.current = false; }}
+      >
+        {/* Cell backgrounds */}
         {Array.from({ length: den }, (_, i) => (
-          <g key={i} style={{ cursor: "pointer" }} onClick={() => handleCell(i)}>
-            <rect x={i * cellW + 10} y={4} width={cellW - 1} height={H}
-              fill={i < selected ? accent + "c0" : "#f1f5f9"}
-              stroke={i < selected ? accent : "#94a3b8"} strokeWidth={i < selected ? 2 : 1.5} />
-          </g>
+          <rect key={i} x={PAD + i * cellW} y={4} width={cellW - 1} height={H}
+            fill={i < selected ? accent + "c0" : "#f1f5f9"}
+            stroke={i < selected ? accent : "#94a3b8"} strokeWidth={i < selected ? 2 : 1.5} />
         ))}
+        {/* Drag handle at boundary */}
+        {selected > 0 && selected < den && (
+          <rect x={PAD + selected * cellW - 4} y={2} width={8} height={H + 4} rx={3}
+            fill={accent} opacity={0.9} style={{ cursor: "col-resize" }} />
+        )}
+        {/* Instruction hint */}
+        <text x={W / 2} y={H + 20} textAnchor="middle" fontSize={11} fill="#94a3b8">
+          {selected === 0 ? "Drag across the bar ↑" : `${selected} of ${den} parts shaded`}
+        </text>
       </svg>
-      <p className="text-center text-xs text-slate-500 mt-1">
-        {selected === 0 ? "Tap a section to shade it" : `${selected} of ${den} parts shaded`}
-      </p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { rmraSessionsTable, rmraTaskResponsesTable, assignmentsTable, scoresTable, casesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -446,7 +446,8 @@ router.get("/rmra/items", authMiddleware, async (req, res) => {
 });
 
 // ── Public: student polling endpoint ─────────────────────────────────────────
-router.get("/public/rmra/student/:sessionToken", async (req, res) => {
+
+async function handleStudentPoll(req: Request, res: Response) {
   try {
     const { sessionToken } = req.params;
 
@@ -473,7 +474,6 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
       ? RMRA_ITEMS.find(i => i.id === session.currentTaskId)
       : null;
 
-    // Fetch hint level from current task response
     let hintLevel = 0;
     if (session.currentTaskId) {
       const [taskResp] = await db
@@ -505,10 +505,86 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
       } : null,
     });
   } catch (err) {
-    logger.error({ err }, "GET /public/rmra/student/:token failed");
+    logger.error({ err }, "GET student poll failed");
     return res.status(500).json({ error: "Failed to load student view" });
   }
-});
+}
+
+async function handleStudentConfidence(req: Request, res: Response) {
+  try {
+    const { sessionToken } = req.params;
+    const { rating, taskId } = req.body as { rating: unknown; taskId: unknown };
+
+    // Input validation
+    if (typeof rating !== "number" || rating < 0 || rating > 3 || !Number.isInteger(rating)) {
+      return res.status(400).json({ error: "rating must be an integer 0–3" });
+    }
+    if (typeof taskId !== "string" || !taskId.trim()) {
+      return res.status(400).json({ error: "taskId is required" });
+    }
+
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
+      .limit(1);
+
+    if (!assignment) return res.status(404).json({ error: "Session not found" });
+
+    const [session] = await db
+      .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
+      .from(rmraSessionsTable)
+      .where(and(
+        eq(rmraSessionsTable.assignmentId, assignment.id),
+        eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+      ))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const [existing] = await db
+      .select({ id: rmraTaskResponsesTable.id })
+      .from(rmraTaskResponsesTable)
+      .where(and(
+        eq(rmraTaskResponsesTable.sessionId, session.id),
+        eq(rmraTaskResponsesTable.taskId, taskId),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db.update(rmraTaskResponsesTable)
+        .set({ confidenceRating: rating, updatedAt: new Date() })
+        .where(eq(rmraTaskResponsesTable.id, existing.id));
+    } else {
+      const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
+      const domain = itemMeta?.domain ?? "Unknown";
+      const ageBand = session.ageBand ?? "upper_primary";
+      await db.insert(rmraTaskResponsesTable).values({
+        id: nanoid(),
+        sessionId: session.id,
+        taskId,
+        domain,
+        ageBand,
+        confidenceRating: rating,
+        hintLevel: 0,
+        attempts: 1,
+        selfCorrection: false,
+        discontinued: false,
+      }).onConflictDoNothing();
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST student confidence failed");
+    return res.status(500).json({ error: "Failed to save confidence" });
+  }
+}
+
+// Register at both spec path (/rmra/student/...) and original public path
+router.get("/rmra/student/:sessionToken", handleStudentPoll);
+router.get("/public/rmra/student/:sessionToken", handleStudentPoll);
+router.post("/rmra/student/:sessionToken/confidence", handleStudentConfidence);
+router.post("/public/rmra/student/:sessionToken/confidence", handleStudentConfidence);
 
 // ── Public: student submits confidence rating ─────────────────────────────────
 router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) => {
