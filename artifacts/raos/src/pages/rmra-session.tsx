@@ -191,7 +191,16 @@ export default function RmraStandaloneSessionPage() {
         );
         if (r.ok) {
           const data = await r.json();
-          setItems(data.items ?? []);
+          const loadedItems = data.items ?? [];
+          setItems(loadedItems);
+          // Broadcast the first task immediately so the student view doesn't stay stuck
+          if (loadedItems.length > 0 && !(session as any).currentTaskId) {
+            await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken },
+              body: JSON.stringify({ currentTaskId: loadedItems[0].id }),
+            });
+          }
         }
       } catch { /* ignore */ }
     })();

@@ -332,11 +332,11 @@ export default function RmraAdminPage() {
     };
   }, []);
 
-  const loadItems = async (ageBand: string, version: string, currentTaskId: string | null, existingResponses: any[]) => {
+  const loadItems = async (ageBand: string, version: string, currentTaskId: string | null, existingResponses: any[]): Promise<RmraItem[]> => {
     const r = await fetch(`${BASE_URL}/api/rmra/items?ageBand=${ageBand}&version=${version}`, {
       headers: authHeader(),
     });
-    if (!r.ok) return;
+    if (!r.ok) return [];
     const data = await r.json();
     const loadedItems: RmraItem[] = data.items ?? [];
     setItems(loadedItems);
@@ -350,6 +350,7 @@ export default function RmraAdminPage() {
       const firstUnanswered = loadedItems.findIndex(i => !answered.has(i.id));
       if (firstUnanswered >= 0) setCurrentTaskIdx(firstUnanswered);
     }
+    return loadedItems;
   };
 
   // ── Derived state ────────────────────────────────────────────────────────────
@@ -460,7 +461,16 @@ export default function RmraAdminPage() {
       if (!r.ok) throw new Error();
       const data = await r.json();
       setSession(data.session);
-      await loadItems(setupAgeBand, setupVersion, null, []);
+      const loadedItems = await loadItems(setupAgeBand, setupVersion, null, []);
+      // Immediately broadcast first task so the student view stops waiting
+      const firstTask = loadedItems[0];
+      if (firstTask) {
+        await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify({ currentTaskId: firstTask.id }),
+        });
+      }
     } catch {
       toast({ title: "Could not start session", variant: "destructive" });
     } finally {
@@ -495,6 +505,14 @@ export default function RmraAdminPage() {
     if (currentTask && sessionId) {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       await saveTask(currentTask.id, currentResponse, sessionId, currentTask.domain, currentTask.ageBand);
+    }
+    const prevTask = items[currentTaskIdx - 1];
+    if (prevTask && sessionId) {
+      await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ currentTaskId: prevTask.id }),
+      });
     }
     setCurrentTaskIdx(currentTaskIdx - 1);
     setTimerElapsed(0);
