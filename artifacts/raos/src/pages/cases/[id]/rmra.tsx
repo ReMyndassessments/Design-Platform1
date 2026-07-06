@@ -650,9 +650,8 @@ export default function RmraAdminPage() {
                   className="gap-1.5 hidden sm:flex"
                   title="Copy student view link"
                   onClick={() => {
-                    const _d = (import.meta.env as any).VITE_REPLIT_DEV_DOMAIN as string | undefined;
-                    const _url = _d
-                      ? `https://${_d}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`
+                    const _url = __REPLIT_DEV_DOMAIN__
+                      ? `https://${__REPLIT_DEV_DOMAIN__}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`
                       : `${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`;
                     navigator.clipboard.writeText(_url);
                     toast({ title: "Link copied!", description: "Paste it into the student's browser." });
@@ -772,9 +771,8 @@ export default function RmraAdminPage() {
 
           {/* Student View Link */}
           {assignmentToken && (() => {
-            const _d = (import.meta.env as any).VITE_REPLIT_DEV_DOMAIN as string | undefined;
-            const svUrl = _d
-              ? `https://${_d}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`
+            const svUrl = __REPLIT_DEV_DOMAIN__
+              ? `https://${__REPLIT_DEV_DOMAIN__}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`
               : `${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`;
             return (
               <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
