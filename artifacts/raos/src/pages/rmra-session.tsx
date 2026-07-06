@@ -110,19 +110,22 @@ export default function RmraStandaloneSessionPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  // Examiner token — read from ?et= URL param then immediately cleared from URL to prevent
-  // it appearing in browser history, referrer headers, or server logs.
+  // Examiner token — read from ?et= URL param, persisted to sessionStorage keyed by
+  // sessionId so it survives page refreshes. URL param is cleared immediately after
+  // reading to prevent it appearing in browser history, referrer headers, or server logs.
   const examinerToken = useMemo(() => {
+    const storageKey = `rmra_et_${sessionId}`;
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("et") ?? "";
-    if (token) {
+    const urlToken = params.get("et");
+    if (urlToken) {
+      sessionStorage.setItem(storageKey, urlToken);
       params.delete("et");
       const newSearch = params.toString();
-      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
-      window.history.replaceState(null, "", newUrl);
+      window.history.replaceState(null, "", window.location.pathname + (newSearch ? `?${newSearch}` : ""));
+      return urlToken;
     }
-    return token;
-  }, []);
+    return sessionStorage.getItem(storageKey) ?? "";
+  }, [sessionId]);
   const [emailInput, setEmailInput] = useState("");
   const [emailName, setEmailName] = useState("");
   const [emailSending, setEmailSending] = useState(false);

@@ -1046,7 +1046,7 @@ Generate a comprehensive clinical assessment report. Return ONLY valid JSON:
 
 Write in professional clinical language. Reference actual domain scores. Return only the JSON with no markdown.`;
 
-    const raw = await callDeepSeekRmra(prompt, 3000);
+    const raw = await callDeepSeek(prompt, 3000);
     let narrative: Record<string, unknown>;
     try {
       const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
