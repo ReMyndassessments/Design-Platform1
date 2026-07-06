@@ -2616,6 +2616,12 @@ async function addCoordinatorSupport() {
     logger.warn({ err }, "addCoordinatorSupport enum step skipped");
   }
   try {
+    await db.execute(sql`ALTER TYPE respondent_type ADD VALUE IF NOT EXISTS 'examiner'`);
+    logger.info("examiner respondent_type enum value ensured");
+  } catch (err) {
+    logger.warn({ err }, "addCoordinatorSupport enum step skipped");
+  }
+  try {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS school_name TEXT`);
     logger.info("school_name column ensured on users");
   } catch (err) {

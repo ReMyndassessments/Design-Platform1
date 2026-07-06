@@ -20,6 +20,7 @@ export const respondentTypeEnum = pgEnum("respondent_type", [
   "referring_teacher",
   "boarding_staff",
   "invigilator",
+  "examiner",
 ]);
 
 export const assignmentsTable = pgTable("assignments", {
