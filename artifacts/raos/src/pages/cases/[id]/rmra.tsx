@@ -334,6 +334,38 @@ export default function RmraAdminPage() {
     };
   }, []);
 
+  // Poll for student-submitted confidence ratings while session is active.
+  // Only updates confidenceRating — never overwrites examiner-entered scores.
+  useEffect(() => {
+    if (!sessionId || !caseId || session?.status === "completed") return;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+          headers: authHeader(),
+        });
+        if (!r.ok) return;
+        const data = await r.json();
+        const serverResponses: Array<{ taskId: string; confidenceRating: number | null }> = data.responses ?? [];
+        setResponses(prev => {
+          let changed = false;
+          const next = { ...prev };
+          for (const sr of serverResponses) {
+            if (sr.confidenceRating !== null && sr.confidenceRating !== undefined) {
+              const existing = prev[sr.taskId];
+              if (!existing || existing.confidenceRating !== sr.confidenceRating) {
+                next[sr.taskId] = { ...(existing ?? emptyResponse()), confidenceRating: sr.confidenceRating };
+                changed = true;
+              }
+            }
+          }
+          return changed ? next : prev;
+        });
+      } catch { }
+    };
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [sessionId, caseId, session?.status]);
+
   const loadItems = async (ageBand: string, version: string, currentTaskId: string | null, existingResponses: any[]): Promise<RmraItem[]> => {
     const r = await fetch(`${BASE_URL}/api/rmra/items?ageBand=${ageBand}&version=${version}`, {
       headers: authHeader(),
