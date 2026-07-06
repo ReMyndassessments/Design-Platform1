@@ -1131,7 +1131,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     category: "Learning & Academic",
     description: "The ReMynd Mathematical Reasoning Assessment (RMRA) is a structured examiner-administered tool assessing mathematical reasoning, problem solving, and metacognitive strategy use across 13 domains in students aged 5–16. Supports identification of dyscalculia risk, mathematical learning difficulties, and reasoning strengths. Administration time: 30–60 minutes (full) or 15–25 minutes (brief).",
     isRemyndOwned: true,
-    respondentTypes: ["invigilator"],
+    respondentTypes: ["examiner"],
     scoringType: "manual",
     domains: [
       "Number Sense", "Place Value", "Addition Reasoning", "Subtraction Reasoning",
