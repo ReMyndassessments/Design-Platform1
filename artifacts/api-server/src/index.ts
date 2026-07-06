@@ -2680,6 +2680,17 @@ async function addRmraReportColumn() {
   }
 }
 
+async function ensureRmraExaminerTokenColumn() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE rmra_sessions ADD COLUMN IF NOT EXISTS examiner_token TEXT
+    `);
+    logger.info("examiner_token column ensured on rmra_sessions");
+  } catch (err) {
+    logger.error({ err }, "ensureRmraExaminerTokenColumn failed");
+  }
+}
+
 async function ensureRmraTaskResponseUniqueIndex() {
   try {
     await db.execute(sql`
@@ -2813,6 +2824,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createRmraTables())
   .then(() => addRmraReportColumn())
   .then(() => createRmraAccessCodesTable())
+  .then(() => ensureRmraExaminerTokenColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => {
   app.listen(port, (err) => {

@@ -109,6 +109,12 @@ export default function RmraStandaloneSessionPage() {
   const [generalNotes, setGeneralNotes] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+
+  // Examiner token — read from ?et= URL param, stored in memory only (never in student URL)
+  const examinerToken = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("et") ?? "";
+  }, []);
   const [emailInput, setEmailInput] = useState("");
   const [emailName, setEmailName] = useState("");
   const [emailSending, setEmailSending] = useState(false);
@@ -207,13 +213,13 @@ export default function RmraStandaloneSessionPage() {
       };
       const r = await fetch(
         `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/tasks/${currentItem.id}/response`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        { method: "POST", headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken }, body: JSON.stringify(body) }
       );
       if (!r.ok) throw new Error("Save failed");
       setSavedResponses(prev => ({ ...prev, [currentItem.id]: { ...form } }));
       await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken },
         body: JSON.stringify({ currentTaskId: currentItem.id, status: "in_progress" }),
       });
       setSession(prev => prev ? { ...prev, status: "in_progress" } as RmraReportSession : prev);
@@ -235,7 +241,7 @@ export default function RmraStandaloneSessionPage() {
     try {
       await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken },
         body: JSON.stringify({ generalNotes }),
       });
       toast({ title: "Notes saved" });
@@ -252,7 +258,7 @@ export default function RmraStandaloneSessionPage() {
     try {
       const r = await fetch(
         `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/complete`,
-        { method: "POST", headers: { "Content-Type": "application/json" } }
+        { method: "POST", headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken } }
       );
       if (!r.ok) throw new Error("Completion failed");
       const data = await r.json();
@@ -267,7 +273,7 @@ export default function RmraStandaloneSessionPage() {
       try {
         const genR = await fetch(
           `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/generate-report`,
-          { method: "POST", headers: { "Content-Type": "application/json" } }
+          { method: "POST", headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken } }
         );
         if (genR.ok) {
           const genData = await genR.json();
@@ -296,7 +302,7 @@ export default function RmraStandaloneSessionPage() {
         `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/email-report`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken },
           body: JSON.stringify({ recipientEmail: emailInput, recipientName: emailName || undefined }),
         }
       );

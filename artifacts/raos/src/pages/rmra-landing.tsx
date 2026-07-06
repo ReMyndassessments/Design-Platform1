@@ -90,9 +90,9 @@ export default function RmraLandingPage() {
         return;
       }
 
-      const { sessionToken } = await createRes.json();
+      const { sessionToken, examinerToken } = await createRes.json();
       const studentUrl = `${window.location.origin}${BASE_URL}/student-view/rmra/${sessionToken}`;
-      const examinerUrl = `${window.location.origin}${BASE_URL}/rmra/session/${sessionToken}`;
+      const examinerUrl = `${window.location.origin}${BASE_URL}/rmra/session/${sessionToken}?et=${encodeURIComponent(examinerToken)}`;
       setSessionReady({ sessionId: sessionToken, studentUrl, examinerUrl, copied: false });
     } catch {
       toast({ title: "Network error", description: "Please check your connection and try again.", variant: "destructive" });
@@ -223,7 +223,7 @@ export default function RmraLandingPage() {
               <div className="flex gap-2 pt-1">
                 <Button
                   className="flex-1 bg-violet-600 hover:bg-violet-700 gap-1.5"
-                  onClick={() => navigate(`/rmra/session/${sessionReady.sessionId}`)}
+                  onClick={() => navigate(sessionReady.examinerUrl.replace(window.location.origin + BASE_URL, ""))}
                 >
                   <ExternalLink size={13} /> Open Examiner Dashboard
                 </Button>

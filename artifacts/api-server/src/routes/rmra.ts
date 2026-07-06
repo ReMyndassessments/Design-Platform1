@@ -12,6 +12,15 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_MODEL = "deepseek-chat";
 
+async function verifyExaminerToken(sessionId: string, token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  const result = await db.execute(sql`
+    SELECT examiner_token FROM rmra_sessions WHERE id = ${sessionId} AND case_id IS NULL LIMIT 1
+  `);
+  const row = (result as unknown as { rows?: Record<string, unknown>[] }).rows?.[0];
+  return !!(row && row["examiner_token"] === token);
+}
+
 async function callDeepSeekRmra(prompt: string, maxTokens = 4096): Promise<string> {
   if (!DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not configured");
   const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
@@ -916,6 +925,7 @@ router.post("/rmra/standalone/sessions", async (req: Request, res: Response) => 
       .where(eq(rmraAccessCodesTable.id, record.id));
 
     const sessionId = nanoid();
+    const examinerToken = nanoid(48);
     await db.insert(rmraSessionsTable).values({
       id: sessionId,
       caseId: null,
@@ -928,19 +938,24 @@ router.post("/rmra/standalone/sessions", async (req: Request, res: Response) => 
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    await db.execute(sql`UPDATE rmra_sessions SET examiner_token = ${examinerToken} WHERE id = ${sessionId}`);
 
-    return res.json({ sessionToken: sessionId });
+    return res.json({ sessionToken: sessionId, examinerToken });
   } catch (err) {
     logger.error({ err }, "POST standalone sessions failed");
     return res.status(500).json({ error: "Failed to create session" });
   }
 });
 
-// ── Standalone: Generate Report (public, no auth) ──────────────────────────────
+// ── Standalone: Generate Report (examiner-only) ────────────────────────────────
 
 router.post("/rmra/standalone/sessions/:sessionId/generate-report", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const [session] = await db
       .select()
       .from(rmraSessionsTable)
@@ -1022,11 +1037,15 @@ Write in professional clinical language. Reference actual domain scores. Return 
   }
 });
 
-// ── Standalone: Bobby Agent OS (public, no auth) ────────────────────────────────
+// ── Standalone: Bobby Agent OS (examiner-only) ──────────────────────────────────
 
 router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const { action } = req.body as { action?: string };
 
     if (!action || !BOBBY_PROMPTS[action]) {
@@ -1097,11 +1116,15 @@ router.get("/rmra/standalone/sessions/:sessionId/items", async (req: Request, re
   }
 });
 
-// ── Standalone: Update session (public, no auth) ──────────────────────────────
+// ── Standalone: Update session (examiner-only) ────────────────────────────────
 
 router.patch("/rmra/standalone/sessions/:sessionId", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const [existing] = await db
       .select({ id: rmraSessionsTable.id, startedAt: rmraSessionsTable.startedAt })
       .from(rmraSessionsTable)
@@ -1132,11 +1155,15 @@ router.patch("/rmra/standalone/sessions/:sessionId", async (req: Request, res: R
   }
 });
 
-// ── Standalone: Save task response (public, no auth) ──────────────────────────
+// ── Standalone: Save task response (examiner-only) ────────────────────────────
 
 router.post("/rmra/standalone/sessions/:sessionId/tasks/:taskId/response", async (req: Request, res: Response) => {
   try {
     const { sessionId, taskId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const [session] = await db
       .select({ id: rmraSessionsTable.id, status: rmraSessionsTable.status, ageBand: rmraSessionsTable.ageBand })
       .from(rmraSessionsTable)
@@ -1214,6 +1241,10 @@ router.post("/rmra/standalone/sessions/:sessionId/tasks/:taskId/response", async
 router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const [session] = await db
       .select()
       .from(rmraSessionsTable)
@@ -1280,11 +1311,15 @@ router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request
   }
 });
 
-// ── Standalone: Email report delivery (public, no auth) ──────────────────────
+// ── Standalone: Email report delivery (examiner-only) ────────────────────────
 
 router.post("/rmra/standalone/sessions/:sessionId/email-report", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const { recipientEmail, recipientName } = req.body as { recipientEmail?: string; recipientName?: string };
 
     if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
