@@ -36,7 +36,7 @@ async function loadSession(sessionId: string, caseId: string) {
 }
 
 // ── Visual params helper (student-facing, answer-key free) ────────────────────
-function computeVisualParams(item: { visualType: string; exactAnswer?: number | string; expectedAnswerRange?: [number, number] }): Record<string, unknown> {
+function computeVisualParams(item: { visualType: string; exactAnswer?: number | string; expectedAnswerRange?: [number, number]; part1?: number; part2?: number }): Record<string, unknown> {
   const ea = item.exactAnswer;
   const er = item.expectedAnswerRange;
   switch (item.visualType) {
@@ -85,7 +85,10 @@ function computeVisualParams(item: { visualType: string; exactAnswer?: number | 
     }
     case "number_bond": {
       const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "10"));
-      return { total: isNaN(total) ? 10 : total };
+      const result: Record<string, unknown> = { total: isNaN(total) ? 10 : total };
+      if (item.part1 !== undefined) result.part1 = item.part1;
+      if (item.part2 !== undefined) result.part2 = item.part2;
+      return result;
     }
     case "bar_model": {
       const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "100").replace(/,/g, ""));

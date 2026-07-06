@@ -16,6 +16,8 @@ export type RmraItem = {
   prompts: Record<Theme, string>;
   expectedAnswerRange?: [number, number];
   exactAnswer?: number | string;
+  part1?: number;
+  part2?: number;
   primaryConstruct: string;
   secondaryConstructs: string[];
   strategyOptions: string[];
@@ -576,6 +578,8 @@ export const RMRA_ITEMS: RmraItem[] = [
       treasure_builder: "You found 8 gems and then 5 more. How many gems altogether?",
     },
     exactAnswer: 13,
+    part1: 8,
+    part2: 5,
     primaryConstruct: "basic addition",
     secondaryConstructs: ["counting on", "make-ten strategy"],
     strategyOptions: ["counted all", "counted on from 8", "used doubles (8+8-3)", "used make-ten (8+2+3)", "recalled fact"],
@@ -604,6 +608,8 @@ export const RMRA_ITEMS: RmraItem[] = [
       treasure_builder: "Chest A has 4,867 coins and Chest B has 3,546. How many coins altogether?",
     },
     exactAnswer: 8413,
+    part1: 4867,
+    part2: 3546,
     primaryConstruct: "multi-digit addition with regrouping",
     secondaryConstructs: ["place value", "mental math strategies"],
     strategyOptions: ["guessed", "used standard algorithm only", "used compensation (round to 4900 + 3500)", "used partitioning", "used front-end estimation first"],

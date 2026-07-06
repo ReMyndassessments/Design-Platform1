@@ -1054,60 +1054,87 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
-function NumberBondVisual({ total, accent }: { total: number; accent: string }) {
+function NumberBondVisual({ total, part1, part2, accent }: { total: number; part1?: number; part2?: number; accent: string }) {
+  // addition mode: parts are known, student enters the total
+  // decomposition mode: total is known, student enters the parts
+  const additionMode = part1 !== undefined && part2 !== undefined;
+
+  const [totalVal, setTotalVal] = useState("");
   const [leftVal, setLeftVal] = useState("");
   const [rightVal, setRightVal] = useState("");
-  const [active, setActive] = useState<"left" | "right" | null>(null);
+  const [active, setActive] = useState<"total" | "left" | "right" | null>(null);
 
   const handleKey = (key: string) => {
-    const setter = active === "left" ? setLeftVal : setRightVal;
-    const cur = active === "left" ? leftVal : rightVal;
+    const setter = active === "total" ? setTotalVal : active === "left" ? setLeftVal : setRightVal;
+    const cur = active === "total" ? totalVal : active === "left" ? leftVal : rightVal;
     if (key === "⌫") { setter(cur.slice(0, -1)); return; }
     if (key === "✓") { setActive(null); return; }
-    if (cur.length >= 4) return;
+    if (cur.length >= 5) return;
     setter(cur + key);
   };
 
+  const totalFilled = totalVal !== "";
   const leftFilled = leftVal !== "";
   const rightFilled = rightVal !== "";
 
+  // In addition mode: top circle is blank (student fills), bottom two are pre-filled with parts
+  // In decomposition mode: top circle shows total, bottom two are blank (student fills)
+  const topLabel = additionMode ? (totalFilled ? totalVal : "?") : String(total);
+  const topIsEditable = additionMode;
+  const topIsFilled = additionMode ? totalFilled : true;
+  const leftLabel = additionMode ? String(part1) : (leftFilled ? leftVal : "?");
+  const rightLabel = additionMode ? String(part2) : (rightFilled ? rightVal : "?");
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap the circles to fill in the parts</p>
+      <p className={TASK_LABEL}>
+        {additionMode ? "Tap the top circle to enter the total" : "Tap the circles to fill in the parts"}
+      </p>
       <svg viewBox="0 0 200 145" className="w-48 mx-auto" style={{ overflow: "visible" }}>
         {/* Total node */}
-        <circle cx={100} cy={35} r={28} fill={accent + "20"} stroke={accent} strokeWidth={2.5} />
-        <text x={100} y={41} textAnchor="middle" fontSize={18} fill="#1e293b" fontWeight="bold">{total}</text>
+        <circle cx={100} cy={35} r={28}
+          fill={active === "total" ? accent + "30" : topIsFilled ? accent + "20" : "#f1f5f9"}
+          stroke={active === "total" ? accent : topIsFilled ? accent : "#94a3b8"}
+          strokeWidth={active === "total" ? 2.5 : 2}
+          strokeDasharray={topIsFilled || active === "total" || !topIsEditable ? "none" : "5,3"}
+          style={{ cursor: topIsEditable ? "pointer" : "default" }}
+          onClick={() => topIsEditable && setActive(active === "total" ? null : "total")}
+        />
+        <text x={100} y={41} textAnchor="middle" fontSize={topLabel.length > 3 ? 13 : 18}
+          fill={topIsFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
+          style={{ pointerEvents: "none" }}>
+          {topLabel}
+        </text>
         {/* Arms */}
         <line x1={78} y1={58} x2={55} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         <line x1={122} y1={58} x2={145} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         {/* Left part */}
         <circle cx={50} cy={115} r={26}
-          fill={active === "left" ? accent + "30" : leftFilled ? accent + "20" : "#f1f5f9"}
-          stroke={active === "left" ? accent : leftFilled ? accent : "#94a3b8"}
+          fill={active === "left" ? accent + "30" : (additionMode || leftFilled) ? accent + "20" : "#f1f5f9"}
+          stroke={active === "left" ? accent : (additionMode || leftFilled) ? accent : "#94a3b8"}
           strokeWidth={active === "left" ? 2.5 : 2}
-          strokeDasharray={leftFilled || active === "left" ? "none" : "5,3"}
-          style={{ cursor: "pointer" }}
-          onClick={() => setActive(active === "left" ? null : "left")}
+          strokeDasharray={leftFilled || active === "left" || additionMode ? "none" : "5,3"}
+          style={{ cursor: additionMode ? "default" : "pointer" }}
+          onClick={() => !additionMode && setActive(active === "left" ? null : "left")}
         />
-        <text x={50} y={121} textAnchor="middle" fontSize={leftFilled ? 16 : 18}
-          fill={leftFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
+        <text x={50} y={121} textAnchor="middle" fontSize={leftLabel.length > 3 ? 11 : leftFilled ? 16 : 18}
+          fill={(additionMode || leftFilled) ? "#1e293b" : "#94a3b8"} fontWeight="bold"
           style={{ pointerEvents: "none" }}>
-          {leftFilled ? leftVal : "?"}
+          {leftLabel}
         </text>
         {/* Right part */}
         <circle cx={150} cy={115} r={26}
-          fill={active === "right" ? accent + "30" : rightFilled ? accent + "20" : "#f1f5f9"}
-          stroke={active === "right" ? accent : rightFilled ? accent : "#94a3b8"}
+          fill={active === "right" ? accent + "30" : (additionMode || rightFilled) ? accent + "20" : "#f1f5f9"}
+          stroke={active === "right" ? accent : (additionMode || rightFilled) ? accent : "#94a3b8"}
           strokeWidth={active === "right" ? 2.5 : 2}
-          strokeDasharray={rightFilled || active === "right" ? "none" : "5,3"}
-          style={{ cursor: "pointer" }}
-          onClick={() => setActive(active === "right" ? null : "right")}
+          strokeDasharray={rightFilled || active === "right" || additionMode ? "none" : "5,3"}
+          style={{ cursor: additionMode ? "default" : "pointer" }}
+          onClick={() => !additionMode && setActive(active === "right" ? null : "right")}
         />
-        <text x={150} y={121} textAnchor="middle" fontSize={rightFilled ? 16 : 18}
-          fill={rightFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
+        <text x={150} y={121} textAnchor="middle" fontSize={rightLabel.length > 3 ? 11 : rightFilled ? 16 : 18}
+          fill={(additionMode || rightFilled) ? "#1e293b" : "#94a3b8"} fontWeight="bold"
           style={{ pointerEvents: "none" }}>
-          {rightFilled ? rightVal : "?"}
+          {rightLabel}
         </text>
       </svg>
 
@@ -1115,10 +1142,10 @@ function NumberBondVisual({ total, accent }: { total: number; accent: string }) 
       {active && (
         <div className="mt-3 flex flex-col items-center gap-2">
           <p className="text-xs text-slate-500 font-medium">
-            Entering {active} part
+            {active === "total" ? "Entering total" : `Entering ${active} part`}
           </p>
           <div className="bg-slate-100 rounded-xl px-4 py-2 text-xl font-bold text-slate-800 min-w-[80px] text-center tracking-widest">
-            {(active === "left" ? leftVal : rightVal) || "—"}
+            {(active === "total" ? totalVal : active === "left" ? leftVal : rightVal) || "—"}
           </div>
           <div className="grid grid-cols-3 gap-2 mt-1">
             {["1","2","3","4","5","6","7","8","9","⌫","0","✓"].map(k => (
@@ -1343,7 +1370,7 @@ function TaskVisual({ task, theme, flashPhase }: { task: TaskData; theme: ThemeK
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} accent={accent} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
