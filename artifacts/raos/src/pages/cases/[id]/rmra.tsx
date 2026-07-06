@@ -11,6 +11,7 @@ import {
   Timer, BookOpen, Target, Lightbulb, Save, Flag, Copy, ExternalLink,
 } from "lucide-react";
 import { RmraReportPanel } from "./rmra-report";
+import { QRCodeSVG } from "qrcode.react";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -241,6 +242,7 @@ export default function RmraAdminPage() {
   const [setupAgeBand, setSetupAgeBand] = useState("upper_primary");
   const [setupVersion, setSetupVersion] = useState<"full" | "brief">("full");
   const [setupTheme, setSetupTheme] = useState("space_mission");
+  const [showSetupQr, setShowSetupQr] = useState(false);
   const [starting, setStarting] = useState(false);
 
   // Task navigation
@@ -732,36 +734,40 @@ export default function RmraAdminPage() {
           </div>
 
           {/* Student View Link */}
-          {assignmentToken && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
-              <h2 className="text-sm font-semibold text-slate-700 mb-1">Student View Link</h2>
-              <p className="text-xs text-slate-400 mb-3">Share this URL with the student before or during the session. They will see the task stimuli on their own screen.</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 font-mono truncate">
-                  {`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`}
+          {assignmentToken && (() => {
+            const svUrl = `${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`;
+            return (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
+                <h2 className="text-sm font-semibold text-slate-700 mb-1">Student View Link</h2>
+                <p className="text-xs text-slate-400 mb-3">Share this URL or scan the QR code on the student's device. They will see the task stimuli on their own screen.</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 font-mono truncate">
+                    {svUrl}
+                  </div>
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5"
+                    onClick={() => { navigator.clipboard.writeText(svUrl); toast({ title: "Link copied!", description: "Paste it into the student's browser." }); }}>
+                    <Copy size={13} /> Copy
+                  </Button>
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5"
+                    onClick={() => window.open(svUrl, "_blank")}>
+                    <ExternalLink size={13} /> Open
+                  </Button>
+                  <Button variant="outline" size="sm" className="shrink-0 gap-1.5"
+                    onClick={() => setShowSetupQr(v => !v)}>
+                    {showSetupQr ? "Hide QR" : "Show QR"}
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 gap-1.5"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`);
-                    toast({ title: "Link copied!", description: "Paste it into the student's browser." });
-                  }}
-                >
-                  <Copy size={13} /> Copy
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 gap-1.5"
-                  onClick={() => window.open(`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`, "_blank")}
-                >
-                  <ExternalLink size={13} /> Open
-                </Button>
+                {showSetupQr && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <div className="p-3 bg-white border border-slate-200 rounded-xl inline-block">
+                      <QRCodeSVG value={svUrl} size={180} level="H" />
+                    </div>
+                    <p className="text-xs text-slate-400">Point the student's camera at this code to open their view.</p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <Button
             onClick={handleBegin}

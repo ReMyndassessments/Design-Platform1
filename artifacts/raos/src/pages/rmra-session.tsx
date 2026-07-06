@@ -14,6 +14,7 @@ import {
   Printer, Mail, Send, CheckCheck,
 } from "lucide-react";
 import { RmraReportPanel, type RmraReportSession } from "./cases/[id]/rmra-report";
+import { QRCodeSVG } from "qrcode.react";
 import { useToast } from "@/hooks/use-toast";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -99,6 +100,7 @@ export default function RmraStandaloneSessionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const [items, setItems] = useState<RmraItem[]>([]);
   const [savedResponses, setSavedResponses] = useState<Record<string, ScoringForm>>({});
@@ -517,7 +519,7 @@ export default function RmraStandaloneSessionPage() {
                       </p>
                       <code className="text-xs font-mono text-slate-500 truncate block">{studentUrl}</code>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex gap-1.5 shrink-0 flex-wrap">
                       <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={handleCopyStudentLink}>
                         {copied ? <CheckCircle2 size={11} className="text-emerald-500" /> : <Copy size={11} />}
                         {copied ? "Copied!" : "Copy"}
@@ -527,6 +529,9 @@ export default function RmraStandaloneSessionPage() {
                           <ExternalLink size={11} /> Open Student View
                         </Button>
                       </a>
+                      <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setShowQr(v => !v)}>
+                        {showQr ? "Hide QR" : "Show QR"}
+                      </Button>
                     </div>
                     <p className="text-xs text-slate-400 w-full pt-1">
                       Session: <code className="font-mono">{sessionId}</code>
@@ -534,6 +539,14 @@ export default function RmraStandaloneSessionPage() {
                       {" · "}Version: <span className="capitalize">{(session as any).version}</span>
                     </p>
                   </div>
+                  {showQr && (
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      <div className="p-3 bg-white border border-slate-200 rounded-xl inline-block">
+                        <QRCodeSVG value={studentUrl} size={180} level="H" />
+                      </div>
+                      <p className="text-xs text-slate-400">Point the student's camera at this code to open their view.</p>
+                    </div>
+                  )}
                 </div>
 
                 {items.length === 0 ? (
