@@ -80,6 +80,7 @@ import RdaStudentView from "@/pages/student-view/rda";
 import RrcaStudentView from "@/pages/student-view/rrca";
 import RrfaStudentView from "@/pages/student-view/rrfa";
 import RmraStudentView from "@/pages/student-view/rmra";
+import RmraLandingPage from "@/pages/rmra-landing";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,7 @@ function Router() {
       <Route path="/student-view/rmra/:token" component={RmraStudentView} />
       {/* Spec-aligned alias: /rmra/student/:sessionToken → same view */}
       <Route path="/rmra/student/:token" component={RmraStudentView} />
+      <Route path="/rmra" component={RmraLandingPage} />
       <Route path="/join/:room" component={JoinMeetingPage} />
       <Route path="/meet/:room" component={QuickMeetPage} />
       <Route path="/" component={LandingPage} />

@@ -1,11 +1,32 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { rmraSessionsTable, rmraTaskResponsesTable, assignmentsTable, scoresTable, casesTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { rmraSessionsTable, rmraTaskResponsesTable, assignmentsTable, scoresTable, casesTable, rmraAccessCodesTable } from "@workspace/db/schema";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
 import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.js";
+
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const DEEPSEEK_MODEL = "deepseek-chat";
+
+async function callDeepSeekRmra(prompt: string, maxTokens = 4096): Promise<string> {
+  if (!DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not configured");
+  const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!response.ok) throw new Error(`DeepSeek error: ${response.status}`);
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
 const router = Router();
 
@@ -457,18 +478,29 @@ async function handleStudentPoll(req: Request, res: Response) {
       .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
-    if (!assignment) return res.status(404).json({ error: "Session not found" });
+    let session: typeof rmraSessionsTable.$inferSelect | undefined;
 
-    const [session] = await db
-      .select()
-      .from(rmraSessionsTable)
-      .where(and(
-        eq(rmraSessionsTable.assignmentId, assignment.id),
-        eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
-      ))
-      .limit(1);
+    if (!assignment) {
+      // Try standalone session (no assignment) — token is the session id
+      const [standalone] = await db
+        .select()
+        .from(rmraSessionsTable)
+        .where(and(eq(rmraSessionsTable.id, sessionToken), isNull(rmraSessionsTable.caseId)))
+        .limit(1);
+      session = standalone;
+    } else {
+      const [assignmentSession] = await db
+        .select()
+        .from(rmraSessionsTable)
+        .where(and(
+          eq(rmraSessionsTable.assignmentId, assignment.id),
+          eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+        ))
+        .limit(1);
+      session = assignmentSession;
+    }
 
-    if (!session) return res.status(404).json({ error: "Session not started" });
+    if (!session) return res.status(404).json({ error: "Session not found or not started" });
 
     const currentItem = session.currentTaskId
       ? RMRA_ITEMS.find(i => i.id === session.currentTaskId)
@@ -585,5 +617,299 @@ router.get("/rmra/student/:sessionToken", handleStudentPoll);
 router.get("/public/rmra/student/:sessionToken", handleStudentPoll);
 router.post("/rmra/student/:sessionToken/confidence", handleStudentConfidence);
 router.post("/public/rmra/student/:sessionToken/confidence", handleStudentConfidence);
+
+// ── AI Report Generation ───────────────────────────────────────────────────────
+
+router.post("/cases/:caseId/rmra/sessions/:sessionId/generate-report", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { caseId, sessionId } = req.params;
+    const session = await loadSession(sessionId, caseId);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (session.status !== "completed") return res.status(400).json({ error: "Session is not completed" });
+    if (!session.domainScores) return res.status(400).json({ error: "No domain scores available" });
+
+    const scores = session.domainScores as Record<string, {
+      accuracy: number; reasoning: number; strategyLevel: number;
+      hintDependency: number; productiveStruggle: number; confidence: number;
+      tasksAdministered: number; tasksDiscontinued: number;
+      level: "strength" | "developing" | "vulnerable" | "high_concern";
+    }>;
+
+    const AGE_BAND_LABELS: Record<string, string> = {
+      early_primary: "Early Primary (Ages 5–8, K–Yr 2)",
+      upper_primary: "Upper Primary (Ages 8–11, Yr 3–5)",
+      middle_school: "Middle School (Ages 11–14, Yr 6–8)",
+      secondary: "Secondary (Ages 14–16, Yr 9–10)",
+    };
+
+    const LEVEL_LABELS: Record<string, string> = {
+      strength: "Strength (≥80%)",
+      developing: "Developing (60–79%)",
+      vulnerable: "Vulnerable (40–59%)",
+      high_concern: "High Concern (<40%)",
+    };
+
+    const domainTable = RMRA_DOMAINS
+      .filter(d => scores[d])
+      .map(d => {
+        const s = scores[d];
+        return `- ${d}: Accuracy ${s.accuracy}%, Reasoning ${s.reasoning}%, Strategy ${s.strategyLevel}%, Hint Dependency ${s.hintDependency}%, Productive Struggle ${s.productiveStruggle}%, Confidence ${s.confidence}%, Tasks Administered ${s.tasksAdministered} (${s.tasksDiscontinued > 0 ? `${s.tasksDiscontinued} discontinued` : "no discontinuations"}), Level: ${LEVEL_LABELS[s.level] ?? s.level}`;
+      }).join("\n");
+
+    const prompt = `You are a specialist psychometrician writing a clinical psychoeducational report for the ReMynd Mathematical Reasoning Assessment (RMRA), a structured examiner-administered assessment of mathematical reasoning.
+
+ASSESSMENT INFORMATION:
+- Age Band: ${AGE_BAND_LABELS[session.ageBand] ?? session.ageBand}
+- Assessment Version: ${session.version === "full" ? "Full (all domains)" : "Brief"}
+- Completion Date: ${session.completedAt ? new Date(session.completedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }) : "Unknown"}
+${session.generalNotes ? `- Examiner Notes: ${session.generalNotes}` : ""}
+
+DOMAIN SCORES (13 domains assessed):
+${domainTable}
+
+SCORING LEGEND:
+- Accuracy: % of tasks answered correctly
+- Reasoning: % quality of mathematical reasoning demonstrated
+- Strategy Level: % developmental maturity of problem-solving strategies
+- Hint Dependency: % of tasks requiring examiner hints (higher = more dependent)
+- Productive Struggle: % positive engagement with challenging tasks
+- Confidence: % of self-rated confidence across tasks
+- Level thresholds: Strength ≥80%, Developing 60–79%, Vulnerable 40–59%, High Concern <40%
+
+Generate a comprehensive clinical assessment report. Return ONLY valid JSON with this exact structure:
+{
+  "overview": "2–3 paragraphs: purpose of assessment, referral context, administration conditions, and overall presentation",
+  "behavioralObservations": "2–3 paragraphs: observed approach to tasks, engagement level, emotional response to challenge, language use, self-monitoring behaviours",
+  "mathematicalProfile": "3–4 paragraphs: detailed analysis of mathematical reasoning patterns, domain-by-domain narrative with reference to specific scores, relationships between domains",
+  "strategyUseProfile": "2 paragraphs: developmental stage of strategy use across domains, flexibility vs rigidity, evidence of conceptual vs procedural understanding",
+  "strengths": ["4–6 specific identified strength statements, each referencing a domain or score pattern"],
+  "areasOfNeed": ["4–6 specific areas requiring targeted support, each referencing a domain or score pattern"],
+  "classroomRecommendations": ["4–6 specific, actionable classroom and instructional recommendations"],
+  "parentRecommendations": ["3–4 plain-language home support recommendations"]
+}
+
+Write in professional clinical language appropriate for a psychoeducational report. Be specific and evidence-based, referencing actual domain scores. Return only the JSON object with no markdown or preamble.`;
+
+    const raw = await callDeepSeekRmra(prompt, 3000);
+
+    let narrative: Record<string, unknown>;
+    try {
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      narrative = JSON.parse(cleaned);
+    } catch {
+      return res.status(500).json({ error: "AI returned malformed JSON. Please try again." });
+    }
+
+    const reportData = { narrative, generatedAt: new Date().toISOString() };
+
+    await db.update(rmraSessionsTable)
+      .set({ reportData: reportData as any, updatedAt: new Date() })
+      .where(eq(rmraSessionsTable.id, sessionId));
+
+    return res.json({ reportData });
+  } catch (err) {
+    logger.error({ err }, "POST generate-report failed");
+    return res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// ── Bobby Agent OS ─────────────────────────────────────────────────────────────
+
+const BOBBY_PROMPTS: Record<string, (ctx: string, ageBand: string) => string> = {
+  math_support_plan: (ctx, ageBand) => `You are a specialist mathematics intervention coordinator creating a structured 12-week support plan.
+
+STUDENT MATHEMATICAL PROFILE:
+${ctx}
+
+Create a detailed 12-week math support plan for ${ageBand} targeting the identified areas of need. Format as:
+
+WEEK-BY-WEEK PLAN:
+For each of the 12 weeks, provide:
+- Week [N]: [Theme/Focus]
+  - Learning Intention: ...
+  - Key Activities (2–3): ...
+  - Resources/Materials: ...
+  - Progress Check: ...
+
+Include an overall structure with early weeks building foundational skills, mid-weeks consolidating, and later weeks generalising. Be specific to the domains showing Vulnerable or High Concern levels.`,
+
+  parent_summary: (ctx, ageBand) => `You are a specialist educational psychologist writing a parent-friendly summary of a child's mathematical assessment results.
+
+ASSESSMENT FINDINGS:
+${ctx}
+
+Write a warm, plain-language parent summary (no jargon) that:
+1. Explains what the assessment measured and how it was done (1 paragraph)
+2. Describes your child's mathematical strengths in clear, encouraging language (1–2 paragraphs)
+3. Explains the areas where your child needs support, using everyday language (1–2 paragraphs)
+4. Provides 4–5 specific, practical activities families can do at home to support each area of need
+5. Ends with a positive, forward-looking paragraph about next steps
+
+Write conversationally, avoid clinical terms, and use "your child" throughout.`,
+
+  teacher_accommodation: (ctx, ageBand) => `You are a specialist learning support coordinator creating a teacher accommodation plan.
+
+STUDENT MATHEMATICAL PROFILE:
+${ctx}
+
+Create a comprehensive teacher accommodation plan structured as:
+
+ACADEMIC ACCOMMODATIONS:
+- Assessment accommodations (5–6 specific items)
+- Instructional accommodations (5–6 specific items)
+- Environmental accommodations (3–4 items)
+
+CURRICULUM MODIFICATIONS:
+- Content modifications for High Concern domains (specific, actionable)
+- Alternative assessment approaches
+
+CLASSROOM STRATEGIES:
+- Universal Design for Learning (UDL) strategies applicable to this profile
+- Differentiation strategies for small group and individual work
+
+TECHNOLOGY AND TOOLS:
+- Recommended assistive tools and technology supports
+
+Be specific, practical, and directly linked to the identified domain profiles.`,
+
+  confidence_plan: (ctx, ageBand) => `You are a specialist educational psychologist creating a mathematical confidence and self-efficacy support plan.
+
+STUDENT PROFILE:
+${ctx}
+
+Create a comprehensive Math Confidence Support Plan that addresses mathematical anxiety and builds self-efficacy. Structure as:
+
+CURRENT CONFIDENCE PROFILE:
+- Analysis of confidence vs accuracy gap (reference the scores)
+- Productive struggle engagement analysis
+
+CONFIDENCE-BUILDING FRAMEWORK (8–10 weeks):
+- Week-by-week focus areas for building mathematical identity and confidence
+- Specific activities for each phase (building safety, celebrating effort, embracing challenge)
+
+CLASSROOM STRATEGIES FOR THE TEACHER:
+- 5–6 specific strategies to build mathematical self-efficacy in the classroom
+- Language and feedback frameworks (praise process over product)
+
+HOME STRATEGIES FOR PARENTS:
+- 4–5 specific ways to support mathematical confidence at home
+- Growth mindset conversations to have
+
+PROGRESS INDICATORS:
+- How to know confidence is improving (observable behaviours)
+- Suggested check-in schedule`,
+};
+
+router.post("/cases/:caseId/rmra/sessions/:sessionId/bobby-agent", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { caseId, sessionId } = req.params;
+    const { action } = req.body as { action?: string };
+
+    if (!action || !BOBBY_PROMPTS[action]) {
+      return res.status(400).json({ error: "Invalid action. Must be one of: math_support_plan, parent_summary, teacher_accommodation, confidence_plan" });
+    }
+
+    const session = await loadSession(sessionId, caseId);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (!session.domainScores) return res.status(400).json({ error: "No domain scores available" });
+
+    const scores = session.domainScores as Record<string, { accuracy: number; level: string; strategyLevel: number; hintDependency: number; confidence: number }>;
+
+    const AGE_BAND_LABELS: Record<string, string> = {
+      early_primary: "Early Primary (Ages 5–8)",
+      upper_primary: "Upper Primary (Ages 8–11)",
+      middle_school: "Middle School (Ages 11–14)",
+      secondary: "Secondary (Ages 14–16)",
+    };
+
+    const ctx = RMRA_DOMAINS
+      .filter(d => scores[d])
+      .map(d => {
+        const s = scores[d];
+        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Confidence ${s.confidence}%, Level: ${s.level.replace("_", " ")}`;
+      }).join("\n");
+
+    const ageBandLabel = AGE_BAND_LABELS[session.ageBand] ?? session.ageBand;
+    const prompt = BOBBY_PROMPTS[action](ctx, ageBandLabel);
+
+    const content = await callDeepSeekRmra(prompt, 2500);
+    return res.json({ content });
+  } catch (err) {
+    logger.error({ err }, "POST bobby-agent failed");
+    return res.status(500).json({ error: "Failed to generate content" });
+  }
+});
+
+// ── Standalone Access Code Validation ─────────────────────────────────────────
+
+router.get("/rmra/access-codes/:code/validate", async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params;
+    const [record] = await db
+      .select()
+      .from(rmraAccessCodesTable)
+      .where(eq(rmraAccessCodesTable.code, code.toUpperCase().trim()))
+      .limit(1);
+
+    if (!record) return res.status(404).json({ error: "Access code not found." });
+    if (record.expiresAt && new Date(record.expiresAt) < new Date()) {
+      return res.status(410).json({ error: "This access code has expired." });
+    }
+    if (record.usageCount >= record.usageLimit) {
+      return res.status(429).json({ error: "This access code has reached its usage limit." });
+    }
+
+    return res.json({ valid: true, description: record.description });
+  } catch (err) {
+    logger.error({ err }, "GET access-code validate failed");
+    return res.status(500).json({ error: "Failed to validate access code" });
+  }
+});
+
+// ── Standalone Session Creation ────────────────────────────────────────────────
+
+router.post("/rmra/standalone/sessions", async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body as { code?: string };
+    if (!code) return res.status(400).json({ error: "Access code is required" });
+
+    const [record] = await db
+      .select()
+      .from(rmraAccessCodesTable)
+      .where(eq(rmraAccessCodesTable.code, code.toUpperCase().trim()))
+      .limit(1);
+
+    if (!record) return res.status(404).json({ error: "Access code not found." });
+    if (record.expiresAt && new Date(record.expiresAt) < new Date()) {
+      return res.status(410).json({ error: "This access code has expired." });
+    }
+    if (record.usageCount >= record.usageLimit) {
+      return res.status(429).json({ error: "This access code has reached its usage limit." });
+    }
+
+    await db.update(rmraAccessCodesTable)
+      .set({ usageCount: record.usageCount + 1 })
+      .where(eq(rmraAccessCodesTable.id, record.id));
+
+    const sessionId = nanoid();
+    await db.insert(rmraSessionsTable).values({
+      id: sessionId,
+      caseId: null,
+      assignmentId: null,
+      examinerId: null,
+      ageBand: "upper_primary",
+      version: "full",
+      theme: "space_mission",
+      status: "not_started",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    return res.json({ sessionToken: sessionId });
+  } catch (err) {
+    logger.error({ err }, "POST standalone sessions failed");
+    return res.status(500).json({ error: "Failed to create session" });
+  }
+});
 
 export default router;

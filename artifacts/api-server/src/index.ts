@@ -2669,6 +2669,39 @@ async function backfillRscaSnapshots() {
   }
 }
 
+async function addRmraReportColumn() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE rmra_sessions ADD COLUMN IF NOT EXISTS report_data JSONB
+    `);
+    logger.info("report_data column ensured on rmra_sessions");
+  } catch (err) {
+    logger.error({ err }, "addRmraReportColumn failed");
+  }
+}
+
+async function createRmraAccessCodesTable() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS rmra_access_codes (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        description TEXT,
+        usage_limit INTEGER NOT NULL DEFAULT 1,
+        usage_count INTEGER NOT NULL DEFAULT 0,
+        expires_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS rmra_access_codes_code_idx ON rmra_access_codes (code)
+    `);
+    logger.info("rmra_access_codes table ensured");
+  } catch (err) {
+    logger.error({ err }, "createRmraAccessCodesTable failed");
+  }
+}
+
 async function createRmraTables() {
   try {
     await db.execute(sql`
@@ -2766,6 +2799,8 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addCaseProductIds())
   .then(() => purgeInvalidScores())
   .then(() => createRmraTables())
+  .then(() => addRmraReportColumn())
+  .then(() => createRmraAccessCodesTable())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

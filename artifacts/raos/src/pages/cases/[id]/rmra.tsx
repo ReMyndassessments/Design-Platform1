@@ -10,6 +10,7 @@ import {
   Play, Square, RotateCcw, AlertTriangle, Info, X, Brain,
   Timer, BookOpen, Target, Lightbulb, Save, Flag, Copy, ExternalLink,
 } from "lucide-react";
+import { RmraReportPanel } from "./rmra-report";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -136,6 +137,7 @@ type RmraSession = {
   currentTaskId: string | null;
   generalNotes: string | null;
   domainScores: Record<string, any> | null;
+  reportData?: Record<string, any> | null;
   startedAt: string | null;
   completedAt: string | null;
 };
@@ -545,10 +547,7 @@ export default function RmraAdminPage() {
       if (!r.ok) throw new Error();
       const data = await r.json();
       setSession(data.session);
-      toast({ title: "Assessment completed", description: "Domain scores saved to case profile." });
-      setTimeout(() => {
-        window.location.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/cases/${caseId}`;
-      }, 1800);
+      toast({ title: "Assessment completed", description: "Domain scores saved. Generating report view…" });
     } catch {
       toast({ title: "Could not complete session", variant: "destructive" });
     } finally {
@@ -777,72 +776,18 @@ export default function RmraAdminPage() {
     );
   }
 
-  // ── Completed screen ──────────────────────────────────────────────────────────
+  // ── Completed screen — full report panel ──────────────────────────────────────
 
   if (isCompleted && session?.domainScores) {
-    const scores = session.domainScores as Record<string, any>;
     return (
       <div className="min-h-screen bg-slate-50">
         {header}
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="mb-5 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
-            <CheckCircle2 size={16} />
-            <span>This RMRA session has been completed. Domain scores are saved to the case profile.</span>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-5">
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-              <Brain size={14} className="text-violet-600" />
-              <span className="text-sm font-semibold text-slate-800">Domain Results</span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {RMRA_DOMAINS.map(domain => {
-                const score = scores[domain];
-                if (!score) return null;
-                return (
-                  <div key={domain} className="px-5 py-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-800">{domain}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        {score.tasksAdministered} tasks administered
-                        {score.tasksDiscontinued > 0 ? ` · ${score.tasksDiscontinued} discontinued` : ""}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500">Accuracy</div>
-                        <div className="text-sm font-bold text-slate-800">{score.accuracy}%</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500">Strategy</div>
-                        <div className="text-sm font-bold text-slate-800">{score.strategyLevel}%</div>
-                      </div>
-                      <Badge className={`text-xs border ${levelColor(score.level)}`}>
-                        {score.level === "strength" ? "Strength" :
-                         score.level === "developing" ? "Developing" :
-                         score.level === "vulnerable" ? "Vulnerable" : "High Concern"}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {session.generalNotes && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 mb-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Session Notes</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{session.generalNotes}</p>
-            </div>
-          )}
-
-          <div className="flex justify-center">
-            <Link href={`/cases/${caseId}`}>
-              <Button variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50">
-                <ArrowLeft size={14} /> Back to Case
-              </Button>
-            </Link>
-          </div>
+        <div className="max-w-5xl mx-auto px-4 py-6">
+          <RmraReportPanel
+            sessionId={sessionId}
+            caseId={caseId}
+            session={session as any}
+          />
         </div>
       </div>
     );

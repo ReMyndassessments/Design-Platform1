@@ -22,6 +22,19 @@ export const rmraSessionsTable = pgTable("rmra_sessions", {
     tasksDiscontinued: number;
     level: "strength" | "developing" | "vulnerable" | "high_concern";
   }>>(),
+  reportData: jsonb("report_data").$type<{
+    narrative: {
+      overview: string;
+      behavioralObservations: string;
+      mathematicalProfile: string;
+      strategyUseProfile: string;
+      strengths: string[];
+      areasOfNeed: string[];
+      classroomRecommendations: string[];
+      parentRecommendations: string[];
+    };
+    generatedAt: string;
+  }>(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -57,5 +70,16 @@ export const rmraTaskResponsesTable = pgTable("rmra_task_responses", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const rmraAccessCodesTable = pgTable("rmra_access_codes", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull(),
+  description: text("description"),
+  usageLimit: integer("usage_limit").notNull().default(1),
+  usageCount: integer("usage_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export type RmraSession = typeof rmraSessionsTable.$inferSelect;
 export type RmraTaskResponse = typeof rmraTaskResponsesTable.$inferSelect;
+export type RmraAccessCode = typeof rmraAccessCodesTable.$inferSelect;
