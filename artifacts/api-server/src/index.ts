@@ -2552,6 +2552,8 @@ async function addCaseProductIds() {
   try {
     await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS product_ids JSONB NOT NULL DEFAULT '[]'`);
     logger.info("product_ids column ensured on cases");
+    await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS parent_interview_notes TEXT`);
+    logger.info("parent_interview_notes column ensured on cases");
   } catch (err) {
     logger.error({ err }, "addCaseProductIds failed");
   }
