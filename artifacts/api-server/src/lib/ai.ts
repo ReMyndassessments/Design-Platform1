@@ -63,6 +63,7 @@ export async function analyzeIntakeWithAI(intake: {
   age?: number | null;
   referralFormAnswers?: Record<string, unknown> | null;
   parentIntakeAnswers?: Record<string, unknown> | null;
+  parentInterviewNotes?: string | null;
   assessmentTools?: Array<{
     id: string;
     name: string;
@@ -104,6 +105,9 @@ ${intake.parentIntakeAnswers
     : JSON.stringify(intake.parentIntakeAnswers, null, 2))
   : "No parent intake form data available."}
 
+${intake.parentInterviewNotes
+  ? `═══ SUPPLEMENTARY OFFLINE PARENT INTERVIEW NOTES (recorded by clinician) ═══\n${intake.parentInterviewNotes}\n`
+  : ""}
 ═══ AVAILABLE ASSESSMENT TOOLS ═══
 ${toolList || "No tools available in library."}
 

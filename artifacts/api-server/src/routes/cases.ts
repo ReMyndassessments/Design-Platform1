@@ -172,6 +172,7 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     debriefMeetingUrl: c.debriefMeetingUrl,
     debriefMeetingDate: c.debriefMeetingDate,
     bobbyAiPortalCredentials: c.bobbyAiPortalCredentials ?? null,
+    parentInterviewNotes: c.parentInterviewNotes ?? null,
     productIds: (c.productIds as string[]) ?? [],
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
@@ -321,7 +322,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
-  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate", "bobbyAiPortalCredentials", "productIds"];
+  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate", "bobbyAiPortalCredentials", "productIds", "parentInterviewNotes"];
   const allowed = isAdminLike(req.userRole) ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   for (const key of allowed) {
@@ -718,6 +719,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     age,
     referralFormAnswers: referralAnswers,
     parentIntakeAnswers: intakeAnswers,
+    parentInterviewNotes: c.parentInterviewNotes ?? null,
     assessmentTools,
   });
 

@@ -55,6 +55,7 @@ export const casesTable = pgTable("cases", {
   bobbyAiPortalCredentials: text("bobby_ai_portal_credentials"),
   bobbyAiCaseId: text("bobby_ai_case_id"),
   productIds: jsonb("product_ids").$type<string[]>().notNull().default([]),
+  parentInterviewNotes: text("parent_interview_notes"),
   intakeData: jsonb("intake_data"),
   intakeAnalysis: jsonb("intake_analysis"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

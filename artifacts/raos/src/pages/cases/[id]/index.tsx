@@ -254,6 +254,11 @@ export default function CaseDetail() {
   const [assessmentTz, setAssessmentTz] = useState("Asia/Singapore");
   const [savingAssessmentDate, setSavingAssessmentDate] = useState(false);
 
+  // ── Parent Interview Notes state ───────────────────────────────────────────
+  const [interviewNotesDraft, setInterviewNotesDraft] = useState<string>("");
+  const [interviewNotesSaved, setInterviewNotesSaved] = useState(false);
+  const [savingInterviewNotes, setSavingInterviewNotes] = useState(false);
+
   // ── Report Workspace state ─────────────────────────────────────────────────
   const [reportDocInput, setReportDocInput] = useState("");
   const [editingReportDoc, setEditingReportDoc] = useState(false);
@@ -265,6 +270,33 @@ export default function CaseDetail() {
   useEffect(() => {
     if (c?.workingDocUrl) setReportDocInput(c.workingDocUrl);
   }, [c?.workingDocUrl]);
+
+  useEffect(() => {
+    setInterviewNotesDraft((c as any)?.parentInterviewNotes ?? "");
+  }, [(c as any)?.parentInterviewNotes]);
+
+  const handleSaveInterviewNotes = async () => {
+    setSavingInterviewNotes(true);
+    setInterviewNotesSaved(false);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+        },
+        body: JSON.stringify({ parentInterviewNotes: interviewNotesDraft }),
+      });
+      if (!r.ok) throw new Error("save failed");
+      await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      setInterviewNotesSaved(true);
+      setTimeout(() => setInterviewNotesSaved(false), 3000);
+    } catch {
+      toast({ title: "Could not save notes", variant: "destructive" });
+    } finally {
+      setSavingInterviewNotes(false);
+    }
+  };
 
   const handleSaveReportDocUrl = () => {
     updateCaseMut.mutate({ caseId, data: { workingDocUrl: reportDocInput.trim() } }, {
@@ -1600,6 +1632,51 @@ export default function CaseDetail() {
 
 
         })()}
+
+        {/* ── Parent Interview Notes ── visible from intake phase onward ── */}
+        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") &&
+          ["intake", "setup", "forms", "assessment", "scoring", "report", "final_review", "debrief", "complete"].includes(c.currentPhase) && (
+          <Card className="border-none shadow-md bg-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-slate-800">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold shrink-0">
+                  <Pencil size={12} />
+                </span>
+                Offline Parent Interview Notes
+              </CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Notes from any in-person or phone interview conducted outside the system. These are injected into the AI intake analysis.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <textarea
+                className="w-full min-h-[120px] rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y transition"
+                placeholder="e.g. Parent mentioned the child has night terrors 3–4× per week and has been refusing school on Mondays. Father is currently being treated for anxiety…"
+                value={interviewNotesDraft}
+                onChange={e => { setInterviewNotesDraft(e.target.value); setInterviewNotesSaved(false); }}
+                disabled={savingInterviewNotes}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-400">{interviewNotesDraft.length}/10000 chars</span>
+                <div className="flex items-center gap-2">
+                  {interviewNotesSaved && (
+                    <span className="text-xs text-emerald-600 flex items-center gap-1">
+                      <Check size={12} /> Saved
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={handleSaveInterviewNotes}
+                    disabled={savingInterviewNotes || interviewNotesDraft === ((c as any)?.parentInterviewNotes ?? "")}
+                    className="bg-slate-800 hover:bg-slate-700 text-white"
+                  >
+                    {savingInterviewNotes ? "Saving…" : "Save Notes"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {showAiCard && (() => {
           const allAssignments2 = c.assignments ?? [];
