@@ -1054,7 +1054,7 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
-function NumberBondVisual({ total, part1, part2, accent, onAnswer }: { total: number; part1?: number; part2?: number; accent: string; onAnswer?: (answer: string) => void }) {
+function NumberBondVisual({ total, part1, part2, accent, sessionToken, taskId }: { total: number; part1?: number; part2?: number; accent: string; sessionToken?: string; taskId?: string }) {
   // addition mode: parts are known, student enters the total
   // decomposition mode: total is known, student enters the parts
   const additionMode = part1 !== undefined && part2 !== undefined;
@@ -1063,6 +1063,24 @@ function NumberBondVisual({ total, part1, part2, accent, onAnswer }: { total: nu
   const [leftVal, setLeftVal] = useState("");
   const [rightVal, setRightVal] = useState("");
   const [active, setActive] = useState<"total" | "left" | "right" | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const submitAnswer = async (answer: string) => {
+    if (!sessionToken || !taskId || !answer) return;
+    setSubmitted(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/public/rmra/student/${sessionToken}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer, taskId }),
+      });
+      if (!res.ok) {
+        console.error("answer submit failed", res.status, await res.text());
+      }
+    } catch (e) {
+      console.error("answer submit network error", e);
+    }
+  };
 
   const handleKey = (key: string) => {
     const setter = active === "total" ? setTotalVal : active === "left" ? setLeftVal : setRightVal;
@@ -1070,10 +1088,11 @@ function NumberBondVisual({ total, part1, part2, accent, onAnswer }: { total: nu
     if (key === "⌫") { setter(cur.slice(0, -1)); return; }
     if (key === "✓") {
       setActive(null);
-      if (additionMode && totalVal) onAnswer?.(totalVal);
-      else if (!additionMode) {
+      if (additionMode && totalVal) {
+        submitAnswer(totalVal);
+      } else if (!additionMode) {
         const parts = [leftVal, rightVal].filter(Boolean);
-        if (parts.length > 0) onAnswer?.(parts.join(" + "));
+        if (parts.length > 0) submitAnswer(parts.join(" + "));
       }
       return;
     }
@@ -1146,6 +1165,9 @@ function NumberBondVisual({ total, part1, part2, accent, onAnswer }: { total: nu
         </text>
       </svg>
 
+      {submitted && (
+        <p className="text-sm font-semibold text-emerald-600 text-center mt-2">✓ Answer submitted</p>
+      )}
       {/* Inline numpad — shown only when a circle is active */}
       {active && (
         <div className="mt-3 flex flex-col items-center gap-2">
@@ -1361,7 +1383,7 @@ function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string 
 
 // ── Task Visual Router ────────────────────────────────────────────────────────
 
-function TaskVisual({ task, theme, flashPhase, onAnswer }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase; onAnswer?: (answer: string) => void }) {
+function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase; sessionToken?: string }) {
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
@@ -1378,7 +1400,7 @@ function TaskVisual({ task, theme, flashPhase, onAnswer }: { task: TaskData; the
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} onAnswer={onAnswer} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} sessionToken={sessionToken} taskId={task.id} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
@@ -1658,15 +1680,7 @@ export default function RmraStudentView() {
 
         {/* Visual stimulus — always white card */}
         <div className="rounded-2xl shadow-sm overflow-hidden">
-          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} onAnswer={async (answer) => {
-          try {
-            await fetch(`${BASE_URL}/api/public/rmra/student/${token}/answer`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ answer, taskId: task.id }),
-            });
-          } catch { }
-        }} />
+          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
         </div>
 
         {/* Confidence slider */}

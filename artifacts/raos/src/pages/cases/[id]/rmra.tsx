@@ -342,7 +342,7 @@ export default function RmraAdminPage() {
     if (!sessionId || !caseId || session?.status === "completed") return;
     const poll = async () => {
       try {
-        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}?t=${Date.now()}`, {
           headers: authHeader(),
         });
         if (!r.ok) return;
