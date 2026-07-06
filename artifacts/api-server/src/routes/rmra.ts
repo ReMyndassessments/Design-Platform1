@@ -525,7 +525,7 @@ router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) =>
     if (!assignment) return res.status(404).json({ error: "Session not found" });
 
     const [session] = await db
-      .select({ id: rmraSessionsTable.id })
+      .select({ id: rmraSessionsTable.id, ageBand: rmraSessionsTable.ageBand })
       .from(rmraSessionsTable)
       .where(and(
         eq(rmraSessionsTable.assignmentId, assignment.id),
@@ -548,6 +548,24 @@ router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) =>
       await db.update(rmraTaskResponsesTable)
         .set({ confidenceRating: rating, updatedAt: new Date() })
         .where(eq(rmraTaskResponsesTable.id, existing.id));
+    } else {
+      // Upsert: create a stub response row so confidence is never silently dropped.
+      // Look up domain from item bank so required NOT NULL constraint is satisfied.
+      const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
+      const domain = itemMeta?.domain ?? "Unknown";
+      const ageBand = session.ageBand ?? "upper_primary";
+      await db.insert(rmraTaskResponsesTable).values({
+        id: nanoid(),
+        sessionId: session.id,
+        taskId,
+        domain,
+        ageBand,
+        confidenceRating: rating,
+        hintLevel: 0,
+        attempts: 1,
+        selfCorrection: false,
+        discontinued: false,
+      }).onConflictDoNothing();
     }
 
     return res.json({ ok: true });

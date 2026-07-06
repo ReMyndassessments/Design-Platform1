@@ -264,40 +264,47 @@ function NumberLineVisual({ scaleMin, scaleMax, accent }: {
 function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
   thousands: number; hundreds: number; tens: number; ones: number; accent: string;
 }) {
-  const cap = (v: number) => Math.min(v, 5);
-  const groups = [
-    { label: "Thousands", count: cap(thousands), color: "#6366f1", w: 36, h: 36 },
-    { label: "Hundreds", count: cap(hundreds), color: "#0ea5e9", w: 30, h: 30 },
-    { label: "Tens", count: cap(tens), color: "#10b981", w: 14, h: 50 },
-    { label: "Ones", count: cap(ones), color: accent, w: 18, h: 18 },
-  ].filter(g => g.count > 0);
+  const DEFS = [
+    { key: "thousands", label: "Th", value: 1000, color: "#6366f1", w: 32, h: 32 },
+    { key: "hundreds", label: "H", value: 100, color: "#0ea5e9", w: 26, h: 26 },
+    { key: "tens", label: "T", value: 10, color: "#10b981", w: 12, h: 44 },
+    { key: "ones", label: "O", value: 1, color: accent, w: 16, h: 16 },
+  ];
+  // Shown blocks (from visualParams) — student can tap to select/highlight
+  const shown = { thousands, hundreds, tens, ones } as Record<string, number>;
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+
+  const toggle = (key: string) => setHighlighted(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const groups = DEFS.filter(d => (shown[d.key] ?? 0) > 0);
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Base-ten blocks</p>
-      {thousands === 0 && hundreds === 0 && tens === 0 && ones === 0 ? (
-        <p className="text-slate-400 text-sm text-center py-4">Build your answer using blocks</p>
+      <p className={TASK_LABEL}>Count the blocks — tap a group to highlight it</p>
+      {groups.length === 0 ? (
+        <p className="text-slate-400 text-sm text-center py-4">No blocks to display</p>
       ) : (
-        <div className="flex items-end justify-center gap-8 py-2">
-          {groups.map(({ label, count, color, w, h }) => (
-            <div key={label} className="flex flex-col items-center gap-1.5">
-              <div className="flex flex-col items-center gap-1">
-                {label === "Ones"
-                  ? (
-                    <div className="flex flex-wrap justify-center gap-1 max-w-[80px]">
-                      {Array.from({ length: count }).map((_, i) => (
-                        <div key={i} style={{ width: w, height: h, backgroundColor: color + "30", border: `2px solid ${color}`, borderRadius: 4 }} />
-                      ))}
-                    </div>
-                  )
-                  : Array.from({ length: count }).map((_, i) => (
-                    <div key={i} style={{ width: w, height: h, backgroundColor: color + "25", border: `2px solid ${color}`, borderRadius: 4 }} />
-                  ))
-                }
-              </div>
-              <span className="text-[10px] font-semibold text-slate-500 text-center">{label}</span>
-            </div>
-          ))}
+        <div className="flex items-end justify-center gap-6 py-2">
+          {groups.map(({ key, label, color, w, h }) => {
+            const count = Math.min(shown[key] ?? 0, 9);
+            const isHl = highlighted.has(key);
+            return (
+              <button key={key} onClick={() => toggle(key)}
+                className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all ${isHl ? "border-current bg-slate-100 scale-105" : "border-transparent hover:border-slate-200"}`}
+                style={{ borderColor: isHl ? color : undefined }}>
+                <div className={`flex flex-col items-center gap-1 ${key === "ones" ? "flex-row flex-wrap justify-center max-w-[72px]" : ""}`}>
+                  {Array.from({ length: count }).map((_, i) => (
+                    <div key={i} style={{ width: w, height: h, backgroundColor: color + (isHl ? "60" : "28"), border: `2px solid ${color}`, borderRadius: 4, transition: "background-color 0.15s" }} />
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold" style={{ color }}>{count} {label}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -309,21 +316,30 @@ function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
 function FractionBarVisual({ numerator, denominator, accent }: {
   numerator: number; denominator: number; accent: string;
 }) {
-  const [num, den] = [numerator, Math.max(denominator, 2)];
+  const den = Math.max(denominator, 2);
+  const [selected, setSelected] = useState(0);
   const W = 280; const H = 52; const cellW = W / den;
+
+  const handleCell = (i: number) => {
+    // Tapping rightmost selected cell deselects it; otherwise extend selection
+    setSelected(prev => (i + 1 === prev ? i : i + 1));
+  };
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Fraction strip — what fraction is shaded?</p>
-      <svg viewBox={`0 0 ${W + 20} ${H + 10}`} className="w-full max-w-xs mx-auto">
+      <p className={TASK_LABEL}>Tap the parts — how many are shaded?</p>
+      <svg viewBox={`0 0 ${W + 20} ${H + 10}`} className="w-full max-w-xs mx-auto touch-none select-none">
         {Array.from({ length: den }, (_, i) => (
-          <g key={i}>
+          <g key={i} style={{ cursor: "pointer" }} onClick={() => handleCell(i)}>
             <rect x={i * cellW + 10} y={4} width={cellW - 1} height={H}
-              fill={i < num ? accent + "b0" : "#f1f5f9"}
-              stroke="#94a3b8" strokeWidth={1.5} />
+              fill={i < selected ? accent + "c0" : "#f1f5f9"}
+              stroke={i < selected ? accent : "#94a3b8"} strokeWidth={i < selected ? 2 : 1.5} />
           </g>
         ))}
       </svg>
+      <p className="text-center text-xs text-slate-500 mt-1">
+        {selected === 0 ? "Tap a section to shade it" : `${selected} of ${den} parts shaded`}
+      </p>
     </div>
   );
 }
@@ -333,24 +349,37 @@ function FractionBarVisual({ numerator, denominator, accent }: {
 function FractionCircleVisual({ numerator, denominator, accent }: {
   numerator: number; denominator: number; accent: string;
 }) {
-  const [num, den] = [numerator, Math.max(denominator, 2)];
-  const R = 72; const cx = 100; const cy = 85;
-  const slices = Array.from({ length: den }, (_, i) => {
+  const den = Math.max(denominator, 2);
+  const [selected, setSelected] = useState(0);
+  const R = 72; const cx = 100; const cy = 95;
+
+  const makeSlice = (i: number) => {
     const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
     const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
     const x1 = cx + R * Math.cos(a1); const y1 = cy + R * Math.sin(a1);
     const x2 = cx + R * Math.cos(a2); const y2 = cy + R * Math.sin(a2);
-    return { d: `M${cx},${cy} L${x1},${y1} A${R},${R} 0 ${1 / den > 0.5 ? 1 : 0},1 ${x2},${y2}Z`, filled: i < num };
-  });
+    return `M${cx},${cy} L${x1},${y1} A${R},${R} 0 ${1 / den > 0.5 ? 1 : 0},1 ${x2},${y2}Z`;
+  };
+
+  const handleSlice = (i: number) => setSelected(prev => (i + 1 === prev ? i : i + 1));
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Fraction circle — what fraction is shaded?</p>
-      <svg viewBox="0 0 200 165" className="w-48 mx-auto">
-        {slices.map((s, i) => (
-          <path key={i} d={s.d} fill={s.filled ? accent + "b0" : "#f1f5f9"} stroke="#94a3b8" strokeWidth={1.5} />
+      <p className={TASK_LABEL}>Tap the slices — how many are shaded?</p>
+      <svg viewBox="0 0 200 185" className="w-48 mx-auto touch-none select-none">
+        {Array.from({ length: den }, (_, i) => (
+          <path key={i} d={makeSlice(i)}
+            fill={i < selected ? accent + "c0" : "#f1f5f9"}
+            stroke={i < selected ? accent : "#94a3b8"}
+            strokeWidth={i < selected ? 2 : 1.5}
+            style={{ cursor: "pointer" }}
+            onClick={() => handleSlice(i)}
+          />
         ))}
       </svg>
+      <p className="text-center text-xs text-slate-500 mt-1">
+        {selected === 0 ? "Tap a slice to shade it" : `${selected} of ${den} slices shaded`}
+      </p>
     </div>
   );
 }
@@ -476,15 +505,45 @@ function PlaceValueChartVisual({ thousands, hundreds, tens, ones, accent }: {
 // ── Visual: Clock ─────────────────────────────────────────────────────────────
 
 function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; accent: string }) {
-  const hAngle = ((hour % 12) + minute / 60) / 12 * 360 - 90;
-  const mAngle = minute / 60 * 360 - 90;
+  const initH = ((hour % 12) + minute / 60) / 12 * 360 - 90;
+  const initM = minute / 60 * 360 - 90;
+  const [hDeg, setHDeg] = useState(initH);
+  const [mDeg, setMDeg] = useState(initM);
+  const dragging = useRef<"hour" | "minute" | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const cx = 90; const cy = 90; const R = 78;
   const toRad = (deg: number) => deg * Math.PI / 180;
 
+  const getAngle = (clientX: number, clientY: number) => {
+    if (!svgRef.current) return 0;
+    const rect = svgRef.current.getBoundingClientRect();
+    const sx = 180 / rect.width; const sy = 180 / rect.height;
+    const dx = (clientX - rect.left) * sx - cx;
+    const dy = (clientY - rect.top) * sy - cy;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  };
+
+  const onMove = (clientX: number, clientY: number) => {
+    if (!dragging.current) return;
+    const a = getAngle(clientX, clientY);
+    if (dragging.current === "minute") setMDeg(a);
+    else setHDeg(a);
+  };
+
+  const hTip = { x: cx + 42 * Math.cos(toRad(hDeg)), y: cy + 42 * Math.sin(toRad(hDeg)) };
+  const mTip = { x: cx + 60 * Math.cos(toRad(mDeg)), y: cy + 60 * Math.sin(toRad(mDeg)) };
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>What time does the clock show?</p>
-      <svg viewBox="0 0 180 180" className="w-40 mx-auto">
+      <p className={TASK_LABEL}>Drag the hands — what time is it?</p>
+      <svg ref={svgRef} viewBox="0 0 180 180" className="w-40 mx-auto touch-none select-none"
+        style={{ cursor: dragging.current ? "grabbing" : "default" }}
+        onMouseMove={e => onMove(e.clientX, e.clientY)}
+        onMouseUp={() => { dragging.current = null; }}
+        onMouseLeave={() => { dragging.current = null; }}
+        onTouchMove={e => { onMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }}
+        onTouchEnd={() => { dragging.current = null; }}
+      >
         <circle cx={cx} cy={cy} r={R} fill="white" stroke="#334155" strokeWidth={4} />
         {Array.from({ length: 12 }, (_, i) => {
           const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
@@ -497,8 +556,20 @@ function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; a
             </g>
           );
         })}
-        <line x1={cx} y1={cy} x2={cx + 42 * Math.cos(toRad(hAngle))} y2={cy + 42 * Math.sin(toRad(hAngle))} stroke="#1e293b" strokeWidth={6} strokeLinecap="round" />
-        <line x1={cx} y1={cy} x2={cx + 60 * Math.cos(toRad(mAngle))} y2={cy + 60 * Math.sin(toRad(mAngle))} stroke="#475569" strokeWidth={4} strokeLinecap="round" />
+        {/* Hour hand */}
+        <line x1={cx} y1={cy} x2={hTip.x} y2={hTip.y} stroke="#1e293b" strokeWidth={6} strokeLinecap="round" />
+        <circle cx={hTip.x} cy={hTip.y} r={8} fill={accent + "30"} stroke={accent} strokeWidth={2}
+          style={{ cursor: "grab" }}
+          onMouseDown={e => { dragging.current = "hour"; e.stopPropagation(); }}
+          onTouchStart={e => { dragging.current = "hour"; e.stopPropagation(); }}
+        />
+        {/* Minute hand */}
+        <line x1={cx} y1={cy} x2={mTip.x} y2={mTip.y} stroke="#475569" strokeWidth={4} strokeLinecap="round" />
+        <circle cx={mTip.x} cy={mTip.y} r={7} fill="#f1f5f9" stroke="#475569" strokeWidth={2}
+          style={{ cursor: "grab" }}
+          onMouseDown={e => { dragging.current = "minute"; e.stopPropagation(); }}
+          onTouchStart={e => { dragging.current = "minute"; e.stopPropagation(); }}
+        />
         <circle cx={cx} cy={cy} r={5} fill={accent} />
       </svg>
     </div>
@@ -509,31 +580,49 @@ function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; a
 
 function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }) {
   const rng = seededRand(strSeed(taskId));
-  const COINS = [
-    { label: "$1", r: 26, color: "#d97706" },
-    { label: "50¢", r: 22, color: "#94a3b8" },
-    { label: "25¢", r: 19, color: "#94a3b8" },
-    { label: "10¢", r: 15, color: "#94a3b8" },
-    { label: "5¢", r: 13, color: "#78716c" },
+  const COIN_DEFS = [
+    { label: "$1", cents: 100, r: 26, color: "#d97706" },
+    { label: "50¢", cents: 50, r: 22, color: "#94a3b8" },
+    { label: "25¢", cents: 25, r: 19, color: "#94a3b8" },
+    { label: "10¢", cents: 10, r: 15, color: "#94a3b8" },
+    { label: "5¢", cents: 5, r: 13, color: "#78716c" },
   ];
   const count = 4 + Math.floor(rng() * 4);
-  const coins = Array.from({ length: count }, () => COINS[Math.floor(rng() * COINS.length)]);
+  const coins = Array.from({ length: count }, () => COIN_DEFS[Math.floor(rng() * COIN_DEFS.length)]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  const toggle = (i: number) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
+
+  const total = [...selected].reduce((sum, i) => sum + coins[i].cents, 0);
+  const totalStr = total >= 100 ? `$${(total / 100).toFixed(2)}` : `${total}¢`;
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Count the money</p>
-      <svg viewBox="0 0 280 100" className="w-full max-w-xs mx-auto">
+      <p className={TASK_LABEL}>Tap coins to count — what is the total?</p>
+      <svg viewBox="0 0 280 100" className="w-full max-w-xs mx-auto touch-none select-none">
         {coins.map((c, i) => {
           const x = 28 + i * (280 / count) * 0.9;
           const y = 40 + (rng() - 0.5) * 20;
+          const isSelected = selected.has(i);
           return (
-            <g key={i}>
-              <circle cx={x} cy={y} r={c.r} fill={c.color + "30"} stroke={c.color} strokeWidth={2.5} />
+            <g key={i} style={{ cursor: "pointer" }} onClick={() => toggle(i)}>
+              <circle cx={x} cy={y} r={c.r}
+                fill={isSelected ? c.color + "60" : c.color + "20"}
+                stroke={c.color} strokeWidth={isSelected ? 3 : 2}
+                style={{ filter: isSelected ? `drop-shadow(0 0 4px ${c.color})` : "none" }}
+              />
               <text x={x} y={y + 4} textAnchor="middle" fontSize={10} fill="#1e293b" fontWeight="700">{c.label}</text>
             </g>
           );
         })}
       </svg>
+      <p className="text-center text-sm font-bold mt-1" style={{ color: selected.size > 0 ? accent : "#94a3b8" }}>
+        {selected.size === 0 ? "Tap coins to select them" : `Selected: ${totalStr}`}
+      </p>
     </div>
   );
 }
@@ -781,8 +870,10 @@ function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: strin
   const sides = [3, 4, 5, 6][Math.floor(rng() * 4)];
   const rotations = [0, 45, 90, 135];
   const rot1 = rotations[Math.floor(rng() * rotations.length)];
-  const rot2 = rot1 + 90;
+  const [studentRot, setStudentRot] = useState(rot1); // student drags to show their answer
   const R = 40; const toRad = (d: number) => d * Math.PI / 180;
+  const dragRef = useRef<{ active: boolean; startAngle: number; startRot: number }>({ active: false, startAngle: 0, startRot: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const polyPoints = (cx: number, cy: number, rot: number) =>
     Array.from({ length: sides }, (_, i) => {
@@ -790,21 +881,55 @@ function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: strin
       return `${cx + R * Math.cos(a)},${cy + R * Math.sin(a)}`;
     }).join(" ");
 
+  const getAngle = (clientX: number, clientY: number) => {
+    if (!svgRef.current) return 0;
+    const rect = svgRef.current.getBoundingClientRect();
+    const scaleX = 100 / rect.width;
+    const scaleY = 100 / rect.height;
+    const dx = (clientX - rect.left) * scaleX - 50;
+    const dy = (clientY - rect.top) * scaleY - 50;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  };
+
+  const startDrag = (clientX: number, clientY: number) => {
+    dragRef.current = { active: true, startAngle: getAngle(clientX, clientY), startRot: studentRot };
+  };
+  const onDrag = (clientX: number, clientY: number) => {
+    if (!dragRef.current.active) return;
+    const delta = getAngle(clientX, clientY) - dragRef.current.startAngle;
+    setStudentRot(dragRef.current.startRot + delta);
+  };
+  const stopDrag = () => { dragRef.current.active = false; };
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Shape rotation — what does it look like?</p>
+      <p className={TASK_LABEL}>Shape rotation — drag the right shape to match</p>
       <div className="flex items-center justify-center gap-4 py-2">
-        <svg viewBox="0 0 100 100" className="w-24">
-          <polygon points={polyPoints(50, 50, rot1)} fill={accent + "40"} stroke={accent} strokeWidth={2.5} />
-          <text x={50} y={96} textAnchor="middle" fontSize={10} fill="#64748b">Original</text>
-        </svg>
+        <div className="flex flex-col items-center">
+          <svg viewBox="0 0 100 100" className="w-24">
+            <polygon points={polyPoints(50, 50, rot1)} fill={accent + "40"} stroke={accent} strokeWidth={2.5} />
+          </svg>
+          <span className="text-[10px] text-slate-500 mt-1">Original</span>
+        </div>
         <svg viewBox="0 0 30 30" className="w-6 opacity-40">
           <path d="M5 15 L25 15 M20 10 L25 15 L20 20" stroke="#334155" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <svg viewBox="0 0 100 100" className="w-24">
-          <polygon points={polyPoints(50, 50, rot2)} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,4" />
-          <text x={50} y={96} textAnchor="middle" fontSize={10} fill="#64748b">Rotated?</text>
-        </svg>
+        <div className="flex flex-col items-center">
+          <svg ref={svgRef} viewBox="0 0 100 100" className="w-24 touch-none select-none" style={{ cursor: "grab" }}
+            onMouseDown={e => startDrag(e.clientX, e.clientY)}
+            onMouseMove={e => onDrag(e.clientX, e.clientY)}
+            onMouseUp={stopDrag} onMouseLeave={stopDrag}
+            onTouchStart={e => startDrag(e.touches[0].clientX, e.touches[0].clientY)}
+            onTouchMove={e => { onDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }}
+            onTouchEnd={stopDrag}
+          >
+            <polygon points={polyPoints(50, 50, studentRot)} fill={accent + "20"} stroke={accent} strokeWidth={2} strokeDasharray="5,4" />
+            {/* Rotation handle */}
+            <circle cx={50 + R * Math.cos(toRad(studentRot - 90))} cy={50 + R * Math.sin(toRad(studentRot - 90))} r={7}
+              fill={accent} opacity={0.8} />
+          </svg>
+          <span className="text-[10px] text-slate-500 mt-1">Drag to rotate</span>
+        </div>
       </div>
     </div>
   );
