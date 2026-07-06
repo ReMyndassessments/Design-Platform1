@@ -531,15 +531,19 @@ export function RmraReportPanel({
   caseId,
   session,
   isStandalone = false,
+  examinerToken = "",
 }: {
   sessionId: string;
   caseId: string;
   session: RmraReportSession;
   isStandalone?: boolean;
+  examinerToken?: string;
 }) {
   const { toast } = useToast();
   const authHeader = () =>
-    isStandalone ? {} : { Authorization: `Bearer ${localStorage.getItem("raos_token")}` };
+    isStandalone
+      ? { "X-Examiner-Token": examinerToken }
+      : { Authorization: `Bearer ${localStorage.getItem("raos_token")}` };
 
   const reportEndpoint = isStandalone
     ? `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/generate-report`

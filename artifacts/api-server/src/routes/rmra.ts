@@ -1094,11 +1094,15 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
   }
 });
 
-// ── Standalone: Items (public, no auth) ──────────────────────────────────────
+// ── Standalone: Items (examiner-only) ────────────────────────────────────────
 
 router.get("/rmra/standalone/sessions/:sessionId/items", async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    if (!await verifyExaminerToken(sessionId, examToken)) {
+      return res.status(403).json({ error: "Unauthorized: valid examiner token required" });
+    }
     const [session] = await db
       .select({ ageBand: rmraSessionsTable.ageBand, version: rmraSessionsTable.version })
       .from(rmraSessionsTable)
@@ -1465,7 +1469,9 @@ router.post("/rmra/standalone/sessions/:sessionId/email-report", async (req: Req
   }
 });
 
-// ── Standalone: Get Session (public, no auth) ────────────────────────────────────
+// ── Standalone: Get Session ───────────────────────────────────────────────────────
+// Examiner token → full session + responses.
+// No token (student) → student-safe fields only (no notes, scores, reportData).
 
 router.get("/rmra/standalone/sessions/:sessionId", async (req: Request, res: Response) => {
   try {
@@ -1477,6 +1483,25 @@ router.get("/rmra/standalone/sessions/:sessionId", async (req: Request, res: Res
       .limit(1);
 
     if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const examToken = req.headers["x-examiner-token"] as string | undefined;
+    const isExaminer = examToken ? await verifyExaminerToken(sessionId, examToken) : false;
+
+    if (!isExaminer) {
+      // Student-safe subset — no examiner notes, domain scores, or report data
+      return res.json({
+        session: {
+          id: session.id,
+          ageBand: session.ageBand,
+          version: session.version,
+          theme: session.theme,
+          status: session.status,
+          startedAt: session.startedAt,
+          completedAt: session.completedAt,
+        },
+        responses: [],
+      });
+    }
 
     const responses = await db
       .select()

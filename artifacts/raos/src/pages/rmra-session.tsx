@@ -486,6 +486,7 @@ export default function RmraStandaloneSessionPage() {
                   caseId=""
                   session={session}
                   isStandalone={true}
+                  examinerToken={examinerToken}
                 />
               </div>
             )}
