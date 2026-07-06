@@ -241,7 +241,8 @@ function NumberLineVisual({ scaleMin, scaleMax, accent }: {
   const fromClientX = (cx: number) => {
     if (!svgRef.current) return markerPos;
     const rect = svgRef.current.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (cx - rect.left) / rect.width * W - L) / (R - L));
+    const svgX = (cx - rect.left) / rect.width * W;
+    return Math.max(0, Math.min(1, (svgX - L) / (R - L)));
   };
 
   const tickCount = Math.min(10, Math.ceil((maxVal - minVal) / step));
