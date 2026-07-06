@@ -247,7 +247,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Number Sense",
     ageBand: "upper_primary",
     taskType: "magnitude_comparison",
-    visualType: "number_bond",
+    visualType: "number_line",
     prompts: {
       space_mission: "Which is bigger — 3/4 of a fuel tank or 0.6 of a fuel tank? How do you know?",
       city_builder: "Which is more — 3/4 of a building completed or 0.6 completed? How do you know?",
@@ -361,7 +361,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Number Sense",
     ageBand: "secondary",
     taskType: "number_sense_proof",
-    visualType: "number_bond",
+    visualType: "bar_model",
     prompts: {
       space_mission: "Without a calculator, is 127 × 49 closer to 5,000 or 6,500? Explain your reasoning.",
       city_builder: "Without calculating exactly, is 127 × 49 closer to 5,000 or 6,500? Explain.",
@@ -646,7 +646,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Addition Reasoning",
     ageBand: "secondary",
     taskType: "algebraic_sum",
-    visualType: "number_bond",
+    visualType: "balance_scale",
     prompts: {
       space_mission: "Three missions cost a + b and b + c and a + c dollars. The total is $240. What is a + b + c?",
       city_builder: "Three construction contracts cost a + b, b + c, and a + c. Total is $240. Find a + b + c.",
@@ -760,7 +760,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Subtraction Reasoning",
     ageBand: "secondary",
     taskType: "algebraic_subtraction",
-    visualType: "balance_scale",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Simplify: (3x² + 5x - 7) - (x² - 2x + 4). What strategy did you use?",
       city_builder: "A building's old height formula is (3x² + 5x - 7) and it's reduced by (x² - 2x + 4). Find the new formula.",
@@ -1190,10 +1190,10 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "bar_model",
     prompts: {
       space_mission: "The spacecraft travels 2.5 km per second. How many metres per minute?",
-      city_builder: "A conveyor belt moves 2.5 km per minute. How many metres per second?",
-      bakery_math: "A dough mixer turns 2.5 km of dough through per hour. Convert to metres per minute.",
-      robot_factory: "A robot moves 2.5 km/hour. Convert to metres per second.",
-      treasure_builder: "A treasure hunter walks 2.5 km/hour. Convert to metres per minute.",
+      city_builder: "A high-speed rail system travels 2.5 km per second. How many metres per minute is that?",
+      bakery_math: "A factory conveyor moves 2.5 km per second. Convert this speed to metres per minute.",
+      robot_factory: "A robot travels 2.5 km per second along a track. How many metres per minute does it cover?",
+      treasure_builder: "A treasure drone flies 2.5 km per second. How many metres per minute is that?",
     },
     exactAnswer: 150000,
     primaryConstruct: "unit conversion",
@@ -1552,7 +1552,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Mathematical Language",
     ageBand: "secondary",
     taskType: "proof_language",
-    visualType: "number_bond",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Prove that the sum of any two consecutive integers is always odd. Write your proof clearly.",
       city_builder: "Prove that the sum of two consecutive integers is always odd. Show all steps.",
@@ -1724,7 +1724,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Response to Productive Struggle",
     ageBand: "upper_primary",
     taskType: "error_finding",
-    visualType: "number_bond",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Find the mistake: 4 × 23 = 92, then 92 + 37 = 119, then 119 ÷ 7 = 17. Is the final answer correct?",
       city_builder: "Find the error in this calculation chain: 4×23=92, 92+37=119, 119÷7=17.",
@@ -1780,7 +1780,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Response to Productive Struggle",
     ageBand: "secondary",
     taskType: "open_ended_investigation",
-    visualType: "number_bond",
+    visualType: "area_model",
     prompts: {
       space_mission: "Investigate: Is it always true that (a + b)² = a² + b²? Test with examples and write a conclusion.",
       city_builder: "Investigate: Does (a + b)² = a² + b²? Test, find a counterexample if wrong, and explain.",
