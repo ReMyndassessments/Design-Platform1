@@ -1040,7 +1040,16 @@ export default function RmraAdminPage() {
               ) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
                   <Zap size={13} className="text-amber-500 shrink-0" />
-                  <p className="text-xs text-amber-800 font-medium">Stimulus shown — student sees dots for 3 s, then must estimate</p>
+                  <p className="text-xs text-amber-800 font-medium flex-1">Stimulus shown — student sees dots for 3 s, then must estimate</p>
+                  <button
+                    onClick={() => {
+                      updateCurrentResponse("attempts", Math.min(9, currentResponse.attempts + 1));
+                      handleShowAndStartTimer();
+                    }}
+                    className="text-xs text-amber-700 border border-amber-300 rounded-lg px-2.5 py-1 hover:bg-amber-100 font-medium shrink-0 flex items-center gap-1"
+                  >
+                    <Zap size={11} /> Flash Again
+                  </button>
                 </div>
               )}
             </div>
