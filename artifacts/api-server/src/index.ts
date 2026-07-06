@@ -1125,6 +1125,41 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringConfig: RRCA_SCORING_CONFIG as unknown as ScoringConfig,
     formItems: [],
   },
+  {
+    id: "RMRA",
+    name: "RMRA — ReMynd Mathematical Reasoning Assessment",
+    category: "Mathematics / Numeracy / Reasoning",
+    description: "The ReMynd Mathematical Reasoning Assessment (RMRA) is a structured examiner-administered tool assessing mathematical reasoning, problem solving, and metacognitive strategy use across 13 domains in students aged 5–16. Supports identification of dyscalculia risk, mathematical learning difficulties, and reasoning strengths. Administration time: 30–60 minutes (full) or 15–25 minutes (brief).",
+    isRemyndOwned: true,
+    respondentTypes: ["invigilator"],
+    scoringType: "manual",
+    domains: [
+      "number_sense", "place_value", "addition_reasoning", "subtraction_reasoning",
+      "multiplicative_thinking", "division_thinking", "fractions", "measurement",
+      "patterns_early_algebra", "geometry_spatial_reasoning", "mathematical_language",
+      "problem_solving_executive_function", "response_to_productive_struggle",
+    ],
+    scoringConfig: {
+      max: 100,
+      thresholds: { low: 75, mild: 50, moderate: 25 },
+      domains: {
+        number_sense: { label: "Number Sense", shortLabel: "Num Sense", narratives: { low: "Demonstrates strong number sense with accurate estimation, subitizing, and magnitude reasoning.", mild: "Shows developing number sense; inconsistencies in estimation and magnitude comparison noted.", moderate: "Emerging number sense; requires structured support for quantity reasoning and benchmarking.", elevated: "Significant difficulties with number sense; intensive support recommended." } },
+        place_value: { label: "Place Value", shortLabel: "Place Value", narratives: { low: "Solid understanding of place value across all digit positions including decimals.", mild: "Developing place value understanding; some confusion with regrouping or multi-digit values.", moderate: "Limited place value concept; difficulties with tens/hundreds and regrouping observed.", elevated: "Very limited place value understanding; foundational re-teaching required." } },
+        addition_reasoning: { label: "Addition Reasoning", shortLabel: "Addition", narratives: { low: "Uses efficient and flexible addition strategies with strong accuracy.", mild: "Functional addition skills; prefers counting strategies over more efficient methods.", moderate: "Addition reasoning developing; frequent errors and limited strategy variety.", elevated: "Significant difficulties with addition; targeted intervention recommended." } },
+        subtraction_reasoning: { label: "Subtraction Reasoning", shortLabel: "Subtraction", narratives: { low: "Strong subtraction reasoning across contexts with appropriate strategy selection.", mild: "Developing subtraction skills; may revert to less efficient strategies under pressure.", moderate: "Limited subtraction reasoning; difficulties with regrouping and multi-step problems.", elevated: "Significant subtraction difficulties; foundational intervention warranted." } },
+        multiplicative_thinking: { label: "Multiplicative Thinking", shortLabel: "Mult. Thinking", narratives: { low: "Demonstrates strong multiplicative thinking with flexible use of arrays, area models, and properties.", mild: "Developing multiplicative reasoning; some reliance on repeated addition rather than multiplicative structures.", moderate: "Limited multiplicative thinking; conceptual gaps in understanding multiplication as scaling.", elevated: "Significant difficulties with multiplicative thinking; intervention recommended." } },
+        division_thinking: { label: "Division Thinking", shortLabel: "Division", narratives: { low: "Strong division thinking with understanding of both partition and quotition models.", mild: "Developing division skills; prefers repeated subtraction or sharing models.", moderate: "Limited division reasoning; conceptual gaps between sharing and grouping division.", elevated: "Significant difficulties with division thinking; re-teaching of foundational concepts needed." } },
+        fractions: { label: "Fractions", shortLabel: "Fractions", narratives: { low: "Strong fraction reasoning including operations, equivalence, and comparison.", mild: "Developing fraction understanding; some confusion with unlike denominators or improper fractions.", moderate: "Limited fraction knowledge; significant gaps in part-whole understanding.", elevated: "Very limited fraction understanding; intensive foundational support required." } },
+        measurement: { label: "Measurement", shortLabel: "Measurement", narratives: { low: "Accurate measurement reasoning including unit conversion and formula application.", mild: "Developing measurement skills; occasional unit confusion or formula errors.", moderate: "Limited measurement reasoning; difficulties with multi-step and conversion tasks.", elevated: "Significant measurement difficulties; requires structured re-teaching." } },
+        patterns_early_algebra: { label: "Patterns & Early Algebra", shortLabel: "Patterns/Algebra", narratives: { low: "Strong pattern recognition and algebraic thinking with ability to generalise rules.", mild: "Developing algebraic reasoning; can extend patterns but may struggle to generalise.", moderate: "Limited pattern and algebraic reasoning; difficulties finding and applying rules.", elevated: "Significant difficulties with pattern and algebraic thinking; foundational support needed." } },
+        geometry_spatial_reasoning: { label: "Geometry & Spatial Reasoning", shortLabel: "Geometry", narratives: { low: "Strong spatial reasoning and geometric understanding across 2D and 3D contexts.", mild: "Developing geometry skills; some difficulty with transformations or angle classification.", moderate: "Limited geometric reasoning; significant gaps in spatial and shape understanding.", elevated: "Significant spatial reasoning difficulties; targeted geometric intervention recommended." } },
+        mathematical_language: { label: "Mathematical Language", shortLabel: "Math Language", narratives: { low: "Precise and flexible use of mathematical language to explain and justify reasoning.", mild: "Developing mathematical language; can solve but has difficulty verbalising reasoning.", moderate: "Limited mathematical vocabulary; difficulty expressing mathematical ideas verbally.", elevated: "Significant mathematical language difficulties; language-integrated math support recommended." } },
+        problem_solving_executive_function: { label: "Problem Solving & Executive Function", shortLabel: "Problem Solving", narratives: { low: "Strong problem solving with systematic planning, multi-step execution, and self-monitoring.", mild: "Developing problem-solving skills; may struggle with planning or monitoring multi-step problems.", moderate: "Limited problem-solving capacity; difficulties with task initiation and self-regulation in math.", elevated: "Significant problem-solving difficulties linked to executive function; integrated support recommended." } },
+        response_to_productive_struggle: { label: "Response to Productive Struggle", shortLabel: "Productive Struggle", narratives: { low: "Excellent persistence, flexibility, and emotional regulation when faced with challenging tasks.", mild: "Developing tolerance for productive struggle; may disengage after initial difficulty.", moderate: "Limited productive struggle capacity; gives up quickly or becomes anxious with hard tasks.", elevated: "Very low tolerance for mathematical challenge; requires emotional and metacognitive scaffolding." } },
+      },
+    } as unknown as ScoringConfig,
+    formItems: [],
+  },
 ];
 
 const CANONICAL_IDS = CANONICAL_TOOLS.map(t => t.id as string);
@@ -2634,6 +2669,63 @@ async function backfillRscaSnapshots() {
   }
 }
 
+async function createRmraTables() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS rmra_sessions (
+        id TEXT PRIMARY KEY,
+        case_id TEXT,
+        assignment_id TEXT,
+        examiner_id TEXT,
+        age_band TEXT NOT NULL DEFAULT 'upper_primary',
+        version TEXT NOT NULL DEFAULT 'full',
+        theme TEXT NOT NULL DEFAULT 'space_mission',
+        status TEXT NOT NULL DEFAULT 'not_started',
+        current_task_id TEXT,
+        general_notes TEXT,
+        domain_scores JSONB,
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS rmra_task_responses (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        age_band TEXT NOT NULL,
+        accuracy INTEGER,
+        reasoning INTEGER,
+        strategy_level INTEGER,
+        strategy_label TEXT,
+        hint_level INTEGER NOT NULL DEFAULT 0,
+        attempts INTEGER NOT NULL DEFAULT 1,
+        self_correction BOOLEAN NOT NULL DEFAULT FALSE,
+        confidence_rating INTEGER,
+        response_time_seconds REAL,
+        first_response TEXT,
+        final_response TEXT,
+        productive_struggle_persistence INTEGER,
+        productive_struggle_flexibility INTEGER,
+        productive_struggle_emotional_regulation INTEGER,
+        productive_struggle_error_recovery INTEGER,
+        productive_struggle_help_utilization INTEGER,
+        discontinued BOOLEAN NOT NULL DEFAULT FALSE,
+        discontinuation_reason TEXT,
+        examiner_notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    logger.info("RMRA tables ensured");
+  } catch (err) {
+    logger.error({ err }, "createRmraTables failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -2673,6 +2765,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => backfillRscaSnapshots())
   .then(() => addCaseProductIds())
   .then(() => purgeInvalidScores())
+  .then(() => createRmraTables())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

@@ -1,0 +1,465 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { rmraSessionsTable, rmraTaskResponsesTable, assignmentsTable, scoresTable, casesTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { logger } from "../lib/logger.js";
+import { nanoid } from "nanoid";
+import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.js";
+
+const router = Router();
+
+// ── Create or retrieve session for an assignment ──────────────────────────────
+router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { assignmentId, ageBand, version, theme } = req.body as {
+      assignmentId: string;
+      ageBand: string;
+      version: "full" | "brief";
+      theme: string;
+    };
+
+    const [assignment] = await db
+      .select()
+      .from(assignmentsTable)
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .limit(1);
+
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    if (assignment.toolId !== "RMRA") return res.status(400).json({ error: "Assignment is not an RMRA session" });
+
+    const existing = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(eq(rmraSessionsTable.assignmentId, assignmentId))
+      .limit(1);
+
+    if (existing[0]) {
+      const responses = await db
+        .select()
+        .from(rmraTaskResponsesTable)
+        .where(eq(rmraTaskResponsesTable.sessionId, existing[0].id));
+      return res.json({ session: existing[0], responses });
+    }
+
+    const sessionId = nanoid();
+    const [session] = await db
+      .insert(rmraSessionsTable)
+      .values({
+        id: sessionId,
+        caseId,
+        assignmentId,
+        examinerId: req.userId ?? null,
+        ageBand: ageBand ?? "upper_primary",
+        version: version ?? "full",
+        theme: theme ?? "space_mission",
+        status: "not_started",
+      })
+      .returning();
+
+    return res.status(201).json({ session, responses: [] });
+  } catch (err) {
+    logger.error({ err }, "POST /rmra/sessions failed");
+    return res.status(500).json({ error: "Failed to create RMRA session" });
+  }
+});
+
+// ── Get session with all responses ───────────────────────────────────────────
+router.get("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const responses = await db
+      .select()
+      .from(rmraTaskResponsesTable)
+      .where(eq(rmraTaskResponsesTable.sessionId, sessionId));
+
+    const [caseRow] = await db
+      .select({ studentName: casesTable.studentName, dob: casesTable.dob, grade: casesTable.grade })
+      .from(casesTable)
+      .where(eq(casesTable.id, session.caseId ?? ""))
+      .limit(1);
+
+    return res.json({ session, responses, case: caseRow ?? null });
+  } catch (err) {
+    logger.error({ err }, "GET /rmra/sessions/:id failed");
+    return res.status(500).json({ error: "Failed to load RMRA session" });
+  }
+});
+
+// ── Update session (notes, status, current task, theme/ageBand) ───────────────
+router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { generalNotes, status, currentTaskId, ageBand, version, theme } = req.body;
+
+    const updates: Partial<typeof rmraSessionsTable.$inferInsert> = { updatedAt: new Date() };
+    if (generalNotes !== undefined) updates.generalNotes = generalNotes;
+    if (status !== undefined) updates.status = status;
+    if (currentTaskId !== undefined) updates.currentTaskId = currentTaskId;
+    if (ageBand !== undefined) updates.ageBand = ageBand;
+    if (version !== undefined) updates.version = version;
+    if (theme !== undefined) updates.theme = theme;
+
+    if (status === "in_progress" && !updates.startedAt) {
+      const [existing] = await db.select({ startedAt: rmraSessionsTable.startedAt })
+        .from(rmraSessionsTable).where(eq(rmraSessionsTable.id, sessionId)).limit(1);
+      if (!existing?.startedAt) updates.startedAt = new Date();
+    }
+
+    const [session] = await db
+      .update(rmraSessionsTable)
+      .set(updates)
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .returning();
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    return res.json({ session });
+  } catch (err) {
+    logger.error({ err }, "PATCH /rmra/sessions/:id failed");
+    return res.status(500).json({ error: "Failed to update RMRA session" });
+  }
+});
+
+// ── Upsert task response ──────────────────────────────────────────────────────
+router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId, taskId } = req.params;
+    const body = req.body as {
+      domain: string;
+      ageBand: string;
+      accuracy?: number;
+      reasoning?: number;
+      strategyLevel?: number;
+      strategyLabel?: string;
+      hintLevel?: number;
+      attempts?: number;
+      selfCorrection?: boolean;
+      confidenceRating?: number;
+      responseTimeSeconds?: number;
+      firstResponse?: string;
+      finalResponse?: string;
+      productiveStrugglePersistence?: number;
+      productiveStruggleFlexibility?: number;
+      productiveStruggleEmotionalRegulation?: number;
+      productiveStruggleErrorRecovery?: number;
+      productiveStruggleHelpUtilization?: number;
+      discontinued?: boolean;
+      discontinuationReason?: string;
+      examinerNotes?: string;
+    };
+
+    const existing = await db
+      .select({ id: rmraTaskResponsesTable.id })
+      .from(rmraTaskResponsesTable)
+      .where(and(
+        eq(rmraTaskResponsesTable.sessionId, sessionId),
+        eq(rmraTaskResponsesTable.taskId, taskId),
+      ))
+      .limit(1);
+
+    const values = {
+      sessionId,
+      domain: body.domain,
+      taskId,
+      ageBand: body.ageBand,
+      accuracy: body.accuracy ?? null,
+      reasoning: body.reasoning ?? null,
+      strategyLevel: body.strategyLevel ?? null,
+      strategyLabel: body.strategyLabel ?? null,
+      hintLevel: body.hintLevel ?? 0,
+      attempts: body.attempts ?? 1,
+      selfCorrection: body.selfCorrection ?? false,
+      confidenceRating: body.confidenceRating ?? null,
+      responseTimeSeconds: body.responseTimeSeconds ?? null,
+      firstResponse: body.firstResponse ?? null,
+      finalResponse: body.finalResponse ?? null,
+      productiveStrugglePersistence: body.productiveStrugglePersistence ?? null,
+      productiveStruggleFlexibility: body.productiveStruggleFlexibility ?? null,
+      productiveStruggleEmotionalRegulation: body.productiveStruggleEmotionalRegulation ?? null,
+      productiveStruggleErrorRecovery: body.productiveStruggleErrorRecovery ?? null,
+      productiveStruggleHelpUtilization: body.productiveStruggleHelpUtilization ?? null,
+      discontinued: body.discontinued ?? false,
+      discontinuationReason: body.discontinuationReason ?? null,
+      examinerNotes: body.examinerNotes ?? null,
+      updatedAt: new Date(),
+    };
+
+    let response;
+    if (existing[0]) {
+      [response] = await db
+        .update(rmraTaskResponsesTable)
+        .set(values)
+        .where(eq(rmraTaskResponsesTable.id, existing[0].id))
+        .returning();
+    } else {
+      [response] = await db
+        .insert(rmraTaskResponsesTable)
+        .values({ id: nanoid(), ...values })
+        .returning();
+    }
+
+    await db.update(rmraSessionsTable)
+      .set({ status: "in_progress", updatedAt: new Date() })
+      .where(and(
+        eq(rmraSessionsTable.id, sessionId),
+        eq(rmraSessionsTable.status, "not_started"),
+      ));
+
+    return res.json({ response });
+  } catch (err) {
+    logger.error({ err }, "POST /rmra/sessions/:id/tasks/:taskId/response failed");
+    return res.status(500).json({ error: "Failed to save task response" });
+  }
+});
+
+// ── Complete session — calculate domain scores ────────────────────────────────
+router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, async (req, res) => {
+  try {
+    const { caseId, sessionId } = req.params;
+
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const responses = await db
+      .select()
+      .from(rmraTaskResponsesTable)
+      .where(eq(rmraTaskResponsesTable.sessionId, sessionId));
+
+    const domainScores: Record<string, {
+      accuracy: number;
+      reasoning: number;
+      strategyLevel: number;
+      hintDependency: number;
+      productiveStruggle: number;
+      confidence: number;
+      tasksAdministered: number;
+      tasksDiscontinued: number;
+      level: "strength" | "developing" | "vulnerable" | "high_concern";
+    }> = {};
+
+    for (const domain of RMRA_DOMAINS) {
+      const domainResponses = responses.filter(r => r.domain === domain && !r.discontinued);
+      const discontinued = responses.filter(r => r.domain === domain && r.discontinued).length;
+
+      if (domainResponses.length === 0) continue;
+
+      const avg = (vals: (number | null)[]) => {
+        const filtered = vals.filter((v): v is number => v !== null);
+        return filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0;
+      };
+
+      const accuracy = avg(domainResponses.map(r => r.accuracy)) / 2 * 100;
+      const reasoning = avg(domainResponses.map(r => r.reasoning)) / 4 * 100;
+      const strategyLevel = avg(domainResponses.map(r => r.strategyLevel)) / 14 * 100;
+      const hintDependency = avg(domainResponses.map(r => r.hintLevel)) / 4 * 100;
+
+      const psScores = domainResponses
+        .filter(r => r.productiveStrugglePersistence !== null)
+        .map(r => avg([
+          r.productiveStrugglePersistence,
+          r.productiveStruggleFlexibility,
+          r.productiveStruggleEmotionalRegulation,
+          r.productiveStruggleErrorRecovery,
+          r.productiveStruggleHelpUtilization,
+        ]));
+      const productiveStruggle = psScores.length > 0
+        ? avg(psScores) / 4 * 100
+        : 0;
+
+      const confidence = avg(domainResponses.map(r => r.confidenceRating)) / 4 * 100;
+
+      const composite = (accuracy * 0.35) + (reasoning * 0.3) + (strategyLevel * 0.2) + (confidence * 0.15);
+      const level: "strength" | "developing" | "vulnerable" | "high_concern" =
+        composite >= 75 ? "strength" :
+        composite >= 50 ? "developing" :
+        composite >= 25 ? "vulnerable" : "high_concern";
+
+      domainScores[domain] = {
+        accuracy: Math.round(accuracy),
+        reasoning: Math.round(reasoning),
+        strategyLevel: Math.round(strategyLevel),
+        hintDependency: Math.round(hintDependency),
+        productiveStruggle: Math.round(productiveStruggle),
+        confidence: Math.round(confidence),
+        tasksAdministered: domainResponses.length,
+        tasksDiscontinued: discontinued,
+        level,
+      };
+    }
+
+    const [updatedSession] = await db
+      .update(rmraSessionsTable)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        domainScores,
+        updatedAt: new Date(),
+      })
+      .where(eq(rmraSessionsTable.id, sessionId))
+      .returning();
+
+    await db.update(assignmentsTable)
+      .set({ status: "completed", submittedAt: new Date() })
+      .where(eq(assignmentsTable.id, session.assignmentId ?? ""));
+
+    const overallScore = Object.values(domainScores).length > 0
+      ? Math.round(Object.values(domainScores).reduce((sum, d) => sum + d.accuracy, 0) / Object.values(domainScores).length)
+      : 0;
+
+    const existing = await db.select({ id: scoresTable.id })
+      .from(scoresTable)
+      .where(and(
+        eq(scoresTable.caseId, caseId),
+        eq(scoresTable.toolId, "RMRA"),
+        eq(scoresTable.respondentType, "invigilator"),
+      ))
+      .limit(1);
+
+    const scoreValues = {
+      caseId,
+      toolId: "RMRA",
+      toolName: "RMRA — ReMynd Mathematical Reasoning Assessment",
+      respondentType: "invigilator",
+      rawScore: overallScore,
+      domainScores: Object.fromEntries(Object.entries(domainScores).map(([k, v]) => [k, v.accuracy])) as Record<string, number>,
+      normalizedScores: Object.fromEntries(Object.entries(domainScores).map(([k, v]) => [k, v.reasoning])) as Record<string, number>,
+      isManual: true,
+      notes: JSON.stringify({ sessionId, domainScores }),
+    };
+
+    if (existing[0]) {
+      await db.update(scoresTable).set(scoreValues).where(eq(scoresTable.id, existing[0].id));
+    } else {
+      await db.insert(scoresTable).values({ id: nanoid(), ...scoreValues });
+    }
+
+    return res.json({ session: updatedSession, domainScores });
+  } catch (err) {
+    logger.error({ err }, "POST /rmra/sessions/:id/complete failed");
+    return res.status(500).json({ error: "Failed to complete RMRA session" });
+  }
+});
+
+// ── Get item bank for a session config ────────────────────────────────────────
+router.get("/rmra/items", authMiddleware, async (req, res) => {
+  try {
+    const { ageBand, version } = req.query as { ageBand: string; version: string };
+    const items = getItemsForSession(
+      (ageBand as any) ?? "upper_primary",
+      (version as any) ?? "full",
+    );
+    return res.json({ items });
+  } catch (err) {
+    logger.error({ err }, "GET /rmra/items failed");
+    return res.status(500).json({ error: "Failed to load item bank" });
+  }
+});
+
+// ── Public: student polling endpoint ─────────────────────────────────────────
+router.get("/public/rmra/student/:sessionToken", async (req, res) => {
+  try {
+    const { sessionToken } = req.params;
+
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
+      .limit(1);
+
+    if (!assignment) return res.status(404).json({ error: "Session not found" });
+
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(eq(rmraSessionsTable.assignmentId, assignment.id))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not started" });
+
+    const currentItem = session.currentTaskId
+      ? RMRA_ITEMS.find(i => i.id === session.currentTaskId)
+      : null;
+
+    const theme = session.theme as keyof typeof currentItem extends never ? string : any;
+
+    return res.json({
+      status: session.status,
+      theme: session.theme,
+      ageBand: session.ageBand,
+      currentTaskId: session.currentTaskId,
+      currentTask: currentItem ? {
+        id: currentItem.id,
+        domain: currentItem.domain,
+        taskType: currentItem.taskType,
+        visualType: currentItem.visualType,
+        prompt: currentItem.prompts[session.theme as keyof typeof currentItem.prompts] ?? currentItem.prompts.space_mission,
+        showConfidenceSlider: currentItem.showConfidenceSlider,
+        productiveStruggleTrigger: currentItem.productiveStruggleTrigger,
+      } : null,
+    });
+  } catch (err) {
+    logger.error({ err }, "GET /public/rmra/student/:token failed");
+    return res.status(500).json({ error: "Failed to load student view" });
+  }
+});
+
+// ── Public: student submits confidence rating ─────────────────────────────────
+router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) => {
+  try {
+    const { sessionToken } = req.params;
+    const { rating, taskId } = req.body as { rating: number; taskId: string };
+
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
+      .limit(1);
+
+    if (!assignment) return res.status(404).json({ error: "Session not found" });
+
+    const [session] = await db
+      .select({ id: rmraSessionsTable.id })
+      .from(rmraSessionsTable)
+      .where(eq(rmraSessionsTable.assignmentId, assignment.id))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const [existing] = await db
+      .select({ id: rmraTaskResponsesTable.id })
+      .from(rmraTaskResponsesTable)
+      .where(and(
+        eq(rmraTaskResponsesTable.sessionId, session.id),
+        eq(rmraTaskResponsesTable.taskId, taskId),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db.update(rmraTaskResponsesTable)
+        .set({ confidenceRating: rating, updatedAt: new Date() })
+        .where(eq(rmraTaskResponsesTable.id, existing.id));
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST /public/rmra/student/:token/confidence failed");
+    return res.status(500).json({ error: "Failed to save confidence" });
+  }
+});
+
+export default router;

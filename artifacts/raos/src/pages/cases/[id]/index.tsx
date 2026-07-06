@@ -1545,7 +1545,7 @@ export default function CaseDetail() {
                         <div className="flex gap-2 flex-wrap">
                           {a.status === 'completed' ? (
                             (() => {
-                              const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                              const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
                               return ep2 ? (
                                 <Link href={`/cases/${caseId}/${ep2}/${a.id}`}>
                                   <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
@@ -1561,7 +1561,7 @@ export default function CaseDetail() {
                               );
                             })()
                           ) : (() => {
-                            const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                            const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
                             return ep2 ? (
                               <Link href={`/cases/${caseId}/${ep2}/${a.id}`}>
                                 <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
@@ -2189,7 +2189,7 @@ export default function CaseDetail() {
                         invigilator: 10,
                       };
                       // Examiner-administered tools always sort as "examiner" regardless of stored respondentType
-                      const EXAMINER_TOOLS = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
+                      const EXAMINER_TOOLS = new Set(["RPPI", "RDA", "RRFA", "RRCA", "RMRA"]);
                       const aType = EXAMINER_TOOLS.has(a.toolId ?? "") ? "examiner" : a.respondentType;
                       const bType = EXAMINER_TOOLS.has(b.toolId ?? "") ? "examiner" : b.respondentType;
                       const aOrder = ORDER[aType] ?? 5;
@@ -2198,7 +2198,7 @@ export default function CaseDetail() {
                     })
                     .reduce<{ type: string; label: string; items: NonNullable<typeof c.assignments> }[]>((groups, a) => {
                       // Examiner-administered tools always group as "examiner" regardless of stored respondentType
-                      const EXAMINER_TOOLS_G = new Set(["RPPI", "RDA", "RRFA", "RRCA"]);
+                      const EXAMINER_TOOLS_G = new Set(["RPPI", "RDA", "RRFA", "RRCA", "RMRA"]);
                       const groupType = EXAMINER_TOOLS_G.has(a.toolId ?? "") ? "examiner" : a.respondentType;
                       const last = groups[groups.length - 1];
                       if (last && last.type === groupType) {
@@ -2247,7 +2247,7 @@ export default function CaseDetail() {
                       <div className="flex gap-2 flex-wrap">
                         {a.status === 'completed' ? (
                           (() => {
-                            const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                            const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
                             return examinerPath ? (
                               <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
                                 <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
@@ -2263,7 +2263,7 @@ export default function CaseDetail() {
                             );
                           })()
                         ) : (() => {
-                          const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : null;
+                          const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
                           return examinerPath ? (
                             <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
                               <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
