@@ -146,35 +146,55 @@ const CARD_INNER = "rounded-xl border border-slate-200 p-4 bg-white";
 
 const ESTIMATION_FLASH_MS = 3000;
 
-function DotArrayVisual({ taskId, dotCount, taskType, accent }: {
-  taskId: string; dotCount: number; taskType: string; accent: string;
+function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: {
+  taskId: string; dotCount: number; taskType: string; accent: string; timerStartedAt: string | null;
 }) {
   const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
   const isComparison = taskType === "quantity_comparison";
   const isEstimation = taskType === "estimation";
 
-  // Flash timer: show dots for ESTIMATION_FLASH_MS then hide them
-  const [msLeft, setMsLeft] = useState(isEstimation ? ESTIMATION_FLASH_MS : 0);
-  const [dotsHidden, setDotsHidden] = useState(false);
+  // Server-driven flash timer: starts when examiner broadcasts timerStartedAt
+  const calcRemaining = () =>
+    timerStartedAt
+      ? Math.max(0, ESTIMATION_FLASH_MS - (Date.now() - new Date(timerStartedAt).getTime()))
+      : ESTIMATION_FLASH_MS;
+
+  const [msLeft, setMsLeft] = useState(calcRemaining);
+  const [dotsHidden, setDotsHidden] = useState(() =>
+    isEstimation && timerStartedAt
+      ? Date.now() - new Date(timerStartedAt).getTime() >= ESTIMATION_FLASH_MS
+      : false
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!isEstimation) return;
-    setMsLeft(ESTIMATION_FLASH_MS);
+    if (!timerStartedAt) {
+      // Examiner hasn't started the timer yet — stay in waiting state
+      setMsLeft(ESTIMATION_FLASH_MS);
+      setDotsHidden(false);
+      return;
+    }
+    const remaining = calcRemaining();
+    if (remaining <= 0) {
+      setMsLeft(0);
+      setDotsHidden(true);
+      return;
+    }
+    setMsLeft(remaining);
     setDotsHidden(false);
     const TICK = 100;
-    let remaining = ESTIMATION_FLASH_MS;
     intervalRef.current = setInterval(() => {
-      remaining -= TICK;
-      setMsLeft(Math.max(0, remaining));
-      if (remaining <= 0) {
+      const left = calcRemaining();
+      setMsLeft(left);
+      if (left <= 0) {
         clearInterval(intervalRef.current!);
         setDotsHidden(true);
       }
     }, TICK);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [taskId, isEstimation]);
+  }, [taskId, isEstimation, timerStartedAt]);
 
   if (isComparison) {
     // Side-by-side two groups
@@ -219,45 +239,53 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent }: {
         {taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}
       </p>
 
-      {isEstimation && !dotsHidden && (
-        <div className="flex justify-center mb-2">
-          <svg width={56} height={56} viewBox="0 0 56 56">
-            <circle cx={28} cy={28} r={R} fill="none" stroke="#e2e8f0" strokeWidth={4} />
-            <circle
-              cx={28} cy={28} r={R}
-              fill="none"
-              stroke={accent}
-              strokeWidth={4}
-              strokeDasharray={CIRC}
-              strokeDashoffset={CIRC * (1 - progress)}
-              strokeLinecap="round"
-              transform="rotate(-90 28 28)"
-              style={{ transition: "stroke-dashoffset 0.1s linear" }}
-            />
-            <text x={28} y={33} textAnchor="middle" fontSize={16} fontWeight="700" fill={accent}>
-              {Math.ceil(msLeft / 1000)}
-            </text>
-          </svg>
+      {isEstimation && !timerStartedAt ? (
+        /* Waiting for examiner to trigger the stimulus */
+        <div className="flex flex-col items-center gap-3 py-8">
+          <div className="text-5xl animate-pulse">🎯</div>
+          <p className="text-center font-semibold text-slate-600 text-base">Get ready…</p>
+          <p className="text-center text-slate-400 text-sm">Your teacher will show the picture</p>
         </div>
-      )}
-
-      {dotsHidden ? (
+      ) : dotsHidden ? (
+        /* Timer expired — student speaks their estimate */
         <div className="flex flex-col items-center gap-3 py-6">
           <div className="text-5xl">🤔</div>
-          <p className="text-center font-semibold text-slate-700 text-lg">
-            What's your estimate?
-          </p>
+          <p className="text-center font-semibold text-slate-700 text-lg">What's your estimate?</p>
           <p className="text-center text-slate-500 text-sm">Speak your answer aloud</p>
         </div>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
-          {Array.from({ length: count }, (_, i) => {
-            const col = i % cols; const row = Math.floor(i / cols);
-            const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
-          })}
-        </svg>
+        /* Dots visible + countdown ring */
+        <>
+          {isEstimation && (
+            <div className="flex justify-center mb-2">
+              <svg width={56} height={56} viewBox="0 0 56 56">
+                <circle cx={28} cy={28} r={R} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+                <circle
+                  cx={28} cy={28} r={R}
+                  fill="none"
+                  stroke={accent}
+                  strokeWidth={4}
+                  strokeDasharray={CIRC}
+                  strokeDashoffset={CIRC * (1 - progress)}
+                  strokeLinecap="round"
+                  transform="rotate(-90 28 28)"
+                  style={{ transition: "stroke-dashoffset 0.1s linear" }}
+                />
+                <text x={28} y={33} textAnchor="middle" fontSize={16} fontWeight="700" fill={accent}>
+                  {Math.ceil(msLeft / 1000)}
+                </text>
+              </svg>
+            </div>
+          )}
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
+            {Array.from({ length: count }, (_, i) => {
+              const col = i % cols; const row = Math.floor(i / cols);
+              const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+              const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+              return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+            })}
+          </svg>
+        </>
       )}
     </div>
   );
@@ -1299,13 +1327,13 @@ function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string 
 
 // ── Task Visual Router ────────────────────────────────────────────────────────
 
-function TaskVisual({ task, theme }: { task: TaskData; theme: ThemeKey }) {
+function TaskVisual({ task, theme, timerStartedAt }: { task: TaskData; theme: ThemeKey; timerStartedAt: string | null }) {
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
-  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} />;
+  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} timerStartedAt={timerStartedAt} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
@@ -1350,6 +1378,7 @@ type SessionState = {
   theme: string;
   ageBand: string;
   currentTaskId: string | null;
+  timerStartedAt: string | null;
   hintLevel: number;
   currentTask: TaskData | null;
 };
@@ -1566,7 +1595,7 @@ export default function RmraStudentView() {
 
         {/* Visual stimulus — always white card */}
         <div className="rounded-2xl shadow-sm overflow-hidden">
-          <TaskVisual task={task} theme={theme} />
+          <TaskVisual task={task} theme={theme} timerStartedAt={state.timerStartedAt} />
         </div>
 
         {/* Confidence slider */}

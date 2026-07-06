@@ -2711,6 +2711,17 @@ async function ensureRmraExaminerTokenColumn() {
   }
 }
 
+async function ensureRmraTimerStartedAtColumn() {
+  try {
+    await db.execute(sql`
+      ALTER TABLE rmra_sessions ADD COLUMN IF NOT EXISTS timer_started_at TIMESTAMPTZ
+    `);
+    logger.info("timer_started_at column ensured on rmra_sessions");
+  } catch (err) {
+    logger.error({ err }, "ensureRmraTimerStartedAtColumn failed");
+  }
+}
+
 async function ensureRmraTaskResponseUniqueIndex() {
   try {
     await db.execute(sql`
@@ -2845,6 +2856,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addRmraReportColumn())
   .then(() => createRmraAccessCodesTable())
   .then(() => ensureRmraExaminerTokenColumn())
+  .then(() => ensureRmraTimerStartedAtColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => {
   app.listen(port, (err) => {

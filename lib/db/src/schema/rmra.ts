@@ -35,6 +35,7 @@ export const rmraSessionsTable = pgTable("rmra_sessions", {
     };
     generatedAt: string;
   }>(),
+  timerStartedAt: timestamp("timer_started_at"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

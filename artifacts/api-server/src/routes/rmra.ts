@@ -193,7 +193,7 @@ router.get("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req
 router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req, res) => {
   try {
     const { caseId, sessionId } = req.params;
-    const { generalNotes, status, currentTaskId, ageBand, version, theme } = req.body;
+    const { generalNotes, status, currentTaskId, ageBand, version, theme, timerStartedAt } = req.body;
 
     const existing = await loadSession(sessionId, caseId);
     if (!existing) return res.status(404).json({ error: "Session not found" });
@@ -205,6 +205,7 @@ router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (r
     if (ageBand !== undefined) updates.ageBand = ageBand;
     if (version !== undefined) updates.version = version;
     if (theme !== undefined) updates.theme = theme;
+    if (timerStartedAt !== undefined) updates.timerStartedAt = timerStartedAt ? new Date(timerStartedAt) : null;
 
     if (status === "in_progress" && !existing.startedAt) {
       updates.startedAt = new Date();
@@ -521,6 +522,7 @@ async function handleStudentPoll(req: Request, res: Response) {
       theme: session.theme,
       ageBand: session.ageBand,
       currentTaskId: session.currentTaskId,
+      timerStartedAt: session.timerStartedAt?.toISOString() ?? null,
       hintLevel,
       currentTask: currentItem ? {
         id: currentItem.id,
@@ -1205,7 +1207,7 @@ router.patch("/rmra/standalone/sessions/:sessionId", async (req: Request, res: R
       .limit(1);
     if (!existing) return res.status(404).json({ error: "Session not found" });
 
-    const { generalNotes, status, currentTaskId, ageBand, version, theme } = req.body;
+    const { generalNotes, status, currentTaskId, ageBand, version, theme, timerStartedAt } = req.body;
     const updates: Partial<typeof rmraSessionsTable.$inferInsert> = { updatedAt: new Date() };
     if (generalNotes !== undefined) updates.generalNotes = generalNotes;
     if (status !== undefined) updates.status = status;
@@ -1213,6 +1215,7 @@ router.patch("/rmra/standalone/sessions/:sessionId", async (req: Request, res: R
     if (ageBand !== undefined) updates.ageBand = ageBand;
     if (version !== undefined) updates.version = version;
     if (theme !== undefined) updates.theme = theme;
+    if (timerStartedAt !== undefined) updates.timerStartedAt = timerStartedAt ? new Date(timerStartedAt) : null;
     if (status === "in_progress" && !existing.startedAt) updates.startedAt = new Date();
 
     const [session] = await db

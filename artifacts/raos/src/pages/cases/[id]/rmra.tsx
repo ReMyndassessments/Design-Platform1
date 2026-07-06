@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, CheckCircle2, Loader2, ChevronRight, ChevronLeft,
   Play, Square, RotateCcw, AlertTriangle, Info, X, Brain,
-  Timer, BookOpen, Target, Lightbulb, Save, Flag, Copy, ExternalLink,
+  Timer, BookOpen, Target, Lightbulb, Save, Flag, Copy, ExternalLink, Zap,
 } from "lucide-react";
 import { RmraReportPanel } from "./rmra-report";
 import { QRCodeSVG } from "qrcode.react";
@@ -259,6 +259,8 @@ export default function RmraAdminPage() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerElapsed, setTimerElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Stimulus flash timer (estimation tasks — examiner-triggered)
+  const [stimulusTimerStartedAt, setStimulusTimerStartedAt] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedTaskRef = useRef<string | null>(null);
 
@@ -408,6 +410,17 @@ export default function RmraAdminPage() {
     updateCurrentResponse("responseTimeSeconds", null);
   };
 
+  const handleShowAndStartTimer = async () => {
+    if (!sessionId || !currentTask) return;
+    const now = new Date().toISOString();
+    setStimulusTimerStartedAt(now);
+    await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify({ timerStartedAt: now }),
+    });
+  };
+
   // ── Response updates ─────────────────────────────────────────────────────────
 
   const updateCurrentResponse = useCallback((field: keyof TaskResponseState, value: any) => {
@@ -487,10 +500,11 @@ export default function RmraAdminPage() {
     const nextIdx = Math.min(currentTaskIdx + 1, items.length - 1);
     const nextTask = items[nextIdx];
     if (nextTask && nextTask.id !== currentTask.id) {
+      setStimulusTimerStartedAt(null);
       await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeader() },
-        body: JSON.stringify({ currentTaskId: nextTask.id }),
+        body: JSON.stringify({ currentTaskId: nextTask.id, timerStartedAt: null }),
       });
     }
     setCurrentTaskIdx(nextIdx);
@@ -508,10 +522,11 @@ export default function RmraAdminPage() {
     }
     const prevTask = items[currentTaskIdx - 1];
     if (prevTask && sessionId) {
+      setStimulusTimerStartedAt(null);
       await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeader() },
-        body: JSON.stringify({ currentTaskId: prevTask.id }),
+        body: JSON.stringify({ currentTaskId: prevTask.id, timerStartedAt: null }),
       });
     }
     setCurrentTaskIdx(currentTaskIdx - 1);
@@ -973,6 +988,31 @@ export default function RmraAdminPage() {
               </div>
             </div>
           </div>
+
+          {/* Estimation flash-timer control */}
+          {currentTask.taskType === "estimation" && !isCompleted && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                  <Zap size={14} className="text-amber-600" /> Stimulus Flash Timer
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {stimulusTimerStartedAt
+                    ? "Timer started — student sees dots for 3 s, then must estimate"
+                    : "Student sees \u201cGet ready\u2026\u201d — press to show dots + start countdown"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleShowAndStartTimer}
+                disabled={!!stimulusTimerStartedAt}
+                className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white gap-1.5"
+              >
+                <Zap size={13} />
+                {stimulusTimerStartedAt ? "Timer Running" : "Show & Start"}
+              </Button>
+            </div>
+          )}
 
           {/* Scoring Controls */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
