@@ -1652,13 +1652,12 @@ export default function CaseDetail() {
               <textarea
                 className="w-full min-h-[120px] rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y transition"
                 placeholder="e.g. Parent mentioned the child has night terrors 3–4× per week and has been refusing school on Mondays. Father is currently being treated for anxiety…"
-                maxLength={10000}
                 value={interviewNotesDraft}
                 onChange={e => { setInterviewNotesDraft(e.target.value); setInterviewNotesSaved(false); }}
                 disabled={savingInterviewNotes}
               />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-400">{interviewNotesDraft.length}/10000 chars</span>
+                <span className="text-xs text-slate-400">{interviewNotesDraft.length} chars</span>
                 <div className="flex items-center gap-2">
                   {interviewNotesSaved && (
                     <span className="text-xs text-emerald-600 flex items-center gap-1">
