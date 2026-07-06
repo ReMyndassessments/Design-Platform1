@@ -9,6 +9,16 @@ import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.
 
 const router = Router();
 
+// ── Helper: load session and verify it belongs to caseId ─────────────────────
+async function loadSession(sessionId: string, caseId: string) {
+  const [session] = await db
+    .select()
+    .from(rmraSessionsTable)
+    .where(and(eq(rmraSessionsTable.id, sessionId), eq(rmraSessionsTable.caseId, caseId)))
+    .limit(1);
+  return session ?? null;
+}
+
 // ── Create or retrieve session for an assignment ──────────────────────────────
 router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => {
   try {
@@ -32,7 +42,7 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
     const existing = await db
       .select()
       .from(rmraSessionsTable)
-      .where(eq(rmraSessionsTable.assignmentId, assignmentId))
+      .where(and(eq(rmraSessionsTable.assignmentId, assignmentId), eq(rmraSessionsTable.caseId, caseId)))
       .limit(1);
 
     if (existing[0]) {
@@ -68,14 +78,9 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
 // ── Get session with all responses ───────────────────────────────────────────
 router.get("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req, res) => {
   try {
-    const { sessionId } = req.params;
+    const { caseId, sessionId } = req.params;
 
-    const [session] = await db
-      .select()
-      .from(rmraSessionsTable)
-      .where(eq(rmraSessionsTable.id, sessionId))
-      .limit(1);
-
+    const session = await loadSession(sessionId, caseId);
     if (!session) return res.status(404).json({ error: "Session not found" });
 
     const responses = await db
@@ -86,7 +91,7 @@ router.get("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req
     const [caseRow] = await db
       .select({ studentName: casesTable.studentName, dob: casesTable.dob, grade: casesTable.grade })
       .from(casesTable)
-      .where(eq(casesTable.id, session.caseId ?? ""))
+      .where(eq(casesTable.id, caseId))
       .limit(1);
 
     return res.json({ session, responses, case: caseRow ?? null });
@@ -99,8 +104,11 @@ router.get("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req
 // ── Update session (notes, status, current task, theme/ageBand) ───────────────
 router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (req, res) => {
   try {
-    const { sessionId } = req.params;
+    const { caseId, sessionId } = req.params;
     const { generalNotes, status, currentTaskId, ageBand, version, theme } = req.body;
+
+    const existing = await loadSession(sessionId, caseId);
+    if (!existing) return res.status(404).json({ error: "Session not found" });
 
     const updates: Partial<typeof rmraSessionsTable.$inferInsert> = { updatedAt: new Date() };
     if (generalNotes !== undefined) updates.generalNotes = generalNotes;
@@ -110,19 +118,16 @@ router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (r
     if (version !== undefined) updates.version = version;
     if (theme !== undefined) updates.theme = theme;
 
-    if (status === "in_progress" && !updates.startedAt) {
-      const [existing] = await db.select({ startedAt: rmraSessionsTable.startedAt })
-        .from(rmraSessionsTable).where(eq(rmraSessionsTable.id, sessionId)).limit(1);
-      if (!existing?.startedAt) updates.startedAt = new Date();
+    if (status === "in_progress" && !existing.startedAt) {
+      updates.startedAt = new Date();
     }
 
     const [session] = await db
       .update(rmraSessionsTable)
       .set(updates)
-      .where(eq(rmraSessionsTable.id, sessionId))
+      .where(and(eq(rmraSessionsTable.id, sessionId), eq(rmraSessionsTable.caseId, caseId)))
       .returning();
 
-    if (!session) return res.status(404).json({ error: "Session not found" });
     return res.json({ session });
   } catch (err) {
     logger.error({ err }, "PATCH /rmra/sessions/:id failed");
@@ -133,7 +138,11 @@ router.patch("/cases/:caseId/rmra/sessions/:sessionId", authMiddleware, async (r
 // ── Upsert task response ──────────────────────────────────────────────────────
 router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", authMiddleware, async (req, res) => {
   try {
-    const { sessionId, taskId } = req.params;
+    const { caseId, sessionId, taskId } = req.params;
+
+    const session = await loadSession(sessionId, caseId);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
     const body = req.body as {
       domain: string;
       ageBand: string;
@@ -208,12 +217,11 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", au
         .returning();
     }
 
-    await db.update(rmraSessionsTable)
-      .set({ status: "in_progress", updatedAt: new Date() })
-      .where(and(
-        eq(rmraSessionsTable.id, sessionId),
-        eq(rmraSessionsTable.status, "not_started"),
-      ));
+    if (session.status === "not_started") {
+      await db.update(rmraSessionsTable)
+        .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(rmraSessionsTable.id, sessionId), eq(rmraSessionsTable.caseId, caseId)));
+    }
 
     return res.json({ response });
   } catch (err) {
@@ -227,12 +235,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
   try {
     const { caseId, sessionId } = req.params;
 
-    const [session] = await db
-      .select()
-      .from(rmraSessionsTable)
-      .where(eq(rmraSessionsTable.id, sessionId))
-      .limit(1);
-
+    const session = await loadSession(sessionId, caseId);
     if (!session) return res.status(404).json({ error: "Session not found" });
 
     const responses = await db
@@ -252,16 +255,16 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
       level: "strength" | "developing" | "vulnerable" | "high_concern";
     }> = {};
 
+    const avg = (vals: (number | null)[]) => {
+      const filtered = vals.filter((v): v is number => v !== null);
+      return filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0;
+    };
+
     for (const domain of RMRA_DOMAINS) {
       const domainResponses = responses.filter(r => r.domain === domain && !r.discontinued);
       const discontinued = responses.filter(r => r.domain === domain && r.discontinued).length;
 
       if (domainResponses.length === 0) continue;
-
-      const avg = (vals: (number | null)[]) => {
-        const filtered = vals.filter((v): v is number => v !== null);
-        return filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0;
-      };
 
       const accuracy = avg(domainResponses.map(r => r.accuracy)) / 2 * 100;
       const reasoning = avg(domainResponses.map(r => r.reasoning)) / 4 * 100;
@@ -277,9 +280,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
           r.productiveStruggleErrorRecovery,
           r.productiveStruggleHelpUtilization,
         ]));
-      const productiveStruggle = psScores.length > 0
-        ? avg(psScores) / 4 * 100
-        : 0;
+      const productiveStruggle = psScores.length > 0 ? avg(psScores) / 4 * 100 : 0;
 
       const confidence = avg(domainResponses.map(r => r.confidenceRating)) / 4 * 100;
 
@@ -310,12 +311,14 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
         domainScores,
         updatedAt: new Date(),
       })
-      .where(eq(rmraSessionsTable.id, sessionId))
+      .where(and(eq(rmraSessionsTable.id, sessionId), eq(rmraSessionsTable.caseId, caseId)))
       .returning();
 
-    await db.update(assignmentsTable)
-      .set({ status: "completed", submittedAt: new Date() })
-      .where(eq(assignmentsTable.id, session.assignmentId ?? ""));
+    if (session.assignmentId) {
+      await db.update(assignmentsTable)
+        .set({ status: "completed", submittedAt: new Date() })
+        .where(eq(assignmentsTable.id, session.assignmentId));
+    }
 
     const overallScore = Object.values(domainScores).length > 0
       ? Math.round(Object.values(domainScores).reduce((sum, d) => sum + d.accuracy, 0) / Object.values(domainScores).length)
@@ -386,7 +389,10 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
     const [session] = await db
       .select()
       .from(rmraSessionsTable)
-      .where(eq(rmraSessionsTable.assignmentId, assignment.id))
+      .where(and(
+        eq(rmraSessionsTable.assignmentId, assignment.id),
+        eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+      ))
       .limit(1);
 
     if (!session) return res.status(404).json({ error: "Session not started" });
@@ -394,8 +400,6 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
     const currentItem = session.currentTaskId
       ? RMRA_ITEMS.find(i => i.id === session.currentTaskId)
       : null;
-
-    const theme = session.theme as keyof typeof currentItem extends never ? string : any;
 
     return res.json({
       status: session.status,
@@ -425,7 +429,7 @@ router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) =>
     const { rating, taskId } = req.body as { rating: number; taskId: string };
 
     const [assignment] = await db
-      .select({ id: assignmentsTable.id })
+      .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
       .from(assignmentsTable)
       .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
@@ -435,7 +439,10 @@ router.post("/public/rmra/student/:sessionToken/confidence", async (req, res) =>
     const [session] = await db
       .select({ id: rmraSessionsTable.id })
       .from(rmraSessionsTable)
-      .where(eq(rmraSessionsTable.assignmentId, assignment.id))
+      .where(and(
+        eq(rmraSessionsTable.assignmentId, assignment.id),
+        eq(rmraSessionsTable.caseId, assignment.caseId ?? ""),
+      ))
       .limit(1);
 
     if (!session) return res.status(404).json({ error: "Session not found" });
