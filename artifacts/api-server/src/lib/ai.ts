@@ -4,7 +4,7 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_MODEL = "deepseek-chat";
 
-async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<string> {
+export async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<string> {
   if (!DEEPSEEK_API_KEY) {
     throw new Error("DEEPSEEK_API_KEY is not configured");
   }

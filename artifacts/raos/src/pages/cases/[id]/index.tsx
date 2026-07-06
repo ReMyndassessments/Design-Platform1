@@ -1040,7 +1040,7 @@ export default function CaseDetail() {
             (c.assignments ?? []).filter(a => a.toolId === 'RMRA').map(a => (
               <Link key={a.id} href={`/cases/${c.id}/rmra/${a.id}`}>
                 <Button variant="outline" className="bg-white gap-2 border-violet-200 text-violet-700 hover:bg-violet-50">
-                  <Brain size={16} className="text-violet-500" /> View RMRA Report
+                  <Brain size={16} className="text-violet-500" /> Generate RMRA Report
                 </Button>
               </Link>
             ))

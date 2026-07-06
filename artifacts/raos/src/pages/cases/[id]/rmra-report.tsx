@@ -665,28 +665,46 @@ export function RmraReportPanel({
   };
 
   const handleBobbyAction = useCallback(async (actionId: string) => {
-    setBobbyStates(prev => ({ ...prev, [actionId]: { loading: true, content: null, expanded: true } }));
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    setBobbyStates(prev => ({ ...prev, [actionId]: { loading: true, content: "", expanded: true } }));
     try {
       const r = await fetch(bobbyEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ action: actionId }),
-        signal: controller.signal,
       });
       if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      setBobbyStates(prev => ({ ...prev, [actionId]: { loading: false, content: data.content, expanded: true } }));
+      if (!r.body) throw new Error("No response body");
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const chunk = line.slice(6).trim();
+          if (chunk === "[DONE]") break;
+          if (chunk === "[ERROR]") throw new Error("Bobby Agent stream error");
+          try {
+            const { t } = JSON.parse(chunk);
+            if (t) {
+              accumulated += t;
+              setBobbyStates(prev => ({ ...prev, [actionId]: { ...prev[actionId], content: accumulated } }));
+            }
+          } catch { /* skip malformed chunks */ }
+        }
+      }
+
+      setBobbyStates(prev => ({ ...prev, [actionId]: { ...prev[actionId], loading: false } }));
     } catch (err: any) {
       setBobbyStates(prev => ({ ...prev, [actionId]: { ...prev[actionId], loading: false } }));
-      if (err?.name === "AbortError") {
-        toast({ title: "Request timed out", description: "Bobby Agent took too long. Please try again.", variant: "destructive" });
-      } else {
-        toast({ title: "Bobby Agent failed", description: "Please try again.", variant: "destructive" });
-      }
-    } finally {
-      clearTimeout(timeout);
+      toast({ title: "Bobby Agent failed", description: "Please try again.", variant: "destructive" });
     }
   }, [bobbyEndpoint, isStandalone, sessionId]);
 

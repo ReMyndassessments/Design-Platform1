@@ -7,6 +7,7 @@ import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
 import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.js";
 import nodemailer from "nodemailer";
+import { callDeepSeek } from "../lib/ai.js";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -21,22 +22,6 @@ async function verifyExaminerToken(sessionId: string, token: string | undefined)
   return !!(row && row["examiner_token"] === token);
 }
 
-async function callDeepSeekRmra(prompt: string, maxTokens = 4096): Promise<string> {
-  if (!DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY is not configured");
-  const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!response.ok) throw new Error(`DeepSeek error: ${response.status}`);
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content ?? "";
-}
 
 const router = Router();
 
@@ -393,6 +378,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
         composite >= 50 ? "developing" :
         composite >= 25 ? "vulnerable" : "high_concern";
 
+      const calibrationDelta = Math.round(confidence - accuracy);
       domainScores[domain] = {
         accuracy: Math.round(accuracy),
         reasoning: Math.round(reasoning),
@@ -400,6 +386,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
         hintDependency: Math.round(hintDependency),
         productiveStruggle: Math.round(productiveStruggle),
         confidence: Math.round(confidence),
+        calibrationDelta,
         tasksAdministered: domainResponses.length,
         tasksDiscontinued: discontinued,
         level,
@@ -713,7 +700,7 @@ Generate a comprehensive clinical assessment report. Return ONLY valid JSON with
 
 Write in professional clinical language appropriate for a psychoeducational report. Be specific and evidence-based, referencing actual domain scores. Return only the JSON object with no markdown or preamble.`;
 
-    const raw = await callDeepSeekRmra(prompt, 3000);
+    const raw = await callDeepSeek(prompt, 3000);
 
     let narrative: Record<string, unknown>;
     try {
@@ -865,11 +852,48 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/bobby-agent", authMiddlewar
     const ageBandLabel = AGE_BAND_LABELS[session.ageBand] ?? session.ageBand;
     const prompt = BOBBY_PROMPTS[action](ctx, ageBandLabel);
 
-    const content = await callDeepSeekRmra(prompt, 2500);
-    return res.json({ content });
+    // Stream Bobby response as SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const streamRes = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+      body: JSON.stringify({ model: DEEPSEEK_MODEL, messages: [{ role: "user", content: prompt }], temperature: 0.7, max_tokens: 2500, stream: true }),
+    });
+
+    if (!streamRes.ok || !streamRes.body) {
+      res.write("data: [ERROR]\n\n");
+      return res.end();
+    }
+
+    const reader = streamRes.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const chunk = line.slice(6).trim();
+        if (chunk === "[DONE]") { res.write("data: [DONE]\n\n"); break; }
+        try {
+          const parsed = JSON.parse(chunk);
+          const t = parsed.choices?.[0]?.delta?.content;
+          if (t) res.write(`data: ${JSON.stringify({ t })}\n\n`);
+        } catch { /* skip malformed chunks */ }
+      }
+    }
+    return res.end();
   } catch (err) {
     logger.error({ err }, "POST bobby-agent failed");
-    return res.status(500).json({ error: "Failed to generate content" });
+    if (!res.headersSent) return res.status(500).json({ error: "Failed to generate content" });
+    res.write("data: [ERROR]\n\n");
+    return res.end();
   }
 });
 
@@ -920,9 +944,15 @@ router.post("/rmra/standalone/sessions", async (req: Request, res: Response) => 
       return res.status(429).json({ error: "This access code has reached its usage limit." });
     }
 
-    await db.update(rmraAccessCodesTable)
-      .set({ usageCount: record.usageCount + 1 })
-      .where(eq(rmraAccessCodesTable.id, record.id));
+    const updated = await db.execute(sql`
+      UPDATE rmra_access_codes
+      SET usage_count = usage_count + 1
+      WHERE id = ${record.id} AND usage_count < usage_limit
+      RETURNING usage_count
+    `);
+    if (!((updated as unknown as { rows?: unknown[] }).rows?.length)) {
+      return res.status(429).json({ error: "This access code has reached its usage limit." });
+    }
 
     const sessionId = nanoid();
     const examinerToken = nanoid(48);
@@ -1086,11 +1116,50 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
         return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Hint Dependency ${s.hintDependency}%, Confidence ${s.confidence}%, Level: ${s.level.replace(/_/g, " ")}`;
       }).join("\n");
 
-    const content = await callDeepSeekRmra(BOBBY_PROMPTS[action](ctx, AGE_BAND_LABELS[session.ageBand] ?? session.ageBand), 2500);
-    return res.json({ content });
+    const prompt = BOBBY_PROMPTS[action](ctx, AGE_BAND_LABELS[session.ageBand] ?? session.ageBand);
+
+    // Stream Bobby response as SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const streamRes = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+      body: JSON.stringify({ model: DEEPSEEK_MODEL, messages: [{ role: "user", content: prompt }], temperature: 0.7, max_tokens: 2500, stream: true }),
+    });
+
+    if (!streamRes.ok || !streamRes.body) {
+      res.write("data: [ERROR]\n\n");
+      return res.end();
+    }
+
+    const sreader = streamRes.body.getReader();
+    const sdecoder = new TextDecoder();
+    let sbuf = "";
+    while (true) {
+      const { done, value } = await sreader.read();
+      if (done) break;
+      sbuf += sdecoder.decode(value, { stream: true });
+      const lines = sbuf.split("\n");
+      sbuf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const chunk = line.slice(6).trim();
+        if (chunk === "[DONE]") { res.write("data: [DONE]\n\n"); break; }
+        try {
+          const parsed = JSON.parse(chunk);
+          const t = parsed.choices?.[0]?.delta?.content;
+          if (t) res.write(`data: ${JSON.stringify({ t })}\n\n`);
+        } catch { /* skip malformed chunks */ }
+      }
+    }
+    return res.end();
   } catch (err) {
     logger.error({ err }, "POST standalone bobby-agent failed");
-    return res.status(500).json({ error: "Failed to generate content" });
+    if (!res.headersSent) return res.status(500).json({ error: "Failed to generate content" });
+    res.write("data: [ERROR]\n\n");
+    return res.end();
   }
 });
 

@@ -110,10 +110,18 @@ export default function RmraStandaloneSessionPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  // Examiner token — read from ?et= URL param, stored in memory only (never in student URL)
+  // Examiner token — read from ?et= URL param then immediately cleared from URL to prevent
+  // it appearing in browser history, referrer headers, or server logs.
   const examinerToken = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("et") ?? "";
+    const token = params.get("et") ?? "";
+    if (token) {
+      params.delete("et");
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+      window.history.replaceState(null, "", newUrl);
+    }
+    return token;
   }, []);
   const [emailInput, setEmailInput] = useState("");
   const [emailName, setEmailName] = useState("");
