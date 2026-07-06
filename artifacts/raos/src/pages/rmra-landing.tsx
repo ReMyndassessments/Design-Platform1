@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Brain, CheckCircle2, Loader2, ArrowRight, Lock, BookOpen,
-  Target, Lightbulb, Activity, AlertTriangle,
+  Target, Lightbulb, Activity, AlertTriangle, Copy, ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,11 +51,19 @@ const DOMAIN_CLUSTERS = [
   { label: "Process & Reasoning", domains: ["Problem Solving & Executive Function", "Response to Productive Struggle"] },
 ];
 
+type SessionReady = {
+  sessionId: string;
+  studentUrl: string;
+  examinerUrl: string;
+  copied: boolean;
+};
+
 export default function RmraLandingPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [code, setCode] = useState("");
   const [validating, setValidating] = useState(false);
+  const [sessionReady, setSessionReady] = useState<SessionReady | null>(null);
 
   const handleValidateCode = async () => {
     const trimmed = code.trim().toUpperCase();
@@ -83,12 +91,20 @@ export default function RmraLandingPage() {
       }
 
       const { sessionToken } = await createRes.json();
-      navigate(`/student-view/rmra/${sessionToken}`);
+      const studentUrl = `${window.location.origin}${BASE_URL}/student-view/rmra/${sessionToken}`;
+      const examinerUrl = `${window.location.origin}${BASE_URL}/rmra/session/${sessionToken}`;
+      setSessionReady({ sessionId: sessionToken, studentUrl, examinerUrl, copied: false });
     } catch {
       toast({ title: "Network error", description: "Please check your connection and try again.", variant: "destructive" });
     } finally {
       setValidating(false);
     }
+  };
+
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      toast({ title: "Link copied", description: "Share it with your student." });
+    });
   };
 
   return (
@@ -128,39 +144,104 @@ export default function RmraLandingPage() {
           for students aged 5–16.
         </p>
 
-        {/* Access code box */}
-        <Card className="max-w-md mx-auto bg-white/5 border-white/10 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Lock size={14} className="text-violet-400" />
-              <span className="text-sm font-semibold text-white">Access Code Required</span>
-            </div>
-            <p className="text-xs text-white/50 mb-4 text-left">
-              Enter the access code provided by your clinician to begin the assessment session.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                value={code}
-                onChange={e => setCode(e.target.value.toUpperCase())}
-                onKeyDown={e => e.key === "Enter" && handleValidateCode()}
-                placeholder="e.g. RMRA-2025-ABC1"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 font-mono text-sm tracking-widest uppercase"
-                maxLength={24}
-              />
-              <Button
-                onClick={handleValidateCode}
-                disabled={!code.trim() || validating}
-                className="gap-1.5 bg-violet-600 hover:bg-violet-700 shrink-0"
-              >
-                {validating ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-                {validating ? "Checking…" : "Start"}
-              </Button>
-            </div>
-            <div className="mt-3 text-[11px] text-white/30 text-left">
-              Don't have a code? Contact your school's assessment coordinator or ReMynd clinician.
-            </div>
-          </CardContent>
-        </Card>
+        {/* Access code box or Session Ready */}
+        {!sessionReady ? (
+          <Card className="max-w-md mx-auto bg-white/5 border-white/10 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Lock size={14} className="text-violet-400" />
+                <span className="text-sm font-semibold text-white">Access Code Required</span>
+              </div>
+              <p className="text-xs text-white/50 mb-4 text-left">
+                Enter the access code provided by your clinician to begin the assessment session.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={code}
+                  onChange={e => setCode(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === "Enter" && handleValidateCode()}
+                  placeholder="e.g. RMRA-2025-ABC1"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/30 font-mono text-sm tracking-widest uppercase"
+                  maxLength={24}
+                />
+                <Button
+                  onClick={handleValidateCode}
+                  disabled={!code.trim() || validating}
+                  className="gap-1.5 bg-violet-600 hover:bg-violet-700 shrink-0"
+                >
+                  {validating ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+                  {validating ? "Checking…" : "Start"}
+                </Button>
+              </div>
+              <div className="mt-3 text-[11px] text-white/30 text-left">
+                Don't have a code? Contact your school's assessment coordinator or ReMynd clinician.
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="max-w-lg mx-auto bg-white/5 border-white/10 backdrop-blur-sm">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-300">
+                <CheckCircle2 size={16} />
+                <span className="text-sm font-semibold">Session Created</span>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-white/60 font-medium uppercase tracking-wide">Student Link — share this with your student</p>
+                <div className="flex gap-2 items-center">
+                  <code className="flex-1 bg-white/10 border border-white/20 rounded px-3 py-2 text-xs font-mono text-white/80 truncate">
+                    {sessionReady.studentUrl}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/20 text-white/70 hover:bg-white/10 shrink-0 gap-1 h-8"
+                    onClick={() => handleCopy(sessionReady.studentUrl)}
+                  >
+                    <Copy size={11} /> Copy
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-white/60 font-medium uppercase tracking-wide">Examiner Dashboard — your private view</p>
+                <div className="flex gap-2 items-center">
+                  <code className="flex-1 bg-white/10 border border-white/20 rounded px-3 py-2 text-xs font-mono text-white/80 truncate">
+                    {sessionReady.examinerUrl}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/20 text-white/70 hover:bg-white/10 shrink-0 gap-1 h-8"
+                    onClick={() => handleCopy(sessionReady.examinerUrl)}
+                  >
+                    <Copy size={11} /> Copy
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  className="flex-1 bg-violet-600 hover:bg-violet-700 gap-1.5"
+                  onClick={() => navigate(`/rmra/session/${sessionReady.sessionId}`)}
+                >
+                  <ExternalLink size={13} /> Open Examiner Dashboard
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white/60 hover:bg-white/10"
+                  onClick={() => setSessionReady(null)}
+                >
+                  New Session
+                </Button>
+              </div>
+              <p className="text-[11px] text-white/30">
+                Bookmark the Examiner Dashboard link — once the student completes the assessment, that page will display the full clinical report and Bobby Agent OS outputs.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Features */}

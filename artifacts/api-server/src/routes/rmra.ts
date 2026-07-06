@@ -912,4 +912,158 @@ router.post("/rmra/standalone/sessions", async (req: Request, res: Response) => 
   }
 });
 
+// ── Standalone: Generate Report (public, no auth) ──────────────────────────────
+
+router.post("/rmra/standalone/sessions/:sessionId/generate-report", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Standalone session not found" });
+    if (session.status !== "completed") return res.status(400).json({ error: "Session is not completed" });
+    if (!session.domainScores) return res.status(400).json({ error: "No domain scores available" });
+
+    const scores = session.domainScores as Record<string, {
+      accuracy: number; reasoning: number; strategyLevel: number;
+      hintDependency: number; productiveStruggle: number; confidence: number;
+      tasksAdministered: number; tasksDiscontinued: number;
+      level: "strength" | "developing" | "vulnerable" | "high_concern";
+    }>;
+
+    const AGE_BAND_LABELS: Record<string, string> = {
+      early_primary: "Early Primary (Ages 5–8, K–Yr 2)",
+      upper_primary: "Upper Primary (Ages 8–11, Yr 3–5)",
+      middle_school: "Middle School (Ages 11–14, Yr 6–8)",
+      secondary: "Secondary (Ages 14–16, Yr 9–10)",
+    };
+    const LEVEL_LABELS: Record<string, string> = {
+      strength: "Strength (≥80%)", developing: "Developing (60–79%)",
+      vulnerable: "Vulnerable (40–59%)", high_concern: "High Concern (<40%)",
+    };
+
+    const domainTable = RMRA_DOMAINS
+      .filter(d => scores[d])
+      .map(d => {
+        const s = scores[d];
+        return `- ${d}: Accuracy ${s.accuracy}%, Reasoning ${s.reasoning}%, Strategy ${s.strategyLevel}%, Hint ${s.hintDependency}%, PS ${s.productiveStruggle}%, Confidence ${s.confidence}%, Level: ${LEVEL_LABELS[s.level] ?? s.level}`;
+      }).join("\n");
+
+    const prompt = `You are a specialist psychometrician writing a clinical psychoeducational report for the ReMynd Mathematical Reasoning Assessment (RMRA).
+
+ASSESSMENT INFORMATION:
+- Age Band: ${AGE_BAND_LABELS[session.ageBand] ?? session.ageBand}
+- Assessment Version: ${session.version === "full" ? "Full" : "Brief"}
+- Completion Date: ${session.completedAt ? new Date(session.completedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }) : "Unknown"}
+${session.generalNotes ? `- Examiner Notes: ${session.generalNotes}` : ""}
+
+DOMAIN SCORES:
+${domainTable}
+
+Generate a comprehensive clinical assessment report. Return ONLY valid JSON:
+{
+  "overview": "2–3 paragraphs",
+  "behavioralObservations": "2–3 paragraphs",
+  "mathematicalProfile": "3–4 paragraphs",
+  "strategyUseProfile": "2 paragraphs",
+  "strengths": ["4–6 items"],
+  "areasOfNeed": ["4–6 items"],
+  "classroomRecommendations": ["4–6 items"],
+  "parentRecommendations": ["3–4 items"]
+}
+
+Write in professional clinical language. Reference actual domain scores. Return only the JSON with no markdown.`;
+
+    const raw = await callDeepSeekRmra(prompt, 3000);
+    let narrative: Record<string, unknown>;
+    try {
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      narrative = JSON.parse(cleaned);
+    } catch {
+      return res.status(500).json({ error: "AI returned malformed JSON. Please try again." });
+    }
+
+    const reportData = { narrative, generatedAt: new Date().toISOString() };
+    await db.update(rmraSessionsTable)
+      .set({ reportData: reportData as any, updatedAt: new Date() })
+      .where(eq(rmraSessionsTable.id, sessionId));
+
+    return res.json({ reportData });
+  } catch (err) {
+    logger.error({ err }, "POST standalone generate-report failed");
+    return res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// ── Standalone: Bobby Agent OS (public, no auth) ────────────────────────────────
+
+router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { action } = req.body as { action?: string };
+
+    if (!action || !BOBBY_PROMPTS[action]) {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Standalone session not found" });
+    if (!session.domainScores) return res.status(400).json({ error: "No domain scores available" });
+
+    const scores = session.domainScores as Record<string, { accuracy: number; level: string; strategyLevel: number; hintDependency: number; confidence: number }>;
+    const AGE_BAND_LABELS: Record<string, string> = {
+      early_primary: "Early Primary (Ages 5–8)",
+      upper_primary: "Upper Primary (Ages 8–11)",
+      middle_school: "Middle School (Ages 11–14)",
+      secondary: "Secondary (Ages 14–16)",
+    };
+
+    const ctx = RMRA_DOMAINS
+      .filter(d => scores[d])
+      .map(d => {
+        const s = scores[d];
+        return `${d}: Accuracy ${s.accuracy}%, Strategy ${s.strategyLevel}%, Confidence ${s.confidence}%, Level: ${s.level.replace("_", " ")}`;
+      }).join("\n");
+
+    const content = await callDeepSeekRmra(BOBBY_PROMPTS[action](ctx, AGE_BAND_LABELS[session.ageBand] ?? session.ageBand), 2500);
+    return res.json({ content });
+  } catch (err) {
+    logger.error({ err }, "POST standalone bobby-agent failed");
+    return res.status(500).json({ error: "Failed to generate content" });
+  }
+});
+
+// ── Standalone: Get Session (public, no auth) ────────────────────────────────────
+
+router.get("/rmra/standalone/sessions/:sessionId", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const responses = await db
+      .select()
+      .from(rmraTaskResponsesTable)
+      .where(eq(rmraTaskResponsesTable.sessionId, sessionId));
+
+    return res.json({ session, responses });
+  } catch (err) {
+    logger.error({ err }, "GET standalone session failed");
+    return res.status(500).json({ error: "Failed to load session" });
+  }
+});
+
 export default router;

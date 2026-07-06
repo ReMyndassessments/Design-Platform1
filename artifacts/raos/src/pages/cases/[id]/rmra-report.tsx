@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Cell, Legend,
+  Tooltip, Cell, ScatterChart, Scatter, ZAxis, ReferenceLine,
 } from "recharts";
 import {
   Brain, Sparkles, ArrowLeft, ChevronDown, ChevronRight,
@@ -102,12 +102,21 @@ const LEVEL_BG: Record<string, string> = {
   high_concern: "bg-red-100 text-red-700 border-red-200",
 };
 
-// ── Dyscalculia Risk Engine ───────────────────────────────────────────────────
-
-const DYSC_CORE_DOMAINS = [
-  "Number Sense", "Place Value", "Addition Reasoning", "Subtraction Reasoning",
-  "Fractions", "Multiplicative Thinking", "Mathematical Language", "Problem Solving & Executive Function",
-];
+// ── Dyscalculia Risk Engine — 12 Indicator Dimensions ─────────────────────────
+//
+// Dimensions mapped to RMRA domains (per spec):
+//   1.  Number sense       → Number Sense
+//   2.  Magnitude comp.    → Number Sense (accuracy component proxy)
+//   3.  Subitizing         → Number Sense (hint dependency proxy)
+//   4.  Place value        → Place Value
+//   5.  Counting strategies→ Addition Reasoning + Subtraction Reasoning
+//   6.  Fact retrieval     → Addition + Subtraction + Multiplicative (accuracy avg)
+//   7.  Estimation         → Number Sense + Measurement
+//   8.  Math language      → Mathematical Language
+//   9.  Sequencing         → Patterns & Early Algebra
+//   10. Visual-spatial     → Geometry & Spatial Reasoning
+//   11. Working memory     → Problem Solving & Executive Function
+//   12. Procedural consist.→ avg hintDependency across core domains (proxy)
 
 type DyscRiskLevel = "low" | "mild" | "moderate" | "high";
 
@@ -120,57 +129,217 @@ const DYSC_RISK_META: Record<DyscRiskLevel, {
 }> = {
   low: {
     label: "Low Risk",
-    description: "Performance data does not indicate significant dyscalculia risk indicators. Continue with universal screening and monitor progress.",
+    description: "Performance data does not indicate significant dyscalculia risk indicators across the 12 assessed dimensions. Continue with universal screening and monitor progress.",
     headerClass: "bg-emerald-50 border-b border-emerald-100",
     badgeClass: "bg-emerald-100 text-emerald-700 border-emerald-200",
     borderClass: "border-emerald-200",
   },
   mild: {
     label: "Mild Risk",
-    description: "Some indicators of mathematical difficulty are present. Targeted support and additional diagnostic assessment are recommended.",
+    description: "Some indicators of mathematical difficulty are present across several dimensions. Targeted support and additional diagnostic assessment are recommended.",
     headerClass: "bg-amber-50 border-b border-amber-100",
     badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
     borderClass: "border-amber-200",
   },
   moderate: {
     label: "Moderate Risk",
-    description: "Multiple risk indicators present across core mathematical domains. A comprehensive psychoeducational evaluation is recommended.",
+    description: "Multiple risk indicators present across core mathematical indicator dimensions. A comprehensive psychoeducational evaluation is recommended.",
     headerClass: "bg-orange-50 border-b border-orange-100",
     badgeClass: "bg-orange-100 text-orange-700 border-orange-200",
     borderClass: "border-orange-200",
   },
   high: {
     label: "High Risk",
-    description: "Significant risk indicators present across multiple core domains. Formal neuropsychological evaluation for dyscalculia is strongly recommended.",
+    description: "Significant risk indicators present across a broad range of dimensions, including foundational numerical cognition, working memory, and procedural consistency. Formal neuropsychological evaluation for dyscalculia is strongly recommended.",
     headerClass: "bg-red-50 border-b border-red-100",
     badgeClass: "bg-red-100 text-red-700 border-red-200",
     borderClass: "border-red-200",
   },
 };
 
+type DyscIndicator = {
+  key: string;
+  label: string;
+  flagged: boolean;
+  score: number;
+};
+
 function computeDyscalculiaRisk(scores: Record<string, DomainScore>): {
   level: DyscRiskLevel;
-  highConcernDomains: string[];
-  vulnerableDomains: string[];
+  indicators: DyscIndicator[];
+  flaggedCount: number;
+  behaviourFlags: string[];
 } {
-  const highConcernDomains: string[] = [];
-  const vulnerableDomains: string[] = [];
+  const domainGet = (name: string) => scores[name];
+  const avgAcc = (...names: string[]) => {
+    const vals = names.map(n => domainGet(n)?.accuracy ?? null).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const avgHint = (...names: string[]) => {
+    const vals = names.map(n => domainGet(n)?.hintDependency ?? null).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const isWeakLevel = (d: DomainScore | undefined) =>
+    d?.level === "vulnerable" || d?.level === "high_concern";
 
-  for (const domain of DYSC_CORE_DOMAINS) {
-    const score = scores[domain];
-    if (!score) continue;
-    if (score.level === "high_concern") highConcernDomains.push(domain);
-    else if (score.level === "vulnerable") vulnerableDomains.push(domain);
-  }
+  const ns = domainGet("Number Sense");
+  const pv = domainGet("Place Value");
+  const add = domainGet("Addition Reasoning");
+  const sub = domainGet("Subtraction Reasoning");
+  const mult = domainGet("Multiplicative Thinking");
+  const div = domainGet("Division Thinking");
+  const frac = domainGet("Fractions");
+  const meas = domainGet("Measurement");
+  const pat = domainGet("Patterns & Early Algebra");
+  const geo = domainGet("Geometry & Spatial Reasoning");
+  const ml = domainGet("Mathematical Language");
+  const ps = domainGet("Problem Solving & Executive Function");
 
-  const indicatorScore = highConcernDomains.length * 2 + vulnerableDomains.length;
+  const indicators: DyscIndicator[] = [
+    {
+      key: "number_sense",
+      label: "Number Sense & Cardinality",
+      score: ns?.accuracy ?? 0,
+      flagged: isWeakLevel(ns),
+    },
+    {
+      key: "magnitude_comparison",
+      label: "Magnitude Comparison",
+      score: ns ? Math.max(0, ns.accuracy - 10) : 0,
+      flagged: !!ns && ns.accuracy < 50,
+    },
+    {
+      key: "subitizing",
+      label: "Subitizing & Rapid Enumeration",
+      score: ns ? Math.max(0, 100 - (ns.hintDependency ?? 0)) : 50,
+      flagged: !!ns && (ns.hintDependency ?? 0) > 60 && ns.accuracy < 55,
+    },
+    {
+      key: "place_value",
+      label: "Place Value Understanding",
+      score: pv?.accuracy ?? 0,
+      flagged: isWeakLevel(pv),
+    },
+    {
+      key: "counting_strategies",
+      label: "Counting Strategies",
+      score: avgAcc("Addition Reasoning", "Subtraction Reasoning") ?? 0,
+      flagged: isWeakLevel(add) && isWeakLevel(sub),
+    },
+    {
+      key: "fact_retrieval",
+      label: "Arithmetic Fact Retrieval",
+      score: avgAcc("Addition Reasoning", "Subtraction Reasoning", "Multiplicative Thinking") ?? 0,
+      flagged: [add, sub, mult].filter(d => d && d.level === "high_concern").length >= 2,
+    },
+    {
+      key: "estimation",
+      label: "Estimation & Approximation",
+      score: avgAcc("Number Sense", "Measurement") ?? 0,
+      flagged: isWeakLevel(ns) && isWeakLevel(meas),
+    },
+    {
+      key: "math_language",
+      label: "Mathematical Language",
+      score: ml?.accuracy ?? 0,
+      flagged: isWeakLevel(ml),
+    },
+    {
+      key: "sequencing",
+      label: "Sequencing & Patterning",
+      score: pat?.accuracy ?? 0,
+      flagged: isWeakLevel(pat),
+    },
+    {
+      key: "visual_spatial",
+      label: "Visual-Spatial Processing",
+      score: geo?.accuracy ?? 0,
+      flagged: isWeakLevel(geo),
+    },
+    {
+      key: "working_memory",
+      label: "Working Memory & EF",
+      score: ps?.accuracy ?? 0,
+      flagged: isWeakLevel(ps),
+    },
+    {
+      key: "procedural_consistency",
+      label: "Procedural Consistency",
+      score: avgHint("Addition Reasoning", "Subtraction Reasoning", "Multiplicative Thinking", "Division Thinking") != null
+        ? Math.max(0, 100 - (avgHint("Addition Reasoning", "Subtraction Reasoning", "Multiplicative Thinking", "Division Thinking")!))
+        : 50,
+      flagged: (avgHint("Addition Reasoning", "Subtraction Reasoning", "Multiplicative Thinking", "Division Thinking") ?? 0) > 65,
+    },
+  ];
+
+  const flaggedCount = indicators.filter(i => i.flagged).length;
+
+  const behaviourFlags: string[] = [];
+  const globalAvgHint = avgHint(...RMRA_DOMAINS as unknown as string[]) ?? 0;
+  if (globalAvgHint > 70) behaviourFlags.push("High examiner hint dependency across domains (>70%)");
+
+  const confAccGap = RMRA_DOMAINS.map(d => {
+    const s = scores[d]; if (!s) return 0;
+    return Math.abs(s.confidence - s.accuracy);
+  }).filter(Boolean);
+  const avgGap = confAccGap.length ? confAccGap.reduce((a, b) => a + b, 0) / confAccGap.length : 0;
+  if (avgGap > 25) behaviourFlags.push("Large confidence–accuracy calibration gap (>25% avg)");
+
+  const highConcernCount = RMRA_DOMAINS.filter(d => scores[d]?.level === "high_concern").length;
+  if (highConcernCount >= 5) behaviourFlags.push(`Pervasive high-concern profile (${highConcernCount}/13 domains at High Concern level)`);
+
   let level: DyscRiskLevel;
-  if (highConcernDomains.length >= 4 || indicatorScore >= 8) level = "high";
-  else if (highConcernDomains.length >= 2 || indicatorScore >= 4) level = "moderate";
-  else if (highConcernDomains.length >= 1 || vulnerableDomains.length >= 2) level = "mild";
+  const totalRiskWeight = flaggedCount * 2 + behaviourFlags.length * 3;
+  if (flaggedCount >= 8 || totalRiskWeight >= 20) level = "high";
+  else if (flaggedCount >= 5 || totalRiskWeight >= 12) level = "moderate";
+  else if (flaggedCount >= 2 || totalRiskWeight >= 5) level = "mild";
   else level = "low";
 
-  return { level, highConcernDomains, vulnerableDomains };
+  return { level, indicators, flaggedCount, behaviourFlags };
+}
+
+// ── Productive Struggle Index — 5 Dimensions (proxy from domain scores) ────────
+//
+// Persistence    → avg PS of high-complexity domains (Fractions, Multiplicative, Problem Solving)
+// Flexibility    → avg PS of strategy-diversity domains (Division, Patterns/Algebra, Problem Solving)
+// Emo Regulation → PS of "Response to Productive Struggle" domain
+// Error Recovery → avg PS of computation domains (Addition, Subtraction, Multiplicative)
+// Help Utilization → inverse of avg hint dependency (low hint = better help utilisation)
+
+function computeStruggleProfile(scores: Record<string, DomainScore>) {
+  const avg = (...domains: string[]) => {
+    const vals = domains.map(d => scores[d]?.productiveStruggle ?? null).filter((v): v is number => v !== null);
+    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+  };
+  const avgHint = (...domains: string[]) => {
+    const vals = domains.map(d => scores[d]?.hintDependency ?? null).filter((v): v is number => v !== null);
+    return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+  };
+
+  const allHint = avgHint(...RMRA_DOMAINS as unknown as string[]) ?? 50;
+
+  return [
+    {
+      subject: "Persistence",
+      score: avg("Fractions", "Multiplicative Thinking", "Problem Solving & Executive Function") ?? 50,
+    },
+    {
+      subject: "Flexibility",
+      score: avg("Division Thinking", "Patterns & Early Algebra", "Problem Solving & Executive Function") ?? 50,
+    },
+    {
+      subject: "Emotional Regulation",
+      score: scores["Response to Productive Struggle"]?.productiveStruggle ?? 50,
+    },
+    {
+      subject: "Error Recovery",
+      score: avg("Addition Reasoning", "Subtraction Reasoning", "Multiplicative Thinking") ?? 50,
+    },
+    {
+      subject: "Help Utilisation",
+      score: Math.max(0, 100 - allHint),
+    },
+  ];
 }
 
 // ── Intervention Map ──────────────────────────────────────────────────────────
@@ -340,19 +509,45 @@ const BOBBY_ACTIONS = [
   },
 ] as const;
 
+// ── Scatter tooltip ────────────────────────────────────────────────────────────
+
+const ScatterTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-white border border-slate-200 rounded shadow px-3 py-2 text-xs">
+      <div className="font-semibold text-slate-700 mb-1">{d.domain}</div>
+      <div>Accuracy: <span className="font-mono">{d.x}%</span></div>
+      <div>Confidence: <span className="font-mono">{d.y}%</span></div>
+      <Badge className={`mt-1 text-[10px] border ${LEVEL_BG[d.level] ?? ""}`}>{LEVEL_LABELS[d.level]}</Badge>
+    </div>
+  );
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function RmraReportPanel({
   sessionId,
   caseId,
   session,
+  isStandalone = false,
 }: {
   sessionId: string;
   caseId: string;
   session: RmraReportSession;
+  isStandalone?: boolean;
 }) {
   const { toast } = useToast();
-  const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("raos_token")}` });
+  const authHeader = () =>
+    isStandalone ? {} : { Authorization: `Bearer ${localStorage.getItem("raos_token")}` };
+
+  const reportEndpoint = isStandalone
+    ? `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/generate-report`
+    : `${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}/generate-report`;
+
+  const bobbyEndpoint = isStandalone
+    ? `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/bobby-agent`
+    : `${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}/bobby-agent`;
 
   const [generating, setGenerating] = useState(false);
   const [reportData, setReportData] = useState<{ narrative: ReportNarrative; generatedAt: string } | null>(
@@ -387,24 +582,42 @@ export function RmraReportPanel({
     [domainScores],
   );
 
-  const radarData = useMemo(() => {
+  // Mathematical profile radar — 5 math cluster averages
+  const mathProfileRadarData = useMemo(() => {
     const groupAvg = (domains: string[]) => {
       const vals = domains.map(d => domainScores[d]).filter(Boolean);
       if (!vals.length) return 0;
       return Math.round(vals.reduce((a, v) => a + (v.accuracy + v.reasoning + v.strategyLevel) / 3, 0) / vals.length);
     };
     return [
-      { subject: "Number Operations", score: groupAvg(["Number Sense", "Place Value", "Addition Reasoning", "Subtraction Reasoning"]) },
+      { subject: "Number Ops", score: groupAvg(["Number Sense", "Place Value", "Addition Reasoning", "Subtraction Reasoning"]) },
       { subject: "Multiplicative", score: groupAvg(["Multiplicative Thinking", "Division Thinking", "Fractions"]) },
       { subject: "Space & Measure", score: groupAvg(["Measurement", "Geometry & Spatial Reasoning"]) },
-      { subject: "Language & Algebra", score: groupAvg(["Mathematical Language", "Patterns & Early Algebra"]) },
-      { subject: "Reasoning & Process", score: groupAvg(["Problem Solving & Executive Function", "Response to Productive Struggle"]) },
+      { subject: "Lang & Algebra", score: groupAvg(["Mathematical Language", "Patterns & Early Algebra"]) },
+      { subject: "Process & EF", score: groupAvg(["Problem Solving & Executive Function", "Response to Productive Struggle"]) },
     ];
   }, [domainScores]);
+
+  // Productive Struggle Index — 5 dimensional radar
+  const psRadarData = useMemo(() => computeStruggleProfile(domainScores), [domainScores]);
 
   const hintSortedData = useMemo(() =>
     [...heatMapData].sort((a, b) => b.hint - a.hint),
     [heatMapData],
+  );
+
+  // Confidence vs Accuracy scatter data
+  const scatterData = useMemo(() =>
+    RMRA_DOMAINS
+      .filter(d => !!domainScores[d])
+      .map(d => ({
+        x: domainScores[d].accuracy,
+        y: domainScores[d].confidence,
+        domain: DOMAIN_SHORT[d] ?? d,
+        level: domainScores[d].level,
+        fill: LEVEL_COLORS[domainScores[d].level],
+      })),
+    [domainScores],
   );
 
   const dyscalculiaRisk = useMemo(() => computeDyscalculiaRisk(domainScores), [domainScores]);
@@ -421,38 +634,55 @@ export function RmraReportPanel({
 
   const handleGenerateReport = async () => {
     setGenerating(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
     try {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}/generate-report`, {
+      const r = await fetch(reportEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader() },
+        signal: controller.signal,
       });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       setReportData(data.reportData);
       toast({ title: "Report generated", description: "AI clinical narrative is ready." });
-    } catch {
-      toast({ title: "Report generation failed", description: "Please try again.", variant: "destructive" });
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        toast({ title: "Request timed out", description: "Report generation took too long. Please try again.", variant: "destructive" });
+      } else {
+        toast({ title: "Report generation failed", description: "Please try again.", variant: "destructive" });
+      }
     } finally {
+      clearTimeout(timeout);
       setGenerating(false);
     }
   };
 
   const handleBobbyAction = useCallback(async (actionId: string) => {
     setBobbyStates(prev => ({ ...prev, [actionId]: { loading: true, content: null, expanded: true } }));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
     try {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}/bobby-agent`, {
+      const r = await fetch(bobbyEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ action: actionId }),
+        signal: controller.signal,
       });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       setBobbyStates(prev => ({ ...prev, [actionId]: { loading: false, content: data.content, expanded: true } }));
-    } catch {
+    } catch (err: any) {
       setBobbyStates(prev => ({ ...prev, [actionId]: { ...prev[actionId], loading: false } }));
-      toast({ title: "Bobby Agent failed", description: "Please try again.", variant: "destructive" });
+      if (err?.name === "AbortError") {
+        toast({ title: "Request timed out", description: "Bobby Agent took too long. Please try again.", variant: "destructive" });
+      } else {
+        toast({ title: "Bobby Agent failed", description: "Please try again.", variant: "destructive" });
+      }
+    } finally {
+      clearTimeout(timeout);
     }
-  }, [caseId, sessionId]);
+  }, [bobbyEndpoint, isStandalone, sessionId]);
 
   const riskMeta = DYSC_RISK_META[dyscalculiaRisk.level];
 
@@ -461,21 +691,23 @@ export function RmraReportPanel({
       {/* Status banner */}
       <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
         <CheckCircle2 size={16} className="shrink-0" />
-        <span>Assessment completed. Domain scores saved to case profile.</span>
-        <div className="ml-auto">
-          <Link href={`/cases/${caseId}`}>
-            <Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 h-7 text-xs">
-              <ArrowLeft size={12} /> Back to Case
-            </Button>
-          </Link>
-        </div>
+        <span>Assessment completed. Domain scores saved.</span>
+        {!isStandalone && (
+          <div className="ml-auto">
+            <Link href={`/cases/${caseId}`}>
+              <Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 h-7 text-xs">
+                <ArrowLeft size={12} /> Back to Case
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Domain Heat Map */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
           <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            <Target size={14} className="text-violet-500" /> Domain Snapshot
+            <Target size={14} className="text-violet-500" /> Domain Snapshot — 13 Domains
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
@@ -514,19 +746,42 @@ export function RmraReportPanel({
         <Card>
           <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
             <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Brain size={14} className="text-violet-500" /> Mathematical Profile
+              <Brain size={14} className="text-violet-500" /> Mathematical Profile (5 Clusters)
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
             <ResponsiveContainer width="100%" height={230}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="72%">
+              <RadarChart data={mathProfileRadarData} cx="50%" cy="50%" outerRadius="72%">
                 <PolarGrid stroke="#e2e8f0" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: "#64748b" }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: "#94a3b8" }} />
-                <Radar name="Score" dataKey="score" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25} strokeWidth={2} />
+                <Radar name="Avg Score" dataKey="score" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25} strokeWidth={2} />
                 <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6 }} formatter={(v: number) => [`${v}%`, "Avg Score"]} />
               </RadarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Productive Struggle Index — 5-Dimension Radar */}
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Activity size={14} className="text-emerald-500" /> Productive Struggle Index
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ResponsiveContainer width="100%" height={230}>
+              <RadarChart data={psRadarData} cx="50%" cy="50%" outerRadius="72%">
+                <PolarGrid stroke="#e2e8f0" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: "#64748b" }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: "#94a3b8" }} />
+                <Radar name="Score" dataKey="score" stroke="#10b981" fill="#10b981" fillOpacity={0.22} strokeWidth={2} />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6 }} formatter={(v: number) => [`${v}%`]} />
+              </RadarChart>
+            </ResponsiveContainer>
+            <p className="text-[10px] text-slate-400 mt-1 text-center">
+              Persistence · Flexibility · Emotional Regulation · Error Recovery · Help Utilisation
+            </p>
           </CardContent>
         </Card>
 
@@ -577,35 +832,53 @@ export function RmraReportPanel({
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Confidence vs Accuracy */}
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Activity size={14} className="text-blue-500" /> Confidence vs Accuracy
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={230}>
-              <BarChart data={heatMapData} margin={{ top: 2, right: 12, left: 0, bottom: 48 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="domain" tick={{ fontSize: 7.5 }} angle={-45} textAnchor="end" interval={0} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
-                <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [`${v}%`]} />
-                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
-                <Bar dataKey="accuracy" name="Accuracy" fill="#3b82f6" radius={2} />
-                <Bar dataKey="confidence" name="Confidence" fill="#8b5cf6" radius={2} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Dyscalculia Risk Indicator */}
+      {/* Confidence vs Accuracy — Scatter */}
+      <Card>
+        <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+          <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Activity size={14} className="text-blue-500" /> Confidence vs Accuracy (per Domain)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <ResponsiveContainer width="100%" height={260}>
+            <ScatterChart margin={{ top: 12, right: 20, left: 4, bottom: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                type="number" dataKey="x" name="Accuracy" domain={[0, 100]}
+                label={{ value: "Accuracy (%)", position: "insideBottom", offset: -14, fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 9 }}
+              />
+              <YAxis
+                type="number" dataKey="y" name="Confidence" domain={[0, 100]}
+                label={{ value: "Confidence (%)", angle: -90, position: "insideLeft", offset: 12, fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 9 }}
+              />
+              <ZAxis range={[60, 60]} />
+              <ReferenceLine x={50} stroke="#e2e8f0" strokeDasharray="4 4" />
+              <ReferenceLine y={50} stroke="#e2e8f0" strokeDasharray="4 4" />
+              <Tooltip content={<ScatterTooltip />} />
+              <Scatter
+                data={scatterData}
+                shape={(props: any) => {
+                  const { cx, cy, payload } = props;
+                  return <circle cx={cx} cy={cy} r={7} fill={payload.fill} fillOpacity={0.75} stroke={payload.fill} strokeWidth={1.5} />;
+                }}
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+          <p className="text-[10px] text-slate-400 text-center -mt-1">
+            Points above the diagonal = overconfident · Points below = underconfident
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Dyscalculia Risk Indicator — 12 Dimensions */}
       <Card className={`border ${riskMeta.borderClass}`}>
         <CardHeader className={`pb-3 pt-4 px-5 ${riskMeta.headerClass}`}>
           <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            <Brain size={14} /> Dyscalculia Risk Indicator
+            <Brain size={14} /> Dyscalculia Risk Indicator — 12 Indicator Dimensions
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 space-y-3">
@@ -614,21 +887,39 @@ export function RmraReportPanel({
               {riskMeta.label}
             </Badge>
             <span className="text-sm text-slate-500">
-              {dyscalculiaRisk.highConcernDomains.length} high-concern ·{" "}
-              {dyscalculiaRisk.vulnerableDomains.length} vulnerable (core domains only)
+              {dyscalculiaRisk.flaggedCount} of 12 indicators flagged
+              {dyscalculiaRisk.behaviourFlags.length > 0 ? ` · ${dyscalculiaRisk.behaviourFlags.length} behaviour flag${dyscalculiaRisk.behaviourFlags.length > 1 ? "s" : ""}` : ""}
             </span>
           </div>
           <p className="text-sm text-slate-700">{riskMeta.description}</p>
-          {(dyscalculiaRisk.highConcernDomains.length > 0 || dyscalculiaRisk.vulnerableDomains.length > 0) && (
-            <div className="flex flex-wrap gap-1.5">
-              {dyscalculiaRisk.highConcernDomains.map(d => (
-                <Badge key={d} className="text-[10px] bg-red-100 text-red-700 border-red-200 border">{d}</Badge>
-              ))}
-              {dyscalculiaRisk.vulnerableDomains.map(d => (
-                <Badge key={d} className="text-[10px] bg-orange-100 text-orange-700 border-orange-200 border">{d}</Badge>
+
+          {/* 12-indicator grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {dyscalculiaRisk.indicators.map(ind => (
+              <div
+                key={ind.key}
+                className={`rounded-md px-2.5 py-2 flex items-center gap-2 border text-xs ${
+                  ind.flagged ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-200"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ind.flagged ? "bg-red-500" : "bg-emerald-400"}`} />
+                <span className={ind.flagged ? "text-red-700 font-medium" : "text-slate-500"}>{ind.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Behaviour flags */}
+          {dyscalculiaRisk.behaviourFlags.length > 0 && (
+            <div className="space-y-1">
+              {dyscalculiaRisk.behaviourFlags.map((flag, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
+                  <AlertTriangle size={11} className="shrink-0 text-amber-500" />
+                  {flag}
+                </div>
               ))}
             </div>
           )}
+
           <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-500 flex items-start gap-2">
             <AlertTriangle size={12} className="text-slate-400 shrink-0 mt-0.5" />
             <span>
