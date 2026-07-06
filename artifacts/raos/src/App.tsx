@@ -79,6 +79,7 @@ import ProductDashboard from "@/pages/cases/[id]/product-dashboard";
 import RdaStudentView from "@/pages/student-view/rda";
 import RrcaStudentView from "@/pages/student-view/rrca";
 import RrfaStudentView from "@/pages/student-view/rrfa";
+import RmraStudentView from "@/pages/student-view/rmra";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ function Router() {
       <Route path="/student-view/rda" component={RdaStudentView} />
       <Route path="/student-view/rrca/:token" component={RrcaStudentView} />
       <Route path="/student-view/rrfa/:token" component={RrfaStudentView} />
+      <Route path="/student-view/rmra/:token" component={RmraStudentView} />
       <Route path="/join/:room" component={JoinMeetingPage} />
       <Route path="/meet/:room" component={QuickMeetPage} />
       <Route path="/" component={LandingPage} />

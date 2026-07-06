@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft, CheckCircle2, Loader2, ChevronRight, ChevronLeft,
   Play, Square, RotateCcw, AlertTriangle, Info, X, Brain,
-  Timer, BookOpen, Target, Lightbulb, Save, Flag,
+  Timer, BookOpen, Target, Lightbulb, Save, Flag, Copy, ExternalLink,
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -232,6 +232,9 @@ export default function RmraAdminPage() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  // Assignment token (for student view link)
+  const [assignmentToken, setAssignmentToken] = useState<string | null>(null);
+
   // Setup (pre-start) state
   const [setupAgeBand, setSetupAgeBand] = useState("upper_primary");
   const [setupVersion, setSetupVersion] = useState<"full" | "brief">("full");
@@ -276,6 +279,7 @@ export default function RmraAdminPage() {
         setSetupTheme(s.theme);
         if (s.generalNotes) setGeneralNotes(s.generalNotes);
         if (data.case) setCaseInfo(data.case);
+        if (data.assignmentToken) setAssignmentToken(data.assignmentToken);
 
         // Load existing responses
         const respMap: Record<string, TaskResponseState> = {};
@@ -605,6 +609,20 @@ export default function RmraAdminPage() {
                  savingStatus === "saved" ? <><CheckCircle2 size={10} className="text-emerald-500" /> Saved</> :
                  "Auto-saving"}
               </span>
+              {assignmentToken && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 hidden sm:flex"
+                  title="Copy student view link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`);
+                    toast({ title: "Link copied!", description: "Paste it into the student's browser." });
+                  }}
+                >
+                  <Copy size={13} /> Student Link
+                </Button>
+              )}
               <Button
                 size="sm"
                 onClick={handleComplete}
@@ -713,6 +731,38 @@ export default function RmraAdminPage() {
               ))}
             </div>
           </div>
+
+          {/* Student View Link */}
+          {assignmentToken && (
+            <div className="bg-white border border-slate-200 rounded-xl p-4 mb-5">
+              <h2 className="text-sm font-semibold text-slate-700 mb-1">Student View Link</h2>
+              <p className="text-xs text-slate-400 mb-3">Share this URL with the student before or during the session. They will see the task stimuli on their own screen.</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 font-mono truncate">
+                  {`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`);
+                    toast({ title: "Link copied!", description: "Paste it into the student's browser." });
+                  }}
+                >
+                  <Copy size={13} /> Copy
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => window.open(`${window.location.origin}${import.meta.env.BASE_URL}student-view/rmra/${assignmentToken}`, "_blank")}
+                >
+                  <ExternalLink size={13} /> Open
+                </Button>
+              </div>
+            </div>
+          )}
 
           <Button
             onClick={handleBegin}

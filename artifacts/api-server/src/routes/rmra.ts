@@ -50,7 +50,7 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
         .select()
         .from(rmraTaskResponsesTable)
         .where(eq(rmraTaskResponsesTable.sessionId, existing[0].id));
-      return res.json({ session: existing[0], responses });
+      return res.json({ session: existing[0], responses, assignmentToken: assignment.uniqueToken });
     }
 
     const sessionId = nanoid();
@@ -68,7 +68,7 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
       })
       .returning();
 
-    return res.status(201).json({ session, responses: [] });
+    return res.status(201).json({ session, responses: [], assignmentToken: assignment.uniqueToken });
   } catch (err) {
     logger.error({ err }, "POST /rmra/sessions failed");
     return res.status(500).json({ error: "Failed to create RMRA session" });
@@ -401,11 +401,26 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
       ? RMRA_ITEMS.find(i => i.id === session.currentTaskId)
       : null;
 
+    // Fetch hint level from current task response
+    let hintLevel = 0;
+    if (session.currentTaskId) {
+      const [taskResp] = await db
+        .select({ hintLevel: rmraTaskResponsesTable.hintLevel })
+        .from(rmraTaskResponsesTable)
+        .where(and(
+          eq(rmraTaskResponsesTable.sessionId, session.id),
+          eq(rmraTaskResponsesTable.taskId, session.currentTaskId),
+        ))
+        .limit(1);
+      hintLevel = taskResp?.hintLevel ?? 0;
+    }
+
     return res.json({
       status: session.status,
       theme: session.theme,
       ageBand: session.ageBand,
       currentTaskId: session.currentTaskId,
+      hintLevel,
       currentTask: currentItem ? {
         id: currentItem.id,
         domain: currentItem.domain,
@@ -414,6 +429,8 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
         prompt: currentItem.prompts[session.theme as keyof typeof currentItem.prompts] ?? currentItem.prompts.space_mission,
         showConfidenceSlider: currentItem.showConfidenceSlider,
         productiveStruggleTrigger: currentItem.productiveStruggleTrigger,
+        exactAnswer: currentItem.exactAnswer,
+        expectedAnswerRange: currentItem.expectedAnswerRange,
       } : null,
     });
   } catch (err) {
