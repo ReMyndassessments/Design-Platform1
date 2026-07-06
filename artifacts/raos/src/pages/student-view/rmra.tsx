@@ -439,30 +439,110 @@ function FractionCircleVisual({ numerator, denominator, accent }: {
 
 // ── Visual: Balance Scale ─────────────────────────────────────────────────────
 
+const WEIGHT_TOKENS = [1, 2, 3, 5, 10];
+
 function BalanceScaleVisual({ taskId, accent }: { taskId: string; accent: string }) {
-  const rng = seededRand(strSeed(taskId));
-  const leftVal = Math.floor(rng() * 20) + 5;
-  const showRight = rng() > 0.5;
+  const [leftW, setLeftW] = useState<number[]>([]);
+  const [rightW, setRightW] = useState<number[]>([]);
+  const [dropHighlight, setDropHighlight] = useState<"left" | "right" | null>(null);
+  const dragVal = useRef<number | null>(null);
+
+  const leftTotal = leftW.reduce((s, v) => s + v, 0);
+  const rightTotal = rightW.reduce((s, v) => s + v, 0);
+  // Tilt: positive = right side down (right heavier), negative = left side down
+  const rawTilt = (rightTotal - leftTotal);
+  const tiltDeg = Math.max(-28, Math.min(28, rawTilt * 3));
+  const tiltRad = (tiltDeg * Math.PI) / 180;
+  const arm = 80; const cx = 130; const cy = 72;
+  const lx = cx - arm * Math.cos(tiltRad); const ly = cy - arm * Math.sin(tiltRad);
+  const rx = cx + arm * Math.cos(tiltRad); const ry = cy + arm * Math.sin(tiltRad);
+  const panH = 40;
+
+  const onDrop = (side: "left" | "right") => {
+    if (dragVal.current === null) return;
+    const v = dragVal.current; dragVal.current = null;
+    if (side === "left") setLeftW(w => [...w, v]);
+    else setRightW(w => [...w, v]);
+    setDropHighlight(null);
+  };
+  const removeLeft = (i: number) => setLeftW(w => w.filter((_, j) => j !== i));
+  const removeRight = (i: number) => setRightW(w => w.filter((_, j) => j !== i));
+
+  const panHighlight = (side: "left" | "right") => dropHighlight === side ? "#dbeafe" : accent + "18";
+
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Balance scale — what makes it equal?</p>
-      <svg viewBox="0 0 260 160" className="w-full max-w-xs mx-auto">
-        <line x1={130} y1={15} x2={130} y2={70} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
-        <line x1={50} y1={70} x2={210} y2={70} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
-        <line x1={50} y1={70} x2={50} y2={110} stroke="#64748b" strokeWidth={3} />
-        <line x1={210} y1={70} x2={210} y2={110} stroke="#64748b" strokeWidth={3} />
-        {/* Left pan */}
-        <ellipse cx={50} cy={118} rx={38} ry={14} fill={accent + "25"} stroke={accent} strokeWidth={2} />
-        <text x={50} y={123} textAnchor="middle" fontSize={16} fill="#1e293b" fontWeight="bold">{leftVal}</text>
-        {/* Right pan */}
-        <ellipse cx={210} cy={118} rx={38} ry={14} fill={accent + "25"} stroke={accent} strokeWidth={2} />
-        <text x={210} y={123} textAnchor="middle" fontSize={16} fill="#1e293b" fontWeight="bold">
-          {showRight ? "?" : leftVal}
-        </text>
+      <p className={TASK_LABEL}>Drag weights onto the pans — balance the scale</p>
+
+      {/* Weight token palette */}
+      <div className="flex justify-center gap-2 mb-2">
+        {WEIGHT_TOKENS.map(v => (
+          <div key={v} draggable
+            onDragStart={() => { dragVal.current = v; }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing border-2 select-none"
+            style={{ backgroundColor: accent + "22", borderColor: accent, color: accent }}>
+            {v}
+          </div>
+        ))}
+      </div>
+
+      {/* Scale SVG */}
+      <svg viewBox="0 0 260 200" className="w-full max-w-xs mx-auto">
+        {/* Pole */}
+        <line x1={cx} y1={10} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+        {/* Beam */}
+        <line x1={lx} y1={ly} x2={rx} y2={ry} stroke="#334155" strokeWidth={5} strokeLinecap="round"
+          style={{ transition: "all 0.35s ease" }} />
+        {/* Strings */}
+        <line x1={lx} y1={ly} x2={lx} y2={ly + panH} stroke="#64748b" strokeWidth={2.5}
+          style={{ transition: "all 0.35s ease" }} />
+        <line x1={rx} y1={ry} x2={rx} y2={ry + panH} stroke="#64748b" strokeWidth={2.5}
+          style={{ transition: "all 0.35s ease" }} />
         {/* Fulcrum */}
-        <polygon points="130,73 116,145 144,145" fill="#94a3b8" />
-        <line x1={108} y1={145} x2={152} y2={145} stroke="#64748b" strokeWidth={4} />
+        <polygon points={`${cx},${cy + 2} ${cx - 14},${cy + 52} ${cx + 14},${cy + 52}`} fill="#94a3b8" />
+        <line x1={cx - 20} y1={cy + 52} x2={cx + 20} y2={cy + 52} stroke="#64748b" strokeWidth={4} />
       </svg>
+
+      {/* Pans as HTML drop zones (below SVG to avoid SVG hit-area issues) */}
+      <div className="grid grid-cols-2 gap-3 -mt-2">
+        {(["left", "right"] as const).map((side, si) => {
+          const weights = side === "left" ? leftW : rightW;
+          const total = side === "left" ? leftTotal : rightTotal;
+          const remove = side === "left" ? removeLeft : removeRight;
+          return (
+            <div key={side}
+              onDragOver={e => { e.preventDefault(); setDropHighlight(side); }}
+              onDragLeave={() => setDropHighlight(null)}
+              onDrop={e => { e.preventDefault(); onDrop(side); }}
+              className="rounded-xl border-2 border-dashed min-h-[52px] p-2 text-center transition-colors"
+              style={{ borderColor: accent, backgroundColor: panHighlight(side) }}>
+              <p className="text-[10px] font-bold mb-1" style={{ color: accent }}>
+                {side === "left" ? "Left Pan" : "Right Pan"}
+                {total > 0 ? ` (${total})` : ""}
+              </p>
+              <div className="flex flex-wrap justify-center gap-1">
+                {weights.map((v, i) => (
+                  <button key={i} onClick={() => remove(i)}
+                    className="w-7 h-7 rounded-full text-[10px] font-bold border"
+                    style={{ backgroundColor: accent + "30", borderColor: accent, color: accent }}
+                    title="Tap to remove">
+                    {v}
+                  </button>
+                ))}
+              </div>
+              {weights.length === 0 && <p className="text-[9px] text-slate-400">drop here</p>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Balance readout */}
+      <p className="text-center text-xs mt-2 font-semibold"
+        style={{ color: leftTotal === rightTotal && leftTotal > 0 ? "#16a34a" : "#94a3b8" }}>
+        {leftTotal === 0 && rightTotal === 0 ? "Add weights to both pans" :
+          leftTotal === rightTotal ? "⚖️ Balanced!" :
+          leftTotal > rightTotal ? `Left heavier by ${leftTotal - rightTotal}` : `Right heavier by ${rightTotal - leftTotal}`}
+      </p>
     </div>
   );
 }
@@ -479,38 +559,78 @@ function PatternBuilderVisual({ taskId, accent }: { taskId: string; accent: stri
     color: COLORS[Math.floor(rng() * COLORS.length)],
   }));
   const fullRow = [...unit, ...unit];
-  const rows = [fullRow, fullRow, null]; // null = blank row for student
 
-  const S = 38; const gap = 8; const rowH = S + gap;
-  const W = fullRow.length * (S + gap); const H = rows.length * rowH + 10;
+  // Student fills the third row: starts empty, each cell filled by tapping palette
+  const [filled, setFilled] = useState<(null | { shape: string; color: string })[]>(
+    Array(fullRow.length).fill(null)
+  );
+  const [selected, setSelected] = useState<{ shape: string; color: string } | null>(null);
 
-  const renderShape = (shape: string, color: string, x: number, y: number, isBlank: boolean) => {
-    if (isBlank) {
-      return (
-        <g key={`${x}-${y}`}>
-          <rect x={x} y={y} width={S} height={S} rx={6} fill="#f8fafc" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="5,4" />
-          <text x={x + S / 2} y={y + S / 2 + 5} textAnchor="middle" fontSize={18} fill="#94a3b8" fontWeight="bold">?</text>
-        </g>
-      );
+  const fillNext = (ci: number) => {
+    if (filled[ci] !== null) {
+      // Clear cell on second tap
+      setFilled(prev => { const n = [...prev]; n[ci] = null; return n; });
+    } else if (selected) {
+      setFilled(prev => { const n = [...prev]; n[ci] = selected; return n; });
     }
-    if (shape === "circle") return <circle key={`${x}-${y}`} cx={x + S / 2} cy={y + S / 2} r={S / 2 - 2} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    if (shape === "triangle") return <polygon key={`${x}-${y}`} points={`${x + S / 2},${y + 3} ${x + S - 3},${y + S - 3} ${x + 3},${y + S - 3}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    if (shape === "diamond") return <polygon key={`${x}-${y}`} points={`${x + S / 2},${y + 2} ${x + S - 2},${y + S / 2} ${x + S / 2},${y + S - 2} ${x + 2},${y + S / 2}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    return <rect key={`${x}-${y}`} x={x + 2} y={y + 2} width={S - 4} height={S - 4} rx={5} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+  };
+
+  const S = 36; const gap = 6; const rowH = S + gap;
+  const W = fullRow.length * (S + gap) + 4; const H = 3 * rowH + 8;
+
+  const renderShape = (shape: string, color: string, x: number, y: number) => {
+    if (shape === "circle") return <circle cx={x + S / 2} cy={y + S / 2} r={S / 2 - 2} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    if (shape === "triangle") return <polygon points={`${x + S / 2},${y + 3} ${x + S - 3},${y + S - 3} ${x + 3},${y + S - 3}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    if (shape === "diamond") return <polygon points={`${x + S / 2},${y + 2} ${x + S - 2},${y + S / 2} ${x + S / 2},${y + S - 2} ${x + 2},${y + S / 2}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    return <rect x={x + 2} y={y + 2} width={S - 4} height={S - 4} rx={5} fill={color + "b0"} stroke={color} strokeWidth={2} />;
   };
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>What comes next? Draw the pattern to continue</p>
-      <svg viewBox={`0 0 ${W + 20} ${H}`} className="w-full max-w-sm mx-auto">
-        {rows.map((row, ri) =>
-          row === null ? (
-            <g key={ri}>
-              {fullRow.map((_, ci) => renderShape("square", "", 10 + ci * (S + gap), 10 + ri * rowH, true))}
-              <text x={W + 16} y={10 + ri * rowH + S / 2 + 5} fontSize={11} fill="#94a3b8">← draw here</text>
+      <p className={TASK_LABEL}>Continue the pattern — pick a shape from the palette, then tap each blank</p>
+
+      {/* Palette: one of each shape in the pattern */}
+      <div className="flex justify-center gap-2 mb-2">
+        {unit.map((item, i) => {
+          const isSel = selected?.shape === item.shape && selected?.color === item.color;
+          return (
+            <button key={i} onClick={() => setSelected(isSel ? null : item)}
+              className="rounded-lg border-2 p-0.5 transition-all"
+              style={{ borderColor: isSel ? item.color : "#cbd5e1", backgroundColor: isSel ? item.color + "18" : "transparent" }}>
+              <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S}>
+                {renderShape(item.shape, item.color, 0, 0)}
+              </svg>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Pattern rows */}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-sm mx-auto touch-none select-none">
+        {/* Row 1 and 2: example pattern */}
+        {[0, 1].map(ri =>
+          fullRow.map((item, ci) => (
+            <g key={`${ri}-${ci}`} transform={`translate(${2 + ci * (S + gap)}, ${2 + ri * rowH})`}>
+              {renderShape(item.shape, item.color, 0, 0)}
             </g>
-          ) : row.map((item, ci) => renderShape(item.shape, item.color, 10 + ci * (S + gap), 10 + ri * rowH, false))
+          ))
         )}
+        {/* Row 3: blank cells student fills */}
+        {fullRow.map((_, ci) => {
+          const f = filled[ci];
+          return (
+            <g key={`fill-${ci}`} style={{ cursor: "pointer" }}
+              transform={`translate(${2 + ci * (S + gap)}, ${2 + 2 * rowH})`}
+              onClick={() => fillNext(ci)}>
+              <rect x={0} y={0} width={S} height={S} rx={6}
+                fill={f ? "#f8fafc" : selected ? accent + "10" : "#f8fafc"}
+                stroke={f ? "#94a3b8" : selected ? accent : "#cbd5e1"}
+                strokeWidth={f ? 1.5 : 2} strokeDasharray={f ? "0" : "5,4"} />
+              {f && renderShape(f.shape, f.color, 0, 0)}
+              {!f && <text x={S / 2} y={S / 2 + 5} textAnchor="middle" fontSize={14} fill="#cbd5e1" fontWeight="bold">?</text>}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
@@ -681,62 +801,127 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
 }
 
 // ── Visual: Matching Task ─────────────────────────────────────────────────────
-// Assessment-style two-column matching grid like the PDF
+// SVG-based drag-to-draw line connections
 
 function MatchingTaskVisual({ taskId, accent }: { taskId: string; accent: string }) {
   const rng = seededRand(strSeed(taskId));
-  const pairs = [
+  const PAIRS = [
     ["2 × 3", "6"], ["4 + 5", "9"], ["10 − 4", "6"],
     ["3 × 4", "12"], ["15 − 8", "7"], ["6 + 7", "13"],
   ];
-  const selected = pairs.sort(() => rng() - 0.5).slice(0, 4);
-  const right = [...selected.map(p => p[1])].sort(() => rng() - 0.5);
-  const [chosen, setChosen] = useState<Record<number, number>>({});
-  const [selecting, setSelecting] = useState<number | null>(null);
+  const pairsRef = useRef(PAIRS.sort(() => rng() - 0.5).slice(0, 4));
+  const rightRef = useRef([...pairsRef.current.map(p => p[1])].sort(() => rng() - 0.5));
+  const pairs = pairsRef.current;
+  const right = rightRef.current;
 
-  const handleLeft = (i: number) => setSelecting(i);
-  const handleRight = (i: number) => {
-    if (selecting !== null) {
-      setChosen(prev => ({ ...prev, [selecting]: i }));
-      setSelecting(null);
-    }
+  // connections: left index → right index
+  const [connections, setConnections] = useState<Record<number, number>>({});
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const itemH = 38; const itemGap = 10; const topPad = 8;
+  const leftX = 85; const rightX = 175; const W = 270;
+  const totalH = topPad * 2 + pairs.length * (itemH + itemGap);
+
+  const getLeftCY = (i: number) => topPad + i * (itemH + itemGap) + itemH / 2;
+  const getRightCY = (i: number) => topPad + i * (itemH + itemGap) + itemH / 2;
+
+  const svgPoint = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * W,
+      y: ((clientY - rect.top) / rect.height) * totalH,
+    };
   };
-  const correct = selected[0][1];
+
+  const hitRightItem = (x: number, y: number): number | null => {
+    for (let i = 0; i < right.length; i++) {
+      const cy = getRightCY(i);
+      if (x >= rightX && x <= W && Math.abs(y - cy) <= itemH / 2) return i;
+    }
+    return null;
+  };
+
+  const finishDrag = (clientX: number, clientY: number) => {
+    if (dragging === null) return;
+    const pt = svgPoint(clientX, clientY);
+    const ri = hitRightItem(pt.x, pt.y);
+    if (ri !== null) setConnections(prev => ({ ...prev, [dragging]: ri }));
+    setDragging(null);
+  };
+
+  const ACCENT_COLORS = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Match — tap left then right to connect</p>
-      <div className="flex gap-3 items-start justify-center mt-1">
-        {/* Left column */}
-        <div className="flex flex-col gap-2 flex-1 max-w-[120px]">
-          {selected.map((p, i) => (
-            <button key={i} onClick={() => handleLeft(i)}
-              className={`text-center py-2.5 px-3 rounded-lg border-2 text-sm font-bold transition-all ${selecting === i ? "border-blue-500 bg-blue-50 text-blue-700" : chosen[i] !== undefined ? "border-green-400 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"}`}>
-              {p[0]}
-            </button>
-          ))}
-        </div>
-        {/* Lines */}
-        <div className="flex flex-col gap-2 pt-1">
-          {selected.map((_, i) => (
-            <div key={i} className="flex items-center h-10">
-              <div className={`w-8 h-0.5 ${chosen[i] !== undefined ? "bg-green-400" : "bg-slate-200"}`} />
-            </div>
-          ))}
-        </div>
-        {/* Right column */}
-        <div className="flex flex-col gap-2 flex-1 max-w-[120px]">
-          {right.map((val, i) => {
-            const matched = Object.values(chosen).includes(i);
-            return (
-              <button key={i} onClick={() => handleRight(i)}
-                className={`text-center py-2.5 px-3 rounded-lg border-2 text-sm font-bold transition-all ${matched ? "border-green-400 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"}`}>
-                {val}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <p className={TASK_LABEL}>Drag from left to right to draw a connecting line</p>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${totalH}`}
+        className="w-full max-w-sm mx-auto touch-none select-none"
+        style={{ cursor: dragging !== null ? "crosshair" : "default" }}
+        onMouseMove={e => { if (dragging !== null) setCursorPos(svgPoint(e.clientX, e.clientY)); }}
+        onMouseUp={e => finishDrag(e.clientX, e.clientY)}
+        onTouchMove={e => { if (dragging !== null) setCursorPos(svgPoint(e.touches[0].clientX, e.touches[0].clientY)); }}
+        onTouchEnd={e => { if (e.changedTouches[0]) finishDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }}
+      >
+        {/* Permanent connection lines */}
+        {Object.entries(connections).map(([li, ri]) => {
+          const color = ACCENT_COLORS[Number(li) % ACCENT_COLORS.length];
+          return (
+            <line key={li}
+              x1={leftX + 1} y1={getLeftCY(Number(li))}
+              x2={rightX - 1} y2={getRightCY(Number(ri))}
+              stroke={color} strokeWidth={3} strokeLinecap="round" opacity={0.85} />
+          );
+        })}
+        {/* In-progress drag line */}
+        {dragging !== null && (
+          <line x1={leftX + 1} y1={getLeftCY(dragging)}
+            x2={cursorPos.x} y2={cursorPos.y}
+            stroke={accent} strokeWidth={2.5} strokeDasharray="6,4" opacity={0.7} strokeLinecap="round" />
+        )}
+        {/* Left items */}
+        {pairs.map((p, i) => {
+          const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
+          const isConnected = connections[i] !== undefined;
+          const isDragging = dragging === i;
+          return (
+            <g key={i} style={{ cursor: "grab" }}
+              onMouseDown={e => { e.preventDefault(); setDragging(i); setCursorPos(svgPoint(e.clientX, e.clientY)); }}
+              onTouchStart={e => { e.preventDefault(); setDragging(i); setCursorPos(svgPoint(e.touches[0].clientX, e.touches[0].clientY)); }}>
+              <rect x={0} y={topPad + i * (itemH + itemGap)} width={leftX} height={itemH} rx={8}
+                fill={isDragging ? color + "30" : isConnected ? color + "20" : "#f8fafc"}
+                stroke={isDragging || isConnected ? color : "#cbd5e1"} strokeWidth={isDragging ? 2.5 : 1.5} />
+              <text x={leftX / 2} y={getLeftCY(i) + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{p[0]}</text>
+              {/* Right-side connector dot */}
+              <circle cx={leftX + 1} cy={getLeftCY(i)} r={5} fill={color} opacity={isConnected || isDragging ? 1 : 0.35} />
+            </g>
+          );
+        })}
+        {/* Right items */}
+        {right.map((val, i) => {
+          const connectedBy = Object.entries(connections).find(([, ri]) => Number(ri) === i);
+          const color = connectedBy ? ACCENT_COLORS[Number(connectedBy[0]) % ACCENT_COLORS.length] : "#94a3b8";
+          return (
+            <g key={i}>
+              <circle cx={rightX - 1} cy={getRightCY(i)} r={5} fill={color} opacity={connectedBy ? 1 : 0.35} />
+              <rect x={rightX} y={topPad + i * (itemH + itemGap)} width={W - rightX} height={itemH} rx={8}
+                fill={connectedBy ? color + "20" : "#f8fafc"}
+                stroke={connectedBy ? color : "#cbd5e1"} strokeWidth={connectedBy ? 2 : 1.5} />
+              <text x={rightX + (W - rightX) / 2} y={getRightCY(i) + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{val}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {/* Reset button */}
+      {Object.keys(connections).length > 0 && (
+        <button onClick={() => setConnections({})}
+          className="mx-auto block text-[10px] text-slate-400 hover:text-slate-600 mt-1 transition-colors">
+          Clear lines
+        </button>
+      )}
     </div>
   );
 }
@@ -745,53 +930,64 @@ function MatchingTaskVisual({ taskId, accent }: { taskId: string; accent: string
 
 function SortingTaskVisual({ taskId, accent }: { taskId: string; accent: string }) {
   const rng = seededRand(strSeed(taskId));
-  const items = Array.from({ length: 6 }, () => Math.floor(rng() * 50) + 1);
+  const items = Array.from({ length: 6 }, (_, i) => Math.floor(rng() * 50) + 1);
   const [sorted, setSorted] = useState<Record<"under" | "over", number[]>>({ under: [], over: [] });
   const [remaining, setRemaining] = useState(items);
-  const [selecting, setSelecting] = useState<number | null>(null); // index in remaining
+  const [binOver, setBinOver] = useState<"under" | "over" | null>(null);
+  const dragVal = useRef<number | null>(null);
+  // Touch fallback: tap-to-select, tap-bin-to-place
+  const [tapSelected, setTapSelected] = useState<number | null>(null);
   const threshold = 25;
 
-  const pick = (idx: number) => setSelecting(prev => prev === idx ? null : idx);
+  const dropIntoBin = (bin: "under" | "over", val: number) => {
+    setSorted(s => ({ ...s, [bin]: [...s[bin], val] }));
+    setRemaining(r => r.filter(v => v !== val));
+    setBinOver(null);
+    setTapSelected(null);
+    dragVal.current = null;
+  };
 
-  const place = (bin: "under" | "over") => {
-    if (selecting === null) return;
-    const item = remaining[selecting];
-    setSorted(s => ({ ...s, [bin]: [...s[bin], item] }));
-    setRemaining(r => r.filter((_, i) => i !== selecting));
-    setSelecting(null);
+  const handleTapItem = (val: number) => setTapSelected(prev => prev === val ? null : val);
+  const handleTapBin = (bin: "under" | "over") => {
+    if (tapSelected !== null) dropIntoBin(bin, tapSelected);
   };
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap a number, then tap the correct group</p>
-      {/* Items to sort */}
+      <p className={TASK_LABEL}>Drag numbers into the correct group (or tap a number, then tap a group)</p>
+      {/* Draggable items */}
       <div className="flex flex-wrap justify-center gap-2 mb-3 min-h-[36px]">
         {remaining.map((n, i) => (
-          <button key={i} onClick={() => pick(i)}
-            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all ${selecting === i ? "text-white scale-110 shadow-md" : "border-slate-300 bg-slate-50 text-slate-700 hover:border-blue-400"}`}
-            style={selecting === i ? { backgroundColor: accent, borderColor: accent } : {}}>
+          <div key={i} draggable
+            onDragStart={() => { dragVal.current = n; setTapSelected(null); }}
+            onClick={() => handleTapItem(n)}
+            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all cursor-grab active:cursor-grabbing select-none ${tapSelected === n ? "text-white scale-110 shadow-md" : "border-slate-300 bg-slate-50 text-slate-700 hover:border-blue-400"}`}
+            style={tapSelected === n ? { backgroundColor: accent, borderColor: accent } : {}}>
             {n}
-          </button>
+          </div>
         ))}
         {remaining.length === 0 && <p className="text-xs text-slate-400 self-center">All sorted!</p>}
       </div>
-      {/* Bins — both are always tappable drop targets */}
+      {/* Drop bins */}
       <div className="grid grid-cols-2 gap-3">
         {(["under", "over"] as const).map(bin => (
-          <button key={bin} onClick={() => place(bin)}
-            disabled={selecting === null}
-            className={`rounded-lg border-2 border-dashed p-3 text-left min-h-[64px] transition-all ${selecting !== null ? "opacity-100 border-current scale-[1.02] shadow" : "opacity-80"}`}
-            style={{ borderColor: accent }}>
+          <div key={bin}
+            onDragOver={e => { e.preventDefault(); setBinOver(bin); }}
+            onDragLeave={() => setBinOver(null)}
+            onDrop={e => { e.preventDefault(); if (dragVal.current !== null) dropIntoBin(bin, dragVal.current); }}
+            onClick={() => handleTapBin(bin)}
+            className={`rounded-lg border-2 border-dashed p-3 text-left min-h-[64px] transition-all cursor-pointer ${binOver === bin ? "scale-[1.02] shadow" : ""} ${tapSelected !== null ? "opacity-100 border-current" : "opacity-80"}`}
+            style={{ borderColor: binOver === bin ? "#3b82f6" : accent, backgroundColor: binOver === bin ? "#eff6ff" : undefined }}>
             <p className="text-xs font-bold mb-1" style={{ color: accent }}>
               {bin === "under" ? `< ${threshold}` : `≥ ${threshold}`}
-              {selecting !== null && <span className="ml-1 text-slate-400 font-normal">← tap to place</span>}
+              {tapSelected !== null && <span className="ml-1 text-slate-400 font-normal">← tap to place</span>}
             </p>
             <div className="flex flex-wrap gap-1">
               {sorted[bin].map((n, i) => (
                 <span key={i} className="text-xs px-1.5 py-0.5 rounded font-bold text-white" style={{ backgroundColor: accent }}>{n}</span>
               ))}
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>
