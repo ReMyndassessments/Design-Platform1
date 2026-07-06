@@ -144,10 +144,10 @@ const CARD_INNER = "rounded-xl border border-slate-200 p-4 bg-white";
 // ── Visual: Dot Array ─────────────────────────────────────────────────────────
 // Structured groups for subitizing; scattered for estimation
 
-function DotArrayVisual({ taskId, exactAnswer, taskType, accent }: {
-  taskId: string; exactAnswer?: number | string; taskType: string; accent: string;
+function DotArrayVisual({ taskId, dotCount, taskType, accent }: {
+  taskId: string; dotCount: number; taskType: string; accent: string;
 }) {
-  const count = typeof exactAnswer === "number" ? Math.min(exactAnswer, 30) : 12;
+  const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
   const isComparison = taskType === "quantity_comparison";
 
@@ -201,25 +201,17 @@ function DotArrayVisual({ taskId, exactAnswer, taskType, accent }: {
 
 // ── Visual: Number Line ───────────────────────────────────────────────────────
 
-function NumberLineVisual({ exactAnswer, expectedAnswerRange, accent }: {
-  exactAnswer?: number | string; expectedAnswerRange?: [number, number]; accent: string;
+function NumberLineVisual({ scaleMin, scaleMax, accent }: {
+  scaleMin: number; scaleMax: number; accent: string;
 }) {
-  const exact = typeof exactAnswer === "number" ? exactAnswer : parseFloat(String(exactAnswer ?? "NaN"));
-  const hasRange = !!expectedAnswerRange;
-  const rawMax = hasRange ? expectedAnswerRange![1] : (!isNaN(exact) ? exact * 1.5 : 20);
-  const rawMin = hasRange ? Math.min(0, expectedAnswerRange![0]) : 0;
-
-  // Round to nice numbers
-  const range = rawMax - rawMin;
-  const step = range <= 20 ? 1 : range <= 100 ? 10 : range <= 1000 ? 100 : 100;
-  const minVal = Math.floor(rawMin / step) * step;
-  const maxVal = Math.ceil(rawMax / step) * step;
-
+  const minVal = scaleMin; const maxVal = scaleMax;
+  const range = maxVal - minVal;
+  const step = range <= 20 ? 1 : range <= 100 ? 10 : range <= 1000 ? 100 : 1000;
   const [markerPos, setMarkerPos] = useState(0.5);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef(false);
 
-  const W = 300; const lineY = 65; const L = 28; const R = W - 28;
+  const W = 300; const lineY = 55; const L = 28; const R = W - 28;
   const toX = (t: number) => L + t * (R - L);
   const fromClientX = (cx: number) => {
     if (!svgRef.current) return markerPos;
@@ -229,14 +221,13 @@ function NumberLineVisual({ exactAnswer, expectedAnswerRange, accent }: {
 
   const tickCount = Math.min(10, Math.ceil((maxVal - minVal) / step));
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => i / tickCount);
-  const markerValue = Math.round(minVal + markerPos * (maxVal - minVal));
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag the marker to show your answer</p>
+      <p className={TASK_LABEL}>Point to your answer on the number line</p>
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${W} 100`}
+        viewBox={`0 0 ${W} 90`}
         className="w-full max-w-sm mx-auto touch-none select-none"
         style={{ cursor: "col-resize" }}
         onMouseDown={e => { dragging.current = true; setMarkerPos(fromClientX(e.clientX)); }}
@@ -247,11 +238,8 @@ function NumberLineVisual({ exactAnswer, expectedAnswerRange, accent }: {
         onTouchMove={e => { if (dragging.current) setMarkerPos(fromClientX(e.touches[0].clientX)); e.preventDefault(); }}
         onTouchEnd={() => { dragging.current = false; }}
       >
-        {/* Line */}
         <line x1={L} y1={lineY} x2={R} y2={lineY} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
-        {/* Arrow */}
         <polygon points={`${R + 2},${lineY} ${R - 9},${lineY - 4} ${R - 9},${lineY + 4}`} fill="#334155" />
-        {/* Ticks + labels */}
         {ticks.map((t, i) => {
           const x = toX(t);
           const val = Math.round(minVal + t * (maxVal - minVal));
@@ -259,14 +247,13 @@ function NumberLineVisual({ exactAnswer, expectedAnswerRange, accent }: {
           return (
             <g key={i}>
               <line x1={x} y1={lineY - (isMain ? 10 : 6)} x2={x} y2={lineY + (isMain ? 10 : 6)} stroke="#475569" strokeWidth={isMain ? 2.5 : 1.5} />
-              {isMain && <text x={x} y={lineY + 24} textAnchor="middle" fontSize={12} fill="#475569" fontWeight="600">{val}</text>}
+              {isMain && <text x={x} y={lineY + 22} textAnchor="middle" fontSize={12} fill="#475569" fontWeight="600">{val}</text>}
             </g>
           );
         })}
-        {/* Marker */}
-        <line x1={toX(markerPos)} y1={lineY - 28} x2={toX(markerPos)} y2={lineY + 2} stroke={accent} strokeWidth={2} strokeDasharray="3,2" />
-        <circle cx={toX(markerPos)} cy={lineY - 30} r={16} fill={accent} />
-        <text x={toX(markerPos)} y={lineY - 25} textAnchor="middle" fontSize={11} fill="white" fontWeight="bold">{markerValue}</text>
+        {/* Draggable pointer — no value label */}
+        <line x1={toX(markerPos)} y1={lineY - 22} x2={toX(markerPos)} y2={lineY + 2} stroke={accent} strokeWidth={2} strokeDasharray="3,2" />
+        <polygon points={`${toX(markerPos)},${lineY - 22} ${toX(markerPos) - 8},${lineY - 36} ${toX(markerPos) + 8},${lineY - 36}`} fill={accent} />
       </svg>
     </div>
   );
@@ -274,28 +261,9 @@ function NumberLineVisual({ exactAnswer, expectedAnswerRange, accent }: {
 
 // ── Visual: Base Ten Blocks ───────────────────────────────────────────────────
 
-function BaseTenBlocksVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  let thousands = 0, hundreds = 0, tens = 0, ones = 0;
-  if (typeof exactAnswer === "string") {
-    const ms = exactAnswer.match(/(\d+)\s*thousand/i);
-    const mh = exactAnswer.match(/(\d+)\s*hundred/i);
-    const mt = exactAnswer.match(/(\d+)\s*ten/i);
-    const mo = exactAnswer.match(/(\d+)\s*one/i);
-    if (ms) thousands = parseInt(ms[1]);
-    if (mh) hundreds = parseInt(mh[1]);
-    if (mt) tens = parseInt(mt[1]);
-    if (mo) ones = parseInt(mo[1]);
-    if (!ms && !mh && !mt && !mo) {
-      const n = parseInt(exactAnswer.replace(/,/g, ""));
-      if (!isNaN(n)) { thousands = Math.floor(n / 1000); hundreds = Math.floor((n % 1000) / 100); tens = Math.floor((n % 100) / 10); ones = n % 10; }
-    }
-  } else if (typeof exactAnswer === "number") {
-    thousands = Math.floor(exactAnswer / 1000); hundreds = Math.floor((exactAnswer % 1000) / 100);
-    tens = Math.floor((exactAnswer % 100) / 10); ones = exactAnswer % 10;
-  } else {
-    tens = 2; ones = 3;
-  }
-
+function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
+  thousands: number; hundreds: number; tens: number; ones: number; accent: string;
+}) {
   const cap = (v: number) => Math.min(v, 5);
   const groups = [
     { label: "Thousands", count: cap(thousands), color: "#6366f1", w: 36, h: 36 },
@@ -338,15 +306,16 @@ function BaseTenBlocksVisual({ exactAnswer, accent }: { exactAnswer?: number | s
 
 // ── Visual: Fraction Bar ──────────────────────────────────────────────────────
 
-function FractionBarVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const frac = parseFrac(exactAnswer) ?? [3, 4];
-  const [num, den] = [frac[0], Math.max(frac[1], 2)];
+function FractionBarVisual({ numerator, denominator, accent }: {
+  numerator: number; denominator: number; accent: string;
+}) {
+  const [num, den] = [numerator, Math.max(denominator, 2)];
   const W = 280; const H = 52; const cellW = W / den;
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Fraction strip — {num}/{den}</p>
-      <svg viewBox={`0 0 ${W + 20} ${H + 30}`} className="w-full max-w-xs mx-auto">
+      <p className={TASK_LABEL}>Fraction strip — what fraction is shaded?</p>
+      <svg viewBox={`0 0 ${W + 20} ${H + 10}`} className="w-full max-w-xs mx-auto">
         {Array.from({ length: den }, (_, i) => (
           <g key={i}>
             <rect x={i * cellW + 10} y={4} width={cellW - 1} height={H}
@@ -354,10 +323,6 @@ function FractionBarVisual({ exactAnswer, accent }: { exactAnswer?: number | str
               stroke="#94a3b8" strokeWidth={1.5} />
           </g>
         ))}
-        {/* Label */}
-        <text x={W / 2 + 10} y={H + 22} textAnchor="middle" fontSize={13} fill="#334155" fontWeight="700">
-          {num} out of {den} parts shaded
-        </text>
       </svg>
     </div>
   );
@@ -365,9 +330,10 @@ function FractionBarVisual({ exactAnswer, accent }: { exactAnswer?: number | str
 
 // ── Visual: Fraction Circle ───────────────────────────────────────────────────
 
-function FractionCircleVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const frac = parseFrac(exactAnswer) ?? [3, 4];
-  const [num, den] = [frac[0], Math.max(frac[1], 2)];
+function FractionCircleVisual({ numerator, denominator, accent }: {
+  numerator: number; denominator: number; accent: string;
+}) {
+  const [num, den] = [numerator, Math.max(denominator, 2)];
   const R = 72; const cx = 100; const cy = 85;
   const slices = Array.from({ length: den }, (_, i) => {
     const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
@@ -379,12 +345,11 @@ function FractionCircleVisual({ exactAnswer, accent }: { exactAnswer?: number | 
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Fraction circle — {num}/{den}</p>
-      <svg viewBox="0 0 200 105" className="w-48 mx-auto">
+      <p className={TASK_LABEL}>Fraction circle — what fraction is shaded?</p>
+      <svg viewBox="0 0 200 165" className="w-48 mx-auto">
         {slices.map((s, i) => (
           <path key={i} d={s.d} fill={s.filled ? accent + "b0" : "#f1f5f9"} stroke="#94a3b8" strokeWidth={1.5} />
         ))}
-        <text x={cx} y={cy + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="700">{num}/{den}</text>
       </svg>
     </div>
   );
@@ -471,14 +436,10 @@ function PatternBuilderVisual({ taskId, accent }: { taskId: string; accent: stri
 
 // ── Visual: Place Value Chart ─────────────────────────────────────────────────
 
-function PlaceValueChartVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const num = typeof exactAnswer === "number" ? exactAnswer : parseInt(String(exactAnswer ?? "0").replace(/,/g, ""));
-  const digits = isNaN(num) ? [null, null, null, null] : [
-    Math.floor(num / 1000) % 10 || null,
-    Math.floor(num / 100) % 10 || null,
-    Math.floor(num / 10) % 10,
-    num % 10,
-  ];
+function PlaceValueChartVisual({ thousands, hundreds, tens, ones, accent }: {
+  thousands: number; hundreds: number; tens: number; ones: number; accent: string;
+}) {
+  const digits = [thousands || null, hundreds || null, tens, ones] as (number | null)[];
   const cols = ["Thousands", "Hundreds", "Tens", "Ones"];
   const abbr = ["Th.", "H.", "T.", "O."];
 
@@ -514,11 +475,7 @@ function PlaceValueChartVisual({ exactAnswer, accent }: { exactAnswer?: number |
 
 // ── Visual: Clock ─────────────────────────────────────────────────────────────
 
-function ClockVisual({ taskId, accent }: { taskId: string; accent: string }) {
-  const rng = seededRand(strSeed(taskId));
-  const hour = Math.floor(rng() * 12) + 1;
-  const minuteChoices = [0, 15, 30, 45];
-  const minute = minuteChoices[Math.floor(rng() * minuteChoices.length)];
+function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; accent: string }) {
   const hAngle = ((hour % 12) + minute / 60) / 12 * 360 - 90;
   const mAngle = minute / 60 * 360 - 90;
   const cx = 90; const cy = 90; const R = 78;
@@ -540,13 +497,10 @@ function ClockVisual({ taskId, accent }: { taskId: string; accent: string }) {
             </g>
           );
         })}
-        {/* Hour hand */}
         <line x1={cx} y1={cy} x2={cx + 42 * Math.cos(toRad(hAngle))} y2={cy + 42 * Math.sin(toRad(hAngle))} stroke="#1e293b" strokeWidth={6} strokeLinecap="round" />
-        {/* Minute hand */}
         <line x1={cx} y1={cy} x2={cx + 60 * Math.cos(toRad(mAngle))} y2={cy + 60 * Math.sin(toRad(mAngle))} stroke="#475569" strokeWidth={4} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={5} fill={accent} />
       </svg>
-      <p className="text-center text-xs text-slate-400 mt-2">Time: {hour}:{minute.toString().padStart(2, "0")}</p>
     </div>
   );
 }
@@ -688,8 +642,8 @@ function SortingTaskVisual({ taskId, accent }: { taskId: string; accent: string 
 
 // ── Visual: Tally Marks ───────────────────────────────────────────────────────
 
-function TallyMarksVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const count = typeof exactAnswer === "number" ? Math.min(exactAnswer, 25) : 13;
+function TallyMarksVisual({ count, accent }: { count: number; accent: string }) {
+  count = Math.min(count, 25);
   const groups = Math.floor(count / 5);
   const rem = count % 5;
   const groupW = 56; const groupH = 50; const totalW = (groups + (rem > 0 ? 1 : 0)) * groupW + 20;
@@ -712,7 +666,7 @@ function TallyMarksVisual({ exactAnswer, accent }: { exactAnswer?: number | stri
           const x = 10 + groups * groupW + 10 + i * 10;
           return <line key={i} x1={x} y1={8} x2={x} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />;
         })}
-        <text x={totalW / 2} y={groupH + 28} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="600">Total = {count}</text>
+        <text x={totalW / 2} y={groupH + 28} textAnchor="middle" fontSize={11} fill="#94a3b8">Count the tally marks ↑</text>
       </svg>
     </div>
   );
@@ -720,23 +674,19 @@ function TallyMarksVisual({ exactAnswer, accent }: { exactAnswer?: number | stri
 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
-function NumberBondVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const total = typeof exactAnswer === "number" ? exactAnswer : parseInt(String(exactAnswer ?? "10"));
-  const part1 = isNaN(total) ? null : Math.floor(total / 2);
-  const part2 = isNaN(total) ? null : total - Math.floor(total / 2);
-
+function NumberBondVisual({ total, accent }: { total: number; accent: string }) {
   return (
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>Number bond — how does it break apart?</p>
       <svg viewBox="0 0 200 145" className="w-48 mx-auto">
         <circle cx={100} cy={35} r={28} fill={accent + "20"} stroke={accent} strokeWidth={2.5} />
-        <text x={100} y={41} textAnchor="middle" fontSize={18} fill="#1e293b" fontWeight="bold">{isNaN(total) ? "?" : total}</text>
+        <text x={100} y={41} textAnchor="middle" fontSize={18} fill="#1e293b" fontWeight="bold">{total}</text>
         <line x1={78} y1={58} x2={55} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         <line x1={122} y1={58} x2={145} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         <circle cx={50} cy={115} r={24} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
-        <text x={50} y={121} textAnchor="middle" fontSize={16} fill="#1e293b" fontWeight="bold">{part1 ?? "?"}</text>
+        <text x={50} y={121} textAnchor="middle" fontSize={16} fill="#94a3b8" fontWeight="bold">?</text>
         <circle cx={150} cy={115} r={24} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
-        <text x={150} y={121} textAnchor="middle" fontSize={16} fill="#1e293b" fontWeight="bold">{part2 ?? "?"}</text>
+        <text x={150} y={121} textAnchor="middle" fontSize={16} fill="#94a3b8" fontWeight="bold">?</text>
       </svg>
     </div>
   );
@@ -744,9 +694,8 @@ function NumberBondVisual({ exactAnswer, accent }: { exactAnswer?: number | stri
 
 // ── Visual: Bar Model ─────────────────────────────────────────────────────────
 
-function BarModelVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const total = typeof exactAnswer === "number" ? exactAnswer : parseInt(String(exactAnswer ?? "100"));
-  const safe = isNaN(total) ? 100 : total;
+function BarModelVisual({ total, accent }: { total: number; accent: string }) {
+  const safe = total;
   const part = Math.round(safe * 0.6);
   const W = 260; const H = 42; const ratio = part / safe;
 
@@ -766,7 +715,7 @@ function BarModelVisual({ exactAnswer, accent }: { exactAnswer?: number | string
         <line x1={10} y1={H + 22} x2={W - 10} y2={H + 22} stroke="#94a3b8" strokeWidth={1.5} />
         <line x1={10} y1={H + 16} x2={10} y2={H + 28} stroke="#94a3b8" strokeWidth={1.5} />
         <line x1={W - 10} y1={H + 16} x2={W - 10} y2={H + 28} stroke="#94a3b8" strokeWidth={1.5} />
-        <text x={W / 2} y={H + 42} textAnchor="middle" fontSize={12} fill="#64748b" fontWeight="600">Total = {safe}</text>
+        <text x={W / 2} y={H + 42} textAnchor="middle" fontSize={12} fill="#94a3b8">Find the missing part ↑</text>
       </svg>
     </div>
   );
@@ -774,28 +723,19 @@ function BarModelVisual({ exactAnswer, accent }: { exactAnswer?: number | string
 
 // ── Visual: Area Model ────────────────────────────────────────────────────────
 
-function AreaModelVisual({ exactAnswer, accent }: { exactAnswer?: number | string; accent: string }) {
-  const num = typeof exactAnswer === "number" ? exactAnswer : parseInt(String(exactAnswer ?? "12"));
-  const safe = isNaN(num) ? 12 : Math.min(num, 100);
-  const cols = Math.min(10, Math.ceil(Math.sqrt(safe)));
-  const rows = Math.ceil(safe / cols);
+function AreaModelVisual({ cols, rows, accent }: { cols: number; rows: number; accent: string }) {
   const cellW = Math.floor(200 / cols); const cellH = Math.floor(100 / rows);
-
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Area model — {cols} × {rows} = {cols * rows}</p>
+      <p className={TASK_LABEL}>Area model</p>
       <svg viewBox={`0 0 ${cols * cellW + 20} ${rows * cellH + 20}`} className="w-full max-w-xs mx-auto">
         {Array.from({ length: rows }, (_, r) =>
-          Array.from({ length: cols }, (_, c) => {
-            const idx = r * cols + c;
-            return (
-              <rect key={`${r}-${c}`} x={10 + c * cellW} y={10 + r * cellH}
-                width={cellW - 1} height={cellH - 1} rx={2}
-                fill={idx < safe ? accent + "50" : "#f1f5f9"}
-                stroke={idx < safe ? accent : "#e2e8f0"} strokeWidth={1}
-              />
-            );
-          })
+          Array.from({ length: cols }, (_, c) => (
+            <rect key={`${r}-${c}`} x={10 + c * cellW} y={10 + r * cellH}
+              width={cellW - 1} height={cellH - 1} rx={2}
+              fill={accent + "50"} stroke={accent} strokeWidth={1}
+            />
+          ))
         )}
       </svg>
     </div>
@@ -909,24 +849,26 @@ function TaskVisual({ task, theme }: { task: TaskData; theme: ThemeKey }) {
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
-  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} exactAnswer={task.exactAnswer} taskType={tt} accent={accent} />;
-  if (vt === "number_line") return <NumberLineVisual exactAnswer={task.exactAnswer} expectedAnswerRange={task.expectedAnswerRange} accent={accent} />;
-  if (vt === "base_ten_blocks") return <BaseTenBlocksVisual exactAnswer={task.exactAnswer} accent={accent} />;
-  if (vt === "fraction_bar") return <FractionBarVisual exactAnswer={task.exactAnswer} accent={accent} />;
-  if (vt === "fraction_circle") return <FractionCircleVisual exactAnswer={task.exactAnswer} accent={accent} />;
+  const vp = task.visualParams ?? {};
+  const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
+  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} />;
+  if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} />;
+  if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
+  if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
+  if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
   if (vt === "balance_scale") return <BalanceScaleVisual taskId={task.id} accent={accent} />;
   if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} />;
-  if (vt === "clock") return <ClockVisual taskId={task.id} accent={accent} />;
+  if (vt === "clock") return <ClockVisual hour={num("hour", 3)} minute={num("minute", 0)} accent={accent} />;
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
-  if (vt === "place_value_chart") return <PlaceValueChartVisual exactAnswer={task.exactAnswer} accent={accent} />;
-  if (vt === "area_model") return <AreaModelVisual exactAnswer={task.exactAnswer} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual exactAnswer={task.exactAnswer} accent={accent} />;
-  if (vt === "bar_model") return <BarModelVisual exactAnswer={task.exactAnswer} accent={accent} />;
+  if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
+  if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} accent={accent} />;
+  if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} />;
   if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} />;
-  if (vt === "tally_marks") return <TallyMarksVisual exactAnswer={task.exactAnswer} accent={accent} />;
+  if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} />;
   if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} />;
   return (
     <div className={CARD_INNER + " text-center py-6"}>
@@ -946,8 +888,7 @@ type TaskData = {
   prompt: string;
   showConfidenceSlider: boolean;
   productiveStruggleTrigger: boolean;
-  exactAnswer?: number | string;
-  expectedAnswerRange?: [number, number];
+  visualParams?: Record<string, unknown>;
 };
 
 type SessionState = {

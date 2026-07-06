@@ -19,6 +19,78 @@ async function loadSession(sessionId: string, caseId: string) {
   return session ?? null;
 }
 
+// ── Visual params helper (student-facing, answer-key free) ────────────────────
+function computeVisualParams(item: { visualType: string; exactAnswer?: number | string; expectedAnswerRange?: [number, number] }): Record<string, unknown> {
+  const ea = item.exactAnswer;
+  const er = item.expectedAnswerRange;
+  switch (item.visualType) {
+    case "dot_array": {
+      const count = typeof ea === "number" ? Math.min(ea, 30) : 12;
+      return { dotCount: count };
+    }
+    case "number_line": {
+      const exact = typeof ea === "number" ? ea : parseFloat(String(ea ?? "NaN"));
+      const rawMax = er ? er[1] : (!isNaN(exact) ? Math.ceil(exact * 1.5 / 10) * 10 : 20);
+      const rawMin = er ? Math.min(0, er[0]) : 0;
+      const range = rawMax - rawMin;
+      const step = range <= 20 ? 1 : range <= 100 ? 10 : range <= 1000 ? 100 : 1000;
+      return { scaleMin: Math.floor(rawMin / step) * step, scaleMax: Math.ceil(rawMax / step) * step };
+    }
+    case "base_ten_blocks": {
+      let t = 0, h = 0, ten = 0, o = 0;
+      if (typeof ea === "string") {
+        const ms = ea.match(/(\d+)\s*thousand/i); const mh = ea.match(/(\d+)\s*hundred/i);
+        const mt = ea.match(/(\d+)\s*ten/i); const mo = ea.match(/(\d+)\s*one/i);
+        if (ms) t = parseInt(ms[1]); if (mh) h = parseInt(mh[1]);
+        if (mt) ten = parseInt(mt[1]); if (mo) o = parseInt(mo[1]);
+        if (!ms && !mh && !mt && !mo) { const n = parseInt(ea.replace(/,/g, "")); if (!isNaN(n)) { t = Math.floor(n / 1000); h = Math.floor((n % 1000) / 100); ten = Math.floor((n % 100) / 10); o = n % 10; } }
+      } else if (typeof ea === "number") { t = Math.floor(ea / 1000); h = Math.floor((ea % 1000) / 100); ten = Math.floor((ea % 100) / 10); o = ea % 10; } else { ten = 2; o = 3; }
+      return { thousands: Math.min(t, 5), hundreds: Math.min(h, 5), tens: Math.min(ten, 5), ones: Math.min(o, 5) };
+    }
+    case "fraction_bar":
+    case "fraction_circle": {
+      let num = 3, den = 4;
+      if (typeof ea === "string") { const m = ea.match(/(\d+)\s*\/\s*(\d+)/); if (m) { num = parseInt(m[1]); den = parseInt(m[2]); } }
+      else if (typeof ea === "number") { num = Math.round(ea * 4); den = 4; }
+      return { numerator: Math.max(1, num), denominator: Math.max(2, den) };
+    }
+    case "clock": {
+      const eaStr = String(ea ?? "");
+      const m = eaStr.match(/(\d+)[.:](\d+)/);
+      const hour = m ? (parseInt(m[1]) % 12 || 12) : 3;
+      const minute = m ? parseInt(m[2]) : 0;
+      return { hour, minute };
+    }
+    case "place_value_chart": {
+      let t = 0, h = 0, ten = 0, o = 0;
+      if (typeof ea === "number") { t = Math.floor(ea / 1000) % 10; h = Math.floor(ea / 100) % 10; ten = Math.floor(ea / 10) % 10; o = ea % 10; }
+      else if (typeof ea === "string") { const n = parseFloat(ea.replace(/,/g, "")); if (!isNaN(n)) { t = Math.floor(n / 1000) % 10; h = Math.floor(n / 100) % 10; ten = Math.floor(n / 10) % 10; o = Math.floor(n) % 10; } }
+      return { thousands: t, hundreds: h, tens: ten, ones: o };
+    }
+    case "number_bond": {
+      const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "10"));
+      return { total: isNaN(total) ? 10 : total };
+    }
+    case "bar_model": {
+      const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "100").replace(/,/g, ""));
+      return { total: isNaN(total) ? 100 : total };
+    }
+    case "area_model": {
+      const n = typeof ea === "number" ? ea : parseInt(String(ea ?? "12"));
+      const safe = isNaN(n) ? 12 : Math.min(n, 100);
+      const cols = Math.min(10, Math.ceil(Math.sqrt(safe)));
+      const rows = Math.ceil(safe / cols);
+      return { cols, rows };
+    }
+    case "tally_marks": {
+      const count = typeof ea === "number" ? Math.min(ea, 25) : 13;
+      return { count };
+    }
+    default:
+      return {};
+  }
+}
+
 // ── Create or retrieve session for an assignment ──────────────────────────────
 router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => {
   try {
@@ -429,8 +501,7 @@ router.get("/public/rmra/student/:sessionToken", async (req, res) => {
         prompt: currentItem.prompts[session.theme as keyof typeof currentItem.prompts] ?? currentItem.prompts.space_mission,
         showConfidenceSlider: currentItem.showConfidenceSlider,
         productiveStruggleTrigger: currentItem.productiveStruggleTrigger,
-        exactAnswer: currentItem.exactAnswer,
-        expectedAnswerRange: currentItem.expectedAnswerRange,
+        visualParams: computeVisualParams(currentItem),
       } : null,
     });
   } catch (err) {
