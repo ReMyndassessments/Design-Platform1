@@ -1476,7 +1476,7 @@ export default function RmraStudentView() {
 
   const fetchState = useCallback(async () => {
     try {
-      const r = await fetch(`${BASE_URL}/api/public/rmra/student/${token}`);
+      const r = await fetch(`${BASE_URL}/api/public/rmra/student/${token}?t=${Date.now()}`);
       if (!r.ok) { setFetchError(true); return; }
       const data: SessionState = await r.json();
       setState(data);

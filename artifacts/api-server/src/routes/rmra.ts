@@ -467,6 +467,7 @@ router.get("/rmra/items", authMiddleware, async (req, res) => {
 // ── Public: student polling endpoint ─────────────────────────────────────────
 
 async function handleStudentPoll(req: Request, res: Response) {
+  res.setHeader("Cache-Control", "no-store");
   try {
     const { sessionToken } = req.params;
 
