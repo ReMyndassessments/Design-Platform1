@@ -335,6 +335,18 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
     updates.progressPercentage = PHASE_PROGRESS[updates.currentPhase as string] ?? 0;
   }
 
+  // Validate parentInterviewNotes
+  if (updates.parentInterviewNotes !== undefined && updates.parentInterviewNotes !== null) {
+    if (typeof updates.parentInterviewNotes !== "string") {
+      res.status(400).json({ error: "validation_error", message: "parentInterviewNotes must be a string" });
+      return;
+    }
+    if ((updates.parentInterviewNotes as string).length > 10000) {
+      res.status(400).json({ error: "validation_error", message: "parentInterviewNotes must not exceed 10,000 characters" });
+      return;
+    }
+  }
+
   // Auto-extract bobbyAiCaseId whenever credentials are updated
   if (updates.bobbyAiPortalCredentials !== undefined) {
     const raw = updates.bobbyAiPortalCredentials ?? "";
