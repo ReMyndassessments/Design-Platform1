@@ -2680,6 +2680,18 @@ async function addRmraReportColumn() {
   }
 }
 
+async function ensureRmraTaskResponseUniqueIndex() {
+  try {
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS rmra_task_responses_session_task_idx
+      ON rmra_task_responses (session_id, task_id)
+    `);
+    logger.info("rmra_task_responses unique index ensured");
+  } catch (err) {
+    logger.error({ err }, "ensureRmraTaskResponseUniqueIndex failed");
+  }
+}
+
 async function createRmraAccessCodesTable() {
   try {
     await db.execute(sql`
@@ -2801,6 +2813,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createRmraTables())
   .then(() => addRmraReportColumn())
   .then(() => createRmraAccessCodesTable())
+  .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => {
   app.listen(port, (err) => {
     if (err) {

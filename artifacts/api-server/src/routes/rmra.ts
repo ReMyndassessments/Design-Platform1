@@ -6,6 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
 import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.js";
+import nodemailer from "nodemailer";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -1189,8 +1190,8 @@ router.post("/rmra/standalone/sessions/:sessionId/tasks/:taskId/response", async
     };
 
     let response;
-    if (existing[0]) {
-      [response] = await db.update(rmraTaskResponsesTable).set(values).where(eq(rmraTaskResponsesTable.id, existing[0].id)).returning();
+    if (existing) {
+      [response] = await db.update(rmraTaskResponsesTable).set(values).where(eq(rmraTaskResponsesTable.id, existing.id)).returning();
     } else {
       [response] = await db.insert(rmraTaskResponsesTable).values({ id: nanoid(), ...values }).returning();
     }
@@ -1276,6 +1277,156 @@ router.post("/rmra/standalone/sessions/:sessionId/complete", async (req: Request
   } catch (err) {
     logger.error({ err }, "POST standalone complete failed");
     return res.status(500).json({ error: "Failed to complete session" });
+  }
+});
+
+// ── Standalone: Email report delivery (public, no auth) ──────────────────────
+
+router.post("/rmra/standalone/sessions/:sessionId/email-report", async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { recipientEmail, recipientName } = req.body as { recipientEmail?: string; recipientName?: string };
+
+    if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      return res.status(400).json({ error: "Valid recipient email is required" });
+    }
+
+    const [session] = await db
+      .select()
+      .from(rmraSessionsTable)
+      .where(and(eq(rmraSessionsTable.id, sessionId), isNull(rmraSessionsTable.caseId)))
+      .limit(1);
+
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (session.status !== "completed") return res.status(400).json({ error: "Session is not completed" });
+    if (!session.domainScores) return res.status(400).json({ error: "No domain scores available" });
+
+    const scores = session.domainScores as Record<string, {
+      accuracy: number; reasoning: number; strategyLevel: number;
+      hintDependency: number; productiveStruggle: number; confidence: number;
+      tasksAdministered: number; level: "strength" | "developing" | "vulnerable" | "high_concern";
+    }>;
+
+    const reportData = session.reportData as { narrative?: { overview?: string; strengths?: string[]; areasOfNeed?: string[]; classroomRecommendations?: string[] }; generatedAt?: string } | null;
+
+    const LEVEL_COLORS_HTML: Record<string, string> = {
+      strength: "#059669", developing: "#2563eb", vulnerable: "#d97706", high_concern: "#dc2626",
+    };
+    const LEVEL_LABELS_HTML: Record<string, string> = {
+      strength: "Strength", developing: "Developing", vulnerable: "Vulnerable", high_concern: "High Concern",
+    };
+    const AGE_BAND_LABELS: Record<string, string> = {
+      early_primary: "Early Primary (Ages 5–8)", upper_primary: "Upper Primary (Ages 8–11)",
+      middle_school: "Middle School (Ages 11–14)", secondary: "Secondary (Ages 14–16)",
+    };
+
+    const completedDate = session.completedAt
+      ? new Date(session.completedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+      : "Unknown";
+
+    const domainRows = RMRA_DOMAINS
+      .filter(d => scores[d])
+      .map(d => {
+        const s = scores[d];
+        const color = LEVEL_COLORS_HTML[s.level] ?? "#6b7280";
+        return `<tr>
+          <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b;">${d}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:center;">${s.accuracy}%</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:center;">${s.reasoning}%</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:center;">${s.hintDependency}%</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:center;"><span style="color:${color};font-weight:600;">${LEVEL_LABELS_HTML[s.level] ?? s.level}</span></td>
+        </tr>`;
+      }).join("");
+
+    const strengthsList = (reportData?.narrative?.strengths ?? []).map(s => `<li style="margin-bottom:4px;font-size:13px;color:#1e293b;">${s}</li>`).join("");
+    const needsList = (reportData?.narrative?.areasOfNeed ?? []).map(s => `<li style="margin-bottom:4px;font-size:13px;color:#1e293b;">${s}</li>`).join("");
+    const recsList = (reportData?.narrative?.classroomRecommendations ?? []).map(s => `<li style="margin-bottom:4px;font-size:13px;color:#1e293b;">${s}</li>`).join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>RMRA Report</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;margin:0;padding:0;">
+<div style="max-width:680px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+  <div style="background:linear-gradient(135deg,#4c1d95,#6d28d9);padding:24px 32px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="background:rgba(255,255,255,0.2);border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;">🧠</div>
+      <div>
+        <h1 style="color:#fff;font-size:18px;font-weight:700;margin:0;">ReMynd Mathematical Reasoning Assessment</h1>
+        <p style="color:rgba(255,255,255,0.75);font-size:13px;margin:4px 0 0;">RMRA Report Summary</p>
+      </div>
+    </div>
+  </div>
+  <div style="padding:24px 32px;">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+      <tr>
+        <td style="font-size:13px;color:#64748b;padding-bottom:4px;">Completed:</td>
+        <td style="font-size:13px;color:#1e293b;font-weight:600;padding-bottom:4px;">${completedDate}</td>
+        <td style="font-size:13px;color:#64748b;padding-bottom:4px;">Age Band:</td>
+        <td style="font-size:13px;color:#1e293b;font-weight:600;padding-bottom:4px;">${AGE_BAND_LABELS[session.ageBand] ?? session.ageBand}</td>
+      </tr>
+    </table>
+    ${session.generalNotes ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#475569;"><strong>Examiner Notes:</strong> ${session.generalNotes}</div>` : ""}
+
+    <h2 style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 12px;">Domain Score Summary</h2>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Domain</th>
+          <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Accuracy</th>
+          <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Reasoning</th>
+          <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Hint Dep.</th>
+          <th style="padding:8px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Level</th>
+        </tr>
+      </thead>
+      <tbody>${domainRows}</tbody>
+    </table>
+
+    ${strengthsList ? `<div style="margin-bottom:20px;">
+      <h3 style="font-size:14px;font-weight:600;color:#059669;margin:0 0 8px;">✓ Identified Strengths</h3>
+      <ul style="margin:0;padding-left:20px;">${strengthsList}</ul>
+    </div>` : ""}
+    ${needsList ? `<div style="margin-bottom:20px;">
+      <h3 style="font-size:14px;font-weight:600;color:#d97706;margin:0 0 8px;">⚠ Areas of Need</h3>
+      <ul style="margin:0;padding-left:20px;">${needsList}</ul>
+    </div>` : ""}
+    ${recsList ? `<div style="margin-bottom:20px;">
+      <h3 style="font-size:14px;font-weight:600;color:#2563eb;margin:0 0 8px;">📋 Classroom Recommendations</h3>
+      <ul style="margin:0;padding-left:20px;">${recsList}</ul>
+    </div>` : ""}
+
+    ${reportData?.narrative?.overview ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <h3 style="font-size:13px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px;">Assessment Overview</h3>
+      <p style="font-size:13px;color:#475569;line-height:1.6;margin:0;">${reportData.narrative.overview}</p>
+    </div>` : ""}
+  </div>
+  <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;text-align:center;">
+    <p style="font-size:12px;color:#94a3b8;margin:0;">Generated by ReMynd Assessment Operating System · Session ID: ${sessionId}</p>
+    <p style="font-size:11px;color:#cbd5e1;margin:4px 0 0;">This report is a screening tool only. It does not constitute a clinical diagnosis.</p>
+  </div>
+</div>
+</body>
+</html>`;
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"ReMynd RMRA" <${process.env.GMAIL_USER}>`,
+      to: recipientName ? `"${recipientName}" <${recipientEmail}>` : recipientEmail,
+      subject: `RMRA Assessment Report — ${completedDate}`,
+      html,
+      text: `RMRA Assessment Report\nCompleted: ${completedDate}\nAge Band: ${AGE_BAND_LABELS[session.ageBand] ?? session.ageBand}\n\nThis report was generated by ReMynd RMRA. Session ID: ${sessionId}`,
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "POST standalone email-report failed");
+    return res.status(500).json({ error: "Failed to send report email" });
   }
 });
 

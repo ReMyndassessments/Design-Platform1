@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Brain, ArrowLeft, Loader2, AlertTriangle, Copy, ExternalLink,
   CheckCircle2, ChevronRight, ChevronLeft, ClipboardCheck,
+  Printer, Mail, Send, CheckCheck,
 } from "lucide-react";
 import { RmraReportPanel, type RmraReportSession } from "./cases/[id]/rmra-report";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +108,11 @@ export default function RmraStandaloneSessionPage() {
   const [completing, setCompleting] = useState(false);
   const [generalNotes, setGeneralNotes] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailName, setEmailName] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const studentUrl = `${window.location.origin}${BASE_URL}/student-view/rmra/${sessionId}`;
 
@@ -253,13 +260,62 @@ export default function RmraStandaloneSessionPage() {
         ? { ...prev, ...data.session, status: "completed", domainScores: data.domainScores } as RmraReportSession
         : prev
       );
-      toast({ title: "Session completed", description: "Domain scores computed. Generating report view." });
+      toast({ title: "Scores computed — generating AI report…" });
+
+      // Auto-trigger AI report generation
+      setGeneratingReport(true);
+      try {
+        const genR = await fetch(
+          `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/generate-report`,
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+        if (genR.ok) {
+          const genData = await genR.json();
+          setSession(prev => prev ? { ...prev, reportData: genData.reportData } as RmraReportSession : prev);
+          toast({ title: "AI report ready", description: "Export as PDF or email the report below." });
+        } else {
+          toast({ title: "Session completed", description: "AI report generation pending — refresh to retry." });
+        }
+      } catch {
+        toast({ title: "Session completed", description: "Domain scores saved. AI report generation pending." });
+      } finally {
+        setGeneratingReport(false);
+      }
     } catch {
       toast({ title: "Completion failed", description: "Please try again.", variant: "destructive" });
     } finally {
       setCompleting(false);
     }
   }, [sessionId]);
+
+  const handleSendEmail = useCallback(async () => {
+    if (!sessionId || !emailInput) return;
+    setEmailSending(true);
+    try {
+      const r = await fetch(
+        `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/email-report`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipientEmail: emailInput, recipientName: emailName || undefined }),
+        }
+      );
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(err.error ?? "Send failed");
+      }
+      setEmailSent(true);
+      toast({ title: "Report sent", description: `Emailed to ${emailInput}` });
+    } catch (e: unknown) {
+      toast({
+        title: "Email failed",
+        description: e instanceof Error ? e.message : "Could not send email. Check the address and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setEmailSending(false);
+    }
+  }, [sessionId, emailInput, emailName]);
 
   const handleCopyStudentLink = () => {
     navigator.clipboard.writeText(studentUrl).then(() => {
@@ -338,9 +394,87 @@ export default function RmraStandaloneSessionPage() {
 
         {!loading && session && (
           <>
-            {/* Completed — show full report */}
+            {/* Completed — export actions + full report */}
             {(session as any).status === "completed" && session.domainScores && (
-              <div className="mt-2">
+              <div className="mt-2 space-y-4">
+                {/* Delivery banner */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800">Session Complete</span>
+                    {generatingReport && (
+                      <span className="flex items-center gap-1.5 text-xs text-violet-600 ml-2">
+                        <Loader2 size={11} className="animate-spin" /> Generating AI report…
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* PDF export */}
+                    <div className="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                        <Printer size={12} className="text-slate-500" /> Export as PDF
+                      </p>
+                      <p className="text-xs text-slate-500 mb-3">
+                        Print this page or save as PDF using your browser's print dialog.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-slate-700 h-8"
+                        onClick={() => window.print()}
+                      >
+                        <Printer size={12} /> Print / Save PDF
+                      </Button>
+                    </div>
+
+                    {/* Email delivery */}
+                    <div className="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                        <Mail size={12} className="text-slate-500" /> Email Report
+                      </p>
+                      <p className="text-xs text-slate-500 mb-3">
+                        Send a formatted HTML report summary to any email address.
+                      </p>
+                      {emailSent ? (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
+                          <CheckCheck size={13} /> Report sent successfully
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Recipient name (optional)"
+                            value={emailName}
+                            onChange={e => setEmailName(e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <Input
+                              type="email"
+                              placeholder="Email address"
+                              value={emailInput}
+                              onChange={e => setEmailInput(e.target.value)}
+                              className="h-7 text-xs flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white h-7 px-3"
+                              onClick={handleSendEmail}
+                              disabled={emailSending || !emailInput}
+                            >
+                              {emailSending
+                                ? <Loader2 size={11} className="animate-spin" />
+                                : <Send size={11} />}
+                              Send
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <RmraReportPanel
                   sessionId={sessionId}
                   caseId=""
