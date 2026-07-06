@@ -692,37 +692,53 @@ function MatchingTaskVisual({ taskId, accent }: { taskId: string; accent: string
 
 function SortingTaskVisual({ taskId, accent }: { taskId: string; accent: string }) {
   const rng = seededRand(strSeed(taskId));
-  const items = Array.from({ length: 6 }, (_, i) => Math.floor(rng() * 50) + 1);
-  const [sorted, setSorted] = useState<Record<string, number[]>>({ under: [], over: [] });
+  const items = Array.from({ length: 6 }, () => Math.floor(rng() * 50) + 1);
+  const [sorted, setSorted] = useState<Record<"under" | "over", number[]>>({ under: [], over: [] });
   const [remaining, setRemaining] = useState(items);
+  const [selecting, setSelecting] = useState<number | null>(null); // index in remaining
   const threshold = 25;
 
-  const handleSort = (item: number, bin: "under" | "over") => {
+  const pick = (idx: number) => setSelecting(prev => prev === idx ? null : idx);
+
+  const place = (bin: "under" | "over") => {
+    if (selecting === null) return;
+    const item = remaining[selecting];
     setSorted(s => ({ ...s, [bin]: [...s[bin], item] }));
-    setRemaining(r => r.filter(x => x !== item));
+    setRemaining(r => r.filter((_, i) => i !== selecting));
+    setSelecting(null);
   };
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Sort the numbers into the correct group</p>
+      <p className={TASK_LABEL}>Tap a number, then tap the correct group</p>
       {/* Items to sort */}
-      <div className="flex flex-wrap justify-center gap-2 mb-4 min-h-[40px]">
+      <div className="flex flex-wrap justify-center gap-2 mb-3 min-h-[36px]">
         {remaining.map((n, i) => (
-          <div key={i} className="flex gap-1">
-            <button onClick={() => handleSort(n, "under")} className="px-2 py-1 rounded-lg border-2 border-slate-300 bg-slate-50 text-sm font-bold text-slate-700 hover:border-blue-400 transition">{n}</button>
-          </div>
+          <button key={i} onClick={() => pick(i)}
+            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all ${selecting === i ? "text-white scale-110 shadow-md" : "border-slate-300 bg-slate-50 text-slate-700 hover:border-blue-400"}`}
+            style={selecting === i ? { backgroundColor: accent, borderColor: accent } : {}}>
+            {n}
+          </button>
         ))}
-        {remaining.length === 0 && <p className="text-xs text-slate-400">All sorted!</p>}
+        {remaining.length === 0 && <p className="text-xs text-slate-400 self-center">All sorted!</p>}
       </div>
-      {/* Bins */}
+      {/* Bins — both are always tappable drop targets */}
       <div className="grid grid-cols-2 gap-3">
         {(["under", "over"] as const).map(bin => (
-          <div key={bin} className="rounded-lg border-2 border-dashed p-3 text-center min-h-[60px]" style={{ borderColor: accent }}>
-            <p className="text-xs font-bold text-slate-600 mb-1">{bin === "under" ? `< ${threshold}` : `≥ ${threshold}`}</p>
-            <div className="flex flex-wrap gap-1 justify-center">
-              {sorted[bin].map((n, i) => <span key={i} className="text-xs px-1.5 py-0.5 rounded font-bold text-white" style={{ backgroundColor: accent }}>{n}</span>)}
+          <button key={bin} onClick={() => place(bin)}
+            disabled={selecting === null}
+            className={`rounded-lg border-2 border-dashed p-3 text-left min-h-[64px] transition-all ${selecting !== null ? "opacity-100 border-current scale-[1.02] shadow" : "opacity-80"}`}
+            style={{ borderColor: accent }}>
+            <p className="text-xs font-bold mb-1" style={{ color: accent }}>
+              {bin === "under" ? `< ${threshold}` : `≥ ${threshold}`}
+              {selecting !== null && <span className="ml-1 text-slate-400 font-normal">← tap to place</span>}
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {sorted[bin].map((n, i) => (
+                <span key={i} className="text-xs px-1.5 py-0.5 rounded font-bold text-white" style={{ backgroundColor: accent }}>{n}</span>
+              ))}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -1122,6 +1138,7 @@ export default function RmraStudentView() {
       if (!r.ok) { setFetchError(true); return; }
       const data: SessionState = await r.json();
       setState(data);
+      setFetchError(false); // clear any prior transient error on success
     } catch { }
     finally { setLoading(false); }
   }, [token]);
