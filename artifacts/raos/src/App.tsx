@@ -71,6 +71,7 @@ import RppiAdminPage from "@/pages/cases/[id]/rppi";
 import RdaAdminPage from "@/pages/cases/[id]/rda";
 import RrfaAdminPage from "@/pages/cases/[id]/rrfa";
 import RrcaAdminPage from "@/pages/cases/[id]/rrca";
+import RmraAdminPage from "@/pages/cases/[id]/rmra";
 import LiteracyDashboardPage from "@/pages/cases/[id]/literacy-dashboard";
 import RemyndDashboardPage from "@/pages/cases/[id]/remynd-dashboard";
 import DashboardsHub from "@/pages/cases/[id]/dashboards";
@@ -168,6 +169,9 @@ function Router() {
       </Route>
       <Route path="/cases/:id/rrca/:assignmentId">
         {() => <ProtectedRoute component={RrcaAdminPage} />}
+      </Route>
+      <Route path="/cases/:id/rmra/:assignmentId">
+        {() => <ProtectedRoute component={RmraAdminPage} />}
       </Route>
       <Route path="/cases/:id/dashboards">
         {() => <ProtectedRoute component={DashboardsHub} />}
