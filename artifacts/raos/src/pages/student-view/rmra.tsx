@@ -146,43 +146,15 @@ const CARD_INNER = "rounded-xl border border-slate-200 p-4 bg-white";
 
 const ESTIMATION_FLASH_MS = 3000;
 
-function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: {
-  taskId: string; dotCount: number; taskType: string; accent: string; timerStartedAt: string | null;
+type FlashPhase = "waiting" | "showing" | "done";
+
+function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase }: {
+  taskId: string; dotCount: number; taskType: string; accent: string; flashPhase: FlashPhase;
 }) {
   const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
   const isComparison = taskType === "quantity_comparison";
   const isEstimation = taskType === "estimation";
-
-  // Client-side flash timer: countdown starts from the moment the student's
-  // browser first receives a non-null timerStartedAt, not from the server timestamp.
-  // This guarantees a full ESTIMATION_FLASH_MS window regardless of poll delay.
-  const receivedAtRef = useRef<number | null>(null);
-
-  const [dotsHidden, setDotsHidden] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!isEstimation) return;
-    if (!timerStartedAt) {
-      // Timer reset — clear received time, go back to waiting state
-      receivedAtRef.current = null;
-      setDotsHidden(false);
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-      return;
-    }
-    // First time we receive this timer signal — record local time as countdown start
-    if (receivedAtRef.current === null) {
-      receivedAtRef.current = Date.now();
-    }
-    const elapsed = Date.now() - receivedAtRef.current;
-    const remaining = Math.max(0, ESTIMATION_FLASH_MS - elapsed);
-    if (remaining <= 0) { setDotsHidden(true); return; }
-    setDotsHidden(false);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setDotsHidden(true), remaining);
-    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
-  }, [taskId, isEstimation, timerStartedAt]);
 
   if (isComparison) {
     // Side-by-side two groups
@@ -223,14 +195,14 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, timerStartedAt }: 
         {taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}
       </p>
 
-      {isEstimation && !timerStartedAt ? (
+      {isEstimation && flashPhase === "waiting" ? (
         /* Waiting for examiner to trigger the stimulus */
         <div className="flex flex-col items-center gap-3 py-8">
           <div className="text-5xl animate-pulse">🎯</div>
           <p className="text-center font-semibold text-slate-600 text-base">Get ready…</p>
           <p className="text-center text-slate-400 text-sm">Your teacher will show the picture</p>
         </div>
-      ) : dotsHidden ? (
+      ) : isEstimation && flashPhase === "done" ? (
         /* Timer expired — student speaks their estimate */
         <div className="flex flex-col items-center gap-3 py-6">
           <div className="text-5xl">🤔</div>
@@ -1288,13 +1260,13 @@ function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string 
 
 // ── Task Visual Router ────────────────────────────────────────────────────────
 
-function TaskVisual({ task, theme, timerStartedAt }: { task: TaskData; theme: ThemeKey; timerStartedAt: string | null }) {
+function TaskVisual({ task, theme, flashPhase }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase }) {
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
-  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} timerStartedAt={timerStartedAt} />;
+  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
@@ -1435,13 +1407,18 @@ export default function RmraStudentView() {
   const [confidenceRated, setConfidenceRated] = useState(false);
   const [lastTaskId, setLastTaskId] = useState<string | null>(null);
 
+  // Flash phase is managed here — not inside DotArrayVisual — so the
+  // top-level useEffect fires reliably when the poll delivers timerStartedAt.
+  const [flashPhase, setFlashPhase] = useState<FlashPhase>("waiting");
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fetchState = useCallback(async () => {
     try {
       const r = await fetch(`${BASE_URL}/api/public/rmra/student/${token}?t=${Date.now()}`);
       if (!r.ok) { setFetchError(true); return; }
       const data: SessionState = await r.json();
       setState(data);
-      setFetchError(false); // clear any prior transient error on success
+      setFetchError(false);
     } catch { }
     finally { setLoading(false); }
   }, [token]);
@@ -1457,6 +1434,24 @@ export default function RmraStudentView() {
     const interval = setInterval(fetchState, activePollMs);
     return () => clearInterval(interval);
   }, [token, activePollMs]);
+
+  // Manage flash phase at the top level — watch timerStartedAt directly.
+  // When it flips from null → value: show dots for ESTIMATION_FLASH_MS, then hide.
+  // When it goes back to null (new task / reset): return to waiting.
+  const timerStartedAt = state?.timerStartedAt ?? null;
+  const currentTaskId = state?.currentTaskId ?? null;
+
+  useEffect(() => {
+    if (timerStartedAt) {
+      setFlashPhase("showing");
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      flashTimeoutRef.current = setTimeout(() => setFlashPhase("done"), ESTIMATION_FLASH_MS);
+    } else {
+      setFlashPhase("waiting");
+      if (flashTimeoutRef.current) { clearTimeout(flashTimeoutRef.current); flashTimeoutRef.current = null; }
+    }
+    return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
+  }, [timerStartedAt, currentTaskId]);
 
   // Reset confidence rating when task changes
   useEffect(() => {
@@ -1562,7 +1557,7 @@ export default function RmraStudentView() {
 
         {/* Visual stimulus — always white card */}
         <div className="rounded-2xl shadow-sm overflow-hidden">
-          <TaskVisual task={task} theme={theme} timerStartedAt={state.timerStartedAt} />
+          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} />
         </div>
 
         {/* Confidence slider */}
