@@ -994,28 +994,11 @@ export default function RmraAdminPage() {
             </div>
           </div>
 
-          {/* Estimation flash-timer control */}
-          {currentTask.taskType === "estimation" && !isCompleted && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
-                  <Zap size={14} className="text-amber-600" /> Stimulus Flash Timer
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  {stimulusTimerStartedAt
-                    ? "Timer started — student sees dots for 3 s, then must estimate"
-                    : "Student sees \u201cGet ready\u2026\u201d — press to show dots + start countdown"}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={handleShowAndStartTimer}
-                disabled={!!stimulusTimerStartedAt}
-                className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white gap-1.5"
-              >
-                <Zap size={13} />
-                {stimulusTimerStartedAt ? "Timer Running" : "Show & Start"}
-              </Button>
+          {/* Estimation flash-timer status banner (no button — button is co-located with timer below) */}
+          {currentTask.taskType === "estimation" && !isCompleted && stimulusTimerStartedAt && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2">
+              <Zap size={13} className="text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-800 font-medium">Stimulus shown — student sees dots for 3 s, then must estimate</p>
             </div>
           )}
 
@@ -1231,6 +1214,20 @@ export default function RmraAdminPage() {
                 <label className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5 block">
                   <Timer size={11} className="text-slate-400" /> Response Timer
                 </label>
+                {/* Stimulus flash button — shown inline with timer for estimation tasks */}
+                {currentTask.taskType === "estimation" && !isCompleted && (
+                  <div className="mb-2">
+                    <Button
+                      size="sm"
+                      onClick={handleShowAndStartTimer}
+                      disabled={!!stimulusTimerStartedAt}
+                      className={`h-7 gap-1.5 text-xs ${stimulusTimerStartedAt ? "bg-amber-100 text-amber-700 border border-amber-300 cursor-default hover:bg-amber-100" : "bg-amber-500 hover:bg-amber-600 text-white"}`}
+                    >
+                      <Zap size={11} />
+                      {stimulusTimerStartedAt ? "Stimulus Shown ✓" : "Show & Start Flash"}
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className={`font-mono text-xl font-bold tabular-nums ${timerRunning ? "text-violet-600" : "text-slate-800"}`}>
                     {fmtTime(timerElapsed)}
