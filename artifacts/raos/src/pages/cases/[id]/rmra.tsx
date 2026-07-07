@@ -1249,32 +1249,35 @@ export default function RmraAdminPage() {
                 </div>
               </div>
 
-              {/* Confidence Rating */}
-              {currentTask.showConfidenceSlider && (
-                <div>
-                  <label className="text-xs font-medium text-slate-600 mb-2 block">Student Confidence</label>
-                  <div className="flex gap-1.5">
-                    {CONFIDENCE_LABELS.map((label, i) => (
-                      <button
-                        key={i}
-                        onClick={() => !isCompleted && updateCurrentResponse("confidenceRating", i)}
-                        disabled={isCompleted}
-                        title={label}
-                        className={`flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-colors text-center ${
-                          currentResponse.confidenceRating === i
-                            ? "bg-blue-500 text-white border-blue-500"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
-                        } ${isCompleted ? "opacity-70" : ""}`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
-                    {currentResponse.confidenceRating !== null ? CONFIDENCE_LABELS[currentResponse.confidenceRating] : "Not recorded"}
-                  </div>
+              {/* Confidence Rating — always shown; auto-populated from student submission */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5 block">
+                  Student Confidence
+                  {currentResponse.confidenceRating !== null && (
+                    <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">Student submitted</span>
+                  )}
+                </label>
+                <div className="flex gap-1.5">
+                  {CONFIDENCE_LABELS.map((label, i) => (
+                    <button
+                      key={i}
+                      onClick={() => !isCompleted && updateCurrentResponse("confidenceRating", i)}
+                      disabled={isCompleted}
+                      title={label}
+                      className={`flex-1 py-2 rounded-lg border-2 text-xs font-medium transition-colors text-center ${
+                        currentResponse.confidenceRating === i
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                      } ${isCompleted ? "opacity-70" : ""}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-              )}
+                <div className="text-[11px] text-slate-400 mt-1">
+                  {currentResponse.confidenceRating !== null ? CONFIDENCE_LABELS[currentResponse.confidenceRating] : "Not yet submitted by student"}
+                </div>
+              </div>
 
               {/* Timer */}
               <div>
