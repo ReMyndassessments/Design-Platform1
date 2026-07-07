@@ -970,6 +970,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/bobby-agent", authMiddlewar
     const reader = streamRes.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
+    let fullText = "";
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -983,11 +984,22 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/bobby-agent", authMiddlewar
         try {
           const parsed = JSON.parse(chunk);
           const t = parsed.choices?.[0]?.delta?.content;
-          if (t) res.write(`data: ${JSON.stringify({ t })}\n\n`);
+          if (t) { fullText += t; res.write(`data: ${JSON.stringify({ t })}\n\n`); }
         } catch { /* skip malformed chunks */ }
       }
     }
-    return res.end();
+    res.end();
+    // Persist the generated content so it survives page reloads
+    if (fullText) {
+      try {
+        const current = (session.reportData ?? {}) as Record<string, unknown>;
+        const bobbyResults = ((current.bobbyAgentResults ?? {}) as Record<string, string>);
+        await db.update(rmraSessionsTable)
+          .set({ reportData: { ...current, bobbyAgentResults: { ...bobbyResults, [action]: fullText } } as any, updatedAt: new Date() })
+          .where(eq(rmraSessionsTable.id, sessionId));
+      } catch (saveErr) { logger.warn({ saveErr }, "Failed to persist bobby-agent result"); }
+    }
+    return;
   } catch (err) {
     logger.error({ err }, "POST bobby-agent failed");
     if (!res.headersSent) return res.status(500).json({ error: "Failed to generate content" });
@@ -1236,6 +1248,7 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
     const sreader = streamRes.body.getReader();
     const sdecoder = new TextDecoder();
     let sbuf = "";
+    let sFullText = "";
     while (true) {
       const { done, value } = await sreader.read();
       if (done) break;
@@ -1249,11 +1262,21 @@ router.post("/rmra/standalone/sessions/:sessionId/bobby-agent", async (req: Requ
         try {
           const parsed = JSON.parse(chunk);
           const t = parsed.choices?.[0]?.delta?.content;
-          if (t) res.write(`data: ${JSON.stringify({ t })}\n\n`);
+          if (t) { sFullText += t; res.write(`data: ${JSON.stringify({ t })}\n\n`); }
         } catch { /* skip malformed chunks */ }
       }
     }
-    return res.end();
+    res.end();
+    if (sFullText) {
+      try {
+        const current = (session.reportData ?? {}) as Record<string, unknown>;
+        const bobbyResults = ((current.bobbyAgentResults ?? {}) as Record<string, string>);
+        await db.update(rmraSessionsTable)
+          .set({ reportData: { ...current, bobbyAgentResults: { ...bobbyResults, [action]: sFullText } } as any, updatedAt: new Date() })
+          .where(eq(rmraSessionsTable.id, sessionId));
+      } catch (saveErr) { logger.warn({ saveErr }, "Failed to persist standalone bobby-agent result"); }
+    }
+    return;
   } catch (err) {
     logger.error({ err }, "POST standalone bobby-agent failed");
     if (!res.headersSent) return res.status(500).json({ error: "Failed to generate content" });

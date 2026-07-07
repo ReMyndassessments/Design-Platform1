@@ -53,6 +53,7 @@ export type RmraReportSession = {
   reportData?: {
     narrative: ReportNarrative;
     generatedAt: string;
+    bobbyAgentResults?: Record<string, string>;
   } | null;
 };
 
@@ -509,6 +510,20 @@ const BOBBY_ACTIONS = [
   },
 ] as const;
 
+// ── Markdown stripper ─────────────────────────────────────────────────────────
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/_{2}(.+?)_{2}/g, "$1")
+    .replace(/_(.+?)_/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/^\s*[-•]\s+/gm, "• ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .trim();
+}
+
 // ── Scatter tooltip ────────────────────────────────────────────────────────────
 
 const ScatterTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
@@ -559,7 +574,14 @@ export function RmraReportPanel({
   );
   const [bobbyStates, setBobbyStates] = useState<
     Record<string, { loading: boolean; content: string | null; expanded: boolean }>
-  >({});
+  >(() => {
+    const persisted = session.reportData?.bobbyAgentResults ?? {};
+    const init: Record<string, { loading: boolean; content: string | null; expanded: boolean }> = {};
+    for (const [id, content] of Object.entries(persisted)) {
+      init[id] = { loading: false, content: content as string, expanded: false };
+    }
+    return init;
+  });
   const [interventionNotes, setInterventionNotes] = useState<Record<string, string>>({});
   const [pmTargets, setPmTargets] = useState<Record<string, string>>({});
 
@@ -1216,7 +1238,7 @@ export function RmraReportPanel({
                 </div>
                 {hasContent && isExpanded && (
                   <div className="px-4 py-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-t border-slate-100 bg-white">
-                    {state.content}
+                    {stripMarkdown(state.content!)}
                   </div>
                 )}
               </div>
