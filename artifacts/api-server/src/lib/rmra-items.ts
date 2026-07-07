@@ -44,6 +44,82 @@ export const RMRA_DOMAINS = [
   "Response to Productive Struggle",
 ] as const;
 
+export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
+  // Number Sense
+  RMRA_NS_EP_001: "Glance at the dots — don't count. About how many do you see? Type your estimate.",
+  RMRA_NS_EP_002: "Look at both groups of dots. Which has more? Type your answer and explain how you can tell.",
+  RMRA_NS_EP_003: "Look at the dots quickly, then look away. About how many did you see? Type your estimate.",
+  RMRA_NS_UP_001: "Take one quick look — don't count. About how many dots? Type your estimate.",
+  RMRA_NS_UP_002: "Find where the number belongs on the line. Type it and describe where it sits.",
+  RMRA_NS_UP_003: "Look at both values on the number line. Which is larger? Type your answer and how you know.",
+  RMRA_NS_MS_001: "Use the number line. Which side of zero does the value land? Type the value and your reasoning.",
+  RMRA_NS_MS_002: "Place all five values on the number line. Type them in order from smallest to largest.",
+  RMRA_NS_SEC_001: "Set up the proportion using the bar. Scale it to find the answer. Type your working and answer.",
+  RMRA_NS_SEC_002: "Use the bar to estimate the multiplication. Type your estimate and your reasoning.",
+  // Place Value
+  RMRA_PV_EP_001: "Look at the rods and small cubes. How many tens? How many ones? Type both.",
+  RMRA_PV_EP_002: "Find the digit in the chart. Which column is it in? Type what that digit is worth.",
+  RMRA_PV_UP_001: "Look at all the blocks. Type how many thousands, hundreds, tens, and ones you see.",
+  RMRA_PV_UP_002: "Find where the number sits on the line. Which hundred is it closer to? Type the rounded answer.",
+  RMRA_PV_MS_001: "Find the digit in the chart. Which decimal column? Type its exact place value.",
+  RMRA_PV_SEC_001: "Move the decimal point the right number of places. Type the number in standard form.",
+  // Addition Reasoning
+  RMRA_AR_EP_001: "The two parts are shown. What is the total? Type your answer and how you worked it out.",
+  RMRA_AR_UP_001: "The two parts are shown. What is the total? Type your answer and the strategy you used.",
+  RMRA_AR_MS_001: "Keep the scale balanced. What must x equal? Type x and the step you used to find it.",
+  RMRA_AR_SEC_001: "Think about what all three totals add up to. Type a + b + c and your method.",
+  // Subtraction Reasoning
+  RMRA_SR_EP_001: "Count all the tally marks. Take away the given number in your head. Type how many are left.",
+  RMRA_SR_UP_001: "Find both numbers on the line. How far apart are they? Type the difference and how you found it.",
+  RMRA_SR_MS_001: "Find both values on the number line. Count the total distance between them. Type the difference.",
+  RMRA_SR_SEC_001: "Distribute the minus sign carefully. Collect like terms. Type the simplified expression.",
+  // Multiplicative Thinking
+  RMRA_MT_EP_001: "Count the equal groups of dots. How many groups? How many in each? Type the total.",
+  RMRA_MT_UP_001: "Split the numbers and fill in each section of the grid. Type each product and the total.",
+  RMRA_MT_MS_001: "The bar shows one group. Multiply to find the total for all groups. Type your answer and method.",
+  RMRA_MT_SEC_001: "Fill each cell of the grid using the terms. Collect like terms. Type the expanded expression.",
+  // Division Thinking
+  RMRA_DT_EP_001: "Share the items equally into the groups shown. How many in each group? Type your answer.",
+  RMRA_DT_UP_001: "The total is shown. Share it equally into groups. Type the answer and how you worked it out.",
+  RMRA_DT_MS_001: "Use the bar to count how many of the smaller fraction fit into the total. Type the answer.",
+  RMRA_DT_SEC_001: "Work backwards from the area grid — find the missing factor. Type the quotient.",
+  // Fractions
+  RMRA_FR_EP_001: "Look at the circle. How many equal parts? Shade half in your mind. How many parts is that? Type your answer.",
+  RMRA_FR_UP_001: "Use the bar to picture both fractions. Type the total and the steps you used.",
+  RMRA_FR_MS_001: "Shade rows for one fraction, columns for the other. The overlap is the answer. Type it.",
+  RMRA_FR_SEC_001: "Factor the numerator. Cancel the common factor. Type the simplified expression and restriction.",
+  // Measurement
+  RMRA_ME_EP_001: "Look at the two bars. Which is taller or longer? Type which one and explain how you can tell.",
+  RMRA_ME_UP_001: "Count the squares inside for area. Trace the outside edge for perimeter. Type both answers.",
+  RMRA_ME_MS_001: "Convert km to m first, then multiply by 60 for minutes. Type each step and the final answer.",
+  RMRA_ME_SEC_001: "Use V = \u03c0r\u00b2h and SA = 2\u03c0r\u00b2 + 2\u03c0rh with the given values. Type both answers, leaving \u03c0 in.",
+  // Patterns & Early Algebra
+  RMRA_PA_EP_001: "Look at the repeating shapes. What shape or colour comes next? Type your answer.",
+  RMRA_PA_UP_001: "Apply the rule to find the output. Work backwards to find the input. Type both answers.",
+  RMRA_PA_MS_001: "Plot the line. Type y when x = 10 and x when y = 0.",
+  RMRA_PA_SEC_001: "Substitute n = 8. Then solve for n when T = 90. Type both answers and your working.",
+  // Geometry & Spatial Reasoning
+  RMRA_GS_EP_001: "Sort the shapes by their number of sides. Type how many shapes are in each group.",
+  RMRA_GS_UP_001: "Look at each angle carefully. Type whether each is acute, right, or obtuse.",
+  RMRA_GS_MS_001: "The two shorter sides are 6 and 8. Use a\u00b2 + b\u00b2 = c\u00b2. Type the length of the longest side.",
+  RMRA_GS_SEC_001: "Identify the correct trig ratio for the angle shown. Type your working and the answer.",
+  // Mathematical Language
+  RMRA_ML_EP_001: "Use the dots to show two groups — one with more. Type what the word 'MORE' means.",
+  RMRA_ML_UP_001: "The bar shows rate \u00d7 time. What information matters? What is extra? Type your answer.",
+  RMRA_ML_MS_001: "Look at the pattern. What happens when two negatives multiply? Type your full explanation.",
+  RMRA_ML_SEC_001: "Let n be any integer. Write n + (n+1) as one expression. Type your full algebraic proof.",
+  // Problem Solving & Executive Function
+  RMRA_PS_EP_001: "There are two steps — work through them in order. Type your final answer and both steps.",
+  RMRA_PS_UP_001: "Work through the clues one at a time. Put the items in the right order. Type the sequence.",
+  RMRA_PS_MS_001: "Sort out the must-spend items first, then share what remains. Type your answer and working.",
+  RMRA_PS_SEC_001: "Graph both constraints. Test the corner points. Type the maximum profit and where it occurs.",
+  // Response to Productive Struggle
+  RMRA_RPS_EP_001: "Try different numbers on each side to make them balance. Type which numbers you chose.",
+  RMRA_RPS_UP_001: "Check each step — does the equation still balance? Find the mistake. Type which step is wrong and why.",
+  RMRA_RPS_MS_001: "Find the pattern in the additions. What does Year 5 add? Type the total after Year 5.",
+  RMRA_RPS_SEC_001: "Use the area grid to expand (a+b)\u00b2. Type your expansion and whether the original claim is true.",
+};
+
 export const STRATEGY_HIERARCHY = [
   "Cannot do / guesses",
   "Counts all",

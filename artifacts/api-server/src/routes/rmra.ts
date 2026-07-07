@@ -5,7 +5,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
-import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession } from "../lib/rmra-items.js";
+import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession, RMRA_STUDENT_INSTRUCTIONS } from "../lib/rmra-items.js";
 import nodemailer from "nodemailer";
 import { callDeepSeek } from "../lib/ai.js";
 
@@ -540,6 +540,7 @@ async function handleStudentPoll(req: Request, res: Response) {
         showConfidenceSlider: currentItem.showConfidenceSlider,
         productiveStruggleTrigger: currentItem.productiveStruggleTrigger,
         visualParams: computeVisualParams(currentItem),
+        studentInstruction: RMRA_STUDENT_INSTRUCTIONS[currentItem.id],
       } : null,
     });
   } catch (err) {

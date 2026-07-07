@@ -16,6 +16,7 @@ const THEME_CFG = {
     taskCard: "bg-white",
     hint: "bg-amber-900/40 border-amber-600/40 text-amber-200",
     sub: "text-indigo-300",
+    instructionCard: "bg-indigo-900/30 border border-indigo-700/30 text-indigo-200",
     bodyText: "text-white",
     dimText: "text-white/40",
     mascot: "🚀",
@@ -36,6 +37,7 @@ const THEME_CFG = {
     taskCard: "bg-white",
     hint: "bg-amber-50 border-amber-300 text-amber-800",
     sub: "text-sky-700",
+    instructionCard: "bg-sky-50 border border-sky-200 text-sky-800",
     bodyText: "text-slate-900",
     dimText: "text-slate-400",
     mascot: "🏙️",
@@ -56,6 +58,7 @@ const THEME_CFG = {
     taskCard: "bg-white",
     hint: "bg-amber-50 border-amber-300 text-amber-800",
     sub: "text-rose-600",
+    instructionCard: "bg-rose-50 border border-rose-200 text-rose-700",
     bodyText: "text-slate-900",
     dimText: "text-slate-400",
     mascot: "🧁",
@@ -76,6 +79,7 @@ const THEME_CFG = {
     taskCard: "bg-white",
     hint: "bg-amber-900/40 border-amber-600/40 text-amber-200",
     sub: "text-teal-400",
+    instructionCard: "bg-zinc-800/50 border border-zinc-700 text-teal-300",
     bodyText: "text-white",
     dimText: "text-white/40",
     mascot: "🤖",
@@ -96,6 +100,7 @@ const THEME_CFG = {
     taskCard: "bg-white",
     hint: "bg-amber-900/40 border-amber-600/40 text-amber-200",
     sub: "text-yellow-300",
+    instructionCard: "bg-amber-900/40 border border-amber-700/30 text-amber-200",
     bodyText: "text-white",
     dimText: "text-white/40",
     mascot: "🏴‍☠️",
@@ -1400,7 +1405,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} sessionToken={sessionToken} taskId={task.id} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
@@ -1424,6 +1429,7 @@ type TaskData = {
   taskType: string;
   visualType: string;
   prompt: string;
+  studentInstruction?: string;
   showConfidenceSlider: boolean;
   productiveStruggleTrigger: boolean;
   visualParams?: Record<string, unknown>;
@@ -1529,6 +1535,10 @@ export default function RmraStudentView() {
   const [loading, setLoading] = useState(true);
   const [confidenceRated, setConfidenceRated] = useState(false);
   const [lastTaskId, setLastTaskId] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [answerSubmitted, setAnswerSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [answerError, setAnswerError] = useState("");
 
   // Flash phase is managed here — not inside DotArrayVisual — so the
   // top-level useEffect fires reliably when the poll delivers timerStartedAt.
@@ -1580,6 +1590,10 @@ export default function RmraStudentView() {
   useEffect(() => {
     if (state?.currentTaskId && state.currentTaskId !== lastTaskId) {
       setConfidenceRated(false);
+      setAnswerText("");
+      setAnswerSubmitted(false);
+      setSubmitting(false);
+      setAnswerError("");
       setLastTaskId(state.currentTaskId);
     }
   }, [state?.currentTaskId]);
@@ -1648,6 +1662,25 @@ export default function RmraStudentView() {
 
   const task = state.currentTask;
 
+  const submitAnswer = async () => {
+    if (!token || !answerText.trim()) return;
+    setSubmitting(true);
+    setAnswerError("");
+    try {
+      const res = await fetch(`${BASE_URL}/api/public/rmra/student/${token}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: task.id, answer: answerText.trim() }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAnswerSubmitted(true);
+    } catch {
+      setAnswerError("Couldn't save your answer — please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // ── Task screen ─────────────────────────────────────────────────────────────
   return (
     <div className={`min-h-screen ${cfg.bg} flex flex-col px-4 py-5`} style={{ minHeight: "100dvh" }}>
@@ -1678,13 +1711,45 @@ export default function RmraStudentView() {
           <p className={`text-lg font-bold leading-snug ${cfg.promptText}`}>{task.prompt}</p>
         </div>
 
+        {/* Student instruction */}
+        {task.studentInstruction && (
+          <div className={`flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm font-medium ${cfg.instructionCard}`}>
+            <span className="shrink-0">👉</span>
+            <span className="leading-relaxed">{task.studentInstruction}</span>
+          </div>
+        )}
+
         {/* Visual stimulus — always white card */}
         <div className="rounded-2xl shadow-sm overflow-hidden">
           <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
         </div>
 
-        {/* Confidence slider */}
-        {task.showConfidenceSlider && !confidenceRated && (
+        {/* Typed answer — visible until submitted */}
+        {!answerSubmitted && (
+          <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
+            <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${cfg.dimText}`}>Your answer</p>
+            <textarea
+              className={`w-full bg-transparent resize-none text-base leading-relaxed focus:outline-none ${cfg.promptText}`}
+              rows={3}
+              placeholder="Type your answer here…"
+              value={answerText}
+              onChange={e => setAnswerText(e.target.value)}
+              disabled={submitting}
+            />
+            <button
+              disabled={!answerText.trim() || submitting}
+              onClick={submitAnswer}
+              className="mt-2 w-full py-2.5 rounded-xl font-bold text-sm text-white transition disabled:opacity-40"
+              style={{ background: cfg.accentDark }}
+            >
+              {submitting ? "Submitting…" : "Submit Answer →"}
+            </button>
+            {answerError && <p className="text-red-400 text-xs mt-1.5">{answerError}</p>}
+          </div>
+        )}
+
+        {/* Confidence — shown after answer submitted */}
+        {answerSubmitted && !confidenceRated && (
           <ConfidenceSlider
             token={token!}
             taskId={task.id}
@@ -1693,17 +1758,13 @@ export default function RmraStudentView() {
           />
         )}
 
-        {confidenceRated && (
+        {/* Done */}
+        {answerSubmitted && confidenceRated && (
           <div className={`text-center py-3 text-sm font-medium ${cfg.dimText}`}>
             ✓ Answer noted — waiting for the next question…
           </div>
         )}
       </div>
-
-      {/* Footer */}
-      <p className={`text-center text-xs mt-5 ${cfg.dimText}`}>
-        Speak your answer aloud — your teacher is listening
-      </p>
     </div>
   );
 }
