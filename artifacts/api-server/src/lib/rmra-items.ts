@@ -78,16 +78,16 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_MT_EP_001: "Count the equal groups of dots. How many groups? How many in each? Type the total.",
   RMRA_MT_UP_001: "Split the numbers and fill in each section of the grid. Type each product and the total.",
   RMRA_MT_MS_001: "The bar shows one group. Multiply to find the total for all groups. Type your answer and method.",
-  RMRA_MT_SEC_001: "Fill each cell of the grid using the terms. Collect like terms. Type the expanded expression.",
+  RMRA_MT_SEC_001: "Each cell in the grid shows one partial product. Add them up and collect like terms. Type the expanded expression.",
   // Division Thinking
   RMRA_DT_EP_001: "Share the items equally into the groups shown. How many in each group? Type your answer.",
   RMRA_DT_UP_001: "The total is shown. Share it equally into groups. Type the answer and how you worked it out.",
-  RMRA_DT_MS_001: "Use the bar to count how many of the smaller fraction fit into the total. Type the answer.",
+  RMRA_DT_MS_001: "The fraction bar shows the total. Look at how many equal parts fit inside it. Type the answer and how you worked it out.",
   RMRA_DT_SEC_001: "Work backwards from the area grid — find the missing factor. Type the quotient.",
   // Fractions
   RMRA_FR_EP_001: "Look at the circle. How many equal parts? Shade half in your mind. How many parts is that? Type your answer.",
-  RMRA_FR_UP_001: "Use the bar to picture both fractions. Type the total and the steps you used.",
-  RMRA_FR_MS_001: "Shade rows for one fraction, columns for the other. The overlap is the answer. Type it.",
+  RMRA_FR_UP_001: "The fraction bars show both amounts. Type the total and the steps you used to add them.",
+  RMRA_FR_MS_001: "The area model grid shows both fractions. The overlapping region is the product. Type the answer and simplify.",
   RMRA_FR_SEC_001: "Factor the numerator. Cancel the common factor. Type the simplified expression and restriction.",
   // Measurement
   RMRA_ME_EP_001: "Look at the two bars. Which is taller or longer? Type which one and explain how you can tell.",
@@ -1080,9 +1080,9 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "fractional_division",
     visualType: "fraction_bar",
     prompts: {
-      space_mission: "How many quarter-tanks of fuel fit in 3½ tanks? Explain using the fraction bar.",
+      space_mission: "How many quarter-tanks of fuel fit in 3½ tanks? Explain your method.",
       city_builder: "How many quarter-floor sections fit into 3½ floors?",
-      bakery_math: "How many quarter-cups of flour fit into 3½ cups? Show with a fraction bar.",
+      bakery_math: "How many quarter-cups of flour fit into 3½ cups? Show your working.",
       robot_factory: "How many quarter-power units fit in 3½ power units?",
       treasure_builder: "How many quarter-bags of treasure fit into 3½ bags?",
     },
@@ -1169,7 +1169,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "fraction_addition",
     visualType: "fraction_bar",
     prompts: {
-      space_mission: "A rocket used 2/3 of a fuel tank on launch and 3/4 of a fuel tank during the mission. How many tanks of fuel were used in total? Show using the fraction bar.",
+      space_mission: "A rocket used 2/3 of a fuel tank on launch and 3/4 of a fuel tank during the mission. How many tanks of fuel were used in total?",
       city_builder: "A builder used 2/3 of a bag of cement on one wall and 3/4 of a bag on another wall. How many bags of cement in total?",
       bakery_math: "You used 2/3 cup of butter and 3/4 cup of oil. How much fat in total?",
       robot_factory: "Robot A used 2/3 of a power cell on task 1 and then 3/4 of another power cell on task 2. How many power cells were used in total?",
