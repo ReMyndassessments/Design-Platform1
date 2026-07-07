@@ -716,7 +716,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Subtraction Reasoning",
     ageBand: "upper_primary",
     taskType: "difference",
-    visualType: "bar_model",
+    visualType: "number_line",
     prompts: {
       space_mission: "Rocket A travelled 8,004 km. Rocket B travelled 5,867 km. How much further did Rocket A go?",
       city_builder: "Building A is 8,004 cm tall. Building B is 5,867 cm. What's the height difference?",
