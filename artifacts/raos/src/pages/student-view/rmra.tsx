@@ -153,8 +153,9 @@ const ESTIMATION_FLASH_MS = 3000;
 
 type FlashPhase = "waiting" | "showing" | "done";
 
-function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase }: {
+function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA, groupB }: {
   taskId: string; dotCount: number; taskType: string; accent: string; flashPhase: FlashPhase;
+  groupA?: number; groupB?: number;
 }) {
   const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
@@ -163,7 +164,7 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase }: {
 
   if (isComparison) {
     // Side-by-side two groups
-    const leftN = count; const rightN = Math.round(count * (0.6 + rng() * 0.6));
+    const leftN = groupA ?? count; const rightN = groupB ?? Math.round(count * (0.6 + rng() * 0.6));
     const cols = (n: number) => Math.ceil(Math.sqrt(n));
     const renderGroup = (n: number, xOff: number) =>
       Array.from({ length: n }, (_, i) => {
@@ -1062,7 +1063,130 @@ function NumberBondVisual({ total, part1, part2, accent }: {
 
 // ── Visual: Bar Model ─────────────────────────────────────────────────────────
 
-function BarModelVisual({ total, accent }: { total: number; accent: string }) {
+function BarModelVisual({ total, accent, vp }: {
+  total: number; accent: string; vp?: Record<string, unknown>;
+}) {
+  const groups = typeof vp?.groups === "number" ? vp!.groups as number : null;
+  const vpTotal = typeof vp?.total === "number" ? vp!.total as number : total;
+
+  // Comparison bars (ME_EP_001): two vertical bars of different heights
+  const barA = typeof vp?.barA === "number" ? vp!.barA as number : null;
+  const barB = typeof vp?.barB === "number" ? vp!.barB as number : null;
+  if (barA !== null && barB !== null) {
+    const labelA = typeof vp?.labelA === "string" ? vp!.labelA as string : "A";
+    const labelB = typeof vp?.labelB === "string" ? vp!.labelB as string : "B";
+    const maxH = 80; const cbW = 50; const W = 220; const pad = 30;
+    const scaleA = barA / Math.max(barA, barB); const scaleB = barB / Math.max(barA, barB);
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Which is taller?</p>
+        <svg viewBox={`0 0 ${W} 130`} className="w-full max-w-xs mx-auto">
+          <rect x={pad} y={20 + maxH * (1 - scaleA)} width={cbW} height={maxH * scaleA} rx={4} fill={accent + "80"} stroke={accent} strokeWidth={2} />
+          <text x={pad + cbW / 2} y={Math.max(10, 20 + maxH * (1 - scaleA) - 6)} textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{barA}</text>
+          <text x={pad + cbW / 2} y={118} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{labelA}</text>
+          <rect x={W - pad - cbW} y={20 + maxH * (1 - scaleB)} width={cbW} height={maxH * scaleB} rx={4} fill="#94a3b8" stroke="#64748b" strokeWidth={2} />
+          <text x={W - pad - cbW / 2} y={Math.max(10, 20 + maxH * (1 - scaleB) - 6)} textAnchor="middle" fontSize={12} fill="#64748b" fontWeight="bold">{barB}</text>
+          <text x={W - pad - cbW / 2} y={118} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{labelB}</text>
+          <line x1={pad} y1={106} x2={W - pad} y2={106} stroke="#e2e8f0" strokeWidth={1.5} />
+        </svg>
+      </div>
+    );
+  }
+
+  // Multiplication / unit-cost (MT_MS_001): N equal bars each labeled with unit cost
+  const unitCost = typeof vp?.unitCost === "number" ? vp!.unitCost as number : null;
+  if (unitCost !== null && groups) {
+    const ucW = 260; const ucH = 44; const ucPad = 10;
+    const ucCell = (ucW - ucPad * 2) / groups;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Equal groups</p>
+        <svg viewBox={`0 0 ${ucW} ${ucH + 52}`} className="w-full max-w-xs mx-auto">
+          <text x={ucW / 2} y={10} textAnchor="middle" fontSize={12} fill="#475569" fontWeight="bold">{groups} × ${unitCost.toLocaleString()}</text>
+          <line x1={ucPad} y1={14} x2={ucW - ucPad} y2={14} stroke="#94a3b8" strokeWidth={1.5} />
+          <line x1={ucPad} y1={10} x2={ucPad} y2={18} stroke="#94a3b8" strokeWidth={1.5} />
+          <line x1={ucW - ucPad} y1={10} x2={ucW - ucPad} y2={18} stroke="#94a3b8" strokeWidth={1.5} />
+          {Array.from({ length: groups }, (_, i) => (
+            <g key={i}>
+              <rect x={ucPad + i * ucCell} y={20} width={ucCell - 1} height={ucH}
+                fill={accent + "18"} stroke={accent} strokeWidth={1.5} />
+              <text x={ucPad + i * ucCell + ucCell / 2} y={20 + ucH / 2 + 5}
+                textAnchor="middle" fontSize={10} fill={accent} fontWeight="bold">${unitCost.toLocaleString()}</text>
+            </g>
+          ))}
+          <text x={ucW / 2} y={ucH + 46} textAnchor="middle" fontSize={11} fill="#94a3b8">
+            {groups} × ${unitCost.toLocaleString()} = ?
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
+  // Proportional / rate context (NS_SEC_001): totalDays bar with queryDays highlighted
+  const totalDays = typeof vp?.totalDays === "number" ? vp!.totalDays as number : null;
+  const queryDays = typeof vp?.queryDays === "number" ? vp!.queryDays as number : null;
+  if (totalDays !== null && queryDays !== null) {
+    const distLabel = typeof vp?.distLabel === "string" ? vp!.distLabel as string : "";
+    const prW = 260; const prH = 44; const prPad = 10;
+    const segW = (prW - prPad * 2) / totalDays;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Proportional reasoning</p>
+        <svg viewBox={`0 0 ${prW} ${prH + 60}`} className="w-full max-w-xs mx-auto">
+          <text x={prW / 2} y={10} textAnchor="middle" fontSize={11} fill="#475569" fontWeight="bold">{totalDays} days = {distLabel}</text>
+          <line x1={prPad} y1={14} x2={prW - prPad} y2={14} stroke="#94a3b8" strokeWidth={1.5} />
+          {Array.from({ length: totalDays }, (_, i) => (
+            <rect key={i} x={prPad + i * segW} y={20} width={segW - 1} height={prH}
+              fill={i < queryDays ? accent + "50" : "#f1f5f9"}
+              stroke={i < queryDays ? accent : "#94a3b8"} strokeWidth={1.5} />
+          ))}
+          <text x={prPad + queryDays * segW / 2} y={20 + prH / 2 + 5}
+            textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{queryDays}d</text>
+          <text x={prPad + (queryDays + (totalDays - queryDays) / 2) * segW} y={20 + prH / 2 + 5}
+            textAnchor="middle" fontSize={11} fill="#94a3b8" fontWeight="bold">{totalDays - queryDays}d</text>
+          <text x={prW / 2} y={prH + 46} textAnchor="middle" fontSize={11} fill="#94a3b8">
+            Find distance for {queryDays} of {totalDays} days
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
+  // Division context: show total bar split into N equal groups each labeled "?"
+  if (groups) {
+    const W = 260; const H = 44; const PAD = 10;
+    const barW = W - PAD * 2;
+    const cellW = barW / groups;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Equal groups</p>
+        <svg viewBox={`0 0 ${W} ${H + 52}`} className="w-full max-w-xs mx-auto">
+          {/* Total label above */}
+          <text x={W / 2} y={10} textAnchor="middle" fontSize={13} fill="#475569" fontWeight="bold">{vpTotal.toLocaleString()}</text>
+          <line x1={PAD} y1={14} x2={W - PAD} y2={14} stroke="#94a3b8" strokeWidth={1.5} />
+          <line x1={PAD} y1={10} x2={PAD} y2={18} stroke="#94a3b8" strokeWidth={1.5} />
+          <line x1={W - PAD} y1={10} x2={W - PAD} y2={18} stroke="#94a3b8" strokeWidth={1.5} />
+          {/* Equal group cells */}
+          {Array.from({ length: groups }, (_, i) => (
+            <g key={i}>
+              <rect x={PAD + i * cellW} y={20} width={cellW - 1} height={H} rx={i === 0 ? 5 : 0}
+                fill={accent + "18"} stroke={accent} strokeWidth={1.5} />
+              <text x={PAD + i * cellW + cellW / 2} y={20 + H / 2 + 6}
+                textAnchor="middle" fontSize={16} fill="#94a3b8" fontWeight="bold">?</text>
+            </g>
+          ))}
+          {/* Rounded right cap */}
+          <rect x={PAD + (groups - 1) * cellW} y={20} width={cellW} height={H} rx={0}
+            fill="none" stroke="none" />
+          <text x={W / 2} y={H + 46} textAnchor="middle" fontSize={11} fill="#94a3b8">
+            {vpTotal.toLocaleString()} ÷ {groups} = ?
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
+  // Default part-whole bar model
   const safe = total;
   const part = Math.round(safe * 0.6);
   const W = 260; const H = 42; const ratio = part / safe;
@@ -1071,15 +1195,11 @@ function BarModelVisual({ total, accent }: { total: number; accent: string }) {
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>Bar model</p>
       <svg viewBox={`0 0 ${W} ${H + 60}`} className="w-full max-w-xs mx-auto">
-        {/* Full bar outline */}
         <rect x={10} y={10} width={W - 20} height={H} rx={5} fill="#f8fafc" stroke="#cbd5e1" strokeWidth={2} />
-        {/* Shaded part */}
         <rect x={10} y={10} width={(W - 20) * ratio} height={H} rx={5} fill={accent + "80"} />
         <line x1={10 + (W - 20) * ratio} y1={10} x2={10 + (W - 20) * ratio} y2={10 + H} stroke="white" strokeWidth={2} />
-        {/* Labels inside */}
         <text x={10 + (W - 20) * ratio / 2} y={10 + H / 2 + 5} textAnchor="middle" fontSize={14} fill="#1e293b" fontWeight="bold">{part}</text>
         <text x={10 + (W - 20) * ratio + (W - 20) * (1 - ratio) / 2} y={10 + H / 2 + 5} textAnchor="middle" fontSize={18} fill="#94a3b8" fontWeight="bold">?</text>
-        {/* Total label */}
         <line x1={10} y1={H + 22} x2={W - 10} y2={H + 22} stroke="#94a3b8" strokeWidth={1.5} />
         <line x1={10} y1={H + 16} x2={10} y2={H + 28} stroke="#94a3b8" strokeWidth={1.5} />
         <line x1={W - 10} y1={H + 16} x2={W - 10} y2={H + 28} stroke="#94a3b8" strokeWidth={1.5} />
@@ -1091,7 +1211,39 @@ function BarModelVisual({ total, accent }: { total: number; accent: string }) {
 
 // ── Visual: Area Model ────────────────────────────────────────────────────────
 
-function AreaModelVisual({ cols, rows, accent }: { cols: number; rows: number; accent: string }) {
+function AreaModelVisual({ cols, rows, accent, vp }: { cols: number; rows: number; accent: string; vp?: Record<string, unknown> }) {
+  // Labeled 2×2 decomposition (MT_UP_001: colLabels/rowLabels, MT_SEC_001: terms1/terms2)
+  const colLabels = (Array.isArray(vp?.colLabels) ? vp!.colLabels : Array.isArray(vp?.terms1) ? vp!.terms1 : null) as string[] | null;
+  const rowLabels = (Array.isArray(vp?.rowLabels) ? vp!.rowLabels : Array.isArray(vp?.terms2) ? vp!.terms2 : null) as string[] | null;
+  if (colLabels && rowLabels && colLabels.length >= 2 && rowLabels.length >= 2) {
+    const cW = 80; const rH = 50; const lblW = 36; const lblH = 24; const pad = 6;
+    const W = lblW + 2 * cW + 2 * pad; const H = lblH + 2 * rH + 2 * pad;
+    const fills = [[accent + "60", accent + "30"], [accent + "30", accent + "15"]];
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Area model</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-xs mx-auto">
+          {colLabels.slice(0, 2).map((cl, ci) => (
+            <text key={ci} x={lblW + ci * cW + cW / 2} y={16} textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{cl}</text>
+          ))}
+          {rowLabels.slice(0, 2).map((rl, ri) => (
+            <text key={ri} x={lblW / 2} y={lblH + ri * rH + rH / 2 + 5} textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{rl}</text>
+          ))}
+          {rowLabels.slice(0, 2).map((rl, ri) =>
+            colLabels.slice(0, 2).map((cl, ci) => (
+              <g key={`${ri}-${ci}`}>
+                <rect x={lblW + ci * cW} y={lblH + ri * rH} width={cW - 1} height={rH - 1} rx={3}
+                  fill={fills[ri][ci]} stroke={accent} strokeWidth={1.5} />
+                <text x={lblW + ci * cW + cW / 2} y={lblH + ri * rH + rH / 2 + 5}
+                  textAnchor="middle" fontSize={10} fill="#1e293b" fontWeight="600">{cl} × {rl}</text>
+              </g>
+            ))
+          )}
+        </svg>
+      </div>
+    );
+  }
+
   const cellW = Math.floor(200 / cols); const cellH = Math.floor(100 / rows);
   return (
     <div className={CARD_INNER}>
@@ -1168,6 +1320,36 @@ function ShapeRotationVisual({ taskId, accent, vp }: {
             transform="rotate(-33, 104, 78)">{hyp}</text>
         </svg>
         <p className="text-[10px] text-center text-slate-400 mt-1">Find the missing side</p>
+      </div>
+    );
+  }
+
+  // Trigonometry triangle (GS_SEC_001): angle + hypotenuse, find opposite side
+  const triAngle = typeof vp?.angle === "number" ? vp!.angle as number : null;
+  const triHyp = typeof vp?.hyp === "number" ? vp!.hyp as number : null;
+  if (triAngle !== null && triHyp !== null) {
+    const sinA = Math.sin(triAngle * Math.PI / 180);
+    const cosA = Math.cos(triAngle * Math.PI / 180);
+    const opp = Math.round(triHyp * sinA * 10) / 10;
+    const adj = Math.round(triHyp * cosA * 10) / 10;
+    const triMissing = typeof vp?.missing === "string" ? vp!.missing as string : "opp";
+    const bx = 20; const by = 140; const tx = bx; const ty = 40; const rx = 170; const ry = by;
+    const oppLabel = triMissing === "opp" ? "?" : String(opp);
+    const adjLabel = triMissing === "adj" ? "?" : String(adj);
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Trigonometry</p>
+        <svg viewBox="0 0 200 170" className="w-full max-w-[200px] mx-auto">
+          <polygon points={`${bx},${by} ${tx},${ty} ${rx},${ry}`} fill={accent + "15"} stroke={accent} strokeWidth={2.5} />
+          <rect x={bx} y={by - 12} width={12} height={12} fill="none" stroke={accent} strokeWidth={1.5} />
+          <path d={`M ${rx - 28 * cosA},${ry - 28 * sinA} A 28,28 0 0,0 ${rx - 28},${ry}`} fill="none" stroke="#64748b" strokeWidth={1.5} />
+          <text x={rx - 42} y={ry - 10} fontSize={11} fill="#475569" fontWeight="bold">{triAngle}°</text>
+          <text x={bx - 10} y={(by + ty) / 2} textAnchor="end" fontSize={13} fill={triMissing === "opp" ? accent : "#1e293b"} fontWeight="bold">{oppLabel}</text>
+          <text x={(bx + rx) / 2} y={by + 16} textAnchor="middle" fontSize={13} fill={triMissing === "adj" ? accent : "#1e293b"} fontWeight="bold">{adjLabel}</text>
+          <text x={(tx + rx) / 2 + 18} y={(ty + ry) / 2 - 4} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="bold"
+            transform={`rotate(-35, ${(tx + rx) / 2 + 18}, ${(ty + ry) / 2 - 4})`}>{triHyp}</text>
+        </svg>
+        <p className="text-[10px] text-center text-slate-400 mt-1">sin({triAngle}°) = opposite ÷ hypotenuse</p>
       </div>
     );
   }
@@ -1270,19 +1452,19 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const tt = task.taskType;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
-  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} />;
+  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
-  if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
+  if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} vp={vp} />;
   if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
   if (vt === "balance_scale") return <BalanceScaleVisual accent={accent} vp={vp} />;
   if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "clock") return <ClockVisual hour={num("hour", 3)} minute={num("minute", 0)} accent={accent} />;
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
-  if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
+  if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} vp={vp} />;
   if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={vp.part1 as number | undefined} part2={vp.part2 as number | undefined} accent={accent} />;
-  if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
+  if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} vp={vp} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;

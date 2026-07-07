@@ -206,6 +206,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "There are 6. Can you see how?",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
+    visualData: { dotCount: 6 },
     briefVersion: true,
   },
   {
@@ -233,6 +234,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Let's count together — which group has more?",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 2 },
+    visualData: { groupA: 7, groupB: 5 },
     briefVersion: true,
   },
   {
@@ -261,6 +263,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Count a group of 10 and estimate the rest.",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
+    visualData: { dotCount: 15 },
     briefVersion: false,
   },
 
@@ -291,6 +294,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Count a group of 10, then estimate the rest.",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { dotCount: 21 },
     briefVersion: true,
   },
   {
@@ -440,6 +444,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "6 × 10⁷ × 3 = 1.8 × 10⁸ = 180,000,000 km",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { totalDays: 7, queryDays: 3, distLabel: "4.2 \u00d7 10\u2078 km" },
     briefVersion: true,
   },
   {
@@ -447,7 +452,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Number Sense",
     ageBand: "secondary",
     taskType: "number_sense_proof",
-    visualType: "bar_model",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Without a calculator, is 127 × 49 closer to 5,000 or 6,500? Explain your reasoning.",
       city_builder: "Without calculating exactly, is 127 × 49 closer to 5,000 or 6,500? Explain.",
@@ -469,6 +474,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "130 × 50 = 6500, minus the adjustments ≈ 6223. Closer to 6500.",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { keyNumbers: ["127 \u00d7 49", "\u2248 5,000?", "\u2248 6,500?"], context: "Which estimate is closer?" },
     briefVersion: false,
   },
 
@@ -499,6 +505,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Use 2 long rods and 3 small cubes.",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
+    visualData: { tens: 2, ones: 3 },
     briefVersion: true,
   },
   {
@@ -527,6 +534,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "4 tens = 40",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
+    visualData: { tens: 4, ones: 7 },
     briefVersion: true,
   },
   {
@@ -555,6 +563,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "3,476 = 3,000 + 400 + 70 + 6",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
+    visualData: { thousands: 3, hundreds: 4, tens: 7, ones: 6 },
     briefVersion: true,
   },
   {
@@ -592,7 +601,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Place Value",
     ageBand: "middle_school",
     taskType: "decimal_place_value",
-    visualType: "place_value_chart",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "What is the value of the 7 in 3.478? Explain using place value language.",
       city_builder: "In the measurement 3.478 meters, what does the 7 represent?",
@@ -613,6 +622,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "7 hundredths = 7/100 = 0.07",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
+    visualData: { keyNumbers: ["3.478", "7 \u2192 hundredths", "= 0.07"], context: "Value of a digit" },
     briefVersion: true,
   },
   {
@@ -913,6 +923,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "3 × 4 = 12",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
+    visualData: { dotCount: 12 },
     briefVersion: true,
   },
   {
@@ -941,6 +952,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "740 + 148 = 888",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
+    visualData: { cols: 2, rows: 2, colLabels: ["20", "4"], rowLabels: ["30", "7"] },
     briefVersion: true,
   },
   {
@@ -969,6 +981,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Or: 7 × 2,450 = 17,150",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
+    visualData: { groups: 7, unitCost: 2450 },
     briefVersion: true,
   },
   {
@@ -997,6 +1010,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "= 2x² - 7x - 15",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { terms1: ["2x", "3"], terms2: ["x", "\u22125"] },
     briefVersion: true,
   },
 
@@ -1006,7 +1020,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Division Thinking",
     ageBand: "early_primary",
     taskType: "sharing",
-    visualType: "sorting_task",
+    visualType: "bar_model",
     prompts: {
       space_mission: "Share 12 moon rocks equally among 3 astronauts. How many does each get?",
       city_builder: "Share 12 bricks equally among 3 builders. How many bricks each?",
@@ -1057,6 +1071,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { total: 864, groups: 6 },
   },
   {
     id: "RMRA_DT_MS_001",
@@ -1092,7 +1107,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Division Thinking",
     ageBand: "secondary",
     taskType: "polynomial_division",
-    visualType: "area_model",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Divide (x² + 7x + 12) by (x + 3). What's the quotient? Show your method.",
       city_builder: "A rectangular area is (x² + 7x + 12). One side is (x + 3). Find the other side.",
@@ -1113,6 +1128,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "= (x + 4)",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { keyNumbers: ["x\u00b2 + 7x + 12", "\u00f7 (x + 3)", "= x + 4"], context: "Factor then divide" },
     briefVersion: false,
   },
 
@@ -1143,6 +1159,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "1/2 means 1 out of 2 equal parts.",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
+    visualData: { numerator: 1, denominator: 2 },
     briefVersion: true,
   },
   {
@@ -1200,6 +1217,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Or cancel before multiplying: (2/3) × (3/4) = 2/4 = 1/2",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
+    visualData: { cols: 3, rows: 4 },
     briefVersion: true,
   },
   {
@@ -1207,7 +1225,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Fractions",
     ageBand: "secondary",
     taskType: "rational_expressions",
-    visualType: "area_model",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Simplify: (x² - 4)/(x + 2). What is the restricted value of x?",
       city_builder: "Simplify the ratio (x² - 4)/(x + 2) and state any restrictions.",
@@ -1228,6 +1246,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Answer: x - 2, where x ≠ -2 (denominator can't be zero).",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    visualData: { keyNumbers: ["x\u00b2 \u2212 4", "(x+2)(x\u22122)", "\u00f7 (x+2) = x\u22122"], context: "Factor then cancel; x \u2260 \u22122" },
     briefVersion: false,
   },
 
@@ -1257,6 +1276,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Compare from the same starting point.",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
+    visualData: { barA: 70, barB: 45, labelA: "Red", labelB: "Blue" },
     briefVersion: true,
   },
   {
@@ -1287,6 +1307,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "P = 26m, A = 40m²",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
+    visualData: { cols: 8, rows: 5 },
     briefVersion: true,
   },
   {
@@ -1294,7 +1315,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Measurement",
     ageBand: "middle_school",
     taskType: "unit_conversion",
-    visualType: "bar_model",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "The spacecraft travels 2.5 km per second. How many metres per minute?",
       city_builder: "A high-speed rail system travels 2.5 km per second. How many metres per minute is that?",
@@ -1315,6 +1336,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "2,500 × 60 = 150,000 m/min",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
+    visualData: { keyNumbers: ["2.5 km/s", "\u00d71,000 \u2192 2,500 m/s", "\u00d760 \u2192 150,000 m/min"], context: "Convert step by step" },
     briefVersion: true,
   },
   {
@@ -1403,7 +1425,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
-    visualData: { rule: "\u00d7 3 + 2", inputGiven: 7, outputTarget: 23 },
+    visualData: { rule: "\u00d7 3 + 2", inputGiven: 7, outputTarget: 23, tableRows: [[1, 5], [3, 11], [5, 17], [7, "?"]] },
   },
   {
     id: "RMRA_PA_MS_001",
@@ -1468,7 +1490,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Geometry & Spatial Reasoning",
     ageBand: "early_primary",
     taskType: "shape_identification",
-    visualType: "sorting_task",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Sort these shapes into groups. Which ones are circles? Which are triangles?",
       city_builder: "Sort the building shapes — which have 3 sides and which have 4 sides?",
@@ -1488,6 +1510,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Sort by number of sides.",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
+    visualData: { keyNumbers: ["0 sides = circle", "3 sides = triangle", "4 sides = square"], context: "Sort by number of sides" },
     briefVersion: true,
   },
   {
@@ -1495,7 +1518,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Geometry & Spatial Reasoning",
     ageBand: "upper_primary",
     taskType: "angle_classification",
-    visualType: "shape_rotation",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Look at these angles. Which are acute, right, or obtuse? Rotate the shape to check.",
       city_builder: "Classify the angles in this building design — acute, right, or obtuse.",
@@ -1516,7 +1539,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
-    visualData: { angles: ["acute", "right", "obtuse"] },
+    visualData: { keyNumbers: ["< 90\u00b0 = acute", "= 90\u00b0 = right angle", "> 90\u00b0 = obtuse"], context: "Classify by angle size" },
   },
   {
     id: "RMRA_GS_MS_001",
@@ -1545,7 +1568,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
-    visualData: { leg1: 6, leg2: 8 },
+    visualData: { sideA: 6, sideB: 8, missing: "hyp" },
   },
   {
     id: "RMRA_GS_SEC_001",
@@ -1574,7 +1597,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
-    visualData: { angle: 30, hyp: 50 },
+    visualData: { angle: 30, hyp: 50, missing: "opp" },
   },
 
   // ── MATHEMATICAL LANGUAGE ─────────────────────────────────────────────────────
@@ -1610,7 +1633,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Mathematical Language",
     ageBand: "upper_primary",
     taskType: "word_problem_comprehension",
-    visualType: "bar_model",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "Identify the key information: 'A rocket travelled at 450 km/h for 3 hours but stopped for 30 minutes to refuel.' What does the question need?",
       city_builder: "Identify key information: 'A builder places 450 bricks per hour for 3 hours, then rests for 30 minutes.' What would you need to solve a problem?",
@@ -1630,6 +1653,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Key info: 450 km/h, 3 hours. The 30 min is extra if question asks for distance.",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
+    visualData: { keyNumbers: ["450 km/h", "3 hours", "+30 min break"], context: "Which info is needed for distance?" },
     briefVersion: true,
   },
   {
@@ -1687,7 +1711,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
-    visualData: { proof: "n + (n+1) = 2n + 1" },
+    visualData: { keyNumbers: ["n + (n+1)", "= 2n + 1", "always odd"], context: "Let n be any integer" },
   },
 
   // ── PROBLEM SOLVING & EXECUTIVE FUNCTION ──────────────────────────────────────
@@ -1718,7 +1742,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
-    visualData: { start: 10, take: 3, give: 5 },
+    visualData: { keyNumbers: ["Start: 10", "Give 3 away \u2192 7", "Find 5 more \u2192 12"], context: "Do each step in order" },
   },
   {
     id: "RMRA_PS_UP_001",
@@ -1776,7 +1800,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
-    visualData: { budget: 1200, costA: 150, minA: 5, costB: 75 },
+    visualData: { budgetItems: [{ label: "5 fuel tanks \u00d7 $150", amount: 750, category: "Required" }, { label: "Food packs \u00d7 $75", amount: "?", category: "Optional" }], budget: 1200 },
   },
   {
     id: "RMRA_PS_SEC_001",
