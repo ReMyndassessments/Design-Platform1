@@ -273,7 +273,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", au
       ))
       .limit(1);
 
-    const values = {
+    const baseValues = {
       sessionId,
       domain: body.domain,
       taskId,
@@ -285,7 +285,6 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", au
       hintLevel: body.hintLevel ?? 0,
       attempts: body.attempts ?? 1,
       selfCorrection: body.selfCorrection ?? false,
-      confidenceRating: body.confidenceRating ?? null,
       responseTimeSeconds: body.responseTimeSeconds ?? null,
       firstResponse: body.firstResponse ?? null,
       finalResponse: body.finalResponse ?? null,
@@ -302,15 +301,19 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", au
 
     let response;
     if (existing[0]) {
+      // Only overwrite confidenceRating if the examiner explicitly provides it;
+      // otherwise preserve the student-submitted value.
+      const updateValues: typeof baseValues & { confidenceRating?: number | null } = { ...baseValues };
+      if (body.confidenceRating !== undefined) updateValues.confidenceRating = body.confidenceRating;
       [response] = await db
         .update(rmraTaskResponsesTable)
-        .set(values)
+        .set(updateValues)
         .where(eq(rmraTaskResponsesTable.id, existing[0].id))
         .returning();
     } else {
       [response] = await db
         .insert(rmraTaskResponsesTable)
-        .values({ id: nanoid(), ...values })
+        .values({ id: nanoid(), ...baseValues, confidenceRating: body.confidenceRating ?? null })
         .returning();
     }
 
