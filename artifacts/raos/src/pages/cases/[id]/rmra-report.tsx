@@ -1015,7 +1015,7 @@ export function RmraReportPanel({
               <Target size={14} className="text-indigo-500" /> Progress Monitoring Targets
             </CardTitle>
             <p className="text-xs text-slate-400 mt-0.5">
-              SMART monitoring targets for identified areas of need. Edit each target to reflect the student's context before sharing.
+              SMART monitoring targets auto-generated from assessment data. Edit each target to reflect the student's context before sharing.
             </p>
           </CardHeader>
           <CardContent className="pt-4 space-y-3">
@@ -1027,7 +1027,7 @@ export function RmraReportPanel({
                 `By [review date], the student will demonstrate improved performance in ${info.label} with ≥${score.level === "high_concern" ? 60 : 75}% accuracy across 3 consecutive assessment sessions.\n` +
                 `Focus area: ${info.strategies[0] ?? "targeted intervention"}\n` +
                 `Measurement: Curriculum-based assessment probes, teacher observation, and RMRA follow-up screening.`;
-              const current = pmTargets[domain] ?? "";
+              const current = pmTargets[domain] ?? defaultTarget;
               return (
                 <div key={domain} className={`border rounded-lg overflow-hidden ${score.level === "high_concern" ? "border-red-200" : "border-orange-200"}`}>
                   <div className={`px-4 py-2 flex items-center gap-2 ${score.level === "high_concern" ? "bg-red-50" : "bg-orange-50"}`}>
@@ -1041,18 +1041,9 @@ export function RmraReportPanel({
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Monitoring Target</p>
                     <textarea
                       className="w-full text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400 min-h-[80px]"
-                      placeholder={defaultTarget}
                       value={current}
                       onChange={e => setPmTargets(prev => ({ ...prev, [domain]: e.target.value }))}
                     />
-                    {!current && (
-                      <button
-                        className="mt-1.5 text-[11px] text-violet-600 hover:text-violet-800 underline"
-                        onClick={() => setPmTargets(prev => ({ ...prev, [domain]: defaultTarget }))}
-                      >
-                        Use template target
-                      </button>
-                    )}
                   </div>
                 </div>
               );
