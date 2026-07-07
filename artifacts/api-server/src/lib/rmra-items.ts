@@ -1425,7 +1425,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
-    visualData: { rule: "\u00d7 3 + 2", inputGiven: 7, outputTarget: 23, tableRows: [[1, 5], [3, 11], [5, 17], [7, "?"]] },
+    visualData: { rule: "\u00d7 3 + 2", inputGiven: 7, outputTarget: 23, tableRows: [[1, 5], [3, 11], [5, 17], [7, "?"]], reverseRows: [["?", 29]] },
   },
   {
     id: "RMRA_PA_MS_001",
