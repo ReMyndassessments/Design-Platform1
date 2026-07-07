@@ -26,6 +26,7 @@ export type RmraItem = {
   hints: [string, string, string, string];
   scoring: { accuracy: 0 | 1 | 2; reasoning: 0 | 1 | 2 | 3 | 4; strategy: 0 | 1 | 2 | 3 | 4 | 5 };
   briefVersion: boolean;
+  visualData?: Record<string, unknown>;
 };
 
 export const RMRA_DOMAINS = [
@@ -319,6 +320,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { value: 650, scaleMin: 0, scaleMax: 1000 },
   },
   {
     id: "RMRA_NS_UP_003",
@@ -348,6 +350,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { valueA: 0.75, labelA: "3/4", valueB: 0.6, labelB: "0.6" },
   },
 
   {
@@ -378,6 +381,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { startVal: -45, change: 70 },
   },
   {
     id: "RMRA_NS_MS_002",
@@ -407,6 +411,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { sortValues: ["-1.5", "-3/4", "-0.5", "1.25", "3/2"] },
   },
 
   {
@@ -580,6 +585,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: false,
+    visualData: { value: 6847, scaleMin: 6700, scaleMax: 6900 },
   },
   {
     id: "RMRA_PV_MS_001",
@@ -637,6 +643,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { sciNotation: "4.56 \u00d7 10\u2077" },
   },
 
   // ── ADDITION REASONING ────────────────────────────────────────────────────────
@@ -727,6 +734,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { equation: "x + 47 = 125" },
   },
   {
     id: "RMRA_AR_SEC_001",
@@ -755,6 +763,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { equation: "(a+b) + (b+c) + (a+c) = 240" },
   },
 
   // ── SUBTRACTION REASONING ─────────────────────────────────────────────────────
@@ -815,6 +824,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { valueA: 8004, valueB: 5867 },
   },
   {
     id: "RMRA_SR_MS_001",
@@ -844,6 +854,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { valueA: -18, valueB: 23 },
   },
   {
     id: "RMRA_SR_SEC_001",
@@ -872,6 +883,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { expression: "(3x\u00b2 + 5x \u2212 7) \u2212 (x\u00b2 \u2212 2x + 4)" },
   },
 
   // ── MULTIPLICATIVE THINKING ────────────────────────────────────────────────────
@@ -1016,6 +1028,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
+    visualData: { total: 12, groups: 3 },
   },
   {
     id: "RMRA_DT_UP_001",
@@ -1072,6 +1085,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { dividend: "3\u00bd", divisor: "\u00bc", equation: "3\u00bd \u00f7 \u00bc = ?" },
   },
   {
     id: "RMRA_DT_SEC_001",
@@ -1158,6 +1172,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { frac1Num: 2, frac1Den: 3, frac2Num: 3, frac2Den: 4 },
   },
   {
     id: "RMRA_FR_MS_001",
@@ -1329,6 +1344,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { radius: 3, height: 10 },
   },
 
   // ── PATTERNS & EARLY ALGEBRA ──────────────────────────────────────────────────
@@ -1387,6 +1403,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { rule: "\u00d7 3 + 2", inputGiven: 7, outputTarget: 23 },
   },
   {
     id: "RMRA_PA_MS_001",
@@ -1499,6 +1516,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
+    visualData: { angles: ["acute", "right", "obtuse"] },
   },
   {
     id: "RMRA_GS_MS_001",
@@ -1527,6 +1545,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { leg1: 6, leg2: 8 },
   },
   {
     id: "RMRA_GS_SEC_001",
@@ -1555,6 +1574,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { angle: 30, hyp: 50 },
   },
 
   // ── MATHEMATICAL LANGUAGE ─────────────────────────────────────────────────────
@@ -1638,6 +1658,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 4 },
     briefVersion: false,
+    visualData: { patternRows: ["3\u00d73=9", "3\u00d72=6", "3\u00d71=3", "3\u00d70=0", "3\u00d7(\u22121)=?"] },
   },
   {
     id: "RMRA_ML_SEC_001",
@@ -1666,6 +1687,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { proof: "n + (n+1) = 2n + 1" },
   },
 
   // ── PROBLEM SOLVING & EXECUTIVE FUNCTION ──────────────────────────────────────
@@ -1696,6 +1718,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
+    visualData: { start: 10, take: 3, give: 5 },
   },
   {
     id: "RMRA_PS_UP_001",
@@ -1724,6 +1747,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { clues: ["B arrives before A", "C arrives last"] },
   },
   {
     id: "RMRA_PS_MS_001",
@@ -1752,6 +1776,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { budget: 1200, costA: 150, minA: 5, costB: 75 },
   },
   {
     id: "RMRA_PS_SEC_001",
@@ -1810,6 +1835,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
+    visualData: { weights: [2, 3, 4, 5] },
   },
   {
     id: "RMRA_RPS_UP_001",
@@ -1838,6 +1864,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 4 },
     briefVersion: true,
+    visualData: { steps: ["4 \u00d7 23 = 92", "92 + 37 = 119 (\u2717)", "Fix: 92 + 37 = 129"] },
   },
   {
     id: "RMRA_RPS_MS_001",
@@ -1866,6 +1893,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { sequence: [1, 8, 16, 24, "?"] },
   },
   {
     id: "RMRA_RPS_SEC_001",
@@ -1894,6 +1922,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
+    visualData: { expression: "(a+b)\u00b2 = a\u00b2 + 2ab + b\u00b2" },
   },
 ];
 

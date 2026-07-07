@@ -36,13 +36,14 @@ async function loadSession(sessionId: string, caseId: string) {
 }
 
 // ── Visual params helper (student-facing, answer-key free) ────────────────────
-function computeVisualParams(item: { visualType: string; exactAnswer?: number | string; expectedAnswerRange?: [number, number]; part1?: number; part2?: number }): Record<string, unknown> {
+function computeVisualParams(item: { visualType: string; exactAnswer?: number | string; expectedAnswerRange?: [number, number]; part1?: number; part2?: number; visualData?: Record<string, unknown> }): Record<string, unknown> {
   const ea = item.exactAnswer;
   const er = item.expectedAnswerRange;
+  let base: Record<string, unknown> = {};
   switch (item.visualType) {
     case "dot_array": {
       const count = typeof ea === "number" ? Math.min(ea, 30) : 12;
-      return { dotCount: count };
+      base = { dotCount: count }; break;
     }
     case "number_line": {
       const exact = typeof ea === "number" ? ea : parseFloat(String(ea ?? "NaN"));
@@ -50,7 +51,7 @@ function computeVisualParams(item: { visualType: string; exactAnswer?: number | 
       const rawMin = er ? Math.min(0, er[0]) : 0;
       const range = rawMax - rawMin;
       const step = range <= 20 ? 1 : range <= 100 ? 10 : range <= 1000 ? 100 : 1000;
-      return { scaleMin: Math.floor(rawMin / step) * step, scaleMax: Math.ceil(rawMax / step) * step };
+      base = { scaleMin: Math.floor(rawMin / step) * step, scaleMax: Math.ceil(rawMax / step) * step }; break;
     }
     case "base_ten_blocks": {
       let t = 0, h = 0, ten = 0, o = 0;
@@ -61,56 +62,57 @@ function computeVisualParams(item: { visualType: string; exactAnswer?: number | 
         if (mt) ten = parseInt(mt[1]); if (mo) o = parseInt(mo[1]);
         if (!ms && !mh && !mt && !mo) { const n = parseInt(ea.replace(/,/g, "")); if (!isNaN(n)) { t = Math.floor(n / 1000); h = Math.floor((n % 1000) / 100); ten = Math.floor((n % 100) / 10); o = n % 10; } }
       } else if (typeof ea === "number") { t = Math.floor(ea / 1000); h = Math.floor((ea % 1000) / 100); ten = Math.floor((ea % 100) / 10); o = ea % 10; } else { ten = 2; o = 3; }
-      return { thousands: Math.min(t, 5), hundreds: Math.min(h, 5), tens: Math.min(ten, 5), ones: Math.min(o, 5) };
+      base = { thousands: Math.min(t, 5), hundreds: Math.min(h, 5), tens: Math.min(ten, 5), ones: Math.min(o, 5) }; break;
     }
     case "fraction_bar":
     case "fraction_circle": {
       let num = 3, den = 4;
       if (typeof ea === "string") { const m = ea.match(/(\d+)\s*\/\s*(\d+)/); if (m) { num = parseInt(m[1]); den = parseInt(m[2]); } }
       else if (typeof ea === "number") { num = Math.round(ea * 4); den = 4; }
-      return { numerator: Math.max(1, num), denominator: Math.max(2, den) };
+      base = { numerator: Math.max(1, num), denominator: Math.max(2, den) }; break;
     }
     case "clock": {
       const eaStr = String(ea ?? "");
       const m = eaStr.match(/(\d+)[.:](\d+)/);
       const hour = m ? (parseInt(m[1]) % 12 || 12) : 3;
       const minute = m ? parseInt(m[2]) : 0;
-      return { hour, minute };
+      base = { hour, minute }; break;
     }
     case "place_value_chart": {
       let t = 0, h = 0, ten = 0, o = 0;
       if (typeof ea === "number") { t = Math.floor(ea / 1000) % 10; h = Math.floor(ea / 100) % 10; ten = Math.floor(ea / 10) % 10; o = ea % 10; }
       else if (typeof ea === "string") { const n = parseFloat(ea.replace(/,/g, "")); if (!isNaN(n)) { t = Math.floor(n / 1000) % 10; h = Math.floor(n / 100) % 10; ten = Math.floor(n / 10) % 10; o = Math.floor(n) % 10; } }
-      return { thousands: t, hundreds: h, tens: ten, ones: o };
+      base = { thousands: t, hundreds: h, tens: ten, ones: o }; break;
     }
     case "number_bond": {
       const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "10"));
       const result: Record<string, unknown> = { total: isNaN(total) ? 10 : total };
       if (item.part1 !== undefined) result.part1 = item.part1;
       if (item.part2 !== undefined) result.part2 = item.part2;
-      return result;
+      base = result; break;
     }
     case "bar_model": {
       const total = typeof ea === "number" ? ea : parseInt(String(ea ?? "100").replace(/,/g, ""));
-      return { total: isNaN(total) ? 100 : total };
+      base = { total: isNaN(total) ? 100 : total }; break;
     }
     case "area_model": {
       if (item.part1 !== undefined && item.part2 !== undefined) {
-        return { cols: Math.min(item.part1, 15), rows: Math.min(item.part2, 15) };
+        base = { cols: Math.min(item.part1, 15), rows: Math.min(item.part2, 15) }; break;
       }
       const n = typeof ea === "number" ? ea : parseInt(String(ea ?? "12"));
       const safe = isNaN(n) ? 12 : Math.min(n, 100);
       const cols = Math.min(10, Math.ceil(Math.sqrt(safe)));
       const rows = Math.ceil(safe / cols);
-      return { cols, rows };
+      base = { cols, rows }; break;
     }
     case "tally_marks": {
       const count = er ? Math.min(er[1], 25) : (typeof ea === "number" ? Math.min(ea, 25) : 13);
-      return { count };
+      base = { count }; break;
     }
     default:
-      return {};
+      base = {};
   }
+  return { ...base, ...(item.visualData ?? {}) };
 }
 
 // ── Create or retrieve session for an assignment ──────────────────────────────

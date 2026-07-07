@@ -230,61 +230,141 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase }: {
 }
 
 // ── Visual: Number Line ───────────────────────────────────────────────────────
+// Static context-driven illustration — no interactive elements
 
-function NumberLineVisual({ scaleMin, scaleMax, accent }: {
-  scaleMin: number; scaleMax: number; accent: string;
+function NumberLineVisual({ scaleMin, scaleMax, accent, taskType, vp }: {
+  scaleMin: number; scaleMax: number; accent: string; taskType: string;
+  vp: Record<string, unknown>;
 }) {
-  const minVal = scaleMin; const maxVal = scaleMax;
-  const range = maxVal - minVal;
+  const numVP = (k: string, fb: number) => typeof vp[k] === "number" ? vp[k] as number : fb;
+  const strVP = (k: string, fb: string) => typeof vp[k] === "string" ? vp[k] as string : fb;
+  const fmtNum = (n: number) => Number.isInteger(n) ? n.toLocaleString() : String(n);
+
+  // ── Comparison bars: two values shown as proportion bars (rockets, temperatures, etc.)
+  if (taskType === "difference" || taskType === "integer_subtraction" || taskType === "magnitude_comparison") {
+    const rawA = numVP("valueA", scaleMax * 0.65);
+    const rawB = numVP("valueB", scaleMax * 0.42);
+    const labelA = strVP("labelA", "A");
+    const labelB = strVP("labelB", "B");
+    const maxAbs = Math.max(Math.abs(rawA), Math.abs(rawB)) || 1;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Compare the values</p>
+        <div className="flex flex-col gap-3 py-1 w-full max-w-xs mx-auto">
+          {([{ val: rawA, label: labelA }, { val: rawB, label: labelB }] as { val: number; label: string }[]).map(({ val, label }) => (
+            <div key={label} className="flex flex-col gap-1">
+              <div className="flex justify-between items-center px-0.5">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{label}</span>
+                <span className="text-sm font-bold" style={{ color: accent }}>{fmtNum(val)}</span>
+              </div>
+              <div className="w-full h-7 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${Math.max((Math.abs(val) / maxAbs) * 100, 6)}%`, backgroundColor: accent + "cc" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Integer number line: start value with arc showing the change
+  if (taskType === "integer_sense") {
+    const startVal = numVP("startVal", -45);
+    const change = numVP("change", 70);
+    const endVal = startVal + change;
+    const minV = Math.min(startVal, 0, endVal) - 8;
+    const maxV = Math.max(startVal, 0, endVal) + 8;
+    const W = 280; const lineY = 56; const L = 20; const R = W - 20;
+    const toX = (v: number) => L + ((v - minV) / (maxV - minV)) * (R - L);
+    const midX = (toX(startVal) + toX(endVal)) / 2;
+    const uniqueVals = Array.from(new Set([startVal, 0, endVal]));
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Number line</p>
+        <svg viewBox={`0 0 ${W} 88`} className="w-full max-w-sm mx-auto">
+          <line x1={L} y1={lineY} x2={R} y2={lineY} stroke="#475569" strokeWidth={2.5} strokeLinecap="round" />
+          <polygon points={`${R + 2},${lineY} ${R - 8},${lineY - 4} ${R - 8},${lineY + 4}`} fill="#475569" />
+          {uniqueVals.map(v => {
+            const x = toX(v); const isKey = v === startVal || v === endVal;
+            return (
+              <g key={v}>
+                <line x1={x} y1={lineY - 7} x2={x} y2={lineY + 7} stroke={isKey ? accent : "#94a3b8"} strokeWidth={isKey ? 2.5 : 1.5} />
+                <text x={x} y={lineY + 20} textAnchor="middle" fontSize={11} fill={isKey ? accent : "#94a3b8"} fontWeight={isKey ? "bold" : "normal"}>{v}</text>
+              </g>
+            );
+          })}
+          <path d={`M ${toX(startVal)} ${lineY - 14} Q ${midX} ${lineY - 38} ${toX(endVal)} ${lineY - 14}`} fill="none" stroke={accent} strokeWidth={2} strokeDasharray="4,3" />
+          <polygon points={`${toX(endVal)},${lineY - 14} ${toX(endVal) - 5},${lineY - 24} ${toX(endVal) + 5},${lineY - 24}`} fill={accent} />
+          <text x={midX} y={lineY - 44} textAnchor="middle" fontSize={11} fill={accent} fontWeight="bold">{change > 0 ? `+${change}` : String(change)}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── Rational ordering: value chips to arrange
+  if (taskType === "rational_number_sense") {
+    const vals = Array.isArray(vp.sortValues) ? vp.sortValues as string[] : ["-1.5", "-\u00be", "-0.5", "1.25", "3/2"];
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Order these values</p>
+        <div className="flex flex-wrap justify-center gap-2 py-2">
+          {vals.map((v, i) => (
+            <div key={i} className="px-3 py-1.5 rounded-lg border-2 text-sm font-bold text-slate-700" style={{ borderColor: accent, backgroundColor: accent + "15" }}>{v}</div>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-400 text-center mt-1">Arrange from smallest \u2192 largest</p>
+      </div>
+    );
+  }
+
+  // ── Scientific notation display
+  if (taskType === "scientific_notation") {
+    const sci = strVP("sciNotation", "4.56 \u00d7 10\u2077");
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Scientific notation</p>
+        <div className="flex flex-col items-center gap-1 py-3">
+          <div className="text-2xl font-bold" style={{ color: accent }}>{sci}</div>
+          <p className="text-xs text-slate-400 mt-1">Write as an ordinary number</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Default: static number line with optional value marked
+  const sMin = numVP("scaleMin", scaleMin);
+  const sMax = numVP("scaleMax", scaleMax);
+  const value = numVP("value", NaN);
+  const range = sMax - sMin;
   const step = range <= 20 ? 1 : range <= 100 ? 10 : range <= 1000 ? 100 : 1000;
-  const [markerPos, setMarkerPos] = useState(0.5);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const dragging = useRef(false);
-
-  const W = 300; const lineY = 55; const L = 28; const R = W - 28;
-  const toX = (t: number) => L + t * (R - L);
-  const fromClientX = (cx: number) => {
-    if (!svgRef.current) return markerPos;
-    const rect = svgRef.current.getBoundingClientRect();
-    const svgX = (cx - rect.left) / rect.width * W;
-    return Math.max(0, Math.min(1, (svgX - L) / (R - L)));
-  };
-
-  const tickCount = Math.min(10, Math.ceil((maxVal - minVal) / step));
+  const tickCount = Math.min(10, Math.ceil(range / step));
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => i / tickCount);
-
+  const W = 300; const lineY = 55; const L = 28; const R = W - 28;
+  const toX2 = (t: number) => L + t * (R - L);
+  const valT = isNaN(value) ? null : Math.max(0, Math.min(1, (value - sMin) / (sMax - sMin)));
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag the marker to explore the number line</p>
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${W} 90`}
-        className="w-full max-w-sm mx-auto touch-none select-none"
-        style={{ cursor: "col-resize" }}
-        onMouseDown={e => { dragging.current = true; setMarkerPos(fromClientX(e.clientX)); }}
-        onMouseMove={e => { if (dragging.current) setMarkerPos(fromClientX(e.clientX)); }}
-        onMouseUp={() => { dragging.current = false; }}
-        onMouseLeave={() => { dragging.current = false; }}
-        onTouchStart={e => { dragging.current = true; setMarkerPos(fromClientX(e.touches[0].clientX)); e.preventDefault(); }}
-        onTouchMove={e => { if (dragging.current) setMarkerPos(fromClientX(e.touches[0].clientX)); e.preventDefault(); }}
-        onTouchEnd={() => { dragging.current = false; }}
-      >
+      <p className={TASK_LABEL}>Number line</p>
+      <svg viewBox={`0 0 ${W} 90`} className="w-full max-w-sm mx-auto">
         <line x1={L} y1={lineY} x2={R} y2={lineY} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
         <polygon points={`${R + 2},${lineY} ${R - 9},${lineY - 4} ${R - 9},${lineY + 4}`} fill="#334155" />
         {ticks.map((t, i) => {
-          const x = toX(t);
-          const val = Math.round(minVal + t * (maxVal - minVal));
+          const x = toX2(t); const val = Math.round(sMin + t * range);
           const isMain = i === 0 || i === tickCount || i === Math.floor(tickCount / 2);
           return (
             <g key={i}>
               <line x1={x} y1={lineY - (isMain ? 10 : 6)} x2={x} y2={lineY + (isMain ? 10 : 6)} stroke="#475569" strokeWidth={isMain ? 2.5 : 1.5} />
-              {isMain && <text x={x} y={lineY + 22} textAnchor="middle" fontSize={12} fill="#475569" fontWeight="600">{val}</text>}
+              {isMain && <text x={x} y={lineY + 22} textAnchor="middle" fontSize={11} fill="#475569" fontWeight="600">{val.toLocaleString()}</text>}
             </g>
           );
         })}
-        {/* Draggable pointer — no value label */}
-        <line x1={toX(markerPos)} y1={lineY - 22} x2={toX(markerPos)} y2={lineY + 2} stroke={accent} strokeWidth={2} strokeDasharray="3,2" />
-        <polygon points={`${toX(markerPos)},${lineY - 22} ${toX(markerPos) - 8},${lineY - 36} ${toX(markerPos) + 8},${lineY - 36}`} fill={accent} />
+        {valT !== null && (
+          <g>
+            <line x1={toX2(valT)} y1={lineY - 22} x2={toX2(valT)} y2={lineY + 2} stroke={accent} strokeWidth={2.5} strokeDasharray="3,2" />
+            <polygon points={`${toX2(valT)},${lineY - 22} ${toX2(valT) - 8},${lineY - 36} ${toX2(valT) + 8},${lineY - 36}`} fill={accent} />
+            <text x={toX2(valT)} y={lineY - 40} textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{value.toLocaleString()}</text>
+          </g>
+        )}
       </svg>
     </div>
   );
@@ -303,24 +383,9 @@ const BLOCK_DEFS: { key: BlockKey; label: string; name: string; color: string; w
 function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
   thousands: number; hundreds: number; tens: number; ones: number; accent: string;
 }) {
-  // Workspace: student builds their answer by dragging blocks from the palette
-  const [ws, setWs] = useState<Record<BlockKey, number>>({ th: 0, h: 0, t: 0, o: 0 });
-  const dragKey = useRef<BlockKey | null>(null);
-  const [dropping, setDropping] = useState(false);
-
-  // Palette block counts from the stimulus
   const palette: Record<BlockKey, number> = {
     th: Math.min(thousands, 5), h: Math.min(hundreds, 5),
     t: Math.min(tens, 9), o: Math.min(ones, 9),
-  };
-
-  const addToWorkspace = (key: BlockKey) => setWs(w => ({ ...w, [key]: Math.min((w[key] ?? 0) + 1, 9) }));
-  const removeFromWorkspace = (key: BlockKey) => setWs(w => ({ ...w, [key]: Math.max((w[key] ?? 0) - 1, 0) }));
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDropping(false);
-    if (dragKey.current) { addToWorkspace(dragKey.current); dragKey.current = null; }
   };
 
   const Block = ({ color, w, h }: { color: string; w: number; h: number }) => (
@@ -329,258 +394,287 @@ function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag blocks into the workspace — build the number</p>
-
-      {/* Palette (stimulus) */}
-      <div className="flex items-end justify-center gap-3 pb-2 border-b border-slate-100 mb-2">
+      <p className={TASK_LABEL}>Place value blocks</p>
+      <div className="flex items-end justify-center gap-4 py-2">
         {BLOCK_DEFS.filter(d => palette[d.key] > 0).map(({ key, label, color, w, h }) => (
           <div key={key} className="flex flex-col items-center gap-1">
-            <div className="flex flex-col gap-0.5 items-center cursor-grab active:cursor-grabbing"
-              draggable
-              onDragStart={() => { dragKey.current = key; }}
-              onClick={() => addToWorkspace(key)}
-            >
+            <div className="flex flex-col gap-0.5 items-center">
               {Array.from({ length: palette[key] }, (_, i) => (
                 <Block key={i} color={color} w={w} h={h} />
               ))}
             </div>
-            <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
+            <span className="text-[10px] font-bold" style={{ color }}>{palette[key]}×{label}</span>
           </div>
         ))}
-      </div>
-
-      {/* Drop Zone / Workspace */}
-      <div
-        className={`min-h-[64px] rounded-xl border-2 border-dashed p-2 transition-colors ${dropping ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-slate-50"}`}
-        onDragOver={e => { e.preventDefault(); setDropping(true); }}
-        onDragLeave={() => setDropping(false)}
-        onDrop={handleDrop}
-      >
-        <p className="text-[10px] text-slate-400 text-center mb-1">
-          {Object.values(ws).every(v => v === 0) ? "Drag or tap blocks above ↑ to add here" : "Workspace"}
-        </p>
-        <div className="flex items-end gap-3 flex-wrap justify-center">
-          {BLOCK_DEFS.filter(d => ws[d.key] > 0).map(({ key, label, color, w, h }) => (
-            <button key={key} onClick={() => removeFromWorkspace(key)}
-              className="flex flex-col items-center gap-0.5 hover:opacity-70 transition-opacity"
-              title={`Remove ${label}`}>
-              {Array.from({ length: ws[key] }, (_, i) => <Block key={i} color={color} w={w} h={h} />)}
-              <span className="text-[9px] font-bold" style={{ color }}>{ws[key]}×{label}</span>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
 }
 
 // ── Visual: Fraction Bar ──────────────────────────────────────────────────────
+// Static illustration showing two fraction bars side by side (or single)
 
-function FractionBarVisual({ numerator, denominator, accent }: {
+function FractionBarVisual({ numerator, denominator, accent, vp }: {
   numerator: number; denominator: number; accent: string;
+  vp?: Record<string, unknown>;
 }) {
-  const den = Math.max(denominator, 2);
-  const [selected, setSelected] = useState(0); // number of shaded cells (0 = student hasn't answered)
-  const svgRef = useRef<SVGSVGElement>(null);
-  const dragging = useRef(false);
-  const W = 280; const H = 52; const PAD = 10;
-  const barW = W - PAD * 2;
-  const cellW = barW / den;
+  const vpNum = (k: string, fb: number) => typeof vp?.[k] === "number" ? vp![k] as number : fb;
+  const strVP = (k: string, fb: string) => typeof vp?.[k] === "string" ? vp![k] as string : fb;
 
-  const posToCount = (clientX: number) => {
-    if (!svgRef.current) return selected;
-    const rect = svgRef.current.getBoundingClientRect();
-    const relX = (clientX - rect.left) / rect.width * W - PAD;
-    return Math.max(0, Math.min(den, Math.round(relX / cellW)));
-  };
+  // Fraction division context (DT_MS_001): show dividend ÷ divisor
+  const equation = strVP("equation", "");
+  if (equation) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Fraction division</p>
+        <div className="flex flex-col items-center gap-3 py-2">
+          <div className="text-3xl font-bold tracking-wide" style={{ color: accent }}>{equation}</div>
+          <div className="text-xs text-slate-400">How many {strVP("divisor", "quarters")} fit in {strVP("dividend", "3½")} wholes?</div>
+          {/* Visual: 4 whole bars with the last one half-shaded */}
+          <div className="flex gap-1 mt-1">
+            {[1, 1, 1, 0.5].map((fill, i) => (
+              <div key={i} className="h-8 w-14 rounded border-2 overflow-hidden" style={{ borderColor: accent }}>
+                <div className="h-full" style={{ width: `${fill * 100}%`, backgroundColor: accent + "c0" }} />
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-400">Each bar = 1 whole</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Two-fraction comparison (FR_UP_001): frac1 and frac2 side by side
+  const f1n = vpNum("frac1Num", numerator); const f1d = vpNum("frac1Den", denominator);
+  const f2n = vpNum("frac2Num", numerator); const f2d = vpNum("frac2Den", denominator);
+  const hasTwoFractions = vp && vp.frac1Num !== undefined;
+
+  if (hasTwoFractions) {
+    const W = 260; const H = 36; const PAD = 8; const barW = W - PAD * 2;
+    const row = (num: number, den: number, label: string, y: number) => {
+      const cellW = barW / den;
+      return (
+        <g key={label}>
+          {Array.from({ length: den }, (_, i) => (
+            <rect key={i} x={PAD + i * cellW} y={y} width={cellW - 1.5} height={H}
+              fill={i < num ? accent + "c0" : "#f1f5f9"}
+              stroke={i < num ? accent : "#94a3b8"} strokeWidth={i < num ? 2 : 1.5} rx={2} />
+          ))}
+          <text x={PAD - 4} y={y + H / 2 + 4} textAnchor="end" fontSize={11} fill="#64748b" fontWeight="bold">{num}/{den}</text>
+        </g>
+      );
+    };
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Compare the fractions</p>
+        <svg viewBox={`0 0 ${W} 105`} className="w-full max-w-xs mx-auto">
+          {row(f1n, f1d, "f1", 8)}
+          {row(f2n, f2d, "f2", 58)}
+        </svg>
+      </div>
+    );
+  }
+
+  // Default single bar
+  const den = Math.max(denominator, 2); const num = Math.min(numerator, den);
+  const W = 260; const H = 40; const PAD = 8; const cellW = (W - PAD * 2) / den;
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag to shade the fraction bar</p>
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 24}`}
-        className="w-full max-w-xs mx-auto touch-none select-none"
-        style={{ cursor: "col-resize" }}
-        onMouseDown={e => { dragging.current = true; setSelected(posToCount(e.clientX)); }}
-        onMouseMove={e => { if (dragging.current) setSelected(posToCount(e.clientX)); }}
-        onMouseUp={() => { dragging.current = false; }}
-        onMouseLeave={() => { dragging.current = false; }}
-        onTouchStart={e => { dragging.current = true; setSelected(posToCount(e.touches[0].clientX)); e.preventDefault(); }}
-        onTouchMove={e => { if (dragging.current) setSelected(posToCount(e.touches[0].clientX)); e.preventDefault(); }}
-        onTouchEnd={() => { dragging.current = false; }}
-      >
-        {/* Cell backgrounds */}
+      <p className={TASK_LABEL}>Fraction bar</p>
+      <svg viewBox={`0 0 ${W} ${H + 24}`} className="w-full max-w-xs mx-auto">
         {Array.from({ length: den }, (_, i) => (
-          <rect key={i} x={PAD + i * cellW} y={4} width={cellW - 1} height={H}
-            fill={i < selected ? accent + "c0" : "#f1f5f9"}
-            stroke={i < selected ? accent : "#94a3b8"} strokeWidth={i < selected ? 2 : 1.5} />
+          <rect key={i} x={PAD + i * cellW} y={4} width={cellW - 1.5} height={H}
+            fill={i < num ? accent + "c0" : "#f1f5f9"}
+            stroke={i < num ? accent : "#94a3b8"} strokeWidth={i < num ? 2 : 1.5} rx={2} />
         ))}
-        {/* Drag handle at boundary */}
-        {selected > 0 && selected < den && (
-          <rect x={PAD + selected * cellW - 4} y={2} width={8} height={H + 4} rx={3}
-            fill={accent} opacity={0.9} style={{ cursor: "col-resize" }} />
-        )}
-        {/* Instruction hint */}
-        <text x={W / 2} y={H + 20} textAnchor="middle" fontSize={11} fill="#94a3b8">
-          {selected === 0 ? "Drag across the bar ↑" : `${selected} of ${den} parts shaded`}
-        </text>
+        <text x={W / 2} y={H + 20} textAnchor="middle" fontSize={11} fill="#64748b">{num} of {den} parts</text>
       </svg>
     </div>
   );
 }
 
 // ── Visual: Fraction Circle ───────────────────────────────────────────────────
+// Static illustration — pre-shaded to show the fraction
 
 function FractionCircleVisual({ numerator, denominator, accent }: {
   numerator: number; denominator: number; accent: string;
 }) {
   const den = Math.max(denominator, 2);
-  const [selected, setSelected] = useState(0);
-  const R = 72; const cx = 100; const cy = 95;
+  const num = Math.min(numerator, den);
+  const R = 68; const cx = 100; const cy = 88;
 
   const makeSlice = (i: number) => {
     const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
     const a2 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
     const x1 = cx + R * Math.cos(a1); const y1 = cy + R * Math.sin(a1);
     const x2 = cx + R * Math.cos(a2); const y2 = cy + R * Math.sin(a2);
-    return `M${cx},${cy} L${x1},${y1} A${R},${R} 0 ${1 / den > 0.5 ? 1 : 0},1 ${x2},${y2}Z`;
+    const large = 1 / den > 0.5 ? 1 : 0;
+    return `M${cx},${cy} L${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2}Z`;
   };
-
-  const handleSlice = (i: number) => setSelected(prev => (i + 1 === prev ? i : i + 1));
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap to shade the circle</p>
-      <svg viewBox="0 0 200 185" className="w-48 mx-auto touch-none select-none">
+      <p className={TASK_LABEL}>Fraction circle</p>
+      <svg viewBox="0 0 200 185" className="w-44 mx-auto">
         {Array.from({ length: den }, (_, i) => (
           <path key={i} d={makeSlice(i)}
-            fill={i < selected ? accent + "c0" : "#f1f5f9"}
-            stroke={i < selected ? accent : "#94a3b8"}
-            strokeWidth={i < selected ? 2 : 1.5}
-            style={{ cursor: "pointer" }}
-            onClick={() => handleSlice(i)}
-          />
+            fill={i < num ? accent + "c0" : "#f1f5f9"}
+            stroke={i < num ? accent : "#94a3b8"}
+            strokeWidth={i < num ? 2 : 1.5} />
         ))}
+        <text x={cx} y={cy + R + 22} textAnchor="middle" fontSize={13} fill="#64748b" fontWeight="bold">
+          {num}/{den}
+        </text>
       </svg>
-      <p className="text-center text-xs text-slate-500 mt-1">
-        {selected === 0 ? "Tap a slice to shade it" : `${selected} of ${den} slices shaded`}
-      </p>
     </div>
   );
 }
 
 // ── Visual: Balance Scale ─────────────────────────────────────────────────────
+// Static illustration — shows equation or weights context, no interaction
 
-const WEIGHT_TOKENS = [1, 2, 3, 5, 10];
+function BalanceScaleVisual({ accent, vp }: { accent: string; vp: Record<string, unknown> }) {
+  const strVP = (k: string, fb: string) => typeof vp[k] === "string" ? vp[k] as string : fb;
 
-function BalanceScaleVisual({ taskId, accent }: { taskId: string; accent: string }) {
-  const [leftW, setLeftW] = useState<number[]>([]);
-  const [rightW, setRightW] = useState<number[]>([]);
-  const [dropHighlight, setDropHighlight] = useState<"left" | "right" | null>(null);
-  const dragVal = useRef<number | null>(null);
+  // Equation display (algebraic items: AR_MS_001, AR_SEC_001)
+  const equation = strVP("equation", "");
+  if (equation) {
+    const cx = 130; const cy = 64; const arm = 80; const panH = 38;
+    const lx = cx - arm; const rx = cx + arm;
+    const [lhs, rhs] = equation.includes("=") ? equation.split("=").map(s => s.trim()) : [equation, "?"];
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Balance scale</p>
+        <svg viewBox="0 0 260 160" className="w-full max-w-xs mx-auto">
+          <line x1={cx} y1={12} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+          <line x1={lx} y1={cy} x2={rx} y2={cy} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
+          <line x1={lx} y1={cy} x2={lx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+          <line x1={rx} y1={cy} x2={rx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+          <rect x={lx - 30} y={cy + panH} width={60} height={28} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          <rect x={rx - 30} y={cy + panH} width={60} height={28} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          <text x={lx} y={cy + panH + 18} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{lhs}</text>
+          <text x={rx} y={cy + panH + 18} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{rhs}</text>
+          <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 46} ${cx + 13},${cy + 46}`} fill="#94a3b8" />
+          <line x1={cx - 18} y1={cy + 46} x2={cx + 18} y2={cy + 46} stroke="#64748b" strokeWidth={4} />
+        </svg>
+        <p className="text-center text-xs text-slate-400 -mt-1">{equation}</p>
+      </div>
+    );
+  }
 
-  const leftTotal = leftW.reduce((s, v) => s + v, 0);
-  const rightTotal = rightW.reduce((s, v) => s + v, 0);
-  // Tilt: positive = right side down (right heavier), negative = left side down
-  const rawTilt = (rightTotal - leftTotal);
-  const tiltDeg = Math.max(-28, Math.min(28, rawTilt * 3));
-  const tiltRad = (tiltDeg * Math.PI) / 180;
-  const arm = 80; const cx = 130; const cy = 72;
-  const lx = cx - arm * Math.cos(tiltRad); const ly = cy - arm * Math.sin(tiltRad);
-  const rx = cx + arm * Math.cos(tiltRad); const ry = cy + arm * Math.sin(tiltRad);
-  const panH = 40;
+  // Weight tokens display (RPS_EP_001)
+  const weights = Array.isArray(vp.weights) ? vp.weights as number[] : [];
+  if (weights.length > 0) {
+    const cx = 130; const cy = 60; const arm = 80; const panH = 38;
+    const lx = cx - arm; const rx = cx + arm;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Balance the scale</p>
+        <svg viewBox="0 0 260 155" className="w-full max-w-xs mx-auto">
+          <line x1={cx} y1={12} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+          <line x1={lx} y1={cy} x2={rx} y2={cy} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
+          <line x1={lx} y1={cy} x2={lx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+          <line x1={rx} y1={cy} x2={rx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+          <rect x={lx - 32} y={cy + panH} width={64} height={32} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          <rect x={rx - 32} y={cy + panH} width={64} height={32} rx={6} fill="#f1f5f9" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="4,3" />
+          <text x={rx} y={cy + panH + 21} textAnchor="middle" fontSize={11} fill="#94a3b8">?</text>
+          <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 48} ${cx + 13},${cy + 48}`} fill="#94a3b8" />
+          <line x1={cx - 18} y1={cy + 48} x2={cx + 18} y2={cy + 48} stroke="#64748b" strokeWidth={4} />
+        </svg>
+        <div className="flex justify-center gap-2 mt-1">
+          {weights.map((w, i) => (
+            <div key={i} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border-2" style={{ borderColor: accent, color: accent, backgroundColor: accent + "18" }}>{w}</div>
+          ))}
+        </div>
+        <p className="text-[10px] text-center text-slate-400 mt-1">Available weights</p>
+      </div>
+    );
+  }
 
-  const onDrop = (side: "left" | "right") => {
-    if (dragVal.current === null) return;
-    const v = dragVal.current; dragVal.current = null;
-    if (side === "left") setLeftW(w => [...w, v]);
-    else setRightW(w => [...w, v]);
-    setDropHighlight(null);
-  };
-  const removeLeft = (i: number) => setLeftW(w => w.filter((_, j) => j !== i));
-  const removeRight = (i: number) => setRightW(w => w.filter((_, j) => j !== i));
+  // Calculation chain display (RPS_UP_001)
+  const steps = Array.isArray(vp.steps) ? vp.steps as string[] : [];
+  if (steps.length > 0) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Calculation chain</p>
+        <div className="flex flex-col gap-2 py-1">
+          {steps.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0" style={{ backgroundColor: accent + "22", color: accent }}>{i + 1}</div>
+              <div className="flex-1 text-sm font-semibold text-slate-700 bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-200">{s}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  const panHighlight = (side: "left" | "right") => dropHighlight === side ? "#dbeafe" : accent + "18";
-
+  // Fallback: plain scale illustration
+  const cx = 130; const cy = 64; const arm = 80; const panH = 38;
+  const lx = cx - arm; const rx = cx + arm;
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag weights onto the pans — balance the scale</p>
-
-      {/* Weight token palette */}
-      <div className="flex justify-center gap-2 mb-2">
-        {WEIGHT_TOKENS.map(v => (
-          <div key={v} draggable
-            onDragStart={() => { dragVal.current = v; }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold cursor-grab active:cursor-grabbing border-2 select-none"
-            style={{ backgroundColor: accent + "22", borderColor: accent, color: accent }}>
-            {v}
-          </div>
-        ))}
-      </div>
-
-      {/* Scale SVG */}
-      <svg viewBox="0 0 260 200" className="w-full max-w-xs mx-auto">
-        {/* Pole */}
-        <line x1={cx} y1={10} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
-        {/* Beam */}
-        <line x1={lx} y1={ly} x2={rx} y2={ry} stroke="#334155" strokeWidth={5} strokeLinecap="round"
-          style={{ transition: "all 0.35s ease" }} />
-        {/* Strings */}
-        <line x1={lx} y1={ly} x2={lx} y2={ly + panH} stroke="#64748b" strokeWidth={2.5}
-          style={{ transition: "all 0.35s ease" }} />
-        <line x1={rx} y1={ry} x2={rx} y2={ry + panH} stroke="#64748b" strokeWidth={2.5}
-          style={{ transition: "all 0.35s ease" }} />
-        {/* Fulcrum */}
-        <polygon points={`${cx},${cy + 2} ${cx - 14},${cy + 52} ${cx + 14},${cy + 52}`} fill="#94a3b8" />
-        <line x1={cx - 20} y1={cy + 52} x2={cx + 20} y2={cy + 52} stroke="#64748b" strokeWidth={4} />
+      <p className={TASK_LABEL}>Balance scale</p>
+      <svg viewBox="0 0 260 150" className="w-full max-w-xs mx-auto">
+        <line x1={cx} y1={12} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+        <line x1={lx} y1={cy} x2={rx} y2={cy} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
+        <line x1={lx} y1={cy} x2={lx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+        <line x1={rx} y1={cy} x2={rx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
+        <rect x={lx - 30} y={cy + panH} width={60} height={26} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+        <rect x={rx - 30} y={cy + panH} width={60} height={26} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+        <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 44} ${cx + 13},${cy + 44}`} fill="#94a3b8" />
+        <line x1={cx - 18} y1={cy + 44} x2={cx + 18} y2={cy + 44} stroke="#64748b" strokeWidth={4} />
       </svg>
-
-      {/* Pans as HTML drop zones (below SVG to avoid SVG hit-area issues) */}
-      <div className="grid grid-cols-2 gap-3 -mt-2">
-        {(["left", "right"] as const).map((side, si) => {
-          const weights = side === "left" ? leftW : rightW;
-          const total = side === "left" ? leftTotal : rightTotal;
-          const remove = side === "left" ? removeLeft : removeRight;
-          return (
-            <div key={side}
-              onDragOver={e => { e.preventDefault(); setDropHighlight(side); }}
-              onDragLeave={() => setDropHighlight(null)}
-              onDrop={e => { e.preventDefault(); onDrop(side); }}
-              className="rounded-xl border-2 border-dashed min-h-[52px] p-2 text-center transition-colors"
-              style={{ borderColor: accent, backgroundColor: panHighlight(side) }}>
-              <p className="text-[10px] font-bold mb-1" style={{ color: accent }}>
-                {side === "left" ? "Left Pan" : "Right Pan"}
-                {total > 0 ? ` (${total})` : ""}
-              </p>
-              <div className="flex flex-wrap justify-center gap-1">
-                {weights.map((v, i) => (
-                  <button key={i} onClick={() => remove(i)}
-                    className="w-7 h-7 rounded-full text-[10px] font-bold border"
-                    style={{ backgroundColor: accent + "30", borderColor: accent, color: accent }}
-                    title="Tap to remove">
-                    {v}
-                  </button>
-                ))}
-              </div>
-              {weights.length === 0 && <p className="text-[9px] text-slate-400">drop here</p>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Balance readout */}
-      <p className="text-center text-xs mt-2 font-semibold"
-        style={{ color: leftTotal === rightTotal && leftTotal > 0 ? "#16a34a" : "#94a3b8" }}>
-        {leftTotal === 0 && rightTotal === 0 ? "Add weights to both pans" :
-          leftTotal === rightTotal ? "⚖️ Balanced!" :
-          leftTotal > rightTotal ? `Left heavier by ${leftTotal - rightTotal}` : `Right heavier by ${rightTotal - leftTotal}`}
-      </p>
     </div>
   );
 }
 
 // ── Visual: Pattern Builder ───────────────────────────────────────────────────
 
-function PatternBuilderVisual({ taskId, accent }: { taskId: string; accent: string }) {
+function PatternBuilderVisual({ taskId, accent, vp }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>;
+}) {
+  // ML_MS_001: multiplication pattern rows
+  const patternRows = Array.isArray(vp?.patternRows) ? vp!.patternRows as string[] : null;
+  if (patternRows) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Pattern</p>
+        <div className="flex flex-col gap-1.5 py-1 max-w-[200px] mx-auto">
+          {patternRows.map((row, i) => {
+            const isLast = i === patternRows.length - 1;
+            return (
+              <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded-lg border text-sm font-mono font-semibold"
+                style={{ borderColor: isLast ? accent : "#e2e8f0", backgroundColor: isLast ? accent + "15" : "#f8fafc", color: isLast ? accent : "#334155" }}>
+                {row}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // RPS_MS_001: sequence of numbers
+  const sequence = Array.isArray(vp?.sequence) ? vp!.sequence : null;
+  if (sequence) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Sequence</p>
+        <div className="flex items-center justify-center gap-2 py-2 flex-wrap">
+          {sequence.map((v, i) => (
+            <div key={i} className={`px-3 py-2 rounded-lg border-2 text-base font-bold ${v === "?" ? "border-dashed" : ""}`}
+              style={{ borderColor: accent, backgroundColor: v === "?" ? "transparent" : accent + "18", color: v === "?" ? "#94a3b8" : accent }}>
+              {String(v)}
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-center text-slate-400 mt-1">What comes next?</p>
+      </div>
+    );
+  }
+
+  // Default: static repeating shape pattern
   const rng = seededRand(strSeed(taskId));
   const SHAPES = ["circle", "square", "triangle", "diamond"];
   const COLORS = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
@@ -589,25 +683,9 @@ function PatternBuilderVisual({ taskId, accent }: { taskId: string; accent: stri
     shape: SHAPES[Math.floor(rng() * 3)],
     color: COLORS[Math.floor(rng() * COLORS.length)],
   }));
-  const fullRow = [...unit, ...unit];
-
-  // Student fills the third row: starts empty, each cell filled by tapping palette
-  const [filled, setFilled] = useState<(null | { shape: string; color: string })[]>(
-    Array(fullRow.length).fill(null)
-  );
-  const [selected, setSelected] = useState<{ shape: string; color: string } | null>(null);
-
-  const fillNext = (ci: number) => {
-    if (filled[ci] !== null) {
-      // Clear cell on second tap
-      setFilled(prev => { const n = [...prev]; n[ci] = null; return n; });
-    } else if (selected) {
-      setFilled(prev => { const n = [...prev]; n[ci] = selected; return n; });
-    }
-  };
-
-  const S = 36; const gap = 6; const rowH = S + gap;
-  const W = fullRow.length * (S + gap) + 4; const H = 3 * rowH + 8;
+  const displayRow = [...unit, ...unit, { shape: unit[0].shape, color: unit[0].color }];
+  const S = 34; const gap = 5;
+  const W = displayRow.length * (S + gap) + 4; const H = S + 10;
 
   const renderShape = (shape: string, color: string, x: number, y: number) => {
     if (shape === "circle") return <circle cx={x + S / 2} cy={y + S / 2} r={S / 2 - 2} fill={color + "b0"} stroke={color} strokeWidth={2} />;
@@ -618,47 +696,16 @@ function PatternBuilderVisual({ taskId, accent }: { taskId: string; accent: stri
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Continue the pattern — pick a shape from the palette, then tap each blank</p>
-
-      {/* Palette: one of each shape in the pattern */}
-      <div className="flex justify-center gap-2 mb-2">
-        {unit.map((item, i) => {
-          const isSel = selected?.shape === item.shape && selected?.color === item.color;
+      <p className={TASK_LABEL}>What comes next?</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-sm mx-auto">
+        {displayRow.map((item, ci) => {
+          const isLast = ci === displayRow.length - 1;
           return (
-            <button key={i} onClick={() => setSelected(isSel ? null : item)}
-              className="rounded-lg border-2 p-0.5 transition-all"
-              style={{ borderColor: isSel ? item.color : "#cbd5e1", backgroundColor: isSel ? item.color + "18" : "transparent" }}>
-              <svg viewBox={`0 0 ${S} ${S}`} width={S} height={S}>
-                {renderShape(item.shape, item.color, 0, 0)}
-              </svg>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Pattern rows */}
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-sm mx-auto touch-none select-none">
-        {/* Row 1 and 2: example pattern */}
-        {[0, 1].map(ri =>
-          fullRow.map((item, ci) => (
-            <g key={`${ri}-${ci}`} transform={`translate(${2 + ci * (S + gap)}, ${2 + ri * rowH})`}>
-              {renderShape(item.shape, item.color, 0, 0)}
-            </g>
-          ))
-        )}
-        {/* Row 3: blank cells student fills */}
-        {fullRow.map((_, ci) => {
-          const f = filled[ci];
-          return (
-            <g key={`fill-${ci}`} style={{ cursor: "pointer" }}
-              transform={`translate(${2 + ci * (S + gap)}, ${2 + 2 * rowH})`}
-              onClick={() => fillNext(ci)}>
-              <rect x={0} y={0} width={S} height={S} rx={6}
-                fill={f ? "#f8fafc" : selected ? accent + "10" : "#f8fafc"}
-                stroke={f ? "#94a3b8" : selected ? accent : "#cbd5e1"}
-                strokeWidth={f ? 1.5 : 2} strokeDasharray={f ? "0" : "5,4"} />
-              {f && renderShape(f.shape, f.color, 0, 0)}
-              {!f && <text x={S / 2} y={S / 2 + 5} textAnchor="middle" fontSize={14} fill="#cbd5e1" fontWeight="bold">?</text>}
+            <g key={ci} transform={`translate(${2 + ci * (S + gap)}, 2)`}>
+              {isLast
+                ? <rect x={0} y={0} width={S} height={S} rx={6} fill="#f1f5f9" stroke={accent} strokeWidth={2} strokeDasharray="5,4" />
+                : renderShape(item.shape, item.color, 0, 0)}
+              {isLast && <text x={S / 2} y={S / 2 + 5} textAnchor="middle" fontSize={16} fill={accent} fontWeight="bold">?</text>}
             </g>
           );
         })}
@@ -709,45 +756,19 @@ function PlaceValueChartVisual({ thousands, hundreds, tens, ones, accent }: {
 // ── Visual: Clock ─────────────────────────────────────────────────────────────
 
 function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; accent: string }) {
-  const initH = ((hour % 12) + minute / 60) / 12 * 360 - 90;
-  const initM = minute / 60 * 360 - 90;
-  const [hDeg, setHDeg] = useState(initH);
-  const [mDeg, setMDeg] = useState(initM);
-  const dragging = useRef<"hour" | "minute" | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
   const cx = 90; const cy = 90; const R = 78;
   const toRad = (deg: number) => deg * Math.PI / 180;
-
-  const getAngle = (clientX: number, clientY: number) => {
-    if (!svgRef.current) return 0;
-    const rect = svgRef.current.getBoundingClientRect();
-    const sx = 180 / rect.width; const sy = 180 / rect.height;
-    const dx = (clientX - rect.left) * sx - cx;
-    const dy = (clientY - rect.top) * sy - cy;
-    return Math.atan2(dy, dx) * 180 / Math.PI;
-  };
-
-  const onMove = (clientX: number, clientY: number) => {
-    if (!dragging.current) return;
-    const a = getAngle(clientX, clientY);
-    if (dragging.current === "minute") setMDeg(a);
-    else setHDeg(a);
-  };
-
+  const hDeg = ((hour % 12) + minute / 60) / 12 * 360 - 90;
+  const mDeg = minute / 60 * 360 - 90;
   const hTip = { x: cx + 42 * Math.cos(toRad(hDeg)), y: cy + 42 * Math.sin(toRad(hDeg)) };
   const mTip = { x: cx + 60 * Math.cos(toRad(mDeg)), y: cy + 60 * Math.sin(toRad(mDeg)) };
+  const hStr = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  const mStr = String(minute).padStart(2, "0");
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag the hands to explore</p>
-      <svg ref={svgRef} viewBox="0 0 180 180" className="w-40 mx-auto touch-none select-none"
-        style={{ cursor: dragging.current ? "grabbing" : "default" }}
-        onMouseMove={e => onMove(e.clientX, e.clientY)}
-        onMouseUp={() => { dragging.current = null; }}
-        onMouseLeave={() => { dragging.current = null; }}
-        onTouchMove={e => { onMove(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }}
-        onTouchEnd={() => { dragging.current = null; }}
-      >
+      <p className={TASK_LABEL}>Clock</p>
+      <svg viewBox="0 0 180 180" className="w-40 mx-auto">
         <circle cx={cx} cy={cy} r={R} fill="white" stroke="#334155" strokeWidth={4} />
         {Array.from({ length: 12 }, (_, i) => {
           const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
@@ -760,22 +781,11 @@ function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; a
             </g>
           );
         })}
-        {/* Hour hand */}
         <line x1={cx} y1={cy} x2={hTip.x} y2={hTip.y} stroke="#1e293b" strokeWidth={6} strokeLinecap="round" />
-        <circle cx={hTip.x} cy={hTip.y} r={8} fill={accent + "30"} stroke={accent} strokeWidth={2}
-          style={{ cursor: "grab" }}
-          onMouseDown={e => { dragging.current = "hour"; e.stopPropagation(); }}
-          onTouchStart={e => { dragging.current = "hour"; e.stopPropagation(); }}
-        />
-        {/* Minute hand */}
         <line x1={cx} y1={cy} x2={mTip.x} y2={mTip.y} stroke="#475569" strokeWidth={4} strokeLinecap="round" />
-        <circle cx={mTip.x} cy={mTip.y} r={7} fill="#f1f5f9" stroke="#475569" strokeWidth={2}
-          style={{ cursor: "grab" }}
-          onMouseDown={e => { dragging.current = "minute"; e.stopPropagation(); }}
-          onTouchStart={e => { dragging.current = "minute"; e.stopPropagation(); }}
-        />
         <circle cx={cx} cy={cy} r={5} fill={accent} />
       </svg>
+      <p className="text-center text-sm font-bold text-slate-600 -mt-1">{hStr}:{mStr}</p>
     </div>
   );
 }
@@ -793,40 +803,25 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
   ];
   const count = 4 + Math.floor(rng() * 4);
   const coins = Array.from({ length: count }, () => COIN_DEFS[Math.floor(rng() * COIN_DEFS.length)]);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
-  const toggle = (i: number) => setSelected(prev => {
-    const next = new Set(prev);
-    if (next.has(i)) next.delete(i); else next.add(i);
-    return next;
-  });
-
-  const total = [...selected].reduce((sum, i) => sum + coins[i].cents, 0);
+  const total = coins.reduce((s, c) => s + c.cents, 0);
   const totalStr = total >= 100 ? `$${(total / 100).toFixed(2)}` : `${total}¢`;
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap coins to explore</p>
-      <svg viewBox="0 0 280 100" className="w-full max-w-xs mx-auto touch-none select-none">
+      <p className={TASK_LABEL}>Count the coins</p>
+      <svg viewBox="0 0 280 90" className="w-full max-w-xs mx-auto">
         {coins.map((c, i) => {
-          const x = 28 + i * (280 / count) * 0.9;
-          const y = 40 + (rng() - 0.5) * 20;
-          const isSelected = selected.has(i);
+          const x = 24 + i * Math.floor(256 / count);
+          const y = 42 + (i % 2 === 0 ? -8 : 8);
           return (
-            <g key={i} style={{ cursor: "pointer" }} onClick={() => toggle(i)}>
-              <circle cx={x} cy={y} r={c.r}
-                fill={isSelected ? c.color + "60" : c.color + "20"}
-                stroke={c.color} strokeWidth={isSelected ? 3 : 2}
-                style={{ filter: isSelected ? `drop-shadow(0 0 4px ${c.color})` : "none" }}
-              />
+            <g key={i}>
+              <circle cx={x} cy={y} r={c.r} fill={c.color + "40"} stroke={c.color} strokeWidth={2} />
               <text x={x} y={y + 4} textAnchor="middle" fontSize={10} fill="#1e293b" fontWeight="700">{c.label}</text>
             </g>
           );
         })}
       </svg>
-      <p className="text-center text-sm font-bold mt-1" style={{ color: selected.size > 0 ? accent : "#94a3b8" }}>
-        {selected.size === 0 ? "Tap coins to select them" : `Selected: ${totalStr}`}
-      </p>
+      <p className="text-center text-sm font-bold" style={{ color: accent }}>Total: {totalStr}</p>
     </div>
   );
 }
@@ -834,187 +829,140 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
 // ── Visual: Matching Task ─────────────────────────────────────────────────────
 // SVG-based drag-to-draw line connections
 
-function MatchingTaskVisual({ taskId, accent }: { taskId: string; accent: string }) {
+function MatchingTaskVisual({ taskId, accent, vp }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>;
+}) {
+  // PS_UP_001: logic clues list
+  const clues = Array.isArray(vp?.clues) ? vp!.clues as string[] : null;
+  if (clues) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Logic clues</p>
+        <div className="flex flex-col gap-1.5 py-1">
+          {clues.map((clue, i) => (
+            <div key={i} className="flex gap-2 items-start px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: accent + "25", color: accent }}>{i + 1}</span>
+              <span className="text-xs text-slate-700">{clue}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // PA_UP_001: input/output function table
+  const tableRows = Array.isArray(vp?.tableRows) ? vp!.tableRows as [string | number, string | number][] : null;
+  if (tableRows) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Function table</p>
+        <div className="overflow-hidden rounded-lg border border-slate-200 max-w-[180px] mx-auto">
+          <table className="w-full border-collapse text-center text-sm">
+            <thead>
+              <tr style={{ backgroundColor: accent + "20" }}>
+                <th className="py-1.5 px-4 border-r border-slate-200 font-bold text-xs" style={{ color: accent }}>In</th>
+                <th className="py-1.5 px-4 font-bold text-xs" style={{ color: accent }}>Out</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map(([inp, out], i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  <td className="py-1.5 border-r border-slate-200 font-semibold text-slate-700">{inp}</td>
+                  <td className="py-1.5 font-semibold" style={{ color: String(out) === "?" ? "#94a3b8" : "#1e293b" }}>{out}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: static pairs illustration
   const rng = seededRand(strSeed(taskId));
   const PAIRS = [
     ["2 × 3", "6"], ["4 + 5", "9"], ["10 − 4", "6"],
     ["3 × 4", "12"], ["15 − 8", "7"], ["6 + 7", "13"],
   ];
-  const pairsRef = useRef(PAIRS.sort(() => rng() - 0.5).slice(0, 4));
-  const rightRef = useRef([...pairsRef.current.map(p => p[1])].sort(() => rng() - 0.5));
-  const pairs = pairsRef.current;
-  const right = rightRef.current;
-
-  // connections: left index → right index
-  const [connections, setConnections] = useState<Record<number, number>>({});
-  const [dragging, setDragging] = useState<number | null>(null);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  const itemH = 38; const itemGap = 10; const topPad = 8;
+  const pairs = PAIRS.sort(() => rng() - 0.5).slice(0, 4);
+  const ACCENT_COLORS = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
+  const itemH = 36; const itemGap = 8; const topPad = 6;
   const leftX = 85; const rightX = 175; const W = 270;
   const totalH = topPad * 2 + pairs.length * (itemH + itemGap);
-
-  const getLeftCY = (i: number) => topPad + i * (itemH + itemGap) + itemH / 2;
-  const getRightCY = (i: number) => topPad + i * (itemH + itemGap) + itemH / 2;
-
-  const svgPoint = (clientX: number, clientY: number) => {
-    const svg = svgRef.current;
-    if (!svg) return { x: 0, y: 0 };
-    const rect = svg.getBoundingClientRect();
-    return {
-      x: ((clientX - rect.left) / rect.width) * W,
-      y: ((clientY - rect.top) / rect.height) * totalH,
-    };
-  };
-
-  const hitRightItem = (x: number, y: number): number | null => {
-    for (let i = 0; i < right.length; i++) {
-      const cy = getRightCY(i);
-      if (x >= rightX && x <= W && Math.abs(y - cy) <= itemH / 2) return i;
-    }
-    return null;
-  };
-
-  const finishDrag = (clientX: number, clientY: number) => {
-    if (dragging === null) return;
-    const pt = svgPoint(clientX, clientY);
-    const ri = hitRightItem(pt.x, pt.y);
-    if (ri !== null) setConnections(prev => ({ ...prev, [dragging]: ri }));
-    setDragging(null);
-  };
-
-  const ACCENT_COLORS = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
+  const getCY = (i: number) => topPad + i * (itemH + itemGap) + itemH / 2;
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag from left to right to draw a connecting line</p>
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${totalH}`}
-        className="w-full max-w-sm mx-auto touch-none select-none"
-        style={{ cursor: dragging !== null ? "crosshair" : "default" }}
-        onMouseMove={e => { if (dragging !== null) setCursorPos(svgPoint(e.clientX, e.clientY)); }}
-        onMouseUp={e => finishDrag(e.clientX, e.clientY)}
-        onTouchMove={e => { if (dragging !== null) setCursorPos(svgPoint(e.touches[0].clientX, e.touches[0].clientY)); }}
-        onTouchEnd={e => { if (e.changedTouches[0]) finishDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }}
-      >
-        {/* Permanent connection lines */}
-        {Object.entries(connections).map(([li, ri]) => {
-          const color = ACCENT_COLORS[Number(li) % ACCENT_COLORS.length];
-          return (
-            <line key={li}
-              x1={leftX + 1} y1={getLeftCY(Number(li))}
-              x2={rightX - 1} y2={getRightCY(Number(ri))}
-              stroke={color} strokeWidth={3} strokeLinecap="round" opacity={0.85} />
-          );
-        })}
-        {/* In-progress drag line */}
-        {dragging !== null && (
-          <line x1={leftX + 1} y1={getLeftCY(dragging)}
-            x2={cursorPos.x} y2={cursorPos.y}
-            stroke={accent} strokeWidth={2.5} strokeDasharray="6,4" opacity={0.7} strokeLinecap="round" />
-        )}
-        {/* Left items */}
+      <p className={TASK_LABEL}>Matching pairs</p>
+      <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-sm mx-auto">
         {pairs.map((p, i) => {
           const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
-          const isConnected = connections[i] !== undefined;
-          const isDragging = dragging === i;
-          return (
-            <g key={i} style={{ cursor: "grab" }}
-              onMouseDown={e => { e.preventDefault(); setDragging(i); setCursorPos(svgPoint(e.clientX, e.clientY)); }}
-              onTouchStart={e => { e.preventDefault(); setDragging(i); setCursorPos(svgPoint(e.touches[0].clientX, e.touches[0].clientY)); }}>
-              <rect x={0} y={topPad + i * (itemH + itemGap)} width={leftX} height={itemH} rx={8}
-                fill={isDragging ? color + "30" : isConnected ? color + "20" : "#f8fafc"}
-                stroke={isDragging || isConnected ? color : "#cbd5e1"} strokeWidth={isDragging ? 2.5 : 1.5} />
-              <text x={leftX / 2} y={getLeftCY(i) + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{p[0]}</text>
-              {/* Right-side connector dot */}
-              <circle cx={leftX + 1} cy={getLeftCY(i)} r={5} fill={color} opacity={isConnected || isDragging ? 1 : 0.35} />
-            </g>
-          );
-        })}
-        {/* Right items */}
-        {right.map((val, i) => {
-          const connectedBy = Object.entries(connections).find(([, ri]) => Number(ri) === i);
-          const color = connectedBy ? ACCENT_COLORS[Number(connectedBy[0]) % ACCENT_COLORS.length] : "#94a3b8";
+          const cy = getCY(i);
           return (
             <g key={i}>
-              <circle cx={rightX - 1} cy={getRightCY(i)} r={5} fill={color} opacity={connectedBy ? 1 : 0.35} />
-              <rect x={rightX} y={topPad + i * (itemH + itemGap)} width={W - rightX} height={itemH} rx={8}
-                fill={connectedBy ? color + "20" : "#f8fafc"}
-                stroke={connectedBy ? color : "#cbd5e1"} strokeWidth={connectedBy ? 2 : 1.5} />
-              <text x={rightX + (W - rightX) / 2} y={getRightCY(i) + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{val}</text>
+              <rect x={0} y={topPad + i * (itemH + itemGap)} width={leftX} height={itemH} rx={8} fill={color + "18"} stroke={color} strokeWidth={1.5} />
+              <text x={leftX / 2} y={cy + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{p[0]}</text>
+              <line x1={leftX + 2} y1={cy} x2={rightX - 2} y2={cy} stroke={color} strokeWidth={2} strokeDasharray="5,3" opacity={0.6} />
+              <circle cx={leftX + 2} cy={cy} r={4} fill={color} />
+              <circle cx={rightX - 2} cy={cy} r={4} fill={color} />
+              <rect x={rightX} y={topPad + i * (itemH + itemGap)} width={W - rightX} height={itemH} rx={8} fill={color + "18"} stroke={color} strokeWidth={1.5} />
+              <text x={rightX + (W - rightX) / 2} y={cy + 5} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="600">{p[1]}</text>
             </g>
           );
         })}
       </svg>
-      {/* Reset button */}
-      {Object.keys(connections).length > 0 && (
-        <button onClick={() => setConnections({})}
-          className="mx-auto block text-[10px] text-slate-400 hover:text-slate-600 mt-1 transition-colors">
-          Clear lines
-        </button>
-      )}
     </div>
   );
 }
 
 // ── Visual: Sorting Task ──────────────────────────────────────────────────────
 
-function SortingTaskVisual({ taskId, accent }: { taskId: string; accent: string }) {
+function SortingTaskVisual({ taskId, accent, vp }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>;
+}) {
+  // PS_MS_001: budget categories
+  const budgetItems = Array.isArray(vp?.budgetItems) ? vp!.budgetItems as { label: string; amount: number; category: string }[] : null;
+  if (budgetItems) {
+    const categories = [...new Set(budgetItems.map(b => b.category))];
+    const catColors: Record<string, string> = {};
+    const PALETTE = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
+    categories.forEach((c, i) => { catColors[c] = PALETTE[i % PALETTE.length]; });
+
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Budget breakdown</p>
+        <div className="flex flex-col gap-1.5 py-1">
+          {budgetItems.map((item, i) => (
+            <div key={i} className="flex items-center justify-between px-2 py-1 rounded-lg border text-xs"
+              style={{ borderColor: catColors[item.category] + "60", backgroundColor: catColors[item.category] + "10" }}>
+              <span className="font-semibold text-slate-700">{item.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold" style={{ color: catColors[item.category] }}>${item.amount}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: catColors[item.category] + "25", color: catColors[item.category] }}>{item.category}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default: static sorted groups illustration
   const rng = seededRand(strSeed(taskId));
-  const items = Array.from({ length: 6 }, (_, i) => Math.floor(rng() * 50) + 1);
-  const [sorted, setSorted] = useState<Record<"under" | "over", number[]>>({ under: [], over: [] });
-  const [remaining, setRemaining] = useState(items);
-  const [binOver, setBinOver] = useState<"under" | "over" | null>(null);
-  const dragVal = useRef<number | null>(null);
-  // Touch fallback: tap-to-select, tap-bin-to-place
-  const [tapSelected, setTapSelected] = useState<number | null>(null);
+  const items = Array.from({ length: 6 }, () => Math.floor(rng() * 50) + 1);
   const threshold = 25;
-
-  const dropIntoBin = (bin: "under" | "over", val: number) => {
-    setSorted(s => ({ ...s, [bin]: [...s[bin], val] }));
-    setRemaining(r => r.filter(v => v !== val));
-    setBinOver(null);
-    setTapSelected(null);
-    dragVal.current = null;
-  };
-
-  const handleTapItem = (val: number) => setTapSelected(prev => prev === val ? null : val);
-  const handleTapBin = (bin: "under" | "over") => {
-    if (tapSelected !== null) dropIntoBin(bin, tapSelected);
-  };
+  const under = items.filter(n => n < threshold);
+  const over = items.filter(n => n >= threshold);
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag numbers into the correct group (or tap a number, then tap a group)</p>
-      {/* Draggable items */}
-      <div className="flex flex-wrap justify-center gap-2 mb-3 min-h-[36px]">
-        {remaining.map((n, i) => (
-          <div key={i} draggable
-            onDragStart={() => { dragVal.current = n; setTapSelected(null); }}
-            onClick={() => handleTapItem(n)}
-            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all cursor-grab active:cursor-grabbing select-none ${tapSelected === n ? "text-white scale-110 shadow-md" : "border-slate-300 bg-slate-50 text-slate-700 hover:border-blue-400"}`}
-            style={tapSelected === n ? { backgroundColor: accent, borderColor: accent } : {}}>
-            {n}
-          </div>
-        ))}
-        {remaining.length === 0 && <p className="text-xs text-slate-400 self-center">All sorted!</p>}
-      </div>
-      {/* Drop bins */}
-      <div className="grid grid-cols-2 gap-3">
-        {(["under", "over"] as const).map(bin => (
-          <div key={bin}
-            onDragOver={e => { e.preventDefault(); setBinOver(bin); }}
-            onDragLeave={() => setBinOver(null)}
-            onDrop={e => { e.preventDefault(); if (dragVal.current !== null) dropIntoBin(bin, dragVal.current); }}
-            onClick={() => handleTapBin(bin)}
-            className={`rounded-lg border-2 border-dashed p-3 text-left min-h-[64px] transition-all cursor-pointer ${binOver === bin ? "scale-[1.02] shadow" : ""} ${tapSelected !== null ? "opacity-100 border-current" : "opacity-80"}`}
-            style={{ borderColor: binOver === bin ? "#3b82f6" : accent, backgroundColor: binOver === bin ? "#eff6ff" : undefined }}>
-            <p className="text-xs font-bold mb-1" style={{ color: accent }}>
-              {bin === "under" ? `< ${threshold}` : `≥ ${threshold}`}
-              {tapSelected !== null && <span className="ml-1 text-slate-400 font-normal">← tap to place</span>}
-            </p>
+      <p className={TASK_LABEL}>Sort by size</p>
+      <div className="grid grid-cols-2 gap-3 py-1">
+        {([["under", under, `< ${threshold}`], ["over", over, `≥ ${threshold}`]] as [string, number[], string][]).map(([key, nums, label]) => (
+          <div key={key} className="rounded-lg border-2 p-2" style={{ borderColor: accent }}>
+            <p className="text-xs font-bold mb-1.5" style={{ color: accent }}>{label}</p>
             <div className="flex flex-wrap gap-1">
-              {sorted[bin].map((n, i) => (
+              {nums.map((n, i) => (
                 <span key={i} className="text-xs px-1.5 py-0.5 rounded font-bold text-white" style={{ backgroundColor: accent }}>{n}</span>
               ))}
             </div>
@@ -1059,142 +1007,55 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
 
 // ── Visual: Number Bond ───────────────────────────────────────────────────────
 
-function NumberBondVisual({ total, part1, part2, accent, sessionToken, taskId }: { total: number; part1?: number; part2?: number; accent: string; sessionToken?: string; taskId?: string }) {
-  // addition mode: parts are known, student enters the total
-  // decomposition mode: total is known, student enters the parts
+function NumberBondVisual({ total, part1, part2, accent }: {
+  total: number; part1?: number; part2?: number; accent: string;
+}) {
   const additionMode = part1 !== undefined && part2 !== undefined;
-
-  const [totalVal, setTotalVal] = useState("");
-  const [leftVal, setLeftVal] = useState("");
-  const [rightVal, setRightVal] = useState("");
-  const [active, setActive] = useState<"total" | "left" | "right" | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  const submitAnswer = async (answer: string) => {
-    if (!sessionToken || !taskId || !answer) return;
-    setSubmitted(true);
-    try {
-      const res = await fetch(`${BASE_URL}/api/public/rmra/student/${sessionToken}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer, taskId }),
-      });
-      if (!res.ok) {
-        console.error("answer submit failed", res.status, await res.text());
-      }
-    } catch (e) {
-      console.error("answer submit network error", e);
-    }
-  };
-
-  const handleKey = (key: string) => {
-    const setter = active === "total" ? setTotalVal : active === "left" ? setLeftVal : setRightVal;
-    const cur = active === "total" ? totalVal : active === "left" ? leftVal : rightVal;
-    if (key === "⌫") { setter(cur.slice(0, -1)); return; }
-    if (key === "✓") {
-      setActive(null);
-      if (additionMode && totalVal) {
-        submitAnswer(totalVal);
-      } else if (!additionMode) {
-        const parts = [leftVal, rightVal].filter(Boolean);
-        if (parts.length > 0) submitAnswer(parts.join(" + "));
-      }
-      return;
-    }
-    if (cur.length >= 5) return;
-    setter(cur + key);
-  };
-
-  const totalFilled = totalVal !== "";
-  const leftFilled = leftVal !== "";
-  const rightFilled = rightVal !== "";
-
-  // In addition mode: top circle is blank (student fills), bottom two are pre-filled with parts
-  // In decomposition mode: top circle shows total, bottom two are blank (student fills)
-  const topLabel = additionMode ? (totalFilled ? totalVal : "?") : String(total);
-  const topIsEditable = additionMode;
-  const topIsFilled = additionMode ? totalFilled : true;
-  const leftLabel = additionMode ? String(part1) : (leftFilled ? leftVal : "?");
-  const rightLabel = additionMode ? String(part2) : (rightFilled ? rightVal : "?");
+  const topLabel = additionMode ? "?" : String(total);
+  const topIsFilled = !additionMode;
+  const leftLabel = additionMode ? String(part1) : "?";
+  const rightLabel = additionMode ? String(part2) : "?";
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>
-        {"Explore the number bond"}
-      </p>
-      <svg viewBox="0 0 200 145" className="w-48 mx-auto" style={{ overflow: "visible" }}>
-        {/* Total node */}
+      <p className={TASK_LABEL}>Number bond</p>
+      <svg viewBox="0 0 200 145" className="w-48 mx-auto">
         <circle cx={100} cy={35} r={28}
-          fill={active === "total" ? accent + "30" : topIsFilled ? accent + "20" : "#f1f5f9"}
-          stroke={active === "total" ? accent : topIsFilled ? accent : "#94a3b8"}
-          strokeWidth={active === "total" ? 2.5 : 2}
-          strokeDasharray={topIsFilled || active === "total" || !topIsEditable ? "none" : "5,3"}
-          style={{ cursor: topIsEditable ? "pointer" : "default" }}
-          onClick={() => topIsEditable && setActive(active === "total" ? null : "total")}
+          fill={topIsFilled ? accent + "20" : "#f1f5f9"}
+          stroke={topIsFilled ? accent : "#94a3b8"}
+          strokeWidth={2}
+          strokeDasharray={topIsFilled ? "none" : "5,3"}
         />
         <text x={100} y={41} textAnchor="middle" fontSize={topLabel.length > 3 ? 13 : 18}
-          fill={topIsFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold"
-          style={{ pointerEvents: "none" }}>
+          fill={topIsFilled ? "#1e293b" : "#94a3b8"} fontWeight="bold">
           {topLabel}
         </text>
-        {/* Arms */}
         <line x1={78} y1={58} x2={55} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
         <line x1={122} y1={58} x2={145} y2={98} stroke="#94a3b8" strokeWidth={2.5} />
-        {/* Left part */}
         <circle cx={50} cy={115} r={26}
-          fill={active === "left" ? accent + "30" : (additionMode || leftFilled) ? accent + "20" : "#f1f5f9"}
-          stroke={active === "left" ? accent : (additionMode || leftFilled) ? accent : "#94a3b8"}
-          strokeWidth={active === "left" ? 2.5 : 2}
-          strokeDasharray={leftFilled || active === "left" || additionMode ? "none" : "5,3"}
-          style={{ cursor: additionMode ? "default" : "pointer" }}
-          onClick={() => !additionMode && setActive(active === "left" ? null : "left")}
+          fill={additionMode ? accent + "20" : "#f1f5f9"}
+          stroke={additionMode ? accent : "#94a3b8"}
+          strokeWidth={2}
+          strokeDasharray={additionMode ? "none" : "5,3"}
         />
-        <text x={50} y={121} textAnchor="middle" fontSize={leftLabel.length > 3 ? 11 : leftFilled ? 16 : 18}
-          fill={(additionMode || leftFilled) ? "#1e293b" : "#94a3b8"} fontWeight="bold"
-          style={{ pointerEvents: "none" }}>
+        <text x={50} y={121} textAnchor="middle" fontSize={leftLabel.length > 3 ? 11 : 18}
+          fill={additionMode ? "#1e293b" : "#94a3b8"} fontWeight="bold">
           {leftLabel}
         </text>
-        {/* Right part */}
         <circle cx={150} cy={115} r={26}
-          fill={active === "right" ? accent + "30" : (additionMode || rightFilled) ? accent + "20" : "#f1f5f9"}
-          stroke={active === "right" ? accent : (additionMode || rightFilled) ? accent : "#94a3b8"}
-          strokeWidth={active === "right" ? 2.5 : 2}
-          strokeDasharray={rightFilled || active === "right" || additionMode ? "none" : "5,3"}
-          style={{ cursor: additionMode ? "default" : "pointer" }}
-          onClick={() => !additionMode && setActive(active === "right" ? null : "right")}
+          fill={additionMode ? accent + "20" : "#f1f5f9"}
+          stroke={additionMode ? accent : "#94a3b8"}
+          strokeWidth={2}
+          strokeDasharray={additionMode ? "none" : "5,3"}
         />
-        <text x={150} y={121} textAnchor="middle" fontSize={rightLabel.length > 3 ? 11 : rightFilled ? 16 : 18}
-          fill={(additionMode || rightFilled) ? "#1e293b" : "#94a3b8"} fontWeight="bold"
-          style={{ pointerEvents: "none" }}>
+        <text x={150} y={121} textAnchor="middle" fontSize={rightLabel.length > 3 ? 11 : 18}
+          fill={additionMode ? "#1e293b" : "#94a3b8"} fontWeight="bold">
           {rightLabel}
         </text>
       </svg>
-
-      {submitted && (
-        <p className="text-sm font-semibold text-emerald-600 text-center mt-2">✓ Answer submitted</p>
-      )}
-      {/* Inline numpad — shown only when a circle is active */}
-      {active && (
-        <div className="mt-3 flex flex-col items-center gap-2">
-          <p className="text-xs text-slate-500 font-medium">
-            {active === "total" ? "Entering total" : `Entering ${active} part`}
-          </p>
-          <div className="bg-slate-100 rounded-xl px-4 py-2 text-xl font-bold text-slate-800 min-w-[80px] text-center tracking-widest">
-            {(active === "total" ? totalVal : active === "left" ? leftVal : rightVal) || "—"}
-          </div>
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            {["1","2","3","4","5","6","7","8","9","⌫","0","✓"].map(k => (
-              <button key={k} onClick={() => handleKey(k)}
-                className={`w-12 h-12 rounded-xl text-base font-bold transition-colors ${
-                  k === "✓" ? "bg-emerald-500 text-white hover:bg-emerald-600" :
-                  k === "⌫" ? "bg-slate-300 text-slate-700 hover:bg-slate-400" :
-                  "bg-white border border-slate-200 text-slate-800 hover:bg-slate-50"
-                }`}
-              >{k}</button>
-            ))}
-          </div>
-        </div>
-      )}
+      <p className="text-[10px] text-center text-slate-400 mt-1">
+        {additionMode ? `${part1} + ${part2} = ?` : `${total} = ? + ?`}
+      </p>
     </div>
   );
 }
@@ -1283,15 +1144,41 @@ function CoordinateGridVisual({ accent }: { accent: string }) {
 
 // ── Visual: Shape Rotation ────────────────────────────────────────────────────
 
-function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: string }) {
+function ShapeRotationVisual({ taskId, accent, vp }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>;
+}) {
+  // GS items: right triangle with labelled sides
+  const sideA = typeof vp?.sideA === "number" ? vp!.sideA as number : null;
+  const sideB = typeof vp?.sideB === "number" ? vp!.sideB as number : null;
+  const missing = typeof vp?.missing === "string" ? vp!.missing as string : null;
+
+  if (sideA !== null && sideB !== null) {
+    const hyp = missing === "hyp" ? "?" : String(Math.round(Math.sqrt(sideA ** 2 + sideB ** 2) * 10) / 10);
+    const legA = missing === "a" ? "?" : String(sideA);
+    const legB = missing === "b" ? "?" : String(sideB);
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Right triangle</p>
+        <svg viewBox="0 0 200 160" className="w-full max-w-[200px] mx-auto">
+          <polygon points="20,130 20,30 170,130" fill={accent + "15"} stroke={accent} strokeWidth={2.5} />
+          <rect x={20} y={118} width={12} height={12} fill="none" stroke={accent} strokeWidth={1.5} />
+          <text x={10} y={84} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="bold">{legA}</text>
+          <text x={95} y={148} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="bold">{legB}</text>
+          <text x={104} y={78} textAnchor="middle" fontSize={13} fill={missing === "hyp" ? accent : "#1e293b"} fontWeight="bold"
+            transform="rotate(-33, 104, 78)">{hyp}</text>
+        </svg>
+        <p className="text-[10px] text-center text-slate-400 mt-1">Find the missing side</p>
+      </div>
+    );
+  }
+
+  // Default: polygon with two orientations
   const rng = seededRand(strSeed(taskId));
   const sides = [3, 4, 5, 6][Math.floor(rng() * 4)];
   const rotations = [0, 45, 90, 135];
   const rot1 = rotations[Math.floor(rng() * rotations.length)];
-  const [studentRot, setStudentRot] = useState(rot1); // student drags to show their answer
+  const rot2 = rotations[(rotations.indexOf(rot1) + 1) % rotations.length];
   const R = 40; const toRad = (d: number) => d * Math.PI / 180;
-  const dragRef = useRef<{ active: boolean; startAngle: number; startRot: number }>({ active: false, startAngle: 0, startRot: 0 });
-  const svgRef = useRef<SVGSVGElement>(null);
 
   const polyPoints = (cx: number, cy: number, rot: number) =>
     Array.from({ length: sides }, (_, i) => {
@@ -1299,54 +1186,24 @@ function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: strin
       return `${cx + R * Math.cos(a)},${cy + R * Math.sin(a)}`;
     }).join(" ");
 
-  const getAngle = (clientX: number, clientY: number) => {
-    if (!svgRef.current) return 0;
-    const rect = svgRef.current.getBoundingClientRect();
-    const scaleX = 100 / rect.width;
-    const scaleY = 100 / rect.height;
-    const dx = (clientX - rect.left) * scaleX - 50;
-    const dy = (clientY - rect.top) * scaleY - 50;
-    return Math.atan2(dy, dx) * 180 / Math.PI;
-  };
-
-  const startDrag = (clientX: number, clientY: number) => {
-    dragRef.current = { active: true, startAngle: getAngle(clientX, clientY), startRot: studentRot };
-  };
-  const onDrag = (clientX: number, clientY: number) => {
-    if (!dragRef.current.active) return;
-    const delta = getAngle(clientX, clientY) - dragRef.current.startAngle;
-    setStudentRot(dragRef.current.startRot + delta);
-  };
-  const stopDrag = () => { dragRef.current.active = false; };
-
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Shape — drag to explore</p>
+      <p className={TASK_LABEL}>Shape rotation</p>
       <div className="flex items-center justify-center gap-4 py-2">
         <div className="flex flex-col items-center">
-          <svg viewBox="0 0 100 100" className="w-24">
+          <svg viewBox="0 0 100 100" className="w-20">
             <polygon points={polyPoints(50, 50, rot1)} fill={accent + "40"} stroke={accent} strokeWidth={2.5} />
           </svg>
           <span className="text-[10px] text-slate-500 mt-1">Original</span>
         </div>
-        <svg viewBox="0 0 30 30" className="w-6 opacity-40">
+        <svg viewBox="0 0 30 30" className="w-5 opacity-40">
           <path d="M5 15 L25 15 M20 10 L25 15 L20 20" stroke="#334155" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <div className="flex flex-col items-center">
-          <svg ref={svgRef} viewBox="0 0 100 100" className="w-24 touch-none select-none" style={{ cursor: "grab" }}
-            onMouseDown={e => startDrag(e.clientX, e.clientY)}
-            onMouseMove={e => onDrag(e.clientX, e.clientY)}
-            onMouseUp={stopDrag} onMouseLeave={stopDrag}
-            onTouchStart={e => startDrag(e.touches[0].clientX, e.touches[0].clientY)}
-            onTouchMove={e => { onDrag(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }}
-            onTouchEnd={stopDrag}
-          >
-            <polygon points={polyPoints(50, 50, studentRot)} fill={accent + "20"} stroke={accent} strokeWidth={2} strokeDasharray="5,4" />
-            {/* Rotation handle */}
-            <circle cx={50 + R * Math.cos(toRad(studentRot - 90))} cy={50 + R * Math.sin(toRad(studentRot - 90))} r={7}
-              fill={accent} opacity={0.8} />
+          <svg viewBox="0 0 100 100" className="w-20">
+            <polygon points={polyPoints(50, 50, rot2)} fill={accent + "20"} stroke={accent} strokeWidth={2} strokeDasharray="5,4" />
           </svg>
-          <span className="text-[10px] text-slate-500 mt-1">Drag to rotate</span>
+          <span className="text-[10px] text-slate-500 mt-1">Rotated {rot2 - rot1}°</span>
         </div>
       </div>
     </div>
@@ -1355,32 +1212,51 @@ function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: strin
 
 // ── Visual: Visual Word Problem ───────────────────────────────────────────────
 
-function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string }) {
+function WordProblemVisual({ taskId, accent, vp }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>;
+}) {
+  // Context-driven: highlight key numbers from visualData
+  const keyNumbers = Array.isArray(vp?.keyNumbers) ? vp!.keyNumbers as (string | number)[] : null;
+  const context = typeof vp?.context === "string" ? vp!.context as string : null;
+
+  if (keyNumbers && context) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Key information</p>
+        <p className="text-xs text-slate-500 text-center mb-2 italic">{context}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {keyNumbers.map((n, i) => (
+            <div key={i} className="px-3 py-2 rounded-xl border-2 text-sm font-bold" style={{ borderColor: accent, backgroundColor: accent + "15", color: accent }}>
+              {n}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default: seeded word problem illustration
   const rng = seededRand(strSeed(taskId));
   const a = Math.floor(rng() * 8) + 3;
   const b = Math.floor(rng() * 6) + 2;
-  const op = rng() > 0.5 ? "+" : "−";
-  const ICONS = ["🍎", "⭐", "🔵", "🏀", "🌟", "📦", "🎯", "🍪"];
+  const op = rng() > 0.5 ? "+" : "\u2212";
+  const ICONS = ["\uD83C\uDF4E", "\u2B50", "\uD83D\uDD35", "\uD83C\uDFC0", "\uD83C\uDF1F", "\uD83D\uDCE6", "\uD83C\uDFAF", "\uD83C\uDF6A"];
   const icon = ICONS[Math.floor(rng() * ICONS.length)];
 
   return (
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>Word problem</p>
       <div className="flex items-center justify-center gap-2 flex-wrap py-2">
-        <div className="flex flex-wrap gap-1 max-w-[120px] border-2 rounded-lg p-2 border-slate-200">
-          {Array.from({ length: a }, (_, i) => <span key={i} className="text-xl">{icon}</span>)}
-          <span className="text-xs text-slate-500 w-full text-center font-semibold">{a}</span>
+        <div className="flex flex-wrap gap-0.5 max-w-[100px] border-2 rounded-lg p-1.5 border-slate-200 justify-center">
+          {Array.from({ length: Math.min(a, 9) }, (_, i) => <span key={i} className="text-lg">{icon}</span>)}
+          <span className="text-xs text-slate-500 w-full text-center font-semibold mt-0.5">{a}</span>
         </div>
         <span className="text-2xl font-bold text-slate-600">{op}</span>
-        <div className="flex flex-wrap gap-1 max-w-[100px] border-2 rounded-lg p-2 border-slate-200">
-          {Array.from({ length: b }, (_, i) => <span key={i} className="text-xl">{icon}</span>)}
-          <span className="text-xs text-slate-500 w-full text-center font-semibold">{b}</span>
+        <div className="flex flex-wrap gap-0.5 max-w-[90px] border-2 rounded-lg p-1.5 border-slate-200 justify-center">
+          {Array.from({ length: Math.min(b, 9) }, (_, i) => <span key={i} className="text-lg">{icon}</span>)}
+          <span className="text-xs text-slate-500 w-full text-center font-semibold mt-0.5">{b}</span>
         </div>
-        <span className="text-2xl font-bold text-slate-600">= ?</span>
-      </div>
-      <div className="mt-3 flex items-center justify-center gap-3 border-t pt-3">
-        <span className="text-lg font-bold text-slate-600">{a} {op} {b} =</span>
-        <div className="w-16 h-8 rounded-lg border-2 border-dashed flex items-center justify-center text-slate-300 text-lg font-bold" style={{ borderColor: accent }}>?</div>
+        <span className="text-xl font-bold" style={{ color: accent }}>= ?</span>
       </div>
     </div>
   );
@@ -1395,24 +1271,24 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
   if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} />;
-  if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} />;
+  if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
   if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
-  if (vt === "balance_scale") return <BalanceScaleVisual taskId={task.id} accent={accent} />;
-  if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} />;
+  if (vt === "balance_scale") return <BalanceScaleVisual accent={accent} vp={vp} />;
+  if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "clock") return <ClockVisual hour={num("hour", 3)} minute={num("minute", 0)} accent={accent} />;
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} />;
-  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={task.visualParams?.part1 as number | undefined} part2={task.visualParams?.part2 as number | undefined} accent={accent} />;
+  if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={vp.part1 as number | undefined} part2={vp.part2 as number | undefined} accent={accent} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
-  if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} />;
-  if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} />;
-  if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} />;
+  if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
+  if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
+  if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} />;
-  if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} />;
+  if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} vp={vp} />;
   return (
     <div className={CARD_INNER + " text-center py-6"}>
       <div className="text-4xl mb-2">📐</div>
