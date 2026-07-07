@@ -255,7 +255,7 @@ function NumberLineVisual({ scaleMin, scaleMax, accent }: {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Point to your answer on the number line</p>
+      <p className={TASK_LABEL}>Drag the marker to explore the number line</p>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} 90`}
@@ -396,7 +396,7 @@ function FractionBarVisual({ numerator, denominator, accent }: {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag to shade — how many parts?</p>
+      <p className={TASK_LABEL}>Drag to shade the fraction bar</p>
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 24}`}
         className="w-full max-w-xs mx-auto touch-none select-none"
         style={{ cursor: "col-resize" }}
@@ -449,7 +449,7 @@ function FractionCircleVisual({ numerator, denominator, accent }: {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap the slices — how many are shaded?</p>
+      <p className={TASK_LABEL}>Tap to shade the circle</p>
       <svg viewBox="0 0 200 185" className="w-48 mx-auto touch-none select-none">
         {Array.from({ length: den }, (_, i) => (
           <path key={i} d={makeSlice(i)}
@@ -739,7 +739,7 @@ function ClockVisual({ hour, minute, accent }: { hour: number; minute: number; a
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Drag the hands — what time is it?</p>
+      <p className={TASK_LABEL}>Drag the hands to explore</p>
       <svg ref={svgRef} viewBox="0 0 180 180" className="w-40 mx-auto touch-none select-none"
         style={{ cursor: dragging.current ? "grabbing" : "default" }}
         onMouseMove={e => onMove(e.clientX, e.clientY)}
@@ -806,7 +806,7 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Tap coins to count — what is the total?</p>
+      <p className={TASK_LABEL}>Tap coins to explore</p>
       <svg viewBox="0 0 280 100" className="w-full max-w-xs mx-auto touch-none select-none">
         {coins.map((c, i) => {
           const x = 28 + i * (280 / count) * 0.9;
@@ -1120,7 +1120,7 @@ function NumberBondVisual({ total, part1, part2, accent, sessionToken, taskId }:
   return (
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>
-        {additionMode ? "Tap the top circle to enter the total" : "Tap the circles to fill in the parts"}
+        {"Explore the number bond"}
       </p>
       <svg viewBox="0 0 200 145" className="w-48 mx-auto" style={{ overflow: "visible" }}>
         {/* Total node */}
@@ -1208,7 +1208,7 @@ function BarModelVisual({ total, accent }: { total: number; accent: string }) {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Bar model — find the missing part</p>
+      <p className={TASK_LABEL}>Bar model</p>
       <svg viewBox={`0 0 ${W} ${H + 60}`} className="w-full max-w-xs mx-auto">
         {/* Full bar outline */}
         <rect x={10} y={10} width={W - 20} height={H} rx={5} fill="#f8fafc" stroke="#cbd5e1" strokeWidth={2} />
@@ -1321,7 +1321,7 @@ function ShapeRotationVisual({ taskId, accent }: { taskId: string; accent: strin
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Shape rotation — drag the right shape to match</p>
+      <p className={TASK_LABEL}>Shape — drag to explore</p>
       <div className="flex items-center justify-center gap-4 py-2">
         <div className="flex flex-col items-center">
           <svg viewBox="0 0 100 100" className="w-24">
@@ -1365,7 +1365,7 @@ function WordProblemVisual({ taskId, accent }: { taskId: string; accent: string 
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Word problem — show your working</p>
+      <p className={TASK_LABEL}>Word problem</p>
       <div className="flex items-center justify-center gap-2 flex-wrap py-2">
         <div className="flex flex-wrap gap-1 max-w-[120px] border-2 rounded-lg p-2 border-slate-200">
           {Array.from({ length: a }, (_, i) => <span key={i} className="text-xl">{icon}</span>)}
