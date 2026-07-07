@@ -1520,7 +1520,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "angle_classification",
     visualType: "visual_word_problem",
     prompts: {
-      space_mission: "Look at these angles. Which are acute, right, or obtuse? Rotate the shape to check.",
+      space_mission: "Look at these angles. Which are acute, right, or obtuse?",
       city_builder: "Classify the angles in this building design — acute, right, or obtuse.",
       bakery_math: "Classify the angles in these cookie cutter shapes.",
       robot_factory: "Classify each angle in the robot blueprint — acute, right, or obtuse.",
@@ -1539,7 +1539,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
-    visualData: { keyNumbers: ["< 90\u00b0 = acute", "= 90\u00b0 = right angle", "> 90\u00b0 = obtuse"], context: "Classify by angle size" },
+    visualData: { angles: [{ label: "A", deg: 55 }, { label: "B", deg: 90 }, { label: "C", deg: 128 }] },
   },
   {
     id: "RMRA_GS_MS_001",

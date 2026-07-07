@@ -1403,6 +1403,53 @@ function ShapeRotationVisual({ taskId, accent, vp }: {
 function WordProblemVisual({ taskId, accent, vp }: {
   taskId: string; accent: string; vp?: Record<string, unknown>;
 }) {
+  // GS_UP_001: angle classification — draw labeled angles as SVG
+  const angles = Array.isArray(vp?.angles) ? vp!.angles as { label: string; deg: number }[] : null;
+  if (angles) {
+    const ARM = 44;
+    const ARC_R = 15;
+    // Vertex centred horizontally so obtuse arms going left stay in-bounds
+    const W = 96; const H = 72; const CX = 48; const CY = 60;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Classify these angles</p>
+        <div className="flex justify-center gap-3 flex-wrap">
+          {angles.map(({ label, deg }) => {
+            const rad = (deg * Math.PI) / 180;
+            const x2 = CX + ARM;
+            const y2 = CY;
+            const x3 = CX + ARM * Math.cos(rad);
+            const y3 = CY - ARM * Math.sin(rad);
+            const arcX = CX + ARC_R * Math.cos(rad);
+            const arcY = CY - ARC_R * Math.sin(rad);
+            const isRight = deg === 90;
+            return (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
+                  {isRight ? (
+                    <g stroke={accent} strokeWidth="2" fill="none">
+                      <line x1={CX} y1={CY} x2={x2} y2={y2} />
+                      <line x1={CX} y1={CY} x2={x3} y2={y3} />
+                      <polyline points={`${CX + 12},${CY} ${CX + 12},${CY - 12} ${CX},${CY - 12}`} strokeWidth="1.5" />
+                    </g>
+                  ) : (
+                    <g stroke={accent} strokeWidth="2" fill="none">
+                      <line x1={CX} y1={CY} x2={x2} y2={y2} />
+                      <line x1={CX} y1={CY} x2={x3} y2={y3} />
+                      <path d={`M ${CX + ARC_R},${CY} A ${ARC_R},${ARC_R} 0 0,1 ${arcX},${arcY}`} strokeWidth="1.5" />
+                    </g>
+                  )}
+                  <circle cx={CX} cy={CY} r="3" fill={accent} />
+                </svg>
+                <span className="text-sm font-bold" style={{ color: accent }}>{label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // Context-driven: highlight key numbers from visualData
   const keyNumbers = Array.isArray(vp?.keyNumbers) ? vp!.keyNumbers as (string | number)[] : null;
   const context = typeof vp?.context === "string" ? vp!.context as string : null;
