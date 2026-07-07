@@ -854,11 +854,10 @@ function MatchingTaskVisual({ taskId, accent, vp }: {
   // PA_UP_001: input/output function table
   const tableRows = Array.isArray(vp?.tableRows) ? vp!.tableRows as [string | number, string | number][] : null;
   if (tableRows) {
-    const reverseRows = Array.isArray(vp?.reverseRows) ? vp!.reverseRows as [string | number, string | number][] : null;
-    const tableEl = (rows: [string | number, string | number][], label: string) => (
-      <div>
-        <p className="text-center text-xs font-semibold mb-1" style={{ color: accent }}>{label}</p>
-        <div className="overflow-hidden rounded-lg border border-slate-200">
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Function table</p>
+        <div className="overflow-hidden rounded-lg border border-slate-200 max-w-[180px] mx-auto">
           <table className="w-full border-collapse text-center text-sm">
             <thead>
               <tr style={{ backgroundColor: accent + "20" }}>
@@ -867,23 +866,20 @@ function MatchingTaskVisual({ taskId, accent, vp }: {
               </tr>
             </thead>
             <tbody>
-              {rows.map(([inp, out], i) => (
-                <tr key={i} className="border-t border-slate-100">
-                  <td className="py-1.5 border-r border-slate-200 font-semibold" style={{ color: String(inp) === "?" ? "#94a3b8" : "#334155" }}>{inp}</td>
-                  <td className="py-1.5 font-semibold" style={{ color: String(out) === "?" ? "#94a3b8" : "#1e293b" }}>{out}</td>
-                </tr>
-              ))}
+              {tableRows.map(([inp, out], i) => {
+                const prevRow = tableRows[i - 1];
+                const isReverseRow = String(inp) === "?" && String(out) !== "?";
+                const prevWasForward = prevRow && !(String(prevRow[0]) === "?" && String(prevRow[1]) !== "?");
+                const showDivider = isReverseRow && prevWasForward;
+                return (
+                  <tr key={i} className={`border-t ${showDivider ? "border-t-2" : "border-slate-100"}`} style={showDivider ? { borderTopColor: accent + "60" } : {}}>
+                    <td className="py-1.5 border-r border-slate-200 font-semibold" style={{ color: String(inp) === "?" ? "#94a3b8" : "#334155" }}>{inp}</td>
+                    <td className="py-1.5 font-semibold" style={{ color: String(out) === "?" ? "#94a3b8" : "#1e293b" }}>{out}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
-      </div>
-    );
-    return (
-      <div className={CARD_INNER}>
-        <p className={TASK_LABEL}>Function table</p>
-        <div className={reverseRows ? "flex gap-4 justify-center" : "max-w-[180px] mx-auto"}>
-          {tableEl(tableRows, reverseRows ? "Find the output" : "")}
-          {reverseRows && tableEl(reverseRows, "Find the input")}
         </div>
       </div>
     );
