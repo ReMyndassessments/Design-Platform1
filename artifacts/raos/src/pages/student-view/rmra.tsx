@@ -833,12 +833,37 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
 function MatchingTaskVisual({ taskId, accent, vp }: {
   taskId: string; accent: string; vp?: Record<string, unknown>;
 }) {
-  // PS_UP_001: logic clues list
+  // PS_UP_001: logic clues — with optional colored rocket illustrations
   const clues = Array.isArray(vp?.clues) ? vp!.clues as string[] : null;
+  const rockets = Array.isArray(vp?.rockets) ? vp!.rockets as { label: string; color: string }[] : null;
   if (clues) {
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>Logic clues</p>
+        {rockets && (
+          <div className="flex justify-center gap-4 mb-3">
+            {rockets.map(({ label, color }) => (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <svg viewBox="0 0 32 56" width={32} height={56}>
+                  {/* Fins */}
+                  <polygon points="4,44 10,32 10,48" fill={color} opacity="0.7" />
+                  <polygon points="28,44 22,32 22,48" fill={color} opacity="0.7" />
+                  {/* Body */}
+                  <rect x="9" y="20" width="14" height="28" rx="2" fill={color} />
+                  {/* Nose cone */}
+                  <path d="M9,20 Q16,2 23,20 Z" fill={color} />
+                  {/* Window */}
+                  <circle cx="16" cy="28" r="4" fill="white" opacity="0.85" />
+                  <circle cx="16" cy="28" r="2.5" fill={color} opacity="0.5" />
+                  {/* Flame */}
+                  <ellipse cx="16" cy="50" rx="4" ry="5" fill="#fbbf24" opacity="0.9" />
+                  <ellipse cx="16" cy="51" rx="2.5" ry="3.5" fill="#f97316" opacity="0.9" />
+                </svg>
+                <span className="text-xs font-bold" style={{ color }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex flex-col gap-1.5 py-1">
           {clues.map((clue, i) => (
             <div key={i} className="flex gap-2 items-start px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200">

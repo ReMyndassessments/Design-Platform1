@@ -1777,7 +1777,14 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
     briefVersion: true,
-    visualData: { clues: ["B arrives before A", "C arrives last"] },
+    visualData: {
+      rockets: [
+        { label: "Red", color: "#ef4444" },
+        { label: "Blue", color: "#3b82f6" },
+        { label: "Green", color: "#22c55e" },
+      ],
+      clues: ["Blue arrives before Red", "Green arrives last"],
+    },
   },
   {
     id: "RMRA_PS_MS_001",
