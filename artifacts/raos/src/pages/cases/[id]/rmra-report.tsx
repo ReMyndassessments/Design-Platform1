@@ -11,7 +11,7 @@ import {
 import {
   Brain, Sparkles, ArrowLeft, ChevronDown, ChevronRight,
   AlertTriangle, BookOpen, Target, Lightbulb, Clock, CheckCircle2,
-  Loader2, Calendar, User, Activity,
+  Loader2, Calendar, User, Activity, Printer,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -716,15 +716,23 @@ export function RmraReportPanel({
       <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
         <CheckCircle2 size={16} className="shrink-0" />
         <span>Assessment completed. Domain scores saved.</span>
-        {!isStandalone && (
-          <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2 no-print">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 h-7 text-xs"
+            onClick={() => window.print()}
+          >
+            <Printer size={12} /> Print / Save PDF
+          </Button>
+          {!isStandalone && (
             <Link href={`/cases/${caseId}`}>
               <Button variant="outline" size="sm" className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 h-7 text-xs">
                 <ArrowLeft size={12} /> Back to Case
               </Button>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Domain Heat Map */}
@@ -1167,7 +1175,7 @@ export function RmraReportPanel({
       </Card>
 
       {/* Bobby Agent OS */}
-      <Card>
+      <Card className="no-print">
         <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
           <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <Brain size={14} className="text-blue-500" /> Bobby Agent OS
