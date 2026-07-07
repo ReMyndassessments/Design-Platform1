@@ -95,6 +95,9 @@ function computeVisualParams(item: { visualType: string; exactAnswer?: number | 
       return { total: isNaN(total) ? 100 : total };
     }
     case "area_model": {
+      if (item.part1 !== undefined && item.part2 !== undefined) {
+        return { cols: Math.min(item.part1, 15), rows: Math.min(item.part2, 15) };
+      }
       const n = typeof ea === "number" ? ea : parseInt(String(ea ?? "12"));
       const safe = isNaN(n) ? 12 : Math.min(n, 100);
       const cols = Math.min(10, Math.ceil(Math.sqrt(safe)));
@@ -102,7 +105,7 @@ function computeVisualParams(item: { visualType: string; exactAnswer?: number | 
       return { cols, rows };
     }
     case "tally_marks": {
-      const count = typeof ea === "number" ? Math.min(ea, 25) : 13;
+      const count = er ? Math.min(er[1], 25) : (typeof ea === "number" ? Math.min(ea, 25) : 13);
       return { count };
     }
     default:

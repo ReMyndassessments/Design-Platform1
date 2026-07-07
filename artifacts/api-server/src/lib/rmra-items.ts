@@ -687,7 +687,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Subtraction Reasoning",
     ageBand: "early_primary",
     taskType: "take_away",
-    visualType: "dot_array",
+    visualType: "tally_marks",
     prompts: {
       space_mission: "There were 12 stars. The astronaut collected 5. How many are left? Show your thinking.",
       city_builder: "There were 12 bricks. You used 5. How many bricks are left?",
@@ -696,6 +696,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       treasure_builder: "There were 12 gems. You gave away 5. How many remain?",
     },
     exactAnswer: 7,
+    expectedAnswerRange: [0, 12],
     primaryConstruct: "subtraction as take-away",
     secondaryConstructs: ["counting back", "number bonds to 12"],
     strategyOptions: ["counted all then removed", "counted back from 12", "used known fact", "used addition to check (5+7=12)"],
@@ -715,7 +716,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Subtraction Reasoning",
     ageBand: "upper_primary",
     taskType: "difference",
-    visualType: "number_line",
+    visualType: "bar_model",
     prompts: {
       space_mission: "Rocket A travelled 8,004 km. Rocket B travelled 5,867 km. How much further did Rocket A go?",
       city_builder: "Building A is 8,004 cm tall. Building B is 5,867 cm. What's the height difference?",
@@ -1145,7 +1146,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Measurement",
     ageBand: "early_primary",
     taskType: "direct_comparison",
-    visualType: "visual_word_problem",
+    visualType: "bar_model",
     prompts: {
       space_mission: "Which rocket is taller — the red one or the blue one? How do you know?",
       city_builder: "Which building is taller — Building A or Building B? How can you tell?",
@@ -1172,7 +1173,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Measurement",
     ageBand: "upper_primary",
     taskType: "area_perimeter",
-    visualType: "visual_word_problem",
+    visualType: "area_model",
     prompts: {
       space_mission: "A space station room is 8m long and 5m wide. What is the perimeter? What is the area?",
       city_builder: "A city park is 8m × 5m. What is its perimeter and area?",
@@ -1181,6 +1182,8 @@ export const RMRA_ITEMS: RmraItem[] = [
       treasure_builder: "A treasure room is 8m × 5m. What is the perimeter and area?",
     },
     exactAnswer: "P = 26m, A = 40m²",
+    part1: 8,
+    part2: 5,
     primaryConstruct: "perimeter and area",
     secondaryConstructs: ["multiplication", "formula use"],
     strategyOptions: ["guessed", "confused perimeter and area", "added all sides for perimeter", "used formula P=2(l+w) and A=l×w"],
@@ -1426,7 +1429,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Geometry & Spatial Reasoning",
     ageBand: "middle_school",
     taskType: "pythagoras",
-    visualType: "visual_word_problem",
+    visualType: "shape_rotation",
     prompts: {
       space_mission: "A spacecraft travels 6 km north and 8 km east. How far is it from its starting point?",
       city_builder: "A diagonal walkway cuts across a 6m × 8m park. How long is the walkway?",
@@ -1454,7 +1457,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Geometry & Spatial Reasoning",
     ageBand: "secondary",
     taskType: "trigonometry",
-    visualType: "visual_word_problem",
+    visualType: "shape_rotation",
     prompts: {
       space_mission: "A spacecraft launch ramp is 50m long at a 30° angle. How high does it reach vertically?",
       city_builder: "A ramp is 50m long at 30° to the ground. What is its vertical height?",
@@ -1484,7 +1487,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Mathematical Language",
     ageBand: "early_primary",
     taskType: "vocabulary_application",
-    visualType: "sorting_task",
+    visualType: "dot_array",
     prompts: {
       space_mission: "I'll say a math word. Show me what it means with the blocks. Word: MORE.",
       city_builder: "Show me what 'more' means using the building blocks.",
@@ -1511,7 +1514,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Mathematical Language",
     ageBand: "upper_primary",
     taskType: "word_problem_comprehension",
-    visualType: "visual_word_problem",
+    visualType: "bar_model",
     prompts: {
       space_mission: "Identify the key information: 'A rocket travelled at 450 km/h for 3 hours but stopped for 30 minutes to refuel.' What does the question need?",
       city_builder: "Identify key information: 'A builder places 450 bricks per hour for 3 hours, then rests for 30 minutes.' What would you need to solve a problem?",
@@ -1538,7 +1541,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Mathematical Language",
     ageBand: "middle_school",
     taskType: "mathematical_explanation",
-    visualType: "number_bond",
+    visualType: "pattern_builder",
     prompts: {
       space_mission: "Explain in words why a negative × negative = positive. Use the space mission as your context.",
       city_builder: "Explain in your own words why multiplying two negative numbers gives a positive.",
@@ -1651,7 +1654,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Problem Solving & Executive Function",
     ageBand: "middle_school",
     taskType: "multi_constraint_problem",
-    visualType: "bar_model",
+    visualType: "sorting_task",
     prompts: {
       space_mission: "A mission has a budget of $1,200. Fuel costs $150 per tank and food costs $75 per pack. The mission needs at least 5 tanks. What's the maximum food packs they can buy?",
       city_builder: "Budget: $1,200. Bricks cost $150 per pallet. Paint costs $75 per can. Need at least 5 pallets. Max paint cans?",
@@ -1737,7 +1740,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Response to Productive Struggle",
     ageBand: "upper_primary",
     taskType: "error_finding",
-    visualType: "visual_word_problem",
+    visualType: "balance_scale",
     prompts: {
       space_mission: "Find the mistake: 4 × 23 = 92, then 92 + 37 = 119, then 119 ÷ 7 = 17. Is the final answer correct?",
       city_builder: "Find the error in this calculation chain: 4×23=92, 92+37=119, 119÷7=17.",
