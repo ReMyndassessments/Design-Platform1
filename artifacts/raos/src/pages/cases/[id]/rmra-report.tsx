@@ -1188,7 +1188,7 @@ export function RmraReportPanel({
       </Card>
 
       {/* Bobby Agent OS */}
-      <Card className="no-print">
+      <Card>
         <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
           <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <Brain size={14} className="text-blue-500" /> Bobby Agent OS
@@ -1196,7 +1196,7 @@ export function RmraReportPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 space-y-3">
-          <p className="text-xs text-slate-500 mb-1">
+          <p className="text-xs text-slate-500 mb-1 no-print">
             Generate tailored support documents based on this student's RMRA assessment data.
           </p>
           {BOBBY_ACTIONS.map(({ id, label, Icon, description, buttonClass, iconClass, borderClass, headerClass }) => {
@@ -1209,12 +1209,12 @@ export function RmraReportPanel({
                   <Icon size={14} className={iconClass} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-slate-800">{label}</div>
-                    <div className="text-xs text-slate-500">{description}</div>
+                    <div className="text-xs text-slate-500 no-print">{description}</div>
                   </div>
                   <Button
                     size="sm"
                     variant={hasContent ? "outline" : "default"}
-                    className={`gap-1.5 h-7 text-xs shrink-0 ${!hasContent ? buttonClass : ""}`}
+                    className={`gap-1.5 h-7 text-xs shrink-0 no-print ${!hasContent ? buttonClass : ""}`}
                     onClick={() => {
                       if (hasContent) {
                         setBobbyStates(prev => ({
@@ -1236,8 +1236,8 @@ export function RmraReportPanel({
                     )}
                   </Button>
                 </div>
-                {hasContent && isExpanded && (
-                  <div className="px-4 py-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-t border-slate-100 bg-white">
+                {hasContent && (
+                  <div className={`bobby-content px-4 py-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-t border-slate-100 bg-white${!isExpanded ? " hidden" : ""}`}>
                     {stripMarkdown(state.content!)}
                   </div>
                 )}
