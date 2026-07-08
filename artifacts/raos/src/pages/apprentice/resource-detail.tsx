@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, ArrowRight } from "lucide-react";
 import { RESOURCE_CONTENT } from "@/lib/apprentice-resources-content";
 
 function renderParagraph(text: string, key: number) {
@@ -57,6 +57,15 @@ export default function ApprenticeResourceDetailPage() {
       <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
         {resource.body.map((paragraph, i) => renderParagraph(paragraph, i))}
       </div>
+
+      {resource.link && (
+        <Link
+          href={resource.link.href}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 hover:text-amber-800"
+        >
+          {resource.link.label} <ArrowRight size={14} />
+        </Link>
+      )}
     </div>
   );
 }

@@ -98,6 +98,11 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
 });
 
 router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can edit tools" });
+    return;
+  }
+
   const { id } = req.params;
   const { name, description, category, scoringType, domains, respondentTypes, formItems, scoringConfig, productIds } = req.body;
 
@@ -127,6 +132,11 @@ router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {
 });
 
 router.delete("/assessment-tools/:id", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only admins can delete tools" });
+    return;
+  }
+
   const { id } = req.params;
 
   const existing = await db.select().from(assessmentToolsTable).where(eq(assessmentToolsTable.id, id));

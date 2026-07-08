@@ -3,6 +3,7 @@ export interface ResourceContent {
   label: string;
   section: string;
   body: string[];
+  link?: { href: string; label: string };
 }
 
 export const RESOURCE_CONTENT: Record<string, ResourceContent> = {
@@ -45,7 +46,9 @@ export const RESOURCE_CONTENT: Record<string, ResourceContent> = {
       "**Behavioral & social-emotional tools**\nRating scales (completed by parents, teachers, and sometimes the student) that screen for attention, mood, anxiety, social skills, and adaptive functioning. Multiple raters help identify whether a pattern shows up across settings (home vs. school) or is context-specific.",
       "**Batteries with many domains (e.g., BASC-3)**\nSome tools bundle dozens of subdomains into one rating scale. When reviewing results, focus on domains flagged as clinically significant or at-risk rather than trying to review every subdomain individually.",
       "**How it fits the assessment phase**\nDuring the Assessment phase of a case, the assigned psychometrician selects a battery based on the referral reason, administers it (often via the Bobby AI portal or in-person), and results flow into the Scoring phase for review. As an apprentice, you'll see which tools were selected and can review the rationale with your mentor.",
+      "**Browsing the full tool library**\nThis page covers the categories conceptually. To see the actual 94 tools currently configured in RAOS (names, descriptions, domains, and respondent types), use the link below. It's a live, read-only view — apprentices cannot add, edit, or delete tools there.",
     ],
+    link: { href: "/apprentice/tools", label: "Browse the Assessment Tools Library" },
   },
   "reading-domain-scores": {
     slug: "reading-domain-scores",
