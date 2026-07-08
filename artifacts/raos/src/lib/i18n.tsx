@@ -15,7 +15,7 @@ export const translations = {
       description: "A specialist platform for end-to-end management of Tier 2 Non-Diagnostic Comprehensive Psychoeducational Profile and Support Plans — from initial referral through to report delivery and debrief.",
       caps: [
         "Full case lifecycle tracking",
-        "Standardised scoring across 60+ instruments",
+        "Standardised scoring across 94 instruments",
         "Role-based access for all assessment staff",
         "Secure digital form delivery and administration",
       ],
@@ -429,7 +429,7 @@ export const translations = {
       description: "专门用于第二层次非诊断性综合心理教育档案与支持计划端到端管理的平台——从初始转介到报告交付和汇报。",
       caps: [
         "完整案例生命周期跟踪",
-        "60多种工具的标准化评分",
+        "94种工具的标准化评分",
         "所有评估人员的基于角色的访问",
         "安全的数字表格交付和管理",
       ],
@@ -836,7 +836,7 @@ export const translations = {
       description: "초기 의뢰부터 보고서 전달 및 디브리핑까지 2단계 비진단적 종합 심리교육 프로파일 및 지원 계획의 전 과정을 관리하는 전문 플랫폼입니다.",
       caps: [
         "전체 사례 생애주기 추적",
-        "60개 이상의 도구에 대한 표준화된 채점",
+        "94개 도구에 대한 표준화된 채점",
         "모든 평가 직원을 위한 역할 기반 접근",
         "안전한 디지털 양식 전달 및 관리",
       ],
