@@ -85,6 +85,7 @@ const RmraLandingPage = React.lazy(() => import("@/pages/rmra-landing"));
 const RmraStandaloneSessionPage = React.lazy(() => import("@/pages/rmra-session"));
 const ApprenticeDashboard = React.lazy(() => import("@/pages/apprentice/dashboard"));
 const ApprenticeResourcesPage = React.lazy(() => import("@/pages/apprentice/resources"));
+const ApprenticeResourceDetailPage = React.lazy(() => import("@/pages/apprentice/resource-detail"));
 const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
 const queryClient = new QueryClient();
@@ -246,6 +247,9 @@ function Router() {
         </Route>
         <Route path="/apprentice/resources">
           {() => <ProtectedRoute component={ApprenticeResourcesPage} apprenticeOnly />}
+        </Route>
+        <Route path="/apprentice/resources/:slug">
+          {() => <ProtectedRoute component={ApprenticeResourceDetailPage} apprenticeOnly />}
         </Route>
         <Route path="/apprentice/competencies">
           {() => <ProtectedRoute component={ApprenticeCompetenciesPage} apprenticeOnly />}

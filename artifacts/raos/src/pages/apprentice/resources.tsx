@@ -1,37 +1,38 @@
-import { BookOpen, ShieldAlert, FileText, Video, LifeBuoy } from "lucide-react";
+import { Link } from "wouter";
+import { BookOpen, ShieldAlert, FileText, ClipboardList, LifeBuoy, ChevronRight } from "lucide-react";
 
 const RESOURCE_SECTIONS = [
   {
     title: "Getting Started",
     icon: BookOpen,
     items: [
-      { label: "Orientation Guide for Clinical Apprentices", desc: "Program overview, expectations, and how to navigate RAOS." },
-      { label: "Confidentiality & Ethics Agreement", desc: "Required reading before viewing any assigned case." },
+      { slug: "orientation-guide", label: "Orientation Guide for Clinical Apprentices", desc: "Program overview, expectations, and how to navigate RAOS." },
+      { slug: "confidentiality-ethics-agreement", label: "Confidentiality & Ethics Agreement", desc: "Required reading before viewing any assigned case." },
     ],
   },
   {
     title: "Clinical Reference",
     icon: FileText,
     items: [
-      { label: "Assessment Battery Overview", desc: "What each tool measures and how it fits the assessment phase." },
-      { label: "Reading & Interpreting Domain Scores", desc: "A primer on interpreting scoring summaries you will see on cases." },
-      { label: "Report Structure Walkthrough", desc: "How background, domain analysis, and recommendations sections are built." },
+      { slug: "assessment-battery-overview", label: "Assessment Battery Overview", desc: "What each tool measures and how it fits the assessment phase." },
+      { slug: "reading-domain-scores", label: "Reading & Interpreting Domain Scores", desc: "A primer on interpreting scoring summaries you will see on cases." },
+      { slug: "report-structure-walkthrough", label: "Report Structure Walkthrough", desc: "How background, domain analysis, and recommendations sections are built." },
     ],
   },
   {
-    title: "Training Videos",
-    icon: Video,
+    title: "Practice Guides",
+    icon: ClipboardList,
     items: [
-      { label: "Observing a Parent Consultation", desc: "Recorded walkthrough of a consultation session." },
-      { label: "Debrief Meeting Best Practices", desc: "How mentors run a family debrief session." },
+      { slug: "observing-parent-consultation", label: "Observing a Parent Consultation", desc: "Written walkthrough of what to notice during a consultation session." },
+      { slug: "debrief-meeting-best-practices", label: "Debrief Meeting Best Practices", desc: "How mentors run a family debrief session." },
     ],
   },
   {
     title: "Support",
     icon: LifeBuoy,
     items: [
-      { label: "Contact Your Mentor", desc: "Reach out through your program coordinator for questions on a specific case." },
-      { label: "Escalation Path", desc: "If you notice a safeguarding concern, notify your mentor and an admin immediately." },
+      { slug: "contact-your-mentor", label: "Contact Your Mentor", desc: "Reach out through your program coordinator for questions on a specific case." },
+      { slug: "escalation-path", label: "Escalation Path", desc: "If you notice a safeguarding concern, notify your mentor and an admin immediately." },
     ],
   },
 ];
@@ -64,10 +65,17 @@ export default function ApprenticeResourcesPage() {
             </h2>
             <div className="space-y-2">
               {section.items.map((item) => (
-                <div key={item.label} className="bg-white border border-slate-200 rounded-xl p-4">
-                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">{item.desc}</p>
-                </div>
+                <Link
+                  key={item.slug}
+                  href={`/apprentice/resources/${item.slug}`}
+                  className="flex items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4 hover:border-amber-300 hover:shadow-sm transition-all"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                    <p className="text-xs text-slate-500 mt-1">{item.desc}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
+                </Link>
               ))}
             </div>
           </section>
