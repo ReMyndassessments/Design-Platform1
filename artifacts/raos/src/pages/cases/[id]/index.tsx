@@ -182,6 +182,22 @@ export default function CaseDetail() {
     },
   });
 
+  const unassignToolMut = useMutation({
+    mutationFn: async (toolId: string) => {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/by-tool/${toolId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (r.status === 409) throw new Error("Cannot unassign a completed assessment");
+      if (!r.ok) throw new Error("Failed to unassign tool");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      toast({ title: "Assessment unassigned" });
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
+  });
+
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [activeQr, setActiveQr] = useState<string>("");
   const [addAssignmentModalOpen, setAddAssignmentModalOpen] = useState(false);
@@ -1828,14 +1844,26 @@ export default function CaseDetail() {
                                   </div>
                                   {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
                                     <div className="flex gap-2 mt-2 pt-2 border-t border-blue-50">
-                                      <Button
-                                        size="sm"
-                                        className={`h-7 text-xs gap-1.5 flex-1 ${alreadyAssigned ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-                                        disabled={isAssigning || alreadyAssigned}
-                                        onClick={() => handleAssignTool({ toolId: t.toolId, name: t.name })}
-                                      >
-                                        {isAssigning ? "Assigning…" : alreadyAssigned ? "✓ Assigned" : "Assign"}
-                                      </Button>
+                                      {alreadyAssigned ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs gap-1.5 flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                                          disabled={unassignToolMut.isPending && unassignToolMut.variables === t.toolId}
+                                          onClick={() => unassignToolMut.mutate(t.toolId)}
+                                        >
+                                          {unassignToolMut.isPending && unassignToolMut.variables === t.toolId ? "Removing…" : "Unassign"}
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          className="h-7 text-xs gap-1.5 flex-1"
+                                          disabled={isAssigning}
+                                          onClick={() => handleAssignTool({ toolId: t.toolId, name: t.name })}
+                                        >
+                                          {isAssigning ? "Assigning…" : "Assign"}
+                                        </Button>
+                                      )}
                                       <Button
                                         size="sm"
                                         variant="outline"

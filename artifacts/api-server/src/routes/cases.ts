@@ -559,6 +559,18 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
   }
 });
 
+router.delete("/cases/:caseId/assignments/by-tool/:toolId", authMiddleware, async (req, res) => {
+  const { caseId, toolId } = req.params;
+  const rows = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, toolId)));
+  if (!rows.length) { res.status(404).json({ error: "No assignment found for this tool" }); return; }
+  const completed = rows.some(r => r.status === "completed");
+  if (completed) { res.status(409).json({ error: "Cannot unassign a completed assessment" }); return; }
+  await db.delete(assignmentsTable)
+    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, toolId)));
+  res.status(204).send();
+});
+
 router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
   if (!isAdminLike(req.userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can delete cases" });
