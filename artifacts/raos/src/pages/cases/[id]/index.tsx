@@ -2883,14 +2883,14 @@ export default function CaseDetail() {
                 <option value="completed">Completed</option>
               </select>
             </div>
-            {(currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator") && (
+            {currentUser?.role === "admin" && (
               <div className="space-y-1">
                 <label className="text-sm font-medium">Case Type</label>
                 <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.caseMode} onChange={e => setEditFields(f => ({ ...f, caseMode: e.target.value }))}>
                   <option value="live">Live case (real student)</option>
                   <option value="test">Test / training case</option>
                 </select>
-                <p className="text-xs text-slate-400">Only real admins/coordinators can change case type — not editable by an apprentice, even in a coaching session.</p>
+                <p className="text-xs text-slate-400">Only admins can change case type — not editable by school coordinators or apprentices, even in a coaching session.</p>
               </div>
             )}
             <div className="border-t pt-3 space-y-3">

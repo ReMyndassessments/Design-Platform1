@@ -169,7 +169,7 @@ export default function NewCase() {
               </div>
             </div>
 
-            {isAdmin && (
+            {currentUser?.role === "admin" && (
               <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-4">
                 <label className="text-sm font-medium">Case Type</label>
                 <select
