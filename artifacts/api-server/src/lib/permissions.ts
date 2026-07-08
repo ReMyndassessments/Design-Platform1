@@ -30,14 +30,12 @@ export async function isTestCase(caseId: string): Promise<boolean> {
 
 export async function canUserAccessCase(user: PermissionUser, caseId: string): Promise<boolean> {
   if (user.role === "clinical_apprentice") {
-    // Live cases: apprentices get full read-only parity with staff, so any
-    // live case is viewable without an explicit assignment. Test/training
-    // cases stay assignment-gated since that's how a mentor deliberately
-    // hands an apprentice a case to work hands-on (with full edit access).
-    if (await isTestCase(caseId)) {
-      return isApprenticeAssignedToCase(user.id, caseId);
-    }
-    return true;
+    // Mentors deliberately curate exactly which cases an apprentice can see,
+    // live or test — no automatic blanket access to all live cases. An
+    // active case_apprentice_assignments row is required either way. Test
+    // cases additionally grant full edit access (mentor coaching); live
+    // cases stay strictly read-only even once assigned.
+    return isApprenticeAssignedToCase(user.id, caseId);
   }
   if (user.role === "school_clinical_coordinator") {
     const rows = await db.select({ school: casesTable.school }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);

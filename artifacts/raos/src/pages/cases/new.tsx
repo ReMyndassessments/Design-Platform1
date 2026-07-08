@@ -182,7 +182,7 @@ export default function NewCase() {
                   <option value="test">Test / training case</option>
                 </select>
                 <p className="text-xs text-slate-500">
-                  Test/training cases contain no real student data. Clinical Apprentices get full edit access on test cases so mentors can coach them hands-on; on live cases apprentices remain strictly read-only.
+                  Test/training cases contain no real student data. An apprentice must be explicitly assigned to a case (live or test) to see it. Assigned test cases grant full edit access for mentor coaching; assigned live cases stay strictly read-only.
                 </p>
               </div>
             )}

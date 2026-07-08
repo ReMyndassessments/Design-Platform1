@@ -21,8 +21,9 @@ export default function ReportEditor() {
   const { data: caseData } = useGetCase(caseId);
   const updateCaseMut = useUpdateCase();
 
-  // Apprentices get full edit parity on test/training cases (mentor coaching),
-  // but stay read-only on live cases.
+  // Apprentices only reach this page once assigned to the case. Assigned
+  // test/training cases get full edit parity (mentor coaching); assigned
+  // live cases stay read-only.
   const isApprenticeOnTestCase = currentUser?.role === "clinical_apprentice" && caseData?.caseMode === "test";
   const canEdit = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator" || currentUser?.role === "psychometrician" || isApprenticeOnTestCase;
 

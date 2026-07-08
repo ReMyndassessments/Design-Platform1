@@ -188,9 +188,8 @@ router.get("/cases", authMiddleware, async (req, res) => {
         : [])
     : await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
 
-  // Clinical apprentices get full read-only parity on live cases, so they see
-  // every live case here, plus any test/training case explicitly assigned to
-  // them (mentors control which training cases an apprentice can edit).
+  // Clinical apprentices only see cases a mentor has explicitly assigned to
+  // them — live or test. No automatic blanket access to every live case.
   if (userRole === "clinical_apprentice") {
     const assignedRows = await db.select({ caseId: caseApprenticeAssignmentsTable.caseId })
       .from(caseApprenticeAssignmentsTable)
@@ -199,7 +198,7 @@ router.get("/cases", authMiddleware, async (req, res) => {
         eq(caseApprenticeAssignmentsTable.status, "active"),
       ));
     const assignedIds = new Set(assignedRows.map(r => r.caseId));
-    cases = cases.filter(c => c.caseMode !== "test" || assignedIds.has(c.id));
+    cases = cases.filter(c => assignedIds.has(c.id));
   }
 
   // Bulk-compute product completion % for cases that have products assigned

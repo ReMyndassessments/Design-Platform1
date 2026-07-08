@@ -5,14 +5,13 @@ import { canUserAccessCase, isTestCase } from "../lib/permissions.js";
 /**
  * Authenticates the request and, for the clinical_apprentice role, enforces
  * case-assignment-scoped access on staff routers:
- *   - The bare /cases list (GET, no case id) is allowed through: apprentices
- *     get full read-only parity with staff on live cases, so they can browse
- *     the same case list. The route handler itself filters the result set
- *     (live cases + any test cases the apprentice is assigned to). Any
- *     non-GET request on the bare list (e.g. creating a case) is denied.
- *   - Any GET under /cases/:caseId/... on a "test"/training case requires an
- *     active case_apprentice_assignments row for that case; live cases are
- *     open to any apprentice, read-only.
+ *   - The bare /cases list (GET, no case id) is allowed through: the route
+ *     handler itself filters the result set down to only cases a mentor has
+ *     explicitly assigned to the apprentice (live or test — no automatic
+ *     access to every live case). Any non-GET request on the bare list (e.g.
+ *     creating a case) is denied.
+ *   - Any GET under /cases/:caseId/... requires an active
+ *     case_apprentice_assignments row for that case, live or test.
  *   - For a case-scoped request (GET or mutation) on a "test"/training case,
  *     the apprentice is impersonated as "admin" (req.userRole is elevated)
  *     so downstream route handlers grant full read/write parity — mentors
