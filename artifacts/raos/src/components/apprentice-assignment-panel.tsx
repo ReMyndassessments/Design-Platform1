@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +35,8 @@ interface StaffUser {
 export function ApprenticeAssignmentPanel({ caseId }: { caseId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: currentUser } = useGetCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
   const [selectedApprenticeId, setSelectedApprenticeId] = useState("");
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({});
   const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
@@ -47,8 +50,11 @@ export function ApprenticeAssignmentPanel({ caseId }: { caseId: string }) {
     },
   });
 
+  // Only admins can assign apprentices (for now), and /users/assignable is
+  // restricted to admins server-side — skip the request entirely otherwise.
   const { data: users } = useQuery<StaffUser[]>({
     queryKey: ["team-users-for-apprentice-panel"],
+    enabled: isAdmin,
     queryFn: async () => {
       const res = await fetch(`${BASE_URL}/api/users/assignable`, { headers: authHeaders() });
       if (!res.ok) return [];
@@ -144,13 +150,15 @@ export function ApprenticeAssignmentPanel({ caseId }: { caseId: string }) {
                 >
                   <MessageSquareQuote size={12} /> Feedback
                 </Button>
-                <button
-                  className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                  onClick={() => removeMut.mutate(a.id)}
-                  title="Remove apprentice access"
-                >
-                  <X size={14} />
-                </button>
+                {isAdmin && (
+                  <button
+                    className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                    onClick={() => removeMut.mutate(a.id)}
+                    title="Remove apprentice access"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
             {feedbackTargetId === a.apprenticeUserId && (
@@ -175,7 +183,7 @@ export function ApprenticeAssignmentPanel({ caseId }: { caseId: string }) {
           </div>
         ))}
 
-        {availableApprentices.length > 0 && (
+        {isAdmin && availableApprentices.length > 0 && (
           <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
             <Select value={selectedApprenticeId} onValueChange={setSelectedApprenticeId}>
               <SelectTrigger className="h-9 text-sm flex-1">
@@ -196,8 +204,13 @@ export function ApprenticeAssignmentPanel({ caseId }: { caseId: string }) {
             </Button>
           </div>
         )}
-        {allApprentices.length === 0 && (
+        {isAdmin && allApprentices.length === 0 && (
           <p className="text-xs text-slate-400">No Clinical Apprentice accounts exist yet — add one from the Team page.</p>
+        )}
+        {!isAdmin && (
+          <p className="text-xs text-slate-400 pt-2 border-t border-slate-100">
+            Only admins can assign or remove apprentices on a case.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -23,6 +23,12 @@ function isMentorLike(role?: string): boolean {
   return role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator";
 }
 
+// Assigning/removing apprentices on a case is restricted to admins only (for now).
+// Mentor feedback and competency tracking remain open to all mentor-like roles.
+function canAssignApprentices(role?: string): boolean {
+  return role === "admin";
+}
+
 async function requireApprenticeAccess(userId: string, caseId: string): Promise<boolean> {
   return canUserAccessCase({ id: userId, role: "clinical_apprentice" }, caseId);
 }
@@ -45,8 +51,8 @@ router.get("/cases/:caseId/apprentices", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/apprentices", authMiddleware, async (req, res) => {
-  if (!isMentorLike(req.userRole)) {
-    res.status(403).json({ error: "forbidden", message: "Only mentors/admins can assign apprentices" });
+  if (!canAssignApprentices(req.userRole)) {
+    res.status(403).json({ error: "forbidden", message: "Only admins can assign apprentices" });
     return;
   }
   const { apprenticeUserId, notes } = req.body;
@@ -85,8 +91,8 @@ router.post("/cases/:caseId/apprentices", authMiddleware, async (req, res) => {
 });
 
 router.delete("/cases/:caseId/apprentices/:assignmentId", authMiddleware, async (req, res) => {
-  if (!isMentorLike(req.userRole)) {
-    res.status(403).json({ error: "forbidden", message: "Only mentors/admins can remove apprentice access" });
+  if (!canAssignApprentices(req.userRole)) {
+    res.status(403).json({ error: "forbidden", message: "Only admins can remove apprentice access" });
     return;
   }
   const rows = await db.select().from(caseApprenticeAssignmentsTable).where(and(

@@ -568,7 +568,7 @@ export const UpdateAssignmentResponse = zod.object({
     "school_counselor",
     "special_needs_teacher",
     "invigilator",
-    "examiner",
+      "examiner",
   ]),
   respondentLabel: zod.string(),
   assignedToName: zod.string().nullish(),
