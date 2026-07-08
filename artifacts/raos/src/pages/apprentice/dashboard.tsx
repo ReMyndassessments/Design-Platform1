@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useGetCurrentUser } from "@workspace/api-client-react";
-import { GraduationCap, ClipboardList, ChevronRight, BookOpen, ShieldCheck } from "lucide-react";
+import { useGetCurrentUser, useListCases } from "@workspace/api-client-react";
+import { GraduationCap, ClipboardList, ChevronRight, BookOpen, ShieldCheck, Eye } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -41,6 +41,13 @@ export default function ApprenticeDashboard() {
     },
   });
 
+  // In addition to explicitly-assigned learning cases above, apprentices get
+  // full read-only parity on every live case — surface that count/link here
+  // too so the dashboard doesn't understate what they can already see via
+  // the "Cases" sidebar link.
+  const { data: allCases, isLoading: isLoadingAllCases } = useListCases();
+  const liveCasesCount = allCases?.filter(c => c.caseMode === "live").length ?? 0;
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -53,7 +60,7 @@ export default function ApprenticeDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Link href="/apprentice/resources" className="bg-white border border-slate-200 rounded-xl p-4 hover:border-amber-300 hover:shadow-sm transition-all flex items-center gap-3">
           <BookOpen size={18} className="text-amber-500" />
           <div>
@@ -75,6 +82,13 @@ export default function ApprenticeDashboard() {
             <p className="text-xs text-slate-400">Read-only, for learning</p>
           </div>
         </div>
+        <Link href="/cases" className="bg-white border border-slate-200 rounded-xl p-4 hover:border-amber-300 hover:shadow-sm transition-all flex items-center gap-3">
+          <Eye size={18} className="text-amber-500" />
+          <div>
+            <p className="text-sm font-semibold text-slate-800">{isLoadingAllCases ? "…" : liveCasesCount} Live Cases</p>
+            <p className="text-xs text-slate-400">Read-only, for reference</p>
+          </div>
+        </Link>
       </div>
 
       <section>
