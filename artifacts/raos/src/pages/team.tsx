@@ -254,7 +254,7 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
 
     updateMut.mutate(
       {
-        userId: user.id,
+        id: user.id,
         data: {
           name: name.trim(),
           email: email.trim().toLowerCase(),
@@ -393,14 +393,23 @@ function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () =
   const qc = useQueryClient();
   const deleteMut = useDeleteUser();
 
+  const { toast } = useToast();
+
   const handleDelete = () => {
     deleteMut.mutate(
-      { userId: user.id },
+      { id: user.id },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ["/api/users"] });
           qc.invalidateQueries({ queryKey: ["/api/users/assignable"] });
           onClose();
+        },
+        onError: (error: any) => {
+          toast({
+            title: "Could not remove staff member",
+            description: error?.message ?? "Something went wrong. Please try again.",
+            variant: "destructive",
+          });
         },
       }
     );
