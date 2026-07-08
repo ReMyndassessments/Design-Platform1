@@ -141,6 +141,7 @@ export default function CaseDetail() {
   const [, setLocation] = useLocation();
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const { data: c, isLoading, isError, error } = useGetCase(caseId);
+  const watchAlong = useWatchAlong();
   const advancePhaseMut = useAdvanceCasePhase();
   const analyzeIntakeMut = useAnalyzeIntake();
   const updateCaseMut = useUpdateCase();
@@ -618,7 +619,6 @@ export default function CaseDetail() {
   const role = (currentUser?.role === "clinical_apprentice" && c.caseMode === "test")
     ? "admin"
     : (currentUser?.role ?? "psychometrician");
-  const watchAlong = useWatchAlong();
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = !userLoading && canAdvancePhase(role) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
