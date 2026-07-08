@@ -81,6 +81,10 @@ const RrfaStudentView = React.lazy(() => import("@/pages/student-view/rrfa"));
 const RmraStudentView = React.lazy(() => import("@/pages/student-view/rmra"));
 const RmraLandingPage = React.lazy(() => import("@/pages/rmra-landing"));
 const RmraStandaloneSessionPage = React.lazy(() => import("@/pages/rmra-session"));
+const ApprenticeDashboard = React.lazy(() => import("@/pages/apprentice/dashboard"));
+const ApprenticeCaseView = React.lazy(() => import("@/pages/apprentice/case-view"));
+const ApprenticeResourcesPage = React.lazy(() => import("@/pages/apprentice/resources"));
+const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
 const queryClient = new QueryClient();
 
@@ -90,7 +94,7 @@ const PageFallback = () => (
   </div>
 );
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component, apprenticeOnly = false }: { component: React.ComponentType; apprenticeOnly?: boolean }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useGetCurrentUser({
     query: {
@@ -99,19 +103,33 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     }
   });
 
+  const isApprentice = user?.role === "clinical_apprentice";
+
   React.useEffect(() => {
     if (!isLoading && !user) {
       navigate("/login");
+      return;
+    }
+    if (!isLoading && user) {
+      if (isApprentice && !apprenticeOnly) {
+        navigate("/apprentice/dashboard");
+      } else if (!isApprentice && apprenticeOnly) {
+        navigate("/dashboard");
+      }
     }
     // navigate is stable in wouter; intentionally excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user]);
+  }, [isLoading, user, isApprentice, apprenticeOnly]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   }
 
   if (!user) {
+    return null;
+  }
+
+  if ((isApprentice && !apprenticeOnly) || (!isApprentice && apprenticeOnly)) {
     return null;
   }
 
@@ -210,6 +228,18 @@ function Router() {
         <Route path="/partner-schools" component={PartnerSchoolsPage} />
         <Route path="/partner-inquiry" component={PartnerInquiryPage} />
         <Route path="/assessment-services" component={AssessmentServicesPage} />
+        <Route path="/apprentice/dashboard">
+          {() => <ProtectedRoute component={ApprenticeDashboard} apprenticeOnly />}
+        </Route>
+        <Route path="/apprentice/cases/:id">
+          {() => <ProtectedRoute component={ApprenticeCaseView} apprenticeOnly />}
+        </Route>
+        <Route path="/apprentice/resources">
+          {() => <ProtectedRoute component={ApprenticeResourcesPage} apprenticeOnly />}
+        </Route>
+        <Route path="/apprentice/competencies">
+          {() => <ProtectedRoute component={ApprenticeCompetenciesPage} apprenticeOnly />}
+        </Route>
 
         <Route component={NotFound} />
       </Switch>

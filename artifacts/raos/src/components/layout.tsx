@@ -14,6 +14,8 @@ import {
   Check,
   ExternalLink,
   RefreshCw,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useGetCurrentUser, useLogout, customFetch } from "@workspace/api-client-react";
@@ -164,13 +166,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/cases", label: "Cases", icon: Users },
-    ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
-    ...(user?.role === "admin" || user?.role === "assessment_invigilator" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
-    ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
-  ];
+  const isApprentice = user?.role === "clinical_apprentice";
+
+  const navItems = isApprentice
+    ? [
+        { href: "/apprentice/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/apprentice/resources", label: "Training Resources", icon: BookOpen },
+        { href: "/apprentice/competencies", label: "My Competencies", icon: ShieldCheck },
+      ]
+    : [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/cases", label: "Cases", icon: Users },
+        ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
+        ...(user?.role === "admin" || user?.role === "assessment_invigilator" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
+        ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
+      ];
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">

@@ -32,6 +32,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
+import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
 
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
@@ -1657,6 +1658,11 @@ export default function CaseDetail() {
 
 
         })()}
+
+        {/* ── Clinical Apprentice Assignment ── mentors & admins only ── */}
+        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (
+          <ApprenticeAssignmentPanel caseId={c.id} />
+        )}
 
         {/* ── Parent Interview Notes ── visible from intake phase onward ── */}
         {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (

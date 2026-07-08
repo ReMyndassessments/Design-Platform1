@@ -11,3 +11,4 @@ export * from "./reportAccess";
 export * from "./referralInvites";
 export * from "./auditLog";
 export * from "./rmra";
+export * from "./clinicalApprentice";

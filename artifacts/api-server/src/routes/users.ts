@@ -8,7 +8,7 @@ import { nanoid } from "nanoid";
 
 const router = Router();
 
-const ASSIGNABLE_ROLES = ["assessment_invigilator", "psychometrician", "school_clinical_coordinator"] as const;
+const ASSIGNABLE_ROLES = ["assessment_invigilator", "psychometrician", "school_clinical_coordinator", "clinical_apprentice"] as const;
 type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 function formatUser(u: typeof usersTable.$inferSelect) {
@@ -77,13 +77,19 @@ router.get("/users", authMiddleware, async (req, res) => {
 });
 
 router.get("/users/assignable", authMiddleware, async (req, res) => {
+  if (req.userRole === "clinical_apprentice") {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const isMentorLike = req.userRole === "admin" || req.userRole === "psychometrician" || req.userRole === "school_clinical_coordinator";
   const users = await db.select({
     id: usersTable.id,
     name: usersTable.name,
     role: usersTable.role,
     schoolName: usersTable.schoolName,
   }).from(usersTable);
-  res.json(users);
+  // Non-admins assigning staff to a case should also be able to see apprentices for that purpose.
+  res.json(isMentorLike ? users : users.filter(u => u.role !== "admin"));
 });
 
 router.post("/users", authMiddleware, async (req, res) => {

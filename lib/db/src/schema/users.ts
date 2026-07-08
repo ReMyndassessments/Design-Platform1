@@ -7,6 +7,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "assessment_invigilator",
   "psychometrician",
   "school_clinical_coordinator",
+  "clinical_apprentice",
 ]);
 
 export const usersTable = pgTable("users", {

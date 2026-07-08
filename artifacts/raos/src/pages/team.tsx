@@ -7,10 +7,13 @@ import {
   useGetCurrentUser,
   type ListUsersQueryResult,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   UserPlus,
   Pencil,
@@ -21,6 +24,7 @@ import {
   Users,
   ShieldAlert,
   Building2,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +35,7 @@ const ROLE_LABELS: Record<string, string> = {
   assessment_invigilator: "Invigilator",
   psychometrician: "Psychometrician",
   school_clinical_coordinator: "School Coordinator",
+  clinical_apprentice: "Clinical Apprentice",
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -38,6 +43,7 @@ const ROLE_COLORS: Record<string, string> = {
   assessment_invigilator: "bg-blue-100 text-blue-700 border-blue-200",
   psychometrician: "bg-emerald-100 text-emerald-700 border-emerald-200",
   school_clinical_coordinator: "bg-purple-100 text-purple-700 border-purple-200",
+  clinical_apprentice: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
 function RoleBadge({ role }: { role: string }) {
@@ -57,7 +63,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-type AssignableRole = "assessment_invigilator" | "psychometrician" | "school_clinical_coordinator";
+type AssignableRole = "assessment_invigilator" | "psychometrician" | "school_clinical_coordinator" | "clinical_apprentice";
 
 function AddStaffModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
@@ -175,6 +181,24 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
                   School Clinical Coordinator
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">In-house partner school coordinator — restricted to contracted schools</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("clinical_apprentice")}
+              className={cn(
+                "w-full p-3 rounded-xl border-2 text-left transition-all flex items-center gap-3",
+                role === "clinical_apprentice"
+                  ? "border-amber-500 bg-amber-50/60"
+                  : "border-slate-200 hover:border-slate-300"
+              )}
+            >
+              <GraduationCap size={16} className={role === "clinical_apprentice" ? "text-amber-600" : "text-slate-400"} />
+              <div>
+                <p className={cn("text-sm font-semibold", role === "clinical_apprentice" ? "text-amber-700" : "text-slate-700")}>
+                  Clinical Apprentice
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Read-only training access, limited to assigned cases</p>
               </div>
             </button>
           </div>
@@ -315,6 +339,24 @@ function EditStaffModal({ user, onClose }: { user: StaffUser; onClose: () => voi
                 <p className="text-xs text-slate-400 mt-0.5">In-house partner school coordinator</p>
               </div>
             </button>
+            <button
+              type="button"
+              onClick={() => setRole("clinical_apprentice")}
+              className={cn(
+                "w-full p-3 rounded-xl border-2 text-left transition-all flex items-center gap-3",
+                role === "clinical_apprentice"
+                  ? "border-amber-500 bg-amber-50/60"
+                  : "border-slate-200 hover:border-slate-300"
+              )}
+            >
+              <GraduationCap size={16} className={role === "clinical_apprentice" ? "text-amber-600" : "text-slate-400"} />
+              <div>
+                <p className={cn("text-sm font-semibold", role === "clinical_apprentice" ? "text-amber-700" : "text-slate-700")}>
+                  Clinical Apprentice
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Read-only training access, limited to assigned cases</p>
+              </div>
+            </button>
           </div>
 
           {role === "school_clinical_coordinator" && (
@@ -390,9 +432,11 @@ function DeleteConfirmDialog({ user, onClose }: { user: StaffUser; onClose: () =
 function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [managingCompetencies, setManagingCompetencies] = useState(false);
 
   const initials = user.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
   const isCoordinator = user.role === "school_clinical_coordinator";
+  const isApprentice = user.role === "clinical_apprentice";
   const avatarBg = isCoordinator ? "from-purple-200 to-purple-400" : "from-primary/20 to-primary/40";
   const avatarText = isCoordinator ? "text-purple-700" : "text-primary";
 
@@ -423,6 +467,15 @@ function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
 
         {!isSelf && user.role !== "admin" && (
           <div className="flex items-center gap-1 flex-shrink-0">
+            {isApprentice && (
+              <button
+                onClick={() => setManagingCompetencies(true)}
+                title="Track Competencies"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+              >
+                <GraduationCap size={14} />
+              </button>
+            )}
             <button
               onClick={() => setEditing(true)}
               title="Edit"
@@ -449,7 +502,124 @@ function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
 
       {editing && <EditStaffModal user={user} onClose={() => setEditing(false)} />}
       {deleting && <DeleteConfirmDialog user={user} onClose={() => setDeleting(false)} />}
+      {managingCompetencies && <CompetencyModal user={user} onClose={() => setManagingCompetencies(false)} />}
     </>
+  );
+}
+
+const BASE_URL_TEAM = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+function teamAuthHeaders() {
+  const token = localStorage.getItem("raos_token");
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+interface Competency {
+  id: string | null;
+  apprenticeUserId: string;
+  competencyKey: string;
+  competencyLabel: string;
+  status: "not_started" | "observing" | "guided_practice" | "competent";
+  mentorNotes: string | null;
+  updatedAt: string | null;
+}
+
+const COMPETENCY_STATUS_OPTIONS: { value: Competency["status"]; label: string }[] = [
+  { value: "not_started", label: "Not started" },
+  { value: "observing", label: "Observing" },
+  { value: "guided_practice", label: "Guided practice" },
+  { value: "competent", label: "Competent" },
+];
+
+function CompetencyModal({ user, onClose }: { user: StaffUser; onClose: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [drafts, setDrafts] = useState<Record<string, { status: Competency["status"]; mentorNotes: string }>>({});
+
+  const { data: competencies, isLoading } = useQuery<Competency[]>({
+    queryKey: ["admin-apprentice-competencies", user.id],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL_TEAM}/api/apprentices/${user.id}/competencies`, { headers: teamAuthHeaders() });
+      if (!res.ok) throw new Error("Failed to load competencies");
+      return res.json();
+    },
+  });
+
+  const saveMut = useMutation({
+    mutationFn: async (c: Competency) => {
+      const draft = drafts[c.competencyKey];
+      const res = await fetch(`${BASE_URL_TEAM}/api/apprentices/${user.id}/competencies/${c.competencyKey}`, {
+        method: "PATCH",
+        headers: teamAuthHeaders(),
+        body: JSON.stringify({
+          status: draft?.status ?? c.status,
+          mentorNotes: draft?.mentorNotes ?? c.mentorNotes ?? "",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-apprentice-competencies", user.id] });
+      toast({ title: "Competency updated" });
+    },
+    onError: () => toast({ title: "Could not save competency", variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <GraduationCap size={16} className="text-amber-600" />
+            {user.name}'s Competencies
+          </DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin w-6 h-6 border-4 border-amber-500 border-t-transparent rounded-full" />
+          </div>
+        ) : (
+          <div className="space-y-3 py-2">
+            {(competencies ?? []).map((c) => {
+              const draft = drafts[c.competencyKey] ?? { status: c.status, mentorNotes: c.mentorNotes ?? "" };
+              const dirty = draft.status !== c.status || draft.mentorNotes !== (c.mentorNotes ?? "");
+              return (
+                <div key={c.competencyKey} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-800">{c.competencyLabel}</p>
+                    <select
+                      value={draft.status}
+                      onChange={(e) => setDrafts(prev => ({ ...prev, [c.competencyKey]: { ...draft, status: e.target.value as Competency["status"] } }))}
+                      className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white"
+                    >
+                      {COMPETENCY_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    placeholder="Mentor notes (optional)"
+                    value={draft.mentorNotes}
+                    onChange={(e) => setDrafts(prev => ({ ...prev, [c.competencyKey]: { ...draft, mentorNotes: e.target.value } }))}
+                    className="text-xs"
+                  />
+                  {dirty && (
+                    <div className="flex justify-end">
+                      <Button size="sm" className="h-7 text-xs" disabled={saveMut.isPending} onClick={() => saveMut.mutate(c)}>
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex justify-end pt-2">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -479,13 +649,14 @@ export default function TeamPage() {
 
   const typed = (users ?? []) as StaffUser[];
   const sorted = typed.slice().sort((a, b) => {
-    const order: Record<string, number> = { admin: 0, assessment_invigilator: 1, psychometrician: 2, school_clinical_coordinator: 3 };
+    const order: Record<string, number> = { admin: 0, assessment_invigilator: 1, psychometrician: 2, school_clinical_coordinator: 3, clinical_apprentice: 4 };
     return (order[a.role] ?? 9) - (order[b.role] ?? 9);
   });
 
   const adminUsers = sorted.filter(u => u.role === "admin");
   const staffUsers = sorted.filter(u => u.role === "assessment_invigilator" || u.role === "psychometrician");
   const coordinators = sorted.filter(u => u.role === "school_clinical_coordinator");
+  const apprentices = sorted.filter(u => u.role === "clinical_apprentice");
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -507,6 +678,7 @@ export default function TeamPage() {
             { label: "Invigilators", value: sorted.filter(u => u.role === "assessment_invigilator").length, color: "text-blue-600" },
             { label: "Psychometricians", value: sorted.filter(u => u.role === "psychometrician").length, color: "text-emerald-600" },
             { label: "School Partners", value: coordinators.length, color: "text-purple-600" },
+            { label: "Apprentices", value: apprentices.length, color: "text-amber-600" },
           ].map(stat => (
             <div key={stat.label} className="bg-white border border-slate-200 rounded-xl p-4 text-center">
               <p className={cn("text-2xl font-bold", stat.color)}>{stat.value}</p>
@@ -571,6 +743,27 @@ export default function TeamPage() {
             ) : (
               <div className="space-y-2">
                 {coordinators.map(u => (
+                  <StaffRow key={u.id} user={u} isSelf={u.id === currentUser?.id} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <GraduationCap size={12} /> Clinical Apprentices
+            </h2>
+            {apprentices.length === 0 ? (
+              <div className="text-center py-10 bg-amber-50/40 border border-dashed border-amber-200 rounded-xl">
+                <GraduationCap size={28} className="mx-auto text-amber-300 mb-3" />
+                <p className="text-slate-500 text-sm font-medium">No apprentices added yet</p>
+                <p className="text-slate-400 text-xs mt-1 max-w-xs mx-auto">
+                  Add a training-program apprentice, then assign them to specific cases from the case detail page.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {apprentices.map(u => (
                   <StaffRow key={u.id} user={u} isSelf={u.id === currentUser?.id} />
                 ))}
               </div>
