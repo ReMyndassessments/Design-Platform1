@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { authMiddleware } from "./authMiddleware.js";
+import { tryAuthenticate } from "./authMiddleware.js";
 import { canUserAccessCase, isTestCase } from "../lib/permissions.js";
 
 /**
@@ -30,7 +30,7 @@ import { canUserAccessCase, isTestCase } from "../lib/permissions.js";
  * (school/ownership-based) permission checks.
  */
 export async function apprenticeGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
-  await authMiddleware(req, res, async () => {
+  await tryAuthenticate(req, res, async () => {
     if (req.userRole !== "clinical_apprentice") {
       next();
       return;

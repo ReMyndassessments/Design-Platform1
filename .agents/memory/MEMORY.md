@@ -2,3 +2,4 @@
 - [RAOS apprentice route parity](raos-apprentice-route-parity.md) — case sub-routes need explicit `allowApprentice` in App.tsx or apprentices get silently redirected to their dashboard.
 - [RAOS api-client codegen vs. live server drift](raos-codegen-spec-drift.md) — spec lags live routes; prefer `tsc --build --force` over rerunning codegen for "missing export" errors.
 - [RAOS apprentice case access model](raos-apprentice-case-access.md) — apprentices need explicit assignment for ANY case (live or test); no blanket live-case access — confirm before changing.
+- [Broad guards must fail open](express-guard-blocks-public-routes.md) — role guards mounted via router.use(guard, subrouter) run for every request in the stack; hard-failing on no-auth blocks unrelated public routes mounted later.
