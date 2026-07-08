@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { setupWatchAlong } from "./lib/watchAlong.js";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
@@ -2700,6 +2701,24 @@ async function addRmraReportColumn() {
   }
 }
 
+async function ensureCaseModeColumn() {
+  try {
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE case_mode AS ENUM ('live', 'test');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+    await db.execute(sql`
+      ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_mode case_mode NOT NULL DEFAULT 'live'
+    `);
+    logger.info("case_mode column ensured on cases");
+  } catch (err) {
+    logger.error({ err }, "ensureCaseModeColumn failed");
+  }
+}
+
 async function ensureRmraExaminerTokenColumn() {
   try {
     await db.execute(sql`
@@ -2864,12 +2883,13 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createRmraTables())
   .then(() => addRmraReportColumn())
   .then(() => createRmraAccessCodesTable())
+  .then(() => ensureCaseModeColumn())
   .then(() => ensureRmraExaminerTokenColumn())
   .then(() => ensureRmraTimerStartedAtColumn())
   .then(() => ensureStudentAnswerColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => {
-  app.listen(port, (err) => {
+  const server = app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
       process.exit(1);
@@ -2877,4 +2897,5 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
 
     logger.info({ port }, "Server listening");
   });
+  setupWatchAlong(server);
 });

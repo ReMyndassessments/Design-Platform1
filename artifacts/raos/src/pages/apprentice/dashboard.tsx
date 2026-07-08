@@ -96,7 +96,7 @@ export default function ApprenticeDashboard() {
             {cases!.map((c) => (
               <Link
                 key={c.assignmentId}
-                href={`/apprentice/cases/${c.caseId}`}
+                href={`/cases/${c.caseId}`}
                 className="flex items-center gap-4 py-4 px-5 bg-white border border-slate-200 rounded-xl hover:border-amber-300 hover:shadow-sm transition-all"
               >
                 <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-sm font-bold text-amber-700 flex-shrink-0">

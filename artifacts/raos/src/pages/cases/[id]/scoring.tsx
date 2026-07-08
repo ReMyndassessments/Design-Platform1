@@ -804,6 +804,9 @@ export default function ScoringView() {
   const { data: currentUser } = useGetCurrentUser();
   const calcMut = useCalculateScores();
   const isInvigilator = currentUser?.role === "assessment_invigilator";
+  const isApprentice = currentUser?.role === "clinical_apprentice";
+  const isApprenticeOnTestCase = isApprentice && caseData?.caseMode === "test";
+  const canEdit = !isApprentice || isApprenticeOnTestCase;
 
   // ── Tool filter — persisted per case in localStorage ──────────────────────
   const storageKey = `scoring-hidden-tools-${caseId}`;
@@ -929,7 +932,7 @@ export default function ScoringView() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isInvigilator && (
+          {!isInvigilator && canEdit && (
             <Button onClick={handleRecalculate} disabled={calcMut.isPending} variant="outline" className="bg-white">
               <RefreshCw size={16} className={`mr-2 ${calcMut.isPending ? 'animate-spin' : ''}`} /> Recalculate
             </Button>

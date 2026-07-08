@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -33,6 +33,7 @@ import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
+import { useWatchAlong } from "@/hooks/use-watch-along";
 
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
@@ -208,7 +209,7 @@ export default function CaseDetail() {
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [assigningToolId, setAssigningToolId] = useState<string | null>(null);
-  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
+  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", caseMode: "live", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
   
   const [newAssignment, setNewAssignment] = useState({
     toolIds: [] as string[],
@@ -611,7 +612,13 @@ export default function CaseDetail() {
 
   if (!c) return <div>Case not found</div>;
 
-  const role = currentUser?.role ?? "psychometrician";
+  // On test/training cases, apprentices get full admin-equivalent access so a
+  // mentor can coach them hands-on (no real student data is at risk). On live
+  // cases, apprentices keep their real role and stay read-only.
+  const role = (currentUser?.role === "clinical_apprentice" && c.caseMode === "test")
+    ? "admin"
+    : (currentUser?.role ?? "psychometrician");
+  const watchAlong = useWatchAlong();
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = !userLoading && canAdvancePhase(role) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
@@ -919,6 +926,7 @@ export default function CaseDetail() {
       parentEmail: c.parentEmail ?? "",
       parentPhone: c.parentPhone ?? "",
       caseStatus: c.caseStatus ?? "active",
+      caseMode: c.caseMode ?? "live",
       workingDocUrl: c.workingDocUrl ?? "",
       assignedLeadId: c.assignedLeadId ?? "",
       assignedPsychId: c.assignedPsychId ?? "",
@@ -1043,11 +1051,31 @@ export default function CaseDetail() {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold font-display text-slate-900">{c.studentName}</h1>
               <Badge variant={c.caseStatus === 'active' ? 'success' : 'secondary'} className="capitalize">{c.caseStatus}</Badge>
+              {c.caseMode === "test" && (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 gap-1">
+                  <FlaskConical size={12} /> Test / Training Case
+                </Badge>
+              )}
             </div>
             <p className="text-slate-500 text-sm">ID: {c.id} • Created {formatDate(c.createdAt)}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {watchAlong.isMentor && (
+            <Button
+              variant={watchAlong.broadcasting ? "default" : "outline"}
+              className={watchAlong.broadcasting ? "bg-indigo-600 hover:bg-indigo-700 gap-2" : "bg-white gap-2"}
+              onClick={() => watchAlong.setBroadcasting(!watchAlong.broadcasting)}
+            >
+              <Radio size={16} className={watchAlong.broadcasting ? "animate-pulse" : ""} />
+              {watchAlong.broadcasting ? "Watch Along: Live" : "Start Watch Along"}
+              {watchAlong.broadcasting && watchAlong.watcherCount > 0 && (
+                <Badge variant="secondary" className="ml-1 bg-white/20 text-white border-0">
+                  {watchAlong.watcherCount} watching
+                </Badge>
+              )}
+            </Button>
+          )}
           {c.currentPhase === 'scoring' && (
             <Link href={`/cases/${c.id}/scoring`}>
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
@@ -1491,7 +1519,7 @@ export default function CaseDetail() {
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">1</span>
                   Pre-Assessment Intake Forms
                 </CardTitle>
-                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm">Add Form</Button>
@@ -1537,7 +1565,7 @@ export default function CaseDetail() {
                   <div className="p-10 text-center text-slate-500 flex flex-col items-center gap-2">
                     <FileBarChart size={28} className="text-slate-300" />
                     <p className="text-sm">No intake forms added yet.</p>
-                    {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                    {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                       <p className="text-xs text-slate-400">Use "Add Form" above to add the Referral, Intake, and Consent forms.</p>
                     )}
                   </div>
@@ -1602,7 +1630,7 @@ export default function CaseDetail() {
                               </>
                             );
                           })()}
-                          {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                          {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                             <Button variant="outline" size="sm" className="bg-white text-red-500 hover:text-red-700 hover:border-red-300" title="Remove" onClick={() => setDeleteAssignmentTarget({ id: a.id, name: a.toolName })}>
                               <Trash2 size={16} />
                             </Button>
@@ -1612,7 +1640,7 @@ export default function CaseDetail() {
                     ))}
                   </div>
                 )}
-                {intakeRespondentGroups.length > 0 && ((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                {intakeRespondentGroups.length > 0 && ((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                   <div className="border-t">
                     <div className="px-6 py-3 flex items-center gap-2 bg-slate-50/70">
                       <Send size={14} className="text-primary" />
@@ -1660,12 +1688,12 @@ export default function CaseDetail() {
         })()}
 
         {/* ── Clinical Apprentice Assignment ── mentors & admins only ── */}
-        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (
+        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician" || role === "clinical_apprentice") && (
           <ApprenticeAssignmentPanel caseId={c.id} />
         )}
 
         {/* ── Parent Interview Notes ── visible from intake phase onward ── */}
-        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (
+        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician" || role === "clinical_apprentice") && (
           <Card className="border-none shadow-md bg-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2 text-slate-800">
@@ -1848,7 +1876,7 @@ export default function CaseDetail() {
                                       )}
                                     </div>
                                   </div>
-                                  {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                                  {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                                     <div className="flex gap-2 mt-2 pt-2 border-t border-blue-50">
                                       {alreadyAssigned ? (
                                         <Button
@@ -2195,7 +2223,7 @@ export default function CaseDetail() {
                     <LayoutGrid size={13} /> Dashboards
                   </Button>
                 </Link>
-                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setProductModalOpen(true)} className="gap-1.5">
                       <LayoutGrid size={13} /> Assign by Product
@@ -2343,7 +2371,7 @@ export default function CaseDetail() {
                             </Button>
                           </Link>
                         )}
-                        {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && (
+                        {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                           <Button
                             variant="outline" size="sm"
                             className="bg-white text-red-500 hover:text-red-700 hover:border-red-300"
@@ -2364,7 +2392,7 @@ export default function CaseDetail() {
         )}
 
         {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
-      {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician") && !hideAssignments && (
+      {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && !hideAssignments && (
         <Card className="border-none shadow-md">
           <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
             <Users size={17} className="text-primary" />
@@ -2855,6 +2883,16 @@ export default function CaseDetail() {
                 <option value="completed">Completed</option>
               </select>
             </div>
+            {(currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator") && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Case Type</label>
+                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.caseMode} onChange={e => setEditFields(f => ({ ...f, caseMode: e.target.value }))}>
+                  <option value="live">Live case (real student)</option>
+                  <option value="test">Test / training case</option>
+                </select>
+                <p className="text-xs text-slate-400">Only real admins/coordinators can change case type — not editable by an apprentice, even in a coaching session.</p>
+              </div>
+            )}
             <div className="border-t pt-3 space-y-3">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned Team</p>
               <div className="grid grid-cols-2 gap-3">

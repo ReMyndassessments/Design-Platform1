@@ -5,6 +5,7 @@
  * ReMynd Assessment Operating System API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateCaseRequestCaseMode } from "./createCaseRequestCaseMode";
 import type { CreateCaseRequestLanguagePreference } from "./createCaseRequestLanguagePreference";
 
 export interface CreateCaseRequest {
@@ -14,6 +15,8 @@ export interface CreateCaseRequest {
   grade?: string;
   languagePreference: CreateCaseRequestLanguagePreference;
   referralReason: string;
+  /** Defaults to "live" if omitted. "test" marks a training/practice case with no real student, on which Clinical Apprentices get full edit access. */
+  caseMode?: CreateCaseRequestCaseMode;
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;

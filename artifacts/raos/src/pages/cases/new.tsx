@@ -53,7 +53,8 @@ export default function NewCase() {
     parentEmail: "",
     parentPhone: "",
     assignedLeadId: "",
-    assignedPsychId: ""
+    assignedPsychId: "",
+    caseMode: "live" as "live" | "test",
   });
 
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -167,6 +168,24 @@ export default function NewCase() {
                 </select>
               </div>
             </div>
+
+            {isAdmin && (
+              <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+                <label className="text-sm font-medium">Case Type</label>
+                <select
+                  name="caseMode"
+                  value={formData.caseMode}
+                  onChange={handleChange}
+                  className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10"
+                >
+                  <option value="live">Live case (real student)</option>
+                  <option value="test">Test / training case</option>
+                </select>
+                <p className="text-xs text-slate-500">
+                  Test/training cases contain no real student data. Clinical Apprentices get full edit access on test cases so mentors can coach them hands-on; on live cases apprentices remain strictly read-only.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Referral Reason *</label>

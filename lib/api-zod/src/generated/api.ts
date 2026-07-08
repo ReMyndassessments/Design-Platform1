@@ -34,6 +34,7 @@ export const ListCasesResponseItem = zod.object({
   languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
   referralReason: zod.string().optional(),
   caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+  caseMode: zod.enum(["live", "test"]).optional(),
   currentPhase: zod.enum([
     "pre_commitment",
     "intake",
@@ -71,6 +72,12 @@ export const CreateCaseBody = zod.object({
   grade: zod.string().optional(),
   languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
   referralReason: zod.string(),
+  caseMode: zod
+    .enum(["live", "test"])
+    .optional()
+    .describe(
+      'Defaults to \"live\" if omitted. \"test\" marks a training\/practice case with no real student, on which Clinical Apprentices get full edit access.',
+    ),
   parentName: zod.string().optional(),
   parentEmail: zod.string().optional(),
   parentPhone: zod.string().optional(),
@@ -98,6 +105,7 @@ export const GetCaseResponse = zod
     languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
     referralReason: zod.string().optional(),
     caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+    caseMode: zod.enum(["live", "test"]).optional(),
     currentPhase: zod.enum([
       "pre_commitment",
       "intake",
@@ -143,7 +151,6 @@ export const GetCaseResponse = zod
               "school_counselor",
               "special_needs_teacher",
               "invigilator",
-              "examiner",
             ]),
             respondentLabel: zod.string(),
             assignedToName: zod.string().nullish(),
@@ -209,6 +216,7 @@ export const UpdateCaseBody = zod.object({
   caseStatus: zod
     .enum(["active", "on_hold", "completed", "archived"])
     .optional(),
+  caseMode: zod.enum(["live", "test"]).optional(),
   currentPhase: zod
     .enum([
       "pre_commitment",
@@ -243,6 +251,7 @@ export const UpdateCaseResponse = zod.object({
   languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
   referralReason: zod.string().optional(),
   caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+  caseMode: zod.enum(["live", "test"]).optional(),
   currentPhase: zod.enum([
     "pre_commitment",
     "intake",
@@ -288,6 +297,7 @@ export const AdvanceCasePhaseResponse = zod.object({
   languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
   referralReason: zod.string().optional(),
   caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+  caseMode: zod.enum(["live", "test"]).optional(),
   currentPhase: zod.enum([
     "pre_commitment",
     "intake",
@@ -349,7 +359,6 @@ export const ListAssessmentToolsResponseItem = zod.object({
       "school_counselor",
       "special_needs_teacher",
       "invigilator",
-      "examiner",
     ]),
   ),
   scoringType: zod.enum(["auto", "manual"]),
@@ -414,7 +423,6 @@ export const UpdateAssessmentToolResponse = zod.object({
       "school_counselor",
       "special_needs_teacher",
       "invigilator",
-      "examiner",
     ]),
   ),
   scoringType: zod.enum(["auto", "manual"]),
@@ -458,7 +466,6 @@ export const RecommendToolsResponse = zod.object({
           "school_counselor",
           "special_needs_teacher",
           "invigilator",
-          "examiner",
         ]),
       ),
       scoringType: zod.enum(["auto", "manual"]),
@@ -492,7 +499,6 @@ export const ListAssignmentsResponseItem = zod.object({
     "school_counselor",
     "special_needs_teacher",
     "invigilator",
-    "examiner",
   ]),
   respondentLabel: zod.string(),
   assignedToName: zod.string().nullish(),
@@ -527,7 +533,6 @@ export const CreateAssignmentBody = zod.object({
     "school_counselor",
     "special_needs_teacher",
     "invigilator",
-    "examiner",
   ]),
   respondentLabel: zod.string(),
   assignedToName: zod.string().optional(),
@@ -568,7 +573,6 @@ export const UpdateAssignmentResponse = zod.object({
     "school_counselor",
     "special_needs_teacher",
     "invigilator",
-      "examiner",
   ]),
   respondentLabel: zod.string(),
   assignedToName: zod.string().nullish(),
@@ -822,6 +826,7 @@ export const ListUsersResponseItem = zod.object({
     "assessment_invigilator",
     "psychometrician",
     "school_clinical_coordinator",
+    "clinical_apprentice",
   ]),
   schoolName: zod.string().nullish(),
   createdAt: zod.date(),
@@ -840,6 +845,7 @@ export const CreateUserBody = zod.object({
     "assessment_invigilator",
     "psychometrician",
     "school_clinical_coordinator",
+    "clinical_apprentice",
   ]),
   school_name: zod.string().nullish(),
 });
@@ -861,6 +867,7 @@ export const UpdateUserBody = zod.object({
       "assessment_invigilator",
       "psychometrician",
       "school_clinical_coordinator",
+      "clinical_apprentice",
     ])
     .optional(),
   school_name: zod.string().nullish(),
@@ -875,6 +882,7 @@ export const UpdateUserResponse = zod.object({
     "assessment_invigilator",
     "psychometrician",
     "school_clinical_coordinator",
+    "clinical_apprentice",
   ]),
   schoolName: zod.string().nullish(),
   createdAt: zod.date(),
@@ -899,6 +907,7 @@ export const GetCurrentUserResponse = zod.object({
     "assessment_invigilator",
     "psychometrician",
     "school_clinical_coordinator",
+    "clinical_apprentice",
   ]),
   schoolName: zod.string().nullish(),
   createdAt: zod.date(),
@@ -922,6 +931,7 @@ export const LoginResponse = zod.object({
       "assessment_invigilator",
       "psychometrician",
       "school_clinical_coordinator",
+      "clinical_apprentice",
     ]),
     schoolName: zod.string().nullish(),
     createdAt: zod.date(),
@@ -960,6 +970,7 @@ export const GetDashboardStatsResponse = zod.object({
       languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
       referralReason: zod.string().optional(),
       caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+      caseMode: zod.enum(["live", "test"]).optional(),
       currentPhase: zod.enum([
         "pre_commitment",
         "intake",

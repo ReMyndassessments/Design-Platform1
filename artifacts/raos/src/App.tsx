@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout";
 import { useGetCurrentUser, setAuthTokenGetter } from "@workspace/api-client-react";
 import { LangProvider } from "@/lib/i18n";
+import { WatchAlongProvider } from "@/hooks/use-watch-along";
+import { WatchAlongBanner } from "@/components/watch-along-banner";
 
 class PageErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -82,7 +84,6 @@ const RmraStudentView = React.lazy(() => import("@/pages/student-view/rmra"));
 const RmraLandingPage = React.lazy(() => import("@/pages/rmra-landing"));
 const RmraStandaloneSessionPage = React.lazy(() => import("@/pages/rmra-session"));
 const ApprenticeDashboard = React.lazy(() => import("@/pages/apprentice/dashboard"));
-const ApprenticeCaseView = React.lazy(() => import("@/pages/apprentice/case-view"));
 const ApprenticeResourcesPage = React.lazy(() => import("@/pages/apprentice/resources"));
 const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
@@ -94,7 +95,7 @@ const PageFallback = () => (
   </div>
 );
 
-function ProtectedRoute({ component: Component, apprenticeOnly = false }: { component: React.ComponentType; apprenticeOnly?: boolean }) {
+function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApprentice = false }: { component: React.ComponentType; apprenticeOnly?: boolean; allowApprentice?: boolean }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useGetCurrentUser({
     query: {
@@ -104,6 +105,10 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false }: { comp
   });
 
   const isApprentice = user?.role === "clinical_apprentice";
+  // Some routes (real case detail + sub-pages) are shared: apprentices see the
+  // exact same page as staff, read-only, so they should neither be redirected
+  // away nor treated as "apprentice-only".
+  const isShared = allowApprentice;
 
   React.useEffect(() => {
     if (!isLoading && !user) {
@@ -111,6 +116,7 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false }: { comp
       return;
     }
     if (!isLoading && user) {
+      if (isShared) return;
       if (isApprentice && !apprenticeOnly) {
         navigate("/apprentice/dashboard");
       } else if (!isApprentice && apprenticeOnly) {
@@ -119,7 +125,7 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false }: { comp
     }
     // navigate is stable in wouter; intentionally excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user, isApprentice, apprenticeOnly]);
+  }, [isLoading, user, isApprentice, apprenticeOnly, isShared]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
@@ -129,7 +135,7 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false }: { comp
     return null;
   }
 
-  if ((isApprentice && !apprenticeOnly) || (!isApprentice && apprenticeOnly)) {
+  if (!isShared && ((isApprentice && !apprenticeOnly) || (!isApprentice && apprenticeOnly))) {
     return null;
   }
 
@@ -171,49 +177,49 @@ function Router() {
           {() => <ProtectedRoute component={NewCase} />}
         </Route>
         <Route path="/cases/:id/cdp">
-          {() => <ProtectedRoute component={CdpProfilePage} />}
+          {() => <ProtectedRoute component={CdpProfilePage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/scoring">
-          {() => <ProtectedRoute component={ScoringView} />}
+          {() => <ProtectedRoute component={ScoringView} allowApprentice />}
         </Route>
         <Route path="/cases/:id">
-          {() => <ProtectedRoute component={CaseDetail} />}
+          {() => <ProtectedRoute component={CaseDetail} allowApprentice />}
         </Route>
         <Route path="/cases/:id/report">
-          {() => <ProtectedRoute component={ReportEditor} />}
+          {() => <ProtectedRoute component={ReportEditor} allowApprentice />}
         </Route>
         <Route path="/cases/:id/self-report">
           {() => <ProtectedRoute component={GuidedSelfReport} />}
         </Route>
         <Route path="/cases/:id/response/:assignmentId">
-          {() => <ProtectedRoute component={ResponseViewer} />}
+          {() => <ProtectedRoute component={ResponseViewer} allowApprentice />}
         </Route>
         <Route path="/cases/:id/rppi/:assignmentId">
-          {() => <ProtectedRoute component={RppiAdminPage} />}
+          {() => <ProtectedRoute component={RppiAdminPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/rda/:assignmentId">
-          {() => <ProtectedRoute component={RdaAdminPage} />}
+          {() => <ProtectedRoute component={RdaAdminPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/rrfa/:assignmentId">
-          {() => <ProtectedRoute component={RrfaAdminPage} />}
+          {() => <ProtectedRoute component={RrfaAdminPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/rrca/:assignmentId">
-          {() => <ProtectedRoute component={RrcaAdminPage} />}
+          {() => <ProtectedRoute component={RrcaAdminPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/rmra/:assignmentId">
-          {() => <ProtectedRoute component={RmraAdminPage} />}
+          {() => <ProtectedRoute component={RmraAdminPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/dashboards">
-          {() => <ProtectedRoute component={DashboardsHub} />}
+          {() => <ProtectedRoute component={DashboardsHub} allowApprentice />}
         </Route>
         <Route path="/cases/:id/product-dashboard">
-          {() => <ProtectedRoute component={ProductDashboard} />}
+          {() => <ProtectedRoute component={ProductDashboard} allowApprentice />}
         </Route>
         <Route path="/cases/:id/literacy-dashboard">
-          {() => <ProtectedRoute component={LiteracyDashboardPage} />}
+          {() => <ProtectedRoute component={LiteracyDashboardPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/remynd-dashboard">
-          {() => <ProtectedRoute component={RemyndDashboardPage} />}
+          {() => <ProtectedRoute component={RemyndDashboardPage} allowApprentice />}
         </Route>
         <Route path="/tools">
           {() => <ProtectedRoute component={AssessmentTools} />}
@@ -232,7 +238,11 @@ function Router() {
           {() => <ProtectedRoute component={ApprenticeDashboard} apprenticeOnly />}
         </Route>
         <Route path="/apprentice/cases/:id">
-          {() => <ProtectedRoute component={ApprenticeCaseView} apprenticeOnly />}
+          {({ id }: { id: string }) => {
+            const [, navigate] = useLocation();
+            React.useEffect(() => { navigate(`/cases/${id}`, { replace: true }); }, [id]);
+            return null;
+          }}
         </Route>
         <Route path="/apprentice/resources">
           {() => <ProtectedRoute component={ApprenticeResourcesPage} apprenticeOnly />}
@@ -253,7 +263,10 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+            <WatchAlongProvider>
+              <Router />
+              <WatchAlongBanner />
+            </WatchAlongProvider>
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

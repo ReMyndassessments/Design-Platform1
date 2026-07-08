@@ -18,10 +18,13 @@ export default function ReportEditor() {
   const [, navigate] = useLocation();
 
   const { data: currentUser } = useGetCurrentUser();
-  const canEdit = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator" || currentUser?.role === "psychometrician";
-
   const { data: caseData } = useGetCase(caseId);
   const updateCaseMut = useUpdateCase();
+
+  // Apprentices get full edit parity on test/training cases (mentor coaching),
+  // but stay read-only on live cases.
+  const isApprenticeOnTestCase = currentUser?.role === "clinical_apprentice" && caseData?.caseMode === "test";
+  const canEdit = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator" || currentUser?.role === "psychometrician" || isApprenticeOnTestCase;
 
   const [editingDocUrl, setEditingDocUrl] = useState(false);
   const [docUrlInput, setDocUrlInput] = useState("");
@@ -215,7 +218,7 @@ export default function ReportEditor() {
         const psychApproved = caseData?.psychApprovedReport ?? false;
         const bothApproved = adminApproved && psychApproved;
         const myRole = currentUser?.role;
-        const canApprove = myRole === "admin" || myRole === "psychometrician";
+        const canApprove = myRole === "admin" || myRole === "psychometrician" || isApprenticeOnTestCase;
 
         return (
           <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm">

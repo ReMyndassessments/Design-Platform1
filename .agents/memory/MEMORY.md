@@ -1,2 +1,3 @@
 - [BASC-3 bar chart overcrowding](basc3-bar-chart.md) — merged BASC-3 battery has 27+ domains; bar chart must use a filtered/sorted top-N subset, not the full radarData.
+- [RAOS apprentice route parity](raos-apprentice-route-parity.md) — case sub-routes need explicit `allowApprentice` in App.tsx or apprentices get silently redirected to their dashboard.
 - [RAOS api-client codegen vs. live server drift](raos-codegen-spec-drift.md) — spec lags live routes; prefer `tsc --build --force` over rerunning codegen for "missing export" errors.

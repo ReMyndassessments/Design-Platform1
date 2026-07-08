@@ -20,6 +20,14 @@ async function isApprenticeAssignedToCase(userId: string, caseId: string): Promi
   return rows.length > 0;
 }
 
+// "test" cases are training/practice cases (no real student). Apprentices get
+// full admin-equivalent access on them so a mentor can coach hands-on.
+// "live" cases are real students — apprentices stay strictly read-only there.
+export async function isTestCase(caseId: string): Promise<boolean> {
+  const rows = await db.select({ caseMode: casesTable.caseMode }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  return rows[0]?.caseMode === "test";
+}
+
 export async function canUserAccessCase(user: PermissionUser, caseId: string): Promise<boolean> {
   if (user.role === "clinical_apprentice") {
     return isApprenticeAssignedToCase(user.id, caseId);

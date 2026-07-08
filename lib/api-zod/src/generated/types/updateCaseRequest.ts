@@ -5,6 +5,7 @@
  * ReMynd Assessment Operating System API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateCaseRequestCaseMode } from "./updateCaseRequestCaseMode";
 import type { UpdateCaseRequestCaseStatus } from "./updateCaseRequestCaseStatus";
 import type { UpdateCaseRequestCurrentPhase } from "./updateCaseRequestCurrentPhase";
 import type { UpdateCaseRequestLanguagePreference } from "./updateCaseRequestLanguagePreference";
@@ -16,6 +17,7 @@ export interface UpdateCaseRequest {
   grade?: string;
   languagePreference?: UpdateCaseRequestLanguagePreference;
   caseStatus?: UpdateCaseRequestCaseStatus;
+  caseMode?: UpdateCaseRequestCaseMode;
   currentPhase?: UpdateCaseRequestCurrentPhase;
   riskLevel?: UpdateCaseRequestRiskLevel;
   parentName?: string;

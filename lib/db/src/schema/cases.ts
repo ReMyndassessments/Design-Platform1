@@ -24,6 +24,12 @@ export const casePhaseEnum = pgEnum("case_phase", [
 
 export const riskLevelEnum = pgEnum("risk_level", ["low", "moderate", "high"]);
 
+// "live" cases are real students — Clinical Apprentices get strict read-only
+// access. "test" cases are training/practice cases — apprentices get full
+// admin-equivalent access so a mentor can coach them hands-on with no risk
+// to real student data.
+export const caseModeEnum = pgEnum("case_mode", ["live", "test"]);
+
 export const languageEnum = pgEnum("language", ["english", "mandarin", "cantonese"]);
 
 export const casesTable = pgTable("cases", {
@@ -35,6 +41,7 @@ export const casesTable = pgTable("cases", {
   languagePreference: languageEnum("language_preference").notNull().default("english"),
   referralReason: text("referral_reason").notNull(),
   caseStatus: caseStatusEnum("case_status").notNull().default("active"),
+  caseMode: caseModeEnum("case_mode").notNull().default("live"),
   currentPhase: casePhaseEnum("current_phase").notNull().default("pre_commitment"),
   progressPercentage: integer("progress_percentage").notNull().default(0),
   riskLevel: riskLevelEnum("risk_level"),

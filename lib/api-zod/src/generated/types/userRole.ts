@@ -13,4 +13,5 @@ export const UserRole = {
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
   school_clinical_coordinator: "school_clinical_coordinator",
+  clinical_apprentice: "clinical_apprentice",
 } as const;

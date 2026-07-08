@@ -5,6 +5,7 @@
  * ReMynd Assessment Operating System API
  * OpenAPI spec version: 0.1.0
  */
+import type { CaseCaseMode } from "./caseCaseMode";
 import type { CaseCaseStatus } from "./caseCaseStatus";
 import type { CaseCurrentPhase } from "./caseCurrentPhase";
 import type { CaseLanguagePreference } from "./caseLanguagePreference";
@@ -19,6 +20,7 @@ export interface Case {
   languagePreference: CaseLanguagePreference;
   referralReason?: string;
   caseStatus: CaseCaseStatus;
+  caseMode?: CaseCaseMode;
   currentPhase: CaseCurrentPhase;
   /**
    * @minimum 0

@@ -881,7 +881,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator, clinical_apprentice]
         schoolName:
           type: string
           nullable: true
@@ -901,7 +901,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator, clinical_apprentice]
         school_name:
           type: string
           nullable: true
@@ -918,7 +918,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator]
+          enum: [admin, assessment_invigilator, psychometrician, school_clinical_coordinator, clinical_apprentice]
         school_name:
           type: string
           nullable: true
@@ -963,6 +963,9 @@ components:
         caseStatus:
           type: string
           enum: [active, on_hold, completed, archived]
+        caseMode:
+          type: string
+          enum: [live, test]
         currentPhase:
           type: string
           enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, debrief, complete]
@@ -1046,6 +1049,10 @@ components:
           enum: [english, mandarin, cantonese]
         referralReason:
           type: string
+        caseMode:
+          type: string
+          enum: [live, test]
+          description: Defaults to "live" if omitted. "test" marks a training/practice case with no real student, on which Clinical Apprentices get full edit access.
         parentName:
           type: string
         parentEmail:
@@ -1073,6 +1080,9 @@ components:
         caseStatus:
           type: string
           enum: [active, on_hold, completed, archived]
+        caseMode:
+          type: string
+          enum: [live, test]
         currentPhase:
           type: string
           enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, debrief, complete]

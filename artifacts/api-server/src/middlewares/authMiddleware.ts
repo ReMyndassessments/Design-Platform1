@@ -7,6 +7,8 @@ declare global {
       userId?: string;
       userRole?: string;
       userSchool?: string;
+      /** Set when apprenticeGuard elevates a clinical_apprentice to "admin" on a test/training case; preserves the real role for audit purposes. */
+      actualUserRole?: string;
     }
   }
 }

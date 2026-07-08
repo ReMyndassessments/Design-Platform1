@@ -26,6 +26,7 @@ export const UserRole = {
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
   school_clinical_coordinator: "school_clinical_coordinator",
+  clinical_apprentice: "clinical_apprentice",
 } as const;
 
 export interface User {
@@ -45,6 +46,7 @@ export const CreateUserRequestRole = {
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
   school_clinical_coordinator: "school_clinical_coordinator",
+  clinical_apprentice: "clinical_apprentice",
 } as const;
 
 export interface CreateUserRequest {
@@ -63,6 +65,7 @@ export const UpdateUserRequestRole = {
   assessment_invigilator: "assessment_invigilator",
   psychometrician: "psychometrician",
   school_clinical_coordinator: "school_clinical_coordinator",
+  clinical_apprentice: "clinical_apprentice",
 } as const;
 
 export interface UpdateUserRequest {
@@ -102,6 +105,13 @@ export const CaseCaseStatus = {
   archived: "archived",
 } as const;
 
+export type CaseCaseMode = (typeof CaseCaseMode)[keyof typeof CaseCaseMode];
+
+export const CaseCaseMode = {
+  live: "live",
+  test: "test",
+} as const;
+
 export type CaseCurrentPhase =
   (typeof CaseCurrentPhase)[keyof typeof CaseCurrentPhase];
 
@@ -136,6 +146,7 @@ export interface Case {
   languagePreference: CaseLanguagePreference;
   referralReason?: string;
   caseStatus: CaseCaseStatus;
+  caseMode?: CaseCaseMode;
   currentPhase: CaseCurrentPhase;
   /**
    * @minimum 0
@@ -169,7 +180,6 @@ export const AssignmentRespondentType = {
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
   invigilator: "invigilator",
-  examiner: "examiner",
 } as const;
 
 export type AssignmentStatus =
@@ -252,6 +262,17 @@ export const CreateCaseRequestLanguagePreference = {
   cantonese: "cantonese",
 } as const;
 
+/**
+ * Defaults to "live" if omitted. "test" marks a training/practice case with no real student, on which Clinical Apprentices get full edit access.
+ */
+export type CreateCaseRequestCaseMode =
+  (typeof CreateCaseRequestCaseMode)[keyof typeof CreateCaseRequestCaseMode];
+
+export const CreateCaseRequestCaseMode = {
+  live: "live",
+  test: "test",
+} as const;
+
 export interface CreateCaseRequest {
   studentName: string;
   dob: string;
@@ -259,6 +280,8 @@ export interface CreateCaseRequest {
   grade?: string;
   languagePreference: CreateCaseRequestLanguagePreference;
   referralReason: string;
+  /** Defaults to "live" if omitted. "test" marks a training/practice case with no real student, on which Clinical Apprentices get full edit access. */
+  caseMode?: CreateCaseRequestCaseMode;
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
@@ -283,6 +306,14 @@ export const UpdateCaseRequestCaseStatus = {
   on_hold: "on_hold",
   completed: "completed",
   archived: "archived",
+} as const;
+
+export type UpdateCaseRequestCaseMode =
+  (typeof UpdateCaseRequestCaseMode)[keyof typeof UpdateCaseRequestCaseMode];
+
+export const UpdateCaseRequestCaseMode = {
+  live: "live",
+  test: "test",
 } as const;
 
 export type UpdateCaseRequestCurrentPhase =
@@ -315,6 +346,7 @@ export interface UpdateCaseRequest {
   grade?: string;
   languagePreference?: UpdateCaseRequestLanguagePreference;
   caseStatus?: UpdateCaseRequestCaseStatus;
+  caseMode?: UpdateCaseRequestCaseMode;
   currentPhase?: UpdateCaseRequestCurrentPhase;
   riskLevel?: UpdateCaseRequestRiskLevel;
   parentName?: string;
@@ -448,7 +480,6 @@ export const CreateAssignmentRequestRespondentType = {
   school_counselor: "school_counselor",
   special_needs_teacher: "special_needs_teacher",
   invigilator: "invigilator",
-  examiner: "examiner",
 } as const;
 
 export interface CreateAssignmentRequest {

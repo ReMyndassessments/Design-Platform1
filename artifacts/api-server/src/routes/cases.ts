@@ -154,6 +154,7 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     languagePreference: c.languagePreference,
     referralReason: c.referralReason,
     caseStatus: c.caseStatus,
+    caseMode: c.caseMode,
     currentPhase: c.currentPhase,
     progressPercentage: c.progressPercentage,
     riskLevel: c.riskLevel,
@@ -221,6 +222,7 @@ router.post("/cases", authMiddleware, async (req, res) => {
   const { studentName, dob, school, grade, languagePreference, referralReason, parentName, parentEmail, parentPhone } = req.body;
   const assignedLeadId = req.body.assignedLeadId ?? null;
   const assignedPsychId = req.body.assignedPsychId ?? null;
+  const caseMode = isAdminLike(req.userRole) && req.body.caseMode === "test" ? "test" : "live";
 
   const newCase = await db.insert(casesTable).values({
     id: nanoid(),
@@ -236,6 +238,7 @@ router.post("/cases", authMiddleware, async (req, res) => {
     assignedLeadId,
     assignedPsychId,
     caseStatus: "active",
+    caseMode,
     currentPhase: "pre_commitment",
     progressPercentage: PHASE_PROGRESS["pre_commitment"],
     consentObtained: false,
@@ -321,9 +324,18 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
   }
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
-  const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
+  const adminFields = ["currentPhase", "caseStatus", "caseMode", "assignedLeadId", "assignedPsychId", "riskLevel"];
   const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate", "bobbyAiPortalCredentials", "productIds", "parentInterviewNotes"];
-  const allowed = isAdminLike(req.userRole) ? [...baseAllowed, ...adminFields] : baseAllowed;
+  let allowed = isAdminLike(req.userRole) ? [...baseAllowed, ...adminFields] : baseAllowed;
+
+  // caseMode (live vs. test/training) is a structural/security-relevant field:
+  // it must never be changeable by a Clinical Apprentice, even when
+  // apprenticeGuard has impersonated them as "admin" for full edit parity on
+  // an already-test case — otherwise they could flip a case's classification
+  // themselves. Only a real admin/coordinator may change it.
+  if (req.actualUserRole === "clinical_apprentice") {
+    allowed = allowed.filter(key => key !== "caseMode");
+  }
 
   for (const key of allowed) {
     if (req.body[key] !== undefined) {
