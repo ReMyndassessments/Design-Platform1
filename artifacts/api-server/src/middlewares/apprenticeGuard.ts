@@ -5,10 +5,14 @@ import { canUserAccessCase, isTestCase } from "../lib/permissions.js";
 /**
  * Authenticates the request and, for the clinical_apprentice role, enforces
  * case-assignment-scoped access on staff routers:
- *   - Any GET under /cases/:caseId/... (or the bare /cases list) requires an
- *     active case_apprentice_assignments row for that case; the bare list
- *     endpoint (no case id) is always denied since apprentices must use
- *     /api/apprentice/cases to discover their assigned cases.
+ *   - The bare /cases list (GET, no case id) is allowed through: apprentices
+ *     get full read-only parity with staff on live cases, so they can browse
+ *     the same case list. The route handler itself filters the result set
+ *     (live cases + any test cases the apprentice is assigned to). Any
+ *     non-GET request on the bare list (e.g. creating a case) is denied.
+ *   - Any GET under /cases/:caseId/... on a "test"/training case requires an
+ *     active case_apprentice_assignments row for that case; live cases are
+ *     open to any apprentice, read-only.
  *   - For a case-scoped request (GET or mutation) on a "test"/training case,
  *     the apprentice is impersonated as "admin" (req.userRole is elevated)
  *     so downstream route handlers grant full read/write parity — mentors
@@ -37,7 +41,11 @@ export async function apprenticeGuard(req: Request, res: Response, next: NextFun
     if (casesMatch) {
       const caseId = casesMatch[1] ? decodeURIComponent(casesMatch[1]) : undefined;
       if (!caseId) {
-        res.status(403).json({ error: "forbidden", message: "Use /api/apprentice/cases to list your assigned cases" });
+        if (req.method !== "GET") {
+          res.status(403).json({ error: "forbidden", message: "Clinical Apprentices cannot create or modify cases" });
+          return;
+        }
+        next();
         return;
       }
       const allowed = await canUserAccessCase({ id: req.userId!, role: req.userRole! }, caseId);

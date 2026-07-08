@@ -171,6 +171,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = isApprentice
     ? [
         { href: "/apprentice/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/cases", label: "Cases", icon: Users },
         { href: "/apprentice/resources", label: "Training Resources", icon: BookOpen },
         { href: "/apprentice/competencies", label: "My Competencies", icon: ShieldCheck },
       ]

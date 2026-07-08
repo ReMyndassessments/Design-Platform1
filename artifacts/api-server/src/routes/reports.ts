@@ -10,6 +10,11 @@ const router = Router();
 
 async function canAccessCase(role: string, userId: string, caseId: string): Promise<boolean> {
   if (role === "admin") return true;
+  // Clinical apprentices reach here only after apprenticeGuard has already
+  // scoped their access (elevated to "admin" on a test case, or allowed
+  // read-only GET on a live case) — so any apprentice request that gets this
+  // far is already permitted.
+  if (role === "clinical_apprentice") return true;
   const rows = await db.select({ assignedLeadId: casesTable.assignedLeadId, assignedPsychId: casesTable.assignedPsychId })
     .from(casesTable)
     .where(eq(casesTable.id, caseId))

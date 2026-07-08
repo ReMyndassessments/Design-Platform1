@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -181,12 +181,26 @@ function formatCase(c: typeof casesTable.$inferSelect) {
 }
 
 router.get("/cases", authMiddleware, async (req, res) => {
-  const { userRole, userSchool } = req;
-  const cases = userRole === "school_clinical_coordinator"
+  const { userRole, userSchool, userId } = req;
+  let cases = userRole === "school_clinical_coordinator"
     ? (userSchool
         ? await db.select().from(casesTable).where(eq(casesTable.school, userSchool)).orderBy(sql`${casesTable.updatedAt} DESC`)
         : [])
     : await db.select().from(casesTable).orderBy(sql`${casesTable.updatedAt} DESC`);
+
+  // Clinical apprentices get full read-only parity on live cases, so they see
+  // every live case here, plus any test/training case explicitly assigned to
+  // them (mentors control which training cases an apprentice can edit).
+  if (userRole === "clinical_apprentice") {
+    const assignedRows = await db.select({ caseId: caseApprenticeAssignmentsTable.caseId })
+      .from(caseApprenticeAssignmentsTable)
+      .where(and(
+        eq(caseApprenticeAssignmentsTable.apprenticeUserId, userId!),
+        eq(caseApprenticeAssignmentsTable.status, "active"),
+      ));
+    const assignedIds = new Set(assignedRows.map(r => r.caseId));
+    cases = cases.filter(c => c.caseMode !== "test" || assignedIds.has(c.id));
+  }
 
   // Bulk-compute product completion % for cases that have products assigned
   const productCaseIds = cases

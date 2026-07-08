@@ -171,7 +171,7 @@ function Router() {
           {() => <ProtectedRoute component={Dashboard} />}
         </Route>
         <Route path="/cases">
-          {() => <ProtectedRoute component={CasesList} />}
+          {() => <ProtectedRoute component={CasesList} allowApprentice />}
         </Route>
         <Route path="/cases/new">
           {() => <ProtectedRoute component={NewCase} />}
