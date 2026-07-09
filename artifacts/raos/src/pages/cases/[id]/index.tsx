@@ -1720,31 +1720,31 @@ export default function CaseDetail() {
               <p className="text-xs text-slate-500 mt-0.5">
                 Record a live interview and let AI organise the notes, or type notes manually. These feed into the AI intake analysis.
               </p>
-              {/* Tab switcher */}
-              <div className="flex gap-1 mt-3 bg-slate-100 rounded-lg p-0.5 w-fit">
+              {/* Tab switcher — full-width on mobile, auto-width on larger screens */}
+              <div className="flex gap-1 mt-3 bg-slate-100 rounded-lg p-0.5 w-full sm:w-fit">
                 <button
                   onClick={() => setInterviewTab("notes")}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all ${
                     interviewTab === "notes"
                       ? "bg-white text-slate-800 shadow-sm"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  <Pencil size={11} className="inline mr-1" />
-                  Manual Notes
+                  <Pencil size={11} className="shrink-0" />
+                  <span>Manual Notes</span>
                 </button>
                 <button
                   onClick={() => setInterviewTab("notetaker")}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all ${
                     interviewTab === "notetaker"
                       ? "bg-white text-slate-800 shadow-sm"
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  <Mic size={11} className="inline mr-1" />
-                  AI Notetaker
+                  <Mic size={11} className="shrink-0" />
+                  <span>AI Notetaker</span>
                   {interviewRecordings.length > 0 && (
-                    <span className="ml-1 bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold shrink-0">
                       {interviewRecordings.length}
                     </span>
                   )}

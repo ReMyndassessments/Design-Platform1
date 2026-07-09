@@ -57,6 +57,7 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     caseData,
     scores,
     intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
+    debriefNotes: (caseData as any).debriefNotes ?? null,
   });
 
   const existingReport = await db.select().from(reportsTable).where(eq(reportsTable.caseId, req.params.caseId)).limit(1);

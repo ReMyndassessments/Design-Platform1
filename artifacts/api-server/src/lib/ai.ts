@@ -219,6 +219,7 @@ export async function generateReportWithAI(params: {
     normalizedScores: Record<string, number>;
   }>;
   intakeAnalysis: Record<string, unknown> | null;
+  debriefNotes?: string | null;
 }): Promise<{
   backgroundSummary: string;
   domainAnalysis: string;
@@ -239,7 +240,9 @@ Referral Reason: ${params.caseData.referralReason}
 
 INTAKE ANALYSIS:
 ${JSON.stringify(params.intakeAnalysis ?? {}, null, 2)}
-
+${params.debriefNotes
+  ? `\nDEBRIEF SESSION NOTES (clinician-recorded, from debrief meeting with family):\n${params.debriefNotes}\n`
+  : ""}
 ASSESSMENT SCORES:
 ${JSON.stringify(params.scores.map(s => ({
   tool: s.toolName,

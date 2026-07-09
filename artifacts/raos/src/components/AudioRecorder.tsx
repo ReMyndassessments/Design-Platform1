@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { Mic, Square, Loader2, RefreshCw } from "lucide-react";
 
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, durationSeconds: number, mimeType: string) => void;
@@ -41,6 +41,8 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
   const animFrameRef = useRef<number | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const durationRef = useRef(0);
+  // Guard against calling onstop after an error-triggered abort
+  const abortedRef = useRef(false);
 
   const stopTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -58,12 +60,22 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
       wakeLockRef.current = null;
     }
     setAudioLevel(0);
+    analyserRef.current = null;
   }, []);
 
   useEffect(() => () => { cleanup(); }, [cleanup]);
 
+  const handleFatalError = useCallback((msg: string) => {
+    abortedRef.current = true;
+    cleanup();
+    setState("idle");
+    setSeconds(0);
+    setError(msg);
+  }, [cleanup]);
+
   const startRecording = async () => {
     setError(null);
+    abortedRef.current = false;
     setState("requesting");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -93,6 +105,15 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
       };
       animFrameRef.current = requestAnimationFrame(updateLevel);
 
+      // Detect if the audio track is killed mid-recording (e.g. Bluetooth disconnects)
+      stream.getAudioTracks().forEach(track => {
+        track.addEventListener("ended", () => {
+          if (mediaRecorderRef.current?.state !== "inactive") {
+            handleFatalError("Microphone disconnected during recording. Please check your audio device and try again.");
+          }
+        });
+      });
+
       const mimeType = getBestMimeType();
       const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mr;
@@ -102,9 +123,28 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
+      // Handle MediaRecorder-level errors (e.g. hardware failure mid-recording)
+      mr.onerror = (e: Event) => {
+        const msg = (e as any)?.error?.message ?? "Recording error";
+        handleFatalError(`Recording failed: ${msg}. Please try again.`);
+        // Try to stop cleanly even after error
+        try { mr.stop(); } catch {}
+      };
+
       mr.onstop = () => {
+        if (abortedRef.current) return; // error already handled
         const finalMime = mr.mimeType || mimeType || "audio/webm";
         const blob = new Blob(chunksRef.current, { type: finalMime });
+
+        // Reject suspiciously small blobs — likely empty/corrupt audio
+        if (blob.size < 512) {
+          cleanup();
+          setState("idle");
+          setSeconds(0);
+          setError("Recording was too short or contained no audio. Please try again.");
+          return;
+        }
+
         cleanup();
         setState("idle");
         setSeconds(0);
@@ -125,7 +165,11 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
       cleanup();
       setState("idle");
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setError("Microphone permission denied. Please allow access and try again.");
+        setError("Microphone permission denied. Please allow microphone access in your browser settings and try again.");
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setError("No microphone found. Please connect a microphone and try again.");
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setError("Microphone is in use by another app. Please close other apps and try again.");
       } else {
         setError("Could not start recording: " + (err.message || err.name));
       }
@@ -175,10 +219,9 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
 
           <Button
             onClick={stopRecording}
-            className="w-full bg-red-600 hover:bg-red-700 text-white h-12 text-base font-semibold rounded-xl"
-            size="lg"
+            className="w-full bg-red-600 hover:bg-red-700 text-white h-11 text-sm font-semibold rounded-xl sm:h-12 sm:text-base"
           >
-            <Square size={18} className="mr-2" />
+            <Square size={16} className="mr-2 shrink-0" />
             Stop & Process
           </Button>
         </div>
@@ -202,18 +245,24 @@ export function AudioRecorder({ onRecordingComplete, disabled }: AudioRecorderPr
         <Button
           onClick={startRecording}
           disabled={disabled}
-          className="w-full h-12 text-base font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-white"
-          size="lg"
+          className="w-full h-11 text-sm font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-white sm:h-12 sm:text-base"
         >
-          <Mic size={18} className="mr-2" />
+          <Mic size={16} className="mr-2 shrink-0" />
           Start Recording
         </Button>
       )}
 
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {error}
-        </p>
+        <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <p className="flex-1">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="shrink-0 mt-0.5"
+            aria-label="Dismiss"
+          >
+            <RefreshCw size={12} className="text-red-400 hover:text-red-600" />
+          </button>
+        </div>
       )}
     </div>
   );

@@ -174,6 +174,7 @@ function formatCase(c: typeof casesTable.$inferSelect) {
     debriefMeetingDate: c.debriefMeetingDate,
     bobbyAiPortalCredentials: c.bobbyAiPortalCredentials ?? null,
     parentInterviewNotes: c.parentInterviewNotes ?? null,
+    debriefNotes: (c as any).debriefNotes ?? null,
     productIds: (c.productIds as string[]) ?? [],
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
