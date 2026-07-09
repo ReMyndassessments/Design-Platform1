@@ -2604,6 +2604,8 @@ async function addCaseProductIds() {
     logger.info("product_ids column ensured on cases");
     await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS parent_interview_notes TEXT`);
     logger.info("parent_interview_notes column ensured on cases");
+    await db.execute(sql`ALTER TABLE cases ADD COLUMN IF NOT EXISTS debrief_notes TEXT`);
+    logger.info("debrief_notes column ensured on cases");
   } catch (err) {
     logger.error({ err }, "addCaseProductIds failed");
   }

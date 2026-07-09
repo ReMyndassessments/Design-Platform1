@@ -79,37 +79,64 @@ function buildStructuredNotesFromTranscript(transcript: string, type: Conversati
 }
 
 interface AudioPlayerProps {
-  audioUrl: string;
+  audioUrlEndpoint: string;
+  token: string;
   mimeType?: string;
 }
 
-function AudioPlayer({ audioUrl, mimeType }: AudioPlayerProps) {
+function AudioPlayer({ audioUrlEndpoint, token, mimeType }: AudioPlayerProps) {
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
 
-  const toggle = () => {
-    if (!audioEl) {
-      const el = new Audio(audioUrl);
+  const toggle = async () => {
+    if (audioEl) {
+      if (playing) {
+        audioEl.pause();
+        setPlaying(false);
+      } else {
+        audioEl.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      }
+      return;
+    }
+
+    // First play: fetch signed URL from authenticated endpoint, then use blob URL
+    setLoading(true);
+    try {
+      const res = await fetch(audioUrlEndpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Could not load audio");
+      const { url } = await res.json() as { url: string };
+
+      // Fetch audio as blob so no Bearer token is needed for the actual audio src
+      const audioRes = await fetch(url);
+      if (!audioRes.ok) throw new Error("Could not fetch audio");
+      const blob = await audioRes.blob();
+      const objUrl = URL.createObjectURL(blob);
+
+      const el = new Audio(objUrl);
       el.onended = () => setPlaying(false);
       el.onerror = () => setPlaying(false);
       setAudioEl(el);
-      el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-    } else if (playing) {
-      audioEl.pause();
+      await el.play();
+      setPlaying(true);
+    } catch {
       setPlaying(false);
-    } else {
-      audioEl.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <button
       onClick={toggle}
-      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+      disabled={loading}
+      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
       title={playing ? "Pause" : "Play recording"}
     >
-      {playing ? <Pause size={12} /> : <Play size={12} />}
-      {playing ? "Pause" : "Play"}
+      {loading ? <Loader2 size={12} className="animate-spin" /> : playing ? <Pause size={12} /> : <Play size={12} />}
+      {loading ? "Loading…" : playing ? "Pause" : "Play"}
     </button>
   );
 }
@@ -387,7 +414,7 @@ export function AiNotetaker({
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Past recordings</p>
           {recordings.map(rec => {
-            const audioUrl = `${baseUrl}/api/cases/${caseId}/interview-recordings/${rec.id}/audio`;
+            const audioUrl = `${baseUrl}/api/cases/${caseId}/interview-recordings/${rec.id}/audio-url`;
             const hasSections = rec.structuredNotes?.sections && rec.structuredNotes.sections.length > 0;
             const isRawTranscriptOnly = hasSections && rec.structuredNotes!.sections.every(s => s.key === "raw_transcript");
 
@@ -413,7 +440,7 @@ export function AiNotetaker({
                     {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
                   </button>
                   <div className="flex items-center gap-2 ml-2 shrink-0">
-                    <AudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
+                    <AudioPlayer audioUrlEndpoint={audioUrl} token={token} mimeType={rec.mimeType} />
                     <button
                       onClick={() => handleDelete(rec.id)}
                       disabled={deletingId === rec.id}

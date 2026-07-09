@@ -22,6 +22,13 @@ const VALID_TYPES: ConversationType[] = [
   "report_debrief",
 ];
 
+const INTERVIEW_TYPES: ConversationType[] = [
+  "parent_intake",
+  "teacher_consultation",
+  "student_interview",
+  "classroom_observation",
+];
+
 // ── POST /cases/:caseId/interview-recordings ──────────────────────────────────
 router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
@@ -102,7 +109,7 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
     structured = null;
   }
 
-  // Persist
+  // Persist recording
   const id = randomUUID();
   await db.insert(interviewRecordingsTable).values({
     id,
@@ -136,9 +143,10 @@ router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, re
   res.json(recordings);
 });
 
-// ── GET /cases/:caseId/interview-recordings/:id/audio ────────────────────────
-// Streams the audio file back for in-browser playback (authenticated)
-router.get("/cases/:caseId/interview-recordings/:id/audio", authMiddleware, async (req, res) => {
+// ── GET /cases/:caseId/interview-recordings/:id/audio-url ────────────────────
+// Returns a short-lived signed URL (1 hour) so the browser can play audio
+// directly without embedding the Bearer token in the URL.
+router.get("/cases/:caseId/interview-recordings/:id/audio-url", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
     res.status(403).json({ error: "forbidden" }); return;
@@ -155,22 +163,11 @@ router.get("/cases/:caseId/interview-recordings/:id/audio", authMiddleware, asyn
   if (!rec) { res.status(404).json({ error: "not_found" }); return; }
 
   try {
-    const objectFile = await objectStorageService.getObjectEntityFile(rec.storagePath);
-    const [metadata] = await objectFile.getMetadata();
-    const contentType = (metadata as any).contentType ?? rec.mimeType ?? "audio/webm";
-    const size = (metadata as any).size;
-
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Accept-Ranges", "bytes");
-    if (size) res.setHeader("Content-Length", String(size));
-    res.setHeader("Cache-Control", "private, max-age=3600");
-
-    const stream = objectFile.createReadStream();
-    stream.on("error", () => res.end());
-    stream.pipe(res);
+    const signedUrl = await objectStorageService.getObjectEntitySignedDownloadURL(rec.storagePath, 3600);
+    res.json({ url: signedUrl, mimeType: rec.mimeType });
   } catch (err) {
-    console.error("Audio stream failed", err);
-    res.status(502).json({ error: "stream_failed" });
+    console.error("Audio signed URL failed", err);
+    res.status(502).json({ error: "signed_url_failed" });
   }
 });
 
@@ -198,8 +195,10 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
 });
 
 // ── PATCH /cases/:caseId/interview-recordings/:id/notes ──────────────────────
-// Save edited structured notes back after clinician edits.
-// Also writes a text summary into cases.parentInterviewNotes for AI injection.
+// Save edited structured notes. Also writes a plain-text summary into the
+// appropriate case field:
+//   - Interview types  → cases.parent_interview_notes  (injected into AI intake)
+//   - report_debrief  → cases.debrief_notes            (kept separate)
 router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -213,7 +212,7 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
 
   // Verify the recording belongs to this case (prevents cross-case write)
   const [rec] = await db
-    .select({ id: interviewRecordingsTable.id })
+    .select({ id: interviewRecordingsTable.id, conversationType: interviewRecordingsTable.conversationType })
     .from(interviewRecordingsTable)
     .where(and(
       eq(interviewRecordingsTable.id, req.params.id),
@@ -232,33 +231,45 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
       eq(interviewRecordingsTable.caseId, req.params.caseId),
     ));
 
-  // Also persist a human-readable summary into cases.parentInterviewNotes
-  // so the AI intake analysis can pick up these notes automatically.
-  // We prepend this recording's notes rather than overwriting, so notes accumulate.
+  // Persist a human-readable summary into the correct case field.
   if (structuredNotes.sections && Array.isArray(structuredNotes.sections)) {
     try {
+      const isDebriefType = rec.conversationType === "report_debrief";
+
       const [caseRow] = await db
-        .select({ parentInterviewNotes: (casesTable as any).parentInterviewNotes })
+        .select({
+          parentInterviewNotes: casesTable.parentInterviewNotes,
+          debriefNotes: casesTable.debriefNotes,
+        })
         .from(casesTable)
         .where(eq(casesTable.id, req.params.caseId));
 
-      const typeLine = `[${structuredNotes.conversationType ?? "recording"} — ${new Date().toLocaleDateString()}]`;
+      const typeLine = `[${structuredNotes.conversationType ?? rec.conversationType} — ${new Date().toLocaleDateString()}]`;
       const sectionText = (structuredNotes.sections as Array<{ label: string; content: string }>)
         .filter(s => s.content?.trim())
         .map(s => `${s.label}:\n${s.content.trim()}`)
         .join("\n\n");
       const newBlock = `${typeLine}\n${sectionText}`;
 
-      const existing = (caseRow as any)?.parentInterviewNotes ?? "";
-      const merged = existing ? `${newBlock}\n\n---\n\n${existing}` : newBlock;
-
-      await db
-        .update(casesTable)
-        .set({ parentInterviewNotes: merged } as any)
-        .where(eq(casesTable.id, req.params.caseId));
+      if (isDebriefType) {
+        const existing = caseRow?.debriefNotes ?? "";
+        const merged = existing ? `${newBlock}\n\n---\n\n${existing}` : newBlock;
+        await db
+          .update(casesTable)
+          .set({ debriefNotes: merged })
+          .where(eq(casesTable.id, req.params.caseId));
+      } else {
+        // Interview types → parentInterviewNotes (injected into AI intake analysis)
+        const existing = caseRow?.parentInterviewNotes ?? "";
+        const merged = existing ? `${newBlock}\n\n---\n\n${existing}` : newBlock;
+        await db
+          .update(casesTable)
+          .set({ parentInterviewNotes: merged } as any)
+          .where(eq(casesTable.id, req.params.caseId));
+      }
     } catch (err) {
       // Non-fatal: structured notes are saved; only the case field update failed
-      console.error("Failed to sync notes to case.parentInterviewNotes", err);
+      console.error("Failed to sync notes to case field", err);
     }
   }
 
