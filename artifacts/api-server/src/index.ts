@@ -2841,6 +2841,31 @@ async function createRmraTables() {
   }
 }
 
+async function createInterviewRecordingsTable() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS interview_recordings (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        storage_path TEXT NOT NULL,
+        duration_seconds INTEGER,
+        conversation_type TEXT NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'audio/webm',
+        transcript TEXT,
+        structured_notes JSONB,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS interview_recordings_case_id_idx ON interview_recordings (case_id)
+    `);
+    logger.info("interview_recordings table ensured");
+  } catch (err) {
+    logger.error({ err }, "createInterviewRecordingsTable failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -2888,6 +2913,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => ensureRmraTimerStartedAtColumn())
   .then(() => ensureStudentAnswerColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
+  .then(() => createInterviewRecordingsTable())
   .then(() => {
   const server = app.listen(port, (err) => {
     if (err) {

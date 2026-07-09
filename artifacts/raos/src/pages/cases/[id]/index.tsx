@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio, Mic
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -33,6 +33,7 @@ import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
+import { AiNotetaker, type Recording as InterviewRecording } from "@/components/AiNotetaker";
 import { useWatchAlong } from "@/hooks/use-watch-along";
 
 const PHASES = [
@@ -278,6 +279,10 @@ export default function CaseDetail() {
   const [interviewNotesSaved, setInterviewNotesSaved] = useState(false);
   const [savingInterviewNotes, setSavingInterviewNotes] = useState(false);
 
+  // ── AI Notetaker state ─────────────────────────────────────────────────────
+  const [interviewRecordings, setInterviewRecordings] = useState<InterviewRecording[]>([]);
+  const [interviewTab, setInterviewTab] = useState<"notes" | "notetaker">("notes");
+
   // ── Report Workspace state ─────────────────────────────────────────────────
   const [reportDocInput, setReportDocInput] = useState("");
   const [editingReportDoc, setEditingReportDoc] = useState(false);
@@ -293,6 +298,16 @@ export default function CaseDetail() {
   useEffect(() => {
     setInterviewNotesDraft((c as any)?.parentInterviewNotes ?? "");
   }, [(c as any)?.parentInterviewNotes]);
+
+  useEffect(() => {
+    if (!caseId) return;
+    fetch(`${BASE_URL}/api/cases/${caseId}/interview-recordings`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: InterviewRecording[]) => setInterviewRecordings(data))
+      .catch(() => {});
+  }, [caseId]);
 
   const handleSaveInterviewNotes = async () => {
     setSavingInterviewNotes(true);
@@ -1692,7 +1707,7 @@ export default function CaseDetail() {
           <ApprenticeAssignmentPanel caseId={c.id} />
         )}
 
-        {/* ── Parent Interview Notes ── visible from intake phase onward ── */}
+        {/* ── Interview Notes & AI Notetaker ── visible from intake phase onward ── */}
         {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician" || role === "clinical_apprentice") && (
           <Card className="border-none shadow-md bg-white">
             <CardHeader className="pb-2">
@@ -1700,38 +1715,83 @@ export default function CaseDetail() {
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold shrink-0">
                   <Pencil size={12} />
                 </span>
-                Offline Parent Interview Notes
+                Clinical Interview Notes
               </CardTitle>
               <p className="text-xs text-slate-500 mt-0.5">
-                Notes from any in-person or phone interview conducted outside the system. These are injected into the AI intake analysis.
+                Record a live interview and let AI organise the notes, or type notes manually. These feed into the AI intake analysis.
               </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <textarea
-                className="w-full min-h-[120px] rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y transition"
-                placeholder="e.g. Parent mentioned the child has night terrors 3–4× per week and has been refusing school on Mondays. Father is currently being treated for anxiety…"
-                value={interviewNotesDraft}
-                onChange={e => { setInterviewNotesDraft(e.target.value); setInterviewNotesSaved(false); }}
-                disabled={savingInterviewNotes}
-              />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-400">{interviewNotesDraft.length} chars</span>
-                <div className="flex items-center gap-2">
-                  {interviewNotesSaved && (
-                    <span className="text-xs text-emerald-600 flex items-center gap-1">
-                      <Check size={12} /> Saved
+              {/* Tab switcher */}
+              <div className="flex gap-1 mt-3 bg-slate-100 rounded-lg p-0.5 w-fit">
+                <button
+                  onClick={() => setInterviewTab("notes")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    interviewTab === "notes"
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Pencil size={11} className="inline mr-1" />
+                  Manual Notes
+                </button>
+                <button
+                  onClick={() => setInterviewTab("notetaker")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    interviewTab === "notetaker"
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Mic size={11} className="inline mr-1" />
+                  AI Notetaker
+                  {interviewRecordings.length > 0 && (
+                    <span className="ml-1 bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+                      {interviewRecordings.length}
                     </span>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={handleSaveInterviewNotes}
-                    disabled={savingInterviewNotes || interviewNotesDraft === ((c as any)?.parentInterviewNotes ?? "")}
-                    className="bg-slate-800 hover:bg-slate-700 text-white"
-                  >
-                    {savingInterviewNotes ? "Saving…" : "Save Notes"}
-                  </Button>
-                </div>
+                </button>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {interviewTab === "notes" ? (
+                <>
+                  <textarea
+                    className="w-full min-h-[120px] rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent resize-y transition"
+                    placeholder="e.g. Parent mentioned the child has night terrors 3–4× per week and has been refusing school on Mondays. Father is currently being treated for anxiety…"
+                    value={interviewNotesDraft}
+                    onChange={e => { setInterviewNotesDraft(e.target.value); setInterviewNotesSaved(false); }}
+                    disabled={savingInterviewNotes}
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-400">{interviewNotesDraft.length} chars</span>
+                    <div className="flex items-center gap-2">
+                      {interviewNotesSaved && (
+                        <span className="text-xs text-emerald-600 flex items-center gap-1">
+                          <Check size={12} /> Saved
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        onClick={handleSaveInterviewNotes}
+                        disabled={savingInterviewNotes || interviewNotesDraft === ((c as any)?.parentInterviewNotes ?? "")}
+                        className="bg-slate-800 hover:bg-slate-700 text-white"
+                      >
+                        {savingInterviewNotes ? "Saving…" : "Save Notes"}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <AiNotetaker
+                  caseId={c.id}
+                  baseUrl={BASE_URL}
+                  token={localStorage.getItem("raos_token") ?? ""}
+                  availableTypes={["parent_intake", "teacher_consultation", "student_interview", "classroom_observation"]}
+                  defaultType="parent_intake"
+                  recordings={interviewRecordings}
+                  onRecordingAdded={r => setInterviewRecordings(prev => [r, ...prev])}
+                  onRecordingDeleted={id => setInterviewRecordings(prev => prev.filter(r => r.id !== id))}
+                />
+              )}
             </CardContent>
           </Card>
         )}

@@ -8,8 +8,9 @@ import {
   Upload, Mail, Download, CheckCircle2, Clock, AlertTriangle,
   RefreshCw, Shield, ShieldCheck, ShieldAlert, FileText, SendHorizonal,
   UserPlus, X, Bell, Archive, FilePlus2, Lock, ExternalLink, FlaskConical,
-  Video, Copy, Pencil, Trash2, UserCheck,
+  Video, Copy, Pencil, Trash2, UserCheck, Mic,
 } from "lucide-react";
+import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -113,6 +114,10 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const isLocked = currentPhase !== "final_review" && currentPhase !== "debrief" && currentPhase !== "complete";
   const hasUploads = uploads.length > 0;
 
+  // ── Debrief recorder state ─────────────────────────────────────────────────
+  const [debriefRecordings, setDebriefRecordings] = useState<InterviewRecording[]>([]);
+  const [showDebriefRecorder, setShowDebriefRecorder] = useState(false);
+
   // Upload form state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileLabel, setFileLabel] = useState("");
@@ -146,6 +151,19 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   };
 
   useEffect(() => { fetchStatus(); }, [caseId]);
+
+  useEffect(() => {
+    if (!caseId) return;
+    const token = localStorage.getItem("raos_token");
+    fetch(`/api/cases/${caseId}/interview-recordings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: InterviewRecording[]) =>
+        setDebriefRecordings(data.filter(r => r.conversationType === "report_debrief"))
+      )
+      .catch(() => {});
+  }, [caseId]);
 
   const addRecipient = () =>
     setAdditionalRecipients(r => [...r, { name: "", email: "" }]);
@@ -1445,6 +1463,48 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             {otherTokens.map(t => <TokenCard key={t.id} token={t} />)}
             {testPreviewToken && <TokenCard token={testPreviewToken} />}
           </div>
+        </div>
+      )}
+
+      {/* ── AI Debrief Recorder ── debrief phase only ── */}
+      {isDebrief && (
+        <div className="border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Mic size={14} className="text-purple-600" />
+                AI Debrief Recorder
+                {debriefRecordings.length > 0 && (
+                  <span className="bg-purple-100 text-purple-700 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                    {debriefRecordings.length}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Record the debrief session and let AI structure it into clinical notes.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowDebriefRecorder(v => !v)}
+              className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2"
+            >
+              {showDebriefRecorder ? "Hide" : "Open recorder"}
+            </button>
+          </div>
+          {showDebriefRecorder && (
+            <div className="mt-3">
+              <AiNotetaker
+                caseId={caseId}
+                baseUrl=""
+                token={localStorage.getItem("raos_token") ?? ""}
+                availableTypes={["report_debrief"]}
+                defaultType="report_debrief"
+                recordings={debriefRecordings}
+                onRecordingAdded={r => setDebriefRecordings(prev => [r, ...prev])}
+                onRecordingDeleted={id => setDebriefRecordings(prev => prev.filter(r => r.id !== id))}
+              />
+            </div>
+          )}
         </div>
       )}
 
