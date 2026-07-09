@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { interviewRecordingsTable, casesTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { transcribeAudio } from "../lib/groqTranscription.js";
@@ -23,7 +23,6 @@ const VALID_TYPES: ConversationType[] = [
 ];
 
 // ── POST /cases/:caseId/interview-recordings ──────────────────────────────────
-// Accepts raw audio body (Content-Type: audio/*), transcribes + structures it.
 router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -54,7 +53,7 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
   });
 
   const audioBuffer = Buffer.concat(chunks);
-  if (audioBuffer.length === 0) {
+  if (audioBuffer.length < 100) {
     res.status(400).json({ error: "empty_audio", message: "No audio data received" }); return;
   }
 
@@ -90,7 +89,7 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
     res.status(422).json({ error: "empty_transcript", message: "No speech detected in recording" }); return;
   }
 
-  // Structure
+  // Structure — gracefully fall back to null; frontend handles the null case
   let structured;
   try {
     structured = await structureInterviewNotes({
@@ -99,7 +98,7 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
       studentName: caseRow.studentName,
     });
   } catch (err) {
-    console.error("Structuring failed", err);
+    console.error("Structuring failed — raw transcript will be used", err);
     structured = null;
   }
 
@@ -137,6 +136,44 @@ router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, re
   res.json(recordings);
 });
 
+// ── GET /cases/:caseId/interview-recordings/:id/audio ────────────────────────
+// Streams the audio file back for in-browser playback (authenticated)
+router.get("/cases/:caseId/interview-recordings/:id/audio", authMiddleware, async (req, res) => {
+  const role = req.userRole ?? "";
+  if (!ALLOWED_ROLES.includes(role)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const [rec] = await db
+    .select({ storagePath: interviewRecordingsTable.storagePath, mimeType: interviewRecordingsTable.mimeType })
+    .from(interviewRecordingsTable)
+    .where(and(
+      eq(interviewRecordingsTable.id, req.params.id),
+      eq(interviewRecordingsTable.caseId, req.params.caseId),
+    ));
+
+  if (!rec) { res.status(404).json({ error: "not_found" }); return; }
+
+  try {
+    const objectFile = await objectStorageService.getObjectEntityFile(rec.storagePath);
+    const [metadata] = await objectFile.getMetadata();
+    const contentType = (metadata as any).contentType ?? rec.mimeType ?? "audio/webm";
+    const size = (metadata as any).size;
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Accept-Ranges", "bytes");
+    if (size) res.setHeader("Content-Length", String(size));
+    res.setHeader("Cache-Control", "private, max-age=3600");
+
+    const stream = objectFile.createReadStream();
+    stream.on("error", () => res.end());
+    stream.pipe(res);
+  } catch (err) {
+    console.error("Audio stream failed", err);
+    res.status(502).json({ error: "stream_failed" });
+  }
+});
+
 // ── DELETE /cases/:caseId/interview-recordings/:id ────────────────────────────
 router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
@@ -144,15 +181,25 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  await db
+  // Scope by BOTH id AND caseId to prevent cross-case mutations
+  const deleted = await db
     .delete(interviewRecordingsTable)
-    .where(eq(interviewRecordingsTable.id, req.params.id));
+    .where(and(
+      eq(interviewRecordingsTable.id, req.params.id),
+      eq(interviewRecordingsTable.caseId, req.params.caseId),
+    ))
+    .returning({ id: interviewRecordingsTable.id });
+
+  if (!deleted.length) {
+    res.status(404).json({ error: "not_found" }); return;
+  }
 
   res.json({ success: true });
 });
 
 // ── PATCH /cases/:caseId/interview-recordings/:id/notes ──────────────────────
-// Save edited structured notes back after clinician edits
+// Save edited structured notes back after clinician edits.
+// Also writes a text summary into cases.parentInterviewNotes for AI injection.
 router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -164,10 +211,56 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
     res.status(400).json({ error: "missing structuredNotes" }); return;
   }
 
+  // Verify the recording belongs to this case (prevents cross-case write)
+  const [rec] = await db
+    .select({ id: interviewRecordingsTable.id })
+    .from(interviewRecordingsTable)
+    .where(and(
+      eq(interviewRecordingsTable.id, req.params.id),
+      eq(interviewRecordingsTable.caseId, req.params.caseId),
+    ));
+
+  if (!rec) {
+    res.status(404).json({ error: "not_found" }); return;
+  }
+
   await db
     .update(interviewRecordingsTable)
     .set({ structuredNotes })
-    .where(eq(interviewRecordingsTable.id, req.params.id));
+    .where(and(
+      eq(interviewRecordingsTable.id, req.params.id),
+      eq(interviewRecordingsTable.caseId, req.params.caseId),
+    ));
+
+  // Also persist a human-readable summary into cases.parentInterviewNotes
+  // so the AI intake analysis can pick up these notes automatically.
+  // We prepend this recording's notes rather than overwriting, so notes accumulate.
+  if (structuredNotes.sections && Array.isArray(structuredNotes.sections)) {
+    try {
+      const [caseRow] = await db
+        .select({ parentInterviewNotes: (casesTable as any).parentInterviewNotes })
+        .from(casesTable)
+        .where(eq(casesTable.id, req.params.caseId));
+
+      const typeLine = `[${structuredNotes.conversationType ?? "recording"} — ${new Date().toLocaleDateString()}]`;
+      const sectionText = (structuredNotes.sections as Array<{ label: string; content: string }>)
+        .filter(s => s.content?.trim())
+        .map(s => `${s.label}:\n${s.content.trim()}`)
+        .join("\n\n");
+      const newBlock = `${typeLine}\n${sectionText}`;
+
+      const existing = (caseRow as any)?.parentInterviewNotes ?? "";
+      const merged = existing ? `${newBlock}\n\n---\n\n${existing}` : newBlock;
+
+      await db
+        .update(casesTable)
+        .set({ parentInterviewNotes: merged } as any)
+        .where(eq(casesTable.id, req.params.caseId));
+    } catch (err) {
+      // Non-fatal: structured notes are saved; only the case field update failed
+      console.error("Failed to sync notes to case.parentInterviewNotes", err);
+    }
+  }
 
   res.json({ success: true });
 });

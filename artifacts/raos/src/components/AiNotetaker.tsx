@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AudioRecorder } from "./AudioRecorder";
-import { Loader2, ChevronDown, ChevronUp, Trash2, Clock, Mic2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, Trash2, Clock, Mic2, Play, Pause } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export type ConversationType =
@@ -61,6 +61,59 @@ function formatDuration(s?: number): string {
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 }
 
+function transcriptFallbackSections(transcript: string): NoteSection[] {
+  return [{
+    key: "raw_transcript",
+    label: "Raw Transcript",
+    content: transcript,
+  }];
+}
+
+function buildStructuredNotesFromTranscript(transcript: string, type: ConversationType): StructuredNotes {
+  return {
+    conversationType: type,
+    sections: transcriptFallbackSections(transcript),
+    rawTranscript: transcript,
+    processedAt: new Date().toISOString(),
+  };
+}
+
+interface AudioPlayerProps {
+  audioUrl: string;
+  mimeType?: string;
+}
+
+function AudioPlayer({ audioUrl, mimeType }: AudioPlayerProps) {
+  const [playing, setPlaying] = useState(false);
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+
+  const toggle = () => {
+    if (!audioEl) {
+      const el = new Audio(audioUrl);
+      el.onended = () => setPlaying(false);
+      el.onerror = () => setPlaying(false);
+      setAudioEl(el);
+      el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    } else if (playing) {
+      audioEl.pause();
+      setPlaying(false);
+    } else {
+      audioEl.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    }
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+      title={playing ? "Pause" : "Play recording"}
+    >
+      {playing ? <Pause size={12} /> : <Play size={12} />}
+      {playing ? "Pause" : "Play"}
+    </button>
+  );
+}
+
 interface AiNotetakerProps {
   caseId: string;
   baseUrl: string;
@@ -90,6 +143,7 @@ export function AiNotetaker({
   const [result, setResult] = useState<{ id: string; structuredNotes: StructuredNotes; transcript: string } | null>(null);
   const [editedSections, setEditedSections] = useState<NoteSection[] | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
   const [expandedTranscript, setExpandedTranscript] = useState(false);
   const [expandedPastId, setExpandedPastId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -98,6 +152,7 @@ export function AiNotetaker({
     setResult(null);
     setEditedSections(null);
     setExpandedTranscript(false);
+    setNotesSaved(false);
 
     setProcessingStep("uploading");
     try {
@@ -117,13 +172,18 @@ export function AiNotetaker({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Server error ${res.status}`);
+        throw new Error((err as any).message || `Server error ${res.status}`);
       }
 
-      const data = await res.json() as { id: string; transcript: string; structuredNotes: StructuredNotes };
+      const data = await res.json() as { id: string; transcript: string; structuredNotes: StructuredNotes | null };
       setProcessingStep("done");
-      setResult({ id: data.id, structuredNotes: data.structuredNotes, transcript: data.transcript });
-      setEditedSections(data.structuredNotes?.sections ?? null);
+
+      // Fallback: if AI structuring failed, build a single-section note from raw transcript
+      const structuredNotes: StructuredNotes = data.structuredNotes
+        ?? buildStructuredNotesFromTranscript(data.transcript, selectedType);
+
+      setResult({ id: data.id, structuredNotes, transcript: data.transcript });
+      setEditedSections(structuredNotes.sections ?? transcriptFallbackSections(data.transcript));
 
       onRecordingAdded({
         id: data.id,
@@ -133,7 +193,7 @@ export function AiNotetaker({
         conversationType: selectedType,
         mimeType,
         transcript: data.transcript,
-        structuredNotes: data.structuredNotes,
+        structuredNotes,
         createdAt: new Date().toISOString(),
       });
     } catch (err: any) {
@@ -146,6 +206,7 @@ export function AiNotetaker({
   const handleSaveNotes = async () => {
     if (!result || !editedSections) return;
     setSavingNotes(true);
+    setNotesSaved(false);
     try {
       const updatedNotes: StructuredNotes = { ...result.structuredNotes, sections: editedSections };
       const res = await fetch(`${baseUrl}/api/cases/${caseId}/interview-recordings/${result.id}/notes`, {
@@ -155,7 +216,8 @@ export function AiNotetaker({
       });
       if (!res.ok) throw new Error("Save failed");
       onNotesUpdated?.(result.id, updatedNotes);
-      toast({ title: "Notes saved" });
+      setNotesSaved(true);
+      toast({ title: "Notes saved to case" });
     } catch {
       toast({ title: "Could not save notes", variant: "destructive" });
     } finally {
@@ -166,10 +228,11 @@ export function AiNotetaker({
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await fetch(`${baseUrl}/api/cases/${caseId}/interview-recordings/${id}`, {
+      const res = await fetch(`${baseUrl}/api/cases/${caseId}/interview-recordings/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok && res.status !== 404) throw new Error("Delete failed");
       onRecordingDeleted(id);
       if (result?.id === id) { setResult(null); setEditedSections(null); }
     } catch {
@@ -221,7 +284,7 @@ export function AiNotetaker({
             {STEP_LABELS[processingStep!]}
           </div>
           <div className="flex gap-1">
-            {(["uploading", "transcribing", "structuring"] as ProcessingStep[]).map((step, i) => {
+            {(["uploading", "transcribing", "structuring"] as ProcessingStep[]).map((step) => {
               const steps: ProcessingStep[] = ["uploading", "transcribing", "structuring"];
               const currentIdx = steps.indexOf(processingStep!);
               const stepIdx = steps.indexOf(step);
@@ -250,12 +313,17 @@ export function AiNotetaker({
               <span className="text-xs text-slate-500">
                 {new Date(result.structuredNotes?.processedAt ?? Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
+              {!result.structuredNotes?.sections?.find(s => s.key !== "raw_transcript") && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                  AI structuring unavailable — raw transcript shown
+                </span>
+              )}
             </div>
             <Button
               size="sm"
               variant="ghost"
               className="text-xs text-slate-400 hover:text-slate-600"
-              onClick={() => { setResult(null); setEditedSections(null); setExpandedTranscript(false); }}
+              onClick={() => { setResult(null); setEditedSections(null); setExpandedTranscript(false); setNotesSaved(false); }}
             >
               Record another
             </Button>
@@ -281,28 +349,35 @@ export function AiNotetaker({
             ))}
           </div>
 
-          {/* Raw transcript (collapsible) */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors"
-              onClick={() => setExpandedTranscript(v => !v)}
-            >
-              Raw transcript
-              {expandedTranscript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            {expandedTranscript && (
-              <div className="px-3 py-3 text-xs text-slate-600 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed bg-white">
-                {result.transcript || "No transcript available."}
-              </div>
-            )}
-          </div>
+          {/* Raw transcript (collapsible) — only when structured notes exist (otherwise transcript is already shown above) */}
+          {result.structuredNotes?.sections?.some(s => s.key !== "raw_transcript") && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors"
+                onClick={() => setExpandedTranscript(v => !v)}
+              >
+                Raw transcript
+                {expandedTranscript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              {expandedTranscript && (
+                <div className="px-3 py-3 text-xs text-slate-600 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed bg-white">
+                  {result.transcript || "No transcript available."}
+                </div>
+              )}
+            </div>
+          )}
 
           <Button
             onClick={handleSaveNotes}
-            disabled={savingNotes}
+            disabled={savingNotes || notesSaved}
             className="w-full bg-slate-800 hover:bg-slate-700 text-white"
           >
-            {savingNotes ? <><Loader2 size={14} className="mr-2 animate-spin" />Saving…</> : "Save Notes to Case"}
+            {savingNotes
+              ? <><Loader2 size={14} className="mr-2 animate-spin" />Saving…</>
+              : notesSaved
+                ? "✓ Saved to Case"
+                : "Save Notes to Case"
+            }
           </Button>
         </div>
       )}
@@ -311,54 +386,79 @@ export function AiNotetaker({
       {recordings.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Past recordings</p>
-          {recordings.map(rec => (
-            <div key={rec.id} className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
-                <button
-                  className="flex items-center gap-2 text-left flex-1 min-w-0"
-                  onClick={() => setExpandedPastId(expandedPastId === rec.id ? null : rec.id)}
-                >
-                  <Mic2 size={13} className="text-slate-400 shrink-0" />
-                  <span className="text-xs font-medium text-slate-700 truncate">
-                    {CONVERSATION_TYPE_LABELS[rec.conversationType as ConversationType] ?? rec.conversationType}
-                  </span>
-                  {rec.durationSeconds && (
-                    <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0">
-                      <Clock size={10} /> {formatDuration(rec.durationSeconds)}
-                    </span>
-                  )}
-                  <span className="text-xs text-slate-400 shrink-0">
-                    {new Date(rec.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
-                  </span>
-                  {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
-                </button>
-                <button
-                  onClick={() => handleDelete(rec.id)}
-                  disabled={deletingId === rec.id}
-                  className="ml-2 text-slate-300 hover:text-red-400 transition-colors shrink-0"
-                >
-                  {deletingId === rec.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                </button>
-              </div>
+          {recordings.map(rec => {
+            const audioUrl = `${baseUrl}/api/cases/${caseId}/interview-recordings/${rec.id}/audio`;
+            const hasSections = rec.structuredNotes?.sections && rec.structuredNotes.sections.length > 0;
+            const isRawTranscriptOnly = hasSections && rec.structuredNotes!.sections.every(s => s.key === "raw_transcript");
 
-              {expandedPastId === rec.id && (
-                <div className="px-3 py-3 space-y-3 bg-white">
-                  {rec.structuredNotes?.sections?.map(s => (
-                    <div key={s.key}>
-                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{s.label}</p>
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{s.content}</p>
-                    </div>
-                  ))}
-                  {rec.transcript && (
-                    <details className="text-xs text-slate-500">
-                      <summary className="cursor-pointer font-medium text-slate-400 hover:text-slate-600">Raw transcript</summary>
-                      <p className="mt-2 whitespace-pre-wrap leading-relaxed">{rec.transcript}</p>
-                    </details>
-                  )}
+            return (
+              <div key={rec.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                  <button
+                    className="flex items-center gap-2 text-left flex-1 min-w-0"
+                    onClick={() => setExpandedPastId(expandedPastId === rec.id ? null : rec.id)}
+                  >
+                    <Mic2 size={13} className="text-slate-400 shrink-0" />
+                    <span className="text-xs font-medium text-slate-700 truncate">
+                      {CONVERSATION_TYPE_LABELS[rec.conversationType as ConversationType] ?? rec.conversationType}
+                    </span>
+                    {rec.durationSeconds && (
+                      <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0">
+                        <Clock size={10} /> {formatDuration(rec.durationSeconds)}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400 shrink-0">
+                      {new Date(rec.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                    </span>
+                    {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
+                  </button>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <AudioPlayer audioUrl={audioUrl} mimeType={rec.mimeType} />
+                    <button
+                      onClick={() => handleDelete(rec.id)}
+                      disabled={deletingId === rec.id}
+                      className="text-slate-300 hover:text-red-400 transition-colors"
+                    >
+                      {deletingId === rec.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {expandedPastId === rec.id && (
+                  <div className="px-3 py-3 space-y-3 bg-white">
+                    {isRawTranscriptOnly && (
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                        AI structuring was unavailable for this recording — raw transcript shown below.
+                      </p>
+                    )}
+                    {hasSections
+                      ? rec.structuredNotes!.sections.map(s => (
+                          <div key={s.key}>
+                            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{s.label}</p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{s.content}</p>
+                          </div>
+                        ))
+                      : rec.transcript
+                        ? (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Raw Transcript</p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{rec.transcript}</p>
+                          </div>
+                        )
+                        : <p className="text-xs text-slate-400">No notes available for this recording.</p>
+                    }
+                    {/* Show raw transcript in collapsible only when structured notes exist (not raw-only) */}
+                    {hasSections && !isRawTranscriptOnly && rec.transcript && (
+                      <details className="text-xs text-slate-500">
+                        <summary className="cursor-pointer font-medium text-slate-400 hover:text-slate-600">Raw transcript</summary>
+                        <p className="mt-2 whitespace-pre-wrap leading-relaxed">{rec.transcript}</p>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
