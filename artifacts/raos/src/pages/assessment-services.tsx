@@ -156,9 +156,13 @@ export default function AssessmentServicesPage() {
                 <span className="text-slate-400 text-xl block mb-1 font-semibold">{a.summerSave}</span>
                 {a.summerHeadline}
               </h2>
-              <p className="text-slate-400 text-sm font-medium mb-5">
+              <p className="text-slate-400 text-sm font-medium mb-3">
                 {a.summerDesc}
               </p>
+              <div className="inline-flex items-center gap-1.5 bg-amber-400/15 border border-amber-400/30 rounded-lg px-3 py-1.5 mb-5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span className="text-amber-300 text-xs font-semibold">{a.summerEnds}</span>
+              </div>
 
               <div className="flex flex-col sm:flex-row items-center lg:items-start gap-3">
                 <Link href="/portal?tab=school">
