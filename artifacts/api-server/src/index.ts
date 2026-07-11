@@ -14,7 +14,7 @@ import { BASC3_TRS_A_FORM, BASC3_PRS_A_FORM, BASC3_TRS_C_FORM, BASC3_PRS_C_FORM,
 import { BRIEF2_PARENT_FORM, BRIEF2_SELF_FORM, BRIEF2_TEACHER_FORM } from "./lib/brief2.js";
 import { SDQ_PARENT_FORM, SDQ_TEACHER_FORM, SDQ_SR_FORM, SDQ_P4_FORM, SDQ_P11_FORM, SDQ_T4_FORM, SDQ_T11_FORM, SDQ_SR11_FORM, SDQ_SR18_FORM, GHQ12_FORM, SMFQ_FORM, PSC_FORM, GAD7_FORM, PHQ9_FORM, PHQ9A_FORM, PSS10_FORM, DASS21_FORM, RSES_FORM, WHO5_FORM, AUDIT_FORM, CABS_FORM, FASM_FORM } from "./lib/opentools.js";
 import { translateFormItemsWithAI } from "./lib/ai.js";
-import { eq, sql, and, ne, or, isNull, isNotNull } from "drizzle-orm";
+import { eq, sql, and, ne, or, isNull, isNotNull, desc } from "drizzle-orm";
 import crypto from "crypto";
 
 function hashPassword(password: string): string {
@@ -2421,9 +2421,18 @@ async function repairPendingCasesFromConsent() {
 
 async function backfillRespondentLabels() {
   try {
-    // For every (case_id, respondent_type) that has exactly ONE distinct
-    // non-empty respondent_label, copy that label onto any assignments in
-    // the same group that were saved with a null or empty label.
+    // For every (case_id, respondent_type) that has an unlabelled assignment,
+    // determine the correct label from labelled siblings and copy it over.
+    //
+    // Strategy:
+    //   1. If there is exactly ONE distinct non-empty label → use it.
+    //   2. If there are MULTIPLE distinct labels (e.g. "Parent" for intake forms
+    //      and "Parent Assessment Package" for assessment forms), pick the label
+    //      that appears on the MOST sibling assignments (modal label).  The modal
+    //      label is the one the respondent uses to open the portal, so it is the
+    //      correct bucket for any late-added assessment tools that arrived without
+    //      a label.
+    //   3. If there are no labelled siblings → skip (cannot determine).
     const unlabelled = await db
       .select({
         id: assignmentsTable.id,
@@ -2434,8 +2443,12 @@ async function backfillRespondentLabels() {
       .where(or(isNull(assignmentsTable.respondentLabel), eq(assignmentsTable.respondentLabel, "")));
 
     for (const row of unlabelled) {
-      const labelled = await db
-        .selectDistinct({ label: assignmentsTable.respondentLabel })
+      // Count occurrences of each distinct label for this (case, respondentType) group
+      const labelCounts = await db
+        .select({
+          label: assignmentsTable.respondentLabel,
+          count: sql<number>`count(*)::int`,
+        })
         .from(assignmentsTable)
         .where(
           and(
@@ -2444,16 +2457,18 @@ async function backfillRespondentLabels() {
             isNotNull(assignmentsTable.respondentLabel),
             ne(assignmentsTable.respondentLabel, ""),
           )
-        );
-      // Only backfill when there is exactly one distinct label — if there
-      // are multiple (e.g. Teacher 1 and Teacher 2 for the same type) we
-      // cannot safely guess which group this assignment belongs to.
-      if (labelled.length === 1) {
-        await db
-          .update(assignmentsTable)
-          .set({ respondentLabel: labelled[0].label })
-          .where(eq(assignmentsTable.id, row.id));
-      }
+        )
+        .groupBy(assignmentsTable.respondentLabel)
+        .orderBy(desc(sql`count(*)`));
+
+      if (labelCounts.length === 0) continue; // no labelled siblings — skip
+
+      // Pick the most-common label (modal label)
+      const chosenLabel = labelCounts[0].label!;
+      await db
+        .update(assignmentsTable)
+        .set({ respondentLabel: chosenLabel })
+        .where(eq(assignmentsTable.id, row.id));
     }
     if (unlabelled.length > 0) {
       logger.info({ count: unlabelled.length }, "Backfilled respondent labels");
