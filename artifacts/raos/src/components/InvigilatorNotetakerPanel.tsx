@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
-import { Mic, ChevronDown, Loader2, Calendar, User } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Calendar, User, History } from "lucide-react";
 
 interface ActiveCase {
   id: string;
@@ -28,13 +28,29 @@ function formatMeetingDate(raw: string | null | undefined): string {
   });
 }
 
+function formatRecordingDate(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: InvigilatorNotetakerPanelProps) {
   const [activeCases, setActiveCases] = useState<ActiveCase[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
   const [selectedCaseId, setSelectedCaseId] = useState<string>(currentCaseId);
-  const [recordings, setRecordings] = useState<InterviewRecording[]>([]);
+  const [perCaseRecordings, setPerCaseRecordings] = useState<InterviewRecording[]>([]);
+  const [allRecordings, setAllRecordings] = useState<InterviewRecording[]>([]);
   const [loadingRecordings, setLoadingRecordings] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
+  // Fetch active cases on mount
   useEffect(() => {
     setLoadingCases(true);
     fetch(`${baseUrl}/api/invigilator/active-cases`, {
@@ -43,7 +59,6 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
       .then(r => r.ok ? r.json() : [])
       .then((cases: ActiveCase[]) => {
         setActiveCases(cases);
-        // Keep currentCaseId selected if it's in the list; otherwise pick first
         const ids = cases.map((c: ActiveCase) => c.id);
         if (!ids.includes(currentCaseId) && cases.length > 0) {
           setSelectedCaseId(cases[0].id);
@@ -53,26 +68,34 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
       .finally(() => setLoadingCases(false));
   }, [baseUrl, token, currentCaseId]);
 
+  // Fetch recordings for the selected case whenever it changes
   useEffect(() => {
     if (!selectedCaseId) return;
     setLoadingRecordings(true);
+    const studentName = activeCases.find(c => c.id === selectedCaseId)?.studentName;
     fetch(`${baseUrl}/api/cases/${selectedCaseId}/interview-recordings`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : [])
       .then((data: InterviewRecording[]) => {
-        const selectedStudent = activeCases.find(c => c.id === selectedCaseId)?.studentName;
-        setRecordings(
-          data.map(r => ({
-            ...r,
-            studentName: selectedStudent,
-            interviewDate: r.interviewDate ?? null,
-          }))
-        );
+        setPerCaseRecordings(data.map(r => ({ ...r, studentName })));
       })
       .catch(() => {})
       .finally(() => setLoadingRecordings(false));
   }, [selectedCaseId, baseUrl, token, activeCases]);
+
+  // Fetch all-case recordings when the user expands the history section
+  useEffect(() => {
+    if (!showAllHistory) return;
+    setLoadingAll(true);
+    fetch(`${baseUrl}/api/invigilator/all-recordings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: InterviewRecording[]) => setAllRecordings(data))
+      .catch(() => {})
+      .finally(() => setLoadingAll(false));
+  }, [showAllHistory, baseUrl, token]);
 
   const selectedCase = activeCases.find(c => c.id === selectedCaseId);
   const interviewDate = selectedCase?.assessmentMeetingDate ?? undefined;
@@ -114,7 +137,7 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
 
             {/* Selected case context */}
             {selectedCase && (
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <User size={11} className="text-indigo-400 shrink-0" />
                   <span className="font-medium text-slate-700">{selectedCase.studentName}</span>
@@ -135,7 +158,7 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
           <div className="border-t border-slate-100 -mx-4" />
         )}
 
-        {/* Notetaker */}
+        {/* Per-case notetaker */}
         {!loadingCases && selectedCaseId && activeCases.length > 0 && (
           loadingRecordings ? (
             <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
@@ -149,17 +172,66 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
               availableTypes={["student_interview", "classroom_observation"]}
               defaultType="student_interview"
               interviewDate={interviewDate}
-              recordings={recordings}
-              onRecordingAdded={r => setRecordings(prev => [
-                { ...r, studentName: selectedCase?.studentName },
-                ...prev,
-              ])}
-              onRecordingDeleted={id => setRecordings(prev => prev.filter(r => r.id !== id))}
-              onNotesUpdated={(id, notes) => setRecordings(prev =>
-                prev.map(r => r.id === id ? { ...r, structuredNotes: notes } : r)
-              )}
+              recordings={perCaseRecordings}
+              onRecordingAdded={r => {
+                const newRec = { ...r, studentName: selectedCase?.studentName };
+                setPerCaseRecordings(prev => [newRec, ...prev]);
+                setAllRecordings(prev => [newRec, ...prev]);
+              }}
+              onRecordingDeleted={id => {
+                setPerCaseRecordings(prev => prev.filter(r => r.id !== id));
+                setAllRecordings(prev => prev.filter(r => r.id !== id));
+              }}
+              onNotesUpdated={(id, notes) => {
+                const update = (prev: InterviewRecording[]) =>
+                  prev.map(r => r.id === id ? { ...r, structuredNotes: notes } : r);
+                setPerCaseRecordings(update);
+                setAllRecordings(update);
+              }}
             />
           )
+        )}
+
+        {/* Cross-case recording history */}
+        {!loadingCases && activeCases.length > 1 && (
+          <div className="border-t border-slate-100 -mx-4 pt-4 px-4">
+            <button
+              className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors w-full"
+              onClick={() => setShowAllHistory(v => !v)}
+            >
+              <History size={13} className="text-slate-400" />
+              All recordings across cases
+              <ChevronDown size={13} className={`ml-auto text-slate-400 transition-transform ${showAllHistory ? "rotate-180" : ""}`} />
+            </button>
+
+            {showAllHistory && (
+              <div className="mt-3 space-y-2">
+                {loadingAll ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Loader2 size={12} className="animate-spin" /> Loading…
+                  </div>
+                ) : allRecordings.length === 0 ? (
+                  <p className="text-xs text-slate-400">No recordings yet.</p>
+                ) : (
+                  allRecordings.map(rec => (
+                    <div key={rec.id} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                      {rec.studentName && (
+                        <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5 shrink-0">
+                          {rec.studentName}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-600 truncate flex-1">
+                        {rec.conversationType === "student_interview" ? "Student Interview" : "Classroom Observation"}
+                      </span>
+                      <span className="text-xs text-slate-400 shrink-0">
+                        {formatRecordingDate(rec.interviewDate ?? rec.createdAt)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

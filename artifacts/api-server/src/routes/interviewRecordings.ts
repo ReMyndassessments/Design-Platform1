@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { interviewRecordingsTable, casesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { interviewRecordingsTable, casesTable, assignmentsTable, usersTable } from "@workspace/db/schema";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { transcribeAudio } from "../lib/groqTranscription.js";
@@ -29,15 +29,18 @@ function canAccessDebrief(role: string): boolean {
   return DEBRIEF_ROLES.includes(role);
 }
 
-// ── GET /invigilator/active-cases ─────────────────────────────────────────────
-// Returns all active cases in the assessment phase that have invigilator
-// assignments, so Hayley can pick the right student before recording.
-router.get("/invigilator/active-cases", authMiddleware, async (req, res) => {
-  if (req.userRole !== "assessment_invigilator" && req.userRole !== "admin") {
-    res.status(403).json({ error: "forbidden" }); return;
-  }
+/** Resolve the email for the currently authenticated user. */
+async function getUserEmail(userId: string): Promise<string | null> {
+  const [user] = await db
+    .select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  return user?.email ?? null;
+}
 
-  const cases = await db
+/** Return all assessment-phase active cases assigned to a given invigilator email. */
+async function getInvigilatorActiveCases(email: string) {
+  return db
     .selectDistinct({
       id: casesTable.id,
       studentName: casesTable.studentName,
@@ -49,10 +52,58 @@ router.get("/invigilator/active-cases", authMiddleware, async (req, res) => {
       eq(casesTable.currentPhase, "assessment"),
       eq(casesTable.caseStatus, "active"),
       eq(assignmentsTable.respondentType, "invigilator"),
+      eq(assignmentsTable.assignedToEmail, email),
     ))
     .orderBy(casesTable.studentName);
+}
 
+// ── GET /invigilator/active-cases ─────────────────────────────────────────────
+// Returns only the cases assigned to the currently logged-in invigilator.
+router.get("/invigilator/active-cases", authMiddleware, async (req, res) => {
+  if (req.userRole !== "assessment_invigilator" && req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const email = await getUserEmail(req.userId!);
+  if (!email) { res.status(403).json({ error: "forbidden" }); return; }
+
+  const cases = await getInvigilatorActiveCases(email);
   res.json(cases);
+});
+
+// ── GET /invigilator/all-recordings ───────────────────────────────────────────
+// Returns all invigilator-appropriate recordings across every active case
+// assigned to the logged-in invigilator, each annotated with studentName.
+router.get("/invigilator/all-recordings", authMiddleware, async (req, res) => {
+  if (req.userRole !== "assessment_invigilator" && req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  const email = await getUserEmail(req.userId!);
+  if (!email) { res.status(403).json({ error: "forbidden" }); return; }
+
+  const activeCases = await getInvigilatorActiveCases(email);
+  if (activeCases.length === 0) { res.json([]); return; }
+
+  const caseIds = activeCases.map(c => c.id);
+  const caseNameMap = Object.fromEntries(activeCases.map(c => [c.id, c.studentName]));
+
+  const recordings = await db
+    .select()
+    .from(interviewRecordingsTable)
+    .where(and(
+      inArray(interviewRecordingsTable.caseId, caseIds),
+    ))
+    .orderBy(desc(interviewRecordingsTable.createdAt));
+
+  const filtered = recordings.filter(r => INVIGILATOR_TYPES.includes(r.conversationType as ConversationType));
+
+  const annotated = filtered.map(r => ({
+    ...r,
+    studentName: caseNameMap[r.caseId] ?? null,
+  }));
+
+  res.json(annotated);
 });
 
 // ── POST /cases/:caseId/interview-recordings ──────────────────────────────────
@@ -162,9 +213,6 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
 });
 
 // ── GET /cases/:caseId/interview-recordings ───────────────────────────────────
-// Returns recordings visible to the caller.
-// Apprentices receive only non-debrief recordings; debrief-eligible roles see all.
-// Invigilators only see student_interview and classroom_observation recordings.
 router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -179,12 +227,10 @@ router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, re
 
   let recordings = allRecordings;
 
-  // Filter out debrief recordings for roles that cannot access them
   if (!canAccessDebrief(role)) {
     recordings = recordings.filter(r => r.conversationType !== "report_debrief");
   }
 
-  // Invigilators only see their own session types
   if (role === "assessment_invigilator") {
     recordings = recordings.filter(r => INVIGILATOR_TYPES.includes(r.conversationType as ConversationType));
   }
@@ -193,8 +239,6 @@ router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, re
 });
 
 // ── GET /cases/:caseId/interview-recordings/:id/audio-url ────────────────────
-// Returns a short-lived signed URL (1 hour) so the browser can play audio
-// directly without embedding the Bearer token in the audio src.
 router.get("/cases/:caseId/interview-recordings/:id/audio-url", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -215,7 +259,6 @@ router.get("/cases/:caseId/interview-recordings/:id/audio-url", authMiddleware, 
 
   if (!rec) { res.status(404).json({ error: "not_found" }); return; }
 
-  // Debrief recordings require elevated role
   if (rec.conversationType === "report_debrief" && !canAccessDebrief(role)) {
     res.status(403).json({ error: "forbidden" }); return;
   }
@@ -236,7 +279,6 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  // Fetch the recording first to check its type before deleting
   const [rec] = await db
     .select({ id: interviewRecordingsTable.id, conversationType: interviewRecordingsTable.conversationType })
     .from(interviewRecordingsTable)
@@ -247,7 +289,6 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
 
   if (!rec) { res.status(404).json({ error: "not_found" }); return; }
 
-  // Debrief recordings require elevated role to delete
   if (rec.conversationType === "report_debrief" && !canAccessDebrief(role)) {
     res.status(403).json({ error: "forbidden" }); return;
   }
@@ -263,10 +304,6 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
 });
 
 // ── PATCH /cases/:caseId/interview-recordings/:id/notes ──────────────────────
-// Save edited structured notes. Also writes a plain-text summary into the
-// appropriate case field:
-//   - Interview types  → cases.parent_interview_notes  (injected into AI intake)
-//   - report_debrief  → cases.debrief_notes            (kept separate)
 router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, async (req, res) => {
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
@@ -278,7 +315,6 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
     res.status(400).json({ error: "missing structuredNotes" }); return;
   }
 
-  // Verify the recording belongs to this case and check its type
   const [rec] = await db
     .select({ id: interviewRecordingsTable.id, conversationType: interviewRecordingsTable.conversationType })
     .from(interviewRecordingsTable)
@@ -291,7 +327,6 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
     res.status(404).json({ error: "not_found" }); return;
   }
 
-  // Debrief recordings require elevated role to patch
   if (rec.conversationType === "report_debrief" && !canAccessDebrief(role)) {
     res.status(403).json({ error: "forbidden" }); return;
   }
@@ -304,7 +339,6 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
       eq(interviewRecordingsTable.caseId, req.params.caseId),
     ));
 
-  // Persist a human-readable summary into the correct case field.
   if (structuredNotes.sections && Array.isArray(structuredNotes.sections)) {
     try {
       const isDebriefType = rec.conversationType === "report_debrief";

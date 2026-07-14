@@ -446,7 +446,7 @@ export function AiNotetaker({
                       </span>
                     )}
                     <span className="text-xs text-slate-400 shrink-0">
-                      {new Date(rec.interviewDate ?? rec.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                      {new Date(rec.interviewDate ?? rec.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                     {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
                   </button>
