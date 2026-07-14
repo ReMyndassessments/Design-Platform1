@@ -16,13 +16,16 @@ import {
   RefreshCw,
   BookOpen,
   ShieldCheck,
+  Mic,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useGetCurrentUser, useLogout, customFetch } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { InvigilatorNotetakerPanel } from "@/components/InvigilatorNotetakerPanel";
 
 function generateRoomSlug(): string {
   const words = ["maple", "cedar", "river", "cloud", "summit", "beacon", "coral", "harbor", "silver", "forest"];
@@ -140,6 +143,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [quickMeetOpen, setQuickMeetOpen] = useState(false);
+  const [notetakerOpen, setNotetakerOpen] = useState(false);
   
   const { data: user } = useGetCurrentUser();
   const logoutMutation = useLogout();
@@ -239,6 +243,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        {/* AI Notetaker — assessment invigilator only */}
+        {user?.role === "assessment_invigilator" && (
+          <div className="px-4 pb-2">
+            <button
+              onClick={() => { setNotetakerOpen(true); setIsMobileMenuOpen(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 hover:text-indigo-300 transition-all duration-200 group"
+            >
+              <Mic size={18} className="shrink-0" />
+              <span className="flex-1 text-left text-sm font-medium">AI Notetaker</span>
+            </button>
+          </div>
+        )}
+
         {/* Quick Meet — admin + assessment invigilator */}
         {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
           <div className="px-4 pb-3">
@@ -294,6 +311,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Quick Meet Dialog */}
       {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
         <QuickMeetDialog open={quickMeetOpen} onClose={() => setQuickMeetOpen(false)} />
+      )}
+
+      {/* AI Notetaker Sheet — assessment invigilator only */}
+      {user?.role === "assessment_invigilator" && (
+        <Sheet open={notetakerOpen} onOpenChange={setNotetakerOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-0">
+            <SheetHeader className="px-5 pt-5 pb-3 border-b border-slate-100">
+              <SheetTitle className="flex items-center gap-2 text-slate-800">
+                <Mic size={16} className="text-indigo-500" />
+                AI Notetaker
+              </SheetTitle>
+            </SheetHeader>
+            <div className="p-4">
+              <InvigilatorNotetakerPanel
+                currentCaseId=""
+                baseUrl={import.meta.env.BASE_URL.replace(/\/$/, "")}
+                token={localStorage.getItem("raos_token") ?? ""}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );
