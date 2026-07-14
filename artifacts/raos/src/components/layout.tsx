@@ -243,8 +243,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* AI Notetaker — assessment invigilator only */}
-        {user?.role === "assessment_invigilator" && (
+        {/* AI Notetaker — admin + assessment invigilator */}
+        {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
           <div className="px-4 pb-2">
             <button
               onClick={() => { setNotetakerOpen(true); setIsMobileMenuOpen(false); }}
@@ -313,8 +313,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <QuickMeetDialog open={quickMeetOpen} onClose={() => setQuickMeetOpen(false)} />
       )}
 
-      {/* AI Notetaker Sheet — assessment invigilator only */}
-      {user?.role === "assessment_invigilator" && (
+      {/* AI Notetaker Sheet — admin + assessment invigilator */}
+      {(user?.role === "admin" || user?.role === "assessment_invigilator") && (
         <Sheet open={notetakerOpen} onOpenChange={setNotetakerOpen}>
           <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-0">
             <SheetHeader className="px-5 pt-5 pb-3 border-b border-slate-100">
