@@ -24,20 +24,41 @@ export const RDA_ITEMS = [
 export default function RdaStudentView() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-500 tracking-wide uppercase">Reading Assessment</span>
-        <span className="text-xs text-slate-400">Read each word aloud. Take your time.</span>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          .print-grid { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; padding: 24px !important; }
+          .print-tile { border: 1.5px solid #e2e8f0 !important; border-radius: 12px !important; padding: 20px 10px !important; text-align: center !important; break-inside: avoid !important; }
+          .print-num { font-size: 10px !important; color: #94a3b8 !important; display: block !important; margin-bottom: 6px !important; }
+          .print-word { font-size: 30px !important; font-weight: 700 !important; font-family: monospace !important; color: #1e293b !important; display: block !important; }
+          .print-header { padding: 16px 24px 8px !important; border-bottom: 1px solid #e2e8f0 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; }
+        }
+      `}</style>
+
+      <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between print-header">
+        <div>
+          <span className="text-sm font-semibold text-slate-700 tracking-wide uppercase block">ReMynd Decoding Assessment</span>
+          <span className="text-xs text-slate-400">Read each word aloud. Take your time.</span>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="no-print flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-400 rounded-lg px-4 py-2 transition-colors"
+        >
+          🖨️ Print
+        </button>
       </div>
+
       <div className="flex-1 flex items-start justify-center px-6 py-10">
         <div className="w-full max-w-2xl">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 print-grid">
             {RDA_ITEMS.map((item, idx) => (
               <div
                 key={item.id}
-                className="flex flex-col items-center gap-2 bg-slate-50 rounded-2xl py-7 px-4 border border-slate-100 select-none"
+                className="flex flex-col items-center gap-2 bg-slate-50 rounded-2xl py-7 px-4 border border-slate-100 select-none print-tile"
               >
-                <span className="text-xs text-slate-400 font-medium tabular-nums">{idx + 1}</span>
-                <span className="text-4xl font-bold text-slate-800 tracking-wide font-mono leading-none">
+                <span className="text-xs text-slate-400 font-medium tabular-nums print-num">{idx + 1}</span>
+                <span className="text-4xl font-bold text-slate-800 tracking-wide font-mono leading-none print-word">
                   {item.word}
                 </span>
               </div>
