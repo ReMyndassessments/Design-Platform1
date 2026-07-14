@@ -29,7 +29,7 @@ if (!basePath) {
 export default defineConfig({
   base: basePath,
   define: {
-    __REPLIT_DEV_DOMAIN__: JSON.stringify(process.env.REPLIT_DEV_DOMAIN ?? ""),
+    __REPLIT_DEV_DOMAIN__: JSON.stringify(process.env.NODE_ENV !== "production" ? (process.env.REPLIT_DEV_DOMAIN ?? "") : ""),
   },
   plugins: [
     react(),
