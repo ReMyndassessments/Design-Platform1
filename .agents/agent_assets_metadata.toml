@@ -83,3 +83,9 @@ id = "RkUQ0PKwin0zv4SleNgzp"
 uri = "file://attached_assets/reMynd_ppt_final.png"
 type = "image"
 title = "ReMynd PowerPoint Background"
+
+[[outputs]]
+id = "nzaxRvCpyhjszm_X7JGO9"
+uri = "file://attached_assets/invigilator-student-view-reference.md"
+type = "text"
+title = "Invigilator Student View Reference"
