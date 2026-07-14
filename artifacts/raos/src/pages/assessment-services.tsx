@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
 import {
   Eye, Users, Lightbulb, GitBranch, CheckCircle2, ArrowRight,
   Star, Building2, ChevronRight, Award, Sun, Sparkles, BookOpen, ClipboardCheck,
+  Info, X, Clock, UserCheck, Target, Zap, DollarSign, Package,
 } from "lucide-react";
+import { ASSESSMENT_OVERVIEWS, type AssessmentOverview } from "@/data/assessment-overviews";
 
 const WHY_CARD_ICONS = [
   { icon: Eye,       color: "text-blue-600",   bg: "bg-blue-50 border-blue-100" },
@@ -13,7 +16,6 @@ const WHY_CARD_ICONS = [
 ];
 
 const SUMMER_USE_CASE_ICONS = [Sun, BookOpen, ClipboardCheck];
-
 const SUMMER_DISCOUNT = 0.20;
 
 function summerPx(priceStr: string): string {
@@ -53,12 +55,196 @@ function BestForList({ items }: { items: string[] }) {
   );
 }
 
+function OverviewBtn({ title, onOpen }: { title: string; onOpen: (title: string) => void }) {
+  const hasOverview = !!ASSESSMENT_OVERVIEWS[title];
+  if (!hasOverview) return null;
+  return (
+    <button
+      onClick={() => onOpen(title)}
+      className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 rounded-xl py-2.5 px-3 transition-colors"
+    >
+      <Info size={12} />
+      Assessment Description &amp; Overview
+    </button>
+  );
+}
+
+function OverviewBtnDark({ title, onOpen }: { title: string; onOpen: (title: string) => void }) {
+  const hasOverview = !!ASSESSMENT_OVERVIEWS[title];
+  if (!hasOverview) return null;
+  return (
+    <button
+      onClick={() => onOpen(title)}
+      className="flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-white bg-white/8 hover:bg-white/15 border border-white/15 hover:border-indigo-400/40 rounded-xl py-2.5 px-4 transition-colors"
+    >
+      <Info size={12} />
+      Assessment Description &amp; Overview
+    </button>
+  );
+}
+
+function Section({ icon: Icon, color, title, children }: { icon: React.ElementType; color: string; title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className={`flex items-center gap-2 mb-3`}>
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon size={14} className="text-white" />
+        </div>
+        <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AssessmentOverviewDrawer({
+  title,
+  overview,
+  price,
+  onClose,
+}: {
+  title: string;
+  overview: AssessmentOverview;
+  price?: string;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="fixed right-0 top-0 h-full w-full max-w-xl bg-white z-50 shadow-2xl flex flex-col overflow-hidden">
+
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Assessment Description &amp; Overview</p>
+            <h2 className="text-base font-bold text-slate-900 leading-snug">{title}</h2>
+            {price && (
+              <p className="text-xs text-slate-400 mt-1">Standard price: {price} RMB &nbsp;·&nbsp; Summer rate: {summerPx(price)} RMB</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500 hover:text-slate-700"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+
+          <Section icon={Info} color="bg-slate-500" title="About This Assessment">
+            <p className="text-sm text-slate-600 leading-relaxed">{overview.fullDesc}</p>
+          </Section>
+
+          <Section icon={Clock} color="bg-blue-500" title="When to Use This Assessment">
+            <ul className="space-y-1.5">
+              {overview.whenToUse.map((item, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                  <ChevronRight size={13} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          <Section icon={UserCheck} color="bg-violet-500" title="Who Should Initiate This Referral">
+            <div className="flex flex-wrap gap-2">
+              {overview.initiatedBy.map((who, i) => (
+                <span key={i} className="text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1 rounded-full">
+                  {who}
+                </span>
+              ))}
+            </div>
+          </Section>
+
+          <Section icon={Target} color="bg-amber-500" title="Typical Student Profile">
+            <p className="text-sm text-slate-600 leading-relaxed">{overview.studentProfile}</p>
+          </Section>
+
+          <Section icon={Zap} color="bg-emerald-500" title="Key Benefits">
+            <ul className="space-y-1.5">
+              {overview.benefits.map((b, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={13} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                  {b}
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          {overview.deliverables && (
+            <Section icon={Package} color="bg-indigo-500" title="What's Included">
+              <ul className="space-y-1.5">
+                {overview.deliverables.map((d, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                    <CheckCircle2 size={13} className="text-indigo-400 flex-shrink-0" />
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          {overview.typicalTimeline && (
+            <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex items-center gap-3">
+              <Clock size={15} className="text-slate-400 flex-shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Typical Timeline</p>
+                <p className="text-sm font-semibold text-slate-700">{overview.typicalTimeline}</p>
+              </div>
+            </div>
+          )}
+
+          <Section icon={DollarSign} color="bg-rose-500" title="Cost Context &amp; Comparison">
+            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+              <p className="text-sm text-slate-600 leading-relaxed">{overview.costContext}</p>
+            </div>
+          </Section>
+
+        </div>
+
+        <div className="border-t border-slate-100 px-6 py-4 flex-shrink-0 flex gap-3">
+          <Link href="/portal?tab=school" className="flex-1">
+            <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-colors">
+              Refer a Student <ArrowRight size={14} />
+            </button>
+          </Link>
+          <Link href="/portal?tab=parent" className="flex-1">
+            <button className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl transition-colors">
+              Parent Enquiry <ChevronRight size={14} />
+            </button>
+          </Link>
+        </div>
+
+      </div>
+    </>
+  );
+}
+
 export default function AssessmentServicesPage() {
   const { t } = useI18n();
   const a = t.assessmentServices;
 
+  const [activeOverview, setActiveOverview] = useState<{ title: string; price?: string } | null>(null);
+
+  const openOverview = (title: string, price?: string) => setActiveOverview({ title, price });
+  const closeOverview = () => setActiveOverview(null);
+
+  const activeData = activeOverview ? ASSESSMENT_OVERVIEWS[activeOverview.title] : null;
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
+
+      {activeData && activeOverview && (
+        <AssessmentOverviewDrawer
+          title={activeOverview.title}
+          overview={activeData}
+          price={activeOverview.price}
+          onClose={closeOverview}
+        />
+      )}
 
       {/* ── NAV ── */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
@@ -93,37 +279,24 @@ export default function AssessmentServicesPage() {
         <div className="absolute inset-0 opacity-[0.025]"
           style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }}
         />
-
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20 md:py-28 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 py-1.5 mb-7">
             <Award size={12} className="text-amber-400" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 whitespace-nowrap">{a.pricingBadge}</span>
           </div>
-
           <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-5">
-            {a.heroTitle1}
-            <br />
+            {a.heroTitle1}<br />
             <span className="text-blue-300">{a.heroTitle2}</span>
           </h1>
           <p className="text-base md:text-lg text-blue-200 font-medium mb-8 max-w-2xl mx-auto leading-relaxed">
             {a.heroSubtitle}
           </p>
-
           <div className="max-w-3xl mx-auto bg-white/[0.06] border border-white/10 rounded-2xl px-8 py-7 text-left space-y-3 mb-10">
-            <p className="text-xl md:text-2xl font-bold text-white text-center mb-4">
-              {a.heroBoxTitle}
-            </p>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              {a.heroBoxBody}
-            </p>
-            <p className="text-slate-300 text-sm leading-relaxed font-semibold">
-              <em>{a.heroChallenge}</em>
-            </p>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              {a.heroBoxDesc}
-            </p>
+            <p className="text-xl md:text-2xl font-bold text-white text-center mb-4">{a.heroBoxTitle}</p>
+            <p className="text-slate-300 text-sm leading-relaxed">{a.heroBoxBody}</p>
+            <p className="text-slate-300 text-sm leading-relaxed font-semibold"><em>{a.heroChallenge}</em></p>
+            <p className="text-slate-400 text-sm leading-relaxed">{a.heroBoxDesc}</p>
           </div>
-
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/portal?tab=school">
               <button className="inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/40">
@@ -146,7 +319,6 @@ export default function AssessmentServicesPage() {
         />
         <div className="relative z-10 max-w-5xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-8">
-
             <div className="flex-1 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-4">
                 <Sun size={13} className="text-amber-400" />
@@ -156,14 +328,11 @@ export default function AssessmentServicesPage() {
                 <span className="text-slate-400 text-xl block mb-1 font-semibold">{a.summerSave}</span>
                 {a.summerHeadline}
               </h2>
-              <p className="text-slate-400 text-sm font-medium mb-3">
-                {a.summerDesc}
-              </p>
+              <p className="text-slate-400 text-sm font-medium mb-3">{a.summerDesc}</p>
               <div className="inline-flex items-center gap-1.5 bg-amber-400/15 border border-amber-400/30 rounded-lg px-3 py-1.5 mb-5">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 <span className="text-amber-300 text-xs font-semibold">{a.summerEnds}</span>
               </div>
-
               <div className="flex flex-col sm:flex-row items-center lg:items-start gap-3">
                 <Link href="/portal?tab=school">
                   <button className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-sm px-7 py-3 rounded-xl transition-colors">
@@ -177,7 +346,6 @@ export default function AssessmentServicesPage() {
                 </Link>
               </div>
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3 w-full lg:w-auto lg:max-w-sm xl:max-w-none xl:w-80">
               {a.summerUseCases.map((item, i) => {
                 const Icon = SUMMER_USE_CASE_ICONS[i];
@@ -192,7 +360,6 @@ export default function AssessmentServicesPage() {
                 );
               })}
             </div>
-
           </div>
         </div>
       </section>
@@ -245,6 +412,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="text-lg font-bold text-slate-900 mb-2">{a.t1Name}</h3>
                   <p className="text-slate-600 text-sm leading-relaxed mb-4">{a.t1Desc}</p>
                   <BestForList items={a.t1BestFor} />
+                  <OverviewBtn title={a.t1Name} onOpen={(title) => openOverview(title, "4,500")} />
                 </div>
                 <div className="md:text-right flex-shrink-0">
                   <PriceTag price="4,500" summer summerLabel={a.summerDiscountLabel} />
@@ -269,6 +437,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
+                  <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
                 </div>
               ))}
             </div>
@@ -289,6 +458,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
+                  <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
                 </div>
               ))}
             </div>
@@ -340,9 +510,7 @@ export default function AssessmentServicesPage() {
                     <h3 className="text-xl md:text-2xl font-extrabold text-white mb-3 leading-snug">
                       {a.flagshipName}
                     </h3>
-                    <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                      {a.flagshipDesc}
-                    </p>
+                    <p className="text-slate-300 text-sm leading-relaxed mb-4">{a.flagshipDesc}</p>
                     <div className="mb-4">
                       <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">{a.flagshipSourcesLabel}</p>
                       <div className="flex flex-wrap gap-2">
@@ -365,7 +533,6 @@ export default function AssessmentServicesPage() {
                         ))}
                       </ul>
                     </div>
-
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">{a.flagshipDeliverablesLabel}</p>
                       <ul className="space-y-1.5">
@@ -380,12 +547,13 @@ export default function AssessmentServicesPage() {
                   </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-white/10">
+                <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-3">
                   <Link href="/portal?tab=school">
                     <button className="inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-indigo-900/50">
                       {a.flagshipBtn} <ArrowRight size={16} />
                     </button>
                   </Link>
+                  <OverviewBtnDark title={a.flagshipName} onOpen={(title) => openOverview(title, "16,500")} />
                 </div>
               </div>
             </div>
@@ -407,6 +575,7 @@ export default function AssessmentServicesPage() {
                 <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
+                <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
               </div>
             ))}
           </div>
@@ -428,7 +597,6 @@ export default function AssessmentServicesPage() {
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s4Title}</h2>
             <p className="text-slate-500 text-sm">{a.s4Sub}</p>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {a.processSteps.map((step, idx) => (
               <div key={step.label} className="relative">
@@ -531,9 +699,7 @@ export default function AssessmentServicesPage() {
       {/* ── COMPLIANCE NOTE ── */}
       <footer className="bg-slate-900 py-8">
         <div className="max-w-5xl mx-auto px-6 text-center">
-          <p className="text-slate-500 text-xs leading-relaxed max-w-2xl mx-auto">
-            {a.complianceNote}
-          </p>
+          <p className="text-slate-500 text-xs leading-relaxed max-w-2xl mx-auto">{a.complianceNote}</p>
           <p className="text-slate-700 text-[11px] mt-4">
             © {new Date().getFullYear()} ReMynd Student Services · Confidential
           </p>
