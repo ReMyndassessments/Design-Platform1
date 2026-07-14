@@ -7,6 +7,7 @@ import {
   Info, X, Clock, UserCheck, Target, Zap, DollarSign, Package,
 } from "lucide-react";
 import { ASSESSMENT_OVERVIEWS, type AssessmentOverview } from "@/data/assessment-overviews";
+import type { Lang } from "@/lib/i18n";
 
 const WHY_CARD_ICONS = [
   { icon: Eye,       color: "text-blue-600",   bg: "bg-blue-50 border-blue-100" },
@@ -55,30 +56,28 @@ function BestForList({ items }: { items: string[] }) {
   );
 }
 
-function OverviewBtn({ title, onOpen }: { title: string; onOpen: (title: string) => void }) {
-  const hasOverview = !!ASSESSMENT_OVERVIEWS[title];
-  if (!hasOverview) return null;
+function OverviewBtn({ title, btnLabel, onOpen }: { title: string; btnLabel: string; onOpen: (title: string) => void }) {
+  if (!ASSESSMENT_OVERVIEWS["en"][title]) return null;
   return (
     <button
       onClick={() => onOpen(title)}
       className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 rounded-xl py-2.5 px-3 transition-colors"
     >
       <Info size={12} />
-      Assessment Description &amp; Overview
+      {btnLabel}
     </button>
   );
 }
 
-function OverviewBtnDark({ title, onOpen }: { title: string; onOpen: (title: string) => void }) {
-  const hasOverview = !!ASSESSMENT_OVERVIEWS[title];
-  if (!hasOverview) return null;
+function OverviewBtnDark({ title, btnLabel, onOpen }: { title: string; btnLabel: string; onOpen: (title: string) => void }) {
+  if (!ASSESSMENT_OVERVIEWS["en"][title]) return null;
   return (
     <button
       onClick={() => onOpen(title)}
       className="flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-white bg-white/8 hover:bg-white/15 border border-white/15 hover:border-indigo-400/40 rounded-xl py-2.5 px-4 transition-colors"
     >
       <Info size={12} />
-      Assessment Description &amp; Overview
+      {btnLabel}
     </button>
   );
 }
@@ -97,15 +96,33 @@ function Section({ icon: Icon, color, title, children }: { icon: React.ElementTy
   );
 }
 
+type DrawerLabels = {
+  headerLabel: string;
+  sectionAbout: string;
+  sectionWhen: string;
+  sectionInitiatedBy: string;
+  sectionProfile: string;
+  sectionBenefits: string;
+  sectionDeliverables: string;
+  sectionTimeline: string;
+  sectionCost: string;
+  standardPrice: string;
+  summerRate: string;
+  referBtn: string;
+  parentBtn: string;
+};
+
 function AssessmentOverviewDrawer({
   title,
   overview,
   price,
+  labels,
   onClose,
 }: {
   title: string;
   overview: AssessmentOverview;
   price?: string;
+  labels: DrawerLabels;
   onClose: () => void;
 }) {
   return (
@@ -119,10 +136,10 @@ function AssessmentOverviewDrawer({
 
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 flex-shrink-0">
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Assessment Description &amp; Overview</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">{labels.headerLabel}</p>
             <h2 className="text-base font-bold text-slate-900 leading-snug">{title}</h2>
             {price && (
-              <p className="text-xs text-slate-400 mt-1">Standard price: {price} RMB &nbsp;·&nbsp; Summer rate: {summerPx(price)} RMB</p>
+              <p className="text-xs text-slate-400 mt-1">{labels.standardPrice} {price} RMB &nbsp;·&nbsp; {labels.summerRate} {summerPx(price)} RMB</p>
             )}
           </div>
           <button
@@ -135,11 +152,11 @@ function AssessmentOverviewDrawer({
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
 
-          <Section icon={Info} color="bg-slate-500" title="About This Assessment">
+          <Section icon={Info} color="bg-slate-500" title={labels.sectionAbout}>
             <p className="text-sm text-slate-600 leading-relaxed">{overview.fullDesc}</p>
           </Section>
 
-          <Section icon={Clock} color="bg-blue-500" title="When to Use This Assessment">
+          <Section icon={Clock} color="bg-blue-500" title={labels.sectionWhen}>
             <ul className="space-y-1.5">
               {overview.whenToUse.map((item, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
@@ -150,7 +167,7 @@ function AssessmentOverviewDrawer({
             </ul>
           </Section>
 
-          <Section icon={UserCheck} color="bg-violet-500" title="Who Should Initiate This Referral">
+          <Section icon={UserCheck} color="bg-violet-500" title={labels.sectionInitiatedBy}>
             <div className="flex flex-wrap gap-2">
               {overview.initiatedBy.map((who, i) => (
                 <span key={i} className="text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1 rounded-full">
@@ -160,11 +177,11 @@ function AssessmentOverviewDrawer({
             </div>
           </Section>
 
-          <Section icon={Target} color="bg-amber-500" title="Typical Student Profile">
+          <Section icon={Target} color="bg-amber-500" title={labels.sectionProfile}>
             <p className="text-sm text-slate-600 leading-relaxed">{overview.studentProfile}</p>
           </Section>
 
-          <Section icon={Zap} color="bg-emerald-500" title="Key Benefits">
+          <Section icon={Zap} color="bg-emerald-500" title={labels.sectionBenefits}>
             <ul className="space-y-1.5">
               {overview.benefits.map((b, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
@@ -176,7 +193,7 @@ function AssessmentOverviewDrawer({
           </Section>
 
           {overview.deliverables && (
-            <Section icon={Package} color="bg-indigo-500" title="What's Included">
+            <Section icon={Package} color="bg-indigo-500" title={labels.sectionDeliverables}>
               <ul className="space-y-1.5">
                 {overview.deliverables.map((d, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
@@ -192,13 +209,13 @@ function AssessmentOverviewDrawer({
             <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex items-center gap-3">
               <Clock size={15} className="text-slate-400 flex-shrink-0" />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Typical Timeline</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">{labels.sectionTimeline}</p>
                 <p className="text-sm font-semibold text-slate-700">{overview.typicalTimeline}</p>
               </div>
             </div>
           )}
 
-          <Section icon={DollarSign} color="bg-rose-500" title="Cost Context &amp; Comparison">
+          <Section icon={DollarSign} color="bg-rose-500" title={labels.sectionCost}>
             <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
               <p className="text-sm text-slate-600 leading-relaxed">{overview.costContext}</p>
             </div>
@@ -209,12 +226,12 @@ function AssessmentOverviewDrawer({
         <div className="border-t border-slate-100 px-6 py-4 flex-shrink-0 flex gap-3">
           <Link href="/portal?tab=school" className="flex-1">
             <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-colors">
-              Refer a Student <ArrowRight size={14} />
+              {labels.referBtn} <ArrowRight size={14} />
             </button>
           </Link>
           <Link href="/portal?tab=parent" className="flex-1">
             <button className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl transition-colors">
-              Parent Enquiry <ChevronRight size={14} />
+              {labels.parentBtn} <ChevronRight size={14} />
             </button>
           </Link>
         </div>
@@ -226,7 +243,7 @@ function AssessmentOverviewDrawer({
 }
 
 export default function AssessmentServicesPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const a = t.assessmentServices;
 
   const [activeOverview, setActiveOverview] = useState<{ title: string; price?: string } | null>(null);
@@ -234,7 +251,8 @@ export default function AssessmentServicesPage() {
   const openOverview = (title: string, price?: string) => setActiveOverview({ title, price });
   const closeOverview = () => setActiveOverview(null);
 
-  const activeData = activeOverview ? ASSESSMENT_OVERVIEWS[activeOverview.title] : null;
+  const overviewMap = ASSESSMENT_OVERVIEWS[lang as Lang] ?? ASSESSMENT_OVERVIEWS["en"];
+  const activeData = activeOverview ? (overviewMap[activeOverview.title] ?? ASSESSMENT_OVERVIEWS["en"][activeOverview.title]) : null;
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -244,6 +262,7 @@ export default function AssessmentServicesPage() {
           title={activeOverview.title}
           overview={activeData}
           price={activeOverview.price}
+          labels={a.overviewDrawer}
           onClose={closeOverview}
         />
       )}
@@ -414,7 +433,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="text-lg font-bold text-slate-900 mb-2">{a.t1Name}</h3>
                   <p className="text-slate-600 text-sm leading-relaxed mb-4">{a.t1Desc}</p>
                   <BestForList items={a.t1BestFor} />
-                  <OverviewBtn title={a.t1Name} onOpen={(title) => openOverview(title, "4,500")} />
+                  <OverviewBtn title={a.t1Name} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, "4,500")} />
                 </div>
                 <div className="md:text-right flex-shrink-0">
                   <PriceTag price="4,500" summer summerLabel={a.summerDiscountLabel} />
@@ -439,7 +458,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
-                  <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
+                  <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
                 </div>
               ))}
             </div>
@@ -460,7 +479,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
-                  <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
+                  <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
                 </div>
               ))}
             </div>
@@ -555,7 +574,7 @@ export default function AssessmentServicesPage() {
                       {a.flagshipBtn} <ArrowRight size={16} />
                     </button>
                   </Link>
-                  <OverviewBtnDark title={a.flagshipName} onOpen={(title) => openOverview(title, "16,500")} />
+                  <OverviewBtnDark title={a.flagshipName} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, "16,500")} />
                 </div>
               </div>
             </div>
@@ -577,7 +596,7 @@ export default function AssessmentServicesPage() {
                 <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
-                <OverviewBtn title={item.title} onOpen={(title) => openOverview(title, item.price)} />
+                <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
               </div>
             ))}
           </div>
