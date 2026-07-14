@@ -18,6 +18,12 @@ uri = "file://attached_assets/reMynd_bg_clean.png"
 type = "image"
 title = "clean navy gradient background"
 
+[[generated]]
+id = "Uxu_RXonjjkRW7Kowi_Ub"
+uri = "file://artifacts/notetaker/assets/images/icon.png"
+type = "image"
+title = "remynd notetaker app icon"
+
 [[outputs]]
 id = "QBw29TkpUw8clGmW-oSVn"
 uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
