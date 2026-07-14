@@ -38,6 +38,25 @@ async function getUserEmail(userId: string): Promise<string | null> {
   return user?.email ?? null;
 }
 
+/**
+ * Returns true when the invigilator (identified by userId) is assigned to caseId.
+ * Looks up the user's email then checks the assignments table.
+ */
+async function isInvigilatorAssignedToCase(userId: string, caseId: string): Promise<boolean> {
+  const email = await getUserEmail(userId);
+  if (!email) return false;
+  const rows = await db
+    .select({ id: assignmentsTable.id })
+    .from(assignmentsTable)
+    .where(and(
+      eq(assignmentsTable.caseId, caseId),
+      eq(assignmentsTable.respondentType, "invigilator"),
+      eq(assignmentsTable.assignedToEmail, email),
+    ))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Return all assessment-phase active cases assigned to a given invigilator email. */
 async function getInvigilatorActiveCases(email: string) {
   return db
@@ -132,6 +151,12 @@ router.post("/cases/:caseId/interview-recordings", authMiddleware, async (req, r
     res.status(403).json({ error: "forbidden", message: "Invigilators may only record student interviews and classroom observations" }); return;
   }
 
+  // Invigilators may only record on cases they are assigned to
+  if (role === "assessment_invigilator") {
+    const assigned = await isInvigilatorAssignedToCase(req.userId!, caseId);
+    if (!assigned) { res.status(403).json({ error: "forbidden", message: "Not assigned to this case" }); return; }
+  }
+
   const [caseRow] = await db.select({ id: casesTable.id, studentName: casesTable.studentName })
     .from(casesTable).where(eq(casesTable.id, caseId));
   if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
@@ -219,6 +244,11 @@ router.get("/cases/:caseId/interview-recordings", authMiddleware, async (req, re
     res.status(403).json({ error: "forbidden" }); return;
   }
 
+  if (role === "assessment_invigilator") {
+    const assigned = await isInvigilatorAssignedToCase(req.userId!, req.params.caseId);
+    if (!assigned) { res.status(403).json({ error: "forbidden", message: "Not assigned to this case" }); return; }
+  }
+
   const allRecordings = await db
     .select()
     .from(interviewRecordingsTable)
@@ -243,6 +273,11 @@ router.get("/cases/:caseId/interview-recordings/:id/audio-url", authMiddleware, 
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
     res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  if (role === "assessment_invigilator") {
+    const assigned = await isInvigilatorAssignedToCase(req.userId!, req.params.caseId);
+    if (!assigned) { res.status(403).json({ error: "forbidden", message: "Not assigned to this case" }); return; }
   }
 
   const [rec] = await db
@@ -279,6 +314,11 @@ router.delete("/cases/:caseId/interview-recordings/:id", authMiddleware, async (
     res.status(403).json({ error: "forbidden" }); return;
   }
 
+  if (role === "assessment_invigilator") {
+    const assigned = await isInvigilatorAssignedToCase(req.userId!, req.params.caseId);
+    if (!assigned) { res.status(403).json({ error: "forbidden", message: "Not assigned to this case" }); return; }
+  }
+
   const [rec] = await db
     .select({ id: interviewRecordingsTable.id, conversationType: interviewRecordingsTable.conversationType })
     .from(interviewRecordingsTable)
@@ -308,6 +348,11 @@ router.patch("/cases/:caseId/interview-recordings/:id/notes", authMiddleware, as
   const role = req.userRole ?? "";
   if (!ALLOWED_ROLES.includes(role)) {
     res.status(403).json({ error: "forbidden" }); return;
+  }
+
+  if (role === "assessment_invigilator") {
+    const assigned = await isInvigilatorAssignedToCase(req.userId!, req.params.caseId);
+    if (!assigned) { res.status(403).json({ error: "forbidden", message: "Not assigned to this case" }); return; }
   }
 
   const { structuredNotes } = req.body;

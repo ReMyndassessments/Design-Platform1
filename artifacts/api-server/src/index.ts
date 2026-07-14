@@ -2877,6 +2877,10 @@ async function createInterviewRecordingsTable() {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS interview_recordings_case_id_idx ON interview_recordings (case_id)
     `);
+    await db.execute(sql`
+      ALTER TABLE interview_recordings
+        ADD COLUMN IF NOT EXISTS interview_date TIMESTAMPTZ
+    `);
     logger.info("interview_recordings table ensured");
   } catch (err) {
     logger.error({ err }, "createInterviewRecordingsTable failed");
