@@ -42,6 +42,8 @@ export type Recording = {
   mimeType: string;
   transcript?: string;
   structuredNotes?: StructuredNotes;
+  interviewDate?: string | null;
+  studentName?: string;
   createdAt: string;
 };
 
@@ -151,6 +153,7 @@ interface AiNotetakerProps {
   onRecordingAdded: (r: Recording) => void;
   onRecordingDeleted: (id: string) => void;
   onNotesUpdated?: (id: string, notes: StructuredNotes) => void;
+  interviewDate?: string;
 }
 
 export function AiNotetaker({
@@ -163,6 +166,7 @@ export function AiNotetaker({
   onRecordingAdded,
   onRecordingDeleted,
   onNotesUpdated,
+  interviewDate,
 }: AiNotetakerProps) {
   const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<ConversationType>(defaultType);
@@ -183,7 +187,8 @@ export function AiNotetaker({
 
     setProcessingStep("uploading");
     try {
-      const url = `${baseUrl}/api/cases/${caseId}/interview-recordings?type=${selectedType}&duration=${durationSeconds}`;
+      let url = `${baseUrl}/api/cases/${caseId}/interview-recordings?type=${selectedType}&duration=${durationSeconds}`;
+      if (interviewDate) url += `&interview_date=${encodeURIComponent(interviewDate)}`;
       setProcessingStep("transcribing");
 
       const res = await fetch(url, {
@@ -221,6 +226,7 @@ export function AiNotetaker({
         mimeType,
         transcript: data.transcript,
         structuredNotes,
+        interviewDate: interviewDate ?? null,
         createdAt: new Date().toISOString(),
       });
     } catch (err: any) {
@@ -426,6 +432,11 @@ export function AiNotetaker({
                     onClick={() => setExpandedPastId(expandedPastId === rec.id ? null : rec.id)}
                   >
                     <Mic2 size={13} className="text-slate-400 shrink-0" />
+                    {rec.studentName && (
+                      <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5 shrink-0">
+                        {rec.studentName}
+                      </span>
+                    )}
                     <span className="text-xs font-medium text-slate-700 truncate">
                       {CONVERSATION_TYPE_LABELS[rec.conversationType as ConversationType] ?? rec.conversationType}
                     </span>
@@ -435,7 +446,7 @@ export function AiNotetaker({
                       </span>
                     )}
                     <span className="text-xs text-slate-400 shrink-0">
-                      {new Date(rec.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                      {new Date(rec.interviewDate ?? rec.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </span>
                     {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
                   </button>

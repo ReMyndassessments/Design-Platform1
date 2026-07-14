@@ -10,6 +10,7 @@ export const interviewRecordingsTable = pgTable("interview_recordings", {
   transcript: text("transcript"),
   structuredNotes: jsonb("structured_notes"),
   createdBy: text("created_by"),
+  interviewDate: timestamp("interview_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
