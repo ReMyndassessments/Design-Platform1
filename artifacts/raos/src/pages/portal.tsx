@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
+import { HospitalComparisonSection } from "@/pages/hospital-comparison";
 
 type Tab = "school" | "parent";
 
@@ -226,6 +227,10 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
             <Step key={i} number={i + 1} icon={stepIcons[i]} title={step.title} description={step.desc} />
           ))}
         </div>
+      </div>
+
+      <div className="border-t border-slate-100 pt-8">
+        <HospitalComparisonSection hc={p.hospitalComparison} onInquire={onInquire} />
       </div>
 
       <div className="bg-amber-50 border border-amber-100 rounded-xl p-5">
