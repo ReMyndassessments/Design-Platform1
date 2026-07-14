@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
+import { useI18n, LanguageSwitcherLight, translations } from "@/lib/i18n";
 import {
   Eye, Users, Lightbulb, GitBranch, CheckCircle2, ArrowRight,
   Star, Building2, ChevronRight, Award, Sun, Sparkles, BookOpen, ClipboardCheck,
@@ -56,11 +56,11 @@ function BestForList({ items }: { items: string[] }) {
   );
 }
 
-function OverviewBtn({ title, btnLabel, onOpen }: { title: string; btnLabel: string; onOpen: (title: string) => void }) {
-  if (!ASSESSMENT_OVERVIEWS["en"][title]) return null;
+function OverviewBtn({ title, enKey, btnLabel, onOpen }: { title: string; enKey: string; btnLabel: string; onOpen: (enKey: string, displayTitle: string) => void }) {
+  if (!ASSESSMENT_OVERVIEWS["en"][enKey]) return null;
   return (
     <button
-      onClick={() => onOpen(title)}
+      onClick={() => onOpen(enKey, title)}
       className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 rounded-xl py-2.5 px-3 transition-colors"
     >
       <Info size={12} />
@@ -69,11 +69,11 @@ function OverviewBtn({ title, btnLabel, onOpen }: { title: string; btnLabel: str
   );
 }
 
-function OverviewBtnDark({ title, btnLabel, onOpen }: { title: string; btnLabel: string; onOpen: (title: string) => void }) {
-  if (!ASSESSMENT_OVERVIEWS["en"][title]) return null;
+function OverviewBtnDark({ title, enKey, btnLabel, onOpen }: { title: string; enKey: string; btnLabel: string; onOpen: (enKey: string, displayTitle: string) => void }) {
+  if (!ASSESSMENT_OVERVIEWS["en"][enKey]) return null;
   return (
     <button
-      onClick={() => onOpen(title)}
+      onClick={() => onOpen(enKey, title)}
       className="flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-white bg-white/8 hover:bg-white/15 border border-white/15 hover:border-indigo-400/40 rounded-xl py-2.5 px-4 transition-colors"
     >
       <Info size={12} />
@@ -246,20 +246,20 @@ export default function AssessmentServicesPage() {
   const { t, lang } = useI18n();
   const a = t.assessmentServices;
 
-  const [activeOverview, setActiveOverview] = useState<{ title: string; price?: string } | null>(null);
+  const [activeOverview, setActiveOverview] = useState<{ enKey: string; displayTitle: string; price?: string } | null>(null);
 
-  const openOverview = (title: string, price?: string) => setActiveOverview({ title, price });
+  const openOverview = (enKey: string, displayTitle: string, price?: string) => setActiveOverview({ enKey, displayTitle, price });
   const closeOverview = () => setActiveOverview(null);
 
   const overviewMap = ASSESSMENT_OVERVIEWS[lang as Lang] ?? ASSESSMENT_OVERVIEWS["en"];
-  const activeData = activeOverview ? (overviewMap[activeOverview.title] ?? ASSESSMENT_OVERVIEWS["en"][activeOverview.title]) : null;
+  const activeData = activeOverview ? (overviewMap[activeOverview.enKey] ?? ASSESSMENT_OVERVIEWS["en"][activeOverview.enKey]) : null;
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
 
       {activeData && activeOverview && (
         <AssessmentOverviewDrawer
-          title={activeOverview.title}
+          title={activeOverview.displayTitle}
           overview={activeData}
           price={activeOverview.price}
           labels={a.overviewDrawer}
@@ -433,7 +433,7 @@ export default function AssessmentServicesPage() {
                   <h3 className="text-lg font-bold text-slate-900 mb-2">{a.t1Name}</h3>
                   <p className="text-slate-600 text-sm leading-relaxed mb-4">{a.t1Desc}</p>
                   <BestForList items={a.t1BestFor} />
-                  <OverviewBtn title={a.t1Name} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, "4,500")} />
+                  <OverviewBtn title={a.t1Name} enKey={translations.en.assessmentServices.t1Name} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, "4,500")} />
                 </div>
                 <div className="md:text-right flex-shrink-0">
                   <PriceTag price="4,500" summer summerLabel={a.summerDiscountLabel} />
@@ -452,13 +452,13 @@ export default function AssessmentServicesPage() {
               <p className="text-sm font-semibold text-slate-700">{a.t2Label}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {a.tier2.map(item => (
+              {a.tier2.map((item, idx) => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                   <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
-                  <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
+                  <OverviewBtn title={item.title} enKey={translations.en.assessmentServices.tier2[idx].title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, item.price)} />
                 </div>
               ))}
             </div>
@@ -473,13 +473,13 @@ export default function AssessmentServicesPage() {
               <p className="text-sm font-semibold text-slate-700">{a.t3Label}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {a.tier3.map(item => (
+              {a.tier3.map((item, idx) => (
                 <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                   <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                   <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                   <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                   <BestForList items={item.bestFor} />
-                  <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
+                  <OverviewBtn title={item.title} enKey={translations.en.assessmentServices.tier3[idx].title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, item.price)} />
                 </div>
               ))}
             </div>
@@ -574,7 +574,7 @@ export default function AssessmentServicesPage() {
                       {a.flagshipBtn} <ArrowRight size={16} />
                     </button>
                   </Link>
-                  <OverviewBtnDark title={a.flagshipName} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, "16,500")} />
+                  <OverviewBtnDark title={a.flagshipName} enKey={translations.en.assessmentServices.flagshipName} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, "16,500")} />
                 </div>
               </div>
             </div>
@@ -591,12 +591,12 @@ export default function AssessmentServicesPage() {
             <p className="text-slate-500 text-sm max-w-xl mx-auto">{a.s3Sub}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {a.parentServices.map(item => (
+            {a.parentServices.map((item, idx) => (
               <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
-                <OverviewBtn title={item.title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(title) => openOverview(title, item.price)} />
+                <OverviewBtn title={item.title} enKey={translations.en.assessmentServices.parentServices[idx].title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, item.price)} />
               </div>
             ))}
           </div>
