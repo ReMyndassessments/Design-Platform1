@@ -345,10 +345,21 @@ function computeRapidNamingRating(
 
 // ─── Rapid naming grid ────────────────────────────────────────────────────────
 
+function shuffleRow(arr: string[], seed: number): string[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(seed) % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function RapidNamingGrid({ symbols, rows = 5 }: { symbols: string[]; rows?: number }) {
   const cells: string[] = [];
   for (let r = 0; r < rows; r++) {
-    for (const s of symbols) cells.push(s);
+    const row = shuffleRow(symbols, r * 999983 + 42);
+    for (const s of row) cells.push(s);
   }
   return (
     <div className="font-mono text-lg font-bold text-slate-800 bg-white border-2 border-slate-300 rounded-lg p-4 select-none">
