@@ -253,7 +253,8 @@ function BuildingComparisonVisual({ groupA, groupB, accent }: { groupA: number; 
 
   const a = buildSVG(groupA); const b = buildSVG(groupB);
   const maxH = Math.max(a.bldH, b.bldH);
-  const GAP = 30; const W = buildingW * 2 + GAP + 20; const H = maxH + 30;
+  const LABEL_TOP = 26; // reserved space above tallest building for label
+  const GAP = 30; const W = buildingW * 2 + GAP + 20; const H = maxH + 30 + LABEL_TOP;
 
   const renderBuilding = (info: ReturnType<typeof buildSVG>, xOff: number) => (
     <g key={xOff}>
