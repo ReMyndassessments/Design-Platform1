@@ -1609,6 +1609,21 @@ function WordProblemVisual({ taskId, accent, vp }: {
     );
   }
 
+  // Algebraic expression display (e.g. SR_SEC_001 polynomial subtraction)
+  const expression = typeof vp?.expression === "string" ? vp!.expression as string : null;
+  if (expression) {
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Expression</p>
+        <div className="flex items-center justify-center py-3 px-2">
+          <div className="rounded-xl border-2 px-5 py-3 text-center font-mono text-base font-bold leading-snug" style={{ borderColor: accent, backgroundColor: accent + "12", color: accent }}>
+            {expression}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Default: seeded word problem illustration
   const rng = seededRand(strSeed(taskId));
   const a = Math.floor(rng() * 8) + 3;
