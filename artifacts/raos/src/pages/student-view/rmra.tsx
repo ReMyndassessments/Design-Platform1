@@ -352,7 +352,7 @@ function NumberLineVisual({ scaleMin, scaleMax, accent, taskType, vp }: {
             {val.toLocaleString()}
           </div>
         </div>
-        <svg viewBox={`0 0 ${W2} 68`} className="w-full max-w-sm mx-auto">
+        <svg viewBox={`0 0 ${W2} 82`} className="w-full max-w-sm mx-auto">
           <line x1={L2} y1={lY2} x2={R2} y2={lY2} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
           <polygon points={`${R2 + 2},${lY2} ${R2 - 9},${lY2 - 4} ${R2 - 9},${lY2 + 4}`} fill="#334155" />
           {ticks2.map((t, i) => {
@@ -396,7 +396,7 @@ function NumberLineVisual({ scaleMin, scaleMax, accent, taskType, vp }: {
             {val.toLocaleString()}
           </div>
         </div>
-        <svg viewBox={`0 0 ${WR} 68`} className="w-full max-w-sm mx-auto">
+        <svg viewBox={`0 0 ${WR} 82`} className="w-full max-w-sm mx-auto">
           <line x1={LR} y1={lYR} x2={RR} y2={lYR} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
           <polygon points={`${RR + 2},${lYR} ${RR - 9},${lYR - 4} ${RR - 9},${lYR + 4}`} fill="#334155" />
           {ticksR.map((t, i) => {
