@@ -626,11 +626,6 @@ function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
       <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full mx-auto" style={{ maxHeight: 180 }}>
         {elements}
       </svg>
-      <div className="flex justify-center gap-4 mt-1 text-[11px] font-medium" style={{ color: accent }}>
-        {hundreds > 0 && <span>{hundreds} hundred{hundreds > 1 ? "s" : ""}</span>}
-        {tens > 0 && <span>{tens} ten{tens > 1 ? "s" : ""}</span>}
-        {ones > 0 && <span>{ones} one{ones > 1 ? "s" : ""}</span>}
-      </div>
     </div>
   );
 }
