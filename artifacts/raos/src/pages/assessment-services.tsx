@@ -4,16 +4,18 @@ import { useI18n, LanguageSwitcherLight, translations } from "@/lib/i18n";
 import {
   Eye, Users, Lightbulb, GitBranch, CheckCircle2, ArrowRight,
   Star, Building2, ChevronRight, Award, Sun, Sparkles, BookOpen, ClipboardCheck,
-  Info, X, Clock, UserCheck, Target, Zap, DollarSign, Package,
+  Info, X, Clock, UserCheck, Target, Zap, DollarSign, Package, TrendingUp,
 } from "lucide-react";
 import { ASSESSMENT_OVERVIEWS, type AssessmentOverview } from "@/data/assessment-overviews";
 import type { Lang } from "@/lib/i18n";
 
 const WHY_CARD_ICONS = [
-  { icon: Eye,       color: "text-blue-600",   bg: "bg-blue-50 border-blue-100" },
-  { icon: Users,     color: "text-violet-600",  bg: "bg-violet-50 border-violet-100" },
-  { icon: Lightbulb, color: "text-amber-600",   bg: "bg-amber-50 border-amber-100" },
-  { icon: GitBranch, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
+  { icon: Eye,        color: "text-blue-600",   bg: "bg-blue-50 border-blue-100" },
+  { icon: Users,      color: "text-violet-600",  bg: "bg-violet-50 border-violet-100" },
+  { icon: Award,      color: "text-teal-600",    bg: "bg-teal-50 border-teal-100" },
+  { icon: Lightbulb,  color: "text-amber-600",   bg: "bg-amber-50 border-amber-100" },
+  { icon: GitBranch,  color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
+  { icon: TrendingUp, color: "text-indigo-600",  bg: "bg-indigo-50 border-indigo-100" },
 ];
 
 const SUMMER_USE_CASE_ICONS = [Sun, BookOpen, ClipboardCheck];
@@ -393,7 +395,7 @@ export default function AssessmentServicesPage() {
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s1Title}</h2>
             <p className="text-slate-500 text-sm max-w-lg mx-auto">{a.s1Sub}</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {a.whyCards.map((card, i) => {
               const { icon: Icon, color, bg } = WHY_CARD_ICONS[i];
               return (

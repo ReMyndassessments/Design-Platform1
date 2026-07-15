@@ -134,6 +134,53 @@ function SchoolContent({ onInquire }: { onInquire: () => void }) {
         <p className="text-slate-600 leading-relaxed">{s.intro}</p>
       </div>
 
+      {s.missingTier && (
+        <div className="rounded-2xl bg-slate-50 border border-indigo-100 p-6 space-y-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">{s.missingTier.label}</p>
+          <h4 className="text-base font-bold text-slate-900 leading-snug">{s.missingTier.heading}</h4>
+          <p className="text-sm text-slate-600 leading-relaxed">{s.missingTier.intro}</p>
+          <div className="grid sm:grid-cols-3 gap-3 pt-1">
+            {s.missingTier.stages.map((stage: { num: string; title: string; items: string[]; highlight?: boolean }) => (
+              <div key={stage.num} className={cn(
+                "rounded-xl p-4 border",
+                stage.highlight ? "bg-indigo-600 border-indigo-700" : "bg-white border-slate-200"
+              )}>
+                <div className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold mb-2.5",
+                  stage.highlight ? "bg-white/25 text-white" : "bg-indigo-100 text-indigo-700"
+                )}>{stage.num}</div>
+                <p className={cn("font-semibold text-sm mb-2", stage.highlight ? "text-white" : "text-slate-900")}>{stage.title}</p>
+                <ul className="space-y-1">
+                  {stage.items.map((item: string) => (
+                    <li key={item} className={cn("text-xs flex items-start gap-1.5", stage.highlight ? "text-indigo-100" : "text-slate-500")}>
+                      <span className="mt-0.5 shrink-0 font-bold">·</span>{item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 italic border-t border-indigo-100 pt-3">{s.missingTier.note}</p>
+        </div>
+      )}
+
+      {s.interventionSection && (
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-bold text-slate-900 text-base mb-1">{s.interventionSection.heading}</h4>
+            <p className="text-sm text-slate-600 leading-relaxed">{s.interventionSection.body}</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {s.interventionSection.cards.map((card: { title: string; desc: string }) => (
+              <div key={card.title} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <p className="font-semibold text-slate-900 text-sm mb-1">{card.title}</p>
+                <p className="text-slate-500 text-xs leading-relaxed">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-3 gap-4">
         {[
           { icon: Brain, ...s.cards[0] },
@@ -170,6 +217,22 @@ function SchoolContent({ onInquire }: { onInquire: () => void }) {
 
       <PortalAccessBlock pa={s.portalAccess} accentColor="indigo" />
 
+      {s.tier2Panel && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 space-y-4">
+          <h4 className="font-bold text-slate-900">{s.tier2Panel.heading}</h4>
+          <p className="text-sm text-slate-600 leading-relaxed">{s.tier2Panel.body}</p>
+          <ul className="space-y-2">
+            {s.tier2Panel.questions.map((q: string) => (
+              <li key={q} className="flex items-start gap-2 text-sm text-slate-700">
+                <ChevronRight size={14} className="text-indigo-500 shrink-0 mt-0.5" />
+                {q}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-slate-500 italic border-t border-indigo-100 pt-3">{s.tier2Panel.note}</p>
+        </div>
+      )}
+
       <div className="text-center pt-2">
         <Button onClick={onInquire} size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
           {s.cta} <ArrowRight size={16} />
@@ -192,6 +255,12 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
         <h3 className="text-xl font-bold text-slate-900 mb-2">{p.heading}</h3>
         <p className="text-slate-600 leading-relaxed">{p.intro}</p>
       </div>
+
+      {p.highlight && (
+        <blockquote className="border-l-4 border-teal-400 bg-teal-50 rounded-r-xl pl-5 pr-4 py-4">
+          <p className="text-sm font-medium text-slate-700 italic leading-relaxed">{p.highlight}</p>
+        </blockquote>
+      )}
 
       <div className="grid sm:grid-cols-3 gap-4">
         {p.cards.map(({ label, desc }, i) => {
@@ -229,6 +298,20 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
         </div>
       </div>
 
+      {p.whatFamiliesReceive && (
+        <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+          <h4 className="font-semibold text-slate-900 mb-3">{p.whatFamiliesReceive.title}</h4>
+          <div className="grid sm:grid-cols-2 gap-1.5">
+            {p.whatFamiliesReceive.items.map((item: string) => (
+              <div key={item} className="flex items-start gap-2">
+                <CheckCircle2 size={14} className="text-teal-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="border-t border-slate-100 pt-8">
         <HospitalComparisonSection hc={p.hospitalComparison} onInquire={onInquire} />
       </div>
@@ -239,6 +322,14 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
       </div>
 
       <PortalAccessBlock pa={p.portalAccess} accentColor="teal" />
+
+      {p.accessibleStart && (
+        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-6 space-y-3">
+          <h4 className="font-bold text-slate-900">{p.accessibleStart.heading}</h4>
+          <p className="text-sm text-slate-600 leading-relaxed">{p.accessibleStart.body}</p>
+          <p className="text-xs text-slate-500 italic">{p.accessibleStart.note}</p>
+        </div>
+      )}
 
       <div className="text-center pt-2">
         <Button onClick={onInquire} size="lg" className="bg-teal-600 hover:bg-teal-700 text-white gap-2">
@@ -497,6 +588,16 @@ export default function Portal() {
           <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
             {p.heroDesc}
           </p>
+
+          {p.heroBadges && (
+            <div className="flex flex-wrap gap-2 justify-center mt-5">
+              {p.heroBadges.map((badge: { label: string; desc: string }) => (
+                <span key={badge.label} className="inline-flex items-center bg-white/10 border border-white/20 rounded-full px-3.5 py-1.5 text-[11px] font-semibold text-white/90 tracking-wide">
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Tab selector — floats at bottom of hero */}
           <div className="mt-8 flex rounded-xl bg-white/[0.06] border border-white/[0.08] p-1 gap-1 max-w-sm mx-auto">

@@ -48,9 +48,15 @@ export const translations = {
 
     // Portal — header / hero
     portal: {
-      badge: "Psychoeducational Assessments",
-      hero: "Every student deserves to be understood",
-      heroDesc: "ReMynd delivers thorough, compassionate psychoeducational assessments that identify how a student learns, thinks, and experiences the world — and what they need to thrive.",
+      badge: "Tier 2 Educational Assessments",
+      hero: "Comprehensive Assessment, Early Identification & Practical Support",
+      heroDesc: "ReMynd provides Tier 2, non-diagnostic educational assessments that help schools understand why a student is struggling, plan targeted support, and monitor progress before deciding whether specialist assessment is required.",
+      heroBadges: [
+        { label: "Tier 2 · Non-Diagnostic", desc: "Educational assessment and intervention planning without reducing the student to a clinical label." },
+        { label: "Virtual by Design", desc: "Secure, professionally supervised access for schools and families regardless of location." },
+        { label: "English · 中文 · 한국어", desc: "Multilingual communication and support for English-, Chinese-, and Korean-speaking families." },
+        { label: "12 Months of Support", desc: "Intervention goals and progress monitoring continue through the ReMynd Case Portal." },
+      ],
       tabSchool: "Schools",
       tabParent: "Parents",
       tabPartner: "Partner Schools",
@@ -58,8 +64,35 @@ export const translations = {
 
       // School content
       school: {
-        heading: "Supporting your students through expert assessment",
-        intro: "ReMynd partners with schools to provide gold-standard psychoeducational assessments that help identify each student's unique learning profile — and put the right support in place.",
+        heading: "Understanding Your Student Before Deciding What They Need",
+        intro: "ReMynd partners with schools to provide structured Tier 2 educational assessments that fill the gap between classroom concern and specialist referral — identifying what is getting in the way of a student's progress and translating findings into practical support before specialist assessment is considered.",
+        missingTier: {
+          label: "The Missing Tier",
+          heading: "Filling the Gap Between Classroom Concern and Specialist Assessment",
+          intro: "Many schools have strong classroom teachers and access to external specialists, but limited structured support between these two levels. Without Tier 2 assessment, students may continue struggling without enough information — or be referred prematurely for expensive specialist evaluation.",
+          stages: [
+            { num: "1", title: "Everyday Classroom Support", items: ["Differentiation & accommodations", "Teacher observation", "Routine pastoral support", "General classroom strategies"] },
+            { num: "2", title: "ReMynd Tier 2 Assessment & Intervention", items: ["Structured multi-informant assessment", "Comprehensive student profile", "Intervention planning", "Teacher & parent recommendations", "12-month progress monitoring", "Evidence-informed referral decisions"], highlight: true },
+            { num: "3", title: "Specialist Assessment Where Needed", items: ["Psychoeducational evaluation", "Medical or clinical assessment", "Speech & language evaluation", "Occupational therapy", "Neurological or psychiatric referral"] },
+          ],
+          note: "ReMynd does not replace specialist assessment. It helps schools determine when specialist assessment is genuinely needed — and ensures support begins while decisions are being made.",
+        },
+        interventionSection: {
+          heading: "Intervention Should Not Wait for Diagnosis",
+          body: "Students do not need a formal diagnosis before receiving meaningful educational support. Classroom accommodations, executive functioning strategies, literacy interventions, and emotional regulation strategies can begin as soon as needs are understood.",
+          cards: [
+            { title: "Earlier Support", desc: "Begin targeted intervention before difficulties become more entrenched." },
+            { title: "Better Decisions", desc: "Use structured evidence to determine whether classroom support, Tier 2 intervention, monitoring, or specialist referral is appropriate." },
+            { title: "Reduced Premature Escalation", desc: "Avoid referring every struggling student for expensive external assessment when targeted educational intervention may be sufficient." },
+            { title: "Stronger Referrals", desc: "When specialist evaluation is needed, provide richer evidence — prior interventions, teacher observations, and the student's response to support." },
+          ],
+        },
+        tier2Panel: {
+          heading: "What Does Tier 2 Mean?",
+          body: "Tier 2 sits between routine classroom support and intensive specialist assessment. It is for students whose concerns are persistent, emerging, or affecting progress — but who may not yet require a full diagnostic evaluation.",
+          questions: ["What is getting in the way of progress?", "Which strengths can be used to support learning?", "What targeted intervention should begin now?", "Which classroom accommodations are appropriate?", "How should progress be monitored?", "Is specialist referral necessary — and what evidence supports that decision?"],
+          note: "Tier 2 assessment allows schools to act earlier, use resources more wisely, and make specialist referrals based on evidence rather than uncertainty.",
+        },
         cards: [
           { label: "Evidence-based", desc: "Assessment tools validated by international research" },
           { label: "Confidential", desc: "Strict data privacy and informed consent throughout" },
@@ -103,8 +136,18 @@ export const translations = {
 
       // Parent content
       parent: {
-        heading: "Understanding your child's unique way of thinking and learning",
-        intro: "A psychoeducational assessment can provide clarity, answers, and a clear path forward — helping your child get the right support at school and at home.",
+        heading: "Understanding Your Child Without Defining Them by a Label",
+        intro: "ReMynd assessments help families understand why a child may be struggling and what can be done to support them. They are intentionally non-diagnostic — we do not begin with the goal of assigning a medical or clinical label. Instead, we develop a comprehensive profile of how the child learns, thinks, responds, and functions across school, home, and everyday life.",
+        highlight: "The goal is not to tell you what is wrong with your child. The goal is to understand what your child needs in order to make progress.",
+        whatFamiliesReceive: {
+          title: "What Families Receive",
+          items: ["A clear explanation of strengths and needs", "A comprehensive student profile", "Teacher recommendations", "Parent recommendations", "An individualised intervention instrument", "A live debrief meeting", "Secure access to the report", "Access to the ReMynd Case Portal", "Up to 12 months of progress monitoring and support", "Referral recommendations where specialist care may be appropriate"],
+        },
+        accessibleStart: {
+          heading: "A More Accessible Starting Point",
+          body: "Some families delay seeking help because comprehensive external assessment may be expensive, difficult to access, or associated with fear of diagnosis. ReMynd provides a practical educational starting point that can clarify needs, begin support, and help families decide whether further specialist assessment is necessary.",
+          note: "ReMynd assessments are Tier 2 educational services — not a substitute for specialist care when it is needed, but a meaningful first step that ensures no child waits without support.",
+        },
         cards: [
           { label: "Child-centred", desc: "We take time to understand your child as a whole person" },
           { label: "Strengths-based", desc: "We highlight strengths alongside any areas of difficulty" },
@@ -488,12 +531,14 @@ export const translations = {
         { title: "Individual Education Plans", desc: "IEPs in place before the first day of school" },
       ],
       s1Title: "Why Schools Use ReMynd Assessments",
-      s1Sub: "Four pillars that make ReMynd assessments the choice for international schools.",
+      s1Sub: "Six pillars that make ReMynd the choice for international schools committed to early identification, practical intervention, and evidence-informed support.",
       whyCards: [
         { title: "Early Identification", desc: "Identify concerns before they become significant barriers to learning, wellbeing, or school success." },
         { title: "Multi-Informant Insight", desc: "Combine information from parents, teachers, students, school records, and behavioural observations." },
-        { title: "Practical Support Planning", desc: "Transform assessment findings into actionable recommendations educators can implement immediately." },
-        { title: "Clear Referral Decisions", desc: "Help schools determine whether students require monitoring, intervention, learning support, or comprehensive assessment." },
+        { title: "Profile Before Label", desc: "Understand the student's strengths, barriers, and context without reducing the child to a clinical diagnosis." },
+        { title: "Practical Intervention Planning", desc: "Translate findings into strategies, accommodations, intervention goals, and measurable priorities educators can implement immediately." },
+        { title: "Better Referral Decisions", desc: "Determine whether students need classroom support, Tier 2 intervention, continued monitoring, or specialist assessment." },
+        { title: "Twelve Months of Follow-Through", desc: "Monitor progress through the ReMynd Case Portal — support continues long after the report is delivered." },
       ],
       s2Title: "ReMynd Assessment Framework",
       s2Sub: "A four-tier structure designed to match the level of assessment to the level of concern.",
@@ -625,17 +670,50 @@ export const translations = {
     },
 
     portal: {
-      badge: "心理教育评估",
-      hero: "每位学生都值得被理解",
-      heroDesc: "ReMynd 提供全面、专业的心理教育评估，识别学生的学习、思考和体验世界的方式——以及他们需要什么支持才能茁壮成长。",
+      badge: "第二层次教育评估",
+      hero: "全面评估、早期识别与实用支持规划",
+      heroDesc: "ReMynd提供第二层次非诊断性教育评估，帮助学校了解学生挣扎的原因，制定有针对性的支持计划，并在决定是否需要专科评估之前监测进度。",
+      heroBadges: [
+        { label: "第二层次·非诊断性", desc: "教育评估与干预规划，不以临床标签定义学生。" },
+        { label: "虚拟化设计", desc: "为学校和家庭提供安全、专业监督的访问渠道，不受地理位置限制。" },
+        { label: "English · 中文 · 한국어", desc: "为英语、中文和韩语家庭提供多语言沟通与支持。" },
+        { label: "12个月持续支持", desc: "干预目标和进度监测通过ReMynd案例门户持续进行。" },
+      ],
       tabSchool: "学校",
       tabParent: "家长",
       tabPartner: "合作学校",
       faqTitle: "常见问题",
 
       school: {
-        heading: "通过专业评估支持您的学生",
-        intro: "ReMynd 与学校合作，提供金标准心理教育评估，帮助识别每位学生独特的学习档案——并提供适当的支持。",
+        heading: "在决定学生需要什么之前，先真正了解他们",
+        intro: "ReMynd与学校合作，提供结构化的第二层次教育评估，填补课堂关切与专科转介之间的空白——识别阻碍学生进步的因素，并在考虑专科评估之前，将评估结果转化为实用的支持方案。",
+        missingTier: {
+          label: "缺失的层次",
+          heading: "填补课堂关切与专科评估之间的空白",
+          intro: "许多学校拥有优秀的课堂教师，也能获得外部专科资源，但这两个层次之间缺乏结构化支持。缺少第二层次评估，学生可能在信息不足的情况下继续挣扎，或被过早转介进行费用高昂的专科评估。",
+          stages: [
+            { num: "1", title: "日常课堂支持", items: ["差异化与支持安排", "教师观察", "日常辅导支持", "一般课堂策略"] },
+            { num: "2", title: "ReMynd第二层次评估与干预", items: ["结构化多信息来源评估", "全面学生档案", "干预规划", "教师与家长建议", "12个月进度监测", "循证转介决策"], highlight: true },
+            { num: "3", title: "按需专科评估", items: ["心理教育评估", "医疗或临床评估", "言语与语言评估", "职业治疗", "神经或精神科转介"] },
+          ],
+          note: "ReMynd不取代专科评估。它帮助学校确定何时真正需要专科评估——并确保在决策期间支持已经开始。",
+        },
+        interventionSection: {
+          heading: "干预不应等待诊断",
+          body: "学生不需要等待正式诊断才能获得有意义的教育支持。只要了解需求，课堂支持安排、执行功能策略、读写干预和情绪调节策略即可开始实施。",
+          cards: [
+            { title: "更早开始支持", desc: "在困难变得更加根深蒂固之前开始有针对性的干预。" },
+            { title: "更好的决策", desc: "利用结构化证据确定课堂支持、第二层次干预、持续监测还是专科转介更为合适。" },
+            { title: "减少过早升级", desc: "避免将每一位挣扎中的学生立即转介进行昂贵的外部评估，尤其是当有针对性的教育干预可能已经足够时。" },
+            { title: "更有力的转介", desc: "当需要专科评估时，提供更丰富的证据——包括之前的干预、教师观察和学生对支持的反应。" },
+          ],
+        },
+        tier2Panel: {
+          heading: "什么是第二层次？",
+          body: "第二层次介于日常课堂支持和密集专科评估之间。它针对那些关切持续存在、正在显现或影响进步的学生——但这些学生可能尚不需要全面的诊断性评估。",
+          questions: ["是什么阻碍了进步？", "哪些优势可以用于支持学习？", "现在应该开始哪些有针对性的干预？", "哪些课堂支持安排是合适的？", "应该如何监测进度？", "是否需要专科转介——有哪些证据支持这一决定？"],
+          note: "第二层次评估使学校能够更早行动，更明智地使用资源，并基于证据而非不确定性做出专科转介决策。",
+        },
         cards: [
           { label: "基于证据", desc: "经国际研究验证的评估工具" },
           { label: "保密", desc: "全程严格的数据隐私和知情同意" },
@@ -678,8 +756,18 @@ export const translations = {
       },
 
       parent: {
-        heading: "了解您孩子独特的思维和学习方式",
-        intro: "心理教育评估可以提供清晰度、答案和明确的前进方向——帮助您的孩子在学校和家庭中获得适当的支持。",
+        heading: "了解您的孩子，而不是用标签定义他们",
+        intro: "ReMynd评估帮助家庭了解孩子为何挣扎，以及可以采取哪些措施来支持他们。这些评估有意地采用非诊断性方法——我们的出发点不是分配医疗或临床标签，而是全面了解孩子在学校、家庭和日常生活中的学习、思考、反应和功能方式。",
+        highlight: "目标不是告诉您孩子有什么问题，而是了解孩子需要什么才能取得进步。",
+        whatFamiliesReceive: {
+          title: "家庭获得什么",
+          items: ["清晰的优势与需求说明", "全面的学生档案", "教师建议", "家长建议", "个性化干预工具", "现场汇报会议", "安全的报告访问渠道", "ReMynd案例门户访问权限", "最多12个月的进度监测与支持", "在适合专科护理时的转介建议"],
+        },
+        accessibleStart: {
+          heading: "更易获取的起点",
+          body: "部分家庭因综合外部评估费用高昂、难以获取或与对诊断的恐惧相关而推迟寻求帮助。ReMynd提供实用的教育起点，可以澄清需求、开始支持，并帮助家庭决定是否需要进一步的专科评估。",
+          note: "ReMynd评估是第二层次教育服务——在需要时不可替代专科护理，但它是确保没有孩子在缺乏支持的情况下等待的有意义的第一步。",
+        },
         cards: [
           { label: "以儿童为中心", desc: "我们花时间全面了解您的孩子" },
           { label: "优势导向", desc: "我们在关注困难的同时突出优势" },
@@ -1060,12 +1148,14 @@ export const translations = {
         { title: "个别教育计划", desc: "新学年开学前制定 IEP" },
       ],
       s1Title: "学校为何选择 ReMynd 评估",
-      s1Sub: "使 ReMynd 评估成为国际学校首选的四大支柱。",
+      s1Sub: "六大支柱，使ReMynd成为致力于早期识别、实用干预和循证支持的国际学校的选择。",
       whyCards: [
         { title: "早期识别", desc: "在问题成为学习、健康或学业成功的重大障碍之前识别隐患。" },
         { title: "多方信息整合", desc: "综合家长、教师、学生、学校档案及行为观察的多方信息。" },
-        { title: "实用支持计划", desc: "将评估发现转化为教育工作者可立即实施的可行建议。" },
-        { title: "明确转介决策", desc: "帮助学校判断学生是否需要监测、干预、学习支持或全面评估。" },
+        { title: "档案优先于标签", desc: "了解学生的优势、障碍和背景，而不将孩子简化为临床诊断。" },
+        { title: "实用干预规划", desc: "将评估结果转化为教育者可立即实施的策略、支持安排、干预目标和可衡量的优先事项。" },
+        { title: "更好的转介决策", desc: "确定学生是否需要课堂支持、第二层次干预、持续监测或专科评估。" },
+        { title: "12个月持续跟进", desc: "通过ReMynd案例门户监测进度——在报告交付后，支持持续进行。" },
       ],
       s2Title: "ReMynd 评估框架",
       s2Sub: "四级结构，旨在将评估层级与关切程度相匹配。",
@@ -1197,17 +1287,50 @@ export const translations = {
     },
 
     portal: {
-      badge: "심리교육 평가",
-      hero: "모든 학생은 이해받을 자격이 있습니다",
-      heroDesc: "ReMynd는 학생이 어떻게 배우고, 생각하고, 세상을 경험하는지 파악하는 철저하고 따뜻한 심리교육 평가를 제공합니다 — 그리고 그들이 성장하기 위해 무엇이 필요한지 알아냅니다.",
+      badge: "Tier 2 교육 평가",
+      hero: "종합 평가, 조기 식별 및 실질적인 지원 계획",
+      heroDesc: "ReMynd는 학교가 학생이 어려움을 겪는 이유를 이해하고 목표 지향적인 지원을 계획하며, 전문가 평가가 필요한지 결정하기 전에 진전을 모니터링할 수 있도록 Tier 2 비진단적 교육 평가를 제공합니다.",
+      heroBadges: [
+        { label: "Tier 2 · 비진단적", desc: "학생을 임상 레이블로 정의하지 않고 교육 평가와 개입 계획을 실시합니다." },
+        { label: "가상 설계", desc: "위치에 관계없이 학교와 가족을 위한 안전하고 전문적으로 감독된 접근을 제공합니다." },
+        { label: "English · 中文 · 한국어", desc: "영어, 중국어, 한국어권 가족을 위한 다국어 소통 및 지원." },
+        { label: "12개월 지원", desc: "개입 목표와 진행 모니터링은 ReMynd 케이스 포털을 통해 계속됩니다." },
+      ],
       tabSchool: "학교",
       tabParent: "부모",
       tabPartner: "파트너 학교",
       faqTitle: "자주 묻는 질문",
 
       school: {
-        heading: "전문 평가를 통해 학생을 지원합니다",
-        intro: "ReMynd는 학교와 협력하여 각 학생의 고유한 학습 프로필을 파악하고 적절한 지원을 제공하는 최고 수준의 심리교육 평가를 실시합니다.",
+        heading: "학생에게 필요한 것을 결정하기 전에 먼저 이해하기",
+        intro: "ReMynd는 학교와 협력하여 교실 우려와 전문가 의뢰 사이의 격차를 채우는 구조화된 Tier 2 교육 평가를 제공합니다 — 학생의 진전을 가로막는 것을 파악하고, 전문가 평가가 고려되기 전에 실질적인 지원을 제공합니다.",
+        missingTier: {
+          label: "빠진 단계",
+          heading: "교실 우려와 전문가 평가 사이의 격차 채우기",
+          intro: "많은 학교에는 우수한 교실 교사와 외부 전문가에 대한 접근이 있지만, 이 두 단계 사이의 구조화된 지원이 부족합니다. Tier 2 평가 없이는 학생이 충분한 정보 없이 계속 어려움을 겪거나 비용이 많이 드는 전문가 평가를 위해 조기에 의뢰될 수 있습니다.",
+          stages: [
+            { num: "1", title: "일상적인 교실 지원", items: ["차별화 및 배려", "교사 관찰", "일상적인 생활지도 지원", "일반 교실 전략"] },
+            { num: "2", title: "ReMynd Tier 2 평가 및 개입", items: ["구조화된 다출처 평가", "종합 학생 프로파일", "개입 계획", "교사 및 부모 권고", "12개월 진행 모니터링", "증거 기반 의뢰 결정"], highlight: true },
+            { num: "3", title: "필요한 경우 전문가 평가", items: ["심리교육 평가", "의학적 또는 임상 평가", "언어 평가", "작업 치료", "신경 또는 정신과 의뢰"] },
+          ],
+          note: "ReMynd는 전문가 평가를 대체하지 않습니다. 전문가 평가가 진정으로 필요한 시기를 결정하는 데 도움을 주며, 결정이 이루어지는 동안 지원이 시작될 수 있도록 합니다.",
+        },
+        interventionSection: {
+          heading: "개입은 진단을 기다려서는 안 됩니다",
+          body: "학생이 의미 있는 교육 지원을 받기 위해 공식 진단을 기다릴 필요가 없습니다. 필요가 이해되면 교실 조정, 실행 기능 전략, 읽기 쓰기 개입, 감정 조절 전략을 즉시 시작할 수 있습니다.",
+          cards: [
+            { title: "더 조기 지원", desc: "어려움이 더 고착되기 전에 목표 지향적인 개입을 시작합니다." },
+            { title: "더 나은 결정", desc: "구조화된 증거를 활용하여 교실 지원, Tier 2 개입, 모니터링 또는 전문가 의뢰 중 무엇이 적합한지 결정합니다." },
+            { title: "조기 확대 방지", desc: "목표 지향적인 교육 개입으로 충분할 수 있는 경우, 어려움을 겪는 학생을 비용이 많이 드는 외부 평가로 조기에 의뢰하는 것을 방지합니다." },
+            { title: "더 강력한 의뢰", desc: "전문가 평가가 필요한 경우, 이전 개입, 교사 관찰, 학생의 지원에 대한 반응에 관한 풍부한 증거를 제공합니다." },
+          ],
+        },
+        tier2Panel: {
+          heading: "Tier 2란 무엇인가요?",
+          body: "Tier 2는 일상적인 교실 지원과 집중적인 전문가 평가 사이에 위치합니다. 우려가 지속적이거나, 나타나고 있거나, 진전에 영향을 미치는 학생을 위한 것이지만 아직 완전한 진단 평가가 필요하지 않을 수 있습니다.",
+          questions: ["진전을 방해하는 것은 무엇인가요?", "학습을 지원하기 위해 어떤 강점을 활용할 수 있나요?", "지금 어떤 목표 지향적인 개입을 시작해야 하나요?", "어떤 교실 조정이 적합한가요?", "진행 상황을 어떻게 모니터링해야 하나요?", "전문가 의뢰가 필요한가요 — 어떤 증거가 그 결정을 뒷받침하나요?"],
+          note: "Tier 2 평가를 통해 학교는 더 일찍 행동하고, 자원을 더 현명하게 사용하며, 불확실성이 아닌 증거를 바탕으로 전문가 의뢰를 할 수 있습니다.",
+        },
         cards: [
           { label: "근거 기반", desc: "국제 연구로 검증된 평가 도구" },
           { label: "기밀", desc: "전 과정에서 엄격한 데이터 개인 정보 보호 및 사전 동의" },
@@ -1250,8 +1373,18 @@ export const translations = {
       },
 
       parent: {
-        heading: "자녀의 독특한 사고 및 학습 방식 이해하기",
-        intro: "심리교육 평가는 명확한 답을 제공하고 자녀가 학교와 가정에서 올바른 지원을 받을 수 있는 방향을 제시합니다.",
+        heading: "라벨로 정의하지 않고 자녀 이해하기",
+        intro: "ReMynd 평가는 가족이 자녀가 어려움을 겪는 이유와 지원할 수 있는 방법을 이해하도록 돕습니다. 의도적으로 비진단적입니다 — 의료적 또는 임상 레이블을 부여하는 것이 목표가 아닙니다. 대신 자녀가 학교, 가정, 일상 생활에서 어떻게 학습하고, 생각하고, 반응하고, 기능하는지에 대한 포괄적인 프로파일을 개발합니다.",
+        highlight: "목표는 자녀에게 무엇이 잘못되었는지 알려주는 것이 아닙니다. 자녀가 진전하기 위해 무엇이 필요한지 이해하는 것이 목표입니다.",
+        whatFamiliesReceive: {
+          title: "가족이 받는 것",
+          items: ["강점과 필요에 대한 명확한 설명", "종합 학생 프로파일", "교사 권고 사항", "학부모 권고 사항", "개인화된 개입 도구", "실시간 디브리핑 회의", "보고서에 대한 안전한 접근", "ReMynd 케이스 포털 접근", "최대 12개월의 진행 모니터링 및 지원", "전문 치료가 적합한 경우 의뢰 권고"],
+        },
+        accessibleStart: {
+          heading: "더 접근하기 쉬운 출발점",
+          body: "일부 가족은 포괄적인 외부 평가가 비용이 많이 들거나 접근하기 어렵거나 진단에 대한 두려움과 관련이 있기 때문에 도움을 구하는 것을 미룹니다. ReMynd는 필요를 명확히 하고, 지원을 시작하며, 추가 전문가 평가가 필요한지 결정하는 데 도움이 되는 실용적인 교육 출발점을 제공합니다.",
+          note: "ReMynd 평가는 Tier 2 교육 서비스입니다 — 필요한 경우 전문 치료를 대체할 수 없지만, 어떤 자녀도 지원 없이 기다리지 않도록 보장하는 의미 있는 첫 번째 단계입니다.",
+        },
         cards: [
           { label: "아동 중심", desc: "자녀를 전인적으로 이해하기 위해 시간을 충분히 씁니다" },
           { label: "강점 기반", desc: "어려움과 함께 강점을 부각합니다" },
@@ -1632,12 +1765,14 @@ export const translations = {
         { title: "개별 교육 계획", desc: "개학 전 IEP 수립" },
       ],
       s1Title: "학교들이 ReMynd 평가를 선택하는 이유",
-      s1Sub: "ReMynd 평가를 국제학교의 선택으로 만드는 네 가지 핵심 요소.",
+      s1Sub: "조기 식별, 실질적인 개입, 증거 기반 지원을 위한 국제 학교의 선택을 만드는 여섯 가지 핵심 요소.",
       whyCards: [
         { title: "조기 식별", desc: "우려 사항이 학습, 웰빙 또는 학업 성공의 중요한 장벽이 되기 전에 파악합니다." },
         { title: "다중 정보원 통찰", desc: "학부모, 교사, 학생, 학교 기록 및 행동 관찰 정보를 통합합니다." },
-        { title: "실용적 지원 계획", desc: "평가 결과를 교육자들이 즉시 실행할 수 있는 실행 가능한 권고 사항으로 전환합니다." },
-        { title: "명확한 의뢰 결정", desc: "학교가 학생에게 모니터링, 중재, 학습 지원 또는 종합 평가가 필요한지 결정하도록 돕습니다." },
+        { title: "레이블 전에 프로파일", desc: "학생을 임상 진단으로 축소하지 않고 강점, 장벽, 맥락을 이해합니다." },
+        { title: "실질적인 개입 계획", desc: "결과를 전략, 배려, 개입 목표, 교육자가 즉시 실행할 수 있는 측정 가능한 우선 순위로 전환합니다." },
+        { title: "더 나은 의뢰 결정", desc: "학생에게 교실 지원, Tier 2 개입, 지속적인 모니터링, 또는 전문가 평가가 필요한지 결정합니다." },
+        { title: "12개월의 지속적인 지원", desc: "ReMynd 케이스 포털을 통해 진행 상황을 모니터링합니다 — 보고서가 전달된 후에도 지원이 계속됩니다." },
       ],
       s2Title: "ReMynd 평가 프레임워크",
       s2Sub: "평가 수준을 우려 수준에 맞추도록 설계된 4단계 구조.",
