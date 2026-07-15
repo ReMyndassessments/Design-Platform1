@@ -232,7 +232,12 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 </g>
               );
             }
-            // Top-down car shape
+            // Top-down car shape — only for the parking lot task
+            if (taskId !== "RMRA_NS_EP_003") {
+              const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+              const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+              return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+            }
             const cw = cellSize * 0.78; const ch = cellSize * 0.52;
             const cx2 = col * cellSize + (cellSize - cw) / 2 + 10;
             const cy2 = row * cellSize + (cellSize - ch) / 2 + 10;
