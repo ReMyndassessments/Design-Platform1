@@ -232,9 +232,24 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 </g>
               );
             }
-            const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+            // Top-down car shape
+            const cw = cellSize * 0.78; const ch = cellSize * 0.52;
+            const cx2 = col * cellSize + (cellSize - cw) / 2 + 10;
+            const cy2 = row * cellSize + (cellSize - ch) / 2 + 10;
+            const ww = cw * 0.18; const wh = ch * 0.28;
+            return (
+              <g key={i}>
+                {/* Body */}
+                <rect x={cx2} y={cy2} width={cw} height={ch} rx={4} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                {/* Cabin */}
+                <rect x={cx2 + cw * 0.22} y={cy2 + ch * 0.18} width={cw * 0.56} height={ch * 0.64} rx={3} fill={accent + "60"} stroke={accent} strokeWidth={0.8} />
+                {/* Wheels */}
+                <rect x={cx2 - ww * 0.4} y={cy2 + ch * 0.1} width={ww} height={wh} rx={2} fill="#475569" />
+                <rect x={cx2 + cw - ww * 0.6} y={cy2 + ch * 0.1} width={ww} height={wh} rx={2} fill="#475569" />
+                <rect x={cx2 - ww * 0.4} y={cy2 + ch * 0.62} width={ww} height={wh} rx={2} fill="#475569" />
+                <rect x={cx2 + cw - ww * 0.6} y={cy2 + ch * 0.62} width={ww} height={wh} rx={2} fill="#475569" />
+              </g>
+            );
           })}
         </svg>
       )}
