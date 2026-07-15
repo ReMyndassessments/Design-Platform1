@@ -1439,6 +1439,68 @@ function CoordinateGridVisual({ accent }: { accent: string }) {
   );
 }
 
+// ── Visual: Linear Programming ───────────────────────────────────────────────
+
+function LinearProgramVisual({ accent }: { accent: string }) {
+  // Constraints: x + y ≤ 10 (line A) and y ≥ 2x (line B), first quadrant
+  // Feasible region vertices: (0,0), (0,10), (10/3, 20/3)
+  const OX = 40; const OY = 175; const SC = 15; // origin SVG coords, scale px/unit
+  const sx = (x: number) => OX + x * SC;
+  const sy = (y: number) => OY - y * SC;
+  const MAX = 12;
+
+  const gridVals = [0, 2, 4, 6, 8, 10];
+  const ix = 10 / 3; const iy = 20 / 3; // intersection point
+
+  return (
+    <div className={CARD_INNER}>
+      <p className={TASK_LABEL}>Feasible region</p>
+      <svg viewBox="0 0 260 200" className="w-full max-w-xs mx-auto">
+        {/* Grid */}
+        {gridVals.map(v => (
+          <g key={v}>
+            <line x1={sx(0)} y1={sy(v)} x2={sx(MAX)} y2={sy(v)} stroke="#e2e8f0" strokeWidth={1} />
+            <line x1={sx(v)} y1={sy(0)} x2={sx(v)} y2={sy(MAX)} stroke="#e2e8f0" strokeWidth={1} />
+          </g>
+        ))}
+        {/* Feasible region polygon: (0,0), (0,10), (10/3,20/3) */}
+        <polygon
+          points={`${sx(0)},${sy(0)} ${sx(0)},${sy(10)} ${sx(ix)},${sy(iy)}`}
+          fill={accent + "35"} stroke="none"
+        />
+        {/* Line A: x + y = 10 */}
+        <line x1={sx(0)} y1={sy(10)} x2={sx(10)} y2={sy(0)} stroke={accent} strokeWidth={2} />
+        <text x={sx(6)} y={sy(4) - 6} fontSize={10} fill={accent} fontWeight="700">x+y=10</text>
+        {/* Line B: y = 2x */}
+        <line x1={sx(0)} y1={sy(0)} x2={sx(5)} y2={sy(10)} stroke="#f59e0b" strokeWidth={2} />
+        <text x={sx(2.2)} y={sy(5) - 6} fontSize={10} fill="#b45309" fontWeight="700">y=2x</text>
+        {/* Axes */}
+        <line x1={sx(0)} y1={sy(0)} x2={sx(MAX)} y2={sy(0)} stroke="#334155" strokeWidth={2} />
+        <line x1={sx(0)} y1={sy(0)} x2={sx(0)} y2={sy(MAX)} stroke="#334155" strokeWidth={2} />
+        <polygon points={`${sx(0)},${sy(MAX) - 6} ${sx(0) - 4},${sy(MAX) + 4} ${sx(0) + 4},${sy(MAX) + 4}`} fill="#334155" />
+        <polygon points={`${sx(MAX) + 6},${sy(0)} ${sx(MAX) - 4},${sy(0) - 4} ${sx(MAX) - 4},${sy(0) + 4}`} fill="#334155" />
+        <text x={sx(MAX) + 8} y={sy(0) + 4} fontSize={11} fill="#334155" fontWeight="700">x</text>
+        <text x={sx(0) + 4} y={sy(MAX) - 6} fontSize={11} fill="#334155" fontWeight="700">y</text>
+        {/* Axis labels */}
+        {gridVals.filter(v => v > 0).map(v => (
+          <g key={v}>
+            <text x={sx(v)} y={sy(0) + 13} textAnchor="middle" fontSize={9} fill="#64748b">{v}</text>
+            <text x={sx(0) - 6} y={sy(v) + 3} textAnchor="end" fontSize={9} fill="#64748b">{v}</text>
+          </g>
+        ))}
+        {/* Corner points */}
+        {[[0, 0], [0, 10], [ix, iy]].map(([px, py], i) => (
+          <circle key={i} cx={sx(px)} cy={sy(py)} r={4} fill={accent} stroke="white" strokeWidth={1.5} />
+        ))}
+        {/* Vertex labels */}
+        <text x={sx(0) + 6} y={sy(10) - 5} fontSize={9} fill="#334155" fontWeight="600">(0,10)</text>
+        <text x={sx(ix) + 5} y={sy(iy) - 5} fontSize={9} fill="#334155" fontWeight="600">(⅓·10, ⅔·10)</text>
+        <text x={sx(0) + 6} y={sy(0) - 5} fontSize={9} fill="#334155" fontWeight="600">(0,0)</text>
+      </svg>
+    </div>
+  );
+}
+
 // ── Visual: Shape Rotation ────────────────────────────────────────────────────
 
 function ShapeRotationVisual({ taskId, accent, vp }: {
@@ -1702,6 +1764,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={vp.part1 as number | undefined} part2={vp.part2 as number | undefined} accent={accent} />;
   if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} vp={vp} theme={theme} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
+  if (vt === "linear_program") return <LinearProgramVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} />;

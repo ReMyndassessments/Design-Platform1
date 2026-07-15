@@ -1829,7 +1829,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Problem Solving & Executive Function",
     ageBand: "secondary",
     taskType: "optimisation_problem",
-    visualType: "coordinate_grid",
+    visualType: "linear_program",
     prompts: {
       space_mission: "A spacecraft has x tonnes of food and y tonnes of fuel. The constraints are x + y ≤ 10 and y ≥ 2x. If each tonne of food earns $100 and fuel earns $50, maximise profit. What is the maximum profit?",
       city_builder: "Constraints: x + y ≤ 10 and y ≥ 2x. Profit = 100x + 50y. Maximise.",
