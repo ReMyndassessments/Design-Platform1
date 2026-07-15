@@ -1968,7 +1968,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
-    visualData: { expression: "(a+b)\u00b2 = a\u00b2 + b\u00b2?" },
+    visualData: { colLabels: ["a", "b"], rowLabels: ["a", "b"] },
   },
 ];
 
