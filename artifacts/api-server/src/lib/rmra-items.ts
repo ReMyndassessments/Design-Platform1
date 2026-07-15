@@ -48,7 +48,7 @@ export const RMRA_DOMAINS = [
 export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   // Number Sense
   RMRA_NS_EP_001: "Glance at the dots — don't count. About how many do you see? Type your estimate.",
-  RMRA_NS_EP_002: "Look at both groups of dots. Which has more? Type your answer and explain how you can tell.",
+  RMRA_NS_EP_002: "Look at both buildings. Which has more windows? Type your answer and explain how you can tell.",
   RMRA_NS_EP_003: "Look at the dots quickly, then look away. About how many did you see? Type your estimate.",
   RMRA_NS_UP_001: "Take one quick look — don't count. About how many dots? Type your estimate.",
   RMRA_NS_UP_002: "Look at the number line. Tell me where 650 goes. You can say: '650 is near ___ because ___.'",
@@ -214,7 +214,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Number Sense",
     ageBand: "early_primary",
     taskType: "quantity_comparison",
-    visualType: "dot_array",
+    visualType: "building_comparison",
     prompts: {
       space_mission: "Which rocket has more stars — the red one or the blue one? How do you know?",
       city_builder: "Which building has more windows — the tall one or the short one? How do you know?",

@@ -230,6 +230,63 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
   );
 }
 
+// ── Visual: Building Comparison ──────────────────────────────────────────────
+
+function BuildingComparisonVisual({ groupA, groupB, accent }: { groupA: number; groupB: number; accent: string }) {
+  // Draw two buildings: tall (groupA windows) and short (groupB windows)
+  // Each building is a rectangle with a grid of lit windows
+  const WIN_COLS = 2; const WIN_W = 18; const WIN_H = 14; const WIN_GAP = 8;
+  const WALL_PAD_X = 12; const WALL_PAD_TOP = 12; const WALL_PAD_BOT = 20;
+  const buildingW = WIN_COLS * WIN_W + (WIN_COLS - 1) * WIN_GAP + WALL_PAD_X * 2;
+
+  const buildSVG = (n: number) => {
+    const rows = Math.ceil(n / WIN_COLS);
+    const bldH = rows * WIN_H + (rows - 1) * WIN_GAP + WALL_PAD_TOP + WALL_PAD_BOT;
+    const windows = Array.from({ length: n }, (_, i) => {
+      const col = i % WIN_COLS; const row = Math.floor(i / WIN_COLS);
+      const wx = WALL_PAD_X + col * (WIN_W + WIN_GAP);
+      const wy = WALL_PAD_TOP + row * (WIN_H + WIN_GAP);
+      return { wx, wy };
+    });
+    return { bldH, windows };
+  };
+
+  const a = buildSVG(groupA); const b = buildSVG(groupB);
+  const maxH = Math.max(a.bldH, b.bldH);
+  const GAP = 30; const W = buildingW * 2 + GAP + 20; const H = maxH + 30;
+
+  const renderBuilding = (info: ReturnType<typeof buildSVG>, xOff: number) => (
+    <g key={xOff}>
+      <rect x={xOff} y={H - info.bldH - 20} width={buildingW} height={info.bldH}
+        rx={2} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
+      {info.windows.map(({ wx, wy }, i) => (
+        <rect key={i} x={xOff + wx} y={H - info.bldH - 20 + wy}
+          width={WIN_W} height={WIN_H} rx={2} fill={accent + "cc"} stroke={accent} strokeWidth={1} />
+      ))}
+      {/* Door */}
+      <rect x={xOff + buildingW / 2 - 7} y={H - 20} width={14} height={18}
+        rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+      {/* Ground line */}
+      <line x1={xOff - 4} y1={H - 2} x2={xOff + buildingW + 4} y2={H - 2}
+        stroke="#94a3b8" strokeWidth={2} />
+    </g>
+  );
+
+  const aX = 5; const bX = aX + buildingW + GAP;
+
+  return (
+    <div className={CARD_INNER}>
+      <p className={TASK_LABEL}>Which has more windows?</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[240px] mx-auto">
+        {renderBuilding(a, aX)}
+        {renderBuilding(b, bX)}
+        <text x={aX + buildingW / 2} y={12} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Tall</text>
+        <text x={bX + buildingW / 2} y={12} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Short</text>
+      </svg>
+    </div>
+  );
+}
+
 // ── Visual: Number Line ───────────────────────────────────────────────────────
 // Static context-driven illustration — no interactive elements
 
@@ -1752,6 +1809,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
   if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} />;
+  if (vt === "building_comparison") return <BuildingComparisonVisual groupA={num("groupA", 7)} groupB={num("groupB", 5)} accent={accent} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} vp={vp} />;
