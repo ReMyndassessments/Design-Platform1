@@ -1552,11 +1552,12 @@ function ShapeRotationVisual({ taskId, accent, vp }: {
           <path d={`M ${rx - 28 * cosA},${ry - 28 * sinA} A 28,28 0 0,0 ${rx - 28},${ry}`} fill="none" stroke="#64748b" strokeWidth={1.5} />
           <text x={rx - 42} y={ry - 10} fontSize={11} fill="#475569" fontWeight="bold">{triAngle}°</text>
           <text x={bx - 10} y={(by + ty) / 2} textAnchor="end" fontSize={13} fill={triMissing === "opp" ? accent : "#1e293b"} fontWeight="bold">{oppLabel}</text>
-          <text x={(bx + rx) / 2} y={by + 16} textAnchor="middle" fontSize={13} fill={triMissing === "adj" ? accent : "#1e293b"} fontWeight="bold">{adjLabel}</text>
+          {triMissing === "adj" && (
+            <text x={(bx + rx) / 2} y={by + 16} textAnchor="middle" fontSize={13} fill={accent} fontWeight="bold">{adjLabel}</text>
+          )}
           <text x={(tx + rx) / 2 + 18} y={(ty + ry) / 2 - 4} textAnchor="middle" fontSize={13} fill="#1e293b" fontWeight="bold"
             transform={`rotate(-35, ${(tx + rx) / 2 + 18}, ${(ty + ry) / 2 - 4})`}>{triHyp}</text>
         </svg>
-        <p className="text-[10px] text-center text-slate-400 mt-1">sin({triAngle}°) = opposite ÷ hypotenuse</p>
       </div>
     );
   }
