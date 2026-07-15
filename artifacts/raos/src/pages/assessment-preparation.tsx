@@ -1369,11 +1369,32 @@ export default function AssessmentPreparationPage() {
 
             {/* Final message */}
             <section id={c.finalMessage.id} className="scroll-mt-20">
-              <div className="bg-indigo-900 text-white rounded-2xl p-6 md:p-8 space-y-4">
-                <h2 className="text-xl font-bold">{c.finalMessage.heading}</h2>
-                {c.finalMessage.paras.map((para, i) => (
-                  <p key={i} className={`leading-relaxed ${i === 0 ? "text-indigo-200 font-semibold text-base" : "text-indigo-100 text-sm"}`}>{para}</p>
-                ))}
+              <div className="relative overflow-hidden rounded-2xl" style={{ background: "linear-gradient(135deg, #3730a3 0%, #4f46e5 50%, #6366f1 100%)" }}>
+                {/* Decorative glow */}
+                <div className="absolute top-[-30%] right-[-10%] w-[50%] h-[150%] bg-white/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-[-20%] left-[-5%] w-[40%] h-[120%] bg-indigo-300/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative p-6 md:p-8 space-y-4">
+                  {/* Label badge */}
+                  <div className="inline-flex items-center gap-1.5 bg-white/15 border border-white/25 rounded-full px-3 py-1 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-100">A Note from ReMynd</span>
+                  </div>
+
+                  <h2 className="text-xl md:text-2xl font-extrabold text-white leading-snug">{c.finalMessage.heading}</h2>
+
+                  {c.finalMessage.paras.map((para, i) => (
+                    <p
+                      key={i}
+                      className={`leading-relaxed ${
+                        i === 0
+                          ? "text-white font-semibold text-base"
+                          : "text-indigo-100 text-sm"
+                      }`}
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
               </div>
             </section>
 
