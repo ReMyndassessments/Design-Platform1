@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import {
   Brain, ArrowLeft, Loader2, AlertTriangle, Copy, ExternalLink,
   CheckCircle2, ChevronRight, ChevronLeft, ClipboardCheck,
-  Printer, Mail, Send, CheckCheck, SkipForward,
+  Printer, Mail, Send, CheckCheck, SkipForward, MinusCircle,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -379,6 +379,48 @@ export default function RmraStandaloneSessionPage() {
     [items, savedResponses]
   );
 
+  const handleIntentionalSkip = useCallback(async () => {
+    if (!currentItem || !sessionId) return;
+    setSaving(true);
+    try {
+      const body = {
+        domain: currentItem.domain,
+        ageBand: (session as any)?.ageBand ?? "upper_primary",
+        discontinued: true,
+        discontinuationReason: "Student unable to attempt",
+        examinerNotes: form.examinerNotes || undefined,
+      };
+      const r = await fetch(
+        `${BASE_URL}/api/rmra/standalone/sessions/${sessionId}/tasks/${currentItem.id}/response`,
+        { method: "POST", headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken }, body: JSON.stringify(body) }
+      );
+      if (!r.ok) throw new Error("Save failed");
+      const savedForm: ScoringForm = {
+        ...blankForm(currentItem.id),
+        discontinued: true,
+        discontinuationReason: "Student unable to attempt",
+        examinerNotes: form.examinerNotes,
+      };
+      setSavedResponses(prev => ({ ...prev, [currentItem.id]: savedForm }));
+      setForm(savedForm);
+      await fetch(`${BASE_URL}/api/rmra/standalone/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Examiner-Token": examinerToken },
+        body: JSON.stringify({ currentTaskId: currentItem.id, status: "in_progress" }),
+      });
+      setSession(prev => prev ? { ...prev, status: "in_progress" } as RmraReportSession : prev);
+      if (currentIdx < items.length - 1) {
+        setCurrentIdx(idx => idx + 1);
+      } else {
+        toast({ title: "Marked as unable to attempt" });
+      }
+    } catch {
+      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }, [currentItem, sessionId, form.examinerNotes, session, currentIdx, items.length, examinerToken]);
+
   const handleCompleteClick = useCallback(() => {
     if (skippedItems.length > 0) {
       setShowSkipConfirm(true);
@@ -603,6 +645,7 @@ export default function RmraStandaloneSessionPage() {
                                 const idx = items.indexOf(item);
                                 const isActive = idx === currentIdx;
                                 const isScored = !!savedResponses[item.id];
+                                const isIntentionalSkip = isScored && !!savedResponses[item.id]?.discontinued;
                                 return (
                                   <button
                                     key={item.id}
@@ -612,9 +655,13 @@ export default function RmraStandaloneSessionPage() {
                                     onClick={() => setCurrentIdx(idx)}
                                   >
                                     <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                      isScored ? "bg-emerald-500 border-emerald-500" : isActive ? "border-violet-400" : "border-slate-300"
+                                      isIntentionalSkip ? "bg-amber-100 border-amber-400"
+                                      : isScored ? "bg-emerald-500 border-emerald-500"
+                                      : isActive ? "border-violet-400"
+                                      : "border-slate-300"
                                     }`}>
-                                      {isScored && <CheckCircle2 size={9} className="text-white" />}
+                                      {isIntentionalSkip && <MinusCircle size={9} className="text-amber-500" />}
+                                      {isScored && !isIntentionalSkip && <CheckCircle2 size={9} className="text-white" />}
                                     </span>
                                     <span className="truncate font-mono text-[11px]">{item.id}</span>
                                   </button>
@@ -837,7 +884,7 @@ export default function RmraStandaloneSessionPage() {
                             />
                           </div>
 
-                          <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                          <div className="flex items-center gap-2 pt-1 border-t border-slate-100 flex-wrap">
                             <Button
                               size="sm" variant="outline" className="gap-1.5"
                               onClick={() => handleSave(false)}
@@ -857,6 +904,20 @@ export default function RmraStandaloneSessionPage() {
                                 : <ChevronRight size={11} />
                               }
                               Save & Next
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5 ml-auto text-amber-700 border-amber-300 hover:bg-amber-50"
+                              onClick={handleIntentionalSkip}
+                              disabled={saving}
+                              title="Mark this task as intentionally skipped — student was unable to attempt it"
+                            >
+                              {saving
+                                ? <Loader2 size={11} className="animate-spin" />
+                                : <MinusCircle size={11} />
+                              }
+                              Unable to attempt
                             </Button>
                           </div>
                         </CardContent>
