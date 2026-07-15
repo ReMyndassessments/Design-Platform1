@@ -35,3 +35,23 @@ channel = "stable-25_05"
 JWT_SECRET = "3b33b040b99662110a967cd36f2fdecb9f72679d44b7027838ab5b2494ebe56f31f06fb7b04f3ddf0479e73a5beef65a"
 INQUIRY_NOTIFY_EMAIL = "ne_roberts@yahoo.com,noelroberts43@gmail.com"
 GMAIL_USER = "noelroberts43@gmail.com"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 18591
+externalPort = 3000
+
+[[ports]]
+localPort = 22800
+externalPort = 3001
+
+[[ports]]
+localPort = 23942
+externalPort = 80
