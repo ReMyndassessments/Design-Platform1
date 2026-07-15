@@ -1170,8 +1170,8 @@ function NumberBondVisual({ total, part1, part2, accent }: {
 
 // ── Visual: Bar Model ─────────────────────────────────────────────────────────
 
-function BarModelVisual({ total, accent, vp }: {
-  total: number; accent: string; vp?: Record<string, unknown>;
+function BarModelVisual({ total, accent, vp, theme }: {
+  total: number; accent: string; vp?: Record<string, unknown>; theme?: string;
 }) {
   const groups = typeof vp?.groups === "number" ? vp!.groups as number : null;
   const vpTotal = typeof vp?.total === "number" ? vp!.total as number : total;
@@ -1253,7 +1253,7 @@ function BarModelVisual({ total, accent, vp }: {
           <text x={prPad + (queryDays + (totalDays - queryDays) / 2) * segW} y={20 + prH / 2 + 5}
             textAnchor="middle" fontSize={11} fill="#94a3b8" fontWeight="bold">{totalDays - queryDays}d</text>
           <text x={prW / 2} y={prH + 46} textAnchor="middle" fontSize={11} fill="#94a3b8">
-            Find distance for {queryDays} of {totalDays} days
+            Find quantity for {queryDays} of {totalDays} days
           </text>
         </svg>
       </div>
@@ -1619,7 +1619,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
   if (vt === "area_model") return <AreaModelVisual cols={num("cols", 3)} rows={num("rows", 4)} accent={accent} vp={vp} />;
   if (vt === "number_bond") return <NumberBondVisual total={num("total", 10)} part1={vp.part1 as number | undefined} part2={vp.part2 as number | undefined} accent={accent} />;
-  if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} vp={vp} />;
+  if (vt === "bar_model") return <BarModelVisual total={num("total", 100)} accent={accent} vp={vp} theme={theme} />;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
