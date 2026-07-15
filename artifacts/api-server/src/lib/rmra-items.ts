@@ -75,7 +75,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_SR_MS_001: "Look at both values on the number line. Work out the total distance between them. Type the difference.",
   RMRA_SR_SEC_001: "Distribute the minus sign carefully. Collect like terms. Type the simplified expression.",
   // Multiplicative Thinking
-  RMRA_MT_EP_001: "Look at the equal groups of dots. How many groups? How many in each? Type the total.",
+  RMRA_MT_EP_001: "Look at the buildings. How many buildings? How many windows on each one? Type the total number of windows.",
   RMRA_MT_UP_001: "Look at the area grid. Each section shows a partial product. Type each product and the total.",
   RMRA_MT_MS_001: "The bar shows one group. Think about the total for all groups. Type your answer and method.",
   RMRA_MT_SEC_001: "Each cell in the grid shows one partial product. Add them up and collect like terms. Type the expanded expression.",
@@ -913,7 +913,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Multiplicative Thinking",
     ageBand: "early_primary",
     taskType: "equal_groups",
-    visualType: "dot_array",
+    visualType: "building_groups",
     prompts: {
       space_mission: "There are 3 rockets. Each rocket has 4 windows. How many windows in total?",
       city_builder: "There are 3 houses with 4 windows each. How many windows altogether?",
@@ -934,7 +934,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "3 × 4 = 12",
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
-    visualData: { dotCount: 12 },
+    visualData: { groups: 3, perGroup: 4 },
     briefVersion: true,
   },
   {
