@@ -1308,7 +1308,7 @@ export default function AssessmentPreparationPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-slate-900 text-white">
+      <div className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800/60">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/portal">
             <button className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium">
@@ -1317,6 +1317,8 @@ export default function AssessmentPreparationPage() {
           </Link>
           <LanguageSwitcherLight />
         </div>
+      </div>
+      <div className="bg-slate-900 text-white">
         <div className="max-w-5xl mx-auto px-6 pb-12 pt-6">
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 rounded-full px-3.5 py-1.5 mb-5">
             <Info size={12} className="text-indigo-300" />
@@ -1325,7 +1327,7 @@ export default function AssessmentPreparationPage() {
           <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-3">{c.title}</h1>
           <p className="text-slate-400 text-base leading-relaxed max-w-2xl">{c.subtitle}</p>
         </div>
-      </header>
+      </div>
 
       {/* Main content */}
       <main className="max-w-5xl mx-auto px-6 py-10">

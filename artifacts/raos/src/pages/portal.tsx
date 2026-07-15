@@ -562,9 +562,9 @@ export default function Portal() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* ── Dark brand header — matches landing page ── */}
-      <header
-        className="relative overflow-hidden"
+      {/* ── Sticky nav bar ── */}
+      <nav
+        className="sticky top-0 z-50 relative overflow-hidden"
         style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
       >
         {/* Background glows */}
@@ -606,7 +606,13 @@ export default function Portal() {
             </a>
           </div>
         </div>
+      </nav>
 
+      {/* ── Dark hero section (scrolls under sticky nav) ── */}
+      <div
+        className="relative overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0a1628 45%, #060d1c 100%)" }}
+      >
         {/* Hero text inside the dark band */}
         <div className="relative z-10 max-w-5xl mx-auto px-6 pt-6 pb-12 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-300 text-[11px] font-semibold mb-5">
@@ -661,7 +667,7 @@ export default function Portal() {
             </Link>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ── Light content area ── */}
       <div className="bg-gradient-to-b from-slate-50 to-white">

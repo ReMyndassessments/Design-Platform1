@@ -97,10 +97,11 @@ export default function LandingPage() {
       <div className="md:w-[52%] flex flex-col justify-center px-10 py-16 bg-white">
         <div className="max-w-sm mx-auto w-full">
 
-          {/* Language switcher */}
-          <div className="flex justify-end mb-10">
+          {/* Language switcher — fixed so it's always visible when scrolling */}
+          <div className="fixed top-4 right-4 z-50">
             <LanguageSwitcherLight />
           </div>
+          <div className="mb-10" />
 
           <h2 className="text-2xl font-bold text-gray-800 mb-1">{l.welcome}</h2>
           <p className="text-gray-400 text-sm mb-8">{l.selectPath}</p>

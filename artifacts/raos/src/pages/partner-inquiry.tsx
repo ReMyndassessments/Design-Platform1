@@ -150,7 +150,7 @@ export default function PartnerInquiryPage() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex flex-col">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-purple-100 bg-white/80 backdrop-blur-sm">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-purple-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
           <Link href="/partner-schools" className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors">
             {t.partnerSchools.back}
           </Link>
@@ -186,7 +186,7 @@ export default function PartnerInquiryPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-purple-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-purple-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <Link href="/partner-schools" className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors">
           {t.partnerSchools.back}
         </Link>
