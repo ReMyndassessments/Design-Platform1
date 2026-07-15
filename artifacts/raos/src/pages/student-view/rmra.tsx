@@ -1907,7 +1907,7 @@ export default function RmraStudentView() {
 
   // ── Task screen ─────────────────────────────────────────────────────────────
   return (
-    <div className={`min-h-screen ${cfg.bg} flex flex-col px-4 py-5`} style={{ minHeight: "100dvh" }}>
+    <div className={`${cfg.bg} flex flex-col px-4 pt-4 pb-10`} style={{ minHeight: "100dvh" }}>
 
       {/* Header bar */}
       <div className={`flex items-center justify-between mb-4 px-3 py-2.5 rounded-xl border ${cfg.header}`}>
@@ -1920,7 +1920,7 @@ export default function RmraStudentView() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full gap-3">
+      <div className="max-w-lg mx-auto w-full flex flex-col gap-3">
 
         {/* Hint */}
         {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
@@ -1948,26 +1948,31 @@ export default function RmraStudentView() {
           <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
         </div>
 
-        {/* Typed answer — visible until submitted; grows to fill remaining screen space */}
+        {/* Answer — always a white card so it's legible on every theme */}
         {!answerSubmitted && (
-          <div className={`flex-1 flex flex-col rounded-2xl border-2 px-4 py-4 min-h-[180px] ${cfg.promptCard}`}>
-            <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 shrink-0 ${cfg.dimText}`}>Your answer</p>
+          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+            <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Your answer</p>
+            </div>
             <textarea
-              className={`flex-1 w-full bg-transparent resize-none text-base leading-relaxed focus:outline-none min-h-[80px] ${cfg.promptText}`}
+              className="w-full px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none bg-white placeholder:text-slate-300"
+              style={{ minHeight: "130px" }}
               placeholder="Type your answer here…"
               value={answerText}
               onChange={e => setAnswerText(e.target.value)}
               disabled={submitting}
             />
-            <button
-              disabled={!answerText.trim() || submitting}
-              onClick={submitAnswer}
-              className="mt-3 w-full py-3 rounded-xl font-bold text-sm text-white transition disabled:opacity-40 shrink-0"
-              style={{ background: cfg.accentDark }}
-            >
-              {submitting ? "Submitting…" : "Submit Answer →"}
-            </button>
-            {answerError && <p className="text-red-400 text-xs mt-1.5 shrink-0">{answerError}</p>}
+            <div className="px-4 pb-4 pt-1 border-t border-slate-100">
+              <button
+                disabled={!answerText.trim() || submitting}
+                onClick={submitAnswer}
+                className="w-full py-3.5 rounded-xl font-bold text-base text-white transition-all disabled:opacity-35 active:scale-[0.98]"
+                style={{ background: cfg.accentDark }}
+              >
+                {submitting ? "Submitting…" : "Submit Answer →"}
+              </button>
+              {answerError && <p className="text-red-500 text-xs mt-2">{answerError}</p>}
+            </div>
           </div>
         )}
 
