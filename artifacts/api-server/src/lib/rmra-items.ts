@@ -83,7 +83,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_DT_EP_001: "Look at the items and the groups shown. How many go in each group? Type your answer.",
   RMRA_DT_UP_001: "The total is shown. Think about sharing it equally into groups. Type the answer and how you worked it out.",
   RMRA_DT_MS_001: "The fraction bar shows the total. Look at how many equal parts fit inside it. Type the answer and how you worked it out.",
-  RMRA_DT_SEC_001: "Look at the area grid and work backwards to find the missing factor. Type the quotient.",
+  RMRA_DT_SEC_001: "Look at the key information. Think about what expression, when multiplied by (x + 3), gives you the dividend. Type the quotient.",
   // Fractions
   RMRA_FR_EP_001: "Look at the circle. How many equal parts are there? Think about how many parts would be half. Type your answer.",
   RMRA_FR_UP_001: "The fraction bars show both amounts. Type the total and the steps you used to add them.",
