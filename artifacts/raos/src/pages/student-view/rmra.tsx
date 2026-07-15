@@ -1906,16 +1906,12 @@ export default function RmraStudentView() {
   };
 
   // ── Task screen ─────────────────────────────────────────────────────────────
-  // Layout: question cards shrink-0 at top, white answer card flex-1 fills rest.
-  // No dark void — the white card covers all remaining screen space.
   return (
-    <div className={`${cfg.bg} flex flex-col`} style={{ minHeight: "100dvh" }}>
-
-      {/* Constrain width on desktop; fill full width on mobile */}
-      <div className="flex flex-col w-full max-w-2xl mx-auto" style={{ minHeight: "100dvh" }}>
+    <div className={`${cfg.bg} min-h-dvh`}>
+      <div className="w-full max-w-2xl mx-auto px-3 pt-3 pb-6 flex flex-col gap-3">
 
         {/* Header */}
-        <div className={`shrink-0 flex items-center justify-between mx-3 mt-3 mb-0 px-3 py-2.5 rounded-xl border ${cfg.header}`}>
+        <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${cfg.header}`}>
           <div className="flex items-center gap-2">
             <span className="text-xl">{cfg.mascot}</span>
             <span className={`text-sm font-bold ${cfg.bodyText}`}>{cfg.name}</span>
@@ -1925,46 +1921,49 @@ export default function RmraStudentView() {
           </div>
         </div>
 
-        {/* Question cards — natural height, no stretching */}
-        <div className="shrink-0 px-3 pt-3 flex flex-col gap-2.5">
-
-          {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
-            <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${cfg.hint}`}>
-              <span className="text-lg shrink-0">💡</span>
-              <span className="leading-relaxed font-semibold">{HINT_PROMPTS[state.hintLevel]}</span>
-            </div>
-          )}
-
-          <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
-            <p className={`text-xl font-bold leading-snug ${cfg.promptText}`}>{task.prompt}</p>
+        {/* Hint */}
+        {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
+          <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${cfg.hint}`}>
+            <span className="text-lg shrink-0">💡</span>
+            <span className="leading-relaxed font-semibold">{HINT_PROMPTS[state.hintLevel]}</span>
           </div>
+        )}
 
-          {task.studentInstruction && (
-            <div className={`flex items-start gap-2.5 px-4 py-3 rounded-xl text-base font-medium ${cfg.instructionCard}`}>
-              <span className="shrink-0 text-lg">👉</span>
-              <span className="leading-relaxed">{task.studentInstruction}</span>
-            </div>
-          )}
-
-          <div className="rounded-2xl shadow-sm overflow-hidden">
-            <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
-          </div>
+        {/* Prompt */}
+        <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
+          <p className={`text-xl font-bold leading-snug ${cfg.promptText}`}>{task.prompt}</p>
         </div>
 
-        {/* Answer — white, flex-1 so it fills all remaining screen height */}
+        {/* Instruction */}
+        {task.studentInstruction && (
+          <div className={`flex items-start gap-2.5 px-4 py-3 rounded-xl text-base font-medium ${cfg.instructionCard}`}>
+            <span className="shrink-0 text-lg">👉</span>
+            <span className="leading-relaxed">{task.studentInstruction}</span>
+          </div>
+        )}
+
+        {/* Visual */}
+        <div className="rounded-2xl shadow-sm overflow-hidden">
+          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
+        </div>
+
+        {/* Answer input — always a white card with a clearly visible textarea */}
         {!answerSubmitted && (
-          <div className="flex-1 flex flex-col bg-white mx-3 mt-2.5 rounded-2xl shadow-md overflow-hidden" style={{ marginBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-            <div className="px-4 pt-4 pb-2 border-b border-slate-100 shrink-0">
+          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+            <div className="px-4 pt-4 pb-2 border-b border-slate-100">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Your answer</p>
             </div>
-            <textarea
-              className="flex-1 w-full px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none bg-white placeholder:text-slate-300 min-h-[80px]"
-              placeholder="Type your answer here…"
-              value={answerText}
-              onChange={e => setAnswerText(e.target.value)}
-              disabled={submitting}
-            />
-            <div className="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0">
+            <div className="p-3">
+              <textarea
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none focus:border-slate-400 placeholder:text-slate-300 transition-colors"
+                style={{ minHeight: "clamp(120px, 28vh, 260px)" }}
+                placeholder="Type your answer here…"
+                value={answerText}
+                onChange={e => setAnswerText(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="px-4 pb-4">
               <button
                 disabled={!answerText.trim() || submitting}
                 onClick={submitAnswer}
@@ -1978,16 +1977,9 @@ export default function RmraStudentView() {
           </div>
         )}
 
-        {/* Post-submit states */}
+        {/* Confidence */}
         {answerSubmitted && !confidenceRated && (
-          <div className="px-3 mt-2.5">
-            <ConfidenceSlider
-              token={token!}
-              taskId={task.id}
-              theme={theme}
-              onRated={() => setConfidenceRated(true)}
-            />
-          </div>
+          <ConfidenceSlider token={token!} taskId={task.id} theme={theme} onRated={() => setConfidenceRated(true)} />
         )}
         {answerSubmitted && confidenceRated && (
           <div className={`text-center py-4 text-sm font-medium ${cfg.dimText}`}>
