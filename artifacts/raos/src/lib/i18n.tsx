@@ -93,6 +93,11 @@ export const translations = {
           questions: ["What is getting in the way of progress?", "Which strengths can be used to support learning?", "What targeted intervention should begin now?", "Which classroom accommodations are appropriate?", "How should progress be monitored?", "Is specialist referral necessary — and what evidence supports that decision?"],
           note: "Tier 2 assessment allows schools to act earlier, use resources more wisely, and make specialist referrals based on evidence rather than uncertainty.",
         },
+        prepGuide: {
+          label: "Assessment Preparation Guide",
+          desc: "A comprehensive guide for invigilators and school staff covering room setup, the invigilator's role before and during the session, virtual session requirements, managing breaks and fatigue, building comfort without coaching, and when to reschedule.",
+          cta: "Read the Full Guide",
+        },
         cards: [
           { label: "Evidence-based", desc: "Assessment tools validated by international research" },
           { label: "Confidential", desc: "Strict data privacy and informed consent throughout" },
@@ -147,6 +152,11 @@ export const translations = {
           heading: "A More Accessible Starting Point",
           body: "Some families delay seeking help because comprehensive external assessment may be expensive, difficult to access, or associated with fear of diagnosis. ReMynd provides a practical educational starting point that can clarify needs, begin support, and help families decide whether further specialist assessment is necessary.",
           note: "ReMynd assessments are Tier 2 educational services — not a substitute for specialist care when it is needed, but a meaningful first step that ensures no child waits without support.",
+        },
+        prepGuide: {
+          label: "Assessment Preparation Guide",
+          desc: "A comprehensive guide covering what to tell your child, how to prepare the space, the parent's role during the session, virtual session requirements, breaks, and what to do after — written for families and school staff.",
+          cta: "Read the Full Guide",
         },
         cards: [
           { label: "Child-centred", desc: "We take time to understand your child as a whole person" },
@@ -714,6 +724,11 @@ export const translations = {
           questions: ["是什么阻碍了进步？", "哪些优势可以用于支持学习？", "现在应该开始哪些有针对性的干预？", "哪些课堂支持安排是合适的？", "应该如何监测进度？", "是否需要专科转介——有哪些证据支持这一决定？"],
           note: "第二层次评估使学校能够更早行动，更明智地使用资源，并基于证据而非不确定性做出专科转介决策。",
         },
+        prepGuide: {
+          label: "评估准备指南",
+          desc: "专为监考人员和学校工作人员编写的全面指南，涵盖场地布置、课程前后监考人员的职责、虚拟课程要求、休息和疲劳管理、如何建立舒适感而不进行辅导，以及何时需要重新安排课程。",
+          cta: "阅读完整指南",
+        },
         cards: [
           { label: "基于证据", desc: "经国际研究验证的评估工具" },
           { label: "保密", desc: "全程严格的数据隐私和知情同意" },
@@ -767,6 +782,11 @@ export const translations = {
           heading: "更易获取的起点",
           body: "部分家庭因综合外部评估费用高昂、难以获取或与对诊断的恐惧相关而推迟寻求帮助。ReMynd提供实用的教育起点，可以澄清需求、开始支持，并帮助家庭决定是否需要进一步的专科评估。",
           note: "ReMynd评估是第二层次教育服务——在需要时不可替代专科护理，但它是确保没有孩子在缺乏支持的情况下等待的有意义的第一步。",
+        },
+        prepGuide: {
+          label: "评估准备指南",
+          desc: "一份全面的指南，涵盖如何告诉孩子评估内容、如何准备场地、评估期间家长的角色、虚拟课程要求、休息安排以及课程结束后的事项——为家庭和学校工作人员编写。",
+          cta: "阅读完整指南",
         },
         cards: [
           { label: "以儿童为中心", desc: "我们花时间全面了解您的孩子" },
@@ -1331,6 +1351,11 @@ export const translations = {
           questions: ["진전을 방해하는 것은 무엇인가요?", "학습을 지원하기 위해 어떤 강점을 활용할 수 있나요?", "지금 어떤 목표 지향적인 개입을 시작해야 하나요?", "어떤 교실 조정이 적합한가요?", "진행 상황을 어떻게 모니터링해야 하나요?", "전문가 의뢰가 필요한가요 — 어떤 증거가 그 결정을 뒷받침하나요?"],
           note: "Tier 2 평가를 통해 학교는 더 일찍 행동하고, 자원을 더 현명하게 사용하며, 불확실성이 아닌 증거를 바탕으로 전문가 의뢰를 할 수 있습니다.",
         },
+        prepGuide: {
+          label: "평가 준비 안내서",
+          desc: "감독관 및 학교 담당자를 위한 종합 안내서로, 환경 준비, 세션 전후 감독관의 역할, 가상 세션 요건, 휴식 및 피로 관리, 코칭 없이 편안함 조성하는 방법, 재예약이 필요한 경우를 다룹니다.",
+          cta: "전체 안내서 읽기",
+        },
         cards: [
           { label: "근거 기반", desc: "국제 연구로 검증된 평가 도구" },
           { label: "기밀", desc: "전 과정에서 엄격한 데이터 개인 정보 보호 및 사전 동의" },
@@ -1384,6 +1409,11 @@ export const translations = {
           heading: "더 접근하기 쉬운 출발점",
           body: "일부 가족은 포괄적인 외부 평가가 비용이 많이 들거나 접근하기 어렵거나 진단에 대한 두려움과 관련이 있기 때문에 도움을 구하는 것을 미룹니다. ReMynd는 필요를 명확히 하고, 지원을 시작하며, 추가 전문가 평가가 필요한지 결정하는 데 도움이 되는 실용적인 교육 출발점을 제공합니다.",
           note: "ReMynd 평가는 Tier 2 교육 서비스입니다 — 필요한 경우 전문 치료를 대체할 수 없지만, 어떤 자녀도 지원 없이 기다리지 않도록 보장하는 의미 있는 첫 번째 단계입니다.",
+        },
+        prepGuide: {
+          label: "평가 준비 안내서",
+          desc: "자녀에게 평가에 대해 어떻게 설명할지, 공간 준비 방법, 세션 중 부모의 역할, 가상 세션 요건, 휴식 관리, 세션 후 해야 할 일까지 — 가족과 학교 담당자를 위해 작성된 종합 안내서입니다.",
+          cta: "전체 안내서 읽기",
         },
         cards: [
           { label: "아동 중심", desc: "자녀를 전인적으로 이해하기 위해 시간을 충분히 씁니다" },

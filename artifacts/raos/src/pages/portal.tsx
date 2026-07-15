@@ -233,6 +233,21 @@ function SchoolContent({ onInquire }: { onInquire: () => void }) {
         </div>
       )}
 
+      {s.prepGuide && (
+        <Link href="/assessment-preparation">
+          <div className="flex items-start gap-4 bg-indigo-50 border border-indigo-200 rounded-2xl p-5 hover:bg-indigo-100 transition-colors cursor-pointer group">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+              <BookOpen size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-900 text-sm mb-1">{s.prepGuide.label}</p>
+              <p className="text-xs text-slate-600 leading-relaxed">{s.prepGuide.desc}</p>
+            </div>
+            <ChevronRight size={16} className="text-indigo-500 shrink-0 mt-1 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
+      )}
+
       <div className="text-center pt-2">
         <Button onClick={onInquire} size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
           {s.cta} <ArrowRight size={16} />
@@ -329,6 +344,21 @@ function ParentContent({ onInquire }: { onInquire: () => void }) {
           <p className="text-sm text-slate-600 leading-relaxed">{p.accessibleStart.body}</p>
           <p className="text-xs text-slate-500 italic">{p.accessibleStart.note}</p>
         </div>
+      )}
+
+      {p.prepGuide && (
+        <Link href="/assessment-preparation">
+          <div className="flex items-start gap-4 bg-teal-50 border border-teal-200 rounded-2xl p-5 hover:bg-teal-100 transition-colors cursor-pointer group">
+            <div className="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center shrink-0">
+              <BookOpen size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-900 text-sm mb-1">{p.prepGuide.label}</p>
+              <p className="text-xs text-slate-600 leading-relaxed">{p.prepGuide.desc}</p>
+            </div>
+            <ChevronRight size={16} className="text-teal-500 shrink-0 mt-1 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
       )}
 
       <div className="text-center pt-2">

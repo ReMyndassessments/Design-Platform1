@@ -67,6 +67,7 @@ const InquiriesPage = React.lazy(() => import("@/pages/inquiries"));
 const PartnerSchoolsPage = React.lazy(() => import("@/pages/partner-schools"));
 const PartnerInquiryPage = React.lazy(() => import("@/pages/partner-inquiry"));
 const AssessmentServicesPage = React.lazy(() => import("@/pages/assessment-services"));
+const AssessmentPreparationPage = React.lazy(() => import("@/pages/assessment-preparation"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const RppiAdminPage = React.lazy(() => import("@/pages/cases/[id]/rppi"));
 const RdaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rda"));
@@ -157,6 +158,7 @@ function Router() {
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/portal" component={Portal} />
+        <Route path="/assessment-preparation" component={AssessmentPreparationPage} />
         <Route path="/my-portal" component={MyPortalLogin} />
         <Route path="/external/:token" component={ExternalFormView} />
         <Route path="/student-view/rda" component={RdaStudentView} />
