@@ -56,7 +56,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_NS_MS_001: "Look at the number line. Which side of zero does the value land? Type the value and your reasoning.",
   RMRA_NS_MS_002: "Look at all five values on the number line. Type them in order from smallest to largest.",
   RMRA_NS_SEC_001: "The bar shows the total spread across 7 days. Think about how to use that to find the amount for 3 days. Type your working and answer.",
-  RMRA_NS_SEC_002: "Look at the bar. Think about what it represents and estimate the multiplication. Type your estimate and your reasoning.",
+  RMRA_NS_SEC_002: "Look at the key information. Think about which estimate is closer and explain your reasoning. Type your estimate and your reasoning.",
   // Place Value
   RMRA_PV_EP_001: "Look at this number carefully. How is it built up? Tell me what you see.",
   RMRA_PV_EP_002: "Find the digit in the chart. Which column is it in? Type what that digit is worth.",
