@@ -492,7 +492,7 @@ function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
                 <Block key={i} color={color} w={w} h={h} />
               ))}
             </div>
-            <span className="text-[10px] font-bold" style={{ color }}>{palette[key]}×{label}</span>
+            <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
           </div>
         ))}
       </div>
