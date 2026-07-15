@@ -332,6 +332,94 @@ function NumberLineVisual({ scaleMin, scaleMax, accent, taskType, vp }: {
     );
   }
 
+  // ── number_ordering: show number as chip + EMPTY number line (don't give away the answer)
+  if (taskType === "number_ordering") {
+    const val = numVP("value", 0);
+    const sMin2 = numVP("scaleMin", scaleMin);
+    const sMax2 = numVP("scaleMax", scaleMax);
+    const range2 = sMax2 - sMin2;
+    const step2 = range2 <= 20 ? 1 : range2 <= 100 ? 10 : range2 <= 1000 ? 100 : 1000;
+    const tickCount2 = Math.min(10, Math.ceil(range2 / step2));
+    const ticks2 = Array.from({ length: tickCount2 + 1 }, (_, i) => i / tickCount2);
+    const W2 = 300; const lY2 = 48; const L2 = 28; const R2 = W2 - 28;
+    const toX3 = (t: number) => L2 + t * (R2 - L2);
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Place this number</p>
+        <div className="flex justify-center mt-2 mb-4">
+          <div className="px-6 py-2.5 rounded-xl text-2xl font-extrabold border-2 shadow-sm select-none"
+            style={{ color: accent, borderColor: accent, backgroundColor: accent + "12" }}>
+            {val.toLocaleString()}
+          </div>
+        </div>
+        <svg viewBox={`0 0 ${W2} 68`} className="w-full max-w-sm mx-auto">
+          <line x1={L2} y1={lY2} x2={R2} y2={lY2} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
+          <polygon points={`${R2 + 2},${lY2} ${R2 - 9},${lY2 - 4} ${R2 - 9},${lY2 + 4}`} fill="#334155" />
+          {ticks2.map((t, i) => {
+            const x = toX3(t);
+            const v = Math.round(sMin2 + t * range2);
+            const isMain = i === 0 || i === tickCount2 || i === Math.floor(tickCount2 / 2);
+            return (
+              <g key={i}>
+                <line x1={x} y1={lY2 - (isMain ? 10 : 6)} x2={x} y2={lY2 + (isMain ? 10 : 6)} stroke="#475569" strokeWidth={isMain ? 2.5 : 1.5} />
+                {isMain && <text x={x} y={lY2 + 22} textAnchor="middle" fontSize={11} fill="#475569" fontWeight="600">{v.toLocaleString()}</text>}
+              </g>
+            );
+          })}
+        </svg>
+        <p className="text-[10px] text-slate-400 text-center mt-1">Where does this number belong on the line?</p>
+      </div>
+    );
+  }
+
+  // ── rounding: chip + benchmark number line — no pre-placed marker
+  if (taskType === "rounding") {
+    const val = numVP("value", 0);
+    const sMin2 = numVP("scaleMin", scaleMin);
+    const sMax2 = numVP("scaleMax", scaleMax);
+    const rangeR = sMax2 - sMin2;
+    const stepR = rangeR <= 20 ? 1 : rangeR <= 100 ? 10 : rangeR <= 1000 ? 100 : 1000;
+    const tickCountR = Math.min(10, Math.ceil(rangeR / stepR));
+    const ticksR = Array.from({ length: tickCountR + 1 }, (_, i) => i / tickCountR);
+    const WR = 300; const lYR = 48; const LR = 28; const RR = WR - 28;
+    const toXR = (t: number) => LR + t * (RR - LR);
+    // Nearest rounded benchmarks
+    const roundingUnit = Math.round(rangeR / 2) || 100;
+    const lower = Math.floor(val / roundingUnit) * roundingUnit;
+    const upper = Math.ceil(val / roundingUnit) * roundingUnit;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Round this number</p>
+        <div className="flex justify-center mt-2 mb-4">
+          <div className="px-6 py-2.5 rounded-xl text-2xl font-extrabold border-2 shadow-sm select-none"
+            style={{ color: accent, borderColor: accent, backgroundColor: accent + "12" }}>
+            {val.toLocaleString()}
+          </div>
+        </div>
+        <svg viewBox={`0 0 ${WR} 68`} className="w-full max-w-sm mx-auto">
+          <line x1={LR} y1={lYR} x2={RR} y2={lYR} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
+          <polygon points={`${RR + 2},${lYR} ${RR - 9},${lYR - 4} ${RR - 9},${lYR + 4}`} fill="#334155" />
+          {ticksR.map((t, i) => {
+            const x = toXR(t);
+            const v = Math.round(sMin2 + t * rangeR);
+            const isLower = Math.abs(v - lower) < stepR * 0.5;
+            const isUpper = Math.abs(v - upper) < stepR * 0.5 && upper !== lower;
+            const isMain = i === 0 || i === tickCountR || isLower || isUpper || i === Math.floor(tickCountR / 2);
+            return (
+              <g key={i}>
+                <line x1={x} y1={lYR - (isMain ? 10 : 6)} x2={x} y2={lYR + (isMain ? 10 : 6)}
+                  stroke={(isLower || isUpper) ? accent : "#475569"} strokeWidth={isMain ? 2.5 : 1.5} />
+                {isMain && <text x={x} y={lYR + 22} textAnchor="middle" fontSize={11}
+                  fill={(isLower || isUpper) ? accent : "#475569"} fontWeight="600">{v.toLocaleString()}</text>}
+              </g>
+            );
+          })}
+        </svg>
+        <p className="text-[10px] text-slate-400 text-center mt-1">Which value is it closer to?</p>
+      </div>
+    );
+  }
+
   // ── Default: static number line with optional value marked
   const sMin = numVP("scaleMin", scaleMin);
   const sMax = numVP("scaleMax", scaleMax);

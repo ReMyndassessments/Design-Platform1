@@ -51,7 +51,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_NS_EP_002: "Look at both groups of dots. Which has more? Type your answer and explain how you can tell.",
   RMRA_NS_EP_003: "Look at the dots quickly, then look away. About how many did you see? Type your estimate.",
   RMRA_NS_UP_001: "Take one quick look — don't count. About how many dots? Type your estimate.",
-  RMRA_NS_UP_002: "Find where the number belongs on the line. Type it and describe where it sits.",
+  RMRA_NS_UP_002: "Look at the number shown above. Where does it belong on the number line? Describe its position and explain how you decided.",
   RMRA_NS_UP_003: "Look at both values on the number line. Which is larger? Type your answer and how you know.",
   RMRA_NS_MS_001: "Use the number line. Which side of zero does the value land? Type the value and your reasoning.",
   RMRA_NS_MS_002: "Place all five values on the number line. Type them in order from smallest to largest.",
@@ -61,7 +61,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_PV_EP_001: "Look at the rods and small cubes. How many tens? How many ones? Type both.",
   RMRA_PV_EP_002: "Find the digit in the chart. Which column is it in? Type what that digit is worth.",
   RMRA_PV_UP_001: "Look at all the blocks. Type how many thousands, hundreds, tens, and ones you see.",
-  RMRA_PV_UP_002: "Find where the number sits on the line. Which hundred is it closer to? Type the rounded answer.",
+  RMRA_PV_UP_002: "Look at the number shown above. Which hundred is it closer to on the number line? Type the rounded answer and explain your thinking.",
   RMRA_PV_MS_001: "Find the digit in the chart. Which decimal column? Type its exact place value.",
   RMRA_PV_SEC_001: "Move the decimal point the right number of places. Type the number in standard form.",
   // Addition Reasoning
