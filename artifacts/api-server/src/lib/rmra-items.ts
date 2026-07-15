@@ -188,7 +188,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "dot_array",
     prompts: {
       space_mission: "How many fuel crystals are on the launch pad? Don't count — just look!",
-      city_builder: "How many bricks are in the pile? Just look quickly!",
+      city_builder: "How many building lights are on? Just look quickly!",
       bakery_math: "How many chocolate chips are on the cookie? Don't count — just look!",
       robot_factory: "How many bolts are on the workbench? Quick look!",
       treasure_builder: "How many gold coins are in the chest? Just look!",
