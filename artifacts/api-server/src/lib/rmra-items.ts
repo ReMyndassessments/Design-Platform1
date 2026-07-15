@@ -49,7 +49,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   // Number Sense
   RMRA_NS_EP_001: "Glance at the bricks — don't count. About how many do you see? Type your estimate.",
   RMRA_NS_EP_002: "Look at both buildings. Which has more windows? Type your answer and explain how you can tell.",
-  RMRA_NS_EP_003: "Look at the dots quickly, then look away. About how many did you see? Type your estimate.",
+  RMRA_NS_EP_003: "Look at the cars quickly, then look away. About how many did you see? Type your estimate.",
   RMRA_NS_UP_001: "Take one quick look — don't count. About how many dots? Type your estimate.",
   RMRA_NS_UP_002: "Look at the number line. Tell me where 650 goes. You can say: '650 is near ___ because ___.'",
   RMRA_NS_UP_003: "Look at both values on the number line. Which is larger? Type your answer and how you know.",
