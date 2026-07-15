@@ -1222,7 +1222,6 @@ function TallyMarksVisual({ count, accent }: { count: number; accent: string }) 
             <g key={g}>
               {[0, 1, 2, 3].map(i => <line key={i} x1={x + 10 + i * 10} y1={8} x2={x + 10 + i * 10} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />)}
               <line x1={x + 4} y1={groupH - 10} x2={x + 44} y2={8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
-              <text x={x + groupW / 2} y={groupH + 18} textAnchor="middle" fontSize={10} fill="#94a3b8">(5)</text>
             </g>
           );
         })}

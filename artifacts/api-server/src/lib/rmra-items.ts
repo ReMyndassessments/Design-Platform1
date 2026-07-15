@@ -796,7 +796,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "tally_marks",
     prompts: {
       space_mission: "There were 12 stars. The astronaut collected 5. How many are left? Show your thinking.",
-      city_builder: "There were 12 bricks. You used 5. How many bricks are left?",
+      city_builder: "There were 12 sticks. You used 5. How many sticks are left?",
       bakery_math: "There were 12 cookies. You ate 5. How many cookies are left?",
       robot_factory: "There were 12 bolts. You used 5. How many are left?",
       treasure_builder: "There were 12 gems. You gave away 5. How many remain?",
