@@ -1920,7 +1920,7 @@ export default function RmraStudentView() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto w-full flex flex-col gap-3">
+      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full gap-3">
 
         {/* Hint */}
         {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
@@ -1944,25 +1944,24 @@ export default function RmraStudentView() {
         )}
 
         {/* Visual stimulus — always white card */}
-        <div className="rounded-2xl shadow-sm overflow-hidden">
+        <div className="rounded-2xl shadow-sm overflow-hidden shrink-0">
           <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
         </div>
 
-        {/* Answer — always a white card so it's legible on every theme */}
+        {/* Answer — white card that grows to fill all remaining screen space */}
         {!answerSubmitted && (
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+          <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-md overflow-hidden min-h-[180px]">
+            <div className="px-4 pt-4 pb-3 border-b border-slate-100 shrink-0">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Your answer</p>
             </div>
             <textarea
-              className="w-full px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none bg-white placeholder:text-slate-300"
-              style={{ minHeight: "130px" }}
+              className="flex-1 w-full px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none bg-white placeholder:text-slate-300 min-h-[80px]"
               placeholder="Type your answer here…"
               value={answerText}
               onChange={e => setAnswerText(e.target.value)}
               disabled={submitting}
             />
-            <div className="px-4 pb-4 pt-1 border-t border-slate-100">
+            <div className="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0">
               <button
                 disabled={!answerText.trim() || submitting}
                 onClick={submitAnswer}
