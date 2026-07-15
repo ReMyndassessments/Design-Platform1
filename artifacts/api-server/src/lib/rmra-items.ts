@@ -58,9 +58,9 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_NS_SEC_001: "Set up the proportion using the bar. Scale it to find the answer. Type your working and answer.",
   RMRA_NS_SEC_002: "Use the bar to estimate the multiplication. Type your estimate and your reasoning.",
   // Place Value
-  RMRA_PV_EP_001: "Look at the rods and small cubes. How many tens? How many ones? Type both.",
+  RMRA_PV_EP_001: "Look at this number carefully. How is it built up? Tell me what you see.",
   RMRA_PV_EP_002: "Find the digit in the chart. Which column is it in? Type what that digit is worth.",
-  RMRA_PV_UP_001: "Look at all the blocks. Type how many thousands, hundreds, tens, and ones you see.",
+  RMRA_PV_UP_001: "The number is shown. Break it apart. How many pieces are there, and what is each piece worth?",
   RMRA_PV_UP_002: "Look at the number line. Tell me which hundred 6,847 rounds to. You can say: 'It rounds to ___ because ___.'",
   RMRA_PV_MS_001: "Find the digit in the chart. Which decimal column? Type its exact place value.",
   RMRA_PV_SEC_001: "Move the decimal point the right number of places. Type the number in standard form.",
@@ -90,8 +90,8 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_FR_MS_001: "The area model grid shows both fractions. The overlapping region is the product. Type the answer and simplify.",
   RMRA_FR_SEC_001: "Factor the numerator. Cancel the common factor. Type the simplified expression and restriction.",
   // Measurement
-  RMRA_ME_EP_001: "Look at the two bars. Which is taller or longer? Type which one and explain how you can tell.",
-  RMRA_ME_UP_001: "Count the squares inside for area. Trace the outside edge for perimeter. Type both answers.",
+  RMRA_ME_EP_001: "Look at the two bars. Which one is bigger? Tell me which one and how you can tell.",
+  RMRA_ME_UP_001: "Look at this shape carefully. What can you work out about its size? Tell me everything you can find.",
   RMRA_ME_MS_001: "Convert km to m first, then multiply by 60 for minutes. Type each step and the final answer.",
   RMRA_ME_SEC_001: "Use V = \u03c0r\u00b2h and SA = 2\u03c0r\u00b2 + 2\u03c0rh with the given values. Type both answers, leaving \u03c0 in.",
   // Patterns & Early Algebra
@@ -100,8 +100,8 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_PA_MS_001: "Plot the line. Type y when x = 10 and x when y = 0.",
   RMRA_PA_SEC_001: "Substitute n = 8. Then solve for n when T = 90. Type both answers and your working.",
   // Geometry & Spatial Reasoning
-  RMRA_GS_EP_001: "Sort the shapes by their number of sides. Type how many shapes are in each group.",
-  RMRA_GS_UP_001: "Look at each angle carefully. Type whether each is acute, right, or obtuse.",
+  RMRA_GS_EP_001: "Look carefully at the shapes. Sort them into groups. Tell me what is in each group and what makes each group different.",
+  RMRA_GS_UP_001: "Look at each angle carefully. What type of angle is A? What type is B? What type is C? Tell me how you decided.",
   RMRA_GS_MS_001: "The two shorter sides are 6 and 8. Use a\u00b2 + b\u00b2 = c\u00b2. Type the length of the longest side.",
   RMRA_GS_SEC_001: "Identify the correct trig ratio for the angle shown. Type your working and the answer.",
   // Mathematical Language
@@ -245,11 +245,11 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "estimation",
     visualType: "dot_array",
     prompts: {
-      space_mission: "About how many stars are in the galaxy — closer to 10 or closer to 20?",
-      city_builder: "About how many cars are in the parking lot — closer to 10 or closer to 20?",
-      bakery_math: "About how many sprinkles are on the cake — closer to 10 or closer to 20?",
-      robot_factory: "About how many screws are in the jar — closer to 10 or closer to 20?",
-      treasure_builder: "About how many pearls are in the pile — closer to 10 or closer to 20?",
+      space_mission: "About how many stars are in the galaxy? Give your best estimate.",
+      city_builder: "About how many cars are in the parking lot? Give your best estimate.",
+      bakery_math: "About how many sprinkles are on the cake? Give your best estimate.",
+      robot_factory: "About how many screws are in the jar? Give your best estimate.",
+      treasure_builder: "About how many pearls are in the pile? Give your best estimate.",
     },
     expectedAnswerRange: [10, 20],
     primaryConstruct: "estimation",
@@ -456,11 +456,11 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "number_sense_proof",
     visualType: "visual_word_problem",
     prompts: {
-      space_mission: "Without a calculator, is 127 × 49 closer to 5,000 or 6,500? Explain your reasoning.",
-      city_builder: "Without calculating exactly, is 127 × 49 closer to 5,000 or 6,500? Explain.",
-      bakery_math: "Estimate 127 × 49 — is it closer to 5,000 or 6,500? Show your thinking.",
-      robot_factory: "Estimate 127 × 49 without a calculator. Is it closer to 5,000 or 6,500?",
-      treasure_builder: "Without exact calculation, is 127 × 49 closer to 5,000 or 6,500? How do you know?",
+      space_mission: "Without a calculator, estimate 127 × 49. Explain your thinking.",
+      city_builder: "Without calculating exactly, estimate 127 × 49. Show your thinking.",
+      bakery_math: "Estimate 127 × 49 without a calculator. Show your thinking.",
+      robot_factory: "Estimate 127 × 49 without a calculator. Explain your approach.",
+      treasure_builder: "Without exact calculation, estimate 127 × 49. How did you get there?",
     },
     expectedAnswerRange: [6000, 6500],
     exactAnswer: 6223,
@@ -624,7 +624,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "7 hundredths = 7/100 = 0.07",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
-    visualData: { keyNumbers: ["3.478", "7 \u2192 hundredths", "= 0.07"], context: "Value of a digit" },
+    visualData: { keyNumbers: ["3.478"], context: "What is the value of the 7?" },
     briefVersion: true,
   },
   {
@@ -1130,7 +1130,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "= (x + 4)",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
-    visualData: { keyNumbers: ["x\u00b2 + 7x + 12", "\u00f7 (x + 3)", "= x + 4"], context: "Factor then divide" },
+    visualData: { keyNumbers: ["x\u00b2 + 7x + 12", "\u00f7 (x + 3)"], context: "Find the quotient" },
     briefVersion: false,
   },
 
@@ -1248,7 +1248,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "Answer: x - 2, where x ≠ -2 (denominator can't be zero).",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
-    visualData: { keyNumbers: ["x\u00b2 \u2212 4", "(x+2)(x\u22122)", "\u00f7 (x+2) = x\u22122"], context: "Factor then cancel; x \u2260 \u22122" },
+    visualData: { keyNumbers: ["(x\u00b2 \u2212 4) \u00f7 (x + 2)"], context: "Simplify and state any restrictions" },
     briefVersion: false,
   },
 
@@ -1338,7 +1338,7 @@ export const RMRA_ITEMS: RmraItem[] = [
       "2,500 × 60 = 150,000 m/min",
     ],
     scoring: { accuracy: 2, reasoning: 3, strategy: 4 },
-    visualData: { keyNumbers: ["2.5 km/s", "\u00d71,000 \u2192 2,500 m/s", "\u00d760 \u2192 150,000 m/min"], context: "Convert step by step" },
+    visualData: { keyNumbers: ["2.5 km/s"], context: "Convert to metres per minute" },
     briefVersion: true,
   },
   {
@@ -1494,11 +1494,11 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "shape_identification",
     visualType: "visual_word_problem",
     prompts: {
-      space_mission: "Sort these shapes into groups. Which ones are circles? Which are triangles?",
-      city_builder: "Sort the building shapes — which have 3 sides and which have 4 sides?",
-      bakery_math: "Sort the cookie cutters — triangles, circles, squares. Which group has the most?",
-      robot_factory: "Sort these robot parts by shape — round ones, triangles, and squares.",
-      treasure_builder: "Sort the treasure shapes — diamonds, circles, squares.",
+      space_mission: "Look at these shapes. Sort them into groups. How many groups did you make, and what is in each one?",
+      city_builder: "Look at these building shapes. Sort them into groups. Tell me what is in each group.",
+      bakery_math: "Look at these cookie cutter shapes. Sort them into groups. What is in each group?",
+      robot_factory: "Look at these robot parts. Sort them into groups. Tell me what is in each group.",
+      treasure_builder: "Look at these treasure shapes. Sort them into groups. What is in each group?",
     },
     primaryConstruct: "2D shape classification",
     secondaryConstructs: ["shape properties", "sorting by attributes"],
@@ -1513,7 +1513,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     exactAnswer: "Circles (0 sides), Triangles (3 sides), Squares (4 sides) — sorted into 3 groups",
     scoring: { accuracy: 2, reasoning: 2, strategy: 2 },
-    visualData: { keyNumbers: ["0 sides = circle", "3 sides = triangle", "4 sides = square"], context: "Sort by number of sides" },
+    visualData: { keyNumbers: ["Shape A", "Shape B", "Shape C", "Shape D", "Shape E"], context: "Sort into groups" },
     briefVersion: true,
   },
   {
@@ -1523,11 +1523,11 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "angle_classification",
     visualType: "visual_word_problem",
     prompts: {
-      space_mission: "Look at these angles. Which are acute, right, or obtuse?",
-      city_builder: "Classify the angles in this building design — acute, right, or obtuse.",
-      bakery_math: "Classify the angles in these cookie cutter shapes.",
-      robot_factory: "Classify each angle in the robot blueprint — acute, right, or obtuse.",
-      treasure_builder: "Classify the angles on this treasure map — acute, right, or obtuse.",
+      space_mission: "Look at angles A, B, and C. What do you notice about each one? Describe them.",
+      city_builder: "Look at angles A, B, and C in this building design. What do you notice about each one?",
+      bakery_math: "Look at angles A, B, and C on these cookie cutter shapes. What do you notice about each?",
+      robot_factory: "Look at angles A, B, and C on the robot blueprint. What do you notice about each one?",
+      treasure_builder: "Look at angles A, B, and C on this treasure map. What do you notice about each one?",
     },
     primaryConstruct: "angle classification",
     secondaryConstructs: ["spatial reasoning", "estimation"],
@@ -1659,7 +1659,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     exactAnswer: "Key info: 450 km/h (rate) and 3 hours (time). The 30-min break is a distractor if question asks for distance.",
     scoring: { accuracy: 2, reasoning: 3, strategy: 3 },
-    visualData: { keyNumbers: ["450 km/h", "3 hours", "+30 min break"], context: "Which info is needed for distance?" },
+    visualData: { keyNumbers: ["450 km/h", "3 hours", "+30 min break"], context: "Information given" },
     briefVersion: true,
   },
   {
@@ -1717,7 +1717,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
-    visualData: { keyNumbers: ["n + (n+1)", "= 2n + 1", "always odd"], context: "Let n be any integer" },
+    visualData: { keyNumbers: ["n + (n+1)", "= ?"], context: "Let n be any integer" },
   },
 
   // ── PROBLEM SOLVING & EXECUTIVE FUNCTION ──────────────────────────────────────
@@ -1748,7 +1748,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 2, strategy: 3 },
     briefVersion: true,
-    visualData: { keyNumbers: ["Start: 10", "Give 3 away \u2192 7", "Find 5 more \u2192 12"], context: "Do each step in order" },
+    visualData: { keyNumbers: ["Start: 10", "Give away: 3", "Find: 5 more"], context: "Work through each step" },
   },
   {
     id: "RMRA_PS_UP_001",
@@ -1959,7 +1959,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: true,
-    visualData: { expression: "(a+b)\u00b2 = a\u00b2 + 2ab + b\u00b2" },
+    visualData: { expression: "(a+b)\u00b2 = a\u00b2 + b\u00b2?" },
   },
 ];
 
