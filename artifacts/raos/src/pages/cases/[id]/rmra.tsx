@@ -438,6 +438,24 @@ export default function RmraAdminPage() {
     }
   }, [domainStats, currentTask?.id]);
 
+  // Keep currentTaskId in the DB in sync with the examiner's local position.
+  // This fires on first load (restoring from DB), on navigation, and after Begin,
+  // so the student view always receives the correct task regardless of how the
+  // examiner arrived at the current task.
+  useEffect(() => {
+    if (!sessionId || !caseId || session?.status !== "in_progress" || !currentTask) return;
+    const t = setTimeout(async () => {
+      try {
+        await fetch(`${BASE_URL}/api/cases/${caseId}/rmra/sessions/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify({ currentTaskId: currentTask.id }),
+        });
+      } catch { }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [sessionId, caseId, currentTask?.id, session?.status]);
+
   // ── Timer ────────────────────────────────────────────────────────────────────
 
   const startTimer = () => {
