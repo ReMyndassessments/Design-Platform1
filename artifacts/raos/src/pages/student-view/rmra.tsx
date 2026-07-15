@@ -1906,90 +1906,96 @@ export default function RmraStudentView() {
   };
 
   // ── Task screen ─────────────────────────────────────────────────────────────
-  // Layout: full-screen flex column. Question zone scrolls. Answer zone is
-  // sticky at the bottom — always visible, never a stretching void.
+  // Layout: question cards shrink-0 at top, white answer card flex-1 fills rest.
+  // No dark void — the white card covers all remaining screen space.
   return (
-    <div className={`${cfg.bg} flex flex-col`} style={{ height: "100dvh" }}>
+    <div className={`${cfg.bg} flex flex-col`} style={{ minHeight: "100dvh" }}>
 
-      {/* Header bar */}
-      <div className={`shrink-0 flex items-center justify-between mx-3 mt-3 mb-0 px-3 py-2 rounded-xl border ${cfg.header}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{cfg.mascot}</span>
-          <span className={`text-sm font-bold ${cfg.bodyText}`}>{cfg.name}</span>
+      {/* Constrain width on desktop; fill full width on mobile */}
+      <div className="flex flex-col w-full max-w-2xl mx-auto" style={{ minHeight: "100dvh" }}>
+
+        {/* Header */}
+        <div className={`shrink-0 flex items-center justify-between mx-3 mt-3 mb-0 px-3 py-2.5 rounded-xl border ${cfg.header}`}>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{cfg.mascot}</span>
+            <span className={`text-sm font-bold ${cfg.bodyText}`}>{cfg.name}</span>
+          </div>
+          <div className={`text-[11px] px-3 py-1 rounded-full font-semibold uppercase tracking-wide ${cfg.dark ? "bg-white/10 text-white/55" : "bg-black/5 text-slate-500"}`}>
+            {task.domain}
+          </div>
         </div>
-        <div className={`text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide ${cfg.dark ? "bg-white/10 text-white/55" : "bg-black/5 text-slate-500"}`}>
-          {task.domain}
+
+        {/* Question cards — natural height, no stretching */}
+        <div className="shrink-0 px-3 pt-3 flex flex-col gap-2.5">
+
+          {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
+            <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${cfg.hint}`}>
+              <span className="text-lg shrink-0">💡</span>
+              <span className="leading-relaxed font-semibold">{HINT_PROMPTS[state.hintLevel]}</span>
+            </div>
+          )}
+
+          <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
+            <p className={`text-xl font-bold leading-snug ${cfg.promptText}`}>{task.prompt}</p>
+          </div>
+
+          {task.studentInstruction && (
+            <div className={`flex items-start gap-2.5 px-4 py-3 rounded-xl text-base font-medium ${cfg.instructionCard}`}>
+              <span className="shrink-0 text-lg">👉</span>
+              <span className="leading-relaxed">{task.studentInstruction}</span>
+            </div>
+          )}
+
+          <div className="rounded-2xl shadow-sm overflow-hidden">
+            <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
+          </div>
         </div>
-      </div>
 
-      {/* Question zone — scrolls if content is tall */}
-      <div className="flex-1 overflow-y-auto px-3 pt-3 pb-2 flex flex-col gap-2.5">
-
-        {/* Hint */}
-        {state.hintLevel > 0 && HINT_PROMPTS[state.hintLevel] && (
-          <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${cfg.hint}`}>
-            <span className="text-lg shrink-0">💡</span>
-            <span className="leading-relaxed font-semibold">{HINT_PROMPTS[state.hintLevel]}</span>
+        {/* Answer — white, flex-1 so it fills all remaining screen height */}
+        {!answerSubmitted && (
+          <div className="flex-1 flex flex-col bg-white mx-3 mt-2.5 rounded-2xl shadow-md overflow-hidden" style={{ marginBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+            <div className="px-4 pt-4 pb-2 border-b border-slate-100 shrink-0">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Your answer</p>
+            </div>
+            <textarea
+              className="flex-1 w-full px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none bg-white placeholder:text-slate-300 min-h-[80px]"
+              placeholder="Type your answer here…"
+              value={answerText}
+              onChange={e => setAnswerText(e.target.value)}
+              disabled={submitting}
+            />
+            <div className="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0">
+              <button
+                disabled={!answerText.trim() || submitting}
+                onClick={submitAnswer}
+                className="w-full py-4 rounded-xl font-bold text-base text-white transition-all disabled:opacity-35 active:scale-[0.98]"
+                style={{ background: cfg.accentDark }}
+              >
+                {submitting ? "Submitting…" : "Submit Answer →"}
+              </button>
+              {answerError && <p className="text-red-500 text-xs mt-2">{answerError}</p>}
+            </div>
           </div>
         )}
 
-        {/* Prompt — larger text, full width */}
-        <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
-          <p className={`text-xl font-bold leading-snug ${cfg.promptText}`}>{task.prompt}</p>
-        </div>
-
-        {/* Student instruction */}
-        {task.studentInstruction && (
-          <div className={`flex items-start gap-2.5 px-4 py-3 rounded-xl text-base font-medium ${cfg.instructionCard}`}>
-            <span className="shrink-0 text-lg">👉</span>
-            <span className="leading-relaxed">{task.studentInstruction}</span>
-          </div>
-        )}
-
-        {/* Visual — full width within the card */}
-        <div className="rounded-2xl shadow-sm overflow-hidden w-full">
-          <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
-        </div>
-
-        {/* Post-submit states scroll with the question zone */}
+        {/* Post-submit states */}
         {answerSubmitted && !confidenceRated && (
-          <ConfidenceSlider
-            token={token!}
-            taskId={task.id}
-            theme={theme}
-            onRated={() => setConfidenceRated(true)}
-          />
+          <div className="px-3 mt-2.5">
+            <ConfidenceSlider
+              token={token!}
+              taskId={task.id}
+              theme={theme}
+              onRated={() => setConfidenceRated(true)}
+            />
+          </div>
         )}
         {answerSubmitted && confidenceRated && (
-          <div className={`text-center py-3 text-sm font-medium ${cfg.dimText}`}>
+          <div className={`text-center py-4 text-sm font-medium ${cfg.dimText}`}>
             ✓ Answer noted — waiting for the next question…
           </div>
         )}
-      </div>
 
-      {/* Answer zone — fixed at bottom, always visible, never stretches */}
-      {!answerSubmitted && (
-        <div className="shrink-0 bg-white border-t border-slate-200 px-3 pt-3 pb-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Your answer</p>
-          <textarea
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-300"
-            style={{ minHeight: "100px", maxHeight: "180px" }}
-            placeholder="Type your answer here…"
-            value={answerText}
-            onChange={e => setAnswerText(e.target.value)}
-            disabled={submitting}
-          />
-          <button
-            disabled={!answerText.trim() || submitting}
-            onClick={submitAnswer}
-            className="mt-2.5 w-full py-4 rounded-xl font-bold text-base text-white transition-all disabled:opacity-35 active:scale-[0.98]"
-            style={{ background: cfg.accentDark }}
-          >
-            {submitting ? "Submitting…" : "Submit Answer →"}
-          </button>
-          {answerError && <p className="text-red-500 text-xs mt-2">{answerError}</p>}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
