@@ -1233,7 +1233,8 @@ function BarModelVisual({ total, accent, vp }: {
   const totalDays = typeof vp?.totalDays === "number" ? vp!.totalDays as number : null;
   const queryDays = typeof vp?.queryDays === "number" ? vp!.queryDays as number : null;
   if (totalDays !== null && queryDays !== null) {
-    const distLabel = typeof vp?.distLabel === "string" ? vp!.distLabel as string : "";
+    const distLabels = vp?.distLabels as Record<string, string> | undefined;
+    const distLabel = distLabels?.[theme] ?? (typeof vp?.distLabel === "string" ? vp!.distLabel as string : "");
     const prW = 260; const prH = 44; const prPad = 10;
     const segW = (prW - prPad * 2) / totalDays;
     return (

@@ -446,7 +446,16 @@ export const RMRA_ITEMS: RmraItem[] = [
       "6 × 10⁷ × 3 = 1.8 × 10⁸ = 180,000,000 km",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
-    visualData: { totalDays: 7, queryDays: 3, distLabel: "4.2 \u00d7 10\u2078 km" },
+    visualData: {
+      totalDays: 7, queryDays: 3,
+      distLabels: {
+        space_mission:    "4.2 × 10⁸ km",
+        city_builder:     "4.2 × 10⁸ cm",
+        bakery_math:      "4.2 × 10⁸ grams",
+        robot_factory:    "4.2 × 10⁸ operations",
+        treasure_builder: "4.2 × 10⁸ steps",
+      },
+    },
     briefVersion: true,
   },
   {
