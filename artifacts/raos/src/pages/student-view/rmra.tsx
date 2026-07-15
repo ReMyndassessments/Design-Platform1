@@ -1956,7 +1956,7 @@ export default function RmraStudentView() {
             <div className="p-3">
               <textarea
                 className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none focus:border-slate-400 placeholder:text-slate-300 transition-colors"
-                style={{ minHeight: "clamp(120px, 28vh, 260px)" }}
+                rows={4}
                 placeholder="Type your answer here…"
                 value={answerText}
                 onChange={e => setAnswerText(e.target.value)}
