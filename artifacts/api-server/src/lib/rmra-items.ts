@@ -106,7 +106,7 @@ export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   RMRA_GS_SEC_001: "Identify the correct trig ratio for the angle shown. Type your working and the answer.",
   // Mathematical Language
   RMRA_ML_EP_001: "Use the dots to show two groups — one with more. Type what the word 'MORE' means.",
-  RMRA_ML_UP_001: "The bar shows rate \u00d7 time. What information matters? What is extra? Type your answer.",
+  RMRA_ML_UP_001: "Read the story carefully. Which numbers do you need to answer the question? Which number is extra? Type your answer.",
   RMRA_ML_MS_001: "Look at the pattern. What happens when two negatives multiply? Type your full explanation.",
   RMRA_ML_SEC_001: "Let n be any integer. Write n + (n+1) as one expression. Type your full algebraic proof.",
   // Problem Solving & Executive Function
