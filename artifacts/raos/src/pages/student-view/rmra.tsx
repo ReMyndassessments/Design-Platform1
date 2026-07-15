@@ -562,70 +562,14 @@ const BLOCK_DEFS: { key: BlockKey; label: string; name: string; color: string; w
 function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
   thousands: number; hundreds: number; tens: number; ones: number; accent: string;
 }) {
-  // Unit dimensions
-  const U = 14; // one unit square size
-  const GAP = 5; // gap between blocks
-  const PAD = 12;
-
-  // Build block elements
-  const elements: React.ReactNode[] = [];
-  let x = PAD;
-
-  // Hundreds: 10×10 grid squares
-  for (let h = 0; h < hundreds; h++) {
-    const gx = x; const gy = PAD;
-    const sz = U * 10;
-    elements.push(
-      <g key={`h${h}`}>
-        <rect x={gx} y={gy} width={sz} height={sz} fill={accent + "30"} stroke={accent} strokeWidth={1.5} rx={2} />
-        {Array.from({ length: 9 }, (_, r) => (
-          <line key={`hr${r}`} x1={gx} y1={gy + (r + 1) * U} x2={gx + sz} y2={gy + (r + 1) * U} stroke={accent} strokeWidth={0.5} opacity={0.4} />
-        ))}
-        {Array.from({ length: 9 }, (_, c) => (
-          <line key={`hc${c}`} x1={gx + (c + 1) * U} y1={gy} x2={gx + (c + 1) * U} y2={gy + sz} stroke={accent} strokeWidth={0.5} opacity={0.4} />
-        ))}
-      </g>
-    );
-    x += sz + GAP * 2;
-  }
-
-  // Tens: tall rods (1 wide × 10 tall units)
-  for (let t = 0; t < tens; t++) {
-    const gx = x; const gy = PAD;
-    elements.push(
-      <g key={`t${t}`}>
-        <rect x={gx} y={gy} width={U} height={U * 10} fill={accent + "60"} stroke={accent} strokeWidth={1.5} rx={2} />
-        {Array.from({ length: 9 }, (_, r) => (
-          <line key={`tr${r}`} x1={gx} y1={gy + (r + 1) * U} x2={gx + U} y2={gy + (r + 1) * U} stroke={accent} strokeWidth={0.7} opacity={0.5} />
-        ))}
-      </g>
-    );
-    x += U + GAP;
-  }
-
-  if (ones > 0) x += GAP; // extra gap before ones
-
-  // Ones: small unit cubes
-  const onesPerCol = 5;
-  for (let o = 0; o < ones; o++) {
-    const col = Math.floor(o / onesPerCol); const row = o % onesPerCol;
-    const gx = x + col * (U + 2); const gy = PAD + row * (U + 2);
-    elements.push(
-      <rect key={`o${o}`} x={gx} y={gy} width={U} height={U} fill={accent + "c0"} stroke={accent} strokeWidth={1.5} rx={2} />
-    );
-  }
-  const onesColCount = Math.ceil(ones / onesPerCol);
-  x += onesColCount * (U + 2);
-
-  const svgW = x + PAD;
-  const svgH = U * 10 + PAD * 2;
-
+  const value = thousands * 1000 + hundreds * 100 + tens * 10 + ones;
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Base-ten blocks</p>
-      <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full mx-auto" style={{ maxHeight: 180 }}>
-        {elements}
-      </svg>
+      <p className={TASK_LABEL}>Build this number</p>
+      <div className="flex flex-col items-center justify-center py-6 gap-1">
+        <span className="text-7xl font-black tracking-tight" style={{ color: accent }}>{value.toLocaleString()}</span>
+        <span className="text-xs text-slate-400 font-medium mt-1">Use your blocks to show this number</span>
+      </div>
     </div>
   );
 }
