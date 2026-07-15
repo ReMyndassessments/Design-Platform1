@@ -472,29 +472,17 @@ const BLOCK_DEFS: { key: BlockKey; label: string; name: string; color: string; w
 function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
   thousands: number; hundreds: number; tens: number; ones: number; accent: string;
 }) {
-  const palette: Record<BlockKey, number> = {
-    th: Math.min(thousands, 5), h: Math.min(hundreds, 5),
-    t: Math.min(tens, 9), o: Math.min(ones, 9),
-  };
-
-  const Block = ({ color, w, h }: { color: string; w: number; h: number }) => (
-    <div style={{ width: w, height: h, backgroundColor: color + "40", border: `2.5px solid ${color}`, borderRadius: 3, flexShrink: 0 }} />
-  );
+  // Student view: show only the number — the student must decompose it verbally.
+  // Showing blocks (even without labels) gives the answer away by letting them count.
+  const value = thousands * 1000 + hundreds * 100 + tens * 10 + ones;
+  const formatted = value.toLocaleString();
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Place value blocks</p>
-      <div className="flex items-end justify-center gap-4 py-2">
-        {BLOCK_DEFS.filter(d => palette[d.key] > 0).map(({ key, label, color, w, h }) => (
-          <div key={key} className="flex flex-col items-center gap-1">
-            <div className="flex flex-col gap-0.5 items-center">
-              {Array.from({ length: palette[key] }, (_, i) => (
-                <Block key={i} color={color} w={w} h={h} />
-              ))}
-            </div>
-            <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
-          </div>
-        ))}
+      <p className={TASK_LABEL}>This number</p>
+      <div className="flex flex-col items-center justify-center py-6 gap-2">
+        <span className="text-6xl font-black tracking-tight" style={{ color: accent }}>{formatted}</span>
+        <span className="text-xs text-slate-400 font-medium">Break it into thousands, hundreds, tens, and ones</span>
       </div>
     </div>
   );
