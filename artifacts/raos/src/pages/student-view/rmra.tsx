@@ -1873,7 +1873,16 @@ function WordProblemVisual({ taskId, accent, vp }: {
 
 // ── Task Visual Router ────────────────────────────────────────────────────────
 
+// Tasks whose visuals have been reviewed and approved — all others show no visual
+const REVIEWED_VISUAL_TASKS = new Set([
+  "RMRA_NS_EP_001", "RMRA_NS_EP_002", "RMRA_NS_EP_003",
+  "RMRA_PV_EP_001", "RMRA_SR_EP_001", "RMRA_MT_EP_001",
+  "RMRA_ME_SEC_001", "RMRA_RPS_SEC_001", "RMRA_PS_SEC_001",
+  "RMRA_PA_SEC_001", "RMRA_GS_SEC_001",
+]);
+
 function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData; theme: ThemeKey; flashPhase: FlashPhase; sessionToken?: string }) {
+  if (!REVIEWED_VISUAL_TASKS.has(task.id)) return null;
   const accent = THEME_CFG[theme].accent;
   const vt = task.visualType;
   const tt = task.taskType;
