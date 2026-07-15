@@ -347,9 +347,11 @@ function computeRapidNamingRating(
 
 function shuffleRow(arr: string[], seed: number): string[] {
   const a = [...arr];
+  // Xorshift32 for better mixing — avoids seed collisions between rows
+  let s = seed >>> 0 || 1;
+  const next = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return s >>> 0; };
   for (let i = a.length - 1; i > 0; i--) {
-    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-    const j = Math.abs(seed) % (i + 1);
+    const j = next() % (i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

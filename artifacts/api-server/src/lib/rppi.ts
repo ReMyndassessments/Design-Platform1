@@ -223,7 +223,7 @@ export const RPPI_FORM_ITEMS = [
     text: "Task B: Rapid Digit Naming",
     textChinese: "",
     textKorean: "",
-    note: "Say: \"Name each number as quickly and accurately as you can. Start here and go across each row.\" | Grid: 2 7 4 8 3 5 9 1 (5 rows of 8 = 40 items)",
+    note: "Say: \"Name each number as quickly and accurately as you can. Start here and go across each row.\" | Grid: 2 7 4 8 3 5 9 1 2 7 (5 rows of 10 = 50 items)",
     noteChinese: "",
     noteKorean: "",
     options: ["2","7","4","8","3","5","9","1"],
