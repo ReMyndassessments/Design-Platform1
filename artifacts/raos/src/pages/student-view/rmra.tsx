@@ -1948,13 +1948,12 @@ export default function RmraStudentView() {
           <TaskVisual task={task} theme={theme} flashPhase={flashPhase} sessionToken={token} />
         </div>
 
-        {/* Typed answer — visible until submitted */}
+        {/* Typed answer — visible until submitted; grows to fill remaining screen space */}
         {!answerSubmitted && (
-          <div className={`rounded-2xl border-2 px-4 py-4 ${cfg.promptCard}`}>
-            <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${cfg.dimText}`}>Your answer</p>
+          <div className={`flex-1 flex flex-col rounded-2xl border-2 px-4 py-4 min-h-[180px] ${cfg.promptCard}`}>
+            <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 shrink-0 ${cfg.dimText}`}>Your answer</p>
             <textarea
-              className={`w-full bg-transparent resize-none text-base leading-relaxed focus:outline-none ${cfg.promptText}`}
-              rows={3}
+              className={`flex-1 w-full bg-transparent resize-none text-base leading-relaxed focus:outline-none min-h-[80px] ${cfg.promptText}`}
               placeholder="Type your answer here…"
               value={answerText}
               onChange={e => setAnswerText(e.target.value)}
@@ -1963,12 +1962,12 @@ export default function RmraStudentView() {
             <button
               disabled={!answerText.trim() || submitting}
               onClick={submitAnswer}
-              className="mt-2 w-full py-2.5 rounded-xl font-bold text-sm text-white transition disabled:opacity-40"
+              className="mt-3 w-full py-3 rounded-xl font-bold text-sm text-white transition disabled:opacity-40 shrink-0"
               style={{ background: cfg.accentDark }}
             >
               {submitting ? "Submitting…" : "Submit Answer →"}
             </button>
-            {answerError && <p className="text-red-400 text-xs mt-1.5">{answerError}</p>}
+            {answerError && <p className="text-red-400 text-xs mt-1.5 shrink-0">{answerError}</p>}
           </div>
         )}
 
