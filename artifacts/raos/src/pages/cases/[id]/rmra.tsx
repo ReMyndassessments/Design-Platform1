@@ -239,6 +239,14 @@ export default function RmraAdminPage() {
   // Assignment token (for student view link)
   const [assignmentToken, setAssignmentToken] = useState<string | null>(null);
 
+  // Item counts per age band (kept in sync with rmra-items.ts briefVersion flags)
+  const ITEM_COUNTS: Record<string, { full: number; brief: number }> = {
+    early_primary:  { full: 16, brief: 15 },
+    upper_primary:  { full: 16, brief: 14 },
+    middle_school:  { full: 14, brief: 11 },
+    secondary:      { full: 14, brief: 6  },
+  };
+
   // Setup (pre-start) state
   const [setupAgeBand, setSetupAgeBand] = useState("upper_primary");
   const [setupVersion, setSetupVersion] = useState<"full" | "brief">("full");
@@ -767,23 +775,29 @@ export default function RmraAdminPage() {
           <div className="bg-white border border-slate-200 rounded-xl p-5 mb-5">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">Battery Version</h2>
             <div className="flex gap-3">
-              {[
-                { value: "full", label: "Full Battery", desc: "30–60 min · All items" },
-                { value: "brief", label: "Brief Battery", desc: "15–25 min · Core items only" },
-              ].map(v => (
-                <button
-                  key={v.value}
-                  onClick={() => setSetupVersion(v.value as "full" | "brief")}
-                  className={`flex-1 p-3 rounded-lg text-left border transition-colors ${
-                    setupVersion === v.value
-                      ? "bg-violet-600 text-white border-violet-600"
-                      : "bg-white text-slate-700 border-slate-200 hover:border-violet-300"
-                  }`}
-                >
-                  <div className="text-sm font-medium">{v.label}</div>
-                  <div className={`text-xs mt-0.5 ${setupVersion === v.value ? "text-violet-200" : "text-slate-400"}`}>{v.desc}</div>
-                </button>
-              ))}
+              {(["full", "brief"] as const).map(v => {
+                const counts = ITEM_COUNTS[setupAgeBand] ?? { full: 16, brief: 14 };
+                const n = counts[v];
+                const label = v === "full" ? "Full Battery" : "Brief Battery";
+                const time  = v === "full" ? "30–60 min" : "15–25 min";
+                const note  = v === "full" ? "all domains" : "core domains only";
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setSetupVersion(v)}
+                    className={`flex-1 p-3 rounded-lg text-left border transition-colors ${
+                      setupVersion === v
+                        ? "bg-violet-600 text-white border-violet-600"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-violet-300"
+                    }`}
+                  >
+                    <div className="text-sm font-medium">{label}</div>
+                    <div className={`text-xs mt-0.5 ${setupVersion === v ? "text-violet-200" : "text-slate-400"}`}>
+                      {time} · <span className="font-semibold">{n} tasks</span> · {note}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
