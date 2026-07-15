@@ -616,23 +616,60 @@ function BalanceScaleVisual({ accent, vp }: { accent: string; vp: Record<string,
   // Equation display (algebraic items: AR_MS_001, AR_SEC_001)
   const equation = strVP("equation", "");
   if (equation) {
-    const cx = 130; const cy = 64; const arm = 80; const panH = 38;
-    const lx = cx - arm; const rx = cx + arm;
     const [lhs, rhs] = equation.includes("=") ? equation.split("=").map(s => s.trim()) : [equation, "?"];
+    // Split LHS by " + " so long expressions stack vertically inside the pan
+    const lhsTerms = lhs.split(" + ");
+    const multiLine = lhsTerms.length > 1;
+    const lineH = 13; // SVG units per text line
+    // Pan heights: LHS grows with number of lines; RHS stays compact
+    const lhsPanH = multiLine ? lhsTerms.length * lineH + 10 : 28;
+    const rhsPanH = 28;
+    // Hang both pans at the same y; use the taller one for the rope length
+    const ropeH = Math.max(lhsPanH, rhsPanH) + 10;
+    const lPanW = multiLine ? 90 : 60;
+    const rPanW = 60;
+    const cx = 130; const cy = 55; const arm = 82;
+    const lx = cx - arm; const rx = cx + arm;
+    // Pan tops sit at cy + ropeH; text sits inside each pan
+    const lPanTop = cy + ropeH;
+    const rPanTop = cy + ropeH;
+    const svgH = Math.max(lPanTop + lhsPanH, rPanTop + rhsPanH) + 26;
+    // Fulcrum triangle: tip just below beam, base just above tallest pan
+    const fulcrumBase = lPanTop - 4;
+    // Text y: vertically centred inside each pan (SVG text baseline = ~80% from top)
+    const lhsFirstY = lPanTop + Math.floor((lhsPanH - lhsTerms.length * lineH) / 2) + lineH - 1;
+    const rhsTextY = rPanTop + Math.floor(rhsPanH / 2) + 5;
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>Balance scale</p>
-        <svg viewBox="0 0 260 160" className="w-full max-w-xs mx-auto">
+        <svg viewBox={`0 0 260 ${svgH}`} className="w-full max-w-xs mx-auto">
+          {/* Pole */}
           <line x1={cx} y1={12} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+          {/* Beam */}
           <line x1={lx} y1={cy} x2={rx} y2={cy} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
-          <line x1={lx} y1={cy} x2={lx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
-          <line x1={rx} y1={cy} x2={rx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
-          <rect x={lx - 30} y={cy + panH} width={60} height={28} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
-          <rect x={rx - 30} y={cy + panH} width={60} height={28} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
-          <text x={lx} y={cy + panH + 18} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{lhs}</text>
-          <text x={rx} y={cy + panH + 18} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{rhs}</text>
-          <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 46} ${cx + 13},${cy + 46}`} fill="#94a3b8" />
-          <line x1={cx - 18} y1={cy + 46} x2={cx + 18} y2={cy + 46} stroke="#64748b" strokeWidth={4} />
+          {/* Ropes */}
+          <line x1={lx} y1={cy} x2={lx} y2={lPanTop} stroke="#64748b" strokeWidth={2.5} />
+          <line x1={rx} y1={cy} x2={rx} y2={rPanTop} stroke="#64748b" strokeWidth={2.5} />
+          {/* Pans */}
+          <rect x={lx - lPanW / 2} y={lPanTop} width={lPanW} height={lhsPanH} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          <rect x={rx - rPanW / 2} y={rPanTop} width={rPanW} height={rhsPanH} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          {/* LHS text — stacked lines if multi-term */}
+          {multiLine ? (
+            <text textAnchor="middle" fontSize={11} fontWeight="bold" fill={accent}>
+              {lhsTerms.map((term, i) => (
+                <tspan key={i} x={lx} y={lhsFirstY + i * lineH}>
+                  {i < lhsTerms.length - 1 ? term + " +" : term}
+                </tspan>
+              ))}
+            </text>
+          ) : (
+            <text x={lx} y={lhsFirstY} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{lhs}</text>
+          )}
+          {/* RHS text */}
+          <text x={rx} y={rhsTextY} textAnchor="middle" fontSize={13} fontWeight="bold" fill={accent}>{rhs}</text>
+          {/* Fulcrum */}
+          <polygon points={`${cx},${cy + 2} ${cx - 13},${fulcrumBase} ${cx + 13},${fulcrumBase}`} fill="#94a3b8" />
+          <line x1={cx - 18} y1={fulcrumBase} x2={cx + 18} y2={fulcrumBase} stroke="#64748b" strokeWidth={4} />
         </svg>
         <p className="text-center text-xs text-slate-400 -mt-1">{equation}</p>
       </div>
