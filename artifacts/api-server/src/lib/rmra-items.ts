@@ -1471,7 +1471,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     domain: "Patterns & Early Algebra",
     ageBand: "secondary",
     taskType: "quadratic_pattern",
-    visualType: "coordinate_grid",
+    visualType: "visual_word_problem",
     prompts: {
       space_mission: "The number of satellites in n orbits follows: T = n² + n. How many for 8 orbits? What orbit has 90 satellites?",
       city_builder: "Windows in n floors: T = n² + n. 8 floors = ? windows. Which floor count gives 90 windows?",
@@ -1493,6 +1493,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
     briefVersion: false,
+    visualData: { expression: "T = n\u00b2 + n" },
   },
 
   // ── GEOMETRY & SPATIAL REASONING ──────────────────────────────────────────────
