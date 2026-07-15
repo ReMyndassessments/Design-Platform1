@@ -216,13 +216,20 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
           <p className="text-center text-slate-500 text-sm">Speak your answer aloud</p>
         </div>
       ) : (
-        /* Dots visible — no visual timer, 3s auto-hides via timeout */
+        /* Bricks visible */
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[220px] mx-auto">
           {Array.from({ length: count }, (_, i) => {
             const col = i % cols; const row = Math.floor(i / cols);
-            const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
-            return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+            const bw = cellSize * 0.82; const bh = cellSize * 0.44;
+            const x = col * cellSize + (cellSize - bw) / 2 + 10;
+            const y = row * cellSize + (cellSize - bh) / 2 + 10;
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={bw} height={bh} rx={3} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />
+                <line x1={x + bw * 0.33} y1={y} x2={x + bw * 0.33} y2={y + bh} stroke={accent} strokeWidth={0.8} opacity={0.5} />
+                <line x1={x + bw * 0.66} y1={y} x2={x + bw * 0.66} y2={y + bh} stroke={accent} strokeWidth={0.8} opacity={0.5} />
+              </g>
+            );
           })}
         </svg>
       )}

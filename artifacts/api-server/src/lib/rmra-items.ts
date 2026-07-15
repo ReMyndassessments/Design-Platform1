@@ -47,7 +47,7 @@ export const RMRA_DOMAINS = [
 
 export const RMRA_STUDENT_INSTRUCTIONS: Record<string, string> = {
   // Number Sense
-  RMRA_NS_EP_001: "Glance at the dots — don't count. About how many do you see? Type your estimate.",
+  RMRA_NS_EP_001: "Glance at the bricks — don't count. About how many do you see? Type your estimate.",
   RMRA_NS_EP_002: "Look at both buildings. Which has more windows? Type your answer and explain how you can tell.",
   RMRA_NS_EP_003: "Look at the dots quickly, then look away. About how many did you see? Type your estimate.",
   RMRA_NS_UP_001: "Take one quick look — don't count. About how many dots? Type your estimate.",
@@ -188,7 +188,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "dot_array",
     prompts: {
       space_mission: "How many fuel crystals are on the launch pad? Don't count — just look!",
-      city_builder: "How many building lights are on? Just look quickly!",
+      city_builder: "How many bricks are in the pile? Just look quickly!",
       bakery_math: "How many chocolate chips are on the cookie? Don't count — just look!",
       robot_factory: "How many bolts are on the workbench? Quick look!",
       treasure_builder: "How many gold coins are in the chest? Just look!",
