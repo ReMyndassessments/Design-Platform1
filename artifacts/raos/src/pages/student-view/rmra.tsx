@@ -280,8 +280,8 @@ function BuildingComparisonVisual({ groupA, groupB, accent }: { groupA: number; 
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[240px] mx-auto">
         {renderBuilding(a, aX)}
         {renderBuilding(b, bX)}
-        <text x={aX + buildingW / 2} y={12} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Tall</text>
-        <text x={bX + buildingW / 2} y={12} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Short</text>
+        <text x={aX + buildingW / 2} y={H - a.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Tall</text>
+        <text x={bX + buildingW / 2} y={H - b.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Short</text>
       </svg>
     </div>
   );
