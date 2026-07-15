@@ -248,7 +248,7 @@ const en: OverviewMap = {
       "Can be shared directly with school to prompt further action",
       "Identifies whether concerns are primarily academic, emotional, behavioural, or social",
     ],
-    costContext: "Private child psychology consultations in Shanghai typically start at 800–1,500 RMB per session, with 5–10 sessions commonly required for a meaningful assessment picture. At 4,400 RMB (summer rate), ReMynd provides a structured, multi-informant profile equivalent to 3–5 consultation sessions — but with a written report and specific recommendations included.",
+    costContext: "Private educational assessments for childhood concerns in Shanghai — from educational psychologists or developmental specialists — typically start at 8,000–15,000 RMB for a structured evaluation with a written report. At 4,400 RMB (summer rate), ReMynd provides parents with a clear, professionally-written profile of their child's strengths and difficulties at a fraction of the cost — with no waiting list, no school referral required, and a report parents can use and share immediately.",
     typicalTimeline: "7–10 working days from intake completion",
   },
 
@@ -295,7 +295,7 @@ const en: OverviewMap = {
       "Lower cost than clinical counselling intake for wellbeing concerns",
       "Can be repeated to track wellbeing change over time",
     ],
-    costContext: "Initial clinical psychology or counselling assessments in Shanghai typically cost 1,000–2,500 RMB per session, with 3–5 sessions needed before a clear wellbeing picture emerges. At 3,040 RMB (summer rate), the Emotional Wellbeing Check provides a comprehensive, multi-informant wellbeing profile in one structured process — with a clear professional report at the end.",
+    costContext: "Private child psychology or counselling assessments in Shanghai typically start at 6,000–10,000 RMB for a structured multi-session evaluation with a written summary. At 3,040 RMB (summer rate), ReMynd's Emotional Wellbeing Check delivers a comprehensive, multi-informant wellbeing profile with a professional written report in a single structured process — at roughly half the cost of a comparable private clinical intake.",
     typicalTimeline: "5–7 working days from intake",
   },
 
@@ -560,7 +560,7 @@ const zh: OverviewMap = {
       "可直接与学校分享以推动进一步行动",
       "识别关切主要来自学业、情绪、行为还是社交方面",
     ],
-    costContext: "上海私立儿童心理咨询通常起步价为每次800–1,500元，而需要5–10次才能形成有意义的评估图景。按暑期价4,400元，ReMynd提供相当于3–5次咨询价值的结构化、多信息来源档案——但包含书面报告和具体建议。",
+    costContext: "上海专业儿童教育评估（由教育心理学家或发育专科提供、含书面报告的结构化评估）通常起步价为8,000–15,000元人民币。按暑期价4,400元，ReMynd为家长提供清晰、专业撰写的孩子优势与困难档案，费用不足同类专业评估的三分之一——且无需排队等待，无需学校转介，家长可立即取用并分享报告。",
     typicalTimeline: "完成入学表单后7–10个工作日",
   },
 
@@ -607,7 +607,7 @@ const zh: OverviewMap = {
       "健康担忧的临床辅导入门费用更低",
       "可定期重复以追踪健康变化",
     ],
-    costContext: "上海初次临床心理或辅导评估通常每次需要1,000–2,500元，且需要3–5次才能形成清晰的健康图景。按暑期价3,040元，情绪健康检查在一个结构化过程中提供全面、多信息来源的健康档案——最终附有清晰的专业报告。",
+    costContext: "上海私立儿童心理或咨询评估（含书面总结的多次结构化面询）通常起步价为6,000–10,000元人民币。按暑期价3,040元，ReMynd情绪健康检查在一个结构化过程中提供全面的多信息来源健康档案及专业书面报告——费用约为同类私立临床初诊的一半。",
     typicalTimeline: "入学后5–7个工作日",
   },
 
@@ -872,7 +872,7 @@ const ko: OverviewMap = {
       "추가 조치를 촉구하기 위해 학교와 직접 공유 가능",
       "우려가 주로 학업, 정서, 행동 또는 사회적인 것인지 식별",
     ],
-    costContext: "상하이의 사설 아동 심리 상담은 일반적으로 회당 800–1,500위안부터 시작하며, 의미 있는 평가 그림을 얻으려면 5–10회가 필요합니다. 여름 할인가 4,400위안으로, ReMynd는 서면 보고서와 구체적인 권고를 포함하여 3–5회 상담에 상응하는 구조화된 다출처 프로파일을 제공합니다.",
+    costContext: "상하이에서 교육 심리사나 발달 전문의의 아동 관련 전문 평가는 서면 보고서가 포함된 구조화된 평가의 경우 일반적으로 8,000–15,000위안부터 시작합니다. 여름 할인가 4,400위안으로, ReMynd는 비용의 3분의 1 이하로 자녀의 강점과 어려움에 대한 명확하고 전문적으로 작성된 프로파일을 제공합니다 — 대기 시간 없이, 학교 의뢰 없이, 학부모가 즉시 활용하고 공유할 수 있는 보고서와 함께.",
     typicalTimeline: "접수 양식 완료 후 7–10 영업일",
   },
 
@@ -919,7 +919,7 @@ const ko: OverviewMap = {
       "웰빙 우려에 대한 임상 상담 입문 비용보다 낮음",
       "시간에 따른 웰빙 변화를 추적하기 위해 반복 가능",
     ],
-    costContext: "상하이의 초기 임상 심리 또는 상담 평가는 일반적으로 회당 1,000–2,500위안이며, 명확한 웰빙 그림이 나오기까지 3–5회가 필요합니다. 여름 할인가 3,040위안으로, 정서적 웰빙 점검은 하나의 구조화된 과정에서 포괄적인 다출처 웰빙 프로파일을 제공합니다 — 최종에 명확한 전문 보고서와 함께.",
+    costContext: "상하이의 사설 아동 심리 또는 상담 평가(서면 요약이 포함된 다중 세션 구조화 평가)는 일반적으로 6,000–10,000위안부터 시작합니다. 여름 할인가 3,040위안으로, ReMynd 정서적 웰빙 점검은 하나의 구조화된 과정에서 포괄적인 다출처 웰빙 프로파일과 전문 서면 보고서를 제공합니다 — 비슷한 사설 임상 초기 평가 비용의 절반 수준입니다.",
     typicalTimeline: "접수 후 5–7 영업일",
   },
 
