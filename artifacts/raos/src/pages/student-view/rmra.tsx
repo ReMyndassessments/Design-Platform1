@@ -1609,6 +1609,35 @@ function WordProblemVisual({ taskId, accent, vp }: {
     );
   }
 
+  // Cylinder diagram (ME_SEC_001 — radius + height given)
+  const cylRadius = typeof vp?.radius === "number" ? vp!.radius as number : null;
+  const cylHeight = typeof vp?.height === "number" ? vp!.height as number : null;
+  if (cylRadius !== null && cylHeight !== null) {
+    // Simple 2-D cylinder SVG: ellipse top, rectangle body, ellipse bottom
+    const W = 200; const H = 140;
+    const rx = 50; const ry = 14; // ellipse semi-axes
+    const cx = W / 2; const bodyTop = 30; const bodyH = 80;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Cylinder</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[200px] mx-auto">
+          {/* Body */}
+          <rect x={cx - rx} y={bodyTop} width={rx * 2} height={bodyH} fill={accent + "18"} stroke={accent} strokeWidth={2} />
+          {/* Bottom ellipse */}
+          <ellipse cx={cx} cy={bodyTop + bodyH} rx={rx} ry={ry} fill={accent + "22"} stroke={accent} strokeWidth={2} />
+          {/* Top ellipse (drawn last so it overlaps body top edge) */}
+          <ellipse cx={cx} cy={bodyTop} rx={rx} ry={ry} fill={accent + "30"} stroke={accent} strokeWidth={2} />
+          {/* Radius arrow */}
+          <line x1={cx} y1={bodyTop} x2={cx + rx} y2={bodyTop} stroke="#64748b" strokeWidth={1.5} strokeDasharray="3,2" />
+          <text x={cx + rx / 2} y={bodyTop - 5} textAnchor="middle" fontSize={11} fill="#475569" fontWeight="600">r = {cylRadius}</text>
+          {/* Height arrow */}
+          <line x1={cx + rx + 10} y1={bodyTop} x2={cx + rx + 10} y2={bodyTop + bodyH} stroke="#64748b" strokeWidth={1.5} strokeDasharray="3,2" />
+          <text x={cx + rx + 22} y={bodyTop + bodyH / 2 + 4} textAnchor="middle" fontSize={11} fill="#475569" fontWeight="600">h = {cylHeight}</text>
+        </svg>
+      </div>
+    );
+  }
+
   // Algebraic expression display (e.g. SR_SEC_001 polynomial subtraction)
   const expression = typeof vp?.expression === "string" ? vp!.expression as string : null;
   if (expression) {
