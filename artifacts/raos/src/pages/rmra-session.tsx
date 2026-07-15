@@ -11,8 +11,11 @@ import { Input } from "@/components/ui/input";
 import {
   Brain, ArrowLeft, Loader2, AlertTriangle, Copy, ExternalLink,
   CheckCircle2, ChevronRight, ChevronLeft, ClipboardCheck,
-  Printer, Mail, Send, CheckCheck,
+  Printer, Mail, Send, CheckCheck, SkipForward,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { RmraReportPanel, type RmraReportSession } from "./cases/[id]/rmra-report";
 import { QRCodeSVG } from "qrcode.react";
 import { useToast } from "@/hooks/use-toast";
@@ -111,6 +114,7 @@ export default function RmraStandaloneSessionPage() {
   const [generalNotes, setGeneralNotes] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   // Examiner token — read from ?et= URL param, persisted to sessionStorage keyed by
   // sessionId so it survives page refreshes. URL param is cleared immediately after
@@ -370,6 +374,19 @@ export default function RmraStandaloneSessionPage() {
   const totalScored = Object.keys(savedResponses).length;
   const totalItems = items.length;
 
+  const skippedItems = useMemo(() =>
+    items.filter(i => !savedResponses[i.id]),
+    [items, savedResponses]
+  );
+
+  const handleCompleteClick = useCallback(() => {
+    if (skippedItems.length > 0) {
+      setShowSkipConfirm(true);
+    } else {
+      handleComplete();
+    }
+  }, [skippedItems.length, handleComplete]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -396,7 +413,7 @@ export default function RmraStandaloneSessionPage() {
             <Button
               size="sm"
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={handleComplete}
+              onClick={handleCompleteClick}
               disabled={completing || totalScored === 0}
             >
               {completing ? <Loader2 size={12} className="animate-spin" /> : <ClipboardCheck size={12} />}
@@ -870,7 +887,7 @@ export default function RmraStandaloneSessionPage() {
                         <Button
                           size="sm"
                           className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={handleComplete}
+                          onClick={handleCompleteClick}
                           disabled={completing || totalScored === 0}
                         >
                           {completing ? <Loader2 size={12} className="animate-spin" /> : <ClipboardCheck size={12} />}
@@ -885,6 +902,64 @@ export default function RmraStandaloneSessionPage() {
           </>
         )}
       </div>
+
+      {/* Skipped tasks confirmation dialog */}
+      <Dialog open={showSkipConfirm} onOpenChange={setShowSkipConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <SkipForward size={16} className="text-amber-500" />
+              {skippedItems.length} task{skippedItems.length !== 1 ? "s" : ""} not yet scored
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            The following tasks have no score recorded. You can go back and score them, or complete the session as-is (they will count as 0%).
+          </p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100 max-h-56 overflow-y-auto">
+            {skippedItems.map(item => {
+              const idx = items.indexOf(item);
+              return (
+                <button
+                  key={item.id}
+                  className="w-full text-left px-3 py-2 flex items-center justify-between gap-2 hover:bg-amber-100 transition-colors group"
+                  onClick={() => {
+                    setShowSkipConfirm(false);
+                    setCurrentIdx(idx);
+                  }}
+                >
+                  <div>
+                    <p className="text-xs font-medium text-slate-700 group-hover:text-violet-700">{item.domain}</p>
+                    <p className="text-[11px] text-slate-400">{item.id}</p>
+                  </div>
+                  <span className="text-[11px] text-violet-600 font-medium shrink-0 opacity-0 group-hover:opacity-100">Go to task →</span>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowSkipConfirm(false)}
+            >
+              <ChevronLeft size={13} /> Go back and score
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => {
+                setShowSkipConfirm(false);
+                handleComplete();
+              }}
+              disabled={completing}
+            >
+              {completing ? <Loader2 size={12} className="animate-spin" /> : <ClipboardCheck size={12} />}
+              Complete anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
