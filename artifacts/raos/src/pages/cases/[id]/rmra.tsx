@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -238,6 +239,9 @@ export default function RmraAdminPage() {
 
   // Assignment token (for student view link)
   const [assignmentToken, setAssignmentToken] = useState<string | null>(null);
+
+  // Unscored-task confirmation dialog
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   // Item counts per age band (kept in sync with rmra-items.ts briefVersion flags)
   const ITEM_COUNTS: Record<string, { full: number; brief: number }> = {
@@ -623,6 +627,17 @@ export default function RmraAdminPage() {
     toast({ title: `${domain} discontinued`, description: "Remaining tasks marked as not administered." });
   };
 
+  // Tasks with no accuracy score and not intentionally discontinued
+  const unscoredItems = useMemo(() =>
+    items.filter(i => {
+      const r = responses[i.id];
+      if (!r) return true;
+      if (r.discontinued) return false;
+      return r.accuracy === null;
+    }),
+    [items, responses]
+  );
+
   // ── Complete assessment ──────────────────────────────────────────────────────
 
   const handleComplete = async () => {
@@ -653,6 +668,14 @@ export default function RmraAdminPage() {
       toast({ title: "Could not complete session", variant: "destructive" });
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleCompleteClick = () => {
+    if (unscoredItems.length > 0) {
+      setShowSkipConfirm(true);
+    } else {
+      handleComplete();
     }
   };
 
@@ -728,7 +751,7 @@ export default function RmraAdminPage() {
               )}
               <Button
                 size="sm"
-                onClick={handleComplete}
+                onClick={handleCompleteClick}
                 disabled={completing}
                 className="gap-1.5 bg-violet-600 hover:bg-violet-700"
               >
@@ -927,7 +950,7 @@ export default function RmraAdminPage() {
   const isCurrentDiscontinued = discontinuedDomains.has(currentTask.domain);
   const totalAnswered = Object.keys(responses).length;
 
-  return (
+  return (<>
     <div className="min-h-screen bg-slate-50">
       {header}
 
@@ -1452,7 +1475,7 @@ export default function RmraAdminPage() {
                 </Button>
               ) : (
                 <Button
-                  onClick={handleComplete}
+                  onClick={handleCompleteClick}
                   disabled={completing || isCompleted}
                   size="sm"
                   className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
@@ -1491,5 +1514,60 @@ export default function RmraAdminPage() {
         </div>
       </div>
     </div>
-  );
+
+    {/* Unscored-task confirmation dialog */}
+    <Dialog open={showSkipConfirm} onOpenChange={setShowSkipConfirm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-700">
+            <AlertTriangle size={16} className="text-amber-500" />
+            {unscoredItems.length} task{unscoredItems.length !== 1 ? "s" : ""} not yet scored
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-slate-600">
+          The following tasks have no score recorded. You can go back and score them, or complete the session as-is (they will count as 0%).
+        </p>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100 max-h-56 overflow-y-auto">
+          {unscoredItems.map(item => {
+            const idx = items.indexOf(item);
+            return (
+              <button
+                key={item.id}
+                className="w-full text-left px-3 py-2 flex items-center justify-between gap-2 hover:bg-amber-100 transition-colors group"
+                onClick={() => {
+                  setShowSkipConfirm(false);
+                  setCurrentTaskIdx(idx);
+                }}
+              >
+                <div>
+                  <p className="text-xs font-medium text-slate-700 group-hover:text-violet-700">{item.domain}</p>
+                  <p className="text-[11px] text-slate-400">{item.id}</p>
+                </div>
+                <span className="text-[11px] text-violet-600 font-medium shrink-0 opacity-0 group-hover:opacity-100">Go to task →</span>
+              </button>
+            );
+          })}
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowSkipConfirm(false)}
+          >
+            <ChevronLeft size={13} /> Go back and score
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => { setShowSkipConfirm(false); handleComplete(); }}
+            disabled={completing}
+          >
+            {completing ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+            Complete anyway
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>);
 }
