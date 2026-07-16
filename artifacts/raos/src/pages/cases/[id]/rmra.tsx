@@ -1111,8 +1111,8 @@ export default function RmraAdminPage() {
                   <Zap size={13} className="text-amber-500 shrink-0" />
                   <p className="text-xs text-amber-800 font-medium flex-1">
                     {currentTask.taskType === "subitizing"
-                      ? "Bricks shown — student sees them for 2 s, then must type their count"
-                      : "Stimulus shown — student sees dots for 3 s, then must estimate"}
+                      ? `${({ space_mission: "Stars", city_builder: "Bricks", bakery_math: "Cookies", robot_factory: "Bolts", treasure_builder: "Gems" } as Record<string,string>)[theme] ?? "Items"} shown — student sees them for 2 s, then must type their count`
+                      : "Stimulus shown — student sees items for 3 s, then must estimate"}
                   </p>
                   <button
                     onClick={() => {
