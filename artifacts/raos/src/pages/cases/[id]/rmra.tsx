@@ -698,10 +698,19 @@ export default function RmraAdminPage() {
   if (pageError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-red-600 text-sm max-w-sm">
-          <AlertTriangle size={24} className="mx-auto mb-2" />
-          <p>Failed to load RMRA session.</p>
-          <p className="text-xs text-slate-400 mt-1">{pageError}</p>
+        <div className="text-center max-w-sm">
+          <AlertTriangle size={32} className="mx-auto mb-3 text-red-500" />
+          <p className="font-semibold text-red-600 mb-1">Failed to load RMRA session.</p>
+          <p className="text-xs text-slate-400 mb-4">{pageError}</p>
+          <p className="text-xs text-slate-500 mb-4">
+            This usually means the assignment link is stale. Go back to the case and click <strong>Administer RMRA</strong> again to get a fresh link.
+          </p>
+          <a
+            href={caseId ? `/cases/${caseId}` : "/"}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-800 underline"
+          >
+            ← Back to Case
+          </a>
         </div>
       </div>
     );
