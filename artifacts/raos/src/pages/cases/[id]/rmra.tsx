@@ -1104,7 +1104,7 @@ export default function RmraAdminPage() {
                   className="bg-amber-500 hover:bg-amber-600 text-white gap-1.5 text-sm"
                 >
                   <Zap size={13} />
-                  {currentTask.taskType === "subitizing" ? "Show Bricks" : "Show & Start Flash"}
+                  {currentTask.taskType === "subitizing" ? "Start" : "Show & Start Flash"}
                 </Button>
               ) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
@@ -1121,7 +1121,7 @@ export default function RmraAdminPage() {
                     }}
                     className="text-xs text-amber-700 border border-amber-300 rounded-lg px-2.5 py-1 hover:bg-amber-100 font-medium shrink-0 flex items-center gap-1"
                   >
-                    <Zap size={11} /> {currentTask.taskType === "subitizing" ? "Show Again" : "Flash Again"}
+                    <Zap size={11} /> {currentTask.taskType === "subitizing" ? "Start Again" : "Flash Again"}
                   </button>
                 </div>
               )}
