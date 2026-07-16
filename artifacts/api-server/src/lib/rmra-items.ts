@@ -1921,6 +1921,12 @@ export const RMRA_ITEMS: RmraItem[] = [
         { label: "Chest C", color: "#22c55e" },
       ],
       chestClues: ["Chest B is found before Chest A", "Chest C is found last"],
+      cakes: [
+        { label: "Blueberry", color: "#6366f1" },
+        { label: "Chocolate", color: "#78350f" },
+        { label: "Vanilla", color: "#fde68a" },
+      ],
+      cakeClues: ["Blueberry is baked before Chocolate", "Vanilla is baked last"],
     },
   },
   {

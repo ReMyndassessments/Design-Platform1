@@ -1651,10 +1651,13 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
   const robots = Array.isArray(vp?.robots) ? vp!.robots as { label: string; color: string }[] : null;
   const chestClues = Array.isArray(vp?.chestClues) ? vp!.chestClues as string[] : null;
   const chests = Array.isArray(vp?.chests) ? vp!.chests as { label: string; color: string }[] : null;
+  const cakeClues = Array.isArray(vp?.cakeClues) ? vp!.cakeClues as string[] : null;
+  const cakes = Array.isArray(vp?.cakes) ? vp!.cakes as { label: string; color: string }[] : null;
 
   const activeClues = (theme === "city_builder" && buildingClues) ? buildingClues
     : (theme === "robot_factory" && robotClues) ? robotClues
     : (theme === "treasure_builder" && chestClues) ? chestClues
+    : (theme === "bakery_math" && cakeClues) ? cakeClues
     : clues;
 
   if (activeClues) {
@@ -1682,6 +1685,28 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
                   <rect x="12" y="36" width="6" height="8" rx="1" fill="white" opacity="0.6" />
                 </svg>
                 <span className="text-xs font-bold" style={{ color }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* bakery_math: show cake icons */}
+        {theme === "bakery_math" && cakes && (
+          <div className="flex justify-center gap-4 mb-3">
+            {cakes.map(({ label, color }) => (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <svg viewBox="0 0 34 36" width={34} height={36}>
+                  {/* Candle */}
+                  <rect x="15" y="1" width="4" height="7" rx="1" fill="#fbbf24" opacity="0.9" />
+                  <ellipse cx="17" cy="1" rx="2" ry="2.5" fill="#f97316" opacity="0.9" />
+                  {/* Frosting drip */}
+                  <ellipse cx="17" cy="11" rx="13" ry="4" fill="white" opacity="0.9" />
+                  <path d="M6,11 Q9,16 12,11 Q15,16 18,11 Q21,16 24,11 Q27,16 28,11" fill="white" opacity="0.9" />
+                  {/* Cake body */}
+                  <rect x="4" y="11" width="26" height="18" rx="3" fill={color} opacity="0.85" />
+                  {/* Base */}
+                  <rect x="2" y="27" width="30" height="6" rx="2" fill={color} opacity="0.95" />
+                </svg>
+                <span className="text-xs font-bold" style={{ color: color === "#fde68a" ? "#92400e" : color }}>{label}</span>
               </div>
             ))}
           </div>
@@ -1740,7 +1765,7 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
           </div>
         )}
         {/* space_mission: show rocket icons */}
-        {theme !== "city_builder" && theme !== "robot_factory" && theme !== "treasure_builder" && rockets && (
+        {theme !== "city_builder" && theme !== "robot_factory" && theme !== "treasure_builder" && theme !== "bakery_math" && rockets && (
           <div className="flex justify-center gap-4 mb-3">
             {rockets.map(({ label, color }) => (
               <div key={label} className="flex flex-col items-center gap-1">
