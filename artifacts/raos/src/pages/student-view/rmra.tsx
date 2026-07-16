@@ -289,48 +289,210 @@ const BUILDING_COMPARISON_LABELS: Record<string, { card: string; labelA: string;
 
 function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: number; groupB: number; accent: string; theme?: string }) {
   const labels = BUILDING_COMPARISON_LABELS[theme ?? ""] ?? BUILDING_COMPARISON_LABELS.city_builder;
-  // Draw two buildings: tall (groupA windows) and short (groupB windows)
-  // Each building is a rectangle with a grid of lit windows
+
+  // Helper: 5-pointed star path centred at (cx,cy) outer radius r, inner radius ir
+  const starPath = (cx: number, cy: number, r = 7, ir = 3) =>
+    Array.from({ length: 10 }, (_, i) => {
+      const a = (i * Math.PI) / 5 - Math.PI / 2;
+      const rad = i % 2 === 0 ? r : ir;
+      return `${i === 0 ? "M" : "L"}${cx + Math.cos(a) * rad},${cy + Math.sin(a) * rad}`;
+    }).join("") + "Z";
+
+  // Helper: item grid positions inside a container (cols=2, cell=16px)
+  const itemPositions = (n: number, originX: number, originY: number, cols = 2, cell = 16) =>
+    Array.from({ length: n }, (_, i) => ({
+      x: originX + (i % cols) * cell + cell / 2,
+      y: originY + Math.floor(i / cols) * cell + cell / 2,
+    }));
+
+  // ── space_mission: two rockets (red / blue) with stars ──────────────────────
+  if (theme === "space_mission") {
+    const RED = "#ef4444"; const BLUE = "#3b82f6";
+    const RW = 46; const NOSE = 22; const FIN = 16; const PAD = 8; const COLS = 2; const CELL = 17;
+    const rocketH = (n: number) => Math.ceil(n / COLS) * CELL + PAD * 2;
+    const aH = rocketH(groupA); const bH = rocketH(groupB);
+    const maxH = Math.max(aH, bH);
+    const totalH = NOSE + maxH + FIN + 14;
+    const W = RW * 2 + 50 + 20; const GAP = 50;
+    const aX = 5; const bX = aX + RW + GAP;
+    const renderRocket = (n: number, x: number, color: string, bodyH: number) => {
+      const yBody = NOSE + (maxH - bodyH); // align bottoms
+      const stars = itemPositions(n, x + PAD, yBody + PAD, COLS, CELL);
+      return (
+        <g key={x}>
+          <polygon points={`${x + RW / 2},${yBody - NOSE} ${x},${yBody} ${x + RW},${yBody}`} fill={color} opacity={0.85} />
+          <rect x={x} y={yBody} width={RW} height={bodyH} rx={3} fill={color} opacity={0.18} stroke={color} strokeWidth={1.5} />
+          {stars.map((s, i) => <path key={i} d={starPath(s.x, s.y, 6, 2.5)} fill={color} opacity={0.9} />)}
+          <polygon points={`${x},${yBody + bodyH} ${x - 10},${yBody + bodyH + FIN} ${x},${yBody + bodyH + FIN}`} fill={color} opacity={0.65} />
+          <polygon points={`${x + RW},${yBody + bodyH} ${x + RW + 10},${yBody + bodyH + FIN} ${x + RW},${yBody + bodyH + FIN}`} fill={color} opacity={0.65} />
+          <ellipse cx={x + RW / 2} cy={yBody + bodyH + FIN} rx={9} ry={5} fill="#fbbf24" opacity={0.85} />
+        </g>
+      );
+    };
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{labels.card}</p>
+        <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
+          {renderRocket(groupA, aX, RED, aH)}
+          {renderRocket(groupB, bX, BLUE, bH)}
+          <text x={aX + RW / 2} y={totalH - 2} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + RW / 2} y={totalH - 2} textAnchor="middle" fontSize={10} fill="#3b82f6" fontWeight="700">{labels.labelB}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── bakery_math: two trays with cupcake circles ──────────────────────────────
+  if (theme === "bakery_math") {
+    const TRAY_W = 56; const PAD = 8; const COLS = 2; const CELL = 16; const TRAY_BOT = 10;
+    const trayH = (n: number) => Math.ceil(n / COLS) * CELL + PAD * 2 + TRAY_BOT;
+    const aH = trayH(groupA); const bH = trayH(groupB);
+    const maxH = Math.max(aH, bH);
+    const W = TRAY_W * 2 + 40 + 20; const GAP = 40; const LABEL_H = 14;
+    const aX = 5; const bX = aX + TRAY_W + GAP;
+    const renderTray = (n: number, x: number, h: number) => {
+      const yTop = maxH - h + LABEL_H;
+      const items = itemPositions(n, x + PAD, yTop + PAD, COLS, CELL);
+      return (
+        <g key={x}>
+          <rect x={x} y={yTop} width={TRAY_W} height={h - TRAY_BOT} rx={4} fill="#f1f5f9" stroke="#94a3b8" strokeWidth={1.5} />
+          <rect x={x - 3} y={yTop + h - TRAY_BOT - 4} width={TRAY_W + 6} height={TRAY_BOT} rx={3} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1} />
+          {items.map((s, i) => (
+            <g key={i}>
+              <ellipse cx={s.x} cy={s.y + 2} rx={6} ry={3} fill={accent + "99"} />
+              <ellipse cx={s.x} cy={s.y - 2} rx={5} ry={5} fill={accent + "dd"} stroke={accent} strokeWidth={0.8} />
+              <circle cx={s.x} cy={s.y - 4} r={1.5} fill="#fbbf24" />
+            </g>
+          ))}
+        </g>
+      );
+    };
+    const totalH = maxH + LABEL_H + 4;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{labels.card}</p>
+        <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
+          {renderTray(groupA, aX, aH)}
+          {renderTray(groupB, bX, bH)}
+          <text x={aX + TRAY_W / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + TRAY_W / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelB}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── robot_factory: two robots with gear circles ───────────────────────────────
+  if (theme === "robot_factory") {
+    const GREEN = "#22c55e"; const YELLOW = "#eab308";
+    const RBW = 50; const HEAD = 18; const PAD = 6; const COLS = 2; const CELL = 16; const FOOT = 10;
+    const bodyH = (n: number) => Math.ceil(n / COLS) * CELL + PAD * 2;
+    const aH = bodyH(groupA); const bH = bodyH(groupB);
+    const maxBH = Math.max(aH, bH);
+    const totalH = HEAD + maxBH + FOOT + 18;
+    const W = RBW * 2 + 40 + 20; const GAP = 40;
+    const aX = 5; const bX = aX + RBW + GAP;
+    const renderRobot = (n: number, x: number, color: string, bh: number) => {
+      const yBody = HEAD + (maxBH - bh);
+      const gears = itemPositions(n, x + PAD, yBody + PAD, COLS, CELL);
+      return (
+        <g key={x}>
+          <rect x={x + 5} y={0} width={RBW - 10} height={HEAD} rx={4} fill={color} opacity={0.25} stroke={color} strokeWidth={1.5} />
+          <circle cx={x + RBW / 2 - 7} cy={HEAD / 2} r={3} fill={color} opacity={0.9} />
+          <circle cx={x + RBW / 2 + 7} cy={HEAD / 2} r={3} fill={color} opacity={0.9} />
+          <rect x={x + RBW / 2 - 6} cy={HEAD - 5} width={12} height={3} rx={1} fill={color} opacity={0.7} />
+          <rect x={x} y={yBody} width={RBW} height={bh} rx={3} fill={color} opacity={0.15} stroke={color} strokeWidth={1.5} />
+          {gears.map((g, i) => (
+            <g key={i}>
+              <circle cx={g.x} cy={g.y} r={6} fill="none" stroke={color} strokeWidth={2} opacity={0.9} />
+              <circle cx={g.x} cy={g.y} r={2.5} fill={color} opacity={0.8} />
+              {[0, 60, 120, 180, 240, 300].map(deg => {
+                const rad = (deg * Math.PI) / 180;
+                return <rect key={deg} x={g.x + Math.cos(rad) * 5.5 - 1.5} y={g.y + Math.sin(rad) * 5.5 - 1.5} width={3} height={3} rx={0.5} fill={color} opacity={0.9} />;
+              })}
+            </g>
+          ))}
+          <rect x={x + 8} y={yBody + bh} width={10} height={FOOT} rx={2} fill={color} opacity={0.5} />
+          <rect x={x + RBW - 18} y={yBody + bh} width={10} height={FOOT} rx={2} fill={color} opacity={0.5} />
+        </g>
+      );
+    };
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{labels.card}</p>
+        <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
+          {renderRobot(groupA, aX, GREEN, aH)}
+          {renderRobot(groupB, bX, YELLOW, bH)}
+          <text x={aX + RBW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#22c55e" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + RBW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#ca8a04" fontWeight="700">{labels.labelB}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── treasure_builder: two chests with jewel diamonds ─────────────────────────
+  if (theme === "treasure_builder") {
+    const WOOD = "#92400e"; const STONE = "#64748b";
+    const CW = 54; const LID = 14; const PAD = 8; const COLS = 2; const CELL = 15;
+    const chestBodyH = (n: number) => Math.ceil(n / COLS) * CELL + PAD * 2;
+    const aH = chestBodyH(groupA); const bH = chestBodyH(groupB);
+    const maxBH = Math.max(aH, bH);
+    const totalH = LID + maxBH + 16;
+    const W = CW * 2 + 40 + 20; const GAP = 40;
+    const aX = 5; const bX = aX + CW + GAP;
+    const diamond = (cx: number, cy: number, color: string) =>
+      <polygon key={`${cx}-${cy}`} points={`${cx},${cy - 6} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`} fill={color} opacity={0.85} stroke={color} strokeWidth={0.5} />;
+    const renderChest = (n: number, x: number, color: string, bh: number) => {
+      const yBody = LID + (maxBH - bh);
+      const jewels = itemPositions(n, x + PAD, yBody + PAD, COLS, CELL);
+      return (
+        <g key={x}>
+          <rect x={x} y={LID + (maxBH - bh) - LID} width={CW} height={LID} rx={4} fill={color} opacity={0.4} stroke={color} strokeWidth={1.5} />
+          <rect x={x} y={yBody} width={CW} height={bh} rx={2} fill={color} opacity={0.15} stroke={color} strokeWidth={1.5} />
+          <rect x={x + CW / 2 - 8} y={yBody - 4} width={16} height={8} rx={2} fill={color} opacity={0.6} />
+          {jewels.map((j, i) => diamond(j.x, j.y, i % 2 === 0 ? "#a855f7" : "#f59e0b"))}
+        </g>
+      );
+    };
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{labels.card}</p>
+        <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
+          {renderChest(groupA, aX, WOOD, aH)}
+          {renderChest(groupB, bX, STONE, bH)}
+          <text x={aX + CW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#92400e" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + CW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#64748b" fontWeight="700">{labels.labelB}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── city_builder (default): two buildings with windows ───────────────────────
   const WIN_COLS = 2; const WIN_W = 18; const WIN_H = 14; const WIN_GAP = 8;
   const WALL_PAD_X = 12; const WALL_PAD_TOP = 12; const WALL_PAD_BOT = 20;
   const buildingW = WIN_COLS * WIN_W + (WIN_COLS - 1) * WIN_GAP + WALL_PAD_X * 2;
-
   const buildSVG = (n: number) => {
     const rows = Math.ceil(n / WIN_COLS);
     const bldH = rows * WIN_H + (rows - 1) * WIN_GAP + WALL_PAD_TOP + WALL_PAD_BOT;
     const windows = Array.from({ length: n }, (_, i) => {
       const col = i % WIN_COLS; const row = Math.floor(i / WIN_COLS);
-      const wx = WALL_PAD_X + col * (WIN_W + WIN_GAP);
-      const wy = WALL_PAD_TOP + row * (WIN_H + WIN_GAP);
-      return { wx, wy };
+      return { wx: WALL_PAD_X + col * (WIN_W + WIN_GAP), wy: WALL_PAD_TOP + row * (WIN_H + WIN_GAP) };
     });
     return { bldH, windows };
   };
-
   const a = buildSVG(groupA); const b = buildSVG(groupB);
   const maxH = Math.max(a.bldH, b.bldH);
-  const LABEL_TOP = 26; // reserved space above tallest building for label
-  const GAP = 30; const W = buildingW * 2 + GAP + 20; const H = maxH + 30 + LABEL_TOP;
-
+  const LABEL_TOP = 26; const GAP = 30; const W = buildingW * 2 + GAP + 20; const H = maxH + 30 + LABEL_TOP;
+  const aX = 5; const bX = aX + buildingW + GAP;
   const renderBuilding = (info: ReturnType<typeof buildSVG>, xOff: number) => (
     <g key={xOff}>
-      <rect x={xOff} y={H - info.bldH - 20} width={buildingW} height={info.bldH}
-        rx={2} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
+      <rect x={xOff} y={H - info.bldH - 20} width={buildingW} height={info.bldH} rx={2} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
       {info.windows.map(({ wx, wy }, i) => (
-        <rect key={i} x={xOff + wx} y={H - info.bldH - 20 + wy}
-          width={WIN_W} height={WIN_H} rx={2} fill={accent + "cc"} stroke={accent} strokeWidth={1} />
+        <rect key={i} x={xOff + wx} y={H - info.bldH - 20 + wy} width={WIN_W} height={WIN_H} rx={2} fill={accent + "cc"} stroke={accent} strokeWidth={1} />
       ))}
-      {/* Door */}
-      <rect x={xOff + buildingW / 2 - 7} y={H - 20} width={14} height={18}
-        rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
-      {/* Ground line */}
-      <line x1={xOff - 4} y1={H - 2} x2={xOff + buildingW + 4} y2={H - 2}
-        stroke="#94a3b8" strokeWidth={2} />
+      <rect x={xOff + buildingW / 2 - 7} y={H - 20} width={14} height={18} rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+      <line x1={xOff - 4} y1={H - 2} x2={xOff + buildingW + 4} y2={H - 2} stroke="#94a3b8" strokeWidth={2} />
     </g>
   );
-
-  const aX = 5; const bX = aX + buildingW + GAP;
-
   return (
     <div className={CARD_INNER}>
       <p className={TASK_LABEL}>{labels.card}</p>
