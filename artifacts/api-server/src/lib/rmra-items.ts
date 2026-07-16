@@ -556,7 +556,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "place_value_chart",
     prompts: {
       space_mission: "In the number 47, what does the 4 stand for?",
-      city_builder: "In the building number 47, what is the value of the 4?",
+      city_builder: "In the number 47, what is the value of the 4?",
       bakery_math: "The recipe uses 47 grams. What does the 4 in 47 stand for?",
       robot_factory: "The robot number is 47. What is the value of the digit 4?",
       treasure_builder: "The treasure chest has 47 gems. What does the 4 in 47 mean?",
