@@ -205,9 +205,13 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
       {taskType === "subitizing" && flashPhase === "waiting" ? (
         /* Waiting for examiner to trigger */
         <div className="flex flex-col items-center gap-3 py-8">
-          <div className="text-5xl animate-pulse">🧱</div>
+          <div className="text-5xl animate-pulse">
+            {({ space_mission: "⭐", city_builder: "🧱", bakery_math: "🍪", robot_factory: "🔩", treasure_builder: "💎" } as Record<string,string>)[theme ?? ""] ?? "🧱"}
+          </div>
           <p className="text-center font-semibold text-slate-600 text-base">Get ready…</p>
-          <p className="text-center text-slate-400 text-sm">Your teacher will show the bricks</p>
+          <p className="text-center text-slate-400 text-sm">
+            Your teacher will show the {({ space_mission: "stars", city_builder: "bricks", bakery_math: "cookies", robot_factory: "bolts", treasure_builder: "gems" } as Record<string,string>)[theme ?? ""] ?? "items"}
+          </p>
         </div>
       ) : taskType === "subitizing" && flashPhase === "done" ? (
         /* Bricks hidden — student types their count */
