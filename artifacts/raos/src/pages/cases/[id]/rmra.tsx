@@ -1194,8 +1194,8 @@ export default function RmraAdminPage() {
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-slate-600 mb-2 block">Strategy Level</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {(currentTask.strategyOptions.length > 0 ? currentTask.strategyOptions : STRATEGY_HIERARCHY).map((opt, i) => {
-                    const stratIdx = STRATEGY_HIERARCHY.indexOf(opt as any);
+                  {STRATEGY_HIERARCHY.map((opt, i) => {
+                    const stratIdx = i;
                     const isSelected = currentResponse.strategyLabel === opt;
                     return (
                       <button
