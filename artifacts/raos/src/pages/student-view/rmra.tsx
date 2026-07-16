@@ -261,6 +261,39 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 }).join(" ");
                 return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />;
               }
+              if (theme === "robot_factory") {
+                // Bolt: flat-top hexagon head + rectangular shaft
+                const hr = Math.min(7, cellSize * 0.21);
+                const shaftW = hr * 0.52; const shaftH = hr * 1.4;
+                const headCy = cy - shaftH * 0.35;
+                const hexPts = Array.from({ length: 6 }, (_, k) => {
+                  const a = (k * Math.PI) / 3;
+                  return `${cx + Math.cos(a) * hr},${headCy + Math.sin(a) * hr * 0.75}`;
+                }).join(" ");
+                return (
+                  <g key={i}>
+                    <polygon points={hexPts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                    <rect x={cx - shaftW / 2} y={headCy + hr * 0.65} width={shaftW} height={shaftH} rx={1} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                  </g>
+                );
+              }
+              if (theme === "bakery_math") {
+                // Cookie: circle with small cross-hatch lines
+                const r = Math.min(11, cellSize * 0.32);
+                return (
+                  <g key={i}>
+                    <circle cx={cx} cy={cy} r={r} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />
+                    <line x1={cx - r * 0.45} y1={cy - r * 0.45} x2={cx + r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
+                    <line x1={cx + r * 0.45} y1={cy - r * 0.45} x2={cx - r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
+                  </g>
+                );
+              }
+              if (theme === "treasure_builder") {
+                // Diamond gem shape
+                const r = Math.min(11, cellSize * 0.32);
+                const pts = `${cx},${cy - r} ${cx + r * 0.8},${cy} ${cx},${cy + r} ${cx - r * 0.8},${cy}`;
+                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+              }
               return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
             }
             const cw = cellSize * 0.78; const ch = cellSize * 0.52;
