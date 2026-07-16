@@ -126,13 +126,23 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
       theme: string;
     };
 
-    const [assignment] = await db
+    let [assignment] = await db
       .select()
       .from(assignmentsTable)
       .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
-    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    // Fallback: if the specific assignmentId is stale/deleted, find the active RMRA assignment for this case
+    if (!assignment) {
+      const [fallback] = await db
+        .select()
+        .from(assignmentsTable)
+        .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, "RMRA")))
+        .limit(1);
+      if (!fallback) return res.status(404).json({ error: "Assignment not found" });
+      assignment = fallback;
+    }
+
     if (assignment.toolId !== "RMRA") return res.status(400).json({ error: "Assignment is not an RMRA session" });
 
     const existing = await db
