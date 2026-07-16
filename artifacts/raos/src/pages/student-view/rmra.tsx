@@ -1083,12 +1083,21 @@ function FractionBarVisual({ numerator, denominator, accent, vp }: {
 // ── Visual: Fraction Circle ───────────────────────────────────────────────────
 // Static illustration — pre-shaded to show the fraction
 
-function FractionCircleVisual({ numerator, denominator, accent }: {
-  numerator: number; denominator: number; accent: string;
+function FractionCircleVisual({ numerator, denominator, accent, theme }: {
+  numerator: number; denominator: number; accent: string; theme?: string;
 }) {
   const den = Math.max(denominator, 2);
   const num = Math.min(numerator, den);
   const R = 68; const cx = 100; const cy = 88;
+
+  const THEME_LABEL: Record<string, string> = {
+    space_mission: "The moon",
+    city_builder: "The shape",
+    bakery_math: "The pizza",
+    robot_factory: "The panel",
+    treasure_builder: "The treasure zone",
+  };
+  const label = THEME_LABEL[theme ?? ""] ?? "Fraction circle";
 
   const makeSlice = (i: number) => {
     const a1 = (i / den) * 2 * Math.PI - Math.PI / 2;
@@ -1101,7 +1110,7 @@ function FractionCircleVisual({ numerator, denominator, accent }: {
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Fraction circle</p>
+      <p className={TASK_LABEL}>{label}</p>
       <svg viewBox="0 0 200 185" className="w-44 mx-auto">
         {Array.from({ length: den }, (_, i) => (
           <path key={i} d={makeSlice(i)}
@@ -1109,6 +1118,16 @@ function FractionCircleVisual({ numerator, denominator, accent }: {
             stroke={i < num ? accent : "#94a3b8"}
             strokeWidth={i < num ? 2 : 1.5} />
         ))}
+        {/* Moon craters for space_mission */}
+        {theme === "space_mission" && <>
+          <circle cx={cx - 22} cy={cy - 18} r={6} fill="none" stroke="#94a3b8" strokeWidth={1.2} opacity={0.45} />
+          <circle cx={cx + 20} cy={cy + 22} r={4} fill="none" stroke="#94a3b8" strokeWidth={1} opacity={0.35} />
+          <circle cx={cx - 4} cy={cy + 32} r={5} fill="none" stroke="#94a3b8" strokeWidth={1} opacity={0.35} />
+        </>}
+        {/* Pizza crust for bakery_math */}
+        {theme === "bakery_math" && (
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#92400e" strokeWidth={7} opacity={0.35} />
+        )}
         <text x={cx} y={cy + R + 22} textAnchor="middle" fontSize={13} fill="#64748b" fontWeight="bold">
           {num}/{den}
         </text>
@@ -2335,7 +2354,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} vp={vp} />;
-  if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} />;
+  if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} theme={theme} />;
   if (vt === "balance_scale") return <BalanceScaleVisual accent={accent} vp={vp} />;
   if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "clock") return <ClockVisual hour={num("hour", 3)} minute={num("minute", 0)} accent={accent} />;
