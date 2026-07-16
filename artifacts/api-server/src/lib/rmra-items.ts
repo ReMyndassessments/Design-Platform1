@@ -1497,7 +1497,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "matching_task",
     prompts: {
       space_mission: "The rule is: output = input × 3 + 2. If input is 7, what is the output? What is the input if output is 29?",
-      city_builder: "A lift formula: height = floors × 3 + 2. Floor 7 = which height? Height 29 = which floor?",
+      city_builder: "A building rule: height = floors × 3 + 2. What is the height at floor 7? Which floor gives a height of 29?",
       bakery_math: "Baking rule: time = layers × 3 + 2. 7 layers takes how long? 29 minutes means how many layers?",
       robot_factory: "Power rule: output = input × 3 + 2. Input 7 gives what? Output 29 needs what input?",
       treasure_builder: "Treasure rule: value = chests × 3 + 2. 7 chests = ? value. Value 29 = ? chests.",
