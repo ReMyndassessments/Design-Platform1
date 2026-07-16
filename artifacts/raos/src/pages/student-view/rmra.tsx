@@ -485,14 +485,17 @@ function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: n
     const W = RBW * 2 + 40 + 20; const GAP = 40;
     const aX = 5; const bX = aX + RBW + GAP;
     const renderRobot = (n: number, x: number, color: string, bh: number) => {
+      // Body aligns to bottom; head sits directly on top of body
       const yBody = HEAD + (maxBH - bh);
+      const yHead = yBody - HEAD;
       const gears = itemPositions(n, x + PAD, yBody + PAD, COLS, CELL);
       return (
         <g key={x}>
-          <rect x={x + 5} y={0} width={RBW - 10} height={HEAD} rx={4} fill={color} opacity={0.25} stroke={color} strokeWidth={1.5} />
-          <circle cx={x + RBW / 2 - 7} cy={HEAD / 2} r={3} fill={color} opacity={0.9} />
-          <circle cx={x + RBW / 2 + 7} cy={HEAD / 2} r={3} fill={color} opacity={0.9} />
-          <rect x={x + RBW / 2 - 6} cy={HEAD - 5} width={12} height={3} rx={1} fill={color} opacity={0.7} />
+          {/* Head — always directly above body */}
+          <rect x={x + 5} y={yHead} width={RBW - 10} height={HEAD} rx={4} fill={color} opacity={0.25} stroke={color} strokeWidth={1.5} />
+          <circle cx={x + RBW / 2 - 7} cy={yHead + HEAD / 2} r={3} fill={color} opacity={0.9} />
+          <circle cx={x + RBW / 2 + 7} cy={yHead + HEAD / 2} r={3} fill={color} opacity={0.9} />
+          {/* Body */}
           <rect x={x} y={yBody} width={RBW} height={bh} rx={3} fill={color} opacity={0.15} stroke={color} strokeWidth={1.5} />
           {gears.map((g, i) => (
             <g key={i}>
@@ -504,19 +507,21 @@ function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: n
               })}
             </g>
           ))}
+          {/* Feet */}
           <rect x={x + 8} y={yBody + bh} width={10} height={FOOT} rx={2} fill={color} opacity={0.5} />
           <rect x={x + RBW - 18} y={yBody + bh} width={10} height={FOOT} rx={2} fill={color} opacity={0.5} />
         </g>
       );
     };
+    const labelY = totalH - 4;
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>{labels.card}</p>
         <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
           {renderRobot(groupA, aX, GREEN, aH)}
           {renderRobot(groupB, bX, YELLOW, bH)}
-          <text x={aX + RBW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#22c55e" fontWeight="700">{labels.labelA}</text>
-          <text x={bX + RBW / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#ca8a04" fontWeight="700">{labels.labelB}</text>
+          <text x={aX + RBW / 2} y={labelY} textAnchor="middle" fontSize={10} fill="#22c55e" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + RBW / 2} y={labelY} textAnchor="middle" fontSize={10} fill="#ca8a04" fontWeight="700">{labels.labelB}</text>
         </svg>
       </div>
     );
