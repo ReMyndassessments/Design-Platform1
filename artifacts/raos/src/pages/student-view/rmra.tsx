@@ -1202,31 +1202,39 @@ function BalanceScaleVisual({ accent, vp }: { accent: string; vp: Record<string,
     );
   }
 
-  // Weight tokens display (RPS_EP_001)
+  // Weight tokens display (RPS_EP_001) — student splits all weights across both pans
   const weights = Array.isArray(vp.weights) ? vp.weights as number[] : [];
   if (weights.length > 0) {
-    const cx = 130; const cy = 60; const arm = 80; const panH = 38;
+    const cx = 130; const cy = 55; const arm = 80; const panH = 42;
     const lx = cx - arm; const rx = cx + arm;
+    const panW = 68;
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>Balance the scale</p>
-        <svg viewBox="0 0 260 155" className="w-full max-w-xs mx-auto">
-          <line x1={cx} y1={12} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+        <svg viewBox="0 0 260 150" className="w-full max-w-xs mx-auto">
+          {/* Pole */}
+          <line x1={cx} y1={10} x2={cx} y2={cy} stroke="#64748b" strokeWidth={5} strokeLinecap="round" />
+          {/* Beam — level, both sides equal */}
           <line x1={lx} y1={cy} x2={rx} y2={cy} stroke="#334155" strokeWidth={5} strokeLinecap="round" />
+          {/* Ropes */}
           <line x1={lx} y1={cy} x2={lx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
           <line x1={rx} y1={cy} x2={rx} y2={cy + panH} stroke="#64748b" strokeWidth={2.5} />
-          <rect x={lx - 32} y={cy + panH} width={64} height={32} rx={6} fill={accent + "22"} stroke={accent} strokeWidth={2} />
-          <rect x={rx - 32} y={cy + panH} width={64} height={32} rx={6} fill="#f1f5f9" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="4,3" />
-          <text x={rx} y={cy + panH + 21} textAnchor="middle" fontSize={11} fill="#94a3b8">?</text>
-          <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 48} ${cx + 13},${cy + 48}`} fill="#94a3b8" />
-          <line x1={cx - 18} y1={cy + 48} x2={cx + 18} y2={cy + 48} stroke="#64748b" strokeWidth={4} />
+          {/* Left pan — dashed, empty (student fills it) */}
+          <rect x={lx - panW / 2} y={cy + panH} width={panW} height={34} rx={6} fill="#f8fafc" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
+          <text x={lx} y={cy + panH + 22} textAnchor="middle" fontSize={10} fill="#94a3b8">your choice</text>
+          {/* Right pan — dashed, empty (student fills it) */}
+          <rect x={rx - panW / 2} y={cy + panH} width={panW} height={34} rx={6} fill="#f8fafc" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5,3" />
+          <text x={rx} y={cy + panH + 22} textAnchor="middle" fontSize={10} fill="#94a3b8">your choice</text>
+          {/* Fulcrum */}
+          <polygon points={`${cx},${cy + 2} ${cx - 13},${cy + 46} ${cx + 13},${cy + 46}`} fill="#94a3b8" />
+          <line x1={cx - 18} y1={cy + 46} x2={cx + 18} y2={cy + 46} stroke="#64748b" strokeWidth={4} />
         </svg>
-        <div className="flex justify-center gap-2 mt-1">
+        <div className="flex justify-center gap-2 mt-2">
           {weights.map((w, i) => (
-            <div key={i} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border-2" style={{ borderColor: accent, color: accent, backgroundColor: accent + "18" }}>{w}</div>
+            <div key={i} className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2" style={{ borderColor: accent, color: accent, backgroundColor: accent + "18" }}>{w}</div>
           ))}
         </div>
-        <p className="text-[10px] text-center text-slate-400 mt-1">Available weights</p>
+        <p className="text-[10px] text-center text-slate-400 mt-1">Split these numbers across both sides so they balance</p>
       </div>
     );
   }
