@@ -641,23 +641,64 @@ async function handleStudentConfidence(req: Request, res: Response) {
 }
 
 // ── Public: student voice transcription ───────────────────────────────────────
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB hard cap
+
 async function handleStudentTranscribe(req: Request, res: Response) {
   try {
+    const { sessionToken } = req.params as { sessionToken: string };
+
+    // Validate that the token belongs to a real session (same logic as handleStudentAnswer)
+    const [assignment] = await db
+      .select({ id: assignmentsTable.id })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
+      .limit(1);
+
+    if (!assignment) {
+      const [standalone] = await db
+        .select({ id: rmraSessionsTable.id })
+        .from(rmraSessionsTable)
+        .where(and(eq(rmraSessionsTable.id, sessionToken), isNull(rmraSessionsTable.caseId)))
+        .limit(1);
+      if (!standalone) return res.status(404).json({ error: "Session not found" });
+    }
+
     const mimeType = (req.headers["content-type"] as string) || "audio/webm";
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let totalSize = 0;
+    let aborted = false;
+
     await new Promise<void>((resolve, reject) => {
+      req.on("data", (chunk: Buffer) => {
+        totalSize += chunk.length;
+        if (totalSize > MAX_AUDIO_BYTES) {
+          aborted = true;
+          req.destroy();
+          reject(new Error("upload_too_large"));
+          return;
+        }
+        chunks.push(chunk);
+      });
       req.on("end", resolve);
       req.on("error", reject);
     });
+
+    if (aborted) {
+      return res.status(413).json({ error: "upload_too_large", message: "Audio must be under 10 MB" });
+    }
+
     const audioBuffer = Buffer.concat(chunks);
     if (audioBuffer.length < 500) {
       return res.status(400).json({ error: "Recording too short" });
     }
+
     const { transcribeAudio } = await import("../lib/groqTranscription.js");
     const transcript = await transcribeAudio(audioBuffer, mimeType);
     return res.json({ transcript });
   } catch (err: any) {
+    if (err.message === "upload_too_large") {
+      return res.status(413).json({ error: "upload_too_large", message: "Audio must be under 10 MB" });
+    }
     logger.error({ err }, "POST student transcribe failed");
     return res.status(502).json({ error: "transcription_failed", message: err.message || "Unknown error" });
   }
