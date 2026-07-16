@@ -995,7 +995,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     visualType: "area_model",
     prompts: {
       space_mission: "The space station floor is 24m × 37m. What is the total area? Use the area model.",
-      city_builder: "A city block is 24m × 37m. What is the area? Show with a model.",
+      city_builder: "A building plot is 24m × 37m. What is the total area? Show with a model.",
       bakery_math: "A baking tray is 24cm × 37cm. What is the area?",
       robot_factory: "The robot's circuit board is 24mm × 37mm. What is the area?",
       treasure_builder: "A treasure map section is 24 × 37 squares. What is the total area?",
