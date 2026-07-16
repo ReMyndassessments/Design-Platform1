@@ -306,6 +306,7 @@ export const RMRA_ITEMS: RmraItem[] = [
     },
     studentInstructions: {
       space_mission: "Take one quick look — don't count. About how many stars? Type your estimate.",
+      city_builder: "Take one quick look — don't count. About how many bricks? Type your estimate.",
     },
     expectedAnswerRange: [18, 24],
     exactAnswer: 21,

@@ -351,6 +351,18 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                   </g>
                 );
               }
+              if (theme === "city_builder") {
+                // Brick: wide rectangle with mortar lines
+                const bw = Math.min(22, cellSize * 0.65); const bh = bw * 0.45;
+                const bx = cx - bw / 2; const by = cy - bh / 2;
+                return (
+                  <g key={i}>
+                    <rect x={bx} y={by} width={bw} height={bh} rx={1.5} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                    <line x1={bx + bw * 0.35} y1={by} x2={bx + bw * 0.35} y2={by + bh} stroke={accent} strokeWidth={0.8} opacity={0.5} />
+                    <line x1={bx + bw * 0.7} y1={by} x2={bx + bw * 0.7} y2={by + bh} stroke={accent} strokeWidth={0.8} opacity={0.5} />
+                  </g>
+                );
+              }
               return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
             }
             const cw = cellSize * 0.78; const ch = cellSize * 0.52;
