@@ -342,10 +342,14 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 );
               }
               if (theme === "treasure_builder") {
-                // Diamond gem shape
                 const r = Math.min(11, cellSize * 0.32);
                 const pts = `${cx},${cy - r} ${cx + r * 0.8},${cy} ${cx},${cy + r} ${cx - r * 0.8},${cy}`;
-                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+                return (
+                  <g key={i}>
+                    <polygon points={pts} fill="#FFD700" stroke="#B8860B" strokeWidth={1.5} />
+                    <polygon points={`${cx},${cy - r * 0.55} ${cx + r * 0.45},${cy - r * 0.1} ${cx},${cy + r * 0.35} ${cx - r * 0.45},${cy - r * 0.1}`} fill="#FFF176" opacity={0.4} />
+                  </g>
+                );
               }
               return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
             }
@@ -1903,7 +1907,12 @@ function TallyMarksVisual({ count, accent, theme }: { count: number; accent: str
     }
     if (theme === "treasure_builder") {
       const pts = `${cx},${cy - r} ${cx + r * 0.65},${cy} ${cx},${cy + r} ${cx - r * 0.65},${cy}`;
-      return <polygon key={i} points={pts} fill="#f59e0bd0" stroke="#d97706" strokeWidth={1.5} />;
+      return (
+        <g key={i}>
+          <polygon points={pts} fill="#FFD700" stroke="#B8860B" strokeWidth={1.5} />
+          <polygon points={`${cx},${cy - r * 0.5} ${cx + r * 0.4},${cy - r * 0.1} ${cx},${cy + r * 0.3} ${cx - r * 0.4},${cy - r * 0.1}`} fill="#FFF176" opacity={0.4} />
+        </g>
+      );
     }
     return <circle key={i} cx={cx} cy={cy} r={r} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
   }
