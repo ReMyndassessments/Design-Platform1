@@ -331,13 +331,14 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 );
               }
               if (theme === "bakery_math") {
-                // Cookie: circle with small cross-hatch lines
+                // Cookie: tan base with dark chocolate chip dots
                 const r = Math.min(11, cellSize * 0.32);
                 return (
                   <g key={i}>
-                    <circle cx={cx} cy={cy} r={r} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />
-                    <line x1={cx - r * 0.45} y1={cy - r * 0.45} x2={cx + r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
-                    <line x1={cx + r * 0.45} y1={cy - r * 0.45} x2={cx - r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
+                    <circle cx={cx} cy={cy} r={r} fill="#d4a06a" stroke="#a0692a" strokeWidth={1.2} />
+                    {[[-r*0.32,-r*0.28],[r*0.28,-r*0.2],[-r*0.08,r*0.32],[r*0.25,r*0.25],[-r*0.22,r*0.05]].map(([dx,dy],j)=>
+                      <circle key={j} cx={cx+dx} cy={cy+dy} r={r*0.22} fill="#3b1a08" />
+                    )}
                   </g>
                 );
               }
