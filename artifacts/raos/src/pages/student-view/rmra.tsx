@@ -1128,9 +1128,6 @@ function FractionCircleVisual({ numerator, denominator, accent, theme }: {
         {theme === "bakery_math" && (
           <circle cx={cx} cy={cy} r={R} fill="none" stroke="#92400e" strokeWidth={7} opacity={0.35} />
         )}
-        <text x={cx} y={cy + R + 22} textAnchor="middle" fontSize={13} fill="#64748b" fontWeight="bold">
-          {num}/{den}
-        </text>
       </svg>
     </div>
   );
