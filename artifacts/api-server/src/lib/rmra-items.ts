@@ -298,11 +298,14 @@ export const RMRA_ITEMS: RmraItem[] = [
     taskType: "estimation",
     visualType: "dot_array",
     prompts: {
-      space_mission: "Estimate how many fuel crystals are in the container. Don't count one by one.",
+      space_mission: "Estimate how many stars are in the galaxy cluster. Don't count one by one.",
       city_builder: "Estimate how many bricks are needed to finish the wall. Don't count individually.",
       bakery_math: "Estimate how many chocolate chips are on the baking tray. Don't count each one.",
       robot_factory: "Estimate how many microchips are in the tray. Don't count one by one.",
       treasure_builder: "Estimate how many gold coins are in the treasure chest. Don't count each one.",
+    },
+    studentInstructions: {
+      space_mission: "Take one quick look — don't count. About how many stars? Type your estimate.",
     },
     expectedAnswerRange: [18, 24],
     exactAnswer: 21,
