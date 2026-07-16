@@ -150,6 +150,7 @@ const CARD_INNER = "rounded-xl border border-slate-200 p-4 bg-white";
 // Structured groups for subitizing; scattered for estimation
 
 const ESTIMATION_FLASH_MS = 3000;
+const SUBITIZING_FLASH_MS = 2000;
 
 type FlashPhase = "waiting" | "showing" | "done";
 
@@ -201,7 +202,14 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
         {taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}
       </p>
 
-      {isEstimation && flashPhase === "waiting" ? (
+      {taskType === "subitizing" && flashPhase === "done" ? (
+        /* Bricks hidden — student types their count */
+        <div className="flex flex-col items-center gap-3 py-6">
+          <div className="text-5xl">👀</div>
+          <p className="text-center font-semibold text-slate-700 text-lg">How many did you see?</p>
+          <p className="text-center text-slate-500 text-sm">Type your answer below</p>
+        </div>
+      ) : isEstimation && flashPhase === "waiting" ? (
         /* Waiting for examiner to trigger the stimulus */
         <div className="flex flex-col items-center gap-3 py-8">
           <div className="text-5xl animate-pulse">🎯</div>
@@ -2061,6 +2069,7 @@ export default function RmraStudentView() {
   // When it goes back to null (new task / reset): return to waiting.
   const timerStartedAt = state?.timerStartedAt ?? null;
   const currentTaskId = state?.currentTaskId ?? null;
+  const currentTaskType = state?.currentTask?.taskType ?? null;
 
   useEffect(() => {
     if (timerStartedAt) {
@@ -2073,6 +2082,16 @@ export default function RmraStudentView() {
     }
     return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
   }, [timerStartedAt, currentTaskId]);
+
+  // Subitizing: auto-flash the bricks for SUBITIZING_FLASH_MS when the task loads.
+  // No examiner trigger needed — bricks appear immediately, then hide after 2 s.
+  useEffect(() => {
+    if (currentTaskType !== "subitizing") return;
+    setFlashPhase("showing");
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => setFlashPhase("done"), SUBITIZING_FLASH_MS);
+    return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
+  }, [currentTaskId, currentTaskType]);
 
   // Reset confidence rating when task changes
   useEffect(() => {
