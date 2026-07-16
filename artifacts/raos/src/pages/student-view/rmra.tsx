@@ -1445,30 +1445,99 @@ function SortingTaskVisual({ taskId, accent, vp }: {
 
 // ── Visual: Tally Marks ───────────────────────────────────────────────────────
 
-function TallyMarksVisual({ count, accent }: { count: number; accent: string }) {
+function TallyMarksVisual({ count, accent, theme }: { count: number; accent: string; theme?: string }) {
   count = Math.min(count, 25);
-  const groups = Math.floor(count / 5);
-  const rem = count % 5;
-  const groupW = 56; const groupH = 50; const totalW = (groups + (rem > 0 ? 1 : 0)) * groupW + 20;
+
+  const THEME_LABEL: Record<string, string> = {
+    space_mission: "Count the stars",
+    city_builder: "Count the sticks",
+    bakery_math: "Count the cookies",
+    robot_factory: "Count the bolts",
+    treasure_builder: "Count the gems",
+  };
+  const label = THEME_LABEL[theme ?? ""] ?? "Count the marks";
+
+  // city_builder keeps classic tally marks (sticks)
+  if (!theme || theme === "city_builder") {
+    const groups = Math.floor(count / 5);
+    const rem = count % 5;
+    const groupW = 56; const groupH = 50; const totalW = (groups + (rem > 0 ? 1 : 0)) * groupW + 20;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{label}</p>
+        <svg viewBox={`0 0 ${totalW} ${groupH + 30}`} className="w-full max-w-xs mx-auto">
+          {Array.from({ length: groups }, (_, g) => {
+            const x = 10 + g * groupW;
+            return (
+              <g key={g}>
+                {[0, 1, 2, 3].map(i => <line key={i} x1={x + 10 + i * 10} y1={8} x2={x + 10 + i * 10} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />)}
+                <line x1={x + 4} y1={groupH - 10} x2={x + 44} y2={8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
+              </g>
+            );
+          })}
+          {Array.from({ length: rem }, (_, i) => {
+            const x = 10 + groups * groupW + 10 + i * 10;
+            return <line key={i} x1={x} y1={8} x2={x} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />;
+          })}
+          <text x={totalW / 2} y={groupH + 28} textAnchor="middle" fontSize={11} fill="#94a3b8">{label} ↑</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // All other themes: grid of themed shapes
+  const cols = Math.min(count, 6);
+  const rows = Math.ceil(count / cols);
+  const sz = 30; const pad = 10;
+  const svgW = cols * (sz + pad) + pad;
+  const svgH = rows * (sz + pad) + pad + 22;
+
+  function renderShape(i: number) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = pad + col * (sz + pad) + sz / 2;
+    const cy = pad + row * (sz + pad) + sz / 2;
+    const r = sz * 0.42;
+
+    if (theme === "space_mission") {
+      const ir = r * 0.42;
+      const pts = Array.from({ length: 10 }, (_, k) => {
+        const a = (k * Math.PI) / 5 - Math.PI / 2;
+        const rad = k % 2 === 0 ? r : ir;
+        return `${cx + Math.cos(a) * rad},${cy + Math.sin(a) * rad}`;
+      }).join(" ");
+      return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+    }
+    if (theme === "bakery_math") {
+      return (
+        <g key={i}>
+          <circle cx={cx} cy={cy} r={r} fill="#d97706cc" stroke="#92400e" strokeWidth={1.5} />
+          {[[-r*0.3,-r*0.3],[r*0.25,-r*0.1],[-r*0.1,r*0.3],[r*0.3,r*0.3]].map(([dx,dy],j)=>
+            <circle key={j} cx={cx+dx} cy={cy+dy} r={r*0.12} fill="#78350f" />
+          )}
+        </g>
+      );
+    }
+    if (theme === "robot_factory") {
+      const pts = Array.from({ length: 6 }, (_, k) => {
+        const a = (k * Math.PI) / 3 - Math.PI / 6;
+        return `${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
+      }).join(" ");
+      return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+    }
+    if (theme === "treasure_builder") {
+      const pts = `${cx},${cy - r} ${cx + r * 0.65},${cy} ${cx},${cy + r} ${cx - r * 0.65},${cy}`;
+      return <polygon key={i} points={pts} fill="#f59e0bd0" stroke="#d97706" strokeWidth={1.5} />;
+    }
+    return <circle key={i} cx={cx} cy={cy} r={r} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+  }
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Count the tally marks</p>
-      <svg viewBox={`0 0 ${totalW} ${groupH + 30}`} className="w-full max-w-xs mx-auto">
-        {Array.from({ length: groups }, (_, g) => {
-          const x = 10 + g * groupW;
-          return (
-            <g key={g}>
-              {[0, 1, 2, 3].map(i => <line key={i} x1={x + 10 + i * 10} y1={8} x2={x + 10 + i * 10} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />)}
-              <line x1={x + 4} y1={groupH - 10} x2={x + 44} y2={8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />
-            </g>
-          );
-        })}
-        {Array.from({ length: rem }, (_, i) => {
-          const x = 10 + groups * groupW + 10 + i * 10;
-          return <line key={i} x1={x} y1={8} x2={x} y2={groupH - 8} stroke="#334155" strokeWidth={3} strokeLinecap="round" />;
-        })}
-        <text x={totalW / 2} y={groupH + 28} textAnchor="middle" fontSize={11} fill="#94a3b8">Count the tally marks ↑</text>
+      <p className={TASK_LABEL}>{label}</p>
+      <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full max-w-xs mx-auto">
+        {Array.from({ length: count }, (_, i) => renderShape(i))}
+        <text x={svgW / 2} y={svgH - 4} textAnchor="middle" fontSize={11} fill="#94a3b8">{label} ↑</text>
       </svg>
     </div>
   );
@@ -2095,7 +2164,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
-  if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} />;
+  if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} theme={theme} />;
   if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} vp={vp} />;
   return (
     <div className={CARD_INNER + " text-center py-6"}>
