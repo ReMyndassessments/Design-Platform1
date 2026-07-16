@@ -346,12 +346,12 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 );
               }
               if (theme === "treasure_builder") {
+                // Gold coin: circle with inner ring
                 const r = Math.min(11, cellSize * 0.32);
-                const pts = `${cx},${cy - r} ${cx + r * 0.8},${cy} ${cx},${cy + r} ${cx - r * 0.8},${cy}`;
                 return (
                   <g key={i}>
-                    <polygon points={pts} fill="#FFD700" stroke="#B8860B" strokeWidth={1.5} />
-                    <polygon points={`${cx},${cy - r * 0.55} ${cx + r * 0.45},${cy - r * 0.1} ${cx},${cy + r * 0.35} ${cx - r * 0.45},${cy - r * 0.1}`} fill="#FFF176" opacity={0.4} />
+                    <circle cx={cx} cy={cy} r={r} fill="#FFD700" stroke="#B8860B" strokeWidth={1.5} />
+                    <circle cx={cx} cy={cy} r={r * 0.6} fill="none" stroke="#B8860B" strokeWidth={1} opacity={0.6} />
                   </g>
                 );
               }
