@@ -251,6 +251,16 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
             if (!(taskId === "RMRA_NS_EP_003" && theme === "city_builder")) {
               const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
               const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
+              if (theme === "space_mission") {
+                // 5-pointed star for space mission
+                const r = Math.min(11, cellSize * 0.32); const ir = r * 0.42;
+                const pts = Array.from({ length: 10 }, (_, k) => {
+                  const a = (k * Math.PI) / 5 - Math.PI / 2;
+                  const rad = k % 2 === 0 ? r : ir;
+                  return `${cx + Math.cos(a) * rad},${cy + Math.sin(a) * rad}`;
+                }).join(" ");
+                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />;
+              }
               return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
             }
             const cw = cellSize * 0.78; const ch = cellSize * 0.52;
