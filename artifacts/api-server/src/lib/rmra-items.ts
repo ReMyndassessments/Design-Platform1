@@ -525,6 +525,13 @@ export const RMRA_ITEMS: RmraItem[] = [
       robot_factory: "The robot needs 23 parts. Show 23 using trays of 10 and single parts.",
       treasure_builder: "There are 23 treasure coins. Show 23 using bags of 10 and single coins.",
     },
+    studentInstructions: {
+      space_mission: "Use your long rods (tens) and small cubes (ones) to build 23. How many rods? How many cubes? Type your answer.",
+      city_builder: "Use your long blocks (tens) and small blocks (ones) to build 23. How many tens? How many ones? Type your answer.",
+      bakery_math: "Use egg cartons of 10 and single eggs to make 23. How many cartons? How many single eggs? Type your answer.",
+      robot_factory: "Use trays of 10 and single parts to make 23. How many trays? How many single parts? Type your answer.",
+      treasure_builder: "Use bags of 10 and single coins to make 23. How many bags? How many single coins? Type your answer.",
+    },
     exactAnswer: "2 tens 3 ones",
     primaryConstruct: "tens and ones",
     secondaryConstructs: ["regrouping", "place value"],
