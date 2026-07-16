@@ -1192,10 +1192,16 @@ export default function RmraAdminPage() {
 
               {/* Strategy Level */}
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-slate-600 mb-2 block">Strategy Level</label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-slate-600">Strategy Level</label>
+                  {currentResponse.strategyLabel && (
+                    <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded-full px-2 py-0.5">
+                      Level {currentResponse.strategyLevel} selected
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1">
                   {STRATEGY_HIERARCHY.map((opt, i) => {
-                    const stratIdx = i;
                     const isSelected = currentResponse.strategyLabel === opt;
                     return (
                       <button
@@ -1205,18 +1211,21 @@ export default function RmraAdminPage() {
                           if (isSelected) {
                             updateCurrentResponse("strategyLevel", null);
                             updateCurrentResponse("strategyLabel", null);
-                          } else if (stratIdx >= 0) {
-                            updateCurrentResponse("strategyLevel", stratIdx);
+                          } else {
+                            updateCurrentResponse("strategyLevel", i);
                             updateCurrentResponse("strategyLabel", opt);
                           }
                         }}
-                        className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-left transition-colors disabled:opacity-50 ${
                           isSelected
                             ? "bg-violet-600 text-white border-violet-600"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"
-                        } disabled:opacity-50`}
+                            : "bg-white text-slate-600 border-slate-200 hover:border-violet-300 hover:bg-violet-50"
+                        }`}
                       >
-                        {opt}
+                        <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                        }`}>{i}</span>
+                        <span className="text-xs leading-tight">{opt}</span>
                       </button>
                     );
                   })}
