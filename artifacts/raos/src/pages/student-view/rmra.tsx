@@ -1271,8 +1271,8 @@ function BalanceScaleVisual({ accent, vp }: { accent: string; vp: Record<string,
 
 // ── Visual: Pattern Builder ───────────────────────────────────────────────────
 
-function PatternBuilderVisual({ taskId, accent, vp }: {
-  taskId: string; accent: string; vp?: Record<string, unknown>;
+function PatternBuilderVisual({ taskId, accent, vp, theme }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>; theme?: string;
 }) {
   // ML_MS_001: multiplication pattern rows
   const patternRows = Array.isArray(vp?.patternRows) ? vp!.patternRows as string[] : null;
@@ -1314,7 +1314,64 @@ function PatternBuilderVisual({ taskId, accent, vp }: {
     );
   }
 
-  // Default: static repeating shape pattern
+  // Theme-specific sequence from visualData (PA_EP_001 and similar)
+  const sequences = vp?.sequences as Record<string, { shape: string; color: string }[]> | undefined;
+  const themeSeq = theme && sequences?.[theme];
+
+  const S = 34; const gap = 5;
+
+  const renderShape = (shape: string, color: string, x: number, y: number) => {
+    const cx = x + S / 2; const cy = y + S / 2; const r = S / 2 - 2;
+    if (shape === "circle") return <circle cx={cx} cy={cy} r={r} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    if (shape === "triangle") return <polygon points={`${cx},${y + 3} ${x + S - 3},${y + S - 3} ${x + 3},${y + S - 3}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    if (shape === "diamond") return <polygon points={`${cx},${y + 2} ${x + S - 2},${cy} ${cx},${y + S - 2} ${x + 2},${cy}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    if (shape === "star") {
+      const ir = r * 0.42;
+      const pts = Array.from({ length: 10 }, (_, k) => {
+        const a = (k * Math.PI) / 5 - Math.PI / 2;
+        const rad = k % 2 === 0 ? r : ir;
+        return `${cx + Math.cos(a) * rad},${cy + Math.sin(a) * rad}`;
+      }).join(" ");
+      return <polygon points={pts} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+    }
+    if (shape === "rocket") {
+      const bH = S * 0.55; const cH = S * 0.25; const bTop = y + cH + 2;
+      return (
+        <g>
+          <polygon points={`${cx},${y + 2} ${x + 4},${bTop + 4} ${x + S - 4},${bTop + 4}`} fill={color + "b0"} stroke={color} strokeWidth={1.5} />
+          <rect x={x + 6} y={bTop} width={S - 12} height={bH} rx={2} fill={color + "b0"} stroke={color} strokeWidth={1.5} />
+          <polygon points={`${x + 6},${bTop + bH - 4} ${x},${y + S - 2} ${x + 6},${y + S - 2}`} fill={color} opacity={0.5} />
+          <polygon points={`${x + S - 6},${bTop + bH - 4} ${x + S},${y + S - 2} ${x + S - 6},${y + S - 2}`} fill={color} opacity={0.5} />
+        </g>
+      );
+    }
+    return <rect x={x + 2} y={y + 2} width={S - 4} height={S - 4} rx={5} fill={color + "b0"} stroke={color} strokeWidth={2} />;
+  };
+
+  if (themeSeq) {
+    const displayRow = [...themeSeq, { shape: "?", color: accent }];
+    const W = displayRow.length * (S + gap) + 4; const H = S + 10;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>What comes next?</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-sm mx-auto">
+          {displayRow.map((item, ci) => {
+            const isLast = ci === displayRow.length - 1;
+            return (
+              <g key={ci} transform={`translate(${2 + ci * (S + gap)}, 2)`}>
+                {isLast
+                  ? <rect x={0} y={0} width={S} height={S} rx={6} fill="#f1f5f9" stroke={accent} strokeWidth={2} strokeDasharray="5,4" />
+                  : renderShape(item.shape, item.color, 0, 0)}
+                {isLast && <text x={S / 2} y={S / 2 + 5} textAnchor="middle" fontSize={16} fill={accent} fontWeight="bold">?</text>}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // Fallback: seeded random pattern (for tasks without explicit sequences)
   const rng = seededRand(strSeed(taskId));
   const SHAPES = ["circle", "square", "triangle", "diamond"];
   const COLORS = [accent, "#0ea5e9", "#10b981", "#f59e0b"];
@@ -1324,15 +1381,7 @@ function PatternBuilderVisual({ taskId, accent, vp }: {
     color: COLORS[Math.floor(rng() * COLORS.length)],
   }));
   const displayRow = [...unit, ...unit, { shape: unit[0].shape, color: unit[0].color }];
-  const S = 34; const gap = 5;
   const W = displayRow.length * (S + gap) + 4; const H = S + 10;
-
-  const renderShape = (shape: string, color: string, x: number, y: number) => {
-    if (shape === "circle") return <circle cx={x + S / 2} cy={y + S / 2} r={S / 2 - 2} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    if (shape === "triangle") return <polygon points={`${x + S / 2},${y + 3} ${x + S - 3},${y + S - 3} ${x + 3},${y + S - 3}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    if (shape === "diamond") return <polygon points={`${x + S / 2},${y + 2} ${x + S - 2},${y + S / 2} ${x + S / 2},${y + S - 2} ${x + 2},${y + S / 2}`} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-    return <rect x={x + 2} y={y + 2} width={S - 4} height={S - 4} rx={5} fill={color + "b0"} stroke={color} strokeWidth={2} />;
-  };
 
   return (
     <div className={CARD_INNER}>
@@ -2379,7 +2428,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} vp={vp} />;
   if (vt === "fraction_circle") return <FractionCircleVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} theme={theme} />;
   if (vt === "balance_scale") return <BalanceScaleVisual accent={accent} vp={vp} />;
-  if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} vp={vp} />;
+  if (vt === "pattern_builder") return <PatternBuilderVisual taskId={task.id} accent={accent} vp={vp} theme={theme} />;
   if (vt === "clock") return <ClockVisual hour={num("hour", 3)} minute={num("minute", 0)} accent={accent} />;
   if (vt === "money_coins") return <MoneyCoinsVisual taskId={task.id} accent={accent} />;
   if (vt === "place_value_chart") return <PlaceValueChartVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 0)} ones={num("ones", 0)} accent={accent} />;
