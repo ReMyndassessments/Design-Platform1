@@ -807,7 +807,7 @@ function BaseTenBlocksVisual({ thousands, hundreds, tens, ones, accent }: {
       <p className={TASK_LABEL}>Build this number</p>
       <div className="flex flex-col items-center justify-center py-6 gap-1">
         <span className="text-7xl font-black tracking-tight" style={{ color: accent }}>{value.toLocaleString()}</span>
-        <span className="text-xs text-slate-400 font-medium mt-1">Use your blocks to show this number</span>
+        <span className="text-xs text-slate-400 font-medium mt-1">How many tens and ones make this number?</span>
       </div>
     </div>
   );
