@@ -315,18 +315,21 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />;
               }
               if (theme === "robot_factory") {
-                // Bolt: flat-top hexagon head + rectangular shaft
-                const hr = Math.min(7, cellSize * 0.21);
-                const shaftW = hr * 0.52; const shaftH = hr * 1.4;
-                const headCy = cy - shaftH * 0.35;
-                const hexPts = Array.from({ length: 6 }, (_, k) => {
-                  const a = (k * Math.PI) / 3;
-                  return `${cx + Math.cos(a) * hr},${headCy + Math.sin(a) * hr * 0.75}`;
-                }).join(" ");
+                // Microchip: square body with pins on sides
+                const s = Math.min(10, cellSize * 0.28);
+                const pinL = s * 0.35; const pinW = 1.2; const pins = 3;
                 return (
                   <g key={i}>
-                    <polygon points={hexPts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
-                    <rect x={cx - shaftW / 2} y={headCy + hr * 0.65} width={shaftW} height={shaftH} rx={1} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                    <rect x={cx - s / 2} y={cy - s / 2} width={s} height={s} rx={1.5} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                    {Array.from({ length: pins }, (_, p) => {
+                      const offset = (s / (pins + 1)) * (p + 1) - s / 2;
+                      return (
+                        <g key={p}>
+                          <rect x={cx - s / 2 - pinL} y={cy + offset - pinW / 2} width={pinL} height={pinW} rx={0.5} fill={accent} />
+                          <rect x={cx + s / 2} y={cy + offset - pinW / 2} width={pinL} height={pinW} rx={0.5} fill={accent} />
+                        </g>
+                      );
+                    })}
                   </g>
                 );
               }
