@@ -366,9 +366,11 @@ export default function RmraAdminPage() {
           for (const sr of serverResponses) {
             const existing = prev[sr.taskId];
             const updates: Partial<TaskResponseState> = {};
-            if (sr.confidenceRating !== null && sr.confidenceRating !== undefined &&
-                (!existing || existing.confidenceRating !== sr.confidenceRating)) {
-              updates.confidenceRating = sr.confidenceRating;
+            // Always apply server confidence when non-null — student-submitted, never overwrite with null
+            if (sr.confidenceRating !== null && sr.confidenceRating !== undefined) {
+              if (!existing || existing.confidenceRating !== sr.confidenceRating) {
+                updates.confidenceRating = sr.confidenceRating;
+              }
             }
             if (sr.studentAnswer && (!existing || existing.studentAnswer !== sr.studentAnswer)) {
               updates.studentAnswer = sr.studentAnswer;
@@ -385,6 +387,7 @@ export default function RmraAdminPage() {
         });
       } catch { }
     };
+    poll(); // run immediately on mount so confidence appears without waiting 3 s
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, [sessionId, caseId, session?.status]);
