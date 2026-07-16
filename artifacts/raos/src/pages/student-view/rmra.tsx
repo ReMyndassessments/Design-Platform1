@@ -1807,25 +1807,51 @@ function BarModelVisual({ total, accent, vp, theme }: {
   const groups = typeof vp?.groups === "number" ? vp!.groups as number : null;
   const vpTotal = typeof vp?.total === "number" ? vp!.total as number : total;
 
-  // Comparison bars (ME_EP_001): two vertical bars of different heights
+  // Comparison bars (ME_EP_001): two vertical shapes of different heights
   const barA = typeof vp?.barA === "number" ? vp!.barA as number : null;
   const barB = typeof vp?.barB === "number" ? vp!.barB as number : null;
   if (barA !== null && barB !== null) {
-    const labelA = typeof vp?.labelA === "string" ? vp!.labelA as string : "A";
-    const labelB = typeof vp?.labelB === "string" ? vp!.labelB as string : "B";
-    const maxH = 80; const cbW = 50; const W = 220; const pad = 30;
-    const scaleA = barA / Math.max(barA, barB); const scaleB = barB / Math.max(barA, barB);
+    const COMP_LABELS: Record<string, [string, string]> = {
+      space_mission:    ["Rocket A",   "Rocket B"  ],
+      city_builder:     ["Building A", "Building B"],
+      bakery_math:      ["Loaf A",     "Loaf B"    ],
+      robot_factory:    ["Robot A",    "Robot B"   ],
+      treasure_builder: ["Chest A",    "Chest B"   ],
+    };
+    const [themeLA, themeLB] = COMP_LABELS[theme ?? ""] ?? ["A", "B"];
+    const maxH = 90; const cbW = 44; const W = 220; const pad = 30;
+    const baseline = 112;
+    const hA = maxH * (barA / Math.max(barA, barB));
+    const hB = maxH * (barB / Math.max(barA, barB));
+    const coneH = 14; const finW = 8; const finH = 10;
+    const xA = pad; const xB = W - pad - cbW;
+    const renderItem = (x: number, h: number, col: string, strokeCol: string, lbl: string) => {
+      if (theme === "space_mission") {
+        const bodyTop = baseline - h;
+        return (
+          <g key={lbl}>
+            <polygon points={`${x + cbW / 2},${bodyTop - coneH} ${x},${bodyTop + 4} ${x + cbW},${bodyTop + 4}`} fill={col} stroke={strokeCol} strokeWidth={1.5} />
+            <rect x={x} y={bodyTop} width={cbW} height={h - finH} rx={3} fill={col} stroke={strokeCol} strokeWidth={1.5} />
+            <polygon points={`${x},${baseline - finH} ${x - finW},${baseline} ${x},${baseline}`} fill={strokeCol} opacity={0.7} />
+            <polygon points={`${x + cbW},${baseline - finH} ${x + cbW + finW},${baseline} ${x + cbW},${baseline}`} fill={strokeCol} opacity={0.7} />
+            <text x={x + cbW / 2} y={baseline + 16} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{lbl}</text>
+          </g>
+        );
+      }
+      return (
+        <g key={lbl}>
+          <rect x={x} y={baseline - h} width={cbW} height={h} rx={4} fill={col} stroke={strokeCol} strokeWidth={2} />
+          <text x={x + cbW / 2} y={baseline + 16} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{lbl}</text>
+        </g>
+      );
+    };
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>Which is taller?</p>
-        <svg viewBox={`0 0 ${W} 130`} className="w-full max-w-xs mx-auto">
-          <rect x={pad} y={20 + maxH * (1 - scaleA)} width={cbW} height={maxH * scaleA} rx={4} fill={accent + "80"} stroke={accent} strokeWidth={2} />
-          <text x={pad + cbW / 2} y={Math.max(10, 20 + maxH * (1 - scaleA) - 6)} textAnchor="middle" fontSize={12} fill={accent} fontWeight="bold">{barA}</text>
-          <text x={pad + cbW / 2} y={118} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{labelA}</text>
-          <rect x={W - pad - cbW} y={20 + maxH * (1 - scaleB)} width={cbW} height={maxH * scaleB} rx={4} fill="#94a3b8" stroke="#64748b" strokeWidth={2} />
-          <text x={W - pad - cbW / 2} y={Math.max(10, 20 + maxH * (1 - scaleB) - 6)} textAnchor="middle" fontSize={12} fill="#64748b" fontWeight="bold">{barB}</text>
-          <text x={W - pad - cbW / 2} y={118} textAnchor="middle" fontSize={11} fill="#64748b" fontWeight="bold">{labelB}</text>
-          <line x1={pad} y1={106} x2={W - pad} y2={106} stroke="#e2e8f0" strokeWidth={1.5} />
+        <svg viewBox={`0 0 ${W} 138`} className="w-full max-w-xs mx-auto">
+          {renderItem(xA, hA, accent + "80", accent, themeLA)}
+          {renderItem(xB, hB, "#94a3b880", "#64748b", themeLB)}
+          <line x1={pad - 4} y1={baseline} x2={W - pad + 4} y2={baseline} stroke="#e2e8f0" strokeWidth={1.5} />
         </svg>
       </div>
     );
