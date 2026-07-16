@@ -380,6 +380,9 @@ export const RMRA_ITEMS: RmraItem[] = [
       "3/4 = 0.75, which is bigger than 0.6.",
     ],
     scoring: { accuracy: 2, reasoning: 4, strategy: 5 },
+    studentInstructions: {
+      space_mission: "Look at both fuel tank bars. Which fraction fills more of the tank? Type your answer and how you know.",
+    },
     briefVersion: false,
     visualData: { valueA: 0.75, labelA: "3/4", valueB: 0.6, labelB: "0.6" },
   },
