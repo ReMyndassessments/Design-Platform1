@@ -359,7 +359,7 @@ export default function RmraAdminPage() {
         });
         if (!r.ok) return;
         const data = await r.json();
-        const serverResponses: Array<{ taskId: string; confidenceRating: number | null; studentAnswer?: string | null }> = data.responses ?? [];
+        const serverResponses: Array<{ taskId: string; confidenceRating: number | null; studentAnswer?: string | null; firstResponse?: string | null }> = data.responses ?? [];
         setResponses(prev => {
           let changed = false;
           const next = { ...prev };
@@ -372,6 +372,9 @@ export default function RmraAdminPage() {
             }
             if (sr.studentAnswer && (!existing || existing.studentAnswer !== sr.studentAnswer)) {
               updates.studentAnswer = sr.studentAnswer;
+            }
+            if (sr.firstResponse && (!existing || !existing.firstResponse)) {
+              updates.firstResponse = sr.firstResponse;
             }
             if (Object.keys(updates).length > 0) {
               next[sr.taskId] = { ...(existing ?? emptyResponse()), ...updates };
