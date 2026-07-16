@@ -278,11 +278,15 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                   </g>
                 );
               }
-              // treasure_builder → diamond
+              // treasure_builder → gold coin (circle with inner ring)
               if (theme === "treasure_builder") {
                 const r = Math.min(11, cellSize * 0.32);
-                const pts = `${cx},${cy - r} ${cx + r * 0.8},${cy} ${cx},${cy + r} ${cx - r * 0.8},${cy}`;
-                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+                return (
+                  <g key={i}>
+                    <circle cx={cx} cy={cy} r={r} fill="#f59e0b" stroke="#d97706" strokeWidth={1.5} />
+                    <circle cx={cx} cy={cy} r={r * 0.6} fill="none" stroke="#d97706" strokeWidth={1} opacity={0.6} />
+                  </g>
+                );
               }
               // city_builder (default) → brick
               const bw = cellSize * 0.82; const bh = cellSize * 0.44;
