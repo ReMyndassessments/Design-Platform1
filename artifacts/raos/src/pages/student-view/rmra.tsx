@@ -377,15 +377,16 @@ function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: n
         </g>
       );
     };
-    const totalH = maxH + LABEL_H + 4;
+    const totalH = maxH + LABEL_H + 16;
+    const labelY = totalH - 4;
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>{labels.card}</p>
         <svg viewBox={`0 0 ${W} ${totalH}`} className="w-full max-w-[240px] mx-auto">
           {renderTray(groupA, aX, aH)}
           {renderTray(groupB, bX, bH)}
-          <text x={aX + TRAY_W / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelA}</text>
-          <text x={bX + TRAY_W / 2} y={totalH} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelB}</text>
+          <text x={aX + TRAY_W / 2} y={labelY} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelA}</text>
+          <text x={bX + TRAY_W / 2} y={labelY} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelB}</text>
         </svg>
       </div>
     );
