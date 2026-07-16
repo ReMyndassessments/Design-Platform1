@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, MicOff, Square } from "lucide-react";
+import { useVoiceTranscription } from "@/hooks/useVoiceTranscription";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_MS = 3000;
@@ -2834,6 +2835,15 @@ export default function RmraStudentView() {
   const [submitting, setSubmitting] = useState(false);
   const [answerError, setAnswerError] = useState("");
 
+  const voice = useVoiceTranscription(token ?? "");
+
+  useEffect(() => {
+    if (voice.state === "done" && voice.transcript) {
+      setAnswerText(prev => prev ? prev + " " + voice.transcript : voice.transcript);
+      voice.reset();
+    }
+  }, [voice.state, voice.transcript]);
+
   // Flash phase is managed here — not inside DotArrayVisual — so the
   // top-level useEffect fires reliably when the poll delivers timerStartedAt.
   const [flashPhase, setFlashPhase] = useState<FlashPhase>("waiting");
@@ -3022,10 +3032,11 @@ export default function RmraStudentView() {
         {/* Answer input — always a white card with a clearly visible textarea */}
         {!answerSubmitted && (
           <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="px-4 pt-4 pb-2 border-b border-slate-100">
+            <div className="px-4 pt-4 pb-2 border-b border-slate-100 flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Your answer</p>
+              <p className="text-[10px] text-slate-400">Type or use the mic 🎤</p>
             </div>
-            <div className="p-3">
+            <div className="p-3 space-y-2">
               <textarea
                 className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base leading-relaxed text-slate-800 resize-none focus:outline-none focus:border-slate-400 placeholder:text-slate-300 transition-colors"
                 rows={4}
@@ -3034,7 +3045,40 @@ export default function RmraStudentView() {
                 onChange={e => setAnswerText(e.target.value)}
                 disabled={submitting}
               />
+
+              {/* Mic button */}
+              <div className="flex items-center gap-2">
+                {voice.isRecording ? (
+                  <button
+                    onClick={voice.stop}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-red-500 animate-pulse shadow-md active:scale-95 transition-transform"
+                  >
+                    <Square size={14} fill="white" />
+                    Stop recording
+                  </button>
+                ) : voice.isTranscribing ? (
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 bg-slate-100">
+                    <Loader2 size={14} className="animate-spin" />
+                    Transcribing…
+                  </div>
+                ) : (
+                  <button
+                    onClick={voice.start}
+                    disabled={submitting}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-40"
+                  >
+                    <Mic size={14} />
+                    Speak my answer
+                  </button>
+                )}
+                {voice.error && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <MicOff size={12} /> {voice.error}
+                  </p>
+                )}
+              </div>
             </div>
+
             <div className="px-4 pb-4">
               <button
                 disabled={!answerText.trim() || submitting}

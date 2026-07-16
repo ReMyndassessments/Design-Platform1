@@ -640,6 +640,32 @@ async function handleStudentConfidence(req: Request, res: Response) {
   }
 }
 
+// ── Public: student voice transcription ───────────────────────────────────────
+async function handleStudentTranscribe(req: Request, res: Response) {
+  try {
+    const mimeType = (req.headers["content-type"] as string) || "audio/webm";
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    await new Promise<void>((resolve, reject) => {
+      req.on("end", resolve);
+      req.on("error", reject);
+    });
+    const audioBuffer = Buffer.concat(chunks);
+    if (audioBuffer.length < 500) {
+      return res.status(400).json({ error: "Recording too short" });
+    }
+    const { transcribeAudio } = await import("../lib/groqTranscription.js");
+    const transcript = await transcribeAudio(audioBuffer, mimeType);
+    return res.json({ transcript });
+  } catch (err: any) {
+    logger.error({ err }, "POST student transcribe failed");
+    return res.status(502).json({ error: "transcription_failed", message: err.message || "Unknown error" });
+  }
+}
+
+router.post("/rmra/student/:sessionToken/transcribe", handleStudentTranscribe);
+router.post("/public/rmra/student/:sessionToken/transcribe", handleStudentTranscribe);
+
 async function handleStudentAnswer(req: Request, res: Response) {
   try {
     const { sessionToken } = req.params as { sessionToken: string };
@@ -694,8 +720,17 @@ async function handleStudentAnswer(req: Request, res: Response) {
       .limit(1);
 
     if (existing) {
+      const [existingRow] = await db
+        .select({ firstResponse: rmraTaskResponsesTable.firstResponse })
+        .from(rmraTaskResponsesTable)
+        .where(eq(rmraTaskResponsesTable.id, existing.id))
+        .limit(1);
+      const updateSet: Record<string, unknown> = { studentAnswer: answer.trim(), updatedAt: new Date() };
+      if (!existingRow?.firstResponse) {
+        updateSet.firstResponse = answer.trim();
+      }
       await db.update(rmraTaskResponsesTable)
-        .set({ studentAnswer: answer.trim(), updatedAt: new Date() })
+        .set(updateSet)
         .where(eq(rmraTaskResponsesTable.id, existing.id));
     } else {
       const itemMeta = RMRA_ITEMS.find(i => i.id === taskId);
@@ -707,6 +742,7 @@ async function handleStudentAnswer(req: Request, res: Response) {
         domain,
         ageBand: sessionAgeBand,
         studentAnswer: answer.trim(),
+        firstResponse: answer.trim(),
         hintLevel: 0,
         attempts: 1,
         selfCorrection: false,
