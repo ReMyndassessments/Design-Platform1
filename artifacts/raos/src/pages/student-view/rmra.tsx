@@ -1634,32 +1634,58 @@ function MoneyCoinsVisual({ taskId, accent }: { taskId: string; accent: string }
 // ── Visual: Matching Task ─────────────────────────────────────────────────────
 // SVG-based drag-to-draw line connections
 
-function MatchingTaskVisual({ taskId, accent, vp }: {
-  taskId: string; accent: string; vp?: Record<string, unknown>;
+function MatchingTaskVisual({ taskId, accent, vp, theme }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>; theme?: string;
 }) {
-  // PS_UP_001: logic clues — with optional colored rocket illustrations
+  // PS_UP_001: logic clues — with themed illustrations (rockets or buildings)
   const clues = Array.isArray(vp?.clues) ? vp!.clues as string[] : null;
+  const buildingClues = Array.isArray(vp?.buildingClues) ? vp!.buildingClues as string[] : null;
   const rockets = Array.isArray(vp?.rockets) ? vp!.rockets as { label: string; color: string }[] : null;
-  if (clues) {
+  const buildings = Array.isArray(vp?.buildings) ? vp!.buildings as { label: string; color: string }[] : null;
+
+  const activeClues = (theme === "city_builder" && buildingClues) ? buildingClues : clues;
+
+  if (activeClues) {
     return (
       <div className={CARD_INNER}>
         <p className={TASK_LABEL}>Logic clues</p>
-        {rockets && (
+        {/* city_builder: show building icons */}
+        {theme === "city_builder" && buildings && (
+          <div className="flex justify-center gap-4 mb-3">
+            {buildings.map(({ label, color }) => (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <svg viewBox="0 0 30 52" width={30} height={52}>
+                  {/* Base */}
+                  <rect x="2" y="38" width="26" height="10" rx="1" fill={color} opacity="0.9" />
+                  {/* Main body */}
+                  <rect x="4" y="10" width="22" height="30" rx="2" fill={color} opacity="0.85" />
+                  {/* Roof */}
+                  <rect x="2" y="6" width="26" height="6" rx="1" fill={color} />
+                  {/* Windows */}
+                  <rect x="7" y="16" width="5" height="5" rx="1" fill="white" opacity="0.7" />
+                  <rect x="18" y="16" width="5" height="5" rx="1" fill="white" opacity="0.7" />
+                  <rect x="7" y="26" width="5" height="5" rx="1" fill="white" opacity="0.7" />
+                  <rect x="18" y="26" width="5" height="5" rx="1" fill="white" opacity="0.7" />
+                  {/* Door */}
+                  <rect x="12" y="36" width="6" height="8" rx="1" fill="white" opacity="0.6" />
+                </svg>
+                <span className="text-xs font-bold" style={{ color }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* space_mission: show rocket icons */}
+        {theme !== "city_builder" && rockets && (
           <div className="flex justify-center gap-4 mb-3">
             {rockets.map(({ label, color }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <svg viewBox="0 0 32 56" width={32} height={56}>
-                  {/* Fins */}
                   <polygon points="4,44 10,32 10,48" fill={color} opacity="0.7" />
                   <polygon points="28,44 22,32 22,48" fill={color} opacity="0.7" />
-                  {/* Body */}
                   <rect x="9" y="20" width="14" height="28" rx="2" fill={color} />
-                  {/* Nose cone */}
                   <path d="M9,20 Q16,2 23,20 Z" fill={color} />
-                  {/* Window */}
                   <circle cx="16" cy="28" r="4" fill="white" opacity="0.85" />
                   <circle cx="16" cy="28" r="2.5" fill={color} opacity="0.5" />
-                  {/* Flame */}
                   <ellipse cx="16" cy="50" rx="4" ry="5" fill="#fbbf24" opacity="0.9" />
                   <ellipse cx="16" cy="51" rx="2.5" ry="3.5" fill="#f97316" opacity="0.9" />
                 </svg>
@@ -2585,7 +2611,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "coordinate_grid") return <CoordinateGridVisual accent={accent} />;
   if (vt === "linear_program") return <LinearProgramVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
-  if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
+  if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} theme={theme} />;
   if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} theme={theme} />;
   if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} theme={theme} />;
   if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} vp={vp} />;

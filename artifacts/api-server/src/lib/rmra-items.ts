@@ -1900,6 +1900,12 @@ export const RMRA_ITEMS: RmraItem[] = [
         { label: "Green", color: "#22c55e" },
       ],
       clues: ["Blue arrives before Red", "Green arrives last"],
+      buildings: [
+        { label: "A", color: "#ef4444" },
+        { label: "B", color: "#3b82f6" },
+        { label: "C", color: "#22c55e" },
+      ],
+      buildingClues: ["B is built before A", "C is built last"],
     },
   },
   {
