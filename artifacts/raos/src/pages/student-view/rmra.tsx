@@ -154,9 +154,9 @@ const SUBITIZING_FLASH_MS = 2000;
 
 type FlashPhase = "waiting" | "showing" | "done";
 
-function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA, groupB }: {
+function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA, groupB, theme }: {
   taskId: string; dotCount: number; taskType: string; accent: string; flashPhase: FlashPhase;
-  groupA?: number; groupB?: number;
+  groupA?: number; groupB?: number; theme?: string;
 }) {
   const count = Math.min(dotCount, 30);
   const rng = seededRand(strSeed(taskId));
@@ -247,8 +247,8 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
                 </g>
               );
             }
-            // Top-down car shape — only for the parking lot task
-            if (taskId !== "RMRA_NS_EP_003") {
+            // Top-down car shape — only for the city_builder parking lot task
+            if (!(taskId === "RMRA_NS_EP_003" && theme === "city_builder")) {
               const cx = col * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
               const cy = row * cellSize + cellSize / 2 + 10 + (rng() - 0.5) * (cellSize * 0.2);
               return <circle key={i} cx={cx} cy={cy} r={Math.min(12, cellSize * 0.35)} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
@@ -2065,7 +2065,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const tt = task.taskType;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
-  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} />;
+  if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} theme={theme} />;
   if (vt === "building_comparison") return <BuildingComparisonVisual groupA={num("groupA", 7)} groupB={num("groupB", 5)} accent={accent} theme={theme} />;
   if (vt === "building_groups") return <BuildingGroupsVisual groups={num("groups", 3)} perGroup={num("perGroup", 4)} accent={accent} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
