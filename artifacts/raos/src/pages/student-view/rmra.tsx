@@ -1649,9 +1649,12 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
 
   const robotClues = Array.isArray(vp?.robotClues) ? vp!.robotClues as string[] : null;
   const robots = Array.isArray(vp?.robots) ? vp!.robots as { label: string; color: string }[] : null;
+  const chestClues = Array.isArray(vp?.chestClues) ? vp!.chestClues as string[] : null;
+  const chests = Array.isArray(vp?.chests) ? vp!.chests as { label: string; color: string }[] : null;
 
   const activeClues = (theme === "city_builder" && buildingClues) ? buildingClues
     : (theme === "robot_factory" && robotClues) ? robotClues
+    : (theme === "treasure_builder" && chestClues) ? chestClues
     : clues;
 
   if (activeClues) {
@@ -1677,6 +1680,30 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
                   <rect x="18" y="26" width="5" height="5" rx="1" fill="white" opacity="0.7" />
                   {/* Door */}
                   <rect x="12" y="36" width="6" height="8" rx="1" fill="white" opacity="0.6" />
+                </svg>
+                <span className="text-xs font-bold" style={{ color }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* treasure_builder: show treasure chest icons */}
+        {theme === "treasure_builder" && chests && (
+          <div className="flex justify-center gap-4 mb-3">
+            {chests.map(({ label, color }) => (
+              <div key={label} className="flex flex-col items-center gap-1">
+                <svg viewBox="0 0 36 30" width={36} height={30}>
+                  {/* Lid */}
+                  <rect x="1" y="1" width="34" height="12" rx="4" fill={color} opacity="0.9" />
+                  <path d="M1,10 Q18,4 35,10" fill={color} />
+                  {/* Body */}
+                  <rect x="1" y="12" width="34" height="16" rx="2" fill={color} opacity="0.8" />
+                  {/* Hinge line */}
+                  <line x1="1" y1="12" x2="35" y2="12" stroke="white" strokeWidth="1.5" opacity="0.4" />
+                  {/* Lock */}
+                  <rect x="14" y="15" width="8" height="6" rx="2" fill="white" opacity="0.5" />
+                  <circle cx="18" cy="18" r="1.5" fill={color} opacity="0.8" />
+                  {/* Straps */}
+                  <rect x="1" y="17" width="34" height="2.5" fill="white" opacity="0.2" />
                 </svg>
                 <span className="text-xs font-bold" style={{ color }}>{label}</span>
               </div>
@@ -1713,7 +1740,7 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
           </div>
         )}
         {/* space_mission: show rocket icons */}
-        {theme !== "city_builder" && theme !== "robot_factory" && rockets && (
+        {theme !== "city_builder" && theme !== "robot_factory" && theme !== "treasure_builder" && rockets && (
           <div className="flex justify-center gap-4 mb-3">
             {rockets.map(({ label, color }) => (
               <div key={label} className="flex flex-col items-center gap-1">

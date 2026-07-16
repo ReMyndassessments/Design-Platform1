@@ -1915,6 +1915,12 @@ export const RMRA_ITEMS: RmraItem[] = [
         { label: "Robot C", color: "#22c55e" },
       ],
       robotClues: ["Robot B is assembled before Robot A", "Robot C is assembled last"],
+      chests: [
+        { label: "Chest A", color: "#ef4444" },
+        { label: "Chest B", color: "#3b82f6" },
+        { label: "Chest C", color: "#22c55e" },
+      ],
+      chestClues: ["Chest B is found before Chest A", "Chest C is found last"],
     },
   },
   {
