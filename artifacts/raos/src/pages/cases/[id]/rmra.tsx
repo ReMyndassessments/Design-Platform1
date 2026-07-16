@@ -1193,52 +1193,34 @@ export default function RmraAdminPage() {
               {/* Strategy Level */}
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-slate-600 mb-2 block">Strategy Level</label>
-                <Select
-                  value={currentResponse.strategyLevel !== null ? String(currentResponse.strategyLevel) : ""}
-                  onValueChange={v => {
-                    const idx = Number(v);
-                    updateCurrentResponse("strategyLevel", idx);
-                    updateCurrentResponse("strategyLabel", STRATEGY_HIERARCHY[idx]);
-                  }}
-                  disabled={isCompleted}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Select strategy observed…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STRATEGY_HIERARCHY.map((s, i) => (
-                      <SelectItem key={i} value={String(i)}>
-                        <span className="text-slate-400 mr-1.5 font-mono text-xs">{i}.</span> {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {currentTask.strategyOptions.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {currentTask.strategyOptions.map((opt, i) => {
-                      const stratIdx = STRATEGY_HIERARCHY.indexOf(opt as any);
-                      return (
-                        <button
-                          key={i}
-                          disabled={isCompleted}
-                          onClick={() => {
-                            if (stratIdx >= 0) {
-                              updateCurrentResponse("strategyLevel", stratIdx);
-                              updateCurrentResponse("strategyLabel", opt);
-                            }
-                          }}
-                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-                            currentResponse.strategyLabel === opt
-                              ? "bg-violet-600 text-white border-violet-600"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {(currentTask.strategyOptions.length > 0 ? currentTask.strategyOptions : STRATEGY_HIERARCHY).map((opt, i) => {
+                    const stratIdx = STRATEGY_HIERARCHY.indexOf(opt as any);
+                    const isSelected = currentResponse.strategyLabel === opt;
+                    return (
+                      <button
+                        key={i}
+                        disabled={isCompleted}
+                        onClick={() => {
+                          if (isSelected) {
+                            updateCurrentResponse("strategyLevel", null);
+                            updateCurrentResponse("strategyLabel", null);
+                          } else if (stratIdx >= 0) {
+                            updateCurrentResponse("strategyLevel", stratIdx);
+                            updateCurrentResponse("strategyLabel", opt);
+                          }
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                          isSelected
+                            ? "bg-violet-600 text-white border-violet-600"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"
+                        } disabled:opacity-50`}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Hints */}
