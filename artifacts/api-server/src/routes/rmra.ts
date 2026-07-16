@@ -301,10 +301,10 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/tasks/:taskId/response", au
 
     let response;
     if (existing[0]) {
-      // Only overwrite confidenceRating if the examiner explicitly provides it;
-      // otherwise preserve the student-submitted value.
+      // Only overwrite confidenceRating if the examiner explicitly provides a non-null value;
+      // otherwise preserve the student-submitted value (the frontend spreads null when unset).
       const updateValues: typeof baseValues & { confidenceRating?: number | null } = { ...baseValues };
-      if (body.confidenceRating !== undefined) updateValues.confidenceRating = body.confidenceRating;
+      if (body.confidenceRating != null) updateValues.confidenceRating = body.confidenceRating;
       [response] = await db
         .update(rmraTaskResponsesTable)
         .set(updateValues)
