@@ -548,7 +548,7 @@ async function handleStudentPoll(req: Request, res: Response) {
         showConfidenceSlider: currentItem.showConfidenceSlider,
         productiveStruggleTrigger: currentItem.productiveStruggleTrigger,
         visualParams: computeVisualParams(currentItem),
-        studentInstruction: RMRA_STUDENT_INSTRUCTIONS[currentItem.id],
+        studentInstruction: currentItem.studentInstructions?.[session.theme as keyof typeof currentItem.studentInstructions] ?? RMRA_STUDENT_INSTRUCTIONS[currentItem.id],
       } : null,
     });
   } catch (err) {

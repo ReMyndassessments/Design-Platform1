@@ -279,7 +279,16 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
 
 // ── Visual: Building Comparison ──────────────────────────────────────────────
 
-function BuildingComparisonVisual({ groupA, groupB, accent }: { groupA: number; groupB: number; accent: string }) {
+const BUILDING_COMPARISON_LABELS: Record<string, { card: string; labelA: string; labelB: string }> = {
+  space_mission:    { card: "Which has more stars?",   labelA: "Red Rocket",    labelB: "Blue Rocket" },
+  city_builder:     { card: "Which has more windows?", labelA: "Tall",          labelB: "Short" },
+  bakery_math:      { card: "Which has more?",         labelA: "Big Tray",      labelB: "Small Tray" },
+  robot_factory:    { card: "Which has more gears?",   labelA: "Green Robot",   labelB: "Yellow Robot" },
+  treasure_builder: { card: "Which has more jewels?",  labelA: "Wooden Chest",  labelB: "Stone Chest" },
+};
+
+function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: number; groupB: number; accent: string; theme?: string }) {
+  const labels = BUILDING_COMPARISON_LABELS[theme ?? ""] ?? BUILDING_COMPARISON_LABELS.city_builder;
   // Draw two buildings: tall (groupA windows) and short (groupB windows)
   // Each building is a rectangle with a grid of lit windows
   const WIN_COLS = 2; const WIN_W = 18; const WIN_H = 14; const WIN_GAP = 8;
@@ -324,12 +333,12 @@ function BuildingComparisonVisual({ groupA, groupB, accent }: { groupA: number; 
 
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>Which has more windows?</p>
+      <p className={TASK_LABEL}>{labels.card}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[240px] mx-auto">
         {renderBuilding(a, aX)}
         {renderBuilding(b, bX)}
-        <text x={aX + buildingW / 2} y={H - a.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Tall</text>
-        <text x={bX + buildingW / 2} y={H - b.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">Short</text>
+        <text x={aX + buildingW / 2} y={H - a.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelA}</text>
+        <text x={bX + buildingW / 2} y={H - b.bldH - 24} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="700">{labels.labelB}</text>
       </svg>
     </div>
   );
@@ -1895,7 +1904,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const vp = task.visualParams ?? {};
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
   if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} />;
-  if (vt === "building_comparison") return <BuildingComparisonVisual groupA={num("groupA", 7)} groupB={num("groupB", 5)} accent={accent} />;
+  if (vt === "building_comparison") return <BuildingComparisonVisual groupA={num("groupA", 7)} groupB={num("groupB", 5)} accent={accent} theme={theme} />;
   if (vt === "building_groups") return <BuildingGroupsVisual groups={num("groups", 3)} perGroup={num("perGroup", 4)} accent={accent} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;

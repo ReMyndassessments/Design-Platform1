@@ -14,6 +14,7 @@ export type RmraItem = {
   taskType: string;
   visualType: VisualType;
   prompts: Record<Theme, string>;
+  studentInstructions?: Partial<Record<Theme, string>>;
   expectedAnswerRange?: [number, number];
   exactAnswer?: number | string;
   part1?: number;
@@ -221,6 +222,13 @@ export const RMRA_ITEMS: RmraItem[] = [
       bakery_math: "Which tray has more cupcakes — the big tray or the small tray? How do you know?",
       robot_factory: "Which robot has more gears — the green robot or the yellow robot? How do you know?",
       treasure_builder: "Which treasure chest has more jewels — the wooden one or the stone one? How do you know?",
+    },
+    studentInstructions: {
+      space_mission: "Look at both rockets. Which one has more stars? Type your answer and explain how you can tell.",
+      city_builder: "Look at both buildings. Which has more windows? Type your answer and explain how you can tell.",
+      bakery_math: "Look at both trays. Which has more cupcakes? Type your answer and explain how you can tell.",
+      robot_factory: "Look at both robots. Which has more gears? Type your answer and explain how you can tell.",
+      treasure_builder: "Look at both chests. Which has more jewels? Type your answer and explain how you can tell.",
     },
     primaryConstruct: "magnitude comparison",
     secondaryConstructs: ["quantity sense", "verbal reasoning"],
