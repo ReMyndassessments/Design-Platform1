@@ -1929,9 +1929,11 @@ function TallyMarksVisual({ count, accent, theme }: { count: number; accent: str
     if (theme === "bakery_math") {
       return (
         <g key={i}>
-          <circle cx={cx} cy={cy} r={r} fill="#d97706cc" stroke="#92400e" strokeWidth={1.5} />
-          {[[-r*0.3,-r*0.3],[r*0.25,-r*0.1],[-r*0.1,r*0.3],[r*0.3,r*0.3]].map(([dx,dy],j)=>
-            <circle key={j} cx={cx+dx} cy={cy+dy} r={r*0.12} fill="#78350f" />
+          {/* Cookie base — tan/golden brown */}
+          <circle cx={cx} cy={cy} r={r} fill="#d4a06a" stroke="#a0692a" strokeWidth={1.2} />
+          {/* Chocolate chip dots — dark brown, clearly visible */}
+          {[[-r*0.32,-r*0.28],[r*0.28,-r*0.2],[-r*0.08,r*0.32],[r*0.25,r*0.25],[-r*0.22,r*0.05]].map(([dx,dy],j)=>
+            <circle key={j} cx={cx+dx} cy={cy+dy} r={r*0.22} fill="#3b1a08" />
           )}
         </g>
       );
