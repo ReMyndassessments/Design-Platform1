@@ -240,6 +240,51 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
           {Array.from({ length: count }, (_, i) => {
             const col = i % cols; const row = Math.floor(i / cols);
             if (taskType === "subitizing") {
+              const cx = col * cellSize + cellSize / 2 + 10;
+              const cy = row * cellSize + cellSize / 2 + 10;
+              // robot_factory → bolt
+              if (theme === "robot_factory") {
+                const hr = Math.min(7, cellSize * 0.21);
+                const shaftW = hr * 0.52; const shaftH = hr * 1.4;
+                const headCy = cy - shaftH * 0.35;
+                const hexPts = Array.from({ length: 6 }, (_, k) => {
+                  const a = (k * Math.PI) / 3;
+                  return `${cx + Math.cos(a) * hr},${headCy + Math.sin(a) * hr * 0.75}`;
+                }).join(" ");
+                return (
+                  <g key={i}>
+                    <polygon points={hexPts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                    <rect x={cx - shaftW / 2} y={headCy + hr * 0.65} width={shaftW} height={shaftH} rx={1} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />
+                  </g>
+                );
+              }
+              // space_mission → star
+              if (theme === "space_mission") {
+                const r = Math.min(11, cellSize * 0.32); const ir = r * 0.42;
+                const pts = Array.from({ length: 10 }, (_, k) => {
+                  const a = (k * Math.PI) / 5 - Math.PI / 2;
+                  return `${cx + Math.cos(a) * (k % 2 === 0 ? r : ir)},${cy + Math.sin(a) * (k % 2 === 0 ? r : ir)}`;
+                }).join(" ");
+                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.2} />;
+              }
+              // bakery_math → cookie
+              if (theme === "bakery_math") {
+                const r = Math.min(11, cellSize * 0.32);
+                return (
+                  <g key={i}>
+                    <circle cx={cx} cy={cy} r={r} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />
+                    <line x1={cx - r * 0.45} y1={cy - r * 0.45} x2={cx + r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
+                    <line x1={cx + r * 0.45} y1={cy - r * 0.45} x2={cx - r * 0.45} y2={cy + r * 0.45} stroke={accent} strokeWidth={0.8} opacity={0.6} />
+                  </g>
+                );
+              }
+              // treasure_builder → diamond
+              if (theme === "treasure_builder") {
+                const r = Math.min(11, cellSize * 0.32);
+                const pts = `${cx},${cy - r} ${cx + r * 0.8},${cy} ${cx},${cy + r} ${cx - r * 0.8},${cy}`;
+                return <polygon key={i} points={pts} fill={accent + "d0"} stroke={accent} strokeWidth={1.5} />;
+              }
+              // city_builder (default) → brick
               const bw = cellSize * 0.82; const bh = cellSize * 0.44;
               const x = col * cellSize + (cellSize - bw) / 2 + 10;
               const y = row * cellSize + (cellSize - bh) / 2 + 10;
