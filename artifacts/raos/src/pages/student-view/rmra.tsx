@@ -1637,9 +1637,35 @@ function MatchingTaskVisual({ taskId, accent, vp }: {
 
 // ── Visual: Sorting Task ──────────────────────────────────────────────────────
 
-function SortingTaskVisual({ taskId, accent, vp }: {
-  taskId: string; accent: string; vp?: Record<string, unknown>;
+function SortingTaskVisual({ taskId, accent, vp, theme }: {
+  taskId: string; accent: string; vp?: Record<string, unknown>; theme?: string;
 }) {
+  // GS_EP_001: actual SVG shapes to sort
+  const shapes = Array.isArray(vp?.shapes) ? vp!.shapes as { type: string; color: string }[] : null;
+  if (shapes) {
+    const S = 38; const gap = 8; const cols = 4;
+    const rows = Math.ceil(shapes.length / cols);
+    const W = cols * (S + gap) + gap; const H = rows * (S + gap) + gap;
+    const renderShape = (type: string, color: string, x: number, y: number) => {
+      const cx = x + S / 2; const cy = y + S / 2; const r = S / 2 - 3;
+      if (type === "circle") return <circle cx={cx} cy={cy} r={r} fill={color + "99"} stroke={color} strokeWidth={2.5} />;
+      if (type === "triangle") return <polygon points={`${cx},${y + 3} ${x + S - 3},${y + S - 3} ${x + 3},${y + S - 3}`} fill={color + "99"} stroke={color} strokeWidth={2.5} />;
+      return <rect x={x + 3} y={y + 3} width={S - 6} height={S - 6} rx={4} fill={color + "99"} stroke={color} strokeWidth={2.5} />;
+    };
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>Sort these shapes into groups</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-xs mx-auto my-1">
+          {shapes.map((s, i) => {
+            const col = i % cols; const row = Math.floor(i / cols);
+            const x = gap + col * (S + gap); const y = gap + row * (S + gap);
+            return <g key={i}>{renderShape(s.type, s.color, x, y)}</g>;
+          })}
+        </svg>
+      </div>
+    );
+  }
+
   // PS_MS_001: budget categories
   const budgetItems = Array.isArray(vp?.budgetItems) ? vp!.budgetItems as { label: string; amount: number; category: string }[] : null;
   if (budgetItems) {
@@ -2439,7 +2465,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   if (vt === "linear_program") return <LinearProgramVisual accent={accent} />;
   if (vt === "shape_rotation") return <ShapeRotationVisual taskId={task.id} accent={accent} vp={vp} />;
   if (vt === "matching_task") return <MatchingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
-  if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} />;
+  if (vt === "sorting_task") return <SortingTaskVisual taskId={task.id} accent={accent} vp={vp} theme={theme} />;
   if (vt === "tally_marks") return <TallyMarksVisual count={num("count", 13)} accent={accent} theme={theme} />;
   if (vt === "visual_word_problem") return <WordProblemVisual taskId={task.id} accent={accent} vp={vp} />;
   return (
