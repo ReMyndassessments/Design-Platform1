@@ -202,7 +202,14 @@ function DotArrayVisual({ taskId, dotCount, taskType, accent, flashPhase, groupA
         {taskType === "subitizing" ? "How many — just look!" : "Estimate — don't count one by one"}
       </p>
 
-      {taskType === "subitizing" && flashPhase === "done" ? (
+      {taskType === "subitizing" && flashPhase === "waiting" ? (
+        /* Waiting for examiner to trigger */
+        <div className="flex flex-col items-center gap-3 py-8">
+          <div className="text-5xl animate-pulse">🧱</div>
+          <p className="text-center font-semibold text-slate-600 text-base">Get ready…</p>
+          <p className="text-center text-slate-400 text-sm">Your teacher will show the bricks</p>
+        </div>
+      ) : taskType === "subitizing" && flashPhase === "done" ? (
         /* Bricks hidden — student types their count */
         <div className="flex flex-col items-center gap-3 py-6">
           <div className="text-5xl">👀</div>
@@ -2055,7 +2062,7 @@ export default function RmraStudentView() {
   // Poll faster (1s) when on an estimation task waiting for the trigger, so the
   // student receives the signal within ~1s and always gets a near-full 3s flash.
   const isEstimationWaiting =
-    state?.currentTask?.taskType === "estimation" && !state?.timerStartedAt;
+    (state?.currentTask?.taskType === "estimation" || state?.currentTask?.taskType === "subitizing") && !state?.timerStartedAt;
   const activePollMs = isEstimationWaiting ? 1000 : POLL_MS;
 
   useEffect(() => {
@@ -2075,23 +2082,14 @@ export default function RmraStudentView() {
     if (timerStartedAt) {
       setFlashPhase("showing");
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-      flashTimeoutRef.current = setTimeout(() => setFlashPhase("done"), ESTIMATION_FLASH_MS);
+      const ms = currentTaskType === "subitizing" ? SUBITIZING_FLASH_MS : ESTIMATION_FLASH_MS;
+      flashTimeoutRef.current = setTimeout(() => setFlashPhase("done"), ms);
     } else {
       setFlashPhase("waiting");
       if (flashTimeoutRef.current) { clearTimeout(flashTimeoutRef.current); flashTimeoutRef.current = null; }
     }
     return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
-  }, [timerStartedAt, currentTaskId]);
-
-  // Subitizing: auto-flash the bricks for SUBITIZING_FLASH_MS when the task loads.
-  // No examiner trigger needed — bricks appear immediately, then hide after 2 s.
-  useEffect(() => {
-    if (currentTaskType !== "subitizing") return;
-    setFlashPhase("showing");
-    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-    flashTimeoutRef.current = setTimeout(() => setFlashPhase("done"), SUBITIZING_FLASH_MS);
-    return () => { if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current); };
-  }, [currentTaskId, currentTaskType]);
+  }, [timerStartedAt, currentTaskId, currentTaskType]);
 
   // Reset confidence rating when task changes
   useEffect(() => {
