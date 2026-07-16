@@ -519,37 +519,222 @@ function BuildingComparisonVisual({ groupA, groupB, accent, theme }: { groupA: n
 // ── Visual: Building Groups ───────────────────────────────────────────────────
 // Shows N equal-sized buildings each with M windows — for equal-groups multiplication
 
-function BuildingGroupsVisual({ groups, perGroup, accent }: { groups: number; perGroup: number; accent: string }) {
+function BuildingGroupsVisual({ groups, perGroup, accent, theme }: { groups: number; perGroup: number; accent: string; theme?: string }) {
+  const GAP = 16;
+
+  // ── Label ──────────────────────────────────────────────────────────────────
+  const LABELS: Record<string, { group: string; thing: string }> = {
+    space_mission:   { group: "rocket",   thing: "window" },
+    city_builder:    { group: "building", thing: "window" },
+    bakery_math:     { group: "tray",     thing: "muffin" },
+    robot_factory:   { group: "robot",    thing: "arm"    },
+    treasure_builder:{ group: "chest",    thing: "gem"    },
+  };
+  const lbl = LABELS[theme ?? "city_builder"] ?? LABELS.city_builder;
+  const label = `${groups} ${lbl.group}${groups !== 1 ? "s" : ""} × ${perGroup} ${lbl.thing}${perGroup !== 1 ? "s" : ""}`;
+
+  // ── Rocket (space_mission) ─────────────────────────────────────────────────
+  if (theme === "space_mission") {
+    const rW = 44; const rH = 110; const coneH = 24; const finW = 10; const finH = 20;
+    const portR = 7; const portRows = Math.ceil(perGroup / 2); const portCols = Math.min(perGroup, 2);
+    const W = groups * rW + (groups - 1) * GAP + finW * 2 + 10;
+    const H = rH + 24;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{label}</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[280px] mx-auto">
+          {Array.from({ length: groups }, (_, g) => {
+            const x = 5 + finW + g * (rW + GAP);
+            const y = 8;
+            const bodyTop = y + coneH;
+            const bodyBot = y + rH - finH;
+            const bodyH = bodyBot - bodyTop;
+            return (
+              <g key={g}>
+                {/* Left fin */}
+                <polygon points={`${x},${bodyBot} ${x - finW},${bodyBot + finH} ${x},${bodyBot + finH}`} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+                {/* Right fin */}
+                <polygon points={`${x + rW},${bodyBot} ${x + rW + finW},${bodyBot + finH} ${x + rW},${bodyBot + finH}`} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+                {/* Body */}
+                <rect x={x} y={bodyTop} width={rW} height={bodyH + finH} rx={4} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
+                {/* Nose cone */}
+                <polygon points={`${x + rW / 2},${y} ${x},${bodyTop + 6} ${x + rW},${bodyTop + 6}`} fill={accent} stroke={accent} strokeWidth={1} />
+                {/* Engine nozzle */}
+                <rect x={x + rW * 0.3} y={bodyBot + finH - 4} width={rW * 0.4} height={8} rx={2} fill="#64748b" />
+                {/* Portholes (= perGroup items) */}
+                {Array.from({ length: perGroup }, (_, w) => {
+                  const col = w % portCols; const row = Math.floor(w / portCols);
+                  const px = x + rW / 2 + (col - (portCols - 1) / 2) * (portR * 2 + 4);
+                  const py = bodyTop + 14 + row * (portR * 2 + 6);
+                  return (
+                    <g key={w}>
+                      <circle cx={px} cy={py} r={portR} fill={accent + "cc"} stroke={accent} strokeWidth={1.5} />
+                      <circle cx={px - 2} cy={py - 2} r={2} fill="white" opacity={0.5} />
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── Tray + muffins (bakery_math) ───────────────────────────────────────────
+  if (theme === "bakery_math") {
+    const tW = 56; const tH = 14; const mR = 9; const muffCols = Math.min(perGroup, 3);
+    const muffRows = Math.ceil(perGroup / muffCols);
+    const itemH = muffRows * (mR * 2 + 4) + tH + 8;
+    const W = groups * tW + (groups - 1) * GAP + 10;
+    const H = itemH + 28;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{label}</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[280px] mx-auto">
+          {Array.from({ length: groups }, (_, g) => {
+            const x = 5 + g * (tW + GAP);
+            const tY = H - 22 - tH;
+            return (
+              <g key={g}>
+                {/* Tray */}
+                <rect x={x} y={tY} width={tW} height={tH} rx={3} fill="#94a3b8" stroke="#64748b" strokeWidth={1.5} />
+                {/* Muffins */}
+                {Array.from({ length: perGroup }, (_, w) => {
+                  const col = w % muffCols; const row = Math.floor(w / muffCols);
+                  const mx = x + (tW / muffCols) * col + tW / muffCols / 2;
+                  const my = tY - mR - 4 - row * (mR * 2 + 4);
+                  return (
+                    <g key={w}>
+                      {/* Muffin base */}
+                      <rect x={mx - mR * 0.8} y={my} width={mR * 1.6} height={mR} rx={2} fill="#d97706cc" stroke="#92400e" strokeWidth={1} />
+                      {/* Muffin top dome */}
+                      <ellipse cx={mx} cy={my} rx={mR} ry={mR * 0.65} fill={accent + "d0"} stroke={accent} strokeWidth={1} />
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── Robot (robot_factory) ──────────────────────────────────────────────────
+  if (theme === "robot_factory") {
+    const rbW = 40; const rbH = 52; const headH = 16; const armLen = 14;
+    const W = groups * (rbW + armLen * 2) + (groups - 1) * GAP + 10;
+    const H = rbH + headH + 32;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{label}</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[280px] mx-auto">
+          {Array.from({ length: groups }, (_, g) => {
+            const x = 5 + armLen + g * (rbW + armLen * 2 + GAP);
+            const y = 8;
+            const bodyY = y + headH + 4;
+            return (
+              <g key={g}>
+                {/* Head */}
+                <rect x={x + rbW * 0.2} y={y} width={rbW * 0.6} height={headH} rx={3} fill="#94a3b8" stroke="#64748b" strokeWidth={1.5} />
+                {/* Eyes */}
+                <circle cx={x + rbW * 0.35} cy={y + 6} r={3} fill={accent} />
+                <circle cx={x + rbW * 0.65} cy={y + 6} r={3} fill={accent} />
+                {/* Neck */}
+                <rect x={x + rbW * 0.4} y={y + headH} width={rbW * 0.2} height={4} fill="#94a3b8" />
+                {/* Body */}
+                <rect x={x} y={bodyY} width={rbW} height={rbH} rx={4} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
+                {/* Arms (= perGroup items) */}
+                {Array.from({ length: perGroup }, (_, w) => {
+                  const side = w % 2; // 0=left, 1=right
+                  const row = Math.floor(w / 2);
+                  const ay = bodyY + 10 + row * 14;
+                  const ax = side === 0 ? x - armLen : x + rbW;
+                  const ax2 = side === 0 ? x : x + rbW + armLen;
+                  return (
+                    <g key={w}>
+                      <line x1={ax} y1={ay} x2={ax2} y2={ay} stroke={accent} strokeWidth={5} strokeLinecap="round" />
+                      <circle cx={ax} cy={ay} r={4} fill={accent + "cc"} stroke={accent} strokeWidth={1} />
+                    </g>
+                  );
+                })}
+                {/* Legs */}
+                <rect x={x + 6} y={bodyY + rbH} width={10} height={12} rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+                <rect x={x + rbW - 16} y={bodyY + rbH} width={10} height={12} rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── Treasure chest (treasure_builder) ─────────────────────────────────────
+  if (theme === "treasure_builder") {
+    const cW = 54; const cH = 36; const lidH = 14; const gemR = 7;
+    const gemCols = Math.min(perGroup, 3);
+    const W = groups * cW + (groups - 1) * GAP + 10;
+    const H = cH + lidH + 32;
+    return (
+      <div className={CARD_INNER}>
+        <p className={TASK_LABEL}>{label}</p>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[280px] mx-auto">
+          {Array.from({ length: groups }, (_, g) => {
+            const x = 5 + g * (cW + GAP);
+            const y = 8;
+            return (
+              <g key={g}>
+                {/* Chest lid (arc) */}
+                <path d={`M ${x} ${y + lidH} Q ${x + cW / 2} ${y - 4} ${x + cW} ${y + lidH}`} fill="#92400e" stroke="#78350f" strokeWidth={1.5} />
+                <rect x={x} y={y + lidH} width={cW} height={lidH / 2} fill="#92400e" stroke="#78350f" strokeWidth={1} />
+                {/* Chest body */}
+                <rect x={x} y={y + lidH * 1.5} width={cW} height={cH} rx={3} fill="#b45309" stroke="#92400e" strokeWidth={1.5} />
+                {/* Lock */}
+                <rect x={x + cW / 2 - 5} y={y + lidH * 1.2} width={10} height={8} rx={2} fill="#f59e0b" stroke="#d97706" strokeWidth={1} />
+                {/* Metal band */}
+                <line x1={x} y1={y + lidH * 1.5 + cH / 2} x2={x + cW} y2={y + lidH * 1.5 + cH / 2} stroke="#78350f" strokeWidth={2} />
+                {/* Gems (= perGroup items) */}
+                {Array.from({ length: perGroup }, (_, w) => {
+                  const col = w % gemCols; const row = Math.floor(w / gemCols);
+                  const gx = x + (cW / gemCols) * col + cW / gemCols / 2;
+                  const gy = y + lidH * 1.5 + cH / 4 + row * (gemR * 2 + 4);
+                  const pts = `${gx},${gy - gemR} ${gx + gemR * 0.65},${gy} ${gx},${gy + gemR} ${gx - gemR * 0.65},${gy}`;
+                  return <polygon key={w} points={pts} fill="#f59e0bd0" stroke="#d97706" strokeWidth={1.5} />;
+                })}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── Default: Buildings (city_builder) ──────────────────────────────────────
   const WIN_COLS = 2; const WIN_W = 16; const WIN_H = 12; const WIN_GAP = 6;
   const WALL_PAD_X = 10; const WALL_PAD_TOP = 10; const WALL_PAD_BOT = 18;
   const bldW = WIN_COLS * WIN_W + (WIN_COLS - 1) * WIN_GAP + WALL_PAD_X * 2;
   const rows = Math.ceil(perGroup / WIN_COLS);
   const bldH = rows * WIN_H + (rows - 1) * WIN_GAP + WALL_PAD_TOP + WALL_PAD_BOT;
-  const GAP = 14;
   const W = groups * bldW + (groups - 1) * GAP + 10;
   const H = bldH + 30;
-
   return (
     <div className={CARD_INNER}>
-      <p className={TASK_LABEL}>{groups} buildings × {perGroup} windows</p>
+      <p className={TASK_LABEL}>{label}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[260px] mx-auto">
         {Array.from({ length: groups }, (_, g) => {
           const xOff = 5 + g * (bldW + GAP);
           const yOff = 8;
           return (
             <g key={g}>
-              {/* Building body */}
               <rect x={xOff} y={yOff} width={bldW} height={bldH} rx={2} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={1.5} />
-              {/* Windows */}
               {Array.from({ length: perGroup }, (_, w) => {
                 const col = w % WIN_COLS; const row = Math.floor(w / WIN_COLS);
                 const wx = xOff + WALL_PAD_X + col * (WIN_W + WIN_GAP);
                 const wy = yOff + WALL_PAD_TOP + row * (WIN_H + WIN_GAP);
                 return <rect key={w} x={wx} y={wy} width={WIN_W} height={WIN_H} rx={2} fill={accent + "cc"} stroke={accent} strokeWidth={1} />;
               })}
-              {/* Door */}
               <rect x={xOff + bldW / 2 - 6} y={yOff + bldH - 16} width={12} height={15} rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={1} />
-              {/* Ground */}
               <line x1={xOff - 2} y1={yOff + bldH + 1} x2={xOff + bldW + 2} y2={yOff + bldH + 1} stroke="#94a3b8" strokeWidth={2} />
             </g>
           );
@@ -2146,7 +2331,7 @@ function TaskVisual({ task, theme, flashPhase, sessionToken }: { task: TaskData;
   const num = (k: string, fallback: number) => (typeof vp[k] === "number" ? vp[k] as number : fallback);
   if (vt === "dot_array") return <DotArrayVisual taskId={task.id} dotCount={num("dotCount", 12)} taskType={tt} accent={accent} flashPhase={flashPhase} groupA={num("groupA", 0) || undefined} groupB={num("groupB", 0) || undefined} theme={theme} />;
   if (vt === "building_comparison") return <BuildingComparisonVisual groupA={num("groupA", 7)} groupB={num("groupB", 5)} accent={accent} theme={theme} />;
-  if (vt === "building_groups") return <BuildingGroupsVisual groups={num("groups", 3)} perGroup={num("perGroup", 4)} accent={accent} />;
+  if (vt === "building_groups") return <BuildingGroupsVisual groups={num("groups", 3)} perGroup={num("perGroup", 4)} accent={accent} theme={theme} />;
   if (vt === "number_line") return <NumberLineVisual scaleMin={num("scaleMin", 0)} scaleMax={num("scaleMax", 20)} accent={accent} taskType={tt} vp={vp} />;
   if (vt === "base_ten_blocks") return <BaseTenBlocksVisual thousands={num("thousands", 0)} hundreds={num("hundreds", 0)} tens={num("tens", 2)} ones={num("ones", 3)} accent={accent} />;
   if (vt === "fraction_bar") return <FractionBarVisual numerator={num("numerator", 3)} denominator={num("denominator", 4)} accent={accent} vp={vp} />;
