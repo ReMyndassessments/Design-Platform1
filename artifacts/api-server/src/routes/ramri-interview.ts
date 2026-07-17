@@ -423,7 +423,11 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
         continue;
       }
       const url = doc.file_url.toLowerCase();
-      const isPdf = doc.file_type === "pdf" || url.endsWith(".pdf");
+      const isPdf =
+        doc.file_type === "pdf" ||
+        doc.file_type === "application/pdf" ||
+        (doc.file_name ?? "").toLowerCase().endsWith(".pdf") ||
+        url.endsWith(".pdf");
       if (isPdf) {
         errors.push(`${name}: PDF extraction not yet supported — add samples manually for this document`);
         continue;
