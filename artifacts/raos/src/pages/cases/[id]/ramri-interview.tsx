@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2 } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -142,6 +142,10 @@ export default function RamriInterviewPage() {
   const [ratings, setRatings] = useState<DomainRating[]>([]);
   const [report, setReport] = useState<Report | null>(null);
 
+  // Contributor-upload notification
+  const [newDocsCount, setNewDocsCount] = useState(0);
+  const knownDocIds = useRef<Set<string>>(new Set());
+
   // Upload phase state
   const [uploading, setUploading] = useState(false);
   const [uploadMeta, setUploadMeta] = useState({ sourceType: "teacher", mathTopic: "", gradeLevel: "", independenceReported: "unknown", teacherMarked: "unknown", teacherComments: "", contributorNotes: "" });
@@ -194,6 +198,7 @@ export default function RamriInterviewPage() {
         setSessionId(data.session.id);
         if ((data as Record<string, unknown>).assignmentToken) setAssignmentToken((data as Record<string, string>).assignmentToken);
         setDocs(data.docs);
+        knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
         setChoiceSets(data.choiceSets);
         setSelections(data.selections);
@@ -215,6 +220,31 @@ export default function RamriInterviewPage() {
     };
     init();
   }, [caseId, assignmentId]);
+
+  // Poll for new contributor uploads every 30 s while on Phase 1
+  useEffect(() => {
+    if (phase !== "upload" || !sessionId || !caseId) return;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
+          headers: getAuth(),
+        });
+        if (!r.ok) return;
+        const d = await r.json() as { documents: WorkDoc[] };
+        const fresh = d.documents;
+        const arrived = fresh.filter(doc => !knownDocIds.current.has(doc.id));
+        if (arrived.length > 0) {
+          setDocs(fresh);
+          arrived.forEach(doc => knownDocIds.current.add(doc.id));
+          setNewDocsCount(n => n + arrived.length);
+        }
+      } catch {
+        // silent — don't disturb the examiner if poll fails
+      }
+    };
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
+  }, [phase, sessionId, caseId]);
 
   const saveSession = useCallback(async (patch: Partial<Session>) => {
     if (!sessionId) return;
@@ -513,16 +543,20 @@ export default function RamriInterviewPage() {
           {PHASES.map((p, i) => {
             const Icon = p.icon;
             const active = phase === p.id;
+            const showDot = p.id === "upload" && newDocsCount > 0;
             return (
               <button
                 key={p.id}
                 onClick={() => setPhase(p.id)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   active ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Icon size={14} />
                 {i + 1}. {p.label}
+                {showDot && (
+                  <span className="absolute top-2 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+                )}
               </button>
             );
           })}
@@ -539,6 +573,28 @@ export default function RamriInterviewPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
               <strong>Important:</strong> A completed or correct answer does not, by itself, establish that the student completed the work independently or understood the underlying concept.
             </div>
+
+            {/* New contributor uploads banner */}
+            {newDocsCount > 0 && (
+              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <Bell size={16} className="text-emerald-600 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-emerald-800">
+                    {newDocsCount === 1
+                      ? "1 new document uploaded by contributor"
+                      : `${newDocsCount} new documents uploaded by contributor`}
+                  </p>
+                  <p className="text-xs text-emerald-700">The document list below has been updated automatically.</p>
+                </div>
+                <button
+                  onClick={() => setNewDocsCount(0)}
+                  className="text-emerald-500 hover:text-emerald-700 shrink-0"
+                  aria-label="Dismiss"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
 
             {/* Contributor link */}
             {assignmentToken && (
