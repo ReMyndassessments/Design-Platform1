@@ -137,6 +137,20 @@ export default function RamriUploadPage() {
       .catch((s) => { setNotFound(s === 404); setLoading(false); });
   }, [token]);
 
+  // Poll every 60 s so the closed screen appears if examiner closes while page is open
+  useEffect(() => {
+    if (loading || notFound) return;
+    const id = setInterval(() => {
+      fetch(`${BASE_URL}/api/ramri-upload/${token}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((d: SessionInfo | null) => {
+          if (d && d.uploadsClosed) setInfo(prev => prev ? { ...prev, uploadsClosed: true } : prev);
+        })
+        .catch(() => {});
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [token, loading, notFound]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -183,6 +197,10 @@ export default function RamriUploadPage() {
           contributorNotes: meta.contributorNotes,
         }),
       });
+      if (res.status === 403) {
+        setInfo(prev => prev ? { ...prev, uploadsClosed: true } : prev);
+        return;
+      }
       if (!res.ok) throw new Error("submit");
       setSubmitted(n => n + 1);
       setMeta(DEFAULT_META);
