@@ -649,6 +649,37 @@ export default function RamriInterviewPage() {
               <strong>Important:</strong> A completed or correct answer does not, by itself, establish that the student completed the work independently or understood the underlying concept.
             </div>
 
+            {/* Uploads closed banner */}
+            {uploadsClosed && (
+              <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-lg p-4">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900">Uploads are closed</p>
+                  <p className="text-xs text-amber-700 mt-0.5">Contributors see a "submissions closed" message and cannot upload new samples. Click to reopen.</p>
+                </div>
+                <Button
+                  size="sm"
+                  disabled={togglingUploads}
+                  onClick={async () => {
+                    if (!sessionId) return;
+                    setTogglingUploads(true);
+                    try {
+                      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
+                        method: "POST", headers: jsonHeaders(),
+                      });
+                      if (r.ok) {
+                        const d = await r.json() as { uploadsClosed: boolean };
+                        setUploadsClosed(d.uploadsClosed);
+                      }
+                    } finally {
+                      setTogglingUploads(false);
+                    }
+                  }}
+                >
+                  {togglingUploads ? <Loader2 size={14} className="animate-spin" /> : "Reopen uploads"}
+                </Button>
+              </div>
+            )}
+
             {/* New contributor uploads banner */}
             {newDocsCount > 0 && (
               <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
