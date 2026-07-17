@@ -196,9 +196,16 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/documents", authMiddleware
 
 router.get("/cases/:caseId/ramri/sessions/:sessionId/documents", authMiddleware, async (req, res) => {
   try {
-    const { sessionId } = req.params;
+    const { caseId, sessionId } = req.params;
     const docs = await db.execute(sql`SELECT * FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC`);
-    return res.json({ documents: docs.rows });
+    // Also return current uploadsClosed so the frontend can self-correct stale state
+    const session = (await db.execute(sql`SELECT assignment_id FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0] as { assignment_id: string } | undefined;
+    let uploadsClosed = false;
+    if (session) {
+      const asgn = (await db.execute(sql`SELECT metadata FROM assignments WHERE id = ${session.assignment_id} LIMIT 1`)).rows[0] as { metadata: unknown } | undefined;
+      uploadsClosed = !!(asgn?.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
+    }
+    return res.json({ documents: docs.rows, uploadsClosed });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch documents" });
   }

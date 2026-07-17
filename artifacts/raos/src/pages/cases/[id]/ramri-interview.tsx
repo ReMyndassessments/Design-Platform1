@@ -259,7 +259,9 @@ export default function RamriInterviewPage() {
           headers: getAuth(),
         });
         if (!r.ok) return;
-        const d = await r.json() as { documents: WorkDoc[] };
+        const d = await r.json() as { documents: WorkDoc[]; uploadsClosed?: boolean };
+        // Self-correct stale uploadsClosed state (survives HMR and remounts)
+        if (typeof d.uploadsClosed === "boolean") setUploadsClosed(d.uploadsClosed);
         const fresh = d.documents;
         const arrived = fresh.filter(doc => !knownDocIds.current.has(doc.id));
         if (arrived.length > 0) {
@@ -271,6 +273,7 @@ export default function RamriInterviewPage() {
         // silent — don't disturb the examiner if poll fails
       }
     };
+    poll(); // fire immediately to self-correct any stale uploadsClosed state
     const id = setInterval(poll, 30_000);
     return () => clearInterval(id);
   }, [phase, sessionId, caseId]);
