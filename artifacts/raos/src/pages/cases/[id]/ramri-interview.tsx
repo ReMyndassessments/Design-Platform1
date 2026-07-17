@@ -83,7 +83,7 @@ type WorkSample = {
 
 type ChoiceSet = {
   id: string; title: string; choice_type: string; target_domain: string | null;
-  student_prompt: string; display_order: number;
+  student_prompt: string; display_order: number; created_by: string | null;
   items: Array<{ id: string; choice_set_id: string; work_sample_id: string; display_order: number }>;
 };
 
@@ -181,6 +181,7 @@ export default function RamriInterviewPage() {
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [editingSetItems, setEditingSetItems] = useState<string[]>([]);
   const [recommending, setRecommending] = useState(false);
+  const [generatingChoiceSets, setGeneratingChoiceSets] = useState(false);
 
   // Interview phase state
   const [activeSelId, setActiveSelId] = useState<string | null>(null);
@@ -446,6 +447,23 @@ export default function RamriInterviewPage() {
     if (!confirm("Delete this choice set?")) return;
     await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/choice-sets/${setId}`, { method: "DELETE", headers: getAuth() });
     setChoiceSets(prev => prev.filter(cs => cs.id !== setId));
+  };
+
+  const generateChoiceSets = async () => {
+    if (!sessionId) return;
+    setGeneratingChoiceSets(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/generate-choice-sets`, {
+        method: "POST", headers: jsonHeaders(),
+      });
+      if (!r.ok) { const e = await r.json() as { error: string }; alert(e.error ?? "Generation failed"); return; }
+      const d = await r.json() as { choiceSets: ChoiceSet[] };
+      setChoiceSets(prev => {
+        const aiIds = new Set(d.choiceSets.map(c => c.id));
+        const manual = prev.filter(c => !aiIds.has(c.id) && c.created_by !== "ai");
+        return [...manual, ...d.choiceSets];
+      });
+    } finally { setGeneratingChoiceSets(false); }
   };
 
   // ── Interview phase ─────────────────────────────────────────────────────────
@@ -1163,41 +1181,56 @@ export default function RamriInterviewPage() {
           <div className="space-y-4">
             <div>
               <h2 className="font-semibold text-slate-800">Choice Sets</h2>
-              <p className="text-xs text-slate-500">Build small choice sets (2–4 samples) for the student to choose from. The student always retains control over which sample is discussed.</p>
+              <p className="text-xs text-slate-500">AI groups your approved samples into sets of 2–3 for the student to choose from. You can edit or remove samples within each set.</p>
             </div>
 
-            {/* New choice set form */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-              <h3 className="font-semibold text-sm text-slate-700">Create Choice Set</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-slate-600">Title *</Label>
-                  <Input className="mt-1 h-7 text-xs" placeholder="e.g. Open Choice 1" value={newSetForm.title} onChange={e => setNewSetForm(p => ({ ...p, title: e.target.value }))} />
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-600">Type</Label>
-                  <select className="w-full mt-1 border border-slate-200 rounded-md px-2 py-1.5 text-xs" value={newSetForm.choiceType} onChange={e => setNewSetForm(p => ({ ...p, choiceType: e.target.value }))}>
-                    <option value="open">Open Choice</option>
-                    <option value="domain_guided">Domain-Guided</option>
-                    <option value="challenge">Challenge Choice</option>
-                  </select>
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-600">Target Domain (optional)</Label>
-                  <select className="w-full mt-1 border border-slate-200 rounded-md px-2 py-1.5 text-xs" value={newSetForm.targetDomain} onChange={e => setNewSetForm(p => ({ ...p, targetDomain: e.target.value }))}>
-                    <option value="">Any</option>
-                    {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-600">Student Prompt</Label>
-                  <Input className="mt-1 h-7 text-xs" placeholder="Which piece would you like to show me?" value={newSetForm.studentPrompt} onChange={e => setNewSetForm(p => ({ ...p, studentPrompt: e.target.value }))} />
-                </div>
+            {/* AI Generate button */}
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-violet-800">AI Choice Set Generator</p>
+                <p className="text-xs text-violet-600 mt-0.5">
+                  {approvedSamples.length === 0
+                    ? "No approved samples yet — approve samples in the Sample Bank first."
+                    : `${approvedSamples.length} approved sample${approvedSamples.length !== 1 ? "s" : ""} ready to group.`}
+                  {choiceSets.some(c => c.created_by === "ai") && " Re-generate to replace AI sets."}
+                </p>
               </div>
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1" onClick={createChoiceSet} disabled={saving || !newSetForm.title.trim()}>
-                <Plus size={12} /> Create Choice Set
+              <Button
+                className="bg-violet-600 hover:bg-violet-700 gap-2 shrink-0"
+                onClick={generateChoiceSets}
+                disabled={generatingChoiceSets || approvedSamples.length === 0}
+              >
+                {generatingChoiceSets ? <><Loader2 size={14} className="animate-spin" /> Generating…</> : <><Sparkles size={14} /> Generate Choice Sets</>}
               </Button>
             </div>
+
+            {/* Manual add (secondary) */}
+            <details className="bg-white rounded-xl border border-slate-200">
+              <summary className="px-4 py-3 text-xs text-slate-500 cursor-pointer select-none font-medium hover:text-slate-700">+ Add set manually</summary>
+              <div className="px-4 pb-4 pt-2 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-slate-600">Title *</Label>
+                    <Input className="mt-1 h-7 text-xs" placeholder="e.g. Open Choice 1" value={newSetForm.title} onChange={e => setNewSetForm(p => ({ ...p, title: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-600">Type</Label>
+                    <select className="w-full mt-1 border border-slate-200 rounded-md px-2 py-1.5 text-xs" value={newSetForm.choiceType} onChange={e => setNewSetForm(p => ({ ...p, choiceType: e.target.value }))}>
+                      <option value="open">Open Choice</option>
+                      <option value="domain_guided">Domain-Guided</option>
+                      <option value="challenge">Challenge Choice</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-600">Student Prompt</Label>
+                    <Input className="mt-1 h-7 text-xs" placeholder="Which piece would you like to show me?" value={newSetForm.studentPrompt} onChange={e => setNewSetForm(p => ({ ...p, studentPrompt: e.target.value }))} />
+                  </div>
+                </div>
+                <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1" onClick={createChoiceSet} disabled={saving || !newSetForm.title.trim()}>
+                  <Plus size={12} /> Create Set
+                </Button>
+              </div>
+            </details>
 
             {/* Existing choice sets */}
             {choiceSets.map(cs => {

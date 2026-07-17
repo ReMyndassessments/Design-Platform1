@@ -586,6 +586,77 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/choice-sets/:setId", aut
   }
 });
 
+// ── AI: Generate all choice sets from approved samples ────────────────────────
+router.post("/cases/:caseId/ramri/sessions/:sessionId/generate-choice-sets", authMiddleware, async (req, res) => {
+  try {
+    const { caseId, sessionId } = req.params;
+    const samples = (await db.execute(sql`
+      SELECT id, extracted_problem, student_answer, visible_working, answer_status,
+             domain, skill, difficulty, examiner_notes
+      FROM ramri_work_samples
+      WHERE session_id = ${sessionId} AND approved = true
+      ORDER BY created_at ASC
+    `)).rows as Array<Record<string, string | null>>;
+
+    if (samples.length === 0) return res.status(400).json({ error: "No approved samples to group" });
+
+    const prompt = `You are a clinical mathematics assessment specialist designing student choice sets for a ReMynd Authentic Mathematical Reasoning Interview (RAMRI).
+
+Approved work samples:
+${JSON.stringify(samples.map(s => ({ id: s.id, problem: s.extracted_problem, answer: s.student_answer, answerStatus: s.answer_status, domain: s.domain, skill: s.skill, difficulty: s.difficulty, notes: s.examiner_notes })), null, 2)}
+
+Group these samples into 2–4 choice sets of 2–3 samples each. Rules:
+- Each set should have diversity: mix correct/incorrect answers, mix domains/skills where possible
+- Avoid grouping samples that are too similar (same operation, same difficulty)
+- Each set should give the student meaningful choice
+- Generate a short examiner-facing title and a natural student-facing prompt for each set
+
+Return ONLY valid JSON (no markdown):
+[
+  {
+    "title": "Set A — Operations Mix",
+    "choiceType": "open",
+    "studentPrompt": "Which of these problems would you like to tell me about?",
+    "rationale": "one sentence why these were grouped",
+    "sampleIds": ["id1", "id2", "id3"]
+  }
+]`;
+
+    const raw = await callGroq(prompt, undefined, 2048);
+    const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+    const groups = JSON.parse(clean) as Array<{
+      title: string; choiceType: string; studentPrompt: string; rationale: string; sampleIds: string[];
+    }>;
+
+    // Delete existing AI-generated sets for this session before creating new ones
+    const existingSets = (await db.execute(sql`SELECT id FROM ramri_choice_sets WHERE session_id = ${sessionId} AND created_by = 'ai'`)).rows as Array<{ id: string }>;
+    for (const s of existingSets) {
+      await db.execute(sql`DELETE FROM ramri_choice_set_items WHERE choice_set_id = ${s.id}`);
+      await db.execute(sql`DELETE FROM ramri_choice_sets WHERE id = ${s.id}`);
+    }
+
+    const created = [];
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      const id = nanoid();
+      await db.execute(sql`
+        INSERT INTO ramri_choice_sets (id, session_id, case_id, title, choice_type, student_prompt, display_order, created_by, created_at)
+        VALUES (${id}, ${sessionId}, ${caseId}, ${g.title}, ${g.choiceType ?? "open"}, ${g.studentPrompt ?? null}, ${i}, 'ai', NOW())
+      `);
+      const validIds = g.sampleIds.filter(sid => samples.some(s => s.id === sid));
+      for (let j = 0; j < validIds.length; j++) {
+        await db.execute(sql`INSERT INTO ramri_choice_set_items (id, choice_set_id, work_sample_id, display_order) VALUES (${nanoid()}, ${id}, ${validIds[j]}, ${j})`);
+      }
+      const cs = (await db.execute(sql`SELECT cs.*, COALESCE(json_agg(csi ORDER BY csi.display_order) FILTER (WHERE csi.id IS NOT NULL), '[]') AS items FROM ramri_choice_sets cs LEFT JOIN ramri_choice_set_items csi ON csi.choice_set_id = cs.id WHERE cs.id = ${id} GROUP BY cs.id`)).rows[0];
+      created.push(cs);
+    }
+    return res.json({ choiceSets: created });
+  } catch (err) {
+    logger.error({ err }, "RAMRI generate choice sets failed");
+    return res.status(500).json({ error: "Failed to generate choice sets" });
+  }
+});
+
 // ── AI: Recommend choice set ──────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/recommend-choice-set", authMiddleware, async (req, res) => {
   try {
