@@ -449,6 +449,16 @@ export default function RamriInterviewPage() {
     setChoiceSets(prev => prev.filter(cs => cs.id !== setId));
   };
 
+  const callToggleUploads = async (closed: boolean) => {
+    if (!sessionId) return;
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
+        method: "POST", headers: jsonHeaders(), body: JSON.stringify({ closed }),
+      });
+      if (r.ok) { const d = await r.json() as { uploadsClosed: boolean }; setUploadsClosed(d.uploadsClosed); }
+    } catch { /* non-fatal */ }
+  };
+
   const generateChoiceSets = async () => {
     if (!sessionId) return;
     setGeneratingChoiceSets(true);
@@ -640,7 +650,11 @@ export default function RamriInterviewPage() {
             return (
               <button
                 key={p.id}
-                onClick={() => setPhase(p.id)}
+                onClick={async () => {
+                  if (p.id === "upload" && uploadsClosed) await callToggleUploads(false);
+                  if (p.id !== "upload" && phase === "upload" && !uploadsClosed) await callToggleUploads(true);
+                  setPhase(p.id);
+                }}
                 className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   active ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
@@ -847,7 +861,10 @@ export default function RamriInterviewPage() {
               </div>
             )}
 
-            <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("samples")}>
+            <Button className="bg-violet-600 hover:bg-violet-700" onClick={async () => {
+              if (!uploadsClosed) await callToggleUploads(true);
+              setPhase("samples");
+            }}>
               Continue to Samples <ChevronRight size={14} className="ml-1" />
             </Button>
           </div>
