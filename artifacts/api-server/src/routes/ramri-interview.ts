@@ -122,9 +122,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddl
     const existingMeta = (assignment.metadata as Record<string, unknown> | null) ?? {};
     const newMeta = { ...existingMeta, ramriUploadsClosed: newClosed };
 
-    await db.update(assignmentsTable)
-      .set({ metadata: newMeta })
-      .where(eq(assignmentsTable.id, assignment.id));
+    await db.execute(sql`UPDATE assignments SET metadata = ${JSON.stringify(newMeta)}::jsonb WHERE id = ${assignment.id}`);
 
     return res.json({ uploadsClosed: newClosed });
   } catch (err) {
