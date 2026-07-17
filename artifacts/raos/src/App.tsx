@@ -75,6 +75,7 @@ const RrfaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrfa"));
 const RrcaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrca"));
 const RmraAdminPage = React.lazy(() => import("@/pages/cases/[id]/rmra"));
 const RamriInterviewPage = React.lazy(() => import("@/pages/cases/[id]/ramri-interview"));
+const RamriUploadPage = React.lazy(() => import("@/pages/ramri-upload/[token]"));
 const LiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/literacy-dashboard"));
 const RemyndDashboardPage = React.lazy(() => import("@/pages/cases/[id]/remynd-dashboard"));
 const DashboardsHub = React.lazy(() => import("@/pages/cases/[id]/dashboards"));
@@ -162,6 +163,7 @@ function Router() {
         <Route path="/assessment-preparation" component={AssessmentPreparationPage} />
         <Route path="/my-portal" component={MyPortalLogin} />
         <Route path="/external/:token" component={ExternalFormView} />
+        <Route path="/ramri-upload/:token" component={RamriUploadPage} />
         <Route path="/student-view/rda" component={RdaStudentView} />
         <Route path="/student-view/rrca/:token" component={RrcaStudentView} />
         <Route path="/student-view/rrfa/:token" component={RrfaStudentView} />

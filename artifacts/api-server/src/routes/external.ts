@@ -918,4 +918,58 @@ router.post("/external/portal-login", async (req, res) => {
   res.json({ token: matchedToken.token });
 });
 
+// ── RAMRI Contributor Upload (public, no auth) ────────────────────────────────
+router.get("/ramri-upload/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, token)).limit(1);
+    const assignment = rows[0];
+    if (!assignment || assignment.toolId !== "RAMRI") {
+      return res.status(404).json({ error: "not_found" });
+    }
+    const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+    const studentName = (caseRows[0] as { studentName?: string })?.studentName ?? "the student";
+    const sessionRows = await db.execute(sql`SELECT id FROM ramri_sessions WHERE case_id = ${assignment.caseId} AND assignment_id = ${assignment.id} LIMIT 1`);
+    const sessionId = (sessionRows.rows[0] as { id?: string })?.id ?? null;
+    return res.json({ ok: true, studentName, caseId: assignment.caseId, assignmentId: assignment.id, sessionId });
+  } catch (err) {
+    console.error("RAMRI upload lookup failed", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+router.post("/ramri-upload/:token/documents", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, token)).limit(1);
+    const assignment = rows[0];
+    if (!assignment || assignment.toolId !== "RAMRI") {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    // Ensure a session exists (create if missing)
+    const existing = await db.execute(sql`SELECT id FROM ramri_sessions WHERE case_id = ${assignment.caseId} AND assignment_id = ${assignment.id} LIMIT 1`);
+    let sessionId: string;
+    if (existing.rows.length > 0) {
+      sessionId = (existing.rows[0] as { id: string }).id;
+    } else {
+      sessionId = nanoid();
+      await db.execute(sql`INSERT INTO ramri_sessions (id, case_id, assignment_id, status, created_at, updated_at) VALUES (${sessionId}, ${assignment.caseId}, ${assignment.id}, 'upload', NOW(), NOW())`);
+    }
+
+    const { fileName, fileUrl, fileType, sourceType, completionDate, gradeLevel, mathTopic, independenceReported, teacherMarked, teacherComments, contributorNotes } = req.body as Record<string, string>;
+    const docId = nanoid();
+    await db.execute(sql`
+      INSERT INTO ramri_work_documents
+        (id, case_id, session_id, file_name, file_url, file_type, source_type, completion_date, grade_level, math_topic, independence_reported, teacher_marked, teacher_comments, contributor_notes, extraction_status, created_at)
+      VALUES
+        (${docId}, ${assignment.caseId}, ${sessionId}, ${fileName ?? null}, ${fileUrl ?? null}, ${fileType ?? null}, ${sourceType ?? "contributor"}, ${completionDate ?? null}, ${gradeLevel ?? null}, ${mathTopic ?? null}, ${independenceReported ?? "unknown"}, ${teacherMarked ?? "unknown"}, ${teacherComments ?? null}, ${contributorNotes ?? null}, 'pending', NOW())
+    `);
+    return res.status(201).json({ ok: true, docId, sessionId });
+  } catch (err) {
+    console.error("RAMRI contributor upload failed", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
 export default router;

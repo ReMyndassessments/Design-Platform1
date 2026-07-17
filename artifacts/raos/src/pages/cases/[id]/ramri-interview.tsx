@@ -134,6 +134,7 @@ export default function RamriInterviewPage() {
   // Core data
   const [session, setSession] = useState<Session | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [assignmentToken, setAssignmentToken] = useState<string | null>(null);
   const [docs, setDocs] = useState<WorkDoc[]>([]);
   const [samples, setSamples] = useState<WorkSample[]>([]);
   const [choiceSets, setChoiceSets] = useState<ChoiceSet[]>([]);
@@ -191,6 +192,7 @@ export default function RamriInterviewPage() {
         };
         setSession(data.session);
         setSessionId(data.session.id);
+        if ((data as Record<string, unknown>).assignmentToken) setAssignmentToken((data as Record<string, string>).assignmentToken);
         setDocs(data.docs);
         setSamples(data.samples);
         setChoiceSets(data.choiceSets);
@@ -537,6 +539,21 @@ export default function RamriInterviewPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
               <strong>Important:</strong> A completed or correct answer does not, by itself, establish that the student completed the work independently or understood the underlying concept.
             </div>
+
+            {/* Contributor link */}
+            {assignmentToken && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-700 mb-0.5">Contributor upload link</p>
+                  <p className="text-xs text-slate-400 truncate">{window.location.origin}/ramri-upload/{assignmentToken}</p>
+                </div>
+                <Button size="sm" variant="outline" className="shrink-0 text-xs" onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/ramri-upload/${assignmentToken}`);
+                }}>
+                  Copy link
+                </Button>
+              </div>
+            )}
 
             {/* Upload form */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
