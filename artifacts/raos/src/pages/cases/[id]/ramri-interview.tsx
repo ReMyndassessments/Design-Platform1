@@ -200,6 +200,11 @@ export default function RamriInterviewPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [editedNarrative, setEditedNarrative] = useState<Record<string, unknown>>({});
 
+  // Persist phase in sessionStorage so remounts restore the correct step
+  useEffect(() => {
+    if (sessionId) sessionStorage.setItem(`ramri-phase-${sessionId}`, phase);
+  }, [phase, sessionId]);
+
   // Init
   useEffect(() => {
     const init = async () => {
@@ -225,6 +230,9 @@ export default function RamriInterviewPage() {
         setSelections(data.selections);
         setRatings(data.ratings);
         setReport(data.report);
+        // Restore phase from sessionStorage (survives remounts)
+        const savedPhase = sessionStorage.getItem(`ramri-phase-${data.session.id}`);
+        if (savedPhase) setPhase(savedPhase as Phase);
         // Init local ratings from DB
         const lr: typeof localRatings = {};
         for (const dr of data.ratings) {
