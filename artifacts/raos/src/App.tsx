@@ -74,6 +74,7 @@ const RdaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rda"));
 const RrfaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrfa"));
 const RrcaAdminPage = React.lazy(() => import("@/pages/cases/[id]/rrca"));
 const RmraAdminPage = React.lazy(() => import("@/pages/cases/[id]/rmra"));
+const RamriInterviewPage = React.lazy(() => import("@/pages/cases/[id]/ramri-interview"));
 const LiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/literacy-dashboard"));
 const RemyndDashboardPage = React.lazy(() => import("@/pages/cases/[id]/remynd-dashboard"));
 const DashboardsHub = React.lazy(() => import("@/pages/cases/[id]/dashboards"));
@@ -212,6 +213,9 @@ function Router() {
         </Route>
         <Route path="/cases/:id/rmra/:assignmentId">
           {() => <ProtectedRoute component={RmraAdminPage} allowApprentice />}
+        </Route>
+        <Route path="/cases/:id/ramri/:assignmentId">
+          {() => <ProtectedRoute component={RamriInterviewPage} allowApprentice />}
         </Route>
         <Route path="/cases/:id/dashboards">
           {() => <ProtectedRoute component={DashboardsHub} allowApprentice />}

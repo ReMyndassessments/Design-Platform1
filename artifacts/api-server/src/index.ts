@@ -1127,6 +1127,37 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     formItems: [],
   },
   {
+    id: "RAMRI",
+    name: "RAMRI — ReMynd Authentic Mathematical Reasoning Interview",
+    category: "Learning & Academic",
+    description: "The ReMynd Authentic Mathematical Reasoning Interview (RAMRI) is a structured examiner-administered interview that uses authentic student work as the starting point for exploring mathematical reasoning. Using familiar, self-selected mathematics work, students demonstrate conceptual understanding, strategy awareness, procedural reasoning, error awareness, and transfer across 10 reasoning domains. Designed to complement formal assessment where anxiety or performance conditions may underestimate available reasoning. Administration time: 20–40 minutes.",
+    isRemyndOwned: true,
+    respondentTypes: ["examiner"],
+    scoringType: "manual",
+    domains: [
+      "Conceptual Understanding", "Strategy Awareness", "Procedural Reasoning",
+      "Mathematical Communication", "Error Awareness", "Verification and Reasonableness",
+      "Strategy Flexibility", "Transfer", "Metacognition", "Independence",
+    ],
+    scoringConfig: {
+      max: 4,
+      thresholds: { low: 25, mild: 50, moderate: 75 },
+      domains: {
+        "Conceptual Understanding": { label: "Conceptual Understanding", shortLabel: "Conceptual", narratives: { low: "Demonstrates clear understanding of mathematical relationships and can explain why methods work.", mild: "Shows developing conceptual understanding with some inconsistency in explaining underlying concepts.", moderate: "Limited conceptual understanding observed; tends to rely on procedural recall rather than conceptual explanation.", elevated: "Insufficient evidence of conceptual understanding across observed samples." } },
+        "Strategy Awareness": { label: "Strategy Awareness", shortLabel: "Strategy", narratives: { low: "Can identify, describe, and justify the approach used with clear awareness of available strategies.", mild: "Developing strategy awareness; can describe methods used but has difficulty explaining why they were chosen.", moderate: "Limited strategy awareness; describes steps without connecting to strategic reasoning.", elevated: "Insufficient evidence of strategy awareness observed." } },
+        "Procedural Reasoning": { label: "Procedural Reasoning", shortLabel: "Procedural", narratives: { low: "Understands the sequence and purpose of procedural steps and can reconstruct reasoning.", mild: "Developing procedural reasoning; follows steps accurately but has difficulty explaining their purpose.", moderate: "Limited procedural understanding; tends toward mechanical recitation without purposeful reasoning.", elevated: "Insufficient evidence of purposeful procedural reasoning." } },
+        "Mathematical Communication": { label: "Mathematical Communication", shortLabel: "Communication", narratives: { low: "Communicates mathematical reasoning clearly through verbal, written, or representational means.", mild: "Developing communication; can convey reasoning but has difficulty with precision or completeness.", moderate: "Limited mathematical communication; struggles to express reasoning clearly in any modality.", elevated: "Insufficient evidence of mathematical communication observed." } },
+        "Error Awareness": { label: "Error Awareness", shortLabel: "Error Awareness", narratives: { low: "Can notice, discuss, and reconsider errors with meaningful self-correction.", mild: "Developing error awareness; can identify errors when prompted but rarely self-monitors.", moderate: "Limited error awareness; has difficulty identifying or discussing errors even with support.", elevated: "Insufficient evidence of error awareness observed." } },
+        "Verification and Reasonableness": { label: "Verification and Reasonableness", shortLabel: "Verification", narratives: { low: "Uses estimation, checking strategies, and reasonableness judgements to evaluate answers.", mild: "Developing verification skills; sometimes checks work but applies limited reasonableness judgement.", moderate: "Limited verification; rarely checks answers or evaluates reasonableness of outcomes.", elevated: "Insufficient evidence of verification behaviour observed." } },
+        "Strategy Flexibility": { label: "Strategy Flexibility", shortLabel: "Flexibility", narratives: { low: "Can consider, compare, and shift strategies demonstrating flexible mathematical thinking.", mild: "Developing flexibility; can acknowledge alternative strategies but has difficulty applying them.", moderate: "Limited strategic flexibility; relies on a single approach with difficulty considering alternatives.", elevated: "Insufficient evidence of strategy flexibility observed." } },
+        "Transfer": { label: "Transfer", shortLabel: "Transfer", narratives: { low: "Can apply reasoning to a related but non-identical situation demonstrating transferable understanding.", mild: "Developing transfer; recognises connections to similar problems with some support.", moderate: "Limited transfer observed; difficulty applying reasoning when surface features change.", elevated: "Insufficient evidence of transfer observed." } },
+        "Metacognition": { label: "Metacognition", shortLabel: "Metacognition", narratives: { low: "Demonstrates clear awareness of own thinking, describes what helped, and evaluates confidence.", mild: "Developing metacognitive awareness; can reflect on thinking with prompting.", moderate: "Limited metacognition; has difficulty identifying what was easy or hard or how they thought.", elevated: "Insufficient evidence of metacognitive reflection observed." } },
+        "Independence": { label: "Independence", shortLabel: "Independence", narratives: { low: "Reasoning clearly belongs to the student; can reconstruct thinking without relying on remembered teacher language.", mild: "Generally independent reasoning with occasional reliance on rehearsed phrases or teacher modelling.", moderate: "Significant reliance on prompting, modelling, or remembered external language to reconstruct reasoning.", elevated: "Insufficient evidence of independent reasoning; extensive support required throughout." } },
+      },
+    } as unknown as ScoringConfig,
+    formItems: [],
+  },
+  {
     id: "RMRA",
     name: "RMRA — ReMynd Mathematical Reasoning Assessment",
     category: "Learning & Academic",
@@ -2887,6 +2918,227 @@ async function createInterviewRecordingsTable() {
   }
 }
 
+async function createRamriTables() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_sessions (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        assignment_id TEXT NOT NULL,
+        examiner_id TEXT,
+        status TEXT NOT NULL DEFAULT 'upload',
+        opening_script_delivered TEXT,
+        opening_notes TEXT,
+        general_notes TEXT,
+        stop_reason TEXT,
+        session_reflection_examiner JSONB,
+        started_at TIMESTAMPTZ,
+        ended_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_sessions_case_id_idx ON ramri_sessions (case_id)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS ramri_sessions_assignment_idx ON ramri_sessions (case_id, assignment_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_work_documents (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        file_name TEXT,
+        file_url TEXT,
+        file_type TEXT,
+        source_type TEXT,
+        contributor_name TEXT,
+        completion_date DATE,
+        grade_level TEXT,
+        math_topic TEXT,
+        independence_reported TEXT,
+        teacher_assistance TEXT,
+        parent_assistance TEXT,
+        example_shown TEXT,
+        manipulatives_used TEXT,
+        calculator_used TEXT,
+        completion_setting TEXT,
+        timed TEXT,
+        teacher_marked TEXT,
+        teacher_comments TEXT,
+        contributor_notes TEXT,
+        extraction_status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_work_docs_session_idx ON ramri_work_documents (session_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_work_samples (
+        id TEXT PRIMARY KEY,
+        document_id TEXT,
+        case_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        image_url TEXT,
+        extracted_problem TEXT,
+        student_answer TEXT,
+        visible_working TEXT,
+        teacher_correction TEXT,
+        teacher_comments TEXT,
+        domain TEXT,
+        skill TEXT,
+        reasoning_focus JSONB,
+        difficulty TEXT,
+        estimated_grade TEXT,
+        answer_status TEXT,
+        language_demand TEXT,
+        suitability TEXT NOT NULL DEFAULT 'suitable',
+        approved BOOLEAN NOT NULL DEFAULT FALSE,
+        examiner_notes TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_work_samples_session_idx ON ramri_work_samples (session_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_choice_sets (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        case_id TEXT NOT NULL,
+        title TEXT,
+        choice_type TEXT NOT NULL DEFAULT 'open',
+        target_domain TEXT,
+        student_prompt TEXT,
+        display_order INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_choice_sets_session_idx ON ramri_choice_sets (session_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_choice_set_items (
+        id TEXT PRIMARY KEY,
+        choice_set_id TEXT NOT NULL,
+        work_sample_id TEXT NOT NULL,
+        display_order INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_sample_selections (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        choice_set_id TEXT,
+        work_sample_id TEXT NOT NULL,
+        offered_sample_ids JSONB,
+        selection_latency_label TEXT,
+        selection_behavior TEXT,
+        recognition BOOLEAN,
+        remembered_completion BOOLEAN,
+        familiarity_notes TEXT,
+        sequence_number INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_selections_session_idx ON ramri_sample_selections (session_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_ownership_context (
+        id TEXT PRIMARY KEY,
+        sample_selection_id TEXT NOT NULL UNIQUE,
+        remembers_problem TEXT,
+        reported_independence INTEGER,
+        assistance_source TEXT,
+        example_shown TEXT,
+        supports_used JSONB,
+        completion_setting TEXT,
+        direct_quote TEXT,
+        examiner_notes TEXT
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_interview_responses (
+        id TEXT PRIMARY KEY,
+        sample_selection_id TEXT NOT NULL,
+        question_type TEXT,
+        generated_question TEXT,
+        approved_question TEXT,
+        response_mode TEXT,
+        direct_quote TEXT,
+        examiner_paraphrase TEXT,
+        examiner_interpretation TEXT,
+        skipped BOOLEAN NOT NULL DEFAULT FALSE,
+        not_observed BOOLEAN NOT NULL DEFAULT FALSE,
+        sequence_number INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_responses_sel_idx ON ramri_interview_responses (sample_selection_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_transfer_prompts (
+        id TEXT PRIMARY KEY,
+        sample_selection_id TEXT NOT NULL UNIQUE,
+        transfer_level TEXT,
+        generated_prompt TEXT,
+        approved_prompt TEXT,
+        student_response TEXT,
+        support_level TEXT,
+        transfer_rating INTEGER,
+        notes TEXT
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_domain_ratings (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        rating INTEGER,
+        evidence_strength TEXT,
+        supporting_evidence TEXT,
+        examiner_override BOOLEAN NOT NULL DEFAULT FALSE,
+        override_reason TEXT
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS ramri_ratings_session_domain_idx ON ramri_domain_ratings (session_id, domain)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_behavioral_obs (
+        id TEXT PRIMARY KEY,
+        sample_selection_id TEXT NOT NULL UNIQUE,
+        anxiety_rating INTEGER,
+        confidence_rating INTEGER,
+        engagement_rating INTEGER,
+        reassurance_required BOOLEAN,
+        communication_mode JSONB,
+        notes TEXT
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_reports (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        session_id TEXT NOT NULL UNIQUE,
+        generated_narrative JSONB,
+        edited_narrative JSONB,
+        status TEXT NOT NULL DEFAULT 'draft',
+        approved_by TEXT,
+        approved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    logger.info("RAMRI tables ensured");
+  } catch (err) {
+    logger.error({ err }, "createRamriTables failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -2934,6 +3186,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => ensureRmraTimerStartedAtColumn())
   .then(() => ensureStudentAnswerColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
+  .then(() => createRamriTables())
   .then(() => createInterviewRecordingsTable())
   .then(() => {
   const server = app.listen(port, (err) => {

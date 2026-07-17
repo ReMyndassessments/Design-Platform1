@@ -1098,10 +1098,10 @@ export default function CaseDetail() {
             </Link>
           )}
           {['scoring', 'report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase ?? '') &&
-            (c.assignments ?? []).filter(a => a.toolId === 'RMRA').map(a => (
-              <Link key={a.id} href={`/cases/${c.id}/rmra/${a.id}`}>
+            (c.assignments ?? []).filter(a => a.toolId === 'RMRA' || a.toolId === 'RAMRI').map(a => (
+              <Link key={a.id} href={`/cases/${c.id}/${a.toolId === 'RAMRI' ? 'ramri' : 'rmra'}/${a.id}`}>
                 <Button variant="outline" className="bg-white gap-2 border-violet-200 text-violet-700 hover:bg-violet-50">
-                  <Brain size={16} className="text-violet-500" /> Generate RMRA Report
+                  <Brain size={16} className="text-violet-500" /> {a.toolId === 'RAMRI' ? 'Open RAMRI' : 'Generate RMRA Report'}
                 </Button>
               </Link>
             ))
@@ -1623,7 +1623,7 @@ export default function CaseDetail() {
                         <div className="flex gap-2 flex-wrap">
                           {a.status === 'completed' ? (
                             (() => {
-                              const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
+                              const ep2 = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : a.toolId === 'RAMRI' ? 'ramri' : null;
                               return ep2 ? (
                                 <Link href={`/cases/${caseId}/${ep2}/${a.id}`}>
                                   <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
@@ -2387,7 +2387,7 @@ export default function CaseDetail() {
                       <div className="flex gap-2 flex-wrap">
                         {a.status === 'completed' ? (
                           (() => {
-                            const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
+                            const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : a.toolId === 'RAMRI' ? 'ramri' : null;
                             return examinerPath ? (
                               <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
                                 <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
