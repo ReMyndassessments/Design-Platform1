@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable } from "@workspace/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { assignmentsTable, casesTable, responsesTable } from "@workspace/db/schema";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
@@ -307,7 +307,85 @@ Return a JSON object (no markdown) with:
 // ── AI: Extract samples from uploaded documents ───────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMiddleware, async (req, res) => {
   try {
-    const { sessionId } = req.params;
+    const { caseId, sessionId } = req.params;
+
+    // ── 1. Case demographics ─────────────────────────────────────────────────
+    const [caseRow] = await db.select({
+      studentName: casesTable.studentName,
+      dob: casesTable.dob,
+      grade: casesTable.grade,
+      school: casesTable.school,
+      languagePreference: casesTable.languagePreference,
+      referralReason: casesTable.referralReason,
+    }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+
+    // Compute age from dob
+    let ageStr = "unknown";
+    if (caseRow?.dob) {
+      const dob = new Date(caseRow.dob);
+      const today = new Date();
+      let yrs = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) yrs--;
+      const totalMonths = (today.getFullYear() - dob.getFullYear()) * 12 + today.getMonth() - dob.getMonth() + (today.getDate() < dob.getDate() ? -1 : 0);
+      const rem = totalMonths % 12;
+      ageStr = rem > 0 ? `${yrs} years, ${rem} months` : `${yrs} years`;
+    }
+
+    // ── 2. Completed form responses for this case ────────────────────────────
+    const completedAssignments = await db.select({
+      id: assignmentsTable.id,
+      toolId: assignmentsTable.toolId,
+      respondentType: assignmentsTable.respondentType,
+      respondentLabel: assignmentsTable.respondentLabel,
+    }).from(assignmentsTable).where(
+      and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed"))
+    );
+
+    // Demographic-relevant answer keys (case-insensitive partial match)
+    const DEMO_KEYS = [
+      "grade", "year", "level", "age", "dob", "birth", "school", "language",
+      "diagnosis", "diagnos", "concern", "difficulty", "difficulties", "special",
+      "support", "learning", "english", "bilingual", "adhd", "asd", "autism",
+      "anxiety", "referral", "reason", "strength", "weakness", "subject",
+      "reading", "writing", "math", "numeracy", "literacy", "attendance",
+      "behaviour", "behavior", "iep", "plan", "adjustment",
+    ];
+
+    const formContext: string[] = [];
+    if (completedAssignments.length > 0) {
+      const assignmentIds = completedAssignments.map(a => a.id);
+      const responses = await db.select({
+        assignmentId: responsesTable.assignmentId,
+        answers: responsesTable.answers,
+      }).from(responsesTable).where(inArray(responsesTable.assignmentId, assignmentIds));
+
+      for (const assignment of completedAssignments) {
+        const response = responses.find(r => r.assignmentId === assignment.id);
+        if (!response?.answers) continue;
+        const answers = response.answers as Record<string, unknown>;
+
+        // Filter to demographically relevant fields with short non-empty values
+        const relevant = Object.entries(answers)
+          .filter(([k, v]) => {
+            if (!v || typeof v !== "string") return false;
+            if (v.length > 300) return false; // skip essay fields
+            const kl = k.toLowerCase();
+            return DEMO_KEYS.some(dk => kl.includes(dk));
+          })
+          .map(([k, v]) => `  ${k}: ${v}`)
+          .join("\n");
+
+        if (relevant) {
+          const label = assignment.respondentLabel
+            ? `${assignment.respondentType} (${assignment.respondentLabel})`
+            : (assignment.respondentType ?? "respondent");
+          formContext.push(`[${assignment.toolId} — ${label}]\n${relevant}`);
+        }
+      }
+    }
+
+    // ── 3. Documents ─────────────────────────────────────────────────────────
     const docsResult = await db.execute(sql`
       SELECT * FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC
     `);
@@ -319,9 +397,25 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
     if (docs.length === 0) {
       return res.json({ candidates: [], errors: ["No documents found for this session"] });
     }
+
+    // ── 4. Extract from each image ───────────────────────────────────────────
     const objectStorage = new ObjectStorageService();
     const candidates: Array<Record<string, unknown>> = [];
     const errors: string[] = [];
+
+    const studentBlock = [
+      `- Name: ${caseRow?.studentName ?? "unknown"}`,
+      `- Age: ${ageStr}`,
+      `- Grade/Year: ${caseRow?.grade ?? "unknown"}`,
+      `- School: ${caseRow?.school ?? "unknown"}`,
+      `- Language preference: ${caseRow?.languagePreference ?? "english"}`,
+      `- Referral reason: ${caseRow?.referralReason ?? "not specified"}`,
+    ].join("\n");
+
+    const formBlock = formContext.length > 0
+      ? `\nReported information from completed assessments/forms:\n${formContext.join("\n\n")}`
+      : "";
+
     for (const doc of docs) {
       const name = doc.file_name || "Document";
       if (!doc.file_url) {
@@ -336,26 +430,34 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
       }
       try {
         const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
+        const docBlock = [
+          `- Document topic: ${doc.math_topic ?? "general mathematics"}`,
+          `- Document grade level noted by contributor: ${doc.grade_level ?? "not specified"}`,
+          `- Source: ${doc.source_type ?? "unknown"}`,
+          `- Teacher marked: ${doc.teacher_marked ?? "unknown"}`,
+          `- Teacher comments: ${doc.teacher_comments ?? "none"}`,
+          `- Contributor notes: ${doc.contributor_notes ?? "none"}`,
+        ].join("\n");
+
         const prompt = `You are reviewing a photograph of a student's mathematics work.
 
-Context:
-- Grade/Year: ${doc.grade_level ?? "unknown"}
-- Topic: ${doc.math_topic ?? "general mathematics"}
-- Source: ${doc.source_type ?? "unknown"}
-- Teacher marked: ${doc.teacher_marked ?? "unknown"}
-- Teacher comments: ${doc.teacher_comments ?? "none"}
-- Contributor notes: ${doc.contributor_notes ?? "none"}
+STUDENT PROFILE (use this to calibrate your interpretation of difficulty, expected performance, and any error patterns):
+${studentBlock}${formBlock}
 
-Extract ALL individual maths problems/tasks visible in this image.
+DOCUMENT DETAILS:
+${docBlock}
+
+Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible in this image.
 For each problem return an object with exactly these keys:
 - extractedProblem: the exact problem or task as shown (e.g. "368 + 157 = ___")
 - studentAnswer: exactly what the student wrote as their answer (empty string if blank)
 - visibleWorking: "yes", "no", or "partial" — whether method/steps are shown
-- answerStatus: "correct", "incorrect", "partially_correct", or "unclear"
+- answerStatus: "correct", "incorrect", "partially_correct", or "unclear" — judge against the student's expected grade level
 - teacherCorrection: what the teacher wrote/marked if visible, or null
-- examinerNotes: any notable observation about the work quality or approach
+- examinerNotes: a brief observation calibrated to this student's profile (e.g. note if a Year 5 student is working on Year 2 content, or highlight an error pattern relevant to the referral concern)
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear maths problems are visible return [].`;
+
         const raw = await callGroqVision(signedUrl, prompt);
         const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
         const extracted = JSON.parse(clean) as Array<Record<string, string | null>>;
