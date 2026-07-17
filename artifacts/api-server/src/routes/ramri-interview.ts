@@ -6,6 +6,37 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { writeFile, readFile, readdir, unlink, mkdir, rmdir } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+
+const execFileAsync = promisify(execFile);
+
+async function pdfToBase64Images(pdfBuffer: Buffer): Promise<string[]> {
+  const dir = join(tmpdir(), `ramri-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  await mkdir(dir, { recursive: true });
+  const pdfPath = join(dir, "input.pdf");
+  const outPrefix = join(dir, "page");
+  try {
+    await writeFile(pdfPath, pdfBuffer);
+    await execFileAsync("pdftoppm", ["-r", "150", "-png", pdfPath, outPrefix]);
+    const files = (await readdir(dir)).filter(f => f.endsWith(".png")).sort();
+    const images: string[] = [];
+    for (const file of files) {
+      const buf = await readFile(join(dir, file));
+      images.push(`data:image/png;base64,${buf.toString("base64")}`);
+    }
+    return images;
+  } finally {
+    try {
+      const files = await readdir(dir).catch(() => [] as string[]);
+      await Promise.all(files.map(f => unlink(join(dir, f)).catch(() => {})));
+      await rmdir(dir).catch(() => {});
+    } catch {}
+  }
+}
 
 const router: IRouter = Router();
 
@@ -428,12 +459,9 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
         doc.file_type === "application/pdf" ||
         (doc.file_name ?? "").toLowerCase().endsWith(".pdf") ||
         url.endsWith(".pdf");
-      if (isPdf) {
-        errors.push(`${name}: PDF extraction not yet supported — add samples manually for this document`);
-        continue;
-      }
       try {
         const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
+
         const docBlock = [
           `- Document topic: ${doc.math_topic ?? "general mathematics"}`,
           `- Document grade level noted by contributor: ${doc.grade_level ?? "not specified"}`,
@@ -443,7 +471,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
           `- Contributor notes: ${doc.contributor_notes ?? "none"}`,
         ].join("\n");
 
-        const prompt = `You are reviewing a photograph of a student's mathematics work.
+        const prompt = `You are reviewing a page of a student's mathematics work.
 
 STUDENT PROFILE (use this to calibrate your interpretation of difficulty, expected performance, and any error patterns):
 ${studentBlock}${formBlock}
@@ -451,7 +479,7 @@ ${studentBlock}${formBlock}
 DOCUMENT DETAILS:
 ${docBlock}
 
-Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible in this image.
+Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible on this page.
 For each problem return an object with exactly these keys:
 - extractedProblem: the exact problem or task as shown (e.g. "368 + 157 = ___")
 - studentAnswer: exactly what the student wrote as their answer (empty string if blank)
@@ -462,21 +490,39 @@ For each problem return an object with exactly these keys:
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear maths problems are visible return [].`;
 
-        const raw = await callGroqVision(signedUrl, prompt);
-        const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
-        const extracted = JSON.parse(clean) as Array<Record<string, string | null>>;
-        for (const item of extracted) {
-          candidates.push({
-            ...item,
-            sourceDocId: doc.id,
-            sourceDocName: name,
-            gradeLevel: doc.grade_level,
-            mathTopic: doc.math_topic,
-          });
+        // For PDFs: convert each page to a PNG image, then run vision on each page
+        const imageUrls: string[] = [];
+        if (isPdf) {
+          const pdfResponse = await fetch(signedUrl);
+          if (!pdfResponse.ok) throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
+          const pdfBuf = Buffer.from(await pdfResponse.arrayBuffer());
+          const pages = await pdfToBase64Images(pdfBuf);
+          if (pages.length === 0) throw new Error("PDF produced no pages");
+          imageUrls.push(...pages);
+        } else {
+          imageUrls.push(signedUrl);
         }
+
+        // Run vision on each page/image
+        for (const imageUrl of imageUrls) {
+          const raw = await callGroqVision(imageUrl, prompt);
+          const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+          let extracted: Array<Record<string, string | null>> = [];
+          try { extracted = JSON.parse(clean); } catch { continue; }
+          for (const item of extracted) {
+            candidates.push({
+              ...item,
+              sourceDocId: doc.id,
+              sourceDocName: name,
+              gradeLevel: doc.grade_level,
+              mathTopic: doc.math_topic,
+            });
+          }
+        }
+
         await db.execute(sql`UPDATE ramri_work_documents SET extraction_status = 'extracted', updated_at = NOW() WHERE id = ${doc.id}`);
       } catch (err) {
-        errors.push(`${name}: ${err instanceof Error ? err.message.slice(0, 120) : "extraction failed"}`);
+        errors.push(`${name}: ${err instanceof Error ? err.message.slice(0, 160) : "extraction failed"}`);
       }
     }
     return res.json({ candidates, errors });
