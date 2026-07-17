@@ -673,7 +673,7 @@ export default function RamriInterviewPage() {
 
             {/* Contributor link */}
             {assignmentToken && (
-              <div className={`bg-white rounded-xl border p-4 space-y-3 ${uploadsClosed ? "border-slate-300 opacity-75" : "border-slate-200"}`}>
+              <div className={`bg-white rounded-xl border p-4 space-y-3 ${uploadsClosed ? "border-amber-200 bg-amber-50/40" : "border-slate-200"}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -686,18 +686,11 @@ export default function RamriInterviewPage() {
                       {window.location.origin}/ramri-upload/{assignmentToken}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+                  <Button size="sm" variant="outline" className="shrink-0 text-xs" onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/ramri-upload/${assignmentToken}`);
                     }}>
                       Copy link
                     </Button>
-                    <Button size="sm" variant="outline" className="text-xs" onClick={() => {
-                      window.open(`${window.location.origin}/ramri-upload/${assignmentToken}`, "_blank");
-                    }}>
-                      Open
-                    </Button>
-                  </div>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                   <p className="text-xs text-slate-400">
@@ -707,7 +700,7 @@ export default function RamriInterviewPage() {
                   </p>
                   <Button
                     size="sm"
-                    variant={uploadsClosed ? "outline" : "destructive"}
+                    variant={uploadsClosed ? "default" : "destructive"}
                     className="shrink-0 text-xs ml-3"
                     disabled={togglingUploads}
                     onClick={async () => {
