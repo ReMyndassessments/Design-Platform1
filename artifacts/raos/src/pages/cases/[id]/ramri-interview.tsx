@@ -659,7 +659,6 @@ export default function RamriInterviewPage() {
               <button
                 key={p.id}
                 onClick={async () => {
-                  if (p.id === "upload" && uploadsClosed) await callToggleUploads(false);
                   if (p.id !== "upload" && phase === "upload" && !uploadsClosed) await callToggleUploads(true);
                   setPhase(p.id);
                 }}
