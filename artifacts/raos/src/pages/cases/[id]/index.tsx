@@ -2403,7 +2403,7 @@ export default function CaseDetail() {
                             );
                           })()
                         ) : (() => {
-                          const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : null;
+                          const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : a.toolId === 'RAMRI' ? 'ramri' : null;
                           return examinerPath ? (
                             <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
                               <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
