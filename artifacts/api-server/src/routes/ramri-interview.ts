@@ -8,34 +8,44 @@ import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { writeFile, readFile, readdir, unlink, mkdir, rmdir } from "fs/promises";
+import { writeFile, unlink, mkdir, rmdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 
 const execFileAsync = promisify(execFile);
 
-async function pdfToBase64Images(pdfBuffer: Buffer): Promise<string[]> {
+async function pdfToText(pdfBuffer: Buffer): Promise<string> {
   const dir = join(tmpdir(), `ramri-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   await mkdir(dir, { recursive: true });
   const pdfPath = join(dir, "input.pdf");
-  const outPrefix = join(dir, "page");
   try {
     await writeFile(pdfPath, pdfBuffer);
-    await execFileAsync("pdftoppm", ["-r", "150", "-png", pdfPath, outPrefix]);
-    const files = (await readdir(dir)).filter(f => f.endsWith(".png")).sort();
-    const images: string[] = [];
-    for (const file of files) {
-      const buf = await readFile(join(dir, file));
-      images.push(`data:image/png;base64,${buf.toString("base64")}`);
-    }
-    return images;
+    const { stdout } = await execFileAsync("pdftotext", ["-layout", pdfPath, "-"]);
+    return stdout.trim();
   } finally {
-    try {
-      const files = await readdir(dir).catch(() => [] as string[]);
-      await Promise.all(files.map(f => unlink(join(dir, f)).catch(() => {})));
-      await rmdir(dir).catch(() => {});
-    } catch {}
+    try { await unlink(pdfPath).catch(() => {}); } catch {}
+    try { await rmdir(dir).catch(() => {}); } catch {}
   }
+}
+
+async function callDeepSeekText(prompt: string, systemPrompt?: string, maxTokens = 4096): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
+  const messages = [
+    ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
+    { role: "user" as const, content: prompt },
+  ];
+  const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: "deepseek-chat", messages, temperature: 0.3, max_tokens: maxTokens }),
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    throw new Error(`DeepSeek error ${r.status}: ${body.slice(0, 300)}`);
+  }
+  const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 const router: IRouter = Router();
@@ -59,34 +69,6 @@ async function callGroq(prompt: string, systemPrompt?: string, maxTokens = 2048)
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function callVision(imageUrl: string, prompt: string): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
-  const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "deepseek-vl2",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image_url", image_url: { url: imageUrl } },
-            { type: "text", text: prompt },
-          ],
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 2048,
-    }),
-  });
-  if (!r.ok) {
-    const body = await r.text().catch(() => "");
-    throw new Error(`DeepSeek vision error ${r.status}: ${body.slice(0, 300)}`);
-  }
-  const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content ?? "";
-}
 
 async function resolveSession(caseId: string, assignmentId: string) {
   const rows = await db.execute(sql`
@@ -475,7 +457,23 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
           `- Contributor notes: ${doc.contributor_notes ?? "none"}`,
         ].join("\n");
 
-        const prompt = `You are reviewing a page of a student's mathematics work.
+        // For PDFs: extract text with pdftotext; images are not supported without vision
+        if (!isPdf) {
+          errors.push(`${name}: image files cannot be processed — please upload PDFs`);
+          continue;
+        }
+
+        const pdfResponse = await fetch(signedUrl);
+        if (!pdfResponse.ok) throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
+        const pdfBuf = Buffer.from(await pdfResponse.arrayBuffer());
+        const pdfText = await pdfToText(pdfBuf);
+
+        if (pdfText.length < 20) {
+          errors.push(`${name}: PDF appears to be a scanned image with no selectable text — cannot extract without OCR`);
+          continue;
+        }
+
+        const textPrompt = `You are reviewing a student's mathematics work extracted from a PDF document.
 
 STUDENT PROFILE (use this to calibrate your interpretation of difficulty, expected performance, and any error patterns):
 ${studentBlock}${formBlock}
@@ -483,10 +481,13 @@ ${studentBlock}${formBlock}
 DOCUMENT DETAILS:
 ${docBlock}
 
-Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible on this page.
+DOCUMENT TEXT (extracted from PDF — layout preserved):
+${pdfText.slice(0, 8000)}
+
+Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible in the text above.
 For each problem return an object with exactly these keys:
 - extractedProblem: the exact problem or task as shown (e.g. "368 + 157 = ___")
-- studentAnswer: exactly what the student wrote as their answer (empty string if blank)
+- studentAnswer: exactly what the student wrote as their answer (empty string if blank or not shown)
 - visibleWorking: "yes", "no", or "partial" — whether method/steps are shown
 - answerStatus: "correct", "incorrect", "partially_correct", or "unclear" — judge against the student's expected grade level
 - teacherCorrection: what the teacher wrote/marked if visible, or null
@@ -494,34 +495,21 @@ For each problem return an object with exactly these keys:
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear maths problems are visible return [].`;
 
-        // For PDFs: convert each page to a PNG image, then run vision on each page
-        const imageUrls: string[] = [];
-        if (isPdf) {
-          const pdfResponse = await fetch(signedUrl);
-          if (!pdfResponse.ok) throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
-          const pdfBuf = Buffer.from(await pdfResponse.arrayBuffer());
-          const pages = await pdfToBase64Images(pdfBuf);
-          if (pages.length === 0) throw new Error("PDF produced no pages");
-          imageUrls.push(...pages);
-        } else {
-          imageUrls.push(signedUrl);
+        const raw = await callDeepSeekText(textPrompt);
+        const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+        let extracted: Array<Record<string, string | null>> = [];
+        try { extracted = JSON.parse(clean); } catch {
+          errors.push(`${name}: AI returned unparseable response`);
+          continue;
         }
-
-        // Run vision on each page/image
-        for (const imageUrl of imageUrls) {
-          const raw = await callVision(imageUrl, prompt);
-          const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
-          let extracted: Array<Record<string, string | null>> = [];
-          try { extracted = JSON.parse(clean); } catch { continue; }
-          for (const item of extracted) {
-            candidates.push({
-              ...item,
-              sourceDocId: doc.id,
-              sourceDocName: name,
-              gradeLevel: doc.grade_level,
-              mathTopic: doc.math_topic,
-            });
-          }
+        for (const item of extracted) {
+          candidates.push({
+            ...item,
+            sourceDocId: doc.id,
+            sourceDocName: name,
+            gradeLevel: doc.grade_level,
+            mathTopic: doc.math_topic,
+          });
         }
 
         await db.execute(sql`UPDATE ramri_work_documents SET extraction_status = 'extracted', updated_at = NOW() WHERE id = ${doc.id}`);
