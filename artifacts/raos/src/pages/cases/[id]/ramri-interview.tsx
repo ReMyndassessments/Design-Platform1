@@ -682,17 +682,22 @@ export default function RamriInterviewPage() {
                         <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Closed</span>
                       )}
                     </div>
-                    <p className={`text-xs truncate ${uploadsClosed ? "text-slate-300 line-through" : "text-slate-400"}`}>
+                    <p className="text-xs truncate text-slate-400">
                       {window.location.origin}/ramri-upload/{assignmentToken}
                     </p>
                   </div>
-                  {!uploadsClosed && (
-                    <Button size="sm" variant="outline" className="shrink-0 text-xs" onClick={() => {
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/ramri-upload/${assignmentToken}`);
                     }}>
                       Copy link
                     </Button>
-                  )}
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+                      window.open(`${window.location.origin}/ramri-upload/${assignmentToken}`, "_blank");
+                    }}>
+                      Open
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                   <p className="text-xs text-slate-400">
