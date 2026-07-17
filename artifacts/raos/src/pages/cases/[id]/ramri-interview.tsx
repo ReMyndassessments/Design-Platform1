@@ -665,6 +665,7 @@ export default function RamriInterviewPage() {
                     try {
                       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
                         method: "POST", headers: jsonHeaders(),
+                        body: JSON.stringify({ closed: false }),
                       });
                       if (r.ok) {
                         const d = await r.json() as { uploadsClosed: boolean };
@@ -729,31 +730,32 @@ export default function RamriInterviewPage() {
                       ? "Contributors see a 'submissions closed' message and cannot upload."
                       : "Contributors can upload work samples via this link."}
                   </p>
-                  <Button
-                    size="sm"
-                    variant={uploadsClosed ? "default" : "destructive"}
-                    className="shrink-0 text-xs ml-3"
-                    disabled={togglingUploads}
-                    onClick={async () => {
-                      if (!sessionId) return;
-                      setTogglingUploads(true);
-                      try {
-                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
-                          method: "POST", headers: jsonHeaders(),
-                        });
-                        if (r.ok) {
-                          const d = await r.json() as { uploadsClosed: boolean };
-                          setUploadsClosed(d.uploadsClosed);
+                  {!uploadsClosed && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="shrink-0 text-xs ml-3"
+                      disabled={togglingUploads}
+                      onClick={async () => {
+                        if (!sessionId) return;
+                        setTogglingUploads(true);
+                        try {
+                          const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
+                            method: "POST", headers: jsonHeaders(),
+                            body: JSON.stringify({ closed: true }),
+                          });
+                          if (r.ok) {
+                            const d = await r.json() as { uploadsClosed: boolean };
+                            setUploadsClosed(d.uploadsClosed);
+                          }
+                        } finally {
+                          setTogglingUploads(false);
                         }
-                      } finally {
-                        setTogglingUploads(false);
-                      }
-                    }}
-                  >
-                    {togglingUploads
-                      ? <Loader2 size={12} className="animate-spin" />
-                      : uploadsClosed ? "Reopen uploads" : "Close uploads"}
-                  </Button>
+                      }}
+                    >
+                      {togglingUploads ? <Loader2 size={12} className="animate-spin" /> : "Close uploads"}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

@@ -153,6 +153,7 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId", authMiddleware, async (
 router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddleware, async (req, res) => {
   try {
     const { sessionId } = req.params;
+    const { closed } = req.body as { closed?: boolean };
     const sessionRows = await db.execute(sql`SELECT assignment_id FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`);
     const sessionRow = sessionRows.rows[0] as { assignment_id?: string } | undefined;
     if (!sessionRow?.assignment_id) return res.status(404).json({ error: "Session not found" });
@@ -160,8 +161,9 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddl
     const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, sessionRow.assignment_id)).limit(1);
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
 
+    // If explicit closed value provided, use it; otherwise toggle
     const currentClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
-    const newClosed = !currentClosed;
+    const newClosed = typeof closed === "boolean" ? closed : !currentClosed;
     const existingMeta = (assignment.metadata as Record<string, unknown> | null) ?? {};
     const newMeta = { ...existingMeta, ramriUploadsClosed: newClosed };
 
