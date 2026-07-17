@@ -60,14 +60,13 @@ async function callGroq(prompt: string, systemPrompt?: string, maxTokens = 2048)
 }
 
 async function callVision(imageUrl: string, prompt: string): Promise<string> {
-  const baseUrl = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
-  const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
-  if (!baseUrl || !apiKey) throw new Error("OpenRouter integration not configured");
-  const r = await fetch(`${baseUrl}/chat/completions`, {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
+  const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "qwen/qwen2.5-vl-72b-instruct",
+      model: "deepseek-vl2",
       messages: [
         {
           role: "user",
@@ -83,7 +82,7 @@ async function callVision(imageUrl: string, prompt: string): Promise<string> {
   });
   if (!r.ok) {
     const body = await r.text().catch(() => "");
-    throw new Error(`Vision error ${r.status}: ${body.slice(0, 200)}`);
+    throw new Error(`DeepSeek vision error ${r.status}: ${body.slice(0, 300)}`);
   }
   const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? "";
@@ -510,7 +509,7 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear 
 
         // Run vision on each page/image
         for (const imageUrl of imageUrls) {
-          const raw = await callGroqVision(imageUrl, prompt);
+          const raw = await callVision(imageUrl, prompt);
           const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
           let extracted: Array<Record<string, string | null>> = [];
           try { extracted = JSON.parse(clean); } catch { continue; }
