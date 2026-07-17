@@ -65,7 +65,8 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const selections = await db.execute(sql`SELECT * FROM ramri_sample_selections WHERE session_id = ${existing.id} ORDER BY sequence_number ASC`);
       const ratings = await db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${existing.id}`);
       const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
-      return res.json({ session: existing, docs: docs.rows, samples: samples.rows, choiceSets: choiceSets.rows, selections: selections.rows, ratings: ratings.rows, report, assignmentToken: assignment.uniqueToken });
+      const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
+      return res.json({ session: existing, docs: docs.rows, samples: samples.rows, choiceSets: choiceSets.rows, selections: selections.rows, ratings: ratings.rows, report, assignmentToken: assignment.uniqueToken, uploadsClosed });
     }
 
     const sessionId = nanoid();
@@ -74,7 +75,7 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       VALUES (${sessionId}, ${caseId}, ${assignment.id}, ${req.userId ?? null}, 'upload', NOW(), NOW())
     `);
     const session = (await db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0];
-    return res.json({ session, docs: [], samples: [], choiceSets: [], selections: [], ratings: [], report: null, assignmentToken: assignment.uniqueToken });
+    return res.json({ session, docs: [], samples: [], choiceSets: [], selections: [], ratings: [], report: null, assignmentToken: assignment.uniqueToken, uploadsClosed: false });
   } catch (err) {
     logger.error({ err }, "RAMRI session create failed");
     return res.status(500).json({ error: "Failed to create RAMRI session" });
@@ -102,6 +103,33 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId", authMiddleware, async (
   } catch (err) {
     logger.error({ err }, "RAMRI session update failed");
     return res.status(500).json({ error: "Failed to update session" });
+  }
+});
+
+// ── Toggle contributor uploads ────────────────────────────────────────────────
+router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sessionRows = await db.execute(sql`SELECT assignment_id FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`);
+    const sessionRow = sessionRows.rows[0] as { assignment_id?: string } | undefined;
+    if (!sessionRow?.assignment_id) return res.status(404).json({ error: "Session not found" });
+
+    const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, sessionRow.assignment_id)).limit(1);
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+
+    const currentClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
+    const newClosed = !currentClosed;
+    const existingMeta = (assignment.metadata as Record<string, unknown> | null) ?? {};
+    const newMeta = { ...existingMeta, ramriUploadsClosed: newClosed };
+
+    await db.update(assignmentsTable)
+      .set({ metadata: newMeta })
+      .where(eq(assignmentsTable.id, assignment.id));
+
+    return res.json({ uploadsClosed: newClosed });
+  } catch (err) {
+    logger.error({ err }, "RAMRI toggle uploads failed");
+    return res.status(500).json({ error: "Failed to toggle uploads" });
   }
 });
 

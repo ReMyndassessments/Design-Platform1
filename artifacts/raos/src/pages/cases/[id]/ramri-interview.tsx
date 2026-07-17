@@ -142,9 +142,11 @@ export default function RamriInterviewPage() {
   const [ratings, setRatings] = useState<DomainRating[]>([]);
   const [report, setReport] = useState<Report | null>(null);
 
-  // Contributor-upload notification
+  // Contributor-upload notification & gating
   const [newDocsCount, setNewDocsCount] = useState(0);
   const knownDocIds = useRef<Set<string>>(new Set());
+  const [uploadsClosed, setUploadsClosed] = useState(false);
+  const [togglingUploads, setTogglingUploads] = useState(false);
 
   // Upload phase state
   const [uploading, setUploading] = useState(false);
@@ -197,6 +199,7 @@ export default function RamriInterviewPage() {
         setSession(data.session);
         setSessionId(data.session.id);
         if ((data as Record<string, unknown>).assignmentToken) setAssignmentToken((data as Record<string, string>).assignmentToken);
+        if (typeof (data as Record<string, unknown>).uploadsClosed === "boolean") setUploadsClosed((data as Record<string, boolean>).uploadsClosed);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -598,16 +601,59 @@ export default function RamriInterviewPage() {
 
             {/* Contributor link */}
             {assignmentToken && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-700 mb-0.5">Contributor upload link</p>
-                  <p className="text-xs text-slate-400 truncate">{window.location.origin}/ramri-upload/{assignmentToken}</p>
+              <div className={`bg-white rounded-xl border p-4 space-y-3 ${uploadsClosed ? "border-slate-300 opacity-75" : "border-slate-200"}`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-xs font-semibold text-slate-700">Contributor upload link</p>
+                      {uploadsClosed && (
+                        <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Closed</span>
+                      )}
+                    </div>
+                    <p className={`text-xs truncate ${uploadsClosed ? "text-slate-300 line-through" : "text-slate-400"}`}>
+                      {window.location.origin}/ramri-upload/{assignmentToken}
+                    </p>
+                  </div>
+                  {!uploadsClosed && (
+                    <Button size="sm" variant="outline" className="shrink-0 text-xs" onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/ramri-upload/${assignmentToken}`);
+                    }}>
+                      Copy link
+                    </Button>
+                  )}
                 </div>
-                <Button size="sm" variant="outline" className="shrink-0 text-xs" onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/ramri-upload/${assignmentToken}`);
-                }}>
-                  Copy link
-                </Button>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">
+                    {uploadsClosed
+                      ? "Contributors see a 'submissions closed' message and cannot upload."
+                      : "Contributors can upload work samples via this link."}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant={uploadsClosed ? "outline" : "destructive"}
+                    className="shrink-0 text-xs ml-3"
+                    disabled={togglingUploads}
+                    onClick={async () => {
+                      if (!sessionId) return;
+                      setTogglingUploads(true);
+                      try {
+                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/toggle-uploads`, {
+                          method: "POST", headers: jsonHeaders(),
+                        });
+                        if (r.ok) {
+                          const d = await r.json() as { uploadsClosed: boolean };
+                          setUploadsClosed(d.uploadsClosed);
+                        }
+                      } finally {
+                        setTogglingUploads(false);
+                      }
+                    }}
+                  >
+                    {togglingUploads
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : uploadsClosed ? "Reopen uploads" : "Close uploads"}
+                  </Button>
+                </div>
               </div>
             )}
 

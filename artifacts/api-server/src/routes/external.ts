@@ -931,7 +931,8 @@ router.get("/ramri-upload/:token", async (req, res) => {
     const studentName = (caseRows[0] as { studentName?: string })?.studentName ?? "the student";
     const sessionRows = await db.execute(sql`SELECT id FROM ramri_sessions WHERE case_id = ${assignment.caseId} AND assignment_id = ${assignment.id} LIMIT 1`);
     const sessionId = (sessionRows.rows[0] as { id?: string })?.id ?? null;
-    return res.json({ ok: true, studentName, caseId: assignment.caseId, assignmentId: assignment.id, sessionId });
+    const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
+    return res.json({ ok: true, studentName, caseId: assignment.caseId, assignmentId: assignment.id, sessionId, uploadsClosed });
   } catch (err) {
     console.error("RAMRI upload lookup failed", err);
     return res.status(500).json({ error: "server_error" });
@@ -945,6 +946,9 @@ router.post("/ramri-upload/:token/documents", async (req, res) => {
     const assignment = rows[0];
     if (!assignment || assignment.toolId !== "RAMRI") {
       return res.status(404).json({ error: "not_found" });
+    }
+    if ((assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed) {
+      return res.status(403).json({ error: "uploads_closed" });
     }
 
     // Ensure a session exists (create if missing)

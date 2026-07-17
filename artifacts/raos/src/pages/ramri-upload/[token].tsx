@@ -74,6 +74,10 @@ const T = {
   notFoundBody:      { english: "This upload link is invalid or has expired. Please contact the assessment team.",
                        mandarin: "此上传链接无效或已过期，请联系评估团队。",
                        korean:   "이 업로드 링크가 유효하지 않거나 만료되었습니다. 평가팀에 문의하세요." },
+  closedTitle:       { english: "Submissions closed",          mandarin: "提交已关闭",             korean: "제출이 마감되었습니다" },
+  closedBody:        { english: "The assessment team has collected enough work samples for this student. No further uploads are needed — thank you for your help.",
+                       mandarin: "评估团队已收集了该学生足够的作业样本，无需再上传。感谢您的帮助！",
+                       korean:   "평가팀이 이 학생의 충분한 과제 샘플을 수집했습니다. 더 이상 업로드가 필요하지 않습니다 — 도와주셔서 감사합니다." },
   footer:            { english: "This link was shared by the ReMynd assessment team. Your submission is confidential and will only be used as part of this assessment.",
                        mandarin: "此链接由 ReMynd 评估团队共享。您的提交内容保密，仅用于本次评估。",
                        korean:   "이 링크는 ReMynd 평가팀이 공유한 것입니다. 제출 내용은 기밀이며 이 평가에만 사용됩니다." },
@@ -109,6 +113,7 @@ type SessionInfo = {
   caseId: string;
   assignmentId: string;
   sessionId: string | null;
+  uploadsClosed: boolean;
 };
 
 export default function RamriUploadPage() {
@@ -201,9 +206,42 @@ export default function RamriUploadPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
         <div className="max-w-sm w-full text-center space-y-3">
+          {/* Language switcher even on error screens */}
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {(["english", "mandarin", "korean"] as Lang[]).map((l, i) => (
+              <React.Fragment key={l}>
+                {i > 0 && <span className="text-slate-300 text-xs">|</span>}
+                <button onClick={() => setLang(l)} className={`text-xs px-1 py-0.5 ${lang === l ? "text-violet-700 font-semibold" : "text-slate-400 hover:text-slate-600"}`}>
+                  {l === "english" ? "EN" : l === "mandarin" ? "中文" : "한국어"}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
           <AlertTriangle size={36} className="mx-auto text-amber-500" />
           <h1 className="text-lg font-semibold text-slate-800">{t("notFoundTitle", lang) as string}</h1>
           <p className="text-sm text-slate-500">{t("notFoundBody", lang) as string}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (info.uploadsClosed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="max-w-sm w-full text-center space-y-3">
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {(["english", "mandarin", "korean"] as Lang[]).map((l, i) => (
+              <React.Fragment key={l}>
+                {i > 0 && <span className="text-slate-300 text-xs">|</span>}
+                <button onClick={() => setLang(l)} className={`text-xs px-1 py-0.5 ${lang === l ? "text-violet-700 font-semibold" : "text-slate-400 hover:text-slate-600"}`}>
+                  {l === "english" ? "EN" : l === "mandarin" ? "中文" : "한국어"}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+          <CheckCircle size={40} className="mx-auto text-emerald-500" />
+          <h1 className="text-lg font-semibold text-slate-800">{t("closedTitle", lang) as string}</h1>
+          <p className="text-sm text-slate-500">{t("closedBody", lang) as string}</p>
         </div>
       </div>
     );
