@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +56,20 @@ type WorkDoc = {
   source_type: string; completion_date: string; math_topic: string;
   independence_reported: string; teacher_marked: string;
   teacher_comments: string; contributor_notes: string; extraction_status: string;
+};
+
+type ExtractionCandidate = {
+  _key: string;
+  extractedProblem: string;
+  studentAnswer: string;
+  visibleWorking: string;
+  answerStatus: string;
+  teacherCorrection: string | null;
+  examinerNotes: string;
+  sourceDocId: string;
+  sourceDocName: string;
+  gradeLevel: string | null;
+  mathTopic: string | null;
 };
 
 type WorkSample = {
@@ -158,6 +172,9 @@ export default function RamriInterviewPage() {
   const [newSampleForm, setNewSampleForm] = useState({ extractedProblem: "", studentAnswer: "", visibleWorking: "yes", teacherCorrection: "", teacherComments: "", domain: "", skill: "", difficulty: "developing", answerStatus: "correct", examinerNotes: "" });
   const [showAddSample, setShowAddSample] = useState(false);
   const [classifying, setClassifying] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractCandidates, setExtractCandidates] = useState<ExtractionCandidate[]>([]);
+  const [extractErrors, setExtractErrors] = useState<string[]>([]);
 
   // Choice set phase state
   const [newSetForm, setNewSetForm] = useState({ title: "", choiceType: "open", targetDomain: "", studentPrompt: "" });
@@ -300,6 +317,61 @@ export default function RamriInterviewPage() {
       setNewSampleForm({ extractedProblem: "", studentAnswer: "", visibleWorking: "yes", teacherCorrection: "", teacherComments: "", domain: "", skill: "", difficulty: "developing", answerStatus: "correct", examinerNotes: "" });
       setShowAddSample(false);
     } finally { setSaving(false); }
+  };
+
+  const extractSamples = async () => {
+    if (!sessionId) return;
+    setExtracting(true);
+    setExtractCandidates([]);
+    setExtractErrors([]);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/extract-samples`, {
+        method: "POST", headers: jsonHeaders(),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json() as { candidates: Array<Record<string, unknown>>; errors: string[] };
+      const keyed = (d.candidates ?? []).map((c, i) => ({ ...c, _key: `candidate-${Date.now()}-${i}` })) as ExtractionCandidate[];
+      setExtractCandidates(keyed);
+      setExtractErrors(d.errors ?? []);
+    } catch {
+      setExtractErrors(["Extraction request failed — please try again"]);
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const acceptCandidate = async (candidate: ExtractionCandidate) => {
+    if (!sessionId) return;
+    const body = {
+      extractedProblem: candidate.extractedProblem,
+      studentAnswer: candidate.studentAnswer ?? "",
+      visibleWorking: candidate.visibleWorking ?? "yes",
+      answerStatus: candidate.answerStatus ?? "unclear",
+      teacherCorrection: candidate.teacherCorrection ?? "",
+      teacherComments: "",
+      domain: "",
+      skill: "",
+      difficulty: "developing",
+      examinerNotes: candidate.examinerNotes ?? "",
+    };
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, {
+      method: "POST", headers: jsonHeaders(), body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      const d = await r.json() as { sample: WorkSample };
+      setSamples(prev => [...prev, d.sample]);
+    }
+    setExtractCandidates(prev => prev.filter(c => c._key !== candidate._key));
+  };
+
+  const rejectCandidate = (key: string) => {
+    setExtractCandidates(prev => prev.filter(c => c._key !== key));
+  };
+
+  const acceptAllCandidates = async () => {
+    for (const c of [...extractCandidates]) {
+      await acceptCandidate(c);
+    }
   };
 
   const classifySample = async (sample: WorkSample) => {
@@ -737,15 +809,74 @@ export default function RamriInterviewPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {phase === "samples" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="font-semibold text-slate-800">Work Samples ({samples.length})</h2>
-                <p className="text-xs text-slate-500">Enter individual problems extracted from uploaded documents. Use AI to classify.</p>
+                <p className="text-xs text-slate-500">AI reads your uploaded images and extracts individual problems. Review, then add or remove before saving.</p>
               </div>
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5" onClick={() => setShowAddSample(true)}>
-                <Plus size={14} /> Add Sample
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                {docs.length > 0 && (
+                  <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={extractSamples} disabled={extracting}>
+                    {extracting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {extracting ? "Extracting…" : "Extract from Docs"}
+                  </Button>
+                )}
+                <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5" onClick={() => setShowAddSample(true)}>
+                  <Plus size={14} /> Add Sample
+                </Button>
+              </div>
             </div>
+
+            {/* Extraction errors / info */}
+            {extractErrors.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 space-y-1">
+                {extractErrors.map((e, i) => (
+                  <p key={i} className="text-xs text-amber-800">{e}</p>
+                ))}
+              </div>
+            )}
+
+            {/* AI-extracted candidates tray */}
+            {extractCandidates.length > 0 && (
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-violet-600" />
+                    <span className="text-sm font-semibold text-violet-800">AI found {extractCandidates.length} problem{extractCandidates.length !== 1 ? "s" : ""} — review before saving</span>
+                  </div>
+                  <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-xs h-7 gap-1" onClick={acceptAllCandidates}>
+                    <Check size={11} /> Accept All
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {extractCandidates.map(c => (
+                    <div key={c._key} className="bg-white border border-violet-100 rounded-lg p-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Badge variant="outline" className={`text-xs ${c.answerStatus === "correct" ? "text-emerald-600 border-emerald-200" : c.answerStatus === "incorrect" ? "text-red-600 border-red-200" : "text-amber-600 border-amber-200"}`}>
+                            {(c.answerStatus ?? "unclear").replace("_", " ")}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs text-slate-500">working: {c.visibleWorking ?? "?"}</Badge>
+                          <span className="text-xs text-slate-400">from {c.sourceDocName}</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-800">{c.extractedProblem}</p>
+                        {c.studentAnswer && <p className="text-xs text-slate-500 mt-0.5">Answer: {c.studentAnswer}</p>}
+                        {c.teacherCorrection && <p className="text-xs text-slate-400">Teacher: {c.teacherCorrection}</p>}
+                        {c.examinerNotes && <p className="text-xs text-slate-400 italic">{c.examinerNotes}</p>}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => acceptCandidate(c)} className="w-7 h-7 flex items-center justify-center rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200" title="Accept">
+                          <Check size={13} />
+                        </button>
+                        <button onClick={() => rejectCandidate(c._key)} className="w-7 h-7 flex items-center justify-center rounded-md bg-red-50 hover:bg-red-100 text-red-500 border border-red-200" title="Reject">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {showAddSample && (
               <div className="bg-white rounded-xl border-2 border-violet-200 p-5 space-y-3">

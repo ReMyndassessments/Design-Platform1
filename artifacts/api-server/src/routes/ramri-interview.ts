@@ -5,6 +5,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,31 @@ async function callGroq(prompt: string, systemPrompt?: string, maxTokens = 2048)
     body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.7, max_tokens: maxTokens }),
   });
   if (!r.ok) throw new Error(`Groq error: ${r.status}`);
+  const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function callGroqVision(imageUrl: string, prompt: string): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: imageUrl } },
+            { type: "text", text: prompt },
+          ],
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 2048,
+    }),
+  });
+  if (!r.ok) throw new Error(`Groq vision error: ${r.status}`);
   const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? "";
 }
@@ -275,6 +301,82 @@ Return a JSON object (no markdown) with:
   } catch (err) {
     logger.error({ err }, "RAMRI classify failed");
     return res.status(500).json({ error: "Classification failed" });
+  }
+});
+
+// ── AI: Extract samples from uploaded documents ───────────────────────────────
+router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const docsResult = await db.execute(sql`
+      SELECT * FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC
+    `);
+    const docs = docsResult.rows as Array<{
+      id: string; file_name: string | null; file_url: string | null; file_type: string | null;
+      grade_level: string | null; math_topic: string | null; source_type: string | null;
+      teacher_marked: string | null; teacher_comments: string | null; contributor_notes: string | null;
+    }>;
+    if (docs.length === 0) {
+      return res.json({ candidates: [], errors: ["No documents found for this session"] });
+    }
+    const objectStorage = new ObjectStorageService();
+    const candidates: Array<Record<string, unknown>> = [];
+    const errors: string[] = [];
+    for (const doc of docs) {
+      const name = doc.file_name || "Document";
+      if (!doc.file_url) {
+        errors.push(`${name}: no file attached`);
+        continue;
+      }
+      const url = doc.file_url.toLowerCase();
+      const isPdf = doc.file_type === "pdf" || url.endsWith(".pdf");
+      if (isPdf) {
+        errors.push(`${name}: PDF extraction not yet supported — add samples manually for this document`);
+        continue;
+      }
+      try {
+        const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
+        const prompt = `You are reviewing a photograph of a student's mathematics work.
+
+Context:
+- Grade/Year: ${doc.grade_level ?? "unknown"}
+- Topic: ${doc.math_topic ?? "general mathematics"}
+- Source: ${doc.source_type ?? "unknown"}
+- Teacher marked: ${doc.teacher_marked ?? "unknown"}
+- Teacher comments: ${doc.teacher_comments ?? "none"}
+- Contributor notes: ${doc.contributor_notes ?? "none"}
+
+Extract ALL individual maths problems/tasks visible in this image.
+For each problem return an object with exactly these keys:
+- extractedProblem: the exact problem or task as shown (e.g. "368 + 157 = ___")
+- studentAnswer: exactly what the student wrote as their answer (empty string if blank)
+- visibleWorking: "yes", "no", or "partial" — whether method/steps are shown
+- answerStatus: "correct", "incorrect", "partially_correct", or "unclear"
+- teacherCorrection: what the teacher wrote/marked if visible, or null
+- examinerNotes: any notable observation about the work quality or approach
+
+Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear maths problems are visible return [].`;
+        const raw = await callGroqVision(signedUrl, prompt);
+        const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+        const extracted = JSON.parse(clean) as Array<Record<string, string | null>>;
+        for (const item of extracted) {
+          candidates.push({
+            ...item,
+            sourceDocId: doc.id,
+            sourceDocName: name,
+            gradeLevel: doc.grade_level,
+            mathTopic: doc.math_topic,
+          });
+        }
+        await db.execute(sql`UPDATE ramri_work_documents SET extraction_status = 'extracted', updated_at = NOW() WHERE id = ${doc.id}`);
+      } catch (err) {
+        errors.push(`${name}: ${err instanceof Error ? err.message.slice(0, 120) : "extraction failed"}`);
+      }
+    }
+    return res.json({ candidates, errors });
+  } catch (err) {
+    logger.error({ err }, "RAMRI extract-samples failed");
+    return res.status(500).json({ error: "Extraction failed" });
   }
 });
 
