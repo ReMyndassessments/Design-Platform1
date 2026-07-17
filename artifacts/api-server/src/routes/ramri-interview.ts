@@ -514,7 +514,7 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear 
           });
         }
 
-        await db.execute(sql`UPDATE ramri_work_documents SET extraction_status = 'extracted', updated_at = NOW() WHERE id = ${doc.id}`);
+        try { await db.execute(sql`UPDATE ramri_work_documents SET extraction_status = 'extracted' WHERE id = ${doc.id}`); } catch { /* non-fatal */ }
       } catch (err) {
         errors.push(`${name}: ${err instanceof Error ? err.message.slice(0, 160) : "extraction failed"}`);
       }
