@@ -892,16 +892,11 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/selections", authMiddlewar
   try {
     const { sessionId } = req.params;
     const { choiceSetId, workSampleId, offeredSampleIds, selectionLatencyLabel, selectionBehavior, recognition, rememberedCompletion, familiarityNotes } = req.body;
-    // Enforce one selection per choice set — remove any existing one first
-    if (choiceSetId) {
-      const existing = await db.execute(sql`SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId} AND choice_set_id = ${choiceSetId}`);
-      for (const row of existing.rows as { id: string }[]) {
-        await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${row.id}`);
-        await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${row.id}`);
-        await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${row.id}`);
-        await db.execute(sql`DELETE FROM ramri_behavioral_obs WHERE sample_selection_id = ${row.id}`);
-        await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${row.id}`);
-      }
+    // Prevent selecting the exact same work sample twice in the same set, but allow
+    // a different problem to be selected (examiner trying another due to student difficulty).
+    if (choiceSetId && workSampleId) {
+      const dupe = await db.execute(sql`SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId} AND choice_set_id = ${choiceSetId} AND work_sample_id = ${workSampleId} LIMIT 1`);
+      if (dupe.rows.length > 0) return res.status(409).json({ error: "This problem is already selected in this set" });
     }
     const seqRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_sample_selections WHERE session_id = ${sessionId}`);
     const seqNum = Number((seqRes.rows[0] as { cnt: string })?.cnt ?? 0) + 1;
