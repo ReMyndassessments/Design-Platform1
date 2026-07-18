@@ -1459,9 +1459,6 @@ export default function RamriInterviewPage() {
                           <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => { setEditingSetId(cs.id); setEditingSetItems(cs.items.map(i => i.work_sample_id)); }}>
                             Edit Samples
                           </Button>
-                          <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => recommendChoiceSet(cs.id, cs.target_domain ?? "")} disabled={recommending}>
-                            {recommending ? <Loader2 size={10} className="animate-spin" /> : <Star size={10} />} AI Suggest
-                          </Button>
                           <Button size="sm" variant="outline" className="text-xs h-7 text-red-500" onClick={() => deleteChoiceSet(cs.id)}>
                             <Trash2 size={10} />
                           </Button>
