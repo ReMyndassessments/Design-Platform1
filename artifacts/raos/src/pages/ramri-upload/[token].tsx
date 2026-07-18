@@ -16,9 +16,9 @@ const T = {
   instructions:      { english: (name: string) => `Please share a piece of ${name}'s recent mathematics work.`,
                        mandarin: (name: string) => `请提供一份 ${name} 近期的数学作业。`,
                        korean:   (name: string) => `${name}의 최근 수학 과제를 하나 공유해 주세요.` },
-  instructionsSub:   { english: "You can submit multiple documents — one form per piece of work. Photos of worksheets, PDFs, and scanned pages are all accepted.",
-                       mandarin: "您可以提交多份文件——每份作业填写一次表格。可接受作业纸照片、PDF 及扫描页面。",
-                       korean:   "여러 문서를 제출할 수 있습니다 — 과제 하나당 양식 하나씩입니다. 학습지 사진, PDF, 스캔 페이지 모두 허용됩니다." },
+  instructionsSub:   { english: "Please upload a PDF of the student's mathematics work. If you only have a paper copy or photo, scan it to PDF first using your phone's camera app or a free scanner app. You can submit multiple documents — one form per piece of work.",
+                       mandarin: "请上传学生数学作业的 PDF 文件。如果您只有纸质作业或照片，请先使用手机相机或免费扫描应用将其扫描为 PDF。每份作业填写一次表格，可提交多份。",
+                       korean:   "학생의 수학 과제를 PDF로 업로드해 주세요. 종이 과제나 사진만 있는 경우, 먼저 스마트폰 카메라 앱이나 무료 스캐너 앱으로 PDF로 변환해 주세요. 과제 하나당 양식 하나씩, 여러 개 제출할 수 있습니다." },
   submitted:         { english: (n: number) => `${n} document${n > 1 ? "s" : ""} submitted — thank you!`,
                        mandarin: (n: number) => `已提交 ${n} 份文件——谢谢！`,
                        korean:   (n: number) => `${n}개 문서 제출됨 — 감사합니다!` },
@@ -57,9 +57,9 @@ const T = {
   uploadOpt:         { english: "(optional — you can also describe it above)",
                        mandarin: "（可选——也可以在上方描述）",
                        korean:   "(선택 사항 — 위에서 설명할 수도 있습니다)" },
-  uploadHint:        { english: "PDF, JPEG, PNG, HEIC — tap to choose file",
-                       mandarin: "PDF、JPEG、PNG、HEIC——点击选择文件",
-                       korean:   "PDF, JPEG, PNG, HEIC — 파일 선택하려면 탭" },
+  uploadHint:        { english: "PDF only — tap to choose file",
+                       mandarin: "仅支持 PDF — 点击选择文件",
+                       korean:   "PDF만 허용 — 파일 선택하려면 탭" },
   uploading:         { english: "Uploading…",                  mandarin: "上传中…",               korean: "업로드 중…" },
   remove:            { english: "Remove",                      mandarin: "删除",                   korean: "제거" },
   submit:            { english: "Submit Work Document",        mandarin: "提交作业文件",           korean: "과제 문서 제출" },
@@ -407,7 +407,7 @@ export default function RamriUploadPage() {
                 </>
               )}
             </div>
-            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif" className="hidden" onChange={handleFileChange} />
+            <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handleFileChange} />
           </div>
 
           {error && (
