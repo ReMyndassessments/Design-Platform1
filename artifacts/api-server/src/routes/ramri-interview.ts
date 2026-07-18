@@ -892,6 +892,17 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/selections", authMiddlewar
   try {
     const { sessionId } = req.params;
     const { choiceSetId, workSampleId, offeredSampleIds, selectionLatencyLabel, selectionBehavior, recognition, rememberedCompletion, familiarityNotes } = req.body;
+    // Enforce one selection per choice set — remove any existing one first
+    if (choiceSetId) {
+      const existing = await db.execute(sql`SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId} AND choice_set_id = ${choiceSetId}`);
+      for (const row of existing.rows as { id: string }[]) {
+        await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${row.id}`);
+        await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${row.id}`);
+        await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${row.id}`);
+        await db.execute(sql`DELETE FROM ramri_behavioral_obs WHERE sample_selection_id = ${row.id}`);
+        await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${row.id}`);
+      }
+    }
     const seqRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_sample_selections WHERE session_id = ${sessionId}`);
     const seqNum = Number((seqRes.rows[0] as { cnt: string })?.cnt ?? 0) + 1;
     const id = nanoid();
@@ -930,14 +941,25 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", authM
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", authMiddleware, async (req, res) => {
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot delete selections" });
   try {
-    const { selId } = req.params;
-    await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${selId}`);
-    await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${selId}`);
-    await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${selId}`);
-    await db.execute(sql`DELETE FROM ramri_behavioral_obs WHERE sample_selection_id = ${selId}`);
-    await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${selId}`);
+    const { sessionId, selId } = req.params;
+    // Find this selection so we can also sweep any duplicates for the same choice set
+    const target = (await db.execute(sql`SELECT choice_set_id FROM ramri_sample_selections WHERE id = ${selId} LIMIT 1`)).rows[0] as { choice_set_id: string | null } | undefined;
+    // Collect all IDs to delete: the named one + any duplicates sharing the same choice_set
+    let idsToDelete: string[] = [selId];
+    if (target?.choice_set_id) {
+      const dupes = await db.execute(sql`SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId} AND choice_set_id = ${target.choice_set_id} AND id != ${selId}`);
+      idsToDelete = [...idsToDelete, ...(dupes.rows as { id: string }[]).map(r => r.id)];
+    }
+    for (const id of idsToDelete) {
+      await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${id}`);
+      await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${id}`);
+      await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${id}`);
+      await db.execute(sql`DELETE FROM ramri_behavioral_obs WHERE sample_selection_id = ${id}`);
+      await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${id}`);
+    }
     return res.json({ ok: true });
   } catch (err) {
+    logger.error({ err }, "RAMRI selection delete failed");
     return res.status(500).json({ error: "Failed to delete selection" });
   }
 });
