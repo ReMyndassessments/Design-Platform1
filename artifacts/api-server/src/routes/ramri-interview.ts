@@ -109,6 +109,17 @@ async function resolveSession(caseId: string, assignmentId: string) {
   return rows.rows[0] ?? null;
 }
 
+async function getUserName(userId: string | null | undefined): Promise<string | null> {
+  if (!userId) return null;
+  const rows = await db.execute(sql`SELECT name, email FROM users WHERE id = ${userId} LIMIT 1`);
+  const u = rows.rows[0] as { name?: string; email?: string } | undefined;
+  return u?.name ?? u?.email ?? null;
+}
+
+function isInvigilator(req: import("express").Request): boolean {
+  return req.userRole === "assessment_invigilator";
+}
+
 // ── Create or get session ─────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) => {
   try {
@@ -134,6 +145,12 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
 
     const existing = await resolveSession(caseId, assignment.id);
     if (existing) {
+      const sess = existing as Record<string, unknown>;
+      // Stamp invigilator_id on first invigilator access
+      if (isInvigilator(req) && !sess.invigilator_id && req.userId) {
+        await db.execute(sql`UPDATE ramri_sessions SET invigilator_id = ${req.userId}, updated_at = NOW() WHERE id = ${existing.id}`);
+        sess.invigilator_id = req.userId;
+      }
       const docs = await db.execute(sql`SELECT * FROM ramri_work_documents WHERE session_id = ${existing.id} ORDER BY created_at ASC`);
       const samples = await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${existing.id} ORDER BY sort_order ASC, created_at ASC`);
       const choiceSets = await db.execute(sql`SELECT cs.*, COALESCE(json_agg(csi ORDER BY csi.display_order) FILTER (WHERE csi.id IS NOT NULL), '[]') AS items FROM ramri_choice_sets cs LEFT JOIN ramri_choice_set_items csi ON csi.choice_set_id = cs.id WHERE cs.session_id = ${existing.id} GROUP BY cs.id ORDER BY cs.display_order ASC`);
@@ -141,7 +158,16 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const ratings = await db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${existing.id}`);
       const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
-      return res.json({ session: existing, docs: docs.rows, samples: samples.rows, choiceSets: choiceSets.rows, selections: selections.rows, ratings: ratings.rows, report, assignmentToken: assignment.uniqueToken, uploadsClosed });
+      const invigilatorName = await getUserName(sess.invigilator_id as string | null);
+      return res.json({
+        session: sess, docs: docs.rows, samples: samples.rows,
+        choiceSets: choiceSets.rows, selections: selections.rows,
+        ratings: ratings.rows, report,
+        assignmentToken: assignment.uniqueToken, uploadsClosed,
+        userRole: req.userRole ?? null,
+        invigilatorId: sess.invigilator_id ?? null,
+        invigilatorName,
+      });
     }
 
     const sessionId = nanoid();
@@ -150,7 +176,13 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       VALUES (${sessionId}, ${caseId}, ${assignment.id}, ${req.userId ?? null}, 'upload', NOW(), NOW())
     `);
     const session = (await db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0];
-    return res.json({ session, docs: [], samples: [], choiceSets: [], selections: [], ratings: [], report: null, assignmentToken: assignment.uniqueToken, uploadsClosed: false });
+    return res.json({
+      session, docs: [], samples: [], choiceSets: [], selections: [], ratings: [], report: null,
+      assignmentToken: assignment.uniqueToken, uploadsClosed: false,
+      userRole: req.userRole ?? null,
+      invigilatorId: null,
+      invigilatorName: null,
+    });
   } catch (err) {
     logger.error({ err }, "RAMRI session create failed");
     return res.status(500).json({ error: "Failed to create RAMRI session" });
@@ -303,6 +335,7 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/documents/:docId", authM
 
 // ── Work Samples ──────────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { caseId, sessionId } = req.params;
     const { documentId, imageUrl, extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, examinerNotes } = req.body;
@@ -322,6 +355,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, 
 });
 
 router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { sampleId } = req.params;
     const { extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, approved, examinerNotes, imageUrl } = req.body;
@@ -355,6 +389,7 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authM
 });
 
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { sampleId } = req.params;
     await db.execute(sql`DELETE FROM ramri_work_samples WHERE id = ${sampleId}`);
@@ -366,6 +401,7 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", auth
 
 // ── AI: Classify a sample ─────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId/classify", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { sampleId } = req.params;
     const { extractedProblem, studentAnswer, visibleWorking } = req.body as { extractedProblem?: string; studentAnswer?: string; visibleWorking?: string };
@@ -412,6 +448,7 @@ Return a JSON object (no markdown) with:
 
 // ── AI: Extract samples from uploaded documents ───────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot run extraction" });
   try {
     const { caseId, sessionId } = req.params;
 
@@ -664,6 +701,7 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid 
 
 // ── Choice Sets ───────────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/choice-sets", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify choice sets" });
   try {
     const { caseId, sessionId } = req.params;
     const { title, choiceType, targetDomain, studentPrompt, displayOrder, sampleIds } = req.body as { title?: string; choiceType?: string; targetDomain?: string; studentPrompt?: string; displayOrder?: number; sampleIds?: string[] };
@@ -686,6 +724,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/choice-sets", authMiddlewa
 });
 
 router.patch("/cases/:caseId/ramri/sessions/:sessionId/choice-sets/:setId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify choice sets" });
   try {
     const { setId } = req.params;
     const { title, choiceType, targetDomain, studentPrompt, displayOrder, sampleIds } = req.body;
@@ -712,6 +751,7 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/choice-sets/:setId", auth
 });
 
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/choice-sets/:setId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify choice sets" });
   try {
     const { setId } = req.params;
     await db.execute(sql`DELETE FROM ramri_choice_set_items WHERE choice_set_id = ${setId}`);
@@ -724,6 +764,7 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/choice-sets/:setId", aut
 
 // ── AI: Generate all choice sets from approved samples ────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/generate-choice-sets", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate choice sets" });
   try {
     const { caseId, sessionId } = req.params;
     const samples = (await db.execute(sql`
@@ -795,6 +836,7 @@ Return ONLY valid JSON (no markdown):
 
 // ── AI: Recommend choice set ──────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/recommend-choice-set", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify choice sets" });
   try {
     const { sessionId } = req.params;
     const { targetDomain } = req.body as { targetDomain?: string };

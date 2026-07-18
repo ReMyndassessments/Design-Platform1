@@ -3133,6 +3133,8 @@ async function createRamriTables() {
       )
     `);
 
+    await db.execute(sql`ALTER TABLE ramri_sessions ADD COLUMN IF NOT EXISTS invigilator_id TEXT`);
+
     logger.info("RAMRI tables ensured");
   } catch (err) {
     logger.error({ err }, "createRamriTables failed");

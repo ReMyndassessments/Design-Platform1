@@ -156,6 +156,11 @@ export default function RamriInterviewPage() {
   const [ratings, setRatings] = useState<DomainRating[]>([]);
   const [report, setReport] = useState<Report | null>(null);
 
+  // Role & invigilator identity
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [invigilatorId, setInvigilatorId] = useState<string | null>(null);
+  const [invigilatorName, setInvigilatorName] = useState<string | null>(null);
+
   // Contributor-upload notification & gating
   const [newDocsCount, setNewDocsCount] = useState(0);
   const knownDocIds = useRef<Set<string>>(new Set());
@@ -219,11 +224,15 @@ export default function RamriInterviewPage() {
         const data = await r.json() as {
           session: Session; docs: WorkDoc[]; samples: WorkSample[];
           choiceSets: ChoiceSet[]; selections: Selection[]; ratings: DomainRating[]; report: Report | null;
+          userRole?: string; invigilatorId?: string | null; invigilatorName?: string | null;
         };
         setSession(data.session);
         setSessionId(data.session.id);
-        if ((data as Record<string, unknown>).assignmentToken) setAssignmentToken((data as Record<string, string>).assignmentToken);
+        if (data.assignmentToken) setAssignmentToken(data.assignmentToken as unknown as string);
         if (typeof (data as Record<string, unknown>).uploadsClosed === "boolean") setUploadsClosed((data as Record<string, boolean>).uploadsClosed);
+        if (data.userRole) setUserRole(data.userRole);
+        if (data.invigilatorId) setInvigilatorId(data.invigilatorId);
+        if (data.invigilatorName) setInvigilatorName(data.invigilatorName);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -231,9 +240,13 @@ export default function RamriInterviewPage() {
         setSelections(data.selections);
         setRatings(data.ratings);
         setReport(data.report);
-        // Restore phase from sessionStorage (survives remounts)
-        const savedPhase = sessionStorage.getItem(`ramri-phase-${data.session.id}`);
-        if (savedPhase) setPhase(savedPhase as Phase);
+        // Invigilators always land on the interview phase — ignore sessionStorage
+        if (data.userRole === "assessment_invigilator") {
+          setPhase("interview");
+        } else {
+          const savedPhase = sessionStorage.getItem(`ramri-phase-${data.session.id}`);
+          if (savedPhase) setPhase(savedPhase as Phase);
+        }
         // Init local ratings from DB
         const lr: typeof localRatings = {};
         for (const dr of data.ratings) {
@@ -760,28 +773,38 @@ export default function RamriInterviewPage() {
         <Badge variant="outline" className="text-xs">
           {approvedSamples.length} approved samples
         </Badge>
-        <button onClick={resetSamples} title="Reset samples — keep documents, start extraction fresh" className="text-slate-400 hover:text-red-500 transition-colors">
-          <RotateCcw size={15} />
-        </button>
+        {userRole !== "assessment_invigilator" && (
+          <button onClick={resetSamples} title="Reset samples — keep documents, start extraction fresh" className="text-slate-400 hover:text-red-500 transition-colors">
+            <RotateCcw size={15} />
+          </button>
+        )}
         {saving && <Loader2 size={14} className="animate-spin text-slate-400" />}
       </div>
 
       {/* Phase tabs */}
       <div className="bg-white border-b border-slate-200 px-4 overflow-x-auto">
         <div className="flex gap-0 min-w-max">
-          {PHASES.map((p, i) => {
+          {PHASES.filter(p => {
+            if (userRole === "assessment_invigilator" && p.id === "scoring") return false;
+            return true;
+          }).map((p, i) => {
             const Icon = p.icon;
             const active = phase === p.id;
             const showDot = p.id === "upload" && newDocsCount > 0;
+            const locked = userRole === "assessment_invigilator" && p.id !== "interview";
             return (
               <button
                 key={p.id}
+                disabled={locked}
                 onClick={async () => {
+                  if (locked) return;
                   if (p.id !== "upload" && phase === "upload" && !uploadsClosed) await callToggleUploads(true);
                   setPhase(p.id);
                 }}
                 className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  active ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700"
+                  active ? "border-violet-600 text-violet-700"
+                  : locked ? "border-transparent text-slate-300 cursor-not-allowed"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Icon size={14} />
@@ -1334,6 +1357,27 @@ export default function RamriInterviewPage() {
               <p className="text-xs text-slate-500">AI groups your approved samples into sets of 2–3 for the student to choose from. You can edit or remove samples within each set.</p>
             </div>
 
+            {/* Handoff banner — visible to admin/psychometrician once sets are ready */}
+            {userRole !== "assessment_invigilator" && choiceSets.length > 0 && (
+              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Users size={16} className="text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-emerald-900">Ready for interview</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    {choiceSets.length} choice set{choiceSets.length !== 1 ? "s" : ""} prepared.
+                    {invigilatorName
+                      ? ` Invigilator: ${invigilatorName}`
+                      : " The invigilator can now log in and access the Interview tab."}
+                  </p>
+                </div>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0" onClick={() => setPhase("interview")}>
+                  Go to Interview
+                </Button>
+              </div>
+            )}
+
             {/* AI Generate button */}
             <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-center justify-between gap-4">
               <div>
@@ -1476,6 +1520,17 @@ export default function RamriInterviewPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {phase === "interview" && (
           <div className="space-y-4">
+            {/* Invigilator identity badge — shown to both roles once invigilator has connected */}
+            {invigilatorId && (
+              <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-lg px-4 py-2.5 text-xs text-violet-800">
+                <Users size={13} className="shrink-0" />
+                <span>
+                  Invigilator: <strong>{invigilatorName ?? invigilatorId}</strong>
+                  {userRole === "assessment_invigilator" && " (you)"}
+                </span>
+              </div>
+            )}
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800 space-y-1">
               <p className="font-semibold">Opening Script</p>
               <p className="italic">"Today, we are going to look at some maths you have already done. You will choose which pieces you would like to show me. I am interested in how you were thinking when you did them. You can explain with words, point to the page, draw something, or show me in another way. This is not about doing the same test again."</p>
