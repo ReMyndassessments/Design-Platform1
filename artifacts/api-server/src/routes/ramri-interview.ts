@@ -11,6 +11,7 @@ import { promisify } from "util";
 import { writeFile, unlink, mkdir, rmdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
+import mammoth from "mammoth";
 
 const execFileAsync = promisify(execFile);
 
@@ -52,6 +53,37 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview";
+
+async function docxToText(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value;
+}
+
+async function imageToText(imageBuffer: Buffer, mimeType: string): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+  const base64 = imageBuffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64}`;
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: dataUrl } },
+          { type: "text", text: "This is a photo of a student's mathematics work. Please transcribe ALL visible text exactly as written, including every problem, number, working/calculation steps, and any written answers. Preserve layout where possible — use new lines for separate problems. Do not interpret or correct — transcribe exactly what is shown including any errors or teacher marks." },
+        ],
+      }],
+      temperature: 0.1,
+      max_tokens: 3000,
+    }),
+  });
+  if (!r.ok) throw new Error(`Groq vision error: ${r.status}`);
+  const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
 async function callGroq(prompt: string, systemPrompt?: string, maxTokens = 2048): Promise<string> {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
@@ -448,12 +480,21 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
         errors.push(`${name}: no file attached`);
         continue;
       }
-      const url = doc.file_url.toLowerCase();
+      const nameLower = (doc.file_name ?? "").toLowerCase();
+      const typeLower = (doc.file_type ?? "").toLowerCase();
       const isPdf =
-        doc.file_type === "pdf" ||
-        doc.file_type === "application/pdf" ||
-        (doc.file_name ?? "").toLowerCase().endsWith(".pdf") ||
-        url.endsWith(".pdf");
+        typeLower === "pdf" || typeLower === "application/pdf" ||
+        nameLower.endsWith(".pdf");
+      const isDocx =
+        typeLower.includes("wordprocessingml") || typeLower.includes("msword") ||
+        typeLower === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        nameLower.endsWith(".docx") || nameLower.endsWith(".doc");
+      const isImage =
+        typeLower.startsWith("image/") ||
+        nameLower.endsWith(".jpg") || nameLower.endsWith(".jpeg") ||
+        nameLower.endsWith(".png") || nameLower.endsWith(".heic") ||
+        nameLower.endsWith(".heif") || nameLower.endsWith(".webp");
+
       try {
         const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
 
@@ -466,23 +507,53 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
           `- Contributor notes: ${doc.contributor_notes ?? "none"}`,
         ].join("\n");
 
-        // For PDFs: extract text with pdftotext; images are not supported without vision
-        if (!isPdf) {
-          errors.push(`${name}: image files cannot be processed — please upload PDFs`);
+        // ── Download file ──────────────────────────────────────────────────────
+        const fileResponse = await fetch(signedUrl);
+        if (!fileResponse.ok) throw new Error(`Failed to download file: ${fileResponse.status}`);
+        const fileBuf = Buffer.from(await fileResponse.arrayBuffer());
+
+        let extractedText = "";
+        let sourceLabel = "document";
+
+        if (isPdf) {
+          extractedText = await pdfToText(fileBuf);
+          sourceLabel = "PDF";
+          if (extractedText.length < 20) {
+            // Scanned PDF — fall through to vision
+            const mimeType = "image/png"; // treat as image for vision
+            // Try rendering first page as image via pdftotext isn't enough — use vision on the raw PDF
+            // For scanned PDFs we encode the raw PDF bytes and send to vision model
+            const pdfBase64 = fileBuf.toString("base64");
+            const dataUrl = `data:application/pdf;base64,${pdfBase64}`;
+            // Groq vision doesn't handle PDF natively; instead surface a useful error
+            errors.push(`${name}: this PDF appears to be a scanned image. Please re-upload as a JPEG or PNG photo instead.`);
+            continue;
+          }
+        } else if (isDocx) {
+          extractedText = await docxToText(fileBuf);
+          sourceLabel = "Word document";
+          if (extractedText.trim().length < 10) {
+            errors.push(`${name}: Word document appears to be empty or unreadable`);
+            continue;
+          }
+        } else if (isImage) {
+          // Detect MIME type
+          let mimeType = typeLower.startsWith("image/") ? typeLower : "image/jpeg";
+          if (nameLower.endsWith(".png")) mimeType = "image/png";
+          else if (nameLower.endsWith(".heic") || nameLower.endsWith(".heif")) mimeType = "image/heic";
+          else if (nameLower.endsWith(".webp")) mimeType = "image/webp";
+          extractedText = await imageToText(fileBuf, mimeType);
+          sourceLabel = "photo";
+          if (extractedText.trim().length < 10) {
+            errors.push(`${name}: could not read any text from the image — please ensure the photo is clear and well-lit`);
+            continue;
+          }
+        } else {
+          errors.push(`${name}: unsupported file type — please upload a PDF, Word document, or photo (JPEG/PNG)`);
           continue;
         }
 
-        const pdfResponse = await fetch(signedUrl);
-        if (!pdfResponse.ok) throw new Error(`Failed to download PDF: ${pdfResponse.status}`);
-        const pdfBuf = Buffer.from(await pdfResponse.arrayBuffer());
-        const pdfText = await pdfToText(pdfBuf);
-
-        if (pdfText.length < 20) {
-          errors.push(`${name}: PDF appears to be a scanned image with no selectable text — cannot extract without OCR`);
-          continue;
-        }
-
-        const textPrompt = `You are reviewing a student's mathematics work extracted from a PDF document.
+        const textPrompt = `You are reviewing a student's mathematics work extracted from a ${sourceLabel}.
 
 STUDENT PROFILE (use this to calibrate your interpretation of difficulty, expected performance, and any error patterns):
 ${studentBlock}${formBlock}
@@ -490,8 +561,8 @@ ${studentBlock}${formBlock}
 DOCUMENT DETAILS:
 ${docBlock}
 
-DOCUMENT TEXT (extracted from PDF — layout preserved):
-${pdfText.slice(0, 8000)}
+DOCUMENT TEXT (extracted from ${sourceLabel} — layout preserved):
+${extractedText.slice(0, 8000)}
 
 Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible in the text above.
 For each problem return an object with exactly these keys:

@@ -940,11 +940,11 @@ export default function RamriInterviewPage() {
               </div>
               <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center">
                 <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-                <p className="text-xs text-slate-500 mb-2">PDF only — photographs must be scanned to PDF before uploading</p>
+                <p className="text-xs text-slate-500 mb-2">Photo (JPEG/PNG), PDF, or Word document — all accepted</p>
                 <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                   {uploading ? <><Loader2 size={12} className="animate-spin mr-1" /> Uploading…</> : "Choose File"}
                 </Button>
-                <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handleFileUpload} />
+                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" className="hidden" onChange={handleFileUpload} />
               </div>
             </div>
 
