@@ -763,22 +763,32 @@ export default function RamriInterviewPage() {
     }
   };
 
-  const handleSetToggle = async (selId: string, isCurrentlyActive: boolean, nextSelId: string | null) => {
-    if (isCurrentlyActive) {
-      const pending = pendingObsRef.current[selId];
-      const existing = interviewData[selId]?.observations;
-      const hasExisting = existing && (
-        existing.anxiety_rating !== null || existing.confidence_rating !== null || existing.engagement_rating !== null
-      );
-      if (pending) {
-        await saveObservations(selId, pending);
-        const hasAny = pending.anxietyRating !== undefined || pending.confidenceRating !== undefined || pending.engagementRating !== undefined;
-        if (!hasAny && !hasExisting) {
-          toast({ title: "Behavioral observations not filled", description: "Remember to record anxiety, confidence and engagement before scoring.", variant: "destructive" });
-        }
-      } else if (!hasExisting) {
-        toast({ title: "Behavioral observations not filled", description: "Remember to record anxiety, confidence and engagement before scoring.", variant: "destructive" });
+  const autoSaveAndWarnObs = async (selId: string) => {
+    const pending = pendingObsRef.current[selId];
+    const existing = interviewData[selId]?.observations;
+    const hasExisting = !!(existing && (
+      existing.anxiety_rating != null || existing.confidence_rating != null || existing.engagement_rating != null
+    ));
+    if (pending) {
+      await saveObservations(selId, pending);
+      const hasAny = pending.anxietyRating !== undefined || pending.confidenceRating !== undefined || pending.engagementRating !== undefined;
+      if (!hasAny && !hasExisting) {
+        toast({ title: "Behavioral observations not filled", description: "Please record anxiety, confidence and engagement for this set before moving on.", variant: "destructive" });
       }
+    } else if (!hasExisting) {
+      toast({ title: "Behavioral observations not filled", description: "Please record anxiety, confidence and engagement for this set before moving on.", variant: "destructive" });
+    }
+  };
+
+  const handleSetToggle = async (selId: string, isCurrentlyActive: boolean, nextSelId: string | null) => {
+    // When leaving any set (closing it OR opening a different one), auto-save obs for the outgoing set
+    const outgoingSelId = isCurrentlyActive ? selId : activeSelId;
+    if (outgoingSelId && outgoingSelId !== selId) {
+      // Opening a new set — outgoing is the previously active set
+      await autoSaveAndWarnObs(outgoingSelId);
+    } else if (isCurrentlyActive) {
+      // Collapsing the current set
+      await autoSaveAndWarnObs(selId);
     }
     if (nextSelId !== null) {
       setActiveSelId(nextSelId);
