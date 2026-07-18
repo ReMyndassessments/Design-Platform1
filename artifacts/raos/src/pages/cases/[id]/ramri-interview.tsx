@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -223,6 +224,8 @@ export default function RamriInterviewPage() {
   const [generatingChoiceSets, setGeneratingChoiceSets] = useState(false);
 
   // Interview phase state
+  const { toast } = useToast();
+  const pendingObsRef = useRef<Record<string, { anxietyRating?: number; confidenceRating?: number; engagementRating?: number; notes?: string }>>({});
   const [activeSelId, setActiveSelId] = useState<string | null>(null);
   const [interviewData, setInterviewData] = useState<Record<string, {
     ownership: Record<string, unknown> | null;
@@ -757,6 +760,32 @@ export default function RamriInterviewPage() {
     if (r.ok) {
       const d = await r.json() as { observations: Record<string, unknown> };
       setInterviewData(prev => ({ ...prev, [selId]: { ...(prev[selId] ?? { ownership: null, responses: [], transfer: null, observations: null }), observations: d.observations } }));
+    }
+  };
+
+  const handleSetToggle = async (selId: string, isCurrentlyActive: boolean, nextSelId: string | null) => {
+    if (isCurrentlyActive) {
+      const pending = pendingObsRef.current[selId];
+      const existing = interviewData[selId]?.observations;
+      const hasExisting = existing && (
+        existing.anxiety_rating !== null || existing.confidence_rating !== null || existing.engagement_rating !== null
+      );
+      if (pending) {
+        await saveObservations(selId, pending);
+        const hasAny = pending.anxietyRating !== undefined || pending.confidenceRating !== undefined || pending.engagementRating !== undefined;
+        if (!hasAny && !hasExisting) {
+          toast({ title: "Behavioral observations not filled", description: "Remember to record anxiety, confidence and engagement before scoring.", variant: "destructive" });
+        }
+      } else if (!hasExisting) {
+        toast({ title: "Behavioral observations not filled", description: "Remember to record anxiety, confidence and engagement before scoring.", variant: "destructive" });
+      }
+    }
+    if (nextSelId !== null) {
+      setActiveSelId(nextSelId);
+      loadSelectionData(nextSelId);
+    } else {
+      setActiveSelId(isCurrentlyActive ? null : selId);
+      if (!isCurrentlyActive) loadSelectionData(selId);
     }
   };
 
@@ -1741,7 +1770,7 @@ export default function RamriInterviewPage() {
                               )}
                             </div>
 
-                            <BehavioralObsPanel selId={csSel.id} existing={csSelData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} />
+                            <BehavioralObsPanel selId={csSel.id} existing={csSelData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} onValuesChange={(sid, obs) => { pendingObsRef.current[sid] = obs; }} />
 
                             <TransferPromptPanel
                               selId={csSel.id} sample={csSample}
@@ -1793,7 +1822,7 @@ export default function RamriInterviewPage() {
                     <div key={sel.id} className="bg-white rounded-xl border border-slate-200 relative">
                       <button
                         className="w-full flex items-center gap-3 p-4 text-left"
-                        onClick={() => { setActiveSelId(isActive ? null : sel.id); if (!isActive) loadSelectionData(sel.id); }}
+                        onClick={() => handleSetToggle(sel.id, isActive, null)}
                       >
                         <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0">
@@ -1851,7 +1880,7 @@ export default function RamriInterviewPage() {
                               </div>
                             )}
                           </div>
-                          <BehavioralObsPanel selId={sel.id} existing={selData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} />
+                          <BehavioralObsPanel selId={sel.id} existing={selData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} onValuesChange={(sid, obs) => { pendingObsRef.current[sid] = obs; }} />
                           <TransferPromptPanel
                             selId={sel.id} sample={sample ?? null}
                             existing={selData?.transfer as Record<string, unknown> | null ?? null}
@@ -2447,10 +2476,11 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
   );
 }
 
-function BehavioralObsPanel({ selId, existing, onSave }: {
+function BehavioralObsPanel({ selId, existing, onSave, onValuesChange }: {
   selId: string;
   existing: Record<string, unknown> | null;
   onSave: (selId: string, obs: { anxietyRating?: number; confidenceRating?: number; engagementRating?: number; notes?: string }) => void;
+  onValuesChange?: (selId: string, obs: { anxietyRating?: number; confidenceRating?: number; engagementRating?: number; notes?: string }) => void;
 }) {
   const [anxiety, setAnxiety] = useState<number | null>(existing?.anxiety_rating as number ?? null);
   const [confidence, setConfidence] = useState<number | null>(existing?.confidence_rating as number ?? null);
@@ -2458,26 +2488,35 @@ function BehavioralObsPanel({ selId, existing, onSave }: {
   const [notes, setNotes] = useState((existing?.notes as string) ?? "");
   const [saved, setSaved] = useState(false);
 
+  const notify = (a: number | null, c: number | null, e: number | null, n: string) => {
+    onValuesChange?.(selId, {
+      anxietyRating: a ?? undefined,
+      confidenceRating: c ?? undefined,
+      engagementRating: e ?? undefined,
+      notes: n,
+    });
+  };
+
   const ratingLabel = (v: number | null) => v === null ? "—" : ["None", "Mild", "Noticeable", "Significant", "Severe"][v] ?? String(v);
 
   return (
     <div className="border border-slate-100 rounded-lg p-3 space-y-3">
       <h4 className="text-xs font-semibold text-slate-700">Behavioral Observations</h4>
       {[
-        { label: "Anxiety (0=none → 4=severe)", val: anxiety, set: setAnxiety },
-        { label: "Confidence (0=unable → 4=confident)", val: confidence, set: setConfidence },
-        { label: "Engagement (0=none → 4=active)", val: engagement, set: setEngagement },
+        { label: "Anxiety (0=none → 4=severe)", val: anxiety, set: (v: number) => { setAnxiety(v); setSaved(false); notify(v, confidence, engagement, notes); } },
+        { label: "Confidence (0=unable → 4=confident)", val: confidence, set: (v: number) => { setConfidence(v); setSaved(false); notify(anxiety, v, engagement, notes); } },
+        { label: "Engagement (0=none → 4=active)", val: engagement, set: (v: number) => { setEngagement(v); setSaved(false); notify(anxiety, confidence, v, notes); } },
       ].map(({ label, val, set }) => (
         <div key={label}>
           <p className="text-xs text-slate-500 mb-1">{label} — <strong>{ratingLabel(val)}</strong></p>
           <div className="flex gap-1.5">
             {[0, 1, 2, 3, 4].map(v => (
-              <button key={v} onClick={() => { set(v); setSaved(false); }} className={`w-8 h-8 rounded-lg text-xs font-bold border-2 ${val === v ? "bg-violet-600 border-violet-500 text-white" : "bg-white border-slate-200 text-slate-600"}`}>{v}</button>
+              <button key={v} onClick={() => set(v)} className={`w-8 h-8 rounded-lg text-xs font-bold border-2 ${val === v ? "bg-violet-600 border-violet-500 text-white" : "bg-white border-slate-200 text-slate-600"}`}>{v}</button>
             ))}
           </div>
         </div>
       ))}
-      <Textarea className="text-xs" rows={1} placeholder="Observation notes…" value={notes} onChange={e => { setNotes(e.target.value); setSaved(false); }} />
+      <Textarea className="text-xs" rows={1} placeholder="Observation notes…" value={notes} onChange={e => { setNotes(e.target.value); setSaved(false); notify(anxiety, confidence, engagement, e.target.value); }} />
       <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => { onSave(selId, { anxietyRating: anxiety ?? undefined, confidenceRating: confidence ?? undefined, engagementRating: engagement ?? undefined, notes }); setSaved(true); }}>
         {saved ? <><Check size={10} /> Saved</> : <><Check size={10} /> Save Observations</>}
       </Button>
