@@ -1372,27 +1372,96 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/progress", authMiddleware, 
   }
 });
 
-// ── Quick transcribe + speaker separation — for per-question audio notes ───────
+// ── Transcribe + save recording + speaker separation ──────────────────────────
+const objectStorage = new ObjectStorageService();
+
 router.post("/cases/:caseId/ramri/sessions/:sessionId/transcribe", authMiddleware, async (req, res) => {
   try {
+    const { sessionId } = req.params;
     const question = (req.query.question as string | undefined) ?? "";
+    const selectionId = (req.query.selectionId as string | undefined) ?? null;
+    const durationSeconds = req.query.duration ? parseInt(req.query.duration as string, 10) : null;
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     await new Promise<void>((resolve, reject) => { req.on("end", resolve); req.on("error", reject); });
     const audioBuffer = Buffer.concat(chunks);
     if (audioBuffer.length < 100) return res.status(400).json({ error: "empty_audio" });
     const mimeType = (req.headers["content-type"] || "audio/webm").split(";")[0].trim();
+
+    // Save audio to object storage
+    let storagePath: string | null = null;
+    try {
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      storagePath = objectStorage.normalizeObjectEntityPath(uploadURL);
+      const putRes = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": mimeType }, body: audioBuffer });
+      if (!putRes.ok) throw new Error(`Storage PUT failed: ${putRes.status}`);
+    } catch (storageErr) {
+      logger.warn({ storageErr }, "Audio storage failed — continuing without saving");
+    }
+
     const { transcribeAudio, separateSpeakers } = await import("../lib/groqTranscription.js");
     const transcript = await transcribeAudio(audioBuffer, mimeType);
-    // If a question was provided, run speaker separation; otherwise return flat transcript
-    if (question.trim()) {
-      const turns = await separateSpeakers(transcript, question);
-      return res.json({ transcript, turns });
+    const turns = question.trim()
+      ? await separateSpeakers(transcript, question)
+      : [{ speaker: "Student", text: transcript }];
+
+    // Persist the recording record
+    const recordingId = nanoid();
+    if (storagePath) {
+      await db.execute(sql`
+        INSERT INTO ramri_question_recordings
+          (id, session_id, selection_id, question_text, storage_path, mime_type, full_transcript, turns, report_mode, duration_seconds)
+        VALUES
+          (${recordingId}, ${sessionId}, ${selectionId}, ${question || null}, ${storagePath}, ${mimeType},
+           ${transcript}, ${JSON.stringify(turns)}::jsonb, 'student_only', ${durationSeconds})
+      `);
     }
-    return res.json({ transcript, turns: [{ speaker: "Student", text: transcript }] });
+
+    return res.json({ transcript, turns, recordingId: storagePath ? recordingId : null });
   } catch (err) {
     logger.error({ err }, "RAMRI transcribe failed");
     return res.status(502).json({ error: "transcription_failed", message: String(err) });
+  }
+});
+
+// ── List recordings for a session (with signed playback URLs) ─────────────────
+router.get("/cases/:caseId/ramri/sessions/:sessionId/recordings", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const rows = (await db.execute(sql`
+      SELECT * FROM ramri_question_recordings WHERE session_id = ${sessionId} ORDER BY created_at ASC
+    `)).rows as Array<Record<string, unknown>>;
+    const withUrls = await Promise.all(rows.map(async r => {
+      try {
+        const audioUrl = await objectStorage.getObjectEntitySignedDownloadURL(r.storage_path as string, 3600);
+        return { ...r, audioUrl };
+      } catch {
+        return { ...r, audioUrl: null };
+      }
+    }));
+    return res.json({ recordings: withUrls });
+  } catch (err) {
+    logger.error({ err }, "RAMRI recordings list failed");
+    return res.status(500).json({ error: "Failed to fetch recordings" });
+  }
+});
+
+// ── Update recording (edited transcript / report_mode toggle) ─────────────────
+router.patch("/cases/:caseId/ramri/sessions/:sessionId/recordings/:recordingId", authMiddleware, async (req, res) => {
+  try {
+    const { recordingId } = req.params;
+    const { fullTranscript, turns, reportMode } = req.body as { fullTranscript?: string; turns?: unknown[]; reportMode?: string };
+    await db.execute(sql`
+      UPDATE ramri_question_recordings SET
+        full_transcript = COALESCE(${fullTranscript ?? null}, full_transcript),
+        turns = COALESCE(${turns ? JSON.stringify(turns) : null}::jsonb, turns),
+        report_mode = COALESCE(${reportMode ?? null}, report_mode)
+      WHERE id = ${recordingId}
+    `);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "RAMRI recording patch failed");
+    return res.status(500).json({ error: "Failed to update recording" });
   }
 });
 

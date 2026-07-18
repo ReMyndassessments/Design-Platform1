@@ -3135,6 +3135,24 @@ async function createRamriTables() {
 
     await db.execute(sql`ALTER TABLE ramri_sessions ADD COLUMN IF NOT EXISTS invigilator_id TEXT`);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ramri_question_recordings (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES ramri_sessions(id) ON DELETE CASCADE,
+        selection_id TEXT REFERENCES ramri_sample_selections(id) ON DELETE CASCADE,
+        question_text TEXT,
+        storage_path TEXT NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'audio/webm',
+        full_transcript TEXT,
+        turns JSONB,
+        report_mode TEXT NOT NULL DEFAULT 'student_only',
+        duration_seconds INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_qrec_session_idx ON ramri_question_recordings (session_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_qrec_sel_idx ON ramri_question_recordings (selection_id)`);
+
     logger.info("RAMRI tables ensured");
   } catch (err) {
     logger.error({ err }, "createRamriTables failed");

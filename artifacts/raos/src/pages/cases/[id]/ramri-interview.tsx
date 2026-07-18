@@ -1875,6 +1875,8 @@ export default function RamriInterviewPage() {
               </div>
             )}
 
+            {selections.length > 0 && sessionId && <RecordingReviewPanel caseId={caseId} sessionId={sessionId} />}
+
             {selections.length > 0 && userRole !== "assessment_invigilator" && (
               <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("scoring")}>
                 Go to Scoring & Report <ChevronRight size={14} className="ml-1" />
@@ -2028,6 +2030,212 @@ export default function RamriInterviewPage() {
   );
 }
 
+// ── Recording Review Panel ─────────────────────────────────────────────────────
+
+type QuestionRecording = {
+  id: string;
+  session_id: string;
+  selection_id: string | null;
+  question_text: string | null;
+  mime_type: string;
+  full_transcript: string | null;
+  turns: Array<{ speaker: "Examiner" | "Student"; text: string }> | null;
+  report_mode: "student_only" | "full";
+  duration_seconds: number | null;
+  created_at: string;
+  audioUrl: string | null;
+};
+
+function RecordingReviewPanel({ caseId, sessionId }: { caseId: string; sessionId: string }) {
+  const [open, setOpen] = useState(false);
+  const [recordings, setRecordings] = useState<QuestionRecording[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [editedTurns, setEditedTurns] = useState<Record<string, Array<{ speaker: "Examiner" | "Student"; text: string }>>>({});
+  const [reportModes, setReportModes] = useState<Record<string, "student_only" | "full">>({});
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const [playing, setPlaying] = useState<Record<string, boolean>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/recordings`, { headers: getAuth() });
+      if (res.ok) {
+        const data = await res.json() as { recordings: QuestionRecording[] };
+        setRecordings(data.recordings);
+        const modes: Record<string, "student_only" | "full"> = {};
+        const turns: Record<string, Array<{ speaker: "Examiner" | "Student"; text: string }>> = {};
+        data.recordings.forEach(r => {
+          modes[r.id] = r.report_mode;
+          if (r.turns) turns[r.id] = r.turns;
+        });
+        setReportModes(modes);
+        setEditedTurns(turns);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [caseId, sessionId]);
+
+  const toggleOpen = () => {
+    if (!open) load();
+    setOpen(v => !v);
+  };
+
+  const togglePlay = (rec: QuestionRecording) => {
+    if (!rec.audioUrl) return;
+    let el = audioRefs.current[rec.id];
+    if (!el) {
+      el = new Audio(rec.audioUrl);
+      el.onended = () => setPlaying(p => ({ ...p, [rec.id]: false }));
+      audioRefs.current[rec.id] = el;
+    }
+    if (playing[rec.id]) {
+      el.pause();
+      setPlaying(p => ({ ...p, [rec.id]: false }));
+    } else {
+      el.play().catch(() => {});
+      setPlaying(p => ({ ...p, [rec.id]: true }));
+    }
+  };
+
+  const updateTurnText = (recId: string, idx: number, text: string) => {
+    setEditedTurns(prev => {
+      const next = [...(prev[recId] ?? [])];
+      next[idx] = { ...next[idx], text };
+      return { ...prev, [recId]: next };
+    });
+  };
+
+  const saveRecording = async (recId: string) => {
+    setSaving(s => ({ ...s, [recId]: true }));
+    try {
+      await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/recordings/${recId}`, {
+        method: "PATCH",
+        headers: jsonHeaders(),
+        body: JSON.stringify({ turns: editedTurns[recId], reportMode: reportModes[recId] }),
+      });
+    } finally {
+      setSaving(s => ({ ...s, [recId]: false }));
+    }
+  };
+
+  const studentText = (recId: string) =>
+    (editedTurns[recId] ?? []).filter(t => t.speaker === "Student").map(t => t.text).join(" ");
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200">
+      <button
+        className="w-full flex items-center justify-between p-4 text-left"
+        onClick={toggleOpen}
+      >
+        <div className="flex items-center gap-2">
+          <Mic size={15} className="text-violet-500" />
+          <span className="font-semibold text-slate-800 text-sm">Review Interview Recordings</span>
+          {recordings.length > 0 && (
+            <Badge variant="outline" className="text-xs">{recordings.length} recording{recordings.length !== 1 ? "s" : ""}</Badge>
+          )}
+        </div>
+        {open ? <ChevronLeft size={14} className="text-slate-400 rotate-90" /> : <ChevronRight size={14} className="text-slate-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 p-4 space-y-4">
+          {loading && <p className="text-xs text-slate-400 flex items-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Loading recordings…</p>}
+          {!loading && recordings.length === 0 && (
+            <p className="text-xs text-slate-400 italic">No recordings saved yet. Use the microphone button inside each interview question to capture audio.</p>
+          )}
+          {!loading && recordings.map((rec, idx) => {
+            const turns = editedTurns[rec.id] ?? [];
+            const mode = reportModes[rec.id] ?? "student_only";
+            return (
+              <div key={rec.id} className="rounded-lg border border-slate-200 p-3 space-y-3 text-xs">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-slate-700">Recording {idx + 1}</p>
+                    {rec.question_text && <p className="text-slate-500 italic mt-0.5">Q: {rec.question_text}</p>}
+                    {rec.duration_seconds && <p className="text-slate-400">{rec.duration_seconds}s</p>}
+                  </div>
+                  {rec.audioUrl && (
+                    <button
+                      onClick={() => togglePlay(rec)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium shrink-0 ${playing[rec.id] ? "bg-red-50 border-red-200 text-red-600" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-violet-300"}`}
+                    >
+                      {playing[rec.id] ? <><Square size={10} className="fill-red-500" /> Stop</> : <><Mic size={10} /> Play</>}
+                    </button>
+                  )}
+                </div>
+
+                {/* Report mode toggle */}
+                <div className="flex items-center gap-2">
+                  <p className="text-slate-500 font-medium">Include in report:</p>
+                  <div className="flex gap-1">
+                    {(["student_only", "full"] as const).map(m => (
+                      <button
+                        key={m}
+                        onClick={() => setReportModes(prev => ({ ...prev, [rec.id]: m }))}
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium ${mode === m ? "bg-violet-600 border-violet-500 text-white" : "bg-white border-slate-200 text-slate-500"}`}
+                      >
+                        {m === "student_only" ? "Student responses only" : "Full conversation"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Turn-by-turn editable transcript */}
+                {turns.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Conversation — edit to clean up</p>
+                    {turns.map((turn, ti) => (
+                      <div key={ti} className={`flex gap-2 ${turn.speaker === "Student" ? "" : "opacity-60"}`}>
+                        <span className={`shrink-0 text-[10px] font-bold w-16 pt-1.5 ${turn.speaker === "Student" ? "text-violet-600" : "text-slate-400"}`}>
+                          {turn.speaker}:
+                        </span>
+                        <Textarea
+                          className="text-xs flex-1 min-h-[32px] py-1"
+                          value={turn.text}
+                          rows={1}
+                          onChange={e => updateTurnText(rec.id, ti, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Preview of what goes to report */}
+                <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    What will be sent to report AI ({mode === "student_only" ? "student responses only" : "full conversation"})
+                  </p>
+                  <p className="text-slate-600 leading-relaxed">
+                    {mode === "student_only" ? studentText(rec.id) || "—" : turns.map(t => `${t.speaker}: ${t.text}`).join("\n") || rec.full_transcript || "—"}
+                  </p>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 gap-1"
+                  onClick={() => saveRecording(rec.id)}
+                  disabled={saving[rec.id]}
+                >
+                  {saving[rec.id] ? <><Loader2 size={10} className="animate-spin" /> Saving…</> : <><Check size={10} /> Save changes</>}
+                </Button>
+              </div>
+            );
+          })}
+          {!loading && recordings.length > 0 && (
+            <button onClick={load} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+              <RefreshCw size={10} /> Refresh
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 type SpeakerTurn = { speaker: "Examiner" | "Student"; text: string };
@@ -2059,24 +2267,29 @@ function useAudioRecorder(caseId: string, sessionId: string) {
     }
   }, []);
 
-  const stop = useCallback((question: string): Promise<{ transcript: string; turns: SpeakerTurn[] }> => {
+  const stop = useCallback((question: string, selectionId?: string): Promise<{ transcript: string; turns: SpeakerTurn[]; recordingId: string | null }> => {
     return new Promise((resolve, reject) => {
       const mr = mediaRecorderRef.current;
       if (!mr) { reject(new Error("No recorder")); return; }
+      const startedAt = Date.now();
       mr.onstop = async () => {
         mr.stream.getTracks().forEach(t => t.stop());
         setRecording(false);
         setTranscribing(true);
         try {
           const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-          const url = `${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/transcribe?question=${encodeURIComponent(question)}`;
+          const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
+          const params = new URLSearchParams({ question });
+          if (selectionId) params.set("selectionId", selectionId);
+          params.set("duration", String(durationSeconds));
+          const url = `${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/transcribe?${params}`;
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": mr.mimeType, ...getAuth() },
             body: blob,
           });
           if (!res.ok) throw new Error(`Transcription failed (${res.status})`);
-          const data = await res.json() as { transcript: string; turns: SpeakerTurn[] };
+          const data = await res.json() as { transcript: string; turns: SpeakerTurn[]; recordingId: string | null };
           resolve(data);
         } catch (err) {
           reject(err);
@@ -2109,7 +2322,7 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
   const handleStopAndTranscribe = async () => {
     setRecError(null);
     try {
-      const result = await stop(question.question);
+      const result = await stop(question.question, selId);
       setTurns(result.turns);
       // Auto-fill quote with student turns only, joined together
       const studentText = result.turns
