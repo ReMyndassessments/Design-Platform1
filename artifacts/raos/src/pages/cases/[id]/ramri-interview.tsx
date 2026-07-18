@@ -699,7 +699,17 @@ export default function RamriInterviewPage() {
   };
 
   const recordSelection = async (sampleId: string, choiceSetId?: string) => {
-    if (activeSelId) await autoSaveAndWarnObs(activeSelId);
+    // Block if any existing selection is missing behavioral observations
+    for (const sel of selections) {
+      const obs = (interviewData[sel.id]?.observations ?? null) as Record<string, unknown> | null;
+      const savedObs = !!(obs && (obs.anxiety_rating != null || obs.confidence_rating != null || obs.engagement_rating != null));
+      const pending = pendingObsRef.current[sel.id];
+      const pendingObs = !!(pending && (pending.anxietyRating !== undefined || pending.confidenceRating !== undefined || pending.engagementRating !== undefined));
+      if (!savedObs && !pendingObs) {
+        toast({ title: "Complete behavioral observations first", description: "Please fill in anxiety, confidence and engagement ratings for the current set before adding another.", variant: "destructive" });
+        return;
+      }
+    }
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections`, {
       method: "POST", headers: jsonHeaders(), body: JSON.stringify({ workSampleId: sampleId, choiceSetId: choiceSetId ?? null }),
     });
