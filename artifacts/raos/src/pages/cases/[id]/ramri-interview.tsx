@@ -1626,48 +1626,131 @@ export default function RamriInterviewPage() {
               <Textarea className="mt-1 text-xs" rows={2} placeholder="General session observations..." defaultValue={session?.general_notes ?? ""} onBlur={e => saveSession({ generalNotes: e.target.value } as Partial<Session>)} />
             </div>
 
-            {/* Choice sets / sample selection */}
+            {/* Choice sets / sample selection — interview panel opens inline below each set */}
             {choiceSets.length > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
                 <h3 className="font-semibold text-slate-800 text-sm">Present Choice Set to Student</h3>
-                {choiceSets.map(cs => (
-                  <div key={cs.id} className="border border-slate-100 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">{cs.choice_type.replace("_", " ")}</Badge>
-                      <span className="text-sm font-medium text-slate-700">{cs.title}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 italic">{cs.student_prompt || "Which piece of maths would you most like to show me?"}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(() => {
-                        const setSelection = selections.find(sel => sel.choice_set_id === cs.id);
-                        return cs.items.map(item => {
-                          const s = samples.find(s => s.id === item.work_sample_id);
-                          if (!s) return null;
-                          const isThisSelected = setSelection?.work_sample_id === s.id;
-                          const anotherSelected = !!setSelection && !isThisSelected;
-                          return (
-                            <div
-                              key={item.id}
-                              className={`p-3 rounded-lg border-2 text-xs transition-all ${isThisSelected ? "border-violet-400 bg-violet-50" : anotherSelected ? "border-slate-100 bg-slate-50 opacity-50" : "border-slate-200 bg-white hover:border-violet-300 cursor-pointer"}`}
-                              onClick={() => !isThisSelected && !anotherSelected && recordSelection(s.id, cs.id)}
-                            >
-                              <p className="font-medium text-slate-700">{s.extracted_problem}</p>
-                              {isThisSelected && (
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-violet-600 font-semibold">✓ Student selected this</span>
-                                  <button
-                                    className="text-xs text-red-400 hover:text-red-600 font-medium border border-red-200 rounded px-2 py-0.5"
-                                    onClick={e => { e.stopPropagation(); removeSelection(setSelection.id); }}
-                                  >Undo</button>
+                {choiceSets.map(cs => {
+                  const csSelection = selections.find(sel => sel.choice_set_id === cs.id);
+                  const csSample = csSelection ? samples.find(s => s.id === csSelection.work_sample_id) : null;
+                  const csSelData = csSelection ? interviewData[csSelection.id] : null;
+                  return (
+                    <div key={cs.id} className="space-y-0">
+                      {/* Set card */}
+                      <div className={`border rounded-lg p-3 space-y-2 ${csSelection ? "border-violet-300 rounded-b-none border-b-0" : "border-slate-100"}`}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">{cs.choice_type.replace("_", " ")}</Badge>
+                          <span className="text-sm font-medium text-slate-700">{cs.title}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 italic">{cs.student_prompt || "Which piece of maths would you most like to show me?"}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(() => {
+                            const setSelection = csSelection;
+                            return cs.items.map(item => {
+                              const s = samples.find(s => s.id === item.work_sample_id);
+                              if (!s) return null;
+                              const isThisSelected = setSelection?.work_sample_id === s.id;
+                              const anotherSelected = !!setSelection && !isThisSelected;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`p-3 rounded-lg border-2 text-xs transition-all ${isThisSelected ? "border-violet-400 bg-violet-50" : anotherSelected ? "border-slate-100 bg-slate-50 opacity-50" : "border-slate-200 bg-white hover:border-violet-300 cursor-pointer"}`}
+                                  onClick={() => !isThisSelected && !anotherSelected && recordSelection(s.id, cs.id)}
+                                >
+                                  <p className="font-medium text-slate-700">{s.extracted_problem}</p>
+                                  {isThisSelected && (
+                                    <div className="flex items-center justify-between mt-2">
+                                      <span className="text-violet-600 font-semibold">✓ Student selected this</span>
+                                      <button
+                                        className="text-xs text-red-400 hover:text-red-600 font-medium border border-red-200 rounded px-2 py-0.5"
+                                        onClick={e => { e.stopPropagation(); removeSelection(setSelection.id); }}
+                                      >Undo</button>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Inline interview panel — appears right below this set once student picks */}
+                      {csSelection && (
+                        <div className="border border-violet-300 border-t-0 rounded-b-lg bg-violet-50/20 p-4 space-y-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-500">Interview — {cs.title}</p>
+
+                          {/* Hypothesis */}
+                          {csSample && (
+                            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                              <Brain size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-0.5">Hypothesis to confirm</p>
+                                <p className="text-xs text-amber-900">{buildHypothesis(csSample)}</p>
+                              </div>
                             </div>
-                          );
-                        });
-                      })()}
+                          )}
+
+                          {/* Work sample summary */}
+                          {csSample && (
+                            <div className="bg-white rounded-lg border border-slate-100 p-3 text-xs space-y-1">
+                              <p className="font-semibold text-slate-700">Problem: {csSample.extracted_problem}</p>
+                              <p className="text-slate-500">Student's answer: <strong>{csSample.student_answer || "—"}</strong> · {csSample.answer_status?.replace("_", " ")}</p>
+                              {csSample.visible_working !== "no" && <p className="text-slate-500">Working visible: {csSample.visible_working}</p>}
+                              {csSample.teacher_correction && <p className="text-amber-700">Teacher correction: {csSample.teacher_correction}</p>}
+                            </div>
+                          )}
+
+                          {/* Interview questions */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-xs font-semibold text-slate-700">Interview Questions</h4>
+                              {generatingQs && activeSelId === csSelection.id && <span className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Generating…</span>}
+                            </div>
+                            {activeSelId === csSelection.id && generatedQs.length > 0 && (
+                              <div className="space-y-2">
+                                {generatedQs.map((q, qi) => (
+                                  <InterviewQuestionCard key={qi} question={q} selId={csSelection.id} onSave={saveResponse} />
+                                ))}
+                              </div>
+                            )}
+                            {(csSelData?.responses?.length ?? 0) > 0 && (
+                              <div className="mt-3 space-y-2">
+                                <p className="text-xs text-slate-500 font-medium">Saved responses ({csSelData!.responses.length})</p>
+                                {(csSelData!.responses as Array<Record<string, unknown>>).map((resp, ri) => (
+                                  <div key={ri} className="p-2 rounded-lg bg-white border border-slate-100 text-xs">
+                                    <p className="text-slate-600 font-medium">Q: {resp.approved_question as string || resp.generated_question as string}</p>
+                                    {resp.direct_quote && <p className="text-violet-700 italic mt-0.5">"{resp.direct_quote as string}"</p>}
+                                    {resp.examiner_paraphrase && <p className="text-slate-500 mt-0.5">Paraphrase: {resp.examiner_paraphrase as string}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Behavioral observations */}
+                          <BehavioralObsPanel selId={csSelection.id} existing={csSelData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} />
+
+                          {/* Transfer prompt */}
+                          <TransferPromptPanel
+                            selId={csSelection.id} sample={csSample ?? null}
+                            existing={csSelData?.transfer as Record<string, unknown> | null ?? null}
+                            generating={generatingTransfer}
+                            onGenerate={generateTransfer}
+                            onSave={async (data) => {
+                              const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections/${csSelection.id}/transfer`, {
+                                method: "POST", headers: jsonHeaders(), body: JSON.stringify(data),
+                              });
+                              if (r.ok) {
+                                const d = await r.json() as { transferPrompt: Record<string, unknown> };
+                                setInterviewData(prev => ({ ...prev, [csSelection.id]: { ...(prev[csSelection.id] ?? { ownership: null, responses: [], transfer: null, observations: null }), transfer: d.transferPrompt } }));
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1685,15 +1768,14 @@ export default function RamriInterviewPage() {
               </div>
             </div>
 
-            {/* Active selections */}
-            {selections.length > 0 && (
+            {/* Direct selections (no choice set) — shown as collapsible cards */}
+            {selections.filter(sel => !sel.choice_set_id).length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-slate-800 text-sm">Sample Interviews ({selections.length})</h3>
-                {selections.map((sel, idx) => {
+                <h3 className="font-semibold text-slate-800 text-sm">Direct Sample Interviews ({selections.filter(sel => !sel.choice_set_id).length})</h3>
+                {selections.filter(sel => !sel.choice_set_id).map((sel, idx) => {
                   const sample = samples.find(s => s.id === sel.work_sample_id);
                   const isActive = activeSelId === sel.id;
                   const selData = interviewData[sel.id];
-
                   return (
                     <div key={sel.id} className="bg-white rounded-xl border border-slate-200 relative">
                       <button
@@ -1712,10 +1794,8 @@ export default function RamriInterviewPage() {
                         title="Undo this selection"
                         onClick={e => { e.stopPropagation(); removeSelection(sel.id); }}
                       ><RotateCcw size={12} /></button>
-
                       {isActive && (
                         <div className="border-t border-slate-100 p-4 space-y-4">
-                          {/* Hypothesis to confirm */}
                           {sample && (
                             <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                               <Brain size={13} className="text-amber-600 shrink-0 mt-0.5" />
@@ -1725,8 +1805,6 @@ export default function RamriInterviewPage() {
                               </div>
                             </div>
                           )}
-
-                          {/* Work sample display */}
                           {sample && (
                             <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
                               <p className="font-semibold text-slate-700">Problem: {sample.extracted_problem}</p>
@@ -1735,14 +1813,11 @@ export default function RamriInterviewPage() {
                               {sample.teacher_correction && <p className="text-amber-700">Teacher correction: {sample.teacher_correction}</p>}
                             </div>
                           )}
-
-                          {/* Generate questions */}
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="text-xs font-semibold text-slate-700">Interview Questions</h4>
                               {generatingQs && <span className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Generating…</span>}
                             </div>
-
                             {generatedQs.length > 0 && (
                               <div className="space-y-2">
                                 {generatedQs.map((q, qi) => (
@@ -1750,7 +1825,6 @@ export default function RamriInterviewPage() {
                                 ))}
                               </div>
                             )}
-
                             {(selData?.responses?.length ?? 0) > 0 && (
                               <div className="mt-3 space-y-2">
                                 <p className="text-xs text-slate-500 font-medium">Saved responses ({selData!.responses.length})</p>
@@ -1764,11 +1838,7 @@ export default function RamriInterviewPage() {
                               </div>
                             )}
                           </div>
-
-                          {/* Behavioral observations */}
                           <BehavioralObsPanel selId={sel.id} existing={selData?.observations as Record<string, unknown> | null ?? null} onSave={saveObservations} />
-
-                          {/* Transfer prompt */}
                           <TransferPromptPanel
                             selId={sel.id} sample={sample ?? null}
                             existing={selData?.transfer as Record<string, unknown> | null ?? null}
