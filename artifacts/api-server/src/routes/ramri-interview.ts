@@ -215,6 +215,7 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId", authMiddleware, async (
 
 // ── Reset session (keep docs, wipe samples + everything downstream) ───────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/reset-samples", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot reset the session" });
   try {
     const { sessionId } = req.params;
     await db.execute(sql`
@@ -263,6 +264,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/reset-samples", authMiddle
 
 // ── Toggle contributor uploads ────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot control upload access" });
   try {
     const { sessionId } = req.params;
     const { closed } = req.body as { closed?: boolean };
@@ -290,6 +292,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddl
 
 // ── Work Documents ────────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/documents", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot upload documents" });
   try {
     const { caseId, sessionId } = req.params;
     const { fileName, fileUrl, fileType, sourceType, contributorName, completionDate, gradeLevel, mathTopic, independenceReported, teacherAssistance, parentAssistance, exampleShown, manipulativesUsed, calculatorUsed, completionSetting, timed, teacherMarked, teacherComments, contributorNotes } = req.body;
@@ -324,6 +327,7 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/documents", authMiddleware,
 });
 
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/documents/:docId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot delete documents" });
   try {
     const { docId } = req.params;
     await db.execute(sql`DELETE FROM ramri_work_documents WHERE id = ${docId}`);
@@ -1055,6 +1059,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId/transfer
 
 // ── Domain Ratings ────────────────────────────────────────────────────────────
 router.put("/cases/:caseId/ramri/sessions/:sessionId/ratings", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify domain ratings" });
   try {
     const { sessionId } = req.params;
     const { ratings } = req.body as { ratings: Array<{ domain: string; rating: number | null; evidenceStrength?: string; supportingEvidence?: string }> };
@@ -1129,6 +1134,7 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", authMid
 
 // ── Generate Report ───────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate the report" });
   try {
     const { caseId, sessionId } = req.params;
     const [session, selections, ratings, allResponses] = await Promise.all([
@@ -1199,6 +1205,7 @@ Return JSON only (no markdown):
 });
 
 router.patch("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the report" });
   try {
     const { sessionId } = req.params;
     const { editedNarrative, status } = req.body;
