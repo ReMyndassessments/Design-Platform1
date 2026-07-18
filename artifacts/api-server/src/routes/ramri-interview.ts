@@ -934,7 +934,7 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", auth
     await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${selId}`);
     await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${selId}`);
     await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${selId}`);
-    await db.execute(sql`DELETE FROM ramri_behavioral_observations WHERE sample_selection_id = ${selId}`);
+    await db.execute(sql`DELETE FROM ramri_behavioral_obs WHERE sample_selection_id = ${selId}`);
     await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${selId}`);
     return res.json({ ok: true });
   } catch (err) {
