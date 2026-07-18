@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -468,6 +468,103 @@ export default function RamriInterviewPage() {
       });
       if (r.ok) { const d = await r.json() as { uploadsClosed: boolean }; setUploadsClosed(d.uploadsClosed); }
     } catch { /* non-fatal */ }
+  };
+
+  const printStudentSheet = () => {
+    const letters = ["A", "B", "C", "D"];
+    const date = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+    const setsHtml = choiceSets
+      .filter(cs => cs.items.length > 0)
+      .sort((a, b) => a.display_order - b.display_order)
+      .map((cs, si) => {
+        const prompt = cs.student_prompt || "Which piece of work would you like to show me?";
+        const itemsHtml = cs.items
+          .sort((a, b) => a.display_order - b.display_order)
+          .map((item, ii) => {
+            const s = samples.find(x => x.id === item.work_sample_id);
+            if (!s) return "";
+            return `
+              <div class="problem">
+                <div class="problem-label">Option ${letters[ii] ?? ii + 1}</div>
+                <div class="problem-text">${s.extracted_problem}</div>
+                ${s.student_answer ? `<div class="problem-answer">Original answer: ${s.student_answer}</div>` : ""}
+                <div class="work-space">
+                  <div class="work-space-label">Student's explanation / work</div>
+                </div>
+              </div>`;
+          }).join("");
+        return `
+          <div class="set">
+            <div class="set-header">
+              <span class="set-number">Set ${si + 1}</span>
+              <span class="set-title">${cs.title}</span>
+            </div>
+            <p class="set-prompt">"${prompt}"</p>
+            ${itemsHtml}
+            <div class="examiner-notes">
+              <strong>Examiner notes</strong>
+              <div class="notes-lines">
+                <div class="notes-line"></div>
+                <div class="notes-line"></div>
+                <div class="notes-line"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RAMRI Student Work Sheet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; font-size: 13pt; color: #111; background: #fff; padding: 24mm 20mm; }
+    header { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 24px; }
+    header h1 { font-size: 16pt; font-weight: bold; letter-spacing: 0.02em; }
+    header .meta { font-size: 10pt; color: #555; margin-top: 6px; display: flex; gap: 32px; }
+    header .meta span { display: inline-flex; align-items: baseline; gap: 6px; }
+    header .meta .blank { display: inline-block; border-bottom: 1px solid #555; min-width: 120px; height: 14px; }
+    .set { margin-bottom: 32px; page-break-inside: avoid; }
+    .set-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+    .set-number { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.08em; color: #555; }
+    .set-title { font-size: 13pt; font-weight: bold; }
+    .set-prompt { font-size: 10.5pt; font-style: italic; color: #444; margin-bottom: 14px; border-left: 3px solid #bbb; padding-left: 10px; }
+    .problem { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
+    .problem-label { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 6px; }
+    .problem-text { font-size: 13pt; line-height: 1.5; margin-bottom: 6px; }
+    .problem-answer { font-size: 10pt; color: #555; margin-bottom: 8px; }
+    .work-space { border: 1px dashed #bbb; border-radius: 4px; min-height: 64px; padding: 8px 10px; }
+    .work-space-label { font-size: 8.5pt; color: #aaa; font-style: italic; }
+    .examiner-notes { margin-top: 10px; }
+    .examiner-notes strong { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; color: #777; }
+    .notes-lines { margin-top: 6px; }
+    .notes-line { border-bottom: 1px solid #ccc; height: 22px; }
+    @media print {
+      body { padding: 14mm 16mm; }
+      .set { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RAMRI — Student Work Sheet</h1>
+    <div class="meta">
+      <span>Student: <span class="blank"></span></span>
+      <span>Date: ${date}</span>
+      <span>Examiner: <span class="blank"></span></span>
+    </div>
+  </header>
+  ${setsHtml || "<p>No choice sets with samples yet.</p>"}
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) { alert("Pop-up blocked — please allow pop-ups for this page."); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
   };
 
   const generateChoiceSets = async () => {
@@ -1326,10 +1423,15 @@ export default function RamriInterviewPage() {
               );
             })}
 
-            {choiceSets.length > 0 && (
-              <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("interview")}>
-                Start Interview <ChevronRight size={14} className="ml-1" />
-              </Button>
+            {choiceSets.some(cs => cs.items.length > 0) && (
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button variant="outline" className="gap-2 text-slate-700 border-slate-300" onClick={printStudentSheet}>
+                  <Printer size={14} /> Print Student Sheet
+                </Button>
+                <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("interview")}>
+                  Start Interview <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </div>
             )}
           </div>
         )}
