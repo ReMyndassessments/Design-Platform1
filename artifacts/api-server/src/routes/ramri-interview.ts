@@ -1157,14 +1157,25 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
     const ratingList = ratings.rows as Record<string, unknown>[];
     const respList = allResponses.rows as Record<string, unknown>[];
 
+    const ALL_MATH_DOMAINS = [
+      "Number Sense", "Addition Reasoning", "Subtraction Reasoning", "Multiplicative Reasoning",
+      "Division Reasoning", "Fractions", "Decimals", "Percentages", "Ratio and Proportional Reasoning",
+      "Algebraic Reasoning", "Pattern and Relational Reasoning", "Mathematical Problem-Solving",
+      "Measurement", "Geometry", "Spatial Reasoning", "Data Interpretation", "Statistics",
+      "Probability", "Money", "Time",
+    ];
+    const assessedDomains = [...new Set(sels.map(s => s.domain).filter(Boolean))] as string[];
+    const unassessedDomains = ALL_MATH_DOMAINS.filter(d => !assessedDomains.includes(d));
+
     const prompt = `You are a clinical educational psychologist writing a professional RAMRI (ReMynd Authentic Mathematical Reasoning Interview) report. Generate structured report sections based on this session data.
 
 Session status: ${s?.status}
 Samples discussed: ${sels.length}
-Domains covered: ${[...new Set(sels.map(s => s.domain).filter(Boolean))].join(", ")}
+Domains assessed in this session: ${assessedDomains.join(", ") || "None"}
+Domains NOT represented in submitted work: ${unassessedDomains.join(", ") || "None"}
 
-Domain ratings:
-${ratingList.map(r => `${r.domain}: ${r.rating !== null ? r.rating + "/4" : "NO"} (${r.evidence_strength ?? "unrated"})`).join("\n")}
+Domain ratings (reasoning process dimensions):
+${ratingList.map(r => `${r.domain}: ${r.rating !== null ? r.rating + "/4" : "not rated"} (${r.evidence_strength ?? "unrated"})`).join("\n")}
 
 Sample responses summary:
 ${respList.filter(r => r.direct_quote).slice(0, 10).map(r => `Q: ${r.approved_question ?? r.generated_question}\nA: "${r.direct_quote}"`).join("\n\n")}
@@ -1179,6 +1190,10 @@ IMPORTANT rules for this report:
 - Distinguish between original work evidence, interview evidence, and transfer evidence
 - Use professional but accessible language
 
+For "domainCoverage": Write 2-3 sentences naming which content domains were represented in submitted work and which were not. Note that absence of a domain does not imply difficulty — the student may simply not have encountered that content yet. Be explicit about this distinction.
+
+For "transferableStrategies": Based on the reasoning process dimensions rated above (e.g. Metacognition, Strategy Flexibility, Transfer, Conceptual Understanding), write 2-3 sentences explaining how the reasoning strengths observed across assessed domains are expected to transfer to unassessed domains when the student encounters them. Give one or two concrete examples linking an observed strength to an unassessed domain (e.g. strong multiplicative reasoning as a foundation for algebraic thinking). Frame these as hypotheses requiring ongoing observation, not predictions.
+
 Return JSON only (no markdown):
 {
   "assessmentContext": "1-2 sentences on basis and method",
@@ -1186,10 +1201,12 @@ Return JSON only (no markdown):
   "reasoningProfile": "paragraph synthesizing the domain ratings and evidence",
   "performanceVsReasoning": "paragraph on relationship between written work and demonstrated reasoning",
   "conditionEffect": "paragraph on whether familiar/student-selected material appeared to help",
+  "domainCoverage": "paragraph on which domains were and were not represented, and what that means",
+  "transferableStrategies": "paragraph on how observed reasoning strengths are expected to apply to unassessed domains",
   "strengths": ["strength1", "strength2", "strength3"],
   "areasForDevelopment": ["area1", "area2"],
   "recommendations": ["rec1", "rec2", "rec3", "rec4"],
-  "limitations": ["This is not a standardized assessment.", "The quality of conclusions depends on the authenticity and context of submitted work.", "Previously completed work may have involved unrecorded assistance.", "Transfer evidence is important when interpreting independent understanding."],
+  "limitations": ["This is not a standardized assessment.", "The quality of conclusions depends on the authenticity and context of submitted work.", "Previously completed work may have involved unrecorded assistance.", "Transfer evidence is important when interpreting independent understanding.", "Domains not represented in submitted work cannot be assessed — absence from this report does not indicate difficulty in those areas."],
   "disclaimer": "RAMRI is a structured qualitative and criterion-referenced reasoning interview. Results must not be represented as standardized scores, age equivalents, grade equivalents, or diagnostic conclusions."
 }`;
     const text = await callGroq(prompt, "You are a professional clinical report writer.", 2500);

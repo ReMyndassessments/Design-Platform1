@@ -1827,13 +1827,15 @@ export default function RamriInterviewPage() {
                   </div>
 
                   {/* Editable narrative sections */}
-                  {(["assessmentContext", "participationSummary", "reasoningProfile", "performanceVsReasoning", "conditionEffect"] as const).map(key => {
+                  {(["assessmentContext", "participationSummary", "reasoningProfile", "performanceVsReasoning", "conditionEffect", "domainCoverage", "transferableStrategies"] as const).map(key => {
                     const labels: Record<string, string> = {
                       assessmentContext: "Assessment Context",
                       participationSummary: "Participation & Emotional Presentation",
                       reasoningProfile: "Mathematical Reasoning Profile",
                       performanceVsReasoning: "Performance vs. Reasoning",
                       conditionEffect: "Effect of Assessment Conditions",
+                      domainCoverage: "Domain Coverage",
+                      transferableStrategies: "Transferable Reasoning Strategies",
                     };
                     const value = (editedNarrative[key] as string) ?? "";
                     return (
