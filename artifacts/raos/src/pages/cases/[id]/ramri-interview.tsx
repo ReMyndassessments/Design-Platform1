@@ -1691,7 +1691,7 @@ export default function RamriInterviewPage() {
               </div>
             )}
 
-            {selections.length > 0 && (
+            {selections.length > 0 && userRole !== "assessment_invigilator" && (
               <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("scoring")}>
                 Go to Scoring & Report <ChevronRight size={14} className="ml-1" />
               </Button>
@@ -1702,7 +1702,7 @@ export default function RamriInterviewPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* PHASE 7: SCORING & REPORT */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {phase === "scoring" && (
+        {phase === "scoring" && userRole !== "assessment_invigilator" && (
           <div className="space-y-5">
             <div>
               <h2 className="font-semibold text-slate-800">Scoring & Report</h2>
