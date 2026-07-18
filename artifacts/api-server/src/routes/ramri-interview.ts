@@ -1372,18 +1372,24 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/progress", authMiddleware, 
   }
 });
 
-// ── Quick transcribe (no storage) — for per-question audio notes ──────────────
+// ── Quick transcribe + speaker separation — for per-question audio notes ───────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/transcribe", authMiddleware, async (req, res) => {
   try {
+    const question = (req.query.question as string | undefined) ?? "";
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     await new Promise<void>((resolve, reject) => { req.on("end", resolve); req.on("error", reject); });
     const audioBuffer = Buffer.concat(chunks);
     if (audioBuffer.length < 100) return res.status(400).json({ error: "empty_audio" });
     const mimeType = (req.headers["content-type"] || "audio/webm").split(";")[0].trim();
-    const { transcribeAudio } = await import("../lib/groqTranscription.js");
+    const { transcribeAudio, separateSpeakers } = await import("../lib/groqTranscription.js");
     const transcript = await transcribeAudio(audioBuffer, mimeType);
-    return res.json({ transcript });
+    // If a question was provided, run speaker separation; otherwise return flat transcript
+    if (question.trim()) {
+      const turns = await separateSpeakers(transcript, question);
+      return res.json({ transcript, turns });
+    }
+    return res.json({ transcript, turns: [{ speaker: "Student", text: transcript }] });
   } catch (err) {
     logger.error({ err }, "RAMRI transcribe failed");
     return res.status(502).json({ error: "transcription_failed", message: String(err) });

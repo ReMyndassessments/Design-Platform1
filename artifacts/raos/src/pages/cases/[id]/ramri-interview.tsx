@@ -2030,6 +2030,8 @@ export default function RamriInterviewPage() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
+type SpeakerTurn = { speaker: "Examiner" | "Student"; text: string };
+
 function useAudioRecorder(caseId: string, sessionId: string) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -2057,7 +2059,7 @@ function useAudioRecorder(caseId: string, sessionId: string) {
     }
   }, []);
 
-  const stop = useCallback((): Promise<string> => {
+  const stop = useCallback((question: string): Promise<{ transcript: string; turns: SpeakerTurn[] }> => {
     return new Promise((resolve, reject) => {
       const mr = mediaRecorderRef.current;
       if (!mr) { reject(new Error("No recorder")); return; }
@@ -2067,14 +2069,15 @@ function useAudioRecorder(caseId: string, sessionId: string) {
         setTranscribing(true);
         try {
           const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-          const res = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/transcribe`, {
+          const url = `${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/transcribe?question=${encodeURIComponent(question)}`;
+          const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": mr.mimeType, ...getAuth() },
             body: blob,
           });
           if (!res.ok) throw new Error(`Transcription failed (${res.status})`);
-          const data = await res.json() as { transcript: string };
-          resolve(data.transcript);
+          const data = await res.json() as { transcript: string; turns: SpeakerTurn[] };
+          resolve(data);
         } catch (err) {
           reject(err);
         } finally {
@@ -2095,6 +2098,7 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
   sessionId: string;
   onSave: (selId: string, type: string, q: string, quote: string, paraphrase: string) => void;
 }) {
+  const [turns, setTurns] = useState<SpeakerTurn[]>([]);
   const [quote, setQuote] = useState("");
   const [paraphrase, setParaphrase] = useState("");
   const [notes, setNotes] = useState("");
@@ -2105,8 +2109,14 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
   const handleStopAndTranscribe = async () => {
     setRecError(null);
     try {
-      const transcript = await stop();
-      setQuote(prev => prev ? `${prev} ${transcript}` : transcript);
+      const result = await stop(question.question);
+      setTurns(result.turns);
+      // Auto-fill quote with student turns only, joined together
+      const studentText = result.turns
+        .filter(t => t.speaker === "Student")
+        .map(t => t.text)
+        .join(" ");
+      setQuote(prev => prev ? `${prev} ${studentText}` : studentText);
     } catch (err) {
       setRecError(String(err));
     }
@@ -2137,7 +2147,7 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
                 onClick={start}
                 className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-violet-400 hover:text-violet-700 transition-colors"
               >
-                <Mic size={11} /> Record student response
+                <Mic size={11} /> Record conversation
               </button>
             )}
             {recording && (
@@ -2145,12 +2155,12 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
                 onClick={handleStopAndTranscribe}
                 className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-red-50 border border-red-300 text-red-600 animate-pulse"
               >
-                <Square size={11} className="fill-red-500" /> Stop &amp; transcribe
+                <Square size={11} className="fill-red-500" /> Stop &amp; analyse
               </button>
             )}
             {transcribing && (
               <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Loader2 size={11} className="animate-spin" /> Transcribing…
+                <Loader2 size={11} className="animate-spin" /> Transcribing &amp; separating speakers…
               </span>
             )}
             {(micError || recError) && (
@@ -2158,11 +2168,27 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
             )}
           </div>
 
-          {/* Quote — pre-filled from transcript, editable */}
+          {/* Labelled turn-by-turn conversation view */}
+          {turns.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white p-2 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Conversation</p>
+              {turns.map((turn, i) => (
+                <div key={i} className={`flex gap-2 ${turn.speaker === "Student" ? "" : "opacity-60"}`}>
+                  <span className={`shrink-0 text-[10px] font-bold w-16 pt-0.5 ${turn.speaker === "Student" ? "text-violet-600" : "text-slate-400"}`}>
+                    {turn.speaker}:
+                  </span>
+                  <p className="text-xs text-slate-700 leading-relaxed">{turn.text}</p>
+                </div>
+              ))}
+              <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-100">Student turns auto-filled below — edit as needed</p>
+            </div>
+          )}
+
+          {/* Quote — auto-filled with student turns, editable */}
           <Textarea
             className="text-xs"
             rows={2}
-            placeholder='Student quote (auto-filled from recording, or type manually)…'
+            placeholder='Student response (auto-filled from recording, or type manually)…'
             value={quote}
             onChange={e => setQuote(e.target.value)}
           />
