@@ -16,6 +16,33 @@ function jsonHeaders() {
   return { "Content-Type": "application/json", ...getAuth() };
 }
 
+/** Derive a one-sentence confirmatory hypothesis from written-work classification fields. */
+function buildHypothesis(sample: WorkSample): string {
+  const focus: string[] = Array.isArray(sample.reasoning_focus)
+    ? sample.reasoning_focus
+    : typeof sample.reasoning_focus === "string" && sample.reasoning_focus
+      ? (() => { try { return JSON.parse(sample.reasoning_focus as string) as string[]; } catch { return []; } })()
+      : [];
+  const skill   = sample.skill   || sample.domain || "this concept";
+  const domain  = sample.domain  || "mathematics";
+  const status  = sample.answer_status;
+  const working = sample.visible_working;
+
+  if (status === "correct") {
+    if (working === "no") {
+      return `Correct answer, no visible working. Confirm whether this reflects genuine ${skill} understanding or a recalled result — ask the student to walk you through how they got there.`;
+    }
+    return `Correct ${skill} response with working shown. Confirm the student can articulate WHY the method works, not just that it produced the right answer${focus.length > 0 ? ` — pay attention to ${focus[0].toLowerCase()}` : ""}.`;
+  }
+  if (status === "incorrect") {
+    return `Error in ${skill}. Determine whether this is a conceptual gap in ${domain} or a procedural slip${focus.length > 0 ? `, focusing on ${focus[0].toLowerCase()}` : ""} — and whether the student recognises the mistake when they revisit it.`;
+  }
+  if (status === "partially_correct") {
+    return `Partial ${skill} understanding visible in the written work. Identify exactly where the reasoning breaks down and whether the student is aware their answer is incomplete.`;
+  }
+  return `The student's answer is unclear from the written work. Establish what they intended first, then probe their ${domain} reasoning.`;
+}
+
 const PHASES = [
   { id: "upload", label: "Upload", icon: Upload },
   { id: "samples", label: "Samples", icon: FileText },
@@ -1696,6 +1723,17 @@ export default function RamriInterviewPage() {
 
                       {isActive && (
                         <div className="border-t border-slate-100 p-4 space-y-4">
+                          {/* Hypothesis to confirm */}
+                          {sample && (
+                            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                              <Brain size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-0.5">Hypothesis to confirm</p>
+                                <p className="text-xs text-amber-900">{buildHypothesis(sample)}</p>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Work sample display */}
                           {sample && (
                             <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
