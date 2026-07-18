@@ -672,6 +672,14 @@ For each valid problem return an object with exactly these keys:
 - answerStatus: "correct", "incorrect", "partially_correct", or "unclear" — judge against the student's expected grade level
 - teacherCorrection: what the teacher wrote/marked if visible, or null
 - examinerNotes: a brief pre-interview observation based solely on what is VISIBLE in the written work — phrase it as what the work shows (e.g. "The written work shows the student used a column method but misaligned the tens column"), not as a description of student behaviour or intent. Flag grade-level mismatches or error patterns visible in the script that are relevant to the referral concern. Never infer what the student was thinking — only describe what is observable on the page.
+- domain: one of [Number Sense, Addition Reasoning, Subtraction Reasoning, Multiplicative Reasoning, Division Reasoning, Fractions, Decimals, Percentages, Ratio and Proportional Reasoning, Algebraic Reasoning, Pattern and Relational Reasoning, Mathematical Problem-Solving, Measurement, Geometry, Spatial Reasoning, Data Interpretation, Statistics, Probability, Money, Time, Other]
+- skill: specific skill name (e.g. "Regrouping", "Fraction Equivalence")
+- answerStatus: one of [correct, incorrect, partially_correct, unclear]
+- difficulty: one of [introductory, developing, expected, advanced] — calibrated against the student's grade level from the profile above
+- reasoningFocus: array of 2–3 items from [Conceptual Understanding, Strategy Awareness, Procedural Reasoning, Mathematical Communication, Error Awareness, Verification, Strategy Flexibility, Transfer, Metacognition, Independence] — the cognitive dimensions most relevant to this problem
+- suitability: one of [suitable, limited, strong, excluded] — how useful this sample would be for a RAMRI interview
+- languageDemand: one of [low, moderate, high]
+- estimatedGrade: grade level string e.g. "Year 3", "Grade 4"
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 

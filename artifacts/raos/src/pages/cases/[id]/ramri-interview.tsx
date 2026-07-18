@@ -93,6 +93,13 @@ type ExtractionCandidate = {
   answerStatus: string;
   teacherCorrection: string | null;
   examinerNotes: string;
+  domain?: string;
+  skill?: string;
+  difficulty?: string;
+  reasoningFocus?: string[];
+  suitability?: string;
+  languageDemand?: string;
+  estimatedGrade?: string;
   sourceDocId: string;
   sourceDocName: string;
   gradeLevel: string | null;
@@ -431,9 +438,13 @@ export default function RamriInterviewPage() {
       answerStatus: candidate.answerStatus ?? "unclear",
       teacherCorrection: candidate.teacherCorrection ?? "",
       teacherComments: "",
-      domain: "",
-      skill: "",
-      difficulty: "developing",
+      domain: candidate.domain ?? "",
+      skill: candidate.skill ?? "",
+      difficulty: candidate.difficulty ?? "developing",
+      reasoningFocus: candidate.reasoningFocus ?? [],
+      suitability: candidate.suitability ?? "suitable",
+      languageDemand: candidate.languageDemand ?? "moderate",
+      estimatedGrade: candidate.estimatedGrade ?? "",
       examinerNotes: candidate.examinerNotes ?? "",
     };
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, {
@@ -1258,9 +1269,6 @@ export default function RamriInterviewPage() {
                         )}
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
-                        <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => classifySample(sample)} disabled={classifying === sample.id}>
-                          {classifying === sample.id ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />} AI Classify
-                        </Button>
                         <Button size="sm" variant="outline" className={`text-xs h-7 gap-1 ${sample.approved ? "border-emerald-300 text-emerald-700" : ""}`} onClick={() => approveSample(sample.id, !sample.approved)}>
                           {sample.approved ? <><Check size={10} /> Approved</> : <><Check size={10} /> Approve</>}
                         </Button>
