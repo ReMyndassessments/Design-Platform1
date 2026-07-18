@@ -46,7 +46,6 @@ function buildHypothesis(sample: WorkSample): string {
 const PHASES = [
   { id: "upload", label: "Upload", icon: Upload },
   { id: "samples", label: "Samples", icon: FileText },
-  { id: "review", label: "Review", icon: CheckSquare },
   { id: "bank", label: "Sample Bank", icon: LayoutGrid },
   { id: "choicesets", label: "Choice Sets", icon: Users },
   { id: "interview", label: "Interview", icon: MessageSquare },
@@ -279,7 +278,8 @@ export default function RamriInterviewPage() {
           setPhase("interview");
         } else {
           const savedPhase = sessionStorage.getItem(`ramri-phase-${data.session.id}`);
-          if (savedPhase) setPhase(savedPhase as Phase);
+          const validPhaseIds = new Set(PHASES.map(p => p.id));
+          if (savedPhase && validPhaseIds.has(savedPhase as Phase)) setPhase(savedPhase as Phase);
         }
         // Init local ratings from DB
         const lr: typeof localRatings = {};
@@ -1289,78 +1289,15 @@ export default function RamriInterviewPage() {
             </div>
 
             {samples.length > 0 && (
-              <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("review")}>
-                Continue to Review <ChevronRight size={14} className="ml-1" />
+              <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("bank")}>
+                Continue to Sample Bank <ChevronRight size={14} className="ml-1" />
               </Button>
             )}
           </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* PHASE 3: REVIEW */}
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {phase === "review" && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-semibold text-slate-800">Clinical Review</h2>
-              <p className="text-xs text-slate-500">Review and approve samples for the Student Work Sample Bank. Only approved samples will appear in choice sets.</p>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex gap-2">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span>AI extraction must never be treated as final. Verify every sample before approving.</span>
-            </div>
-
-            {samples.length === 0 && (
-              <div className="text-center py-12 text-slate-400 text-sm">No samples to review. Add samples in the previous step.</div>
-            )}
-
-            <div className="grid gap-3">
-              {samples.map(sample => (
-                <div key={sample.id} className={`bg-white rounded-xl border p-4 ${sample.approved ? "border-emerald-300 bg-emerald-50/30" : "border-slate-200"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-semibold text-slate-800">{sample.extracted_problem}</p>
-                      <div className="flex gap-2 flex-wrap text-xs">
-                        <span className="text-slate-500">Answer: <strong>{sample.student_answer || "—"}</strong></span>
-                        <span className="text-slate-400">·</span>
-                        <span className="text-slate-500">Domain: <strong>{sample.domain || "Unclassified"}</strong></span>
-                        <span className="text-slate-400">·</span>
-                        <span className="text-slate-500">Status: <strong>{sample.answer_status?.replace("_", " ") || "—"}</strong></span>
-                        <span className="text-slate-400">·</span>
-                        <span className="text-slate-500">Working: <strong>{sample.visible_working || "—"}</strong></span>
-                      </div>
-                      {sample.teacher_correction && <p className="text-xs text-amber-700">Teacher correction: {sample.teacher_correction}</p>}
-                      {sample.examiner_notes && <p className="text-xs text-slate-400 italic">{sample.examiner_notes}</p>}
-                    </div>
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                      <Button size="sm" className={`text-xs h-8 gap-1 ${sample.approved ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"}`} onClick={() => approveSample(sample.id, !sample.approved)}>
-                        {sample.approved ? <><CheckSquare size={12} /> Approved</> : <><Check size={12} /> Approve</>}
-                      </Button>
-                      <Button size="sm" variant="outline" className="text-xs h-8 gap-1 text-red-500" onClick={() => updateSampleField(sample.id, "suitability", "excluded")}>
-                        <X size={12} /> Exclude
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-slate-600">
-                <strong className="text-emerald-700">{approvedSamples.length}</strong> of <strong>{samples.length}</strong> samples approved
-              </div>
-              {approvedSamples.length > 0 && (
-                <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("bank")}>
-                  View Sample Bank <ChevronRight size={14} className="ml-1" />
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* PHASE 4: SAMPLE BANK */}
+        {/* PHASE 3: SAMPLE BANK */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {phase === "bank" && (
           <div className="space-y-4">
@@ -1373,7 +1310,7 @@ export default function RamriInterviewPage() {
               <div className="text-center py-12 text-slate-400 text-sm">
                 <LayoutGrid size={32} className="mx-auto mb-2 opacity-40" />
                 <p>No approved samples yet. Review and approve samples first.</p>
-                <Button size="sm" variant="outline" className="mt-3" onClick={() => setPhase("review")}>Go to Review</Button>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => setPhase("samples")}>Go to Samples</Button>
               </div>
             )}
 
