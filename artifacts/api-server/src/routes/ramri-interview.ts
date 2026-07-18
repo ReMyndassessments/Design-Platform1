@@ -1357,7 +1357,7 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/progress", authMiddleware, 
     const selections = (await db.execute(sql`
       SELECT sel.*, ws.extracted_problem, ws.domain, ws.skill
       FROM ramri_sample_selections sel
-      LEFT JOIN ramri_work_samples ws ON ws.id = sel.work_sample_id
+      INNER JOIN ramri_work_samples ws ON ws.id = sel.work_sample_id
       WHERE sel.session_id = ${sessionId}
       ORDER BY sel.sequence_number ASC
     `)).rows;
