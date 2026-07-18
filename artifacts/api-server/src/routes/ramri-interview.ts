@@ -120,6 +120,15 @@ function isInvigilator(req: import("express").Request): boolean {
   return req.userRole === "assessment_invigilator";
 }
 
+/**
+ * Returns true if the problem text is a cross-reference or meta-question that
+ * only makes sense in the context of another problem — these must never appear
+ * in a student choice set.
+ */
+function isCrossReferenceItem(text: string): boolean {
+  return /\b(both problems?|either problem|each problem|problem [a-z0-9]+|question [0-9]+|the above|these problems?|part [a-z0-9]\b|as above|from above|in question|in problem|explain why you (can|can'?t|cannot)|how do you know .{0,30} (both|either|works? for)|compare your|what did you notice|what do you notice)\b/i.test(text);
+}
+
 // ── Create or get session ─────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) => {
   try {
@@ -691,6 +700,9 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid 
           continue;
         }
         for (const item of extracted) {
+          // Hard filter: reject any candidate that references another problem —
+          // these are follow-up/meta questions that slipped past the AI instructions.
+          if (isCrossReferenceItem(String(item.extractedProblem ?? ""))) continue;
           candidates.push({
             ...item,
             sourceDocId: doc.id,
@@ -853,7 +865,9 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/recommend-choice-set", aut
   try {
     const { sessionId } = req.params;
     const { targetDomain } = req.body as { targetDomain?: string };
-    const samples = (await db.execute(sql`SELECT id, extracted_problem, domain, skill, answer_status, suitability, difficulty FROM ramri_work_samples WHERE session_id = ${sessionId} AND approved = true ORDER BY created_at ASC`)).rows;
+    const rawSamples = (await db.execute(sql`SELECT id, extracted_problem, domain, skill, answer_status, suitability, difficulty FROM ramri_work_samples WHERE session_id = ${sessionId} AND approved = true ORDER BY created_at ASC`)).rows;
+    // Strip any cross-reference items that slipped into the bank before extraction filtering was tightened
+    const samples = rawSamples.filter(s => !isCrossReferenceItem(String((s as Record<string,unknown>).extracted_problem ?? "")));
     const prompt = `You are a clinical mathematics assessment specialist. From the following approved work samples, recommend 2-4 samples for a student choice set${targetDomain ? ` focusing on: ${targetDomain}` : ""}.
 
 Samples:
