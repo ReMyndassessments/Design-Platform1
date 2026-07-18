@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -709,6 +709,19 @@ export default function RamriInterviewPage() {
     if (r.ok) { const d = await r.json() as { report: Report }; setReport(d.report); }
   };
 
+  const resetSamples = async () => {
+    if (!confirm("This will delete all extracted samples, choice sets, and interview data — but keep your uploaded documents so you can re-extract. Continue?")) return;
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/reset-samples`, {
+      method: "POST", headers: jsonHeaders(),
+    });
+    if (!r.ok) { alert("Reset failed — please try again."); return; }
+    setSamples([]);
+    setChoiceSets([]);
+    setSelections([]);
+    setInterviewData({});
+    setPhase("upload");
+  };
+
   const approvedSamples = samples.filter(s => s.approved);
 
   // ── Error screen ────────────────────────────────────────────────────────────
@@ -747,6 +760,9 @@ export default function RamriInterviewPage() {
         <Badge variant="outline" className="text-xs">
           {approvedSamples.length} approved samples
         </Badge>
+        <button onClick={resetSamples} title="Reset samples — keep documents, start extraction fresh" className="text-slate-400 hover:text-red-500 transition-colors">
+          <RotateCcw size={15} />
+        </button>
         {saving && <Loader2 size={14} className="animate-spin text-slate-400" />}
       </div>
 

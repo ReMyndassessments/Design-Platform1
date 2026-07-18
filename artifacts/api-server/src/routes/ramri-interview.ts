@@ -181,6 +181,54 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId", authMiddleware, async (
   }
 });
 
+// ── Reset session (keep docs, wipe samples + everything downstream) ───────────
+router.post("/cases/:caseId/ramri/sessions/:sessionId/reset-samples", authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    await db.execute(sql`
+      DELETE FROM ramri_interview_responses
+      WHERE sample_selection_id IN (
+        SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId}
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM ramri_transfer_prompts
+      WHERE sample_selection_id IN (
+        SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId}
+      )
+    `);
+    await db.execute(sql`
+      DELETE FROM ramri_behavioral_obs
+      WHERE sample_selection_id IN (
+        SELECT id FROM ramri_sample_selections WHERE session_id = ${sessionId}
+      )
+    `);
+    await db.execute(sql`DELETE FROM ramri_sample_selections WHERE session_id = ${sessionId}`);
+    await db.execute(sql`
+      DELETE FROM ramri_choice_set_items
+      WHERE choice_set_id IN (
+        SELECT id FROM ramri_choice_sets WHERE session_id = ${sessionId}
+      )
+    `);
+    await db.execute(sql`DELETE FROM ramri_choice_sets WHERE session_id = ${sessionId}`);
+    await db.execute(sql`DELETE FROM ramri_domain_ratings WHERE session_id = ${sessionId}`);
+    await db.execute(sql`DELETE FROM ramri_reports WHERE session_id = ${sessionId}`);
+    await db.execute(sql`DELETE FROM ramri_work_samples WHERE session_id = ${sessionId}`);
+    await db.execute(sql`
+      UPDATE ramri_work_documents SET extraction_status = 'pending'
+      WHERE session_id = ${sessionId}
+    `);
+    await db.execute(sql`
+      UPDATE ramri_sessions SET status = 'active', updated_at = NOW()
+      WHERE id = ${sessionId}
+    `);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "RAMRI reset-samples failed");
+    return res.status(500).json({ error: "Reset failed" });
+  }
+});
+
 // ── Toggle contributor uploads ────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddleware, async (req, res) => {
   try {
