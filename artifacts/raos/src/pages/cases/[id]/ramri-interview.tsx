@@ -1631,35 +1631,33 @@ export default function RamriInterviewPage() {
                     </div>
                     <p className="text-xs text-slate-500 italic">{cs.student_prompt || "Which piece of maths would you most like to show me?"}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {cs.items.map(item => {
-                        const s = samples.find(s => s.id === item.work_sample_id);
-                        if (!s) return null;
-                        const existingSel = selections.find(sel => sel.work_sample_id === s.id && sel.choice_set_id === cs.id);
-                        const alreadySelected = !!existingSel;
-                        return (
-                          <div
-                            key={item.id}
-                            className={`p-3 rounded-lg border-2 text-xs transition-all ${alreadySelected ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"}`}
-                          >
-                            <button
-                              className="text-left w-full"
-                              onClick={() => !alreadySelected && recordSelection(s.id, cs.id)}
-                              disabled={alreadySelected}
+                      {(() => {
+                        const setSelection = selections.find(sel => sel.choice_set_id === cs.id);
+                        return cs.items.map(item => {
+                          const s = samples.find(s => s.id === item.work_sample_id);
+                          if (!s) return null;
+                          const isThisSelected = setSelection?.work_sample_id === s.id;
+                          const anotherSelected = !!setSelection && !isThisSelected;
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-3 rounded-lg border-2 text-xs transition-all ${isThisSelected ? "border-violet-400 bg-violet-50" : anotherSelected ? "border-slate-100 bg-slate-50 opacity-50" : "border-slate-200 bg-white hover:border-violet-300 cursor-pointer"}`}
+                              onClick={() => !isThisSelected && !anotherSelected && recordSelection(s.id, cs.id)}
                             >
-                              <p className="font-medium text-slate-700 mb-1">{s.extracted_problem}</p>
-                            </button>
-                            {alreadySelected && (
-                              <div className="flex items-center justify-between mt-1">
-                                <span className="text-violet-600">✓ Student selected this</span>
-                                <button
-                                  className="text-xs text-slate-400 hover:text-red-500 underline"
-                                  onClick={() => removeSelection(existingSel.id)}
-                                >Undo</button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                              <p className="font-medium text-slate-700">{s.extracted_problem}</p>
+                              {isThisSelected && (
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-violet-600 font-semibold">✓ Student selected this</span>
+                                  <button
+                                    className="text-xs text-red-400 hover:text-red-600 font-medium border border-red-200 rounded px-2 py-0.5"
+                                    onClick={e => { e.stopPropagation(); removeSelection(setSelection.id); }}
+                                  >Undo</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 ))}
