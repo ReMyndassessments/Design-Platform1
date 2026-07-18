@@ -685,7 +685,7 @@ export default function RamriInterviewPage() {
       const d = await r.json() as { selection: Selection };
       setSelections(prev => [...prev, d.selection]);
       setActiveSelId(d.selection.id);
-      generateQuestions(d.selection.id);
+      generateQuestions(d.selection.id, d.selection.work_sample_id);
     }
   };
 
@@ -702,10 +702,9 @@ export default function RamriInterviewPage() {
     if (activeSelId) loadSelectionData(activeSelId);
   }, [activeSelId]);
 
-  const generateQuestions = async (selId: string) => {
-    const sel = selections.find(s => s.id === selId);
-    if (!sel) return;
-    const sample = samples.find(s => s.id === sel.work_sample_id);
+  const generateQuestions = async (selId: string, workSampleId?: string) => {
+    const sampleId = workSampleId ?? selections.find(s => s.id === selId)?.work_sample_id;
+    const sample = samples.find(s => s.id === sampleId);
     if (!sample) return;
     setGeneratingQs(true);
     try {
