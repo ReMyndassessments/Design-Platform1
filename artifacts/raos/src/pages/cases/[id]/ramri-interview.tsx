@@ -181,6 +181,7 @@ export default function RamriInterviewPage() {
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [editingSetItems, setEditingSetItems] = useState<string[]>([]);
   const [recommending, setRecommending] = useState(false);
+  const [recommendRationale, setRecommendRationale] = useState<Record<string, string>>({});
   const [generatingChoiceSets, setGeneratingChoiceSets] = useState(false);
 
   // Interview phase state
@@ -450,7 +451,8 @@ export default function RamriInterviewPage() {
       if (!r.ok) return;
       const d = await r.json() as { recommendedIds: string[]; rationale: string };
       setEditingSetItems(d.recommendedIds);
-      alert(`Recommendation: ${d.rationale}`);
+      setEditingSetId(setId);
+      setRecommendRationale(prev => ({ ...prev, [setId]: d.rationale }));
     } finally { setRecommending(false); }
   };
 
@@ -1395,6 +1397,15 @@ export default function RamriInterviewPage() {
 
                   {isEditing ? (
                     <div className="space-y-1">
+                      {recommendRationale[cs.id] && (
+                        <div className="flex items-start gap-2 mb-3 bg-violet-50 border border-violet-200 rounded-lg p-2.5 text-xs text-violet-800">
+                          <Star size={12} className="mt-0.5 shrink-0 text-violet-500" />
+                          <div className="flex-1">
+                            <span className="font-semibold">AI suggestion: </span>{recommendRationale[cs.id]}
+                          </div>
+                          <button onClick={() => setRecommendRationale(prev => { const n = { ...prev }; delete n[cs.id]; return n; })} className="text-violet-400 hover:text-violet-600 shrink-0">✕</button>
+                        </div>
+                      )}
                       <p className="text-xs text-slate-500 mb-2">Select 2–4 approved samples:</p>
                       {approvedSamples.map(s => (
                         <label key={s.id} className="flex items-center gap-2 text-xs p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
