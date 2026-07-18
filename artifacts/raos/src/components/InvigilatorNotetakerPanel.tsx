@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
-import { Mic, ChevronDown, Loader2, Calendar, User, History } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight } from "lucide-react";
 
 interface ActiveCase {
   id: string;
   studentName: string;
   assessmentMeetingDate: string | null;
+}
+
+interface RamriSession {
+  session_id: string;
+  case_id: string;
+  assignment_id: string;
+  student_name: string;
+  item_count: number;
+  selection_count: number;
 }
 
 interface InvigilatorNotetakerPanelProps {
@@ -49,6 +58,17 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
   const [loadingRecordings, setLoadingRecordings] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [ramriSessions, setRamriSessions] = useState<RamriSession[]>([]);
+
+  // Fetch RAMRI sessions ready for this invigilator
+  useEffect(() => {
+    fetch(`${baseUrl}/api/invigilator/ramri-sessions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: RamriSession[]) => setRamriSessions(rows))
+      .catch(() => {});
+  }, [baseUrl, token]);
 
   // Fetch active cases on mount
   useEffect(() => {
@@ -190,6 +210,32 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
               }}
             />
           )
+        )}
+
+        {/* RAMRI sessions ready for interview */}
+        {ramriSessions.length > 0 && (
+          <div className="border-t border-slate-100 -mx-4 pt-4 px-4 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <ClipboardList size={11} className="text-violet-400" />
+              RAMRI Interview Ready
+            </p>
+            {ramriSessions.map(sess => (
+              <a
+                key={sess.session_id}
+                href={`/cases/${sess.case_id}/ramri/${sess.assignment_id}`}
+                className="flex items-center gap-3 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5 hover:bg-violet-100 transition-colors group"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-violet-900 truncate">{sess.student_name}</p>
+                  <p className="text-[11px] text-violet-500 mt-0.5">
+                    {Number(sess.item_count)} choice{Number(sess.item_count) !== 1 ? "s" : ""} prepared
+                    {Number(sess.selection_count) > 0 && ` · ${Number(sess.selection_count)} selected`}
+                  </p>
+                </div>
+                <ArrowRight size={13} className="text-violet-400 group-hover:text-violet-600 shrink-0 transition-colors" />
+              </a>
+            ))}
+          </div>
         )}
 
         {/* Cross-case recording history */}

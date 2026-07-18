@@ -230,9 +230,9 @@ export default function RamriInterviewPage() {
         setSessionId(data.session.id);
         if (data.assignmentToken) setAssignmentToken(data.assignmentToken as unknown as string);
         if (typeof (data as Record<string, unknown>).uploadsClosed === "boolean") setUploadsClosed((data as Record<string, boolean>).uploadsClosed);
-        if (data.userRole) setUserRole(data.userRole);
-        if (data.invigilatorId) setInvigilatorId(data.invigilatorId);
-        if (data.invigilatorName) setInvigilatorName(data.invigilatorName);
+        setUserRole(data.userRole ?? null);
+        setInvigilatorId(data.invigilatorId ?? null);
+        setInvigilatorName(data.invigilatorName ?? null);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -291,6 +291,35 @@ export default function RamriInterviewPage() {
     const id = setInterval(poll, 30_000);
     return () => clearInterval(id);
   }, [phase, sessionId, caseId]);
+
+  // ── Interview-phase polling ──────────────────────────────────────────────────
+  // Admin/psychometrician: refresh live progress every 30s while watching.
+  // Invigilator (waiting): auto-refresh choice-set availability every 30s.
+  useEffect(() => {
+    if (!sessionId || !caseId) return;
+    const isWatchingAdmin = phase === "interview" && userRole !== "assessment_invigilator";
+    const isWaitingInvigilator = phase === "interview" && userRole === "assessment_invigilator" && !choiceSets.some(cs => cs.items.length > 0);
+    if (!isWatchingAdmin && !isWaitingInvigilator) return;
+
+    const poll = async () => {
+      try {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/progress`, { headers: getAuth() });
+        if (!r.ok) return;
+        const d = await r.json() as {
+          selections: Selection[];
+          session: { general_notes: string; status: string } | null;
+          hasPopulatedChoiceSets: boolean;
+        };
+        if (isWatchingAdmin) setSelections(d.selections);
+        if (isWaitingInvigilator && d.hasPopulatedChoiceSets) {
+          // Choice sets are now ready — reload the full session so the UI updates
+          window.location.reload();
+        }
+      } catch { /* silent */ }
+    };
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
+  }, [phase, userRole, sessionId, caseId, choiceSets]);
 
   const saveSession = useCallback(async (patch: Partial<Session>) => {
     if (!sessionId) return;
@@ -1357,8 +1386,8 @@ export default function RamriInterviewPage() {
               <p className="text-xs text-slate-500">AI groups your approved samples into sets of 2–3 for the student to choose from. You can edit or remove samples within each set.</p>
             </div>
 
-            {/* Handoff banner — visible to admin/psychometrician once sets are ready */}
-            {userRole !== "assessment_invigilator" && choiceSets.length > 0 && (
+            {/* Handoff banner — visible to admin/psychometrician once at least one set has items */}
+            {userRole !== "assessment_invigilator" && choiceSets.some(cs => cs.items.length > 0) && (
               <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                 <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                   <Users size={16} className="text-emerald-600" />
@@ -1520,6 +1549,45 @@ export default function RamriInterviewPage() {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {phase === "interview" && (
           <div className="space-y-4">
+
+            {/* ── Invigilator gate: no populated choice sets yet ─────────────── */}
+            {userRole === "assessment_invigilator" && !choiceSets.some(cs => cs.items.length > 0) && (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-violet-50 flex items-center justify-center">
+                  <Loader2 size={28} className="text-violet-300 animate-spin" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-700">Waiting for the assessor to prepare the interview</p>
+                  <p className="text-xs text-slate-400">Choice sets are still being built. This page will refresh automatically when they're ready.</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Admin live-monitor banner (only when invigilator is active) ── */}
+            {userRole !== "assessment_invigilator" && invigilatorId && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Eye size={14} className="text-indigo-500 shrink-0" />
+                  <span className="text-sm font-semibold text-slate-700">Live Session Monitor</span>
+                  <span className="text-xs text-slate-400 ml-1">· auto-refreshes every 30 s</span>
+                </div>
+                {selections.length === 0 ? (
+                  <p className="text-xs text-slate-400">Waiting for the invigilator to begin selecting samples…</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-slate-500 font-medium">{selections.length} sample{selections.length !== 1 ? "s" : ""} selected so far</p>
+                    {(selections as Array<Record<string, unknown>>).map((sel, i) => (
+                      <div key={sel.id as string} className="flex items-center gap-2 text-xs text-slate-600">
+                        <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold shrink-0">{i + 1}</span>
+                        <span className="flex-1 truncate">{(sel.extracted_problem as string) || "Sample"}</span>
+                        {sel.domain && <span className="text-slate-400 shrink-0">{sel.domain as string}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Invigilator identity badge — shown to both roles once invigilator has connected */}
             {invigilatorId && (
               <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-lg px-4 py-2.5 text-xs text-violet-800">

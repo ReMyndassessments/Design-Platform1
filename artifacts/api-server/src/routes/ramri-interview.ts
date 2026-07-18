@@ -146,10 +146,11 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
     const existing = await resolveSession(caseId, assignment.id);
     if (existing) {
       const sess = existing as Record<string, unknown>;
-      // Stamp invigilator_id on first invigilator access
-      if (isInvigilator(req) && !sess.invigilator_id && req.userId) {
-        await db.execute(sql`UPDATE ramri_sessions SET invigilator_id = ${req.userId}, updated_at = NOW() WHERE id = ${existing.id}`);
-        sess.invigilator_id = req.userId;
+      // Stamp invigilator_id on first invigilator access (atomic — WHERE IS NULL prevents races)
+      if (isInvigilator(req) && req.userId) {
+        await db.execute(sql`UPDATE ramri_sessions SET invigilator_id = ${req.userId}, updated_at = NOW() WHERE id = ${existing.id} AND invigilator_id IS NULL`);
+        const fresh = (await db.execute(sql`SELECT invigilator_id FROM ramri_sessions WHERE id = ${existing.id} LIMIT 1`)).rows[0] as { invigilator_id?: string } | undefined;
+        sess.invigilator_id = fresh?.invigilator_id ?? sess.invigilator_id;
       }
       const docs = await db.execute(sql`SELECT * FROM ramri_work_documents WHERE session_id = ${existing.id} ORDER BY created_at ASC`);
       const samples = await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${existing.id} ORDER BY sort_order ASC, created_at ASC`);
@@ -1224,6 +1225,79 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, 
     return res.json({ report: updated });
   } catch (err) {
     return res.status(500).json({ error: "Failed to update report" });
+  }
+});
+
+// ── GET /invigilator/ramri-sessions ────────────────────────────────────────────
+// Returns RAMRI sessions that have at least one populated choice-set item and
+// that are assigned to (or already stamped for) the logged-in invigilator.
+router.get("/invigilator/ramri-sessions", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+    if (!isInvigilator(req) && req.userRole !== "admin") {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    const rows = await db.execute(sql`
+      SELECT
+        rs.id          AS session_id,
+        rs.case_id,
+        rs.assignment_id,
+        rs.invigilator_id,
+        c.student_name,
+        COUNT(DISTINCT csi.id)  AS item_count,
+        COUNT(DISTINCT sel.id)  AS selection_count
+      FROM ramri_sessions rs
+      JOIN cases c ON c.id = rs.case_id
+      LEFT JOIN ramri_choice_sets cs      ON cs.session_id  = rs.id
+      LEFT JOIN ramri_choice_set_items csi ON csi.choice_set_id = cs.id
+      LEFT JOIN ramri_sample_selections sel ON sel.session_id = rs.id
+      WHERE c.case_status = 'active'
+        AND (
+          rs.invigilator_id = ${userId}
+          OR EXISTS (
+            SELECT 1 FROM assignments a
+            INNER JOIN users u ON u.email = a.assigned_to_email
+            WHERE a.case_id          = rs.case_id
+              AND a.respondent_type  = 'invigilator'
+              AND u.id               = ${userId}
+          )
+        )
+      GROUP BY rs.id, rs.case_id, rs.assignment_id, rs.invigilator_id, c.student_name
+      HAVING COUNT(DISTINCT csi.id) > 0
+    `);
+    return res.json(rows.rows);
+  } catch (err) {
+    logger.error({ err }, "RAMRI invigilator sessions list failed");
+    return res.status(500).json({ error: "Failed to fetch RAMRI sessions" });
+  }
+});
+
+// ── GET /cases/:caseId/ramri/sessions/:sessionId/progress ──────────────────────
+// Lightweight read used by the admin live-monitor to poll interview state.
+router.get("/cases/:caseId/ramri/sessions/:sessionId/progress", authMiddleware, async (req, res) => {
+  try {
+    const { caseId, sessionId } = req.params;
+    const selections = (await db.execute(sql`
+      SELECT sel.*, ws.extracted_problem, ws.domain, ws.skill
+      FROM ramri_sample_selections sel
+      LEFT JOIN ramri_work_samples ws ON ws.id = sel.work_sample_id
+      WHERE sel.session_id = ${sessionId}
+      ORDER BY sel.sequence_number ASC
+    `)).rows;
+    const session = (await db.execute(sql`
+      SELECT general_notes, status FROM ramri_sessions
+      WHERE id = ${sessionId} AND case_id = ${caseId} LIMIT 1
+    `)).rows[0] ?? null;
+    const choiceSets = (await db.execute(sql`
+      SELECT cs.id FROM ramri_choice_sets cs
+      INNER JOIN ramri_choice_set_items csi ON csi.choice_set_id = cs.id
+      WHERE cs.session_id = ${sessionId}
+      LIMIT 1
+    `)).rows;
+    return res.json({ selections, session, hasPopulatedChoiceSets: choiceSets.length > 0 });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch progress" });
   }
 });
 
