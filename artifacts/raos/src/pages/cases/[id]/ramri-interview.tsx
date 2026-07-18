@@ -2323,7 +2323,11 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
     setRecError(null);
     try {
       const result = await stop(question.question, selId);
-      setTurns(result.turns);
+      setTurns(prev => [
+        ...prev,
+        ...(prev.length > 0 ? [{ speaker: "Examiner" as const, text: "— continued —" }] : []),
+        ...result.turns,
+      ]);
       // Auto-fill quote with student turns only, joined together
       const studentText = result.turns
         .filter(t => t.speaker === "Student")
