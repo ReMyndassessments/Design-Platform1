@@ -927,6 +927,21 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", authM
   }
 });
 
+router.delete("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot delete selections" });
+  try {
+    const { selId } = req.params;
+    await db.execute(sql`DELETE FROM ramri_interview_responses WHERE sample_selection_id = ${selId}`);
+    await db.execute(sql`DELETE FROM ramri_ownership_context WHERE sample_selection_id = ${selId}`);
+    await db.execute(sql`DELETE FROM ramri_transfer_prompts WHERE sample_selection_id = ${selId}`);
+    await db.execute(sql`DELETE FROM ramri_behavioral_observations WHERE sample_selection_id = ${selId}`);
+    await db.execute(sql`DELETE FROM ramri_sample_selections WHERE id = ${selId}`);
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to delete selection" });
+  }
+});
+
 // ── Ownership Context ─────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/selections/:selId/ownership", authMiddleware, async (req, res) => {
   try {

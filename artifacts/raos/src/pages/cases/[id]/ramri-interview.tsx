@@ -677,6 +677,17 @@ export default function RamriInterviewPage() {
   };
 
   // ── Interview phase ─────────────────────────────────────────────────────────
+  const removeSelection = async (selId: string) => {
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections/${selId}`, {
+      method: "DELETE", headers: getAuth(),
+    });
+    if (r.ok) {
+      setSelections(prev => prev.filter(s => s.id !== selId));
+      setGeneratedQs([]);
+      if (activeSelId === selId) setActiveSelId(null);
+    }
+  };
+
   const recordSelection = async (sampleId: string, choiceSetId?: string) => {
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections`, {
       method: "POST", headers: jsonHeaders(), body: JSON.stringify({ workSampleId: sampleId, choiceSetId: choiceSetId ?? null }),
@@ -1623,17 +1634,30 @@ export default function RamriInterviewPage() {
                       {cs.items.map(item => {
                         const s = samples.find(s => s.id === item.work_sample_id);
                         if (!s) return null;
-                        const alreadySelected = selections.some(sel => sel.work_sample_id === s.id && sel.choice_set_id === cs.id);
+                        const existingSel = selections.find(sel => sel.work_sample_id === s.id && sel.choice_set_id === cs.id);
+                        const alreadySelected = !!existingSel;
                         return (
-                          <button
+                          <div
                             key={item.id}
-                            onClick={() => !alreadySelected && recordSelection(s.id, cs.id)}
-                            disabled={alreadySelected}
-                            className={`text-left p-3 rounded-lg border-2 text-xs transition-all ${alreadySelected ? "border-violet-300 bg-violet-50 cursor-default" : "border-slate-200 hover:border-violet-300 bg-white"}`}
+                            className={`p-3 rounded-lg border-2 text-xs transition-all ${alreadySelected ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"}`}
                           >
-                            <p className="font-medium text-slate-700 mb-1">{s.extracted_problem}</p>
-                            {alreadySelected && <span className="text-violet-600 text-xs">✓ Student selected this</span>}
-                          </button>
+                            <button
+                              className="text-left w-full"
+                              onClick={() => !alreadySelected && recordSelection(s.id, cs.id)}
+                              disabled={alreadySelected}
+                            >
+                              <p className="font-medium text-slate-700 mb-1">{s.extracted_problem}</p>
+                            </button>
+                            {alreadySelected && (
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-violet-600">✓ Student selected this</span>
+                                <button
+                                  className="text-xs text-slate-400 hover:text-red-500 underline"
+                                  onClick={() => removeSelection(existingSel.id)}
+                                >Undo</button>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -1666,7 +1690,7 @@ export default function RamriInterviewPage() {
                   const selData = interviewData[sel.id];
 
                   return (
-                    <div key={sel.id} className="bg-white rounded-xl border border-slate-200">
+                    <div key={sel.id} className="bg-white rounded-xl border border-slate-200 relative">
                       <button
                         className="w-full flex items-center gap-3 p-4 text-left"
                         onClick={() => { setActiveSelId(isActive ? null : sel.id); if (!isActive) loadSelectionData(sel.id); }}
@@ -1678,6 +1702,11 @@ export default function RamriInterviewPage() {
                         </div>
                         {isActive ? <ChevronLeft size={14} className="text-slate-400 rotate-90" /> : <ChevronRight size={14} className="text-slate-400" />}
                       </button>
+                      <button
+                        className="absolute top-3 right-10 text-xs text-slate-300 hover:text-red-400"
+                        title="Undo this selection"
+                        onClick={e => { e.stopPropagation(); removeSelection(sel.id); }}
+                      ><RotateCcw size={12} /></button>
 
                       {isActive && (
                         <div className="border-t border-slate-100 p-4 space-y-4">
