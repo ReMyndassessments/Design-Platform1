@@ -685,6 +685,7 @@ export default function RamriInterviewPage() {
       const d = await r.json() as { selection: Selection };
       setSelections(prev => [...prev, d.selection]);
       setActiveSelId(d.selection.id);
+      generateQuestions(d.selection.id);
     }
   };
 
@@ -1706,9 +1707,7 @@ export default function RamriInterviewPage() {
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="text-xs font-semibold text-slate-700">Interview Questions</h4>
-                              <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => generateQuestions(sel.id)} disabled={generatingQs}>
-                                {generatingQs ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />} AI Generate Questions
-                              </Button>
+                              {generatingQs && <span className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Generating…</span>}
                             </div>
 
                             {generatedQs.length > 0 && (
