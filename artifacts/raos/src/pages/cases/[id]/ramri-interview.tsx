@@ -699,6 +699,7 @@ export default function RamriInterviewPage() {
   };
 
   const recordSelection = async (sampleId: string, choiceSetId?: string) => {
+    if (activeSelId) await autoSaveAndWarnObs(activeSelId);
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections`, {
       method: "POST", headers: jsonHeaders(), body: JSON.stringify({ workSampleId: sampleId, choiceSetId: choiceSetId ?? null }),
     });
