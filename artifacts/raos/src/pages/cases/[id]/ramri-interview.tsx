@@ -682,9 +682,16 @@ export default function RamriInterviewPage() {
       method: "DELETE", headers: getAuth(),
     });
     if (r.ok) {
-      setSelections(prev => prev.filter(s => s.id !== selId));
       setGeneratedQs([]);
       if (activeSelId === selId) setActiveSelId(null);
+      // Reload selections from server so UI reflects true DB state
+      const pr = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/progress`, { headers: getAuth() });
+      if (pr.ok) {
+        const pd = await pr.json() as { selections: Selection[] };
+        setSelections(pd.selections);
+      } else {
+        setSelections(prev => prev.filter(s => s.id !== selId));
+      }
     }
   };
 
