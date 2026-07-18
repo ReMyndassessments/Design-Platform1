@@ -522,6 +522,16 @@ export default function RamriInterviewPage() {
     if (r.ok) { const d = await r.json() as { choiceSet: ChoiceSet }; setChoiceSets(prev => prev.map(cs => cs.id === setId ? d.choiceSet : cs)); }
   };
 
+  const removeChoiceSetItem = (setId: string, workSampleId: string) => {
+    const cs = choiceSets.find(c => c.id === setId);
+    if (!cs) return;
+    const remaining = cs.items.map(i => i.work_sample_id).filter(id => id !== workSampleId);
+    saveChoiceSetItems(setId, remaining);
+  };
+
+  const isCrossRef = (text: string) =>
+    /\b(both problems?|either problem|each problem|problem [a-z0-9]+|question [0-9]+|the above|these problems?|part [a-z0-9]\b|as above|from above|in question|in problem|explain why you (can|can'?t|cannot)|how do you know .{0,30}(both|either|works? for)|compare your|what did you notice|what do you notice)\b/i.test(text);
+
   const recommendChoiceSet = async (setId: string, domain: string) => {
     setRecommending(true);
     try {
@@ -1493,13 +1503,21 @@ export default function RamriInterviewPage() {
                     <div className="space-y-1">
                       {cs.items.map(item => {
                         const s = samples.find(s => s.id === item.work_sample_id);
-                        return s ? (
-                          <div key={item.id} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-50">
-                            <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">{item.display_order + 1}</div>
-                            <span className="flex-1">{s.extracted_problem}</span>
-                            <span className="text-slate-400">{s.domain}</span>
+                        if (!s) return null;
+                        const bad = isCrossRef(s.extracted_problem ?? "");
+                        return (
+                          <div key={item.id} className={`flex items-center gap-2 text-xs p-2 rounded-lg ${bad ? "bg-red-50 border border-red-200" : "bg-slate-50"}`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${bad ? "bg-red-100 text-red-600" : "bg-violet-100 text-violet-700"}`}>{item.display_order + 1}</div>
+                            <span className={`flex-1 ${bad ? "text-red-700 line-through" : ""}`}>{s.extracted_problem}</span>
+                            {bad && <span className="text-red-500 text-xs font-medium shrink-0">cross-ref</span>}
+                            {!bad && <span className="text-slate-400 shrink-0">{s.domain}</span>}
+                            <button
+                              className="shrink-0 text-slate-400 hover:text-red-500 ml-1"
+                              title="Remove from set"
+                              onClick={() => removeChoiceSetItem(cs.id, item.work_sample_id)}
+                            ><X size={12} /></button>
                           </div>
-                        ) : null;
+                        );
                       })}
                       {cs.items.length === 0 && <p className="text-xs text-slate-400 italic">No samples added yet. Click "Edit Samples" to add.</p>}
                     </div>
