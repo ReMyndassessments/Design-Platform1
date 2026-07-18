@@ -1024,8 +1024,10 @@ export default function RamriInterviewPage() {
                   </Button>
                 </div>
                 <div className="space-y-2">
-                  {extractCandidates.map(c => (
-                    <div key={c._key} className="bg-white border border-violet-100 rounded-lg p-3 flex items-start gap-3">
+                  {extractCandidates.map(c => {
+                    const crossRef = /\b(both problems?|question \d|the above|problem [a-z\d]|these problems?|either problem|each problem|compare|what did you notice|explain why you cannot)\b/i.test(c.extractedProblem ?? "");
+                    return (
+                    <div key={c._key} className={`bg-white border rounded-lg p-3 flex items-start gap-3 ${crossRef ? "border-amber-300 bg-amber-50/40" : "border-violet-100"}`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Badge variant="outline" className={`text-xs ${c.answerStatus === "correct" ? "text-emerald-600 border-emerald-200" : c.answerStatus === "incorrect" ? "text-red-600 border-red-200" : "text-amber-600 border-amber-200"}`}>
@@ -1033,6 +1035,11 @@ export default function RamriInterviewPage() {
                           </Badge>
                           <Badge variant="outline" className="text-xs text-slate-500">working: {c.visibleWorking ?? "?"}</Badge>
                           <span className="text-xs text-slate-400">from {c.sourceDocName}</span>
+                          {crossRef && (
+                            <Badge className="text-xs bg-amber-100 text-amber-800 border border-amber-300 gap-1">
+                              ⚠ cross-reference — likely not standalone
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm font-medium text-slate-800">{c.extractedProblem}</p>
                         {c.studentAnswer && <p className="text-xs text-slate-500 mt-0.5">Answer: {c.studentAnswer}</p>}
@@ -1048,7 +1055,8 @@ export default function RamriInterviewPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}

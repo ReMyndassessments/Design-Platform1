@@ -564,8 +564,18 @@ ${docBlock}
 DOCUMENT TEXT (extracted from ${sourceLabel} — layout preserved):
 ${extractedText.slice(0, 8000)}
 
-Using the student's age, grade, known difficulties, and referral context above, extract ALL individual maths problems/tasks visible in the text above.
-For each problem return an object with exactly these keys:
+Using the student's age, grade, known difficulties, and referral context above, extract ONLY standalone, self-contained maths problems/tasks visible in the text above.
+
+STRICT EXCLUSION RULES — do NOT extract any item that:
+- References another problem (e.g. contains "both problems", "Question 1", "the above", "Problem A", "these problems", "either problem", "each problem")
+- Is a teacher instruction, lesson heading, or page label (e.g. "Complete the following", "Name:", "Date:", "Worksheet 3")
+- Is a cross-problem reflection or discussion question (e.g. "How do you know X works for both?", "What did you notice about...?", "Compare your answers")
+- Is a meta-cognitive prompt that only makes sense in context of a specific prior problem
+- Contains no mathematical content (numbers, operators, shapes, fractions, measurement units)
+
+A valid problem must stand alone — an examiner must be able to show it to a student without needing any other problem on the page for it to make sense.
+
+For each valid problem return an object with exactly these keys:
 - extractedProblem: the exact problem or task as shown (e.g. "368 + 157 = ___")
 - studentAnswer: exactly what the student wrote as their answer (empty string if blank or not shown)
 - visibleWorking: "yes", "no", or "partial" — whether method/steps are shown
@@ -573,7 +583,7 @@ For each problem return an object with exactly these keys:
 - teacherCorrection: what the teacher wrote/marked if visible, or null
 - examinerNotes: a brief observation calibrated to this student's profile (e.g. note if a Year 5 student is working on Year 2 content, or highlight an error pattern relevant to the referral concern)
 
-Return ONLY a valid JSON array (no markdown fences, no extra text). If no clear maths problems are visible return [].`;
+Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 
         const raw = await callDeepSeekText(textPrompt);
         const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
