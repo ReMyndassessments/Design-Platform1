@@ -1501,16 +1501,14 @@ export default function RamriInterviewPage() {
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {cs.items.map(item => {
+                      {cs.items.map((item, idx) => {
                         const s = samples.find(s => s.id === item.work_sample_id);
-                        if (!s) return null;
-                        const bad = isCrossRef(s.extracted_problem ?? "");
+                        if (!s || isCrossRef(s.extracted_problem ?? "")) return null;
                         return (
-                          <div key={item.id} className={`flex items-center gap-2 text-xs p-2 rounded-lg ${bad ? "bg-red-50 border border-red-200" : "bg-slate-50"}`}>
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${bad ? "bg-red-100 text-red-600" : "bg-violet-100 text-violet-700"}`}>{item.display_order + 1}</div>
-                            <span className={`flex-1 ${bad ? "text-red-700 line-through" : ""}`}>{s.extracted_problem}</span>
-                            {bad && <span className="text-red-500 text-xs font-medium shrink-0">cross-ref</span>}
-                            {!bad && <span className="text-slate-400 shrink-0">{s.domain}</span>}
+                          <div key={item.id} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-50">
+                            <div className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">{idx + 1}</div>
+                            <span className="flex-1">{s.extracted_problem}</span>
+                            <span className="text-slate-400 shrink-0">{s.domain}</span>
                             <button
                               className="shrink-0 text-slate-400 hover:text-red-500 ml-1"
                               title="Remove from set"
