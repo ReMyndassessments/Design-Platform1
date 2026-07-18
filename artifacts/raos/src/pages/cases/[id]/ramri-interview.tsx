@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -1723,7 +1723,7 @@ export default function RamriInterviewPage() {
                               {activeSelId === csSel.id && generatedQs.length > 0 && (
                                 <div className="space-y-2">
                                   {generatedQs.map((q, qi) => (
-                                    <InterviewQuestionCard key={qi} question={q} selId={csSel.id} onSave={saveResponse} />
+                                    <InterviewQuestionCard key={qi} question={q} selId={csSel.id} caseId={caseId} sessionId={sessionId} onSave={saveResponse} />
                                   ))}
                                 </div>
                               )}
@@ -1834,7 +1834,7 @@ export default function RamriInterviewPage() {
                             {generatedQs.length > 0 && (
                               <div className="space-y-2">
                                 {generatedQs.map((q, qi) => (
-                                  <InterviewQuestionCard key={qi} question={q} selId={sel.id} onSave={saveResponse} />
+                                  <InterviewQuestionCard key={qi} question={q} selId={sel.id} caseId={caseId} sessionId={sessionId} onSave={saveResponse} />
                                 ))}
                               </div>
                             )}
@@ -2030,14 +2030,87 @@ export default function RamriInterviewPage() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function InterviewQuestionCard({ question, selId, onSave }: {
+function useAudioRecorder(caseId: string, sessionId: string) {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = useCallback(async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+      const mr = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.start(250);
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      setError("Microphone access denied");
+    }
+  }, []);
+
+  const stop = useCallback((): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const mr = mediaRecorderRef.current;
+      if (!mr) { reject(new Error("No recorder")); return; }
+      mr.onstop = async () => {
+        mr.stream.getTracks().forEach(t => t.stop());
+        setRecording(false);
+        setTranscribing(true);
+        try {
+          const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+          const res = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/transcribe`, {
+            method: "POST",
+            headers: { "Content-Type": mr.mimeType, ...getAuth() },
+            body: blob,
+          });
+          if (!res.ok) throw new Error(`Transcription failed (${res.status})`);
+          const data = await res.json() as { transcript: string };
+          resolve(data.transcript);
+        } catch (err) {
+          reject(err);
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mr.stop();
+    });
+  }, [caseId, sessionId]);
+
+  return { recording, transcribing, error, start, stop };
+}
+
+function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
   question: { type: string; question: string; purpose: string };
   selId: string;
+  caseId: string;
+  sessionId: string;
   onSave: (selId: string, type: string, q: string, quote: string, paraphrase: string) => void;
 }) {
   const [quote, setQuote] = useState("");
   const [paraphrase, setParaphrase] = useState("");
+  const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const { recording, transcribing, error: micError, start, stop } = useAudioRecorder(caseId, sessionId);
+
+  const handleStopAndTranscribe = async () => {
+    setRecError(null);
+    try {
+      const transcript = await stop();
+      setQuote(prev => prev ? `${prev} ${transcript}` : transcript);
+    } catch (err) {
+      setRecError(String(err));
+    }
+  };
 
   const typeColors: Record<string, string> = {
     universal: "bg-blue-50 text-blue-700 border-blue-100",
@@ -2056,10 +2129,71 @@ function InterviewQuestionCard({ question, selId, onSave }: {
       </div>
       <p className="text-xs opacity-70 mb-2 italic">{question.purpose}</p>
       {!saved && (
-        <div className="space-y-1">
-          <Textarea className="text-xs" rows={1} placeholder='Student quote: "…"' value={quote} onChange={e => setQuote(e.target.value)} />
-          <Textarea className="text-xs" rows={1} placeholder="Examiner paraphrase…" value={paraphrase} onChange={e => setParaphrase(e.target.value)} />
-          <Button size="sm" className="text-xs h-6 bg-violet-600 hover:bg-violet-700 gap-1" onClick={() => { onSave(selId, question.type, question.question, quote, paraphrase); setSaved(true); }}>
+        <div className="space-y-2">
+          {/* Recording controls */}
+          <div className="flex items-center gap-2">
+            {!recording && !transcribing && (
+              <button
+                onClick={start}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-violet-400 hover:text-violet-700 transition-colors"
+              >
+                <Mic size={11} /> Record student response
+              </button>
+            )}
+            {recording && (
+              <button
+                onClick={handleStopAndTranscribe}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-red-50 border border-red-300 text-red-600 animate-pulse"
+              >
+                <Square size={11} className="fill-red-500" /> Stop &amp; transcribe
+              </button>
+            )}
+            {transcribing && (
+              <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                <Loader2 size={11} className="animate-spin" /> Transcribing…
+              </span>
+            )}
+            {(micError || recError) && (
+              <span className="text-xs text-red-500">{micError ?? recError}</span>
+            )}
+          </div>
+
+          {/* Quote — pre-filled from transcript, editable */}
+          <Textarea
+            className="text-xs"
+            rows={2}
+            placeholder='Student quote (auto-filled from recording, or type manually)…'
+            value={quote}
+            onChange={e => setQuote(e.target.value)}
+          />
+
+          {/* Examiner paraphrase */}
+          <Textarea
+            className="text-xs"
+            rows={1}
+            placeholder="Examiner paraphrase / clinical interpretation…"
+            value={paraphrase}
+            onChange={e => setParaphrase(e.target.value)}
+          />
+
+          {/* Additional notes */}
+          <Textarea
+            className="text-xs"
+            rows={1}
+            placeholder="Additional notes (optional)…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
+
+          <Button
+            size="sm"
+            className="text-xs h-6 bg-violet-600 hover:bg-violet-700 gap-1"
+            onClick={() => {
+              const combinedQuote = [quote, notes].filter(Boolean).join(" | Notes: ");
+              onSave(selId, question.type, question.question, combinedQuote, paraphrase);
+              setSaved(true);
+            }}
+          >
             <Check size={10} /> Save Response
           </Button>
         </div>
