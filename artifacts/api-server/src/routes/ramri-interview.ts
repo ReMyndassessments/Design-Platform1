@@ -671,7 +671,7 @@ For each valid problem return an object with exactly these keys:
 - visibleWorking: "yes", "no", or "partial" — whether method/steps are shown
 - answerStatus: "correct", "incorrect", "partially_correct", or "unclear" — judge against the student's expected grade level
 - teacherCorrection: what the teacher wrote/marked if visible, or null
-- examinerNotes: a brief observation calibrated to this student's profile (e.g. note if a Year 5 student is working on Year 2 content, or highlight an error pattern relevant to the referral concern)
+- examinerNotes: a brief pre-interview observation based solely on what is VISIBLE in the written work — phrase it as what the work shows (e.g. "The written work shows the student used a column method but misaligned the tens column"), not as a description of student behaviour or intent. Flag grade-level mismatches or error patterns visible in the script that are relevant to the referral concern. Never infer what the student was thinking — only describe what is observable on the page.
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 

@@ -1242,7 +1242,12 @@ export default function RamriInterviewPage() {
                         </Button>
                       </div>
                     </div>
-                    {sample.examiner_notes && <p className="text-xs text-slate-500 mt-2 italic">Note: {sample.examiner_notes}</p>}
+                    {sample.examiner_notes && (
+                      <div className="mt-2 flex items-start gap-1.5">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">Written work:</span>
+                        <p className="text-xs text-slate-500 italic">{sample.examiner_notes}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
