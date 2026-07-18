@@ -2397,18 +2397,19 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
                   <p className="text-xs text-slate-700 leading-relaxed">{turn.text}</p>
                 </div>
               ))}
-              <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-100">Student turns auto-filled below — edit as needed</p>
             </div>
           )}
 
-          {/* Quote — auto-filled with student turns, editable */}
-          <Textarea
-            className="text-xs"
-            rows={2}
-            placeholder='Student response (auto-filled from recording, or type manually)…'
-            value={quote}
-            onChange={e => setQuote(e.target.value)}
-          />
+          {/* Quote — only shown when there's no recording; when turns exist the conversation panel captures it */}
+          {turns.length === 0 && (
+            <Textarea
+              className="text-xs"
+              rows={2}
+              placeholder='Student response (type manually, or use Record conversation above)…'
+              value={quote}
+              onChange={e => setQuote(e.target.value)}
+            />
+          )}
 
           {/* Examiner paraphrase */}
           <Textarea
