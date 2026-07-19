@@ -53,7 +53,8 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_VISION_MODEL = "deepseek-vl2";
 
 async function docxToText(buffer: Buffer): Promise<string> {
   const result = await mammoth.extractRawText({ buffer });
@@ -61,14 +62,14 @@ async function docxToText(buffer: Buffer): Promise<string> {
 }
 
 async function imageToText(imageBuffer: Buffer, mimeType: string): Promise<string> {
-  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+  if (!DEEPSEEK_API_KEY) throw new Error("DEEPSEEK_API_KEY not configured");
   const base64 = imageBuffer.toString("base64");
   const dataUrl = `data:${mimeType};base64,${base64}`;
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
     body: JSON.stringify({
-      model: GROQ_VISION_MODEL,
+      model: DEEPSEEK_VISION_MODEL,
       messages: [{
         role: "user",
         content: [
@@ -80,7 +81,7 @@ async function imageToText(imageBuffer: Buffer, mimeType: string): Promise<strin
       max_tokens: 3000,
     }),
   });
-  if (!r.ok) throw new Error(`Groq vision error: ${r.status}`);
+  if (!r.ok) throw new Error(`DeepSeek vision error: ${r.status}`);
   const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? "";
 }
