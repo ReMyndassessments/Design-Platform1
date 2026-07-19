@@ -64,6 +64,9 @@ const T = {
   remove:            { english: "Remove",                      mandarin: "删除",                   korean: "제거" },
   submit:            { english: "Submit Work Document",        mandarin: "提交作业文件",           korean: "과제 문서 제출" },
   submitting:        { english: "Submitting…",                 mandarin: "提交中…",               korean: "제출 중…" },
+  noFileSel:         { english: "Please select a file before submitting.",
+                       mandarin: "请先选择文件再提交。",
+                       korean:   "제출하기 전에 파일을 선택해 주세요." },
   uploadFail:        { english: "File upload failed. Please try again.",
                        mandarin: "文件上传失败，请重试。",
                        korean:   "파일 업로드에 실패했습니다. 다시 시도해 주세요." },
@@ -178,6 +181,10 @@ export default function RamriUploadPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!info) return;
+    if (!pendingFile) {
+      setError(t("noFileSel", lang) as string);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
