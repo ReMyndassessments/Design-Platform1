@@ -53,7 +53,7 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 async function docxToText(buffer: Buffer): Promise<string> {
   const result = await mammoth.extractRawText({ buffer });
@@ -80,7 +80,10 @@ async function imageToText(imageBuffer: Buffer, mimeType: string): Promise<strin
       max_tokens: 3000,
     }),
   });
-  if (!r.ok) throw new Error(`Groq vision error: ${r.status}`);
+  if (!r.ok) {
+    const errBody = await r.text().catch(() => "(unreadable)");
+    throw new Error(`Groq vision error: ${r.status} — ${errBody}`);
+  }
   const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
   return data.choices?.[0]?.message?.content ?? "";
 }
