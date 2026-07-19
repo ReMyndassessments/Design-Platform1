@@ -17,9 +17,9 @@ Groq (`GROQ_API_KEY`) is approved **only** for:
 
 No other features may use Groq without explicit user sign-off.
 
-## Vision calls → DeepSeek
-All image/PDF vision calls use DeepSeek (`DEEPSEEK_API_KEY`, model: `deepseek-vl2`), not Groq.
-Endpoint: `https://api.deepseek.com/v1/chat/completions`
+## Vision calls — current state
+Ideal: DeepSeek (`DEEPSEEK_API_KEY`, model: `deepseek-vl2`, endpoint: `https://api.deepseek.com/v1/chat/completions`). But `DEEPSEEK_API_KEY` is not configured.
+Actual: Groq vision model `meta-llama/llama-4-scout-17b-16e-instruct` (the old `llama-3.2-11b-vision-preview` was deprecated and returns 400).
 
 ## OpenRouter → forbidden without asking
 Never provision or use Replit OpenRouter AI integration without checking with the user first — it bills Replit credits directly.
