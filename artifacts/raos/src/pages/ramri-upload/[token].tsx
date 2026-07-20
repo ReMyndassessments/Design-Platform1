@@ -134,8 +134,8 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
   );
 }
 
-const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent";
-const selectCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 appearance-none";
+const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent";
+const selectCls = "w-full border border-slate-200 rounded-xl px-4 py-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400";
 
 export default function RamriUploadPage() {
   const { token } = useParams<{ token: string }>();
@@ -286,24 +286,24 @@ export default function RamriUploadPage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-5 space-y-4 pb-10">
+      <div className="max-w-lg mx-auto px-3 py-4 space-y-4 pb-10">
         {/* Instructions */}
         <div className="bg-violet-600 rounded-2xl p-5 text-white">
-          <p className="font-semibold text-base leading-snug">
+          <p className="font-bold text-lg leading-snug">
             {(t("instructions", lang) as (name: string) => string)(studentName)}
           </p>
-          <p className="text-sm text-violet-100 mt-2 leading-relaxed">{t("instructionsSub", lang) as string}</p>
+          <p className="text-base text-violet-100 mt-2 leading-relaxed">{t("instructionsSub", lang) as string}</p>
         </div>
 
         {/* Success banner */}
         {submitted > 0 && (
           <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <CheckCircle size={24} className="text-emerald-600 shrink-0 mt-0.5" />
+            <CheckCircle size={26} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">
+              <p className="text-base font-semibold text-emerald-800">
                 {(t("submitted", lang) as (n: number) => string)(submitted)}
               </p>
-              <p className="text-sm text-emerald-700 mt-0.5">{t("submittedSub", lang) as string}</p>
+              <p className="text-base text-emerald-700 mt-0.5">{t("submittedSub", lang) as string}</p>
             </div>
           </div>
         )}
@@ -320,49 +320,49 @@ export default function RamriUploadPage() {
             />
             {pendingFile ? (
               <div className="p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                  <FileText size={24} className="text-violet-600" />
+                <div className="w-14 h-14 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                  <FileText size={28} className="text-violet-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{pendingFile.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Ready to submit</p>
+                  <p className="text-base font-medium text-slate-800 truncate">{pendingFile.name}</p>
+                  <p className="text-sm text-slate-400 mt-0.5">Ready to submit</p>
                 </div>
                 <button
                   type="button"
-                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0"
+                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0"
                   onClick={() => setPendingFile(null)}
                 >
-                  <X size={14} className="text-slate-500" />
+                  <X size={16} className="text-slate-500" />
                 </button>
               </div>
             ) : uploading ? (
-              <div className="p-8 flex flex-col items-center gap-3">
-                <Loader2 size={36} className="animate-spin text-violet-500" />
-                <p className="text-sm text-slate-500">{t("uploading", lang) as string}</p>
+              <div className="p-10 flex flex-col items-center gap-3">
+                <Loader2 size={40} className="animate-spin text-violet-500" />
+                <p className="text-base text-slate-500">{t("uploading", lang) as string}</p>
               </div>
             ) : (
               <button
                 type="button"
-                className="w-full p-8 flex flex-col items-center gap-3 active:bg-slate-50 transition-colors"
+                className="w-full py-10 px-6 flex flex-col items-center gap-4 active:bg-slate-50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center">
-                  <Upload size={28} className="text-violet-500" />
+                <div className="w-20 h-20 rounded-2xl bg-violet-50 flex items-center justify-center">
+                  <Upload size={36} className="text-violet-500" />
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold text-slate-800">{t("uploadLabel", lang) as string}</p>
-                  <p className="text-sm text-slate-400 mt-1">{t("uploadSub", lang) as string}</p>
+                  <p className="text-lg font-semibold text-slate-800">{t("uploadLabel", lang) as string}</p>
+                  <p className="text-base text-slate-400 mt-1">{t("uploadSub", lang) as string}</p>
                 </div>
               </button>
             )}
           </div>
 
           {/* Metadata */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-            <p className="font-semibold text-slate-800">{t("sectionTitle", lang) as string}</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
+            <p className="font-bold text-lg text-slate-800">{t("sectionTitle", lang) as string}</p>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("whoProvided", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("whoProvided", lang) as string}</label>
               <select className={selectCls} value={meta.sourceType} onChange={e => setMeta(p => ({ ...p, sourceType: e.target.value }))}>
                 <option value="teacher">{t("srcTeacher", lang) as string}</option>
                 <option value="parent">{t("srcParent", lang) as string}</option>
@@ -372,8 +372,8 @@ export default function RamriUploadPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("independence", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("independence", lang) as string}</label>
               <select className={selectCls} value={meta.independenceReported} onChange={e => setMeta(p => ({ ...p, independenceReported: e.target.value }))}>
                 <option value="yes">{t("indYes", lang) as string}</option>
                 <option value="partially">{t("indPartially", lang) as string}</option>
@@ -382,8 +382,8 @@ export default function RamriUploadPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("teacherMarked", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("teacherMarked", lang) as string}</label>
               <select className={selectCls} value={meta.teacherMarked} onChange={e => setMeta(p => ({ ...p, teacherMarked: e.target.value }))}>
                 <option value="yes">{t("tmYes", lang) as string}</option>
                 <option value="no">{t("tmNo", lang) as string}</option>
@@ -392,46 +392,46 @@ export default function RamriUploadPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("mathTopic", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("mathTopic", lang) as string}</label>
               <input className={inputCls} placeholder={t("mathTopicPh", lang) as string} value={meta.mathTopic} onChange={e => setMeta(p => ({ ...p, mathTopic: e.target.value }))} />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("gradeLevel", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("gradeLevel", lang) as string}</label>
               <input className={inputCls} placeholder={t("gradeLevelPh", lang) as string} value={meta.gradeLevel} onChange={e => setMeta(p => ({ ...p, gradeLevel: e.target.value }))} />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("teacherComments", lang) as string}</label>
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("teacherComments", lang) as string}</label>
               <input className={inputCls} placeholder={t("teacherCommentsPh", lang) as string} value={meta.teacherComments} onChange={e => setMeta(p => ({ ...p, teacherComments: e.target.value }))} />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600">{t("additionalContext", lang) as string}</label>
-              <Textarea className="text-base rounded-xl" rows={3} placeholder={t("additionalPh", lang) as string} value={meta.contributorNotes} onChange={e => setMeta(p => ({ ...p, contributorNotes: e.target.value }))} />
+            <div className="space-y-2">
+              <label className="text-base font-medium text-slate-700">{t("additionalContext", lang) as string}</label>
+              <Textarea className="text-base rounded-xl px-4 py-4" rows={3} placeholder={t("additionalPh", lang) as string} value={meta.contributorNotes} onChange={e => setMeta(p => ({ ...p, contributorNotes: e.target.value }))} />
             </div>
           </div>
 
           {error && (
-            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-4">
+              <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
+              <p className="text-base text-red-700">{error}</p>
             </div>
           )}
 
           <button
             type="submit"
             disabled={submitting || uploading}
-            className="w-full h-14 rounded-2xl bg-violet-600 text-white text-base font-semibold flex items-center justify-center gap-2 active:bg-violet-700 disabled:opacity-60 transition-colors"
+            className="w-full h-16 rounded-2xl bg-violet-600 text-white text-lg font-semibold flex items-center justify-center gap-2 active:bg-violet-700 disabled:opacity-60 transition-colors shadow-md"
           >
             {submitting
-              ? <><Loader2 size={18} className="animate-spin" />{t("submitting", lang) as string}</>
+              ? <><Loader2 size={20} className="animate-spin" />{t("submitting", lang) as string}</>
               : t("submit", lang) as string}
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-400 leading-relaxed px-2 pb-4">
+        <p className="text-center text-sm text-slate-400 leading-relaxed px-2 pb-6">
           {t("footer", lang) as string}
         </p>
       </div>
