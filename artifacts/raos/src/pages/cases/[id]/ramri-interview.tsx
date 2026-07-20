@@ -1146,7 +1146,9 @@ export default function RamriInterviewPage() {
                         <p className="text-xs font-medium text-slate-700 truncate">{doc.file_name}</p>
                         <p className="text-xs text-slate-400">{doc.source_type} · {doc.math_topic || "No topic"} · Independence: {doc.independence_reported}</p>
                       </div>
-                      <Badge variant="outline" className="text-xs shrink-0">{doc.extraction_status}</Badge>
+                      {doc.extraction_status === "extracted" && (
+                        <Badge variant="outline" className="text-xs shrink-0 text-emerald-700 border-emerald-300 bg-emerald-50">Extracted</Badge>
+                      )}
                       <button onClick={() => deleteDoc(doc.id)} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 size={14} /></button>
                     </div>
                   ))}
