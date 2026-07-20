@@ -2918,6 +2918,25 @@ async function createInterviewRecordingsTable() {
   }
 }
 
+async function backfillBobbyAiCaseIds() {
+  try {
+    // Extract Case ID from bobby_ai_portal_credentials for any case where bobby_ai_case_id is null
+    const result = await db.execute(sql`
+      UPDATE cases
+      SET bobby_ai_case_id = trim(substring(bobby_ai_portal_credentials FROM '(?i)Case\\s*ID\\s*[:\\-]\\s*([^\\n\\r]+)'))
+      WHERE bobby_ai_portal_credentials IS NOT NULL
+        AND bobby_ai_portal_credentials != ''
+        AND (bobby_ai_case_id IS NULL OR bobby_ai_case_id = '')
+        AND bobby_ai_portal_credentials ~* 'Case\\s*ID\\s*[:\\-]'
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      logger.info({ count: result.rowCount }, "Backfilled bobby_ai_case_id from credentials");
+    }
+  } catch (err) {
+    logger.error({ err }, "backfillBobbyAiCaseIds failed");
+  }
+}
+
 async function createRamriTables() {
   try {
     await db.execute(sql`
@@ -3208,6 +3227,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => createRamriTables())
   .then(() => createInterviewRecordingsTable())
+  .then(() => backfillBobbyAiCaseIds())
   .then(() => {
   const server = app.listen(port, (err) => {
     if (err) {
