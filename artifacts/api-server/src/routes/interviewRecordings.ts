@@ -64,7 +64,7 @@ async function isInvigilatorAssignedToCase(userId: string, caseId: string): Prom
   return rows.length > 0;
 }
 
-/** Return all assessment-phase active cases assigned to a given invigilator email. */
+/** Return all active cases assigned to a given invigilator email (any phase). */
 async function getInvigilatorActiveCases(email: string) {
   return db
     .selectDistinct({
@@ -75,7 +75,6 @@ async function getInvigilatorActiveCases(email: string) {
     .from(casesTable)
     .innerJoin(assignmentsTable, eq(assignmentsTable.caseId, casesTable.id))
     .where(and(
-      eq(casesTable.currentPhase, "assessment"),
       eq(casesTable.caseStatus, "active"),
       eq(assignmentsTable.respondentType, "invigilator"),
       eq(assignmentsTable.assignedToEmail, email),
