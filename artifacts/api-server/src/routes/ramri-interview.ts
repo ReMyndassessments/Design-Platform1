@@ -159,6 +159,8 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
       const invigilatorName = await getUserName(sess.invigilator_id as string | null);
+      const caseRow = await db.select({ studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+      const studentName = caseRow[0]?.studentName ?? null;
       return res.json({
         session: sess, docs: docs.rows, samples: samples.rows,
         choiceSets: choiceSets.rows, selections: selections.rows,
@@ -166,7 +168,7 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
         assignmentToken: assignment.uniqueToken, uploadsClosed,
         userRole: req.userRole ?? null,
         invigilatorId: sess.invigilator_id ?? null,
-        invigilatorName,
+        invigilatorName, studentName,
       });
     }
 
@@ -176,12 +178,14 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       VALUES (${sessionId}, ${caseId}, ${assignment.id}, ${req.userId ?? null}, 'upload', NOW(), NOW())
     `);
     const session = (await db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0];
+    const caseRow2 = await db.select({ studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
     return res.json({
       session, docs: [], samples: [], choiceSets: [], selections: [], ratings: [], report: null,
       assignmentToken: assignment.uniqueToken, uploadsClosed: false,
       userRole: req.userRole ?? null,
       invigilatorId: null,
       invigilatorName: null,
+      studentName: caseRow2[0]?.studentName ?? null,
     });
   } catch (err) {
     logger.error({ err }, "RAMRI session create failed");

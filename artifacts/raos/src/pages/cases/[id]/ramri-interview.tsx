@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useParams } from "wouter";
 import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -173,6 +173,101 @@ async function uploadFileToStorage(file: File): Promise<string> {
   return objectPath;
 }
 
+function downloadQrCard(uploadUrl: string, name: string | null, qrRef: React.RefObject<HTMLCanvasElement | null>) {
+  const qrCanvas = qrRef.current;
+  if (!qrCanvas) return;
+
+  const W = 800, H = 960;
+  const card = document.createElement("canvas");
+  card.width = W;
+  card.height = H;
+  const ctx = card.getContext("2d");
+  if (!ctx) return;
+
+  // White background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Violet header
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, "#6d28d9");
+  grad.addColorStop(1, "#7c3aed");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, 148);
+
+  // ReMynd wordmark
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 44px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("ReMynd", W / 2, 68);
+
+  // Sub-header
+  ctx.font = "22px system-ui, -apple-system, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.82)";
+  ctx.fillText("Work Upload Request", W / 2, 110);
+
+  // Thin accent bar
+  ctx.fillStyle = "#a78bfa";
+  ctx.fillRect(60, 136, W - 120, 3);
+
+  // Student name
+  const label = name ?? "Student";
+  ctx.fillStyle = "#1e293b";
+  ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(label, W / 2, 216);
+
+  // Assessment label
+  ctx.fillStyle = "#7c3aed";
+  ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
+  ctx.fillText("MATHEMATICAL REASONING INTERVIEW", W / 2, 252);
+
+  // QR frame
+  const qrSize = 360;
+  const qrX = (W - qrSize) / 2;
+  const qrY = 286;
+  const pad = 24;
+  ctx.fillStyle = "#f8fafc";
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2, 20);
+  ctx.fill();
+  ctx.stroke();
+
+  // QR code
+  ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+  // Instruction heading
+  ctx.fillStyle = "#1e293b";
+  ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Scan with your phone camera to upload work", W / 2, qrY + qrSize + pad * 2 + 20);
+
+  // Instruction body — two lines
+  ctx.fillStyle = "#64748b";
+  ctx.font = "18px system-ui, -apple-system, sans-serif";
+  ctx.fillText("Point your camera at the QR code above.", W / 2, qrY + qrSize + pad * 2 + 56);
+  ctx.fillText("The upload form will open directly in your browser.", W / 2, qrY + qrSize + pad * 2 + 84);
+
+  // Footer
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, H - 64, W, 64);
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.font = "16px system-ui, -apple-system, sans-serif";
+  ctx.fillText("remyndassessments.com", W / 2, H - 22);
+
+  card.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(name ?? "student").replace(/\s+/g, "-")}-qr-card.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
+
 export default function RamriInterviewPage() {
   const { id: caseId, assignmentId } = useParams<{ id: string; assignmentId: string }>();
   const [phase, setPhase] = useState<Phase>("upload");
@@ -195,6 +290,8 @@ export default function RamriInterviewPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [invigilatorId, setInvigilatorId] = useState<string | null>(null);
   const [invigilatorName, setInvigilatorName] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState<string | null>(null);
+  const qrDownloadRef = useRef<HTMLCanvasElement>(null);
 
   // Contributor-upload notification & gating
   const [newDocsCount, setNewDocsCount] = useState(0);
@@ -262,6 +359,7 @@ export default function RamriInterviewPage() {
           session: Session; docs: WorkDoc[]; samples: WorkSample[];
           choiceSets: ChoiceSet[]; selections: Selection[]; ratings: DomainRating[]; report: Report | null;
           userRole?: string; invigilatorId?: string | null; invigilatorName?: string | null;
+          studentName?: string | null;
         };
         setSession(data.session);
         setSessionId(data.session.id);
@@ -270,6 +368,7 @@ export default function RamriInterviewPage() {
         setUserRole(data.userRole ?? null);
         setInvigilatorId(data.invigilatorId ?? null);
         setInvigilatorName(data.invigilatorName ?? null);
+        setStudentName(data.studentName ?? null);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -1227,7 +1326,30 @@ export default function RamriInterviewPage() {
                         Screenshot and share this QR code image (e.g. via WeChat or WhatsApp).
                         Ask contributors to <strong>scan it with their phone camera</strong> — this opens the page directly in Safari or Chrome, bypassing in-app browsers.
                       </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 text-xs gap-1.5 h-7"
+                        onClick={() => downloadQrCard(
+                          `${window.location.origin}/ramri-upload/${assignmentToken}`,
+                          studentName,
+                          qrDownloadRef
+                        )}
+                      >
+                        <Download size={12} /> Download QR card
+                      </Button>
                     </div>
+                  </div>
+                )}
+                {/* Hidden high-res canvas used for QR card download */}
+                {assignmentToken && (
+                  <div style={{ position: "absolute", left: -9999, top: -9999, pointerEvents: "none" }}>
+                    <QRCodeCanvas
+                      ref={qrDownloadRef}
+                      value={`${window.location.origin}/ramri-upload/${assignmentToken}`}
+                      size={400}
+                      level="H"
+                    />
                   </div>
                 )}
 
