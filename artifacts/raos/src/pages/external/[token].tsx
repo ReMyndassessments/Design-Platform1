@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock,
-  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2,
+  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -711,6 +711,13 @@ function PortalView({
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [promptsLoaded, setPromptsLoaded] = useState(false);
 
+  // Lesson differentiator state
+  type DiffResult = { overview: string; challenges: string; strategies: string; stepByStep: string; language: string };
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [diffContent, setDiffContent] = useState("");
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
+
   const portalToken = window.location.pathname.split("/").pop() ?? "";
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -778,6 +785,26 @@ function PortalView({
       setChatMessages(prev => [...prev, { role: "ai", content: "Sorry, there was a network error. Please try again." }]);
     } finally {
       setChatLoading(false);
+    }
+  };
+
+  const handleDifferentiate = async () => {
+    if (!diffContent.trim() || diffLoading) return;
+    setDiffLoading(true);
+    setDiffResult(null);
+    try {
+      const resp = await fetch(`${apiBase}/api/external/portal/${portalToken}/differentiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: diffContent, language, role }),
+      });
+      if (!resp.ok) throw new Error();
+      const data = await resp.json() as { sections: DiffResult };
+      setDiffResult(data.sections);
+    } catch {
+      alert(language === "mandarin" ? "无法生成支持方案，请重试。" : language === "korean" ? "지원 계획을 생성할 수 없습니다. 다시 시도해 주세요." : "Could not generate support plan. Please try again.");
+    } finally {
+      setDiffLoading(false);
     }
   };
 
@@ -1403,6 +1430,114 @@ function PortalView({
                     >
                       {language === "mandarin" ? "开始新对话" : language === "korean" ? "새 대화 시작" : "Start new conversation"}
                     </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lesson Differentiator Panel */}
+        {portal.reportAccess && (
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
+            {!diffOpen ? (
+              <button
+                className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-emerald-100/50 transition-colors"
+                onClick={() => setDiffOpen(true)}
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                  <BookOpen size={18} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-emerald-900">
+                    {language === "mandarin" ? "作业差异化支持" : language === "korean" ? "수업 차별화 지원" : "Differentiate a Lesson"}
+                  </p>
+                  <p className="text-[11px] text-emerald-600">
+                    {language === "mandarin"
+                      ? "粘贴作业或课程内容，获取针对性支持策略"
+                      : language === "korean"
+                      ? "숙제나 수업 내용을 붙여넣어 맞춤형 지원 전략을 받으세요"
+                      : "Paste in homework or an assignment to get tailored support strategies"}
+                  </p>
+                </div>
+                <ChevronRight size={16} className="text-emerald-400 shrink-0" />
+              </button>
+            ) : (
+              <div className="flex flex-col">
+                {/* Header */}
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-emerald-200 bg-emerald-600">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                    <BookOpen size={14} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-white">
+                      {language === "mandarin" ? "课程差异化支持" : language === "korean" ? "수업 차별화 지원" : "Lesson Differentiation Support"}
+                    </p>
+                    <p className="text-[10px] text-emerald-200">
+                      {language === "mandarin" ? `专为 ${portal.studentName} 的学习档案定制` : language === "korean" ? `${portal.studentName}의 학습 프로필에 맞춤 설정됨` : `Tailored to ${portal.studentName}'s learning profile`}
+                    </p>
+                  </div>
+                  <button onClick={() => { setDiffOpen(false); setDiffResult(null); setDiffContent(""); }} className="text-white/70 hover:text-white transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-4 bg-white space-y-3">
+                  {!diffResult ? (
+                    <>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        {language === "mandarin"
+                          ? `粘贴作业、课程说明或工作表内容，我们将分析 ${portal.studentName} 可能遇到的困难，并给出具体的支持策略。`
+                          : language === "korean"
+                          ? `숙제, 수업 지시사항 또는 워크시트 내용을 붙여넣으세요. ${portal.studentName}이(가) 겪을 수 있는 어려움과 구체적인 지원 전략을 분석해 드립니다.`
+                          : `Paste in the assignment, homework instructions, or lesson content below. The AI will identify what ${portal.studentName} may find difficult and give you specific strategies based on their assessment profile.`}
+                      </p>
+                      <textarea
+                        value={diffContent}
+                        onChange={e => setDiffContent(e.target.value)}
+                        placeholder={
+                          language === "mandarin" ? "在此粘贴作业或课程内容…"
+                          : language === "korean" ? "과제 또는 수업 내용을 여기에 붙여넣으세요…"
+                          : "Paste the assignment or lesson content here…"
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none min-h-[120px]"
+                        rows={6}
+                      />
+                      <button
+                        onClick={handleDifferentiate}
+                        disabled={!diffContent.trim() || diffLoading}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                      >
+                        {diffLoading
+                          ? <><Loader2 size={13} className="animate-spin" />{language === "mandarin" ? "分析中，请稍候…" : language === "korean" ? "분석 중입니다…" : "Generating support plan…"}</>
+                          : language === "mandarin" ? "生成支持方案" : language === "korean" ? "지원 계획 생성" : "Get Support Plan"
+                        }
+                      </button>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {[
+                        { key: "overview",    label: language === "mandarin" ? "概述" : language === "korean" ? "개요" : "Overview",             color: "text-emerald-700" },
+                        { key: "challenges",  label: language === "mandarin" ? "可能的挑战" : language === "korean" ? "예상 어려움" : "Likely Challenges", color: "text-orange-600" },
+                        { key: "strategies",  label: language === "mandarin" ? "支持策略" : language === "korean" ? "지원 전략" : "Support Strategies",  color: "text-blue-600"   },
+                        { key: "stepByStep",  label: language === "mandarin" ? "逐步指导" : language === "korean" ? "단계별 안내" : "Step-by-Step Guide",   color: "text-purple-600" },
+                        { key: "language",    label: language === "mandarin" ? "沟通语言技巧" : language === "korean" ? "언어 사용 팁" : "Language Tips",     color: "text-slate-500"  },
+                      ].map(({ key, label, color }) => (
+                        <div key={key}>
+                          <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${color}`}>{label}</p>
+                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{(diffResult as Record<string, string>)[key]}</p>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => { setDiffResult(null); setDiffContent(""); }}
+                        className="w-full py-2 text-xs text-emerald-600 hover:text-emerald-800 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition-colors font-medium"
+                      >
+                        {language === "mandarin" ? "分析另一个作业 →" : language === "korean" ? "다른 과제 분석하기 →" : "Analyse another assignment →"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

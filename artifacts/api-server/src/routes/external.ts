@@ -867,6 +867,77 @@ GUIDELINES:
   }
 });
 
+// ── AI: differentiate a lesson/assignment ─────────────────────────────────────
+router.post("/external/portal/:token/differentiate", async (req, res) => {
+  const info = await getCaseFromPortalToken(req.params.token);
+  if (!info) { res.status(404).json({ error: "not_found" }); return; }
+
+  const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
+  if (!caseRow) { res.status(404).json({ error: "not_found" }); return; }
+
+  const { content, language: reqLang, role: reqRole } = req.body as {
+    content: string; language?: string; role?: string;
+  };
+  if (!content?.trim()) { res.status(400).json({ error: "content required" }); return; }
+
+  const role = reqRole === "teacher" ? "teacher" : reqRole === "tutor" ? "tutor" : "parent";
+  const rawLang = reqLang ?? "english";
+  const langLabel = rawLang === "mandarin" ? "Simplified Chinese (Mandarin)" : rawLang === "korean" ? "Korean" : "English";
+  const intake = caseRow.intakeAnalysis as any;
+  const domains: string[] = Array.isArray(intake?.recommendedDomains) ? intake.recommendedDomains : [];
+  const summary: string = intake?.summary ?? "";
+  const flags: string[] = Array.isArray(intake?.flags) ? intake.flags : [];
+
+  const roleContext = role === "parent" ? "a parent helping their child at home"
+    : role === "tutor" ? "a private tutor working 1-on-1 with the child"
+    : "a classroom teacher";
+  const strategyContext = role === "parent" ? "home support strategies"
+    : role === "tutor" ? "1-on-1 tutoring strategies"
+    : "classroom delivery strategies";
+
+  const systemPrompt = `You are a specialist educational psychologist AI helping ${roleContext} support a child with a specific learning task.
+
+STUDENT PROFILE:
+- Name: ${caseRow.studentName}
+- Grade: ${caseRow.grade ?? "not specified"}
+- Referral reason: ${caseRow.referralReason}
+- Key areas of concern: ${domains.join(", ") || "general learning and behaviour"}
+- Clinical summary: ${summary}
+- Notable flags: ${flags.join("; ") || "none"}
+
+YOUR TASK:
+Analyse the provided assignment/homework/lesson and produce a personalised support plan for THIS child specifically.
+Return a JSON object with exactly these 5 keys:
+{
+  "overview": "2-3 sentences explaining what this task requires cognitively and why it may specifically challenge this child based on their profile",
+  "challenges": "3-5 specific challenges THIS child is likely to face with this exact task. Each on a new line starting with •",
+  "strategies": "4-6 concrete, practical ${strategyContext} for this specific task. Each on a new line starting with •",
+  "stepByStep": "A simplified numbered step-by-step guide for working through this task with the child. Each step on its own line",
+  "language": "Specific phrases and language to USE and AVOID when working through this task. Format each as: USE: [example phrase] or AVOID: [example phrase], one per line"
+}
+
+Write ALL content in ${langLabel}. Plain language only — no jargon. Be warm, encouraging, and highly specific to this child's profile and this exact task.
+Return ONLY valid JSON. No markdown code fences. No explanation outside the JSON object.`;
+
+  try {
+    const raw = await callDeepSeekChat(
+      systemPrompt,
+      [{ role: "user", content: `Assignment/homework/lesson content:\n\n${content.trim().slice(0, 4000)}` }],
+      2000,
+    );
+    const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+    const objStart = cleaned.indexOf("{");
+    const objEnd = cleaned.lastIndexOf("}");
+    if (objStart === -1 || objEnd === -1) throw new Error("No JSON in response");
+    const parsed = JSON.parse(cleaned.slice(objStart, objEnd + 1)) as Record<string, string>;
+    const required = ["overview", "challenges", "strategies", "stepByStep", "language"];
+    for (const k of required) if (!parsed[k]) throw new Error(`Missing field: ${k}`);
+    res.json({ sections: parsed });
+  } catch {
+    res.status(500).json({ error: "ai_error", message: "Could not generate support plan. Please try again." });
+  }
+});
+
 // ── Portal credential login ───────────────────────────────────────────────────
 // POST /api/external/portal-login
 // Body: { caseId: string, accessCode: string }
