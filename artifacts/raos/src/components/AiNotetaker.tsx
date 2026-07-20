@@ -134,11 +134,10 @@ function AudioPlayer({ audioUrlEndpoint, token, mimeType }: AudioPlayerProps) {
     <button
       onClick={toggle}
       disabled={loading}
-      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors disabled:opacity-50"
-      title={playing ? "Pause" : "Play recording"}
+      className="flex items-center justify-center w-6 h-6 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors disabled:opacity-50 shrink-0"
+      title={loading ? "Loading…" : playing ? "Pause recording" : "Play recording"}
     >
-      {loading ? <Loader2 size={12} className="animate-spin" /> : playing ? <Pause size={12} /> : <Play size={12} />}
-      {loading ? "Loading…" : playing ? "Pause" : "Play"}
+      {loading ? <Loader2 size={13} className="animate-spin" /> : playing ? <Pause size={13} /> : <Play size={13} />}
     </button>
   );
 }
@@ -426,36 +425,41 @@ export function AiNotetaker({
 
             return (
               <div key={rec.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50">
+                  <Mic2 size={13} className="text-slate-400 shrink-0" />
                   <button
-                    className="flex items-center gap-2 text-left flex-1 min-w-0"
+                    className="flex flex-col items-start text-left flex-1 min-w-0"
                     onClick={() => setExpandedPastId(expandedPastId === rec.id ? null : rec.id)}
                   >
-                    <Mic2 size={13} className="text-slate-400 shrink-0" />
-                    {rec.studentName && (
-                      <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5 shrink-0">
-                        {rec.studentName}
+                    <div className="flex items-center gap-1.5 w-full min-w-0">
+                      {rec.studentName && (
+                        <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5 shrink-0 max-w-[140px] truncate">
+                          {rec.studentName}
+                        </span>
+                      )}
+                      <span className="text-xs font-medium text-slate-700 truncate">
+                        {CONVERSATION_TYPE_LABELS[rec.conversationType as ConversationType] ?? rec.conversationType}
                       </span>
-                    )}
-                    <span className="text-xs font-medium text-slate-700 truncate">
-                      {CONVERSATION_TYPE_LABELS[rec.conversationType as ConversationType] ?? rec.conversationType}
-                    </span>
-                    {rec.durationSeconds && (
-                      <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0">
-                        <Clock size={10} /> {formatDuration(rec.durationSeconds)}
+                      {expandedPastId === rec.id ? <ChevronUp size={12} className="text-slate-400 shrink-0 ml-auto" /> : <ChevronDown size={12} className="text-slate-400 shrink-0 ml-auto" />}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {rec.durationSeconds && (
+                        <span className="flex items-center gap-1 text-xs text-slate-400">
+                          <Clock size={10} /> {formatDuration(rec.durationSeconds)}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">
+                        {new Date(rec.interviewDate ?? rec.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </span>
-                    )}
-                    <span className="text-xs text-slate-400 shrink-0">
-                      {new Date(rec.interviewDate ?? rec.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    {expandedPastId === rec.id ? <ChevronUp size={13} className="text-slate-400 shrink-0" /> : <ChevronDown size={13} className="text-slate-400 shrink-0" />}
+                    </div>
                   </button>
-                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <AudioPlayer audioUrlEndpoint={audioUrl} token={token} mimeType={rec.mimeType} />
                     <button
                       onClick={() => handleDelete(rec.id)}
                       disabled={deletingId === rec.id}
-                      className="text-slate-300 hover:text-red-400 transition-colors"
+                      className="flex items-center justify-center w-6 h-6 rounded-full text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                      title="Delete recording"
                     >
                       {deletingId === rec.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                     </button>
