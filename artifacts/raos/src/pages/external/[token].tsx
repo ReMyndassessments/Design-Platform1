@@ -96,8 +96,11 @@ const PT = {
   completeFirst:     { english: "Complete referral form first", mandarin: "请先完成推荐表格", korean: "추천 양식을 먼저 완료하세요" },
   locked:            { english: "Locked",                    mandarin: "已锁定",           korean: "잠김" },
   assessmentProgress:{ english: "Assessment Progress",       mandarin: "评估进度",         korean: "평가 진행 상황" },
+  supportJourney:    { english: "Support Journey — Next 12 Months", mandarin: "支持旅程 — 未来12个月", korean: "지원 여정 — 향후 12개월" },
   currentPhase:      { english: "Current Phase",             mandarin: "当前阶段",         korean: "현재 단계" },
   overallProgress:   { english: "Overall Progress",          mandarin: "整体进度",         korean: "전체 진행률" },
+  assessmentComplete:{ english: "Assessment Complete",       mandarin: "评估完成",         korean: "평가 완료" },
+  monitoringActive:  { english: "12-Month Monitoring Active",mandarin: "12个月监测进行中", korean: "12개월 모니터링 활성" },
   yourForms:         { english: "Your Assigned Forms",       mandarin: "您的指定表格",     korean: "배정된 양식" },
   allDone:           { english: "All forms completed — thank you!", mandarin: "所有表格已完成——谢谢！", korean: "모든 양식 완료 — 감사합니다!" },
   completed:         { english: "Completed",                 mandarin: "已完成",           korean: "완료" },
@@ -590,12 +593,109 @@ function getSuccessMessage(formType: string) {
 
 // ── Phase Tracker Component ───────────────────────────────────────────────────
 
+const SUPPORT_MILESTONES = [
+  { key: "debrief",    label: "Debrief",       labelZh: "汇报",      labelKo: "결과설명",  sub: "Complete",    subZh: "已完成",    subKo: "완료" },
+  { key: "plan",       label: "Plan",          labelZh: "计划",      labelKo: "계획",      sub: "Month 1",     subZh: "第1个月",   subKo: "1개월" },
+  { key: "checkin",    label: "Check-in",      labelZh: "检查",      labelKo: "점검",      sub: "Month 3",     subZh: "第3个月",   subKo: "3개월" },
+  { key: "midreview",  label: "Mid-Review",    labelZh: "中期回顾",  labelKo: "중간점검",  sub: "Month 6",     subZh: "第6个月",   subKo: "6개월" },
+  { key: "annual",     label: "Annual",        labelZh: "年度",      labelKo: "연간",      sub: "Month 12",    subZh: "第12个月",  subKo: "12개월" },
+];
+
+function supportMilestoneLabel(m: typeof SUPPORT_MILESTONES[0], language: string) {
+  if (language === "mandarin") return { label: m.labelZh, sub: m.subZh };
+  if (language === "korean")   return { label: m.labelKo, sub: m.subKo };
+  return { label: m.label, sub: m.sub };
+}
+
 function PhaseTracker({ currentPhase, progressPercentage, studentName, language }: {
   currentPhase: string;
   progressPercentage: number;
   studentName: string;
   language: string;
 }) {
+  const isPostAssessment = currentPhase === "debrief";
+
+  if (isPostAssessment) {
+    return (
+      <div className="bg-[#111827] rounded-2xl p-5 md:p-6 text-white shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+          {t("supportJourney", language)} — {studentName}
+        </p>
+
+        <div className="relative flex items-center gap-0">
+          {SUPPORT_MILESTONES.map((milestone, idx) => {
+            const isCompleted = idx === 0;
+            const isCurrent = idx === 1;
+            const isUpcoming = idx > 1;
+
+            return (
+              <div key={milestone.key} className="flex-1 flex flex-col items-center relative">
+                {idx > 0 && (
+                  <div className={cn(
+                    "absolute left-0 right-1/2 top-[15px] h-0.5 -translate-y-1/2",
+                    isCompleted || isCurrent ? "bg-emerald-500" : "bg-slate-700"
+                  )} />
+                )}
+                {idx < SUPPORT_MILESTONES.length - 1 && (
+                  <div className={cn(
+                    "absolute left-1/2 right-0 top-[15px] h-0.5 -translate-y-1/2",
+                    isCompleted ? "bg-emerald-500" : "bg-slate-700"
+                  )} />
+                )}
+
+                <div className={cn(
+                  "relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all",
+                  isCompleted ? "bg-emerald-500 border-emerald-500 text-white" :
+                  isCurrent   ? "bg-[#1f2937] border-emerald-500 text-emerald-400 ring-4 ring-emerald-500/20" :
+                                "bg-[#1f2937] border-slate-600 text-slate-500"
+                )}>
+                  {isCompleted ? (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
+                </div>
+
+                <span className={cn(
+                  "mt-2 text-[9px] font-semibold uppercase tracking-wide text-center leading-tight hidden sm:block",
+                  isCompleted ? "text-emerald-400" :
+                  isCurrent   ? "text-emerald-400" :
+                                "text-slate-600"
+                )}>
+                  {supportMilestoneLabel(milestone, language).label}
+                </span>
+                <span className={cn(
+                  "text-[8px] text-center leading-tight hidden sm:block mt-0.5",
+                  isCompleted ? "text-slate-400" :
+                  isCurrent   ? "text-slate-400" :
+                                "text-slate-700"
+                )}>
+                  {supportMilestoneLabel(milestone, language).sub}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-700/60 flex items-end justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("assessmentComplete", language)}</p>
+            <p className="text-base font-bold text-emerald-400 mt-0.5">✓</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("monitoringActive", language)}</p>
+            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-base font-bold text-emerald-400">Active</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const rawIdx = phaseIndex(currentPhase);
   const lastIdx = PHASES.length - 1;
   const currentIdx = rawIdx === -1 ? 0 : Math.min(Math.max(rawIdx, 0), lastIdx);
