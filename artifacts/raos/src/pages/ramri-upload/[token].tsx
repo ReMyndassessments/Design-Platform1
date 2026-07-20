@@ -152,13 +152,11 @@ export default function RamriUploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const prev = document.body.style.overflowX;
-    document.body.style.overflowX = "hidden";
-    document.documentElement.style.overflowX = "hidden";
-    return () => {
-      document.body.style.overflowX = prev;
-      document.documentElement.style.overflowX = "";
-    };
+    const style = document.createElement("style");
+    style.id = "__mobile-upload-lock__";
+    style.textContent = "html,body,#root{max-width:100vw!important;overflow-x:hidden!important;}";
+    document.head.appendChild(style);
+    return () => { document.getElementById("__mobile-upload-lock__")?.remove(); };
   }, []);
 
   useEffect(() => {
