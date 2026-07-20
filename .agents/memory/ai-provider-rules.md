@@ -17,10 +17,11 @@ Groq (`GROQ_API_KEY`) is approved **only** for:
 
 No other features may use Groq without explicit user sign-off.
 
-## Vision calls → DeepSeek
-All image/PDF vision calls use DeepSeek (`DEEPSEEK_API_KEY`, model: `deepseek-vl2`).
-Endpoint: `https://api.deepseek.com/v1/chat/completions`
-Note: `DEEPSEEK_API_KEY` is a user-managed secret (not visible in `viewEnvVars()` — like GROQ_API_KEY, it's set via Replit's Secrets UI and available as `process.env.DEEPSEEK_API_KEY`).
+## Vision calls → Gemini (Replit integration)
+All image/PDF vision calls use `gemini-2.5-flash` via the Replit-managed Gemini AI integration.
+Import `ai` from `@workspace/integrations-gemini-ai` and call `ai.models.generateContent` with `inlineData`.
+Env vars `AI_INTEGRATIONS_GEMINI_BASE_URL` and `AI_INTEGRATIONS_GEMINI_API_KEY` are auto-provisioned — do not ask user for them.
+No per-call cost to user; billed through Replit credits (free tier available).
 
 ## OpenRouter → forbidden without asking
 Never provision or use Replit OpenRouter AI integration without checking with the user first — it bills Replit credits directly.

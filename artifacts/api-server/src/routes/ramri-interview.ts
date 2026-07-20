@@ -12,6 +12,7 @@ import { writeFile, unlink, mkdir, rmdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import mammoth from "mammoth";
+import { ai } from "@workspace/integrations-gemini-ai";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,39 +54,25 @@ const router: IRouter = Router();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-
 async function docxToText(buffer: Buffer): Promise<string> {
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }
 
 async function imageToText(imageBuffer: Buffer, mimeType: string): Promise<string> {
-  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
   const base64 = imageBuffer.toString("base64");
-  const dataUrl = `data:${mimeType};base64,${base64}`;
-  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
-    body: JSON.stringify({
-      model: GROQ_VISION_MODEL,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: dataUrl } },
-          { type: "text", text: "This is a photo of a student's mathematics work. Please transcribe ALL visible text exactly as written, including every problem, number, working/calculation steps, and any written answers. Preserve layout where possible — use new lines for separate problems. Do not interpret or correct — transcribe exactly what is shown including any errors or teacher marks." },
-        ],
-      }],
-      temperature: 0.1,
-      max_tokens: 3000,
-    }),
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType, data: base64 } },
+        { text: "This is a photo of a student's mathematics work. Please transcribe ALL visible text exactly as written, including every problem, number, working/calculation steps, and any written answers. Preserve layout where possible — use new lines for separate problems. Do not interpret or correct — transcribe exactly what is shown including any errors or teacher marks." },
+      ],
+    }],
+    config: { maxOutputTokens: 8192 },
   });
-  if (!r.ok) {
-    const errBody = await r.text().catch(() => "(unreadable)");
-    throw new Error(`Groq vision error: ${r.status} — ${errBody}`);
-  }
-  const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content ?? "";
+  return response.text ?? "";
 }
 
 async function callGroq(prompt: string, systemPrompt?: string, maxTokens = 2048): Promise<string> {
