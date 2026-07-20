@@ -269,7 +269,7 @@ export default function RamriUploadPage() {
   const studentName = info.studentName;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 overflow-x-hidden">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-3">
