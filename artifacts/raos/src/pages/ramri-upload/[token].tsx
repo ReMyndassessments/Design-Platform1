@@ -96,9 +96,9 @@ const T = {
   browserBannerBody: { english: "This link works best in Safari or Chrome. Copy the link from the address bar and paste it into your browser.",
                        mandarin: "此链接在 Safari 或 Chrome 浏览器中效果最佳。请复制地址栏中的链接，然后粘贴到浏览器中打开。",
                        korean:   "이 링크는 Safari 또는 Chrome 브라우저에서 가장 잘 작동합니다. 주소 표시줄의 링크를 복사하여 브라우저에 붙여넣으세요." },
-  browserBannerInApp:{ english: "You appear to be viewing this inside an app (WeChat, WhatsApp, etc.). Please tap ··· or the browser icon to open this page in Safari or Chrome before uploading.",
-                       mandarin: "您似乎正在应用内浏览此页面（如微信、WhatsApp 等）。请点击右上角的 ··· 或浏览器图标，在 Safari 或 Chrome 中打开此页面后再上传。",
-                       korean:   "앱 내에서 이 페이지를 보고 있는 것 같습니다 (카카오톡, WhatsApp 등). 업로드하기 전에 ··· 또는 브라우저 아이콘을 탭하여 Safari 또는 Chrome에서 열어주세요." },
+  browserBannerInApp:{ english: "If the form does not display correctly, please cut and paste the link into a browser.",
+                       mandarin: "如果表单显示不正常，请将链接复制并粘贴到浏览器中打开。",
+                       korean:   "양식이 올바르게 표시되지 않으면 링크를 복사하여 브라우저에 붙여넣기 해 주세요." },
   browserBannerDismiss: { english: "I'm already in a browser", mandarin: "我已在浏览器中", korean: "브라우저에서 열었습니다" },
 };
 
