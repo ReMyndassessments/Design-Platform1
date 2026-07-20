@@ -722,6 +722,29 @@ function PortalView({
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+  // ── Learning Support Coach™ state ──────────────────────────────────────────
+  type LscDemandProfile = { overview: string; reading: string; writing: string; mathematics: string; executiveFunction: string; memory: string; attention: string };
+  type LscGuide = { demandProfile: LscDemandProfile; strengths: string; overview: string; challenges: string; strategies: string; stepByStep: string; language: string; observationPoints: string; safetyNote?: string };
+  type LscAnalysisRecord = { id: string; userRole: string; language: string; lessonContent: string; guide: LscGuide; demandProfile: LscDemandProfile; outputVersions: Record<string, LscGuide>; followUpMessages: Array<{ role: string; content: string }>; createdAt: string };
+  type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number };
+
+  const [lscOpen, setLscOpen] = useState(false);
+  const [lscStatus, setLscStatus] = useState<LscStatus | null>(null);
+  const [lscStatusLoading, setLscStatusLoading] = useState(false);
+  const lscAckKey = `lsc_ack_${portalToken}`;
+  const [lscAcknowledged, setLscAcknowledged] = useState(() => { try { return sessionStorage.getItem(`lsc_ack_${portalToken}`) === "1"; } catch { return false; } });
+  const [lscContent, setLscContent] = useState("");
+  const [lscLoading, setLscLoading] = useState(false);
+  const [lscAnalysis, setLscAnalysis] = useState<LscAnalysisRecord | null>(null);
+  const [lscDisplayGuide, setLscDisplayGuide] = useState<LscGuide | null>(null);
+  const [lscActiveRole, setLscActiveRole] = useState(role);
+  const [lscVersionLoading, setLscVersionLoading] = useState(false);
+  const [lscFollowUpInput, setLscFollowUpInput] = useState("");
+  const [lscFollowUpLoading, setLscFollowUpLoading] = useState(false);
+  const [lscFollowUpMessages, setLscFollowUpMessages] = useState<Array<{ role: string; content: string }>>([]);
+  const [lscHistoryLoaded, setLscHistoryLoaded] = useState(false);
+  const [lscError, setLscError] = useState<string | null>(null);
+
   // Banner state: shown when language changes while a conversation is in progress
   const [showLangBanner, setShowLangBanner] = useState(false);
 
@@ -806,6 +829,132 @@ function PortalView({
     } finally {
       setDiffLoading(false);
     }
+  };
+
+  // ── Learning Support Coach™ handlers ───────────────────────────────────────
+  const loadLscStatus = async (force = false) => {
+    if (lscStatus && !force) return;
+    setLscStatusLoading(true);
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/status`);
+      if (r.ok) setLscStatus(await r.json() as LscStatus);
+    } catch { /* ignore */ }
+    finally { setLscStatusLoading(false); }
+  };
+
+  const loadLscHistory = async () => {
+    if (lscHistoryLoaded) return;
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses`);
+      if (r.ok) {
+        const data = await r.json() as { analyses: Array<Record<string, unknown>> };
+        const mapped: LscAnalysisRecord[] = (data.analyses ?? []).map(a => ({
+          id: a["id"] as string,
+          userRole: a["user_role"] as string ?? "parent",
+          language: a["language"] as string ?? "english",
+          lessonContent: a["lesson_content"] as string ?? "",
+          guide: (a["guide"] ?? {}) as LscGuide,
+          demandProfile: (a["demand_profile"] ?? {}) as LscDemandProfile,
+          outputVersions: (a["output_versions"] ?? {}) as Record<string, LscGuide>,
+          followUpMessages: (a["follow_up_messages"] ?? []) as Array<{ role: string; content: string }>,
+          createdAt: a["created_at"] as string ?? "",
+        }));
+        if (mapped.length > 0) {
+          setLscAnalysis(prev => prev ?? mapped[0]);
+          setLscDisplayGuide(prev => prev ?? mapped[0].guide);
+          setLscFollowUpMessages(prev => prev.length > 0 ? prev : (mapped[0].followUpMessages ?? []));
+          setLscActiveRole(prev => prev ?? mapped[0].userRole ?? role);
+        }
+      }
+    } catch { /* ignore */ }
+    finally { setLscHistoryLoaded(true); }
+  };
+
+  const handleOpenLsc = () => {
+    setLscOpen(true);
+    loadLscStatus();
+    loadLscHistory();
+  };
+
+  const handleLscAcknowledge = () => {
+    try { sessionStorage.setItem(lscAckKey, "1"); } catch { /* ignore */ }
+    setLscAcknowledged(true);
+  };
+
+  const handleLscAnalyze = async () => {
+    if (!lscContent.trim() || lscLoading) return;
+    setLscLoading(true);
+    setLscError(null);
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: lscContent, role: lscActiveRole, language, acknowledged: true }),
+      });
+      if (!r.ok) {
+        const err = await r.json() as { error: string };
+        setLscError(err.error === "subscription_required" ? "subscription_required" : "failed");
+        if (err.error === "subscription_required") { setLscStatus(null); loadLscStatus(true); }
+        return;
+      }
+      const data = await r.json() as { analysisId: string; guide: LscGuide; demandProfile: LscDemandProfile };
+      const newAnalysis: LscAnalysisRecord = {
+        id: data.analysisId, userRole: lscActiveRole, language,
+        lessonContent: lscContent, guide: data.guide, demandProfile: data.demandProfile,
+        outputVersions: {}, followUpMessages: [], createdAt: new Date().toISOString(),
+      };
+      setLscAnalysis(newAnalysis);
+      setLscDisplayGuide(data.guide);
+      setLscFollowUpMessages([]);
+      setLscStatus(null);
+      loadLscStatus(true);
+    } catch {
+      setLscError("failed");
+    } finally {
+      setLscLoading(false);
+    }
+  };
+
+  const handleLscFollowUp = async () => {
+    if (!lscFollowUpInput.trim() || lscFollowUpLoading || !lscAnalysis) return;
+    const q = lscFollowUpInput.trim();
+    setLscFollowUpInput("");
+    const optimistic = [...lscFollowUpMessages, { role: "user", content: q }];
+    setLscFollowUpMessages(optimistic);
+    setLscFollowUpLoading(true);
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses/${lscAnalysis.id}/followup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, language }),
+      });
+      const data = await r.json() as { reply?: string };
+      setLscFollowUpMessages([...optimistic, { role: "assistant", content: data.reply ?? "" }]);
+    } catch {
+      setLscFollowUpMessages([...optimistic, { role: "assistant", content: language === "mandarin" ? "抱歉，出现了错误。" : language === "korean" ? "죄송합니다. 오류가 발생했습니다." : "Sorry, an error occurred. Please try again." }]);
+    } finally {
+      setLscFollowUpLoading(false); }
+  };
+
+  const handleLscRoleVersion = async (newRole: string) => {
+    if (!lscAnalysis || newRole === lscActiveRole || lscVersionLoading) return;
+    setLscActiveRole(newRole);
+    if (newRole === lscAnalysis.userRole) { setLscDisplayGuide(lscAnalysis.guide); return; }
+    if (lscAnalysis.outputVersions[newRole]) { setLscDisplayGuide(lscAnalysis.outputVersions[newRole]); return; }
+    setLscVersionLoading(true);
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses/${lscAnalysis.id}/version`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole, language }),
+      });
+      if (r.ok) {
+        const data = await r.json() as { guide: LscGuide };
+        setLscDisplayGuide(data.guide);
+        setLscAnalysis(prev => prev ? { ...prev, outputVersions: { ...prev.outputVersions, [newRole]: data.guide } } : prev);
+      }
+    } catch { /* ignore */ }
+    finally { setLscVersionLoading(false); }
   };
 
   // Access code / PIN gate
@@ -1437,27 +1586,32 @@ function PortalView({
           </div>
         )}
 
-        {/* Lesson Differentiator Panel */}
+        {/* Learning Support Coach™ */}
         {portal.reportAccess && (
           <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
-            {!diffOpen ? (
+            {!lscOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-emerald-100/50 transition-colors"
-                onClick={() => setDiffOpen(true)}
+                onClick={handleOpenLsc}
               >
-                <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-emerald-600 flex items-center justify-center shrink-0">
                   <BookOpen size={18} className="text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-emerald-900">
-                    {language === "mandarin" ? "作业差异化支持" : language === "korean" ? "수업 차별화 지원" : "Differentiate a Lesson"}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-emerald-900">
+                      {lscStatus?.productName ?? (language === "mandarin" ? "学习支持教练™" : language === "korean" ? "학습 지원 코치™" : "Learning Support Coach™")}
+                    </p>
+                    <span className="text-[9px] font-bold text-violet-600 bg-violet-100 rounded-full px-1.5 py-0.5 uppercase tracking-wide">
+                      {language === "mandarin" ? "高级" : language === "korean" ? "프리미엄" : "Premium"}
+                    </span>
+                  </div>
                   <p className="text-[11px] text-emerald-600">
                     {language === "mandarin"
-                      ? "粘贴作业或课程内容，获取针对性支持策略"
+                      ? `基于评估的个性化课程支持，专为 ${portal.studentName} 定制`
                       : language === "korean"
-                      ? "숙제나 수업 내용을 붙여넣어 맞춤형 지원 전략을 받으세요"
-                      : "Paste in homework or an assignment to get tailored support strategies"}
+                      ? `${portal.studentName}의 평가 결과 기반 맞춤형 수업 지원`
+                      : `Assessment-grounded lesson support for ${portal.studentName}`}
                   </p>
                 </div>
                 <ChevronRight size={16} className="text-emerald-400 shrink-0" />
@@ -1465,80 +1619,270 @@ function PortalView({
             ) : (
               <div className="flex flex-col">
                 {/* Header */}
-                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-emerald-200 bg-emerald-600">
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-emerald-200 bg-gradient-to-r from-violet-600 to-emerald-600">
                   <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                     <BookOpen size={14} className="text-white" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-white">
-                      {language === "mandarin" ? "课程差异化支持" : language === "korean" ? "수업 차별화 지원" : "Lesson Differentiation Support"}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white truncate">
+                      {lscStatus?.productName ?? "Learning Support Coach™"}
                     </p>
-                    <p className="text-[10px] text-emerald-200">
-                      {language === "mandarin" ? `专为 ${portal.studentName} 的学习档案定制` : language === "korean" ? `${portal.studentName}의 학습 프로필에 맞춤 설정됨` : `Tailored to ${portal.studentName}'s learning profile`}
+                    <p className="text-[10px] text-white/80">
+                      {language === "mandarin" ? `专为 ${portal.studentName} 定制` : language === "korean" ? `${portal.studentName} 맞춤` : `Grounded in ${portal.studentName}'s assessment`}
                     </p>
                   </div>
-                  <button onClick={() => { setDiffOpen(false); setDiffResult(null); setDiffContent(""); }} className="text-white/70 hover:text-white transition-colors">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6 6 18M6 6l12 12"/>
-                    </svg>
+                  <button onClick={() => { setLscOpen(false); setLscError(null); }} className="text-white/70 hover:text-white transition-colors shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                   </button>
                 </div>
 
                 {/* Body */}
-                <div className="p-4 bg-white space-y-3">
-                  {!diffResult ? (
-                    <>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        {language === "mandarin"
-                          ? `粘贴作业、课程说明或工作表内容，我们将分析 ${portal.studentName} 可能遇到的困难，并给出具体的支持策略。`
-                          : language === "korean"
-                          ? `숙제, 수업 지시사항 또는 워크시트 내용을 붙여넣으세요. ${portal.studentName}이(가) 겪을 수 있는 어려움과 구체적인 지원 전략을 분석해 드립니다.`
-                          : `Paste in the assignment, homework instructions, or lesson content below. The AI will identify what ${portal.studentName} may find difficult and give you specific strategies based on their assessment profile.`}
-                      </p>
-                      <textarea
-                        value={diffContent}
-                        onChange={e => setDiffContent(e.target.value)}
-                        placeholder={
-                          language === "mandarin" ? "在此粘贴作业或课程内容…"
-                          : language === "korean" ? "과제 또는 수업 내용을 여기에 붙여넣으세요…"
-                          : "Paste the assignment or lesson content here…"
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none min-h-[120px]"
-                        rows={6}
-                      />
-                      <button
-                        onClick={handleDifferentiate}
-                        disabled={!diffContent.trim() || diffLoading}
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                      >
-                        {diffLoading
-                          ? <><Loader2 size={13} className="animate-spin" />{language === "mandarin" ? "分析中，请稍候…" : language === "korean" ? "분석 중입니다…" : "Generating support plan…"}</>
-                          : language === "mandarin" ? "生成支持方案" : language === "korean" ? "지원 계획 생성" : "Get Support Plan"
-                        }
-                      </button>
-                    </>
-                  ) : (
-                    <div className="space-y-4">
-                      {[
-                        { key: "overview",    label: language === "mandarin" ? "概述" : language === "korean" ? "개요" : "Overview",             color: "text-emerald-700" },
-                        { key: "challenges",  label: language === "mandarin" ? "可能的挑战" : language === "korean" ? "예상 어려움" : "Likely Challenges", color: "text-orange-600" },
-                        { key: "strategies",  label: language === "mandarin" ? "支持策略" : language === "korean" ? "지원 전략" : "Support Strategies",  color: "text-blue-600"   },
-                        { key: "stepByStep",  label: language === "mandarin" ? "逐步指导" : language === "korean" ? "단계별 안내" : "Step-by-Step Guide",   color: "text-purple-600" },
-                        { key: "language",    label: language === "mandarin" ? "沟通语言技巧" : language === "korean" ? "언어 사용 팁" : "Language Tips",     color: "text-slate-500"  },
-                      ].map(({ key, label, color }) => (
-                        <div key={key}>
-                          <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${color}`}>{label}</p>
-                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{(diffResult as Record<string, string>)[key]}</p>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => { setDiffResult(null); setDiffContent(""); }}
-                        className="w-full py-2 text-xs text-emerald-600 hover:text-emerald-800 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition-colors font-medium"
-                      >
-                        {language === "mandarin" ? "分析另一个作业 →" : language === "korean" ? "다른 과제 분석하기 →" : "Analyse another assignment →"}
-                      </button>
+                <div className="bg-white">
+                  {lscStatusLoading && (
+                    <div className="flex items-center justify-center py-8 gap-2 text-emerald-600">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-xs">{language === "mandarin" ? "加载中…" : language === "korean" ? "로딩 중…" : "Loading…"}</span>
                     </div>
                   )}
+
+                  {!lscStatusLoading && lscStatus && (() => {
+                    const st = lscStatus.subscriptionStatus;
+                    const isActive = ["active_monthly", "active_annual", "complimentary", "administrator_override"].includes(st);
+                    const isTrial = ["trial_available", "trial_active"].includes(st);
+                    const canAnalyze = isTrial || isActive;
+
+                    // SAFETY ACKNOWLEDGMENT
+                    if (canAnalyze && !lscAcknowledged && !lscAnalysis) {
+                      return (
+                        <div className="p-5 space-y-4">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto">
+                            <ShieldCheck size={20} className="text-amber-600" />
+                          </div>
+                          <div className="text-center space-y-2">
+                            <p className="text-sm font-bold text-slate-900">
+                              {language === "mandarin" ? "开始前请阅读" : language === "korean" ? "시작하기 전에" : "Before You Begin"}
+                            </p>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              {language === "mandarin"
+                                ? "ReMynd学习支持教练™提供基于评估的教育决策支持。所有生成的建议和改编材料在用于学生之前，必须由授权成人进行审查。"
+                                : language === "korean"
+                                ? "ReMynd 학습 지원 코치™는 평가 기반 교육 의사결정 지원을 제공합니다. 생성된 모든 권고사항은 학생에게 사용하기 전에 권한 있는 성인이 검토해야 합니다."
+                                : "The ReMynd Learning Support Coach™ provides assessment-grounded educational decision support. All generated recommendations must be reviewed by an authorized adult before use with the student."}
+                            </p>
+                          </div>
+                          {isTrial && (
+                            <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-center">
+                              <p className="text-[10px] text-amber-700 font-medium">
+                                {language === "mandarin" ? "✦ 免费试用 · 含1次完整分析" : language === "korean" ? "✦ 무료 체험 · 전체 분석 1회 포함" : "✦ Free trial · 1 full analysis included"}
+                              </p>
+                            </div>
+                          )}
+                          <button
+                            onClick={handleLscAcknowledge}
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors"
+                          >
+                            {language === "mandarin" ? "我明白，继续" : language === "korean" ? "확인했습니다, 계속" : "I understand — continue"}
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    // SUBSCRIBE SCREEN (no prior results)
+                    if (!canAnalyze && !lscAnalysis) {
+                      return (
+                        <div className="p-5 space-y-4">
+                          <div className="text-center space-y-2">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-emerald-500 flex items-center justify-center mx-auto">
+                              <BookOpen size={16} className="text-white" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {language === "mandarin" ? "订阅以继续" : language === "korean" ? "계속하려면 구독하세요" : "Subscribe to Continue"}
+                            </p>
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                              {language === "mandarin"
+                                ? `每月最多 ${lscStatus.monthlyLimit} 次基于评估档案的个性化课程分析`
+                                : language === "korean"
+                                ? `월 최대 ${lscStatus.monthlyLimit}회 평가 기반 개별 수업 분석`
+                                : `Up to ${lscStatus.monthlyLimit} assessment-grounded lesson analyses per month`}
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                              <p className="text-base font-black text-violet-700">¥{lscStatus.monthlyPrice}</p>
+                              <p className="text-[10px] text-violet-500">{language === "mandarin" ? "每月" : language === "korean" ? "월" : "/ month"}</p>
+                            </div>
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                              <p className="text-base font-black text-emerald-700">¥{lscStatus.annualPrice}</p>
+                              <p className="text-[10px] text-emerald-500">{language === "mandarin" ? "每年（省16%）" : language === "korean" ? "연간 (16% 절약)" : "/ year (save 16%)"}</p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+                            {language === "mandarin"
+                              ? "如需订阅，请联系您的ReMynd顾问或发送邮件至 support@remynd.com"
+                              : language === "korean"
+                              ? "구독 문의: support@remynd.com 또는 ReMynd 담당자에게 연락해 주세요"
+                              : "To subscribe, contact your ReMynd advisor or email support@remynd.com"}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    // MAIN WORKSPACE
+                    const currentGuide = lscDisplayGuide ?? lscAnalysis?.guide ?? null;
+                    return (
+                      <div>
+                        {/* Status bar */}
+                        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                          {isTrial
+                            ? <><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /><span className="text-[10px] text-amber-700 font-medium">{language === "mandarin" ? "免费试用 · 1次完整分析" : language === "korean" ? "무료 체험 · 1회 전체 분석" : "Free trial · 1 full analysis included"}</span></>
+                            : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
+                          }
+                        </div>
+
+                        {!lscAnalysis ? (
+                          // INPUT FORM
+                          <div className="p-4 space-y-3">
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                              {language === "mandarin"
+                                ? `粘贴课程、作业说明或工作表内容，获取基于 ${portal.studentName} 评估档案的个性化支持方案。`
+                                : language === "korean"
+                                ? `수업, 숙제 또는 워크시트 내용을 붙여넣으세요. ${portal.studentName}의 평가 프로필 기반 맞춤형 지원 계획을 생성합니다.`
+                                : `Paste the lesson, assignment, or worksheet content below. The Coach will generate a support guide grounded in ${portal.studentName}'s assessment profile.`}
+                            </p>
+                            <textarea
+                              value={lscContent}
+                              onChange={e => setLscContent(e.target.value)}
+                              placeholder={language === "mandarin" ? "在此粘贴课程或作业内容…" : language === "korean" ? "수업 또는 과제 내용을 여기에 붙여넣으세요…" : "Paste the lesson or assignment content here…"}
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none min-h-[120px]"
+                              rows={6}
+                            />
+                            {lscError === "failed" && (
+                              <p className="text-xs text-red-500">{language === "mandarin" ? "分析失败，请重试。" : language === "korean" ? "분석에 실패했습니다. 다시 시도해 주세요." : "Analysis failed. Please try again."}</p>
+                            )}
+                            <button
+                              onClick={handleLscAnalyze}
+                              disabled={!lscContent.trim() || lscLoading}
+                              className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-emerald-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-opacity"
+                            >
+                              {lscLoading
+                                ? <><Loader2 size={13} className="animate-spin" />{language === "mandarin" ? "分析中，请稍候…" : language === "korean" ? "분석 중입니다…" : "Generating support guide…"}</>
+                                : language === "mandarin" ? "生成学习支持方案" : language === "korean" ? "지원 계획 생성" : "Generate Support Guide"
+                              }
+                            </button>
+                          </div>
+                        ) : currentGuide ? (
+                          // RESULTS
+                          <div className="divide-y divide-slate-100">
+                            {/* Demand Profile */}
+                            <div className="p-4 space-y-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{language === "mandarin" ? "学习需求分析" : language === "korean" ? "학습 요구 분석" : "Demand Profile"}</p>
+                              <p className="text-xs text-slate-600 leading-relaxed">{currentGuide.demandProfile?.overview ?? ""}</p>
+                              <div className="grid grid-cols-3 gap-1.5 mt-2">
+                                {([
+                                  ["reading",           language === "mandarin" ? "阅读"    : language === "korean" ? "읽기"    : "Reading"],
+                                  ["writing",           language === "mandarin" ? "写作"    : language === "korean" ? "쓰기"    : "Writing"],
+                                  ["mathematics",       language === "mandarin" ? "数学"    : language === "korean" ? "수학"    : "Maths"],
+                                  ["executiveFunction", language === "mandarin" ? "执行功能" : language === "korean" ? "실행기능" : "Exec Fn"],
+                                  ["memory",            language === "mandarin" ? "记忆"    : language === "korean" ? "기억"    : "Memory"],
+                                  ["attention",         language === "mandarin" ? "注意力"  : language === "korean" ? "주의력"  : "Attention"],
+                                ] as [string, string][]).map(([key, label]) => {
+                                  const raw = (currentGuide.demandProfile?.[key as keyof LscDemandProfile] ?? "").toLowerCase();
+                                  const lvl = raw.startsWith("high") ? "high" : raw.startsWith("low") ? "low" : "medium";
+                                  return (
+                                    <div key={key} className={`rounded-lg px-2 py-1.5 text-center border ${lvl === "high" ? "bg-red-50 border-red-200" : lvl === "low" ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+                                      <p className="text-[9px] text-slate-500 font-medium">{label}</p>
+                                      <p className={`text-[10px] font-bold capitalize ${lvl === "high" ? "text-red-600" : lvl === "low" ? "text-green-600" : "text-amber-600"}`}>{lvl}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Role switcher */}
+                            <div className="px-4 py-2 flex items-center gap-1.5 overflow-x-auto">
+                              <p className="text-[9px] text-slate-400 shrink-0">{language === "mandarin" ? "版本：" : language === "korean" ? "버전:" : "For:"}</p>
+                              {([
+                                ["parent",  language === "mandarin" ? "家长"   : language === "korean" ? "학부모" : "Parent"],
+                                ["teacher", language === "mandarin" ? "教师"   : language === "korean" ? "교사"   : "Teacher"],
+                                ["tutor",   language === "mandarin" ? "辅导"   : language === "korean" ? "튜터"   : "Tutor"],
+                                ["student", language === "mandarin" ? "支持专员" : language === "korean" ? "지원"  : "Support"],
+                              ] as [string, string][]).map(([r, label]) => (
+                                <button key={r} onClick={() => handleLscRoleVersion(r)} disabled={lscVersionLoading}
+                                  className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors ${lscActiveRole === r ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"}`}>
+                                  {lscVersionLoading && lscActiveRole === r ? <Loader2 size={10} className="animate-spin" /> : label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Guide sections */}
+                            {([
+                              { key: "strengths",        label: language === "mandarin" ? "✨ 学生优势"  : language === "korean" ? "✨ 학생 강점"  : "✨ Strengths",         color: "text-emerald-700", bg: "bg-emerald-50" },
+                              { key: "overview",         label: language === "mandarin" ? "概述"        : language === "korean" ? "개요"         : "Overview",             color: "text-slate-700",   bg: "" },
+                              { key: "challenges",       label: language === "mandarin" ? "可能的困难"  : language === "korean" ? "예상 어려움"   : "Likely Challenges",    color: "text-orange-600",  bg: "" },
+                              { key: "strategies",       label: language === "mandarin" ? "支持策略"    : language === "korean" ? "지원 전략"     : "Support Strategies",   color: "text-blue-600",    bg: "" },
+                              { key: "stepByStep",       label: language === "mandarin" ? "逐步指导"    : language === "korean" ? "단계별 안내"   : "Step-by-Step Guide",   color: "text-purple-600",  bg: "" },
+                              { key: "language",         label: language === "mandarin" ? "沟通技巧"    : language === "korean" ? "언어 사용 팁"  : "Language Tips",        color: "text-slate-500",   bg: "" },
+                              { key: "observationPoints",label: language === "mandarin" ? "观察指标"    : language === "korean" ? "관찰 지표"     : "Observation Points",   color: "text-teal-600",    bg: "" },
+                            ]).map(({ key, label, color, bg }) => (
+                              <div key={key} className={`p-4 ${bg}`}>
+                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${color}`}>{label}</p>
+                                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">{currentGuide[key as keyof LscGuide] as string ?? ""}</p>
+                              </div>
+                            ))}
+
+                            {/* Safety note */}
+                            {currentGuide.safetyNote && (
+                              <div className="p-4 bg-amber-50">
+                                <p className="text-[10px] text-amber-700 leading-relaxed italic">{currentGuide.safetyNote}</p>
+                              </div>
+                            )}
+
+                            {/* Follow-up chat */}
+                            <div className="p-4 space-y-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{language === "mandarin" ? "追问" : language === "korean" ? "추가 질문" : "Follow-up Questions"}</p>
+                              {lscFollowUpMessages.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                                  <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${msg.role === "user" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-700"}`}>{msg.content}</div>
+                                </div>
+                              ))}
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={lscFollowUpInput}
+                                  onChange={e => setLscFollowUpInput(e.target.value)}
+                                  onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleLscFollowUp()}
+                                  placeholder={language === "mandarin" ? "提出追问…" : language === "korean" ? "추가 질문하기…" : "Ask a follow-up question…"}
+                                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                />
+                                <button onClick={handleLscFollowUp} disabled={!lscFollowUpInput.trim() || lscFollowUpLoading}
+                                  className="w-8 h-8 flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-xl text-white transition-colors shrink-0">
+                                  {lscFollowUpLoading ? <Loader2 size={13} className="animate-spin" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/></svg>}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="px-4 pb-4 pt-2 space-y-2">
+                              {canAnalyze && (
+                                <button
+                                  onClick={() => { setLscAnalysis(null); setLscDisplayGuide(null); setLscContent(""); setLscError(null); setLscFollowUpMessages([]); setLscActiveRole(role); }}
+                                  className="w-full py-2 text-xs text-emerald-600 hover:text-emerald-800 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition-colors font-medium"
+                                >
+                                  {language === "mandarin" ? "分析另一个课程或作业 →" : language === "korean" ? "다른 수업/과제 분석하기 →" : "Analyse another lesson or assignment →"}
+                                </button>
+                              )}
+                              {!canAnalyze && (
+                                <div className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-center space-y-1">
+                                  <p className="text-[10px] text-violet-700 font-semibold">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
+                                  <p className="text-[9px] text-violet-500">{language === "mandarin" ? "联系 support@remynd.com" : language === "korean" ? "support@remynd.com 문의" : "Contact support@remynd.com"}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

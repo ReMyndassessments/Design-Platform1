@@ -2918,6 +2918,67 @@ async function createInterviewRecordingsTable() {
   }
 }
 
+async function createLscTables() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS lsc_settings (
+        id SERIAL PRIMARY KEY,
+        product_name TEXT NOT NULL DEFAULT 'ReMynd Learning Support Coach',
+        product_subtitle TEXT NOT NULL DEFAULT 'Assessment-Based Educational Decision Support',
+        monthly_price_rmb INTEGER NOT NULL DEFAULT 388,
+        annual_price_rmb INTEGER NOT NULL DEFAULT 3880,
+        monthly_analysis_limit INTEGER NOT NULL DEFAULT 25,
+        trial_analysis_limit INTEGER NOT NULL DEFAULT 1,
+        allow_trial BOOLEAN NOT NULL DEFAULT TRUE,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      INSERT INTO lsc_settings (product_name, product_subtitle, monthly_price_rmb, annual_price_rmb, monthly_analysis_limit, trial_analysis_limit)
+      SELECT 'ReMynd Learning Support Coach', 'Assessment-Based Educational Decision Support', 388, 3880, 25, 1
+      WHERE NOT EXISTS (SELECT 1 FROM lsc_settings LIMIT 1)
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS lsc_subscriptions (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL UNIQUE,
+        subscription_status TEXT NOT NULL DEFAULT 'trial_available',
+        monthly_allowance INTEGER NOT NULL DEFAULT 25,
+        monthly_usage INTEGER NOT NULL DEFAULT 0,
+        monthly_reset_date TIMESTAMPTZ,
+        trial_used_at TIMESTAMPTZ,
+        complimentary BOOLEAN NOT NULL DEFAULT FALSE,
+        complimentary_reason TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS lsc_analyses (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        portal_token TEXT,
+        user_role TEXT NOT NULL DEFAULT 'parent',
+        language TEXT NOT NULL DEFAULT 'english',
+        lesson_content TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'completed',
+        slp_snapshot JSONB,
+        demand_profile JSONB,
+        guide JSONB,
+        output_versions JSONB NOT NULL DEFAULT '{}',
+        follow_up_messages JSONB NOT NULL DEFAULT '[]',
+        review_status TEXT NOT NULL DEFAULT 'ai_generated',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    logger.info("LSC tables ready");
+  } catch (err) {
+    logger.error({ err }, "createLscTables failed");
+  }
+}
+
 async function backfillBobbyAiCaseIds() {
   try {
     // Extract Case ID from bobby_ai_portal_credentials for any case where bobby_ai_case_id is null.
@@ -3229,6 +3290,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createRamriTables())
   .then(() => createInterviewRecordingsTable())
   .then(() => backfillBobbyAiCaseIds())
+  .then(() => createLscTables())
   .then(() => {
   const server = app.listen(port, (err) => {
     if (err) {

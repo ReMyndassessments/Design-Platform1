@@ -1070,4 +1070,310 @@ router.post("/ramri-upload/:token/documents", async (req, res) => {
   }
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LEARNING SUPPORT COACH™ ───────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function getLscSub(caseId: string): Promise<Record<string, unknown>> {
+  const r = await db.execute(sql`SELECT * FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
+  if (r.rows.length > 0) return r.rows[0] as Record<string, unknown>;
+  const newId = randomUUID();
+  await db.execute(sql`
+    INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage)
+    VALUES (${newId}, ${caseId}, 'trial_available', 25, 0)
+    ON CONFLICT (case_id) DO NOTHING
+  `);
+  const fresh = await db.execute(sql`SELECT * FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
+  return (fresh.rows[0] ?? { id: newId, case_id: caseId, subscription_status: "trial_available", monthly_allowance: 25, monthly_usage: 0 }) as Record<string, unknown>;
+}
+
+async function runLscAnalysis(
+  caseRow: Record<string, unknown>,
+  lessonContent: string,
+  role: string,
+  language: string,
+): Promise<{ slp: Record<string, string>; guide: Record<string, unknown>; demandProfile: Record<string, string> }> {
+  const intake = (caseRow["intakeAnalysis"] ?? {}) as Record<string, unknown>;
+  const domains = Array.isArray(intake["recommendedDomains"]) ? (intake["recommendedDomains"] as string[]).join(", ") : "";
+  const flags = Array.isArray(intake["flags"]) ? (intake["flags"] as string[]).join("; ") : "None";
+  const summary = (intake["summary"] as string | undefined) ?? "Comprehensive psychoeducational assessment completed.";
+
+  const slp: Record<string, string> = {
+    studentName: (caseRow["studentName"] as string | undefined) ?? "Student",
+    grade: (caseRow["grade"] as string | undefined) ?? "Not specified",
+    school: (caseRow["school"] as string | undefined) ?? "Not specified",
+    referralReason: (caseRow["referralReason"] as string | undefined) ?? "Not specified",
+    keyDomains: domains || "Not specified",
+    clinicalSummary: summary,
+    flags,
+  };
+
+  const roleContext: Record<string, string> = {
+    parent: "a parent supporting their child at home",
+    teacher: "a classroom teacher providing in-class support",
+    tutor: "a private tutor working one-on-one with the student",
+    student: "a student support specialist",
+  };
+  const roleStr = roleContext[role] ?? "a parent supporting their child at home";
+  const langLabel = language === "mandarin" ? "Simplified Chinese (Mandarin)" : language === "korean" ? "Korean" : "English";
+
+  const systemPrompt = `You are the ReMynd Learning Support Coach™ — an assessment-based educational decision support engine for ${roleStr}.
+
+STUDENT LEARNING PROFILE:
+- Name: ${slp["studentName"]}
+- Grade: ${slp["grade"]}
+- School: ${slp["school"]}
+- Referral Reason: ${slp["referralReason"]}
+- Key Areas of Need: ${slp["keyDomains"]}
+- Clinical Summary: ${slp["clinicalSummary"]}
+- Notable Flags: ${slp["flags"]}
+
+MANDATORY PRINCIPLES:
+1. STRENGTH-FIRST: Open the strengths section with what this student CAN do
+2. ASSESSMENT-GROUNDED: Every recommendation must reference the student profile above
+3. ROLE-SPECIFIC: Strategies must be practical for ${roleStr}
+4. SAFE: Never diagnose, never replace professional judgment, never contradict approved findings
+5. SPECIFIC: No generic advice — tie everything to this student and this task
+
+Analyze the submitted lesson/homework content. Return ONLY a valid JSON object — no markdown, no text outside the JSON:
+
+{
+  "demandProfile": {
+    "overview": "1-2 sentences on this lesson's main cognitive demands",
+    "reading": "low|medium|high — brief note",
+    "writing": "low|medium|high — brief note",
+    "mathematics": "low|medium|high — brief note",
+    "executiveFunction": "low|medium|high — brief note",
+    "memory": "low|medium|high — brief note",
+    "attention": "low|medium|high — brief note"
+  },
+  "strengths": "What ${slp["studentName"]} can bring to this task. Use bullet points starting with •, one per line.",
+  "overview": "2-3 sentences connecting this task to ${slp["studentName"]}'s learning profile.",
+  "challenges": "3-5 specific barriers for ${slp["studentName"]} referencing the profile. Use bullet points starting with •.",
+  "strategies": "4-6 practical, task-specific strategies for ${roleStr}. Use bullet points starting with •.",
+  "stepByStep": "5-8 numbered steps for working through this task. One step per line.",
+  "language": "Phrases to USE and AVOID. Format as 'USE: [phrase]' or 'AVOID: [phrase]'. 3-4 of each, one per line.",
+  "observationPoints": "3-4 progress indicators to watch during or after this task. Use bullet points starting with •.",
+  "safetyNote": "A brief warm reminder that all recommendations must be reviewed by an authorized adult before use."
+}
+
+Write ALL content in ${langLabel}.`;
+
+  const raw = await callDeepSeekChat(systemPrompt, [{ role: "user", content: `Lesson/assignment content:\n\n${lessonContent.slice(0, 5000)}` }], 3500);
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("No valid JSON in AI response");
+  const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+  const required = ["demandProfile", "strengths", "overview", "challenges", "strategies", "stepByStep"];
+  for (const k of required) { if (!parsed[k]) throw new Error(`Missing field: ${k}`); }
+  return { slp, guide: parsed, demandProfile: parsed["demandProfile"] as Record<string, string> };
+}
+
+async function generateLscRoleVersion(
+  slp: Record<string, string>,
+  guide: Record<string, unknown>,
+  newRole: string,
+  language: string,
+): Promise<Record<string, unknown>> {
+  const roleContext: Record<string, string> = {
+    parent: "a parent supporting their child at home",
+    teacher: "a classroom teacher providing in-class support",
+    tutor: "a private tutor working one-on-one with the student",
+    student: "a student support specialist",
+  };
+  const roleStr = roleContext[newRole] ?? "a parent supporting their child at home";
+  const langLabel = language === "mandarin" ? "Simplified Chinese (Mandarin)" : language === "korean" ? "Korean" : "English";
+  const systemPrompt = `You are the ReMynd Learning Support Coach™.
+Rewrite the "strategies", "stepByStep", and "language" fields of this support guide specifically for ${roleStr}.
+Keep ALL other fields (demandProfile, strengths, overview, challenges, observationPoints, safetyNote) EXACTLY the same.
+Return the COMPLETE JSON object with all fields. Write ALL content in ${langLabel}.`;
+
+  const raw = await callDeepSeekChat(systemPrompt, [{
+    role: "user",
+    content: `Student: ${slp["studentName"]} (Grade ${slp["grade"]}), Key needs: ${slp["keyDomains"]}\n\nOriginal guide:\n${JSON.stringify(guide)}`,
+  }], 2500);
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("No JSON in role version");
+  return JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+}
+
+async function runLscFollowUp(
+  slp: Record<string, string>,
+  guide: Record<string, unknown>,
+  history: Array<{ role: string; content: string }>,
+  question: string,
+  language: string,
+): Promise<string> {
+  const langLabel = language === "mandarin" ? "Simplified Chinese (Mandarin)" : language === "korean" ? "Korean" : "English";
+  const systemPrompt = `You are the ReMynd Learning Support Coach™ answering a follow-up question about a specific support guide.
+Student: ${slp["studentName"]} (Grade ${slp["grade"]}), Key needs: ${slp["keyDomains"]}
+Answer helpfully, warmly, and specifically. Do not regenerate the full guide. Respond in ${langLabel}.`;
+  const messages = [
+    { role: "user" as const, content: `Guide overview: ${guide["overview"]}\nGuide strategies: ${guide["strategies"]}` },
+    { role: "assistant" as const, content: "Understood. I'll answer follow-up questions about this support guide." },
+    ...history.map(h => ({ role: h.role as "user" | "assistant", content: h.content })),
+    { role: "user" as const, content: question },
+  ];
+  return callDeepSeekChat(systemPrompt, messages, 800);
+}
+
+// GET /external/portal/:token/lsc/status
+router.get("/external/portal/:token/lsc/status", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const [settingsRow] = (await db.execute(sql`SELECT * FROM lsc_settings LIMIT 1`)).rows;
+    const s = (settingsRow ?? {}) as Record<string, unknown>;
+    const sub = await getLscSub(info.caseId);
+    return res.json({
+      productName: s["product_name"] ?? "ReMynd Learning Support Coach",
+      productSubtitle: s["product_subtitle"] ?? "Assessment-Based Educational Decision Support",
+      subscriptionStatus: sub["subscription_status"] ?? "trial_available",
+      monthlyPrice: s["monthly_price_rmb"] ?? 388,
+      annualPrice: s["annual_price_rmb"] ?? 3880,
+      monthlyLimit: s["monthly_analysis_limit"] ?? 25,
+      trialLimit: s["trial_analysis_limit"] ?? 1,
+      monthlyUsage: sub["monthly_usage"] ?? 0,
+      monthlyAllowance: sub["monthly_allowance"] ?? 25,
+    });
+  } catch (err) {
+    console.error("[LSC] status:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+// POST /external/portal/:token/lsc/analyze
+router.post("/external/portal/:token/lsc/analyze", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
+    if (!caseRow) return res.status(404).json({ error: "not_found" });
+
+    const { content, role = "parent", language = "english", acknowledged } = req.body as {
+      content?: string; role?: string; language?: string; acknowledged?: boolean;
+    };
+    if (!content?.trim()) return res.status(400).json({ error: "content_required" });
+    if (!acknowledged) return res.status(400).json({ error: "acknowledgement_required" });
+
+    const sub = await getLscSub(info.caseId);
+    const status = sub["subscription_status"] as string;
+    const ACTIVE = ["active_monthly", "active_annual", "complimentary", "administrator_override"];
+    const TRIAL = ["trial_available", "trial_active"];
+
+    if (!TRIAL.includes(status) && !ACTIVE.includes(status)) {
+      return res.status(402).json({ error: "subscription_required", subscriptionStatus: status });
+    }
+    if (ACTIVE.includes(status)) {
+      const [s] = (await db.execute(sql`SELECT monthly_analysis_limit FROM lsc_settings LIMIT 1`)).rows;
+      const limit = ((s as Record<string, unknown> | undefined)?.["monthly_analysis_limit"] as number | undefined) ?? 25;
+      if (((sub["monthly_usage"] as number | undefined) ?? 0) >= limit) {
+        return res.status(402).json({ error: "monthly_limit_reached" });
+      }
+    }
+
+    if (TRIAL.includes(status)) {
+      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_active', trial_used_at=NOW(), updated_at=NOW() WHERE case_id=${info.caseId}`);
+    }
+
+    let result: { slp: Record<string, string>; guide: Record<string, unknown>; demandProfile: Record<string, string> };
+    try {
+      result = await runLscAnalysis(caseRow as unknown as Record<string, unknown>, content.trim(), role, language);
+    } catch (aiErr) {
+      if (TRIAL.includes(status)) {
+        await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_available', trial_used_at=NULL, updated_at=NOW() WHERE case_id=${info.caseId}`);
+      }
+      console.error("[LSC] AI failed:", aiErr);
+      return res.status(500).json({ error: "ai_failed" });
+    }
+
+    const analysisId = randomUUID();
+    await db.execute(sql`
+      INSERT INTO lsc_analyses (id, case_id, portal_token, user_role, language, lesson_content, status, slp_snapshot, demand_profile, guide, output_versions, follow_up_messages)
+      VALUES (${analysisId}, ${info.caseId}, ${req.params.token}, ${role}, ${language}, ${content.trim().slice(0, 5000)}, 'completed',
+        ${JSON.stringify(result.slp)}, ${JSON.stringify(result.demandProfile)}, ${JSON.stringify(result.guide)}, '{}', '[]')
+    `);
+    if (TRIAL.includes(status)) {
+      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_used', monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
+    } else {
+      await db.execute(sql`UPDATE lsc_subscriptions SET monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
+    }
+    return res.json({ analysisId, guide: result.guide, demandProfile: result.demandProfile, slp: result.slp });
+  } catch (err) {
+    console.error("[LSC] analyze:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+// GET /external/portal/:token/lsc/analyses
+router.get("/external/portal/:token/lsc/analyses", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const rows = await db.execute(sql`
+      SELECT id, user_role, language, lesson_content, status, demand_profile, guide, output_versions, follow_up_messages, created_at
+      FROM lsc_analyses WHERE case_id=${info.caseId} ORDER BY created_at DESC LIMIT 20
+    `);
+    return res.json({ analyses: rows.rows });
+  } catch (err) {
+    console.error("[LSC] analyses:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+// POST /external/portal/:token/lsc/analyses/:id/followup
+router.post("/external/portal/:token/lsc/analyses/:id/followup", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const [aRow] = (await db.execute(sql`SELECT * FROM lsc_analyses WHERE id=${req.params.id} AND case_id=${info.caseId} LIMIT 1`)).rows;
+    if (!aRow) return res.status(404).json({ error: "not_found" });
+    const a = aRow as Record<string, unknown>;
+    const { question, language = "english" } = req.body as { question?: string; language?: string };
+    if (!question?.trim()) return res.status(400).json({ error: "question_required" });
+    const history = Array.isArray(a["follow_up_messages"]) ? a["follow_up_messages"] as Array<{ role: string; content: string }> : [];
+    const reply = await runLscFollowUp(
+      (a["slp_snapshot"] ?? {}) as Record<string, string>,
+      (a["guide"] ?? {}) as Record<string, unknown>,
+      history, question.trim(), language,
+    );
+    const newHistory = [...history, { role: "user", content: question.trim() }, { role: "assistant", content: reply }];
+    await db.execute(sql`UPDATE lsc_analyses SET follow_up_messages=${JSON.stringify(newHistory)}, updated_at=NOW() WHERE id=${req.params.id}`);
+    return res.json({ reply });
+  } catch (err) {
+    console.error("[LSC] followup:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+// POST /external/portal/:token/lsc/analyses/:id/version
+router.post("/external/portal/:token/lsc/analyses/:id/version", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const [aRow] = (await db.execute(sql`SELECT * FROM lsc_analyses WHERE id=${req.params.id} AND case_id=${info.caseId} LIMIT 1`)).rows;
+    if (!aRow) return res.status(404).json({ error: "not_found" });
+    const a = aRow as Record<string, unknown>;
+    const { role, language = "english" } = req.body as { role?: string; language?: string };
+    if (!role) return res.status(400).json({ error: "role_required" });
+    const versions = (a["output_versions"] ?? {}) as Record<string, unknown>;
+    if (versions[role]) return res.json({ guide: versions[role], cached: true });
+    const newGuide = await generateLscRoleVersion(
+      (a["slp_snapshot"] ?? {}) as Record<string, string>,
+      (a["guide"] ?? {}) as Record<string, unknown>,
+      role, language,
+    );
+    const updatedVersions = { ...versions, [role]: newGuide };
+    await db.execute(sql`UPDATE lsc_analyses SET output_versions=${JSON.stringify(updatedVersions)}, updated_at=NOW() WHERE id=${req.params.id}`);
+    return res.json({ guide: newGuide });
+  } catch (err) {
+    console.error("[LSC] version:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
 export default router;

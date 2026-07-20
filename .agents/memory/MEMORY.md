@@ -4,4 +4,5 @@
 - [RAOS apprentice case access model](raos-apprentice-case-access.md) — apprentices need explicit assignment for ANY case (live or test); no blanket live-case access — confirm before changing.
 - [Broad guards must fail open](express-guard-blocks-public-routes.md) — role guards mounted via router.use(guard, subrouter) run for every request in the stack; hard-failing on no-auth blocks unrelated public routes mounted later.
 - [AI provider rules](ai-provider-rules.md) — Groq approved only for RAMRI+RMRA text calls; vision→Gemini (Replit integration); ALWAYS ask before adding new Groq usage; never use OpenRouter without permission.
+- [LSC subscription states](lsc-subscription-states.md) — trial_available→trial_active (during AI)→trial_used; active: active_monthly/annual/complimentary/administrator_override; follow-up + role versions always free.
 - [api-server esbuild externals](api-server-esbuild-externals.md) — `@google/genai` must be bundled (not external); use `@google-cloud/*` not `@google/*` in the external list.
