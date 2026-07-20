@@ -152,6 +152,16 @@ export default function RamriUploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const prev = document.body.style.overflowX;
+    document.body.style.overflowX = "hidden";
+    document.documentElement.style.overflowX = "hidden";
+    return () => {
+      document.body.style.overflowX = prev;
+      document.documentElement.style.overflowX = "";
+    };
+  }, []);
+
+  useEffect(() => {
     fetch(`${BASE_URL}/api/ramri-upload/${token}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then((d: SessionInfo) => { setInfo(d); setLoading(false); })
