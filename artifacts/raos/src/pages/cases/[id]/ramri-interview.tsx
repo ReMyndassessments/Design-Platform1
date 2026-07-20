@@ -291,6 +291,7 @@ export default function RamriInterviewPage() {
   const [invigilatorId, setInvigilatorId] = useState<string | null>(null);
   const [invigilatorName, setInvigilatorName] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
+  const [qrIncludeName, setQrIncludeName] = useState(true);
   const qrDownloadRef = useRef<HTMLCanvasElement>(null);
 
   // Contributor-upload notification & gating
@@ -1326,18 +1327,29 @@ export default function RamriInterviewPage() {
                         Screenshot and share this QR code image (e.g. via WeChat or WhatsApp).
                         Ask contributors to <strong>scan it with their phone camera</strong> — this opens the page directly in Safari or Chrome, bypassing in-app browsers.
                       </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-2 text-xs gap-1.5 h-7"
-                        onClick={() => downloadQrCard(
-                          `${window.location.origin}/ramri-upload/${assignmentToken}`,
-                          studentName,
-                          qrDownloadRef
-                        )}
-                      >
-                        <Download size={12} /> Download QR card
-                      </Button>
+                      <div className="mt-2 flex items-center gap-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs gap-1.5 h-7"
+                          onClick={() => downloadQrCard(
+                            `${window.location.origin}/ramri-upload/${assignmentToken}`,
+                            qrIncludeName ? studentName : null,
+                            qrDownloadRef
+                          )}
+                        >
+                          <Download size={12} /> Download QR card
+                        </Button>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={qrIncludeName}
+                            onChange={e => setQrIncludeName(e.target.checked)}
+                            className="rounded"
+                          />
+                          Include student name
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}
