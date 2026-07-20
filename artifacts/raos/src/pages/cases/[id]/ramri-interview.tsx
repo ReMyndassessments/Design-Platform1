@@ -662,6 +662,166 @@ export default function RamriInterviewPage() {
     setTimeout(() => win.print(), 400);
   };
 
+  const printExaminerSheets = () => {
+    const date = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+    const letters = ["A", "B", "C", "D", "E", "F"];
+
+    const QUESTION_PROMPTS = [
+      { type: "Universal — Opening", q: "Can you tell me about this work? Walk me through what you did.", lines: 5 },
+      { type: "Conceptual — Understanding", q: "What does [the key idea in this problem] mean to you? How did you know what kind of problem this was?", lines: 5 },
+      { type: "Strategy — Method", q: "How did you decide what to do first? Why did you choose that approach?", lines: 5 },
+      { type: "Verification — Checking", q: "How would you know if your answer is right? How could you check?", lines: 4 },
+      { type: "Error Awareness — Reflection", q: "Is there anything you would do differently? Is there anything that doesn't look quite right to you?", lines: 4 },
+      { type: "Metacognition — Thinking", q: "What felt easy about this? What felt hard? What were you thinking when you got to [a key step]?", lines: 4 },
+      { type: "Transfer — Extension (optional)", q: "What if [vary a number or condition]? Would your method still work?", lines: 3 },
+    ];
+
+    const obsRow = (label: string) =>
+      `<tr><td class="obs-label">${label}</td>${[0,1,2,3,4].map(n => `<td class="obs-cell"><div class="obs-circle">${n}</div></td>`).join("")}</tr>`;
+
+    let sheetsHtml = "";
+    choiceSets
+      .filter(cs => cs.items.length > 0)
+      .sort((a, b) => a.display_order - b.display_order)
+      .forEach((cs, si) => {
+        cs.items
+          .sort((a, b) => a.display_order - b.display_order)
+          .forEach((item, ii) => {
+            const s = samples.find(x => x.id === item.work_sample_id);
+            if (!s) return;
+            const optionLabel = `Set ${si + 1} · Option ${letters[ii] ?? String(ii + 1)}`;
+            const hypothesis = buildHypothesis(s);
+            const isLast = si === choiceSets.filter(c => c.items.length > 0).length - 1 &&
+                           ii === cs.items.length - 1;
+
+            const questionsHtml = QUESTION_PROMPTS.map(qp => `
+              <div class="q-block">
+                <div class="q-type">${qp.type}</div>
+                <div class="q-text">${qp.q}</div>
+                <div class="q-lines">${Array(qp.lines).fill('<div class="q-line"></div>').join("")}</div>
+              </div>`).join("");
+
+            sheetsHtml += `
+              <div class="sheet${isLast ? "" : " page-break"}">
+                <div class="sheet-header">
+                  <div class="sheet-title-row">
+                    <span class="sheet-title">RAMRI — Examiner Interview Sheet</span>
+                    <span class="option-badge">${optionLabel}</span>
+                  </div>
+                  <div class="sheet-meta">
+                    <span>Student: <span class="blank w180"></span></span>
+                    <span>Date: ${date}</span>
+                    <span>Examiner: <span class="blank w140"></span></span>
+                  </div>
+                </div>
+
+                <div class="set-strip">${cs.title || "Choice Set " + (si + 1)}</div>
+
+                <div class="problem-box">
+                  <div class="section-label">Work Sample</div>
+                  <div class="problem-text">${s.extracted_problem ?? "(no problem text)"}</div>
+                  ${s.student_answer ? `<div class="answer-row"><strong>Student's answer:</strong> ${s.student_answer}</div>` : ""}
+                  <div class="meta-row">
+                    ${s.domain ? `<span class="meta-pill">Domain: ${s.domain}</span>` : ""}
+                    ${s.math_topic && s.math_topic !== s.domain ? `<span class="meta-pill">${s.math_topic}</span>` : ""}
+                    ${s.estimated_grade ? `<span class="meta-pill">Year: ${s.estimated_grade}</span>` : ""}
+                    ${s.independence_reported && s.independence_reported !== "unknown" ? `<span class="meta-pill">Independence: ${s.independence_reported}</span>` : ""}
+                  </div>
+                </div>
+
+                <div class="hypothesis-box">
+                  <span class="hyp-label">Clinical Focus ·</span> ${hypothesis}
+                </div>
+
+                <div class="section-label mt12">Interview Questions &amp; Notes</div>
+                ${questionsHtml}
+
+                <div class="obs-section">
+                  <div class="section-label">Behavioural Observations</div>
+                  <table class="obs-table">
+                    <thead>
+                      <tr>
+                        <th class="obs-head-label"></th>
+                        ${[0,1,2,3,4].map(n => `<th class="obs-head">${n}</th>`).join("")}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${obsRow("Anxiety")}
+                      ${obsRow("Confidence")}
+                      ${obsRow("Engagement")}
+                    </tbody>
+                  </table>
+                  <div class="obs-scale">0 = Not present &nbsp;·&nbsp; 1 = Mild &nbsp;·&nbsp; 2 = Moderate &nbsp;·&nbsp; 3 = Marked &nbsp;·&nbsp; 4 = Severe</div>
+                </div>
+
+                <div class="extra-notes">
+                  <div class="section-label">Additional Notes</div>
+                  ${Array(4).fill('<div class="q-line"></div>').join("")}
+                </div>
+              </div>`;
+          });
+      });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>RAMRI Examiner Interview Sheets</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:Georgia,serif;font-size:11.5pt;color:#111;background:#fff;padding:16mm 18mm;}
+    .sheet{margin-bottom:0;}
+    .page-break{page-break-after:always;margin-bottom:0;}
+    .sheet-header{border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:12px;}
+    .sheet-title-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+    .sheet-title{font-size:13.5pt;font-weight:bold;letter-spacing:0.01em;}
+    .option-badge{font-size:9.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.1em;color:#555;border:1px solid #999;border-radius:4px;padding:2px 8px;}
+    .sheet-meta{font-size:9.5pt;color:#555;display:flex;gap:28px;}
+    .blank{display:inline-block;border-bottom:1px solid #555;height:13px;vertical-align:bottom;}
+    .w180{min-width:180px;}.w140{min-width:140px;}
+    .set-strip{font-size:10pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.08em;color:#666;background:#f4f4f4;border:1px solid #ddd;border-radius:4px;padding:4px 10px;margin-bottom:10px;}
+    .problem-box{border:1.5px solid #333;border-radius:6px;padding:12px 14px;margin-bottom:10px;}
+    .section-label{font-size:8.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.1em;color:#777;margin-bottom:5px;}
+    .mt12{margin-top:12px;}
+    .problem-text{font-size:13pt;line-height:1.55;margin-bottom:6px;}
+    .answer-row{font-size:10pt;color:#444;margin-bottom:6px;}
+    .meta-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+    .meta-pill{font-size:8.5pt;background:#eee;border:1px solid #ddd;border-radius:3px;padding:1px 7px;color:#555;}
+    .hypothesis-box{background:#fffbeb;border:1px solid #e5c84a;border-radius:5px;padding:8px 12px;font-size:10pt;line-height:1.5;margin-bottom:12px;color:#3a2e00;}
+    .hyp-label{font-weight:bold;font-size:9pt;text-transform:uppercase;letter-spacing:0.06em;}
+    .q-block{margin-bottom:10px;}
+    .q-type{font-size:8.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.08em;color:#555;margin-bottom:2px;}
+    .q-text{font-size:10.5pt;font-style:italic;color:#222;margin-bottom:5px;line-height:1.45;}
+    .q-line{border-bottom:1px solid #ccc;height:20px;margin-bottom:2px;}
+    .obs-section{margin-top:12px;margin-bottom:10px;}
+    .obs-table{width:100%;border-collapse:collapse;margin-top:6px;margin-bottom:4px;}
+    .obs-head-label{width:100px;}
+    .obs-head{font-size:10pt;font-weight:bold;text-align:center;padding:3px 0;width:60px;}
+    .obs-label{font-size:10.5pt;padding:4px 0;}
+    .obs-cell{text-align:center;padding:4px 0;}
+    .obs-circle{display:inline-block;width:22px;height:22px;border:1.5px solid #555;border-radius:50%;line-height:22px;text-align:center;font-size:9pt;color:#555;}
+    .obs-scale{font-size:8.5pt;color:#888;margin-top:3px;}
+    .extra-notes{margin-top:10px;}
+    @media print{
+      body{padding:12mm 15mm;}
+      .page-break{page-break-after:always;}
+      .sheet{page-break-inside:avoid;}
+    }
+  </style>
+</head>
+<body>
+  ${sheetsHtml || "<p>No choice sets with samples yet.</p>"}
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) { alert("Pop-up blocked — please allow pop-ups for this page."); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  };
+
   const generateChoiceSets = async () => {
     if (!sessionId) return;
     setGeneratingChoiceSets(true);
@@ -1595,6 +1755,9 @@ export default function RamriInterviewPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <Button variant="outline" className="gap-2 text-slate-700 border-slate-300" onClick={printStudentSheet}>
                   <Printer size={14} /> Print Student Sheet
+                </Button>
+                <Button variant="outline" className="gap-2 text-violet-700 border-violet-300" onClick={printExaminerSheets}>
+                  <Printer size={14} /> Print Examiner Sheets
                 </Button>
                 <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("interview")}>
                   Start Interview <ChevronRight size={14} className="ml-1" />
