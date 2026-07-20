@@ -5,17 +5,24 @@ import {
   LogOut, Clock, Trash2, Play, Pause, Mic2,
 } from "lucide-react";
 
-type ConversationType = "parent_intake" | "teacher_consultation" | "student_interview" | "classroom_observation" | "report_debrief";
+type ConversationType = "parent_intake" | "teacher_consultation" | "tutor_consultation" | "student_interview" | "classroom_observation" | "report_debrief";
 
 const TYPE_LABELS: Record<ConversationType, string> = {
-  parent_intake: "Parent Intake",
-  teacher_consultation: "Teacher Consultation",
-  student_interview: "Student Interview",
+  parent_intake: "Parent / Guardian",
+  teacher_consultation: "Teacher / Educator",
+  tutor_consultation: "Tutor / Learning Support",
+  student_interview: "Student",
   classroom_observation: "Classroom Observation",
   report_debrief: "Report Debrief",
 };
 
-const AVAILABLE_TYPES: ConversationType[] = ["student_interview", "classroom_observation", "parent_intake", "teacher_consultation"];
+const AVAILABLE_TYPES: ConversationType[] = [
+  "parent_intake",
+  "teacher_consultation",
+  "tutor_consultation",
+  "student_interview",
+  "classroom_observation",
+];
 
 type NoteSection = { key: string; label: string; content: string };
 type StructuredNotes = { conversationType: ConversationType; sections: NoteSection[]; rawTranscript: string; processedAt: string };
@@ -105,7 +112,7 @@ export default function Home({ token, onSignOut }: HomeProps) {
   const [selectedCaseId, setSelectedCaseId] = useState<string>("");
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loadingRecordings, setLoadingRecordings] = useState(false);
-  const [selectedType, setSelectedType] = useState<ConversationType>("student_interview");
+  const [selectedType, setSelectedType] = useState<ConversationType>("parent_intake");
   const [processingStep, setProcessingStep] = useState<ProcessingStep | null>(null);
   const [result, setResult] = useState<{ id: string; structuredNotes: StructuredNotes; transcript: string } | null>(null);
   const [editedSections, setEditedSections] = useState<NoteSection[] | null>(null);
@@ -293,22 +300,21 @@ export default function Home({ token, onSignOut }: HomeProps) {
             <div className="bg-card border border-card-border rounded-2xl p-4 space-y-4 shadow-sm">
               {/* Session type */}
               {!result && !isProcessing && (
-                <div className="space-y-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Session type</p>
-                  <div className="flex flex-wrap gap-2">
-                    {AVAILABLE_TYPES.map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setSelectedType(t)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                          selectedType === t
-                            ? "bg-primary text-white border-primary"
-                            : "bg-background text-muted-foreground border-input hover:border-primary hover:text-primary"
-                        }`}
-                      >
-                        {TYPE_LABELS[t]}
-                      </button>
-                    ))}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Who are you interviewing?
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedType}
+                      onChange={e => setSelectedType(e.target.value as ConversationType)}
+                      className="w-full appearance-none rounded-xl border border-input bg-background px-3 py-2.5 pr-8 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {AVAILABLE_TYPES.map(t => (
+                        <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   </div>
                 </div>
               )}

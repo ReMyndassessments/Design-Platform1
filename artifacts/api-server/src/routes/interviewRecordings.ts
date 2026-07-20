@@ -17,12 +17,19 @@ const DEBRIEF_ROLES = ["admin", "school_clinical_coordinator", "psychometrician"
 const VALID_TYPES: ConversationType[] = [
   "parent_intake",
   "teacher_consultation",
+  "tutor_consultation",
   "student_interview",
   "classroom_observation",
   "report_debrief",
 ];
 
-const INVIGILATOR_TYPES: ConversationType[] = ["student_interview", "classroom_observation"];
+const INVIGILATOR_TYPES: ConversationType[] = [
+  "parent_intake",
+  "teacher_consultation",
+  "tutor_consultation",
+  "student_interview",
+  "classroom_observation",
+];
 
 /** True when the role may access debrief-type recordings. */
 function canAccessDebrief(role: string): boolean {

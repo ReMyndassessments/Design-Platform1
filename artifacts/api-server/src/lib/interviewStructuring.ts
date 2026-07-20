@@ -3,6 +3,7 @@ import { callDeepSeek } from "./ai.js";
 export type ConversationType =
   | "parent_intake"
   | "teacher_consultation"
+  | "tutor_consultation"
   | "student_interview"
   | "classroom_observation"
   | "report_debrief";
@@ -24,6 +25,15 @@ const INTERVIEW_SECTION_DEFS: Record<
   Exclude<ConversationType, "report_debrief">,
   { key: string; label: string }[]
 > = {
+  tutor_consultation: [
+    { key: "tutoring_focus", label: "Areas Worked On in Tutoring" },
+    { key: "response_to_instruction", label: "Response to Instruction & Progress" },
+    { key: "strategies_observed", label: "Strategies & Compensations Observed" },
+    { key: "emotional_behavioural", label: "Emotional & Behavioural Observations" },
+    { key: "home_context", label: "Parent-Reported Context at Home" },
+    { key: "notable_quotes", label: "Notable Quotes" },
+    { key: "agreed_next_steps", label: "Agreed Next Steps" },
+  ],
   parent_intake: [
     { key: "presenting_concern", label: "Presenting Concern" },
     { key: "developmental_medical", label: "Developmental & Medical History" },
@@ -82,6 +92,7 @@ function buildPrompt(
   const contextLabel: Record<ConversationType, string> = {
     parent_intake: "a parent/guardian intake interview",
     teacher_consultation: "a teacher consultation",
+    tutor_consultation: "a tutoring professional consultation",
     student_interview: "a student clinical interview",
     classroom_observation: "a classroom behavioural observation",
     report_debrief: "a psychoeducational assessment report debrief meeting",
@@ -101,6 +112,14 @@ function buildPrompt(
 - parent_priorities: What the parent most wants to understand or achieve from the assessment. Specific questions they want answered. Their hopes and concerns for the child.
 - notable_quotes: Exact words the parent used that are clinically striking, emotionally significant, or diagnostic — quote verbatim in "quotation marks".
 - agreed_next_steps: Any commitments, referrals, or next actions agreed during this conversation.`,
+    tutor_consultation: `Focus on:
+- tutoring_focus: What subjects or skills the tutor has been working on with the student. Duration of tutoring relationship. Specific goals set.
+- response_to_instruction: How the student responds during sessions — effort, engagement, pace of progress, what approaches work vs. don't work.
+- strategies_observed: Any compensatory strategies, avoidance behaviours, or workarounds the student uses independently.
+- emotional_behavioural: Emotional state during tutoring — frustration tolerance, anxiety, confidence, motivation, perfectionism, task avoidance.
+- home_context: Anything the tutor knows about home support, parent follow-through, homework completion, or parent observations shared with the tutor.
+- notable_quotes: Verbatim things the student or tutor said that are clinically striking — quote in "quotation marks".
+- agreed_next_steps: Any referrals, strategies to try, or commitments made in this conversation.`,
     teacher_consultation: `Focus on academic performance, classroom behaviour, peer dynamics, learning supports already in place, and teacher hypotheses about underlying causes.`,
     student_interview: `Focus on the student's own words, self-awareness, emotional state, how they describe their difficulties, and their insight into their own learning or social experience.`,
     classroom_observation: `Focus on objective behavioural observations, on-task vs off-task behaviour, peer and teacher interactions, triggers, and how the student responds to instruction and transitions.`,
