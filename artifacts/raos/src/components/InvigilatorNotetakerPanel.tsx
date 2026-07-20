@@ -170,7 +170,7 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
             <Loader2 size={13} className="animate-spin" /> Loading your active cases…
           </div>
         ) : activeCases.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-2">No active cases in assessment phase.</p>
+          <p className="text-xs text-slate-400 text-center py-2">No active cases assigned to you.</p>
         ) : (
           <div className="space-y-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recording for</p>
