@@ -64,6 +64,15 @@ const T = {
   noFileSel:         { english: "Please upload a photo or document first.",
                        mandarin: "请先上传照片或文档。",
                        korean:   "먼저 사진 또는 문서를 업로드해 주세요." },
+  reqIndependence:   { english: "Please select whether this work was completed independently.",
+                       mandarin: "请选择该作业是否独立完成。",
+                       korean:   "이 과제가 독립적으로 완성되었는지 선택해 주세요." },
+  reqTeacherMarked:  { english: "Please select whether the teacher marked or corrected this work.",
+                       mandarin: "请选择教师是否批改了该作业。",
+                       korean:   "교사가 이 과제를 채점/수정했는지 선택해 주세요." },
+  selectPlaceholder: { english: "— please select —",
+                       mandarin: "— 请选择 —",
+                       korean:   "— 선택해 주세요 —" },
   uploadFail:        { english: "File upload failed. Please try again.",
                        mandarin: "文件上传失败，请重试。",
                        korean:   "파일 업로드에 실패했습니다. 다시 시도해 주세요." },
@@ -111,8 +120,8 @@ const DEFAULT_META: Meta = {
   sourceType: "teacher",
   mathTopic: "",
   gradeLevel: "",
-  independenceReported: "unknown",
-  teacherMarked: "unknown",
+  independenceReported: "",
+  teacherMarked: "",
   teacherComments: "",
   contributorNotes: "",
 };
@@ -160,6 +169,7 @@ export default function RamriUploadPage() {
   const [notFound, setNotFound] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const isInApp = detectInAppBrowser();
+  const [fieldErrors, setFieldErrors] = useState<{ independenceReported?: boolean; teacherMarked?: boolean }>({});
   const [meta, setMeta] = useState<Meta>(DEFAULT_META);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -243,6 +253,12 @@ export default function RamriUploadPage() {
       setError(t("noFileSel", lang) as string);
       return;
     }
+    const errors = {
+      independenceReported: !meta.independenceReported,
+      teacherMarked: !meta.teacherMarked,
+    };
+    setFieldErrors(errors);
+    if (errors.independenceReported || errors.teacherMarked) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -442,23 +458,55 @@ export default function RamriUploadPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-base font-medium text-slate-700">{t("independence", lang) as string}</label>
-              <select className={selectCls} value={meta.independenceReported} onChange={e => setMeta(p => ({ ...p, independenceReported: e.target.value }))}>
+              <label className="text-base font-medium text-slate-700">
+                {t("independence", lang) as string}
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <select
+                className={`${selectCls} ${fieldErrors.independenceReported ? "border-red-400 ring-2 ring-red-200" : ""}`}
+                value={meta.independenceReported}
+                onChange={e => {
+                  setMeta(p => ({ ...p, independenceReported: e.target.value }));
+                  if (e.target.value) setFieldErrors(p => ({ ...p, independenceReported: false }));
+                }}
+              >
+                <option value="" disabled>{t("selectPlaceholder", lang) as string}</option>
                 <option value="yes">{t("indYes", lang) as string}</option>
                 <option value="partially">{t("indPartially", lang) as string}</option>
                 <option value="no">{t("indNo", lang) as string}</option>
                 <option value="unknown">{t("indUnknown", lang) as string}</option>
               </select>
+              {fieldErrors.independenceReported && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠</span> {t("reqIndependence", lang) as string}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-base font-medium text-slate-700">{t("teacherMarked", lang) as string}</label>
-              <select className={selectCls} value={meta.teacherMarked} onChange={e => setMeta(p => ({ ...p, teacherMarked: e.target.value }))}>
+              <label className="text-base font-medium text-slate-700">
+                {t("teacherMarked", lang) as string}
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <select
+                className={`${selectCls} ${fieldErrors.teacherMarked ? "border-red-400 ring-2 ring-red-200" : ""}`}
+                value={meta.teacherMarked}
+                onChange={e => {
+                  setMeta(p => ({ ...p, teacherMarked: e.target.value }));
+                  if (e.target.value) setFieldErrors(p => ({ ...p, teacherMarked: false }));
+                }}
+              >
+                <option value="" disabled>{t("selectPlaceholder", lang) as string}</option>
                 <option value="yes">{t("tmYes", lang) as string}</option>
                 <option value="no">{t("tmNo", lang) as string}</option>
                 <option value="partially">{t("tmPartially", lang) as string}</option>
                 <option value="unknown">{t("tmUnknown", lang) as string}</option>
               </select>
+              {fieldErrors.teacherMarked && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠</span> {t("reqTeacherMarked", lang) as string}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
