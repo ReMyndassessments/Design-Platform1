@@ -2920,14 +2920,15 @@ async function createInterviewRecordingsTable() {
 
 async function backfillBobbyAiCaseIds() {
   try {
-    // Extract Case ID from bobby_ai_portal_credentials for any case where bobby_ai_case_id is null
+    // Extract Case ID from bobby_ai_portal_credentials for any case where bobby_ai_case_id is null.
+    // Uses regexp_match with 'i' flag (case-insensitive) — more reliable than substring...FROM in PG.
     const result = await db.execute(sql`
       UPDATE cases
-      SET bobby_ai_case_id = trim(substring(bobby_ai_portal_credentials FROM '(?i)Case\\s*ID\\s*[:\\-]\\s*([^\\n\\r]+)'))
+      SET bobby_ai_case_id = trim((regexp_match(bobby_ai_portal_credentials, 'Case[[:space:]]*ID[[:space:]]*[:\\-][[:space:]]*([^\\n\\r]+)', 'i'))[1])
       WHERE bobby_ai_portal_credentials IS NOT NULL
         AND bobby_ai_portal_credentials != ''
         AND (bobby_ai_case_id IS NULL OR bobby_ai_case_id = '')
-        AND bobby_ai_portal_credentials ~* 'Case\\s*ID\\s*[:\\-]'
+        AND bobby_ai_portal_credentials ~* 'Case[[:space:]]*ID[[:space:]]*[:\\-]'
     `);
     if ((result.rowCount ?? 0) > 0) {
       logger.info({ count: result.rowCount }, "Backfilled bobby_ai_case_id from credentials");

@@ -950,14 +950,27 @@ router.post("/external/portal-login", async (req, res) => {
     return;
   }
 
-  // Look up case by Bobby AI case ID (case-insensitive)
+  // Look up case by Bobby AI case ID — search both the extracted column (fast path)
+  // and a text match in the credentials field (fallback for cases not yet backfilled).
+  const caseId_ = String(caseId).trim();
   const caseRows = await db
     .select()
     .from(casesTable)
-    .where(sql`lower(${casesTable.bobbyAiCaseId}) = lower(${String(caseId).trim()})`)
-    .limit(1);
+    .where(
+      sql`(
+        lower(${casesTable.bobbyAiCaseId}) = lower(${caseId_})
+        OR ${casesTable.bobbyAiPortalCredentials} ILIKE ${"%" + caseId_ + "%"}
+      )`
+    )
+    .limit(5);
 
-  const c = caseRows[0];
+  // Among matches, find one where the credentials actually contain this Case ID on a Case ID line
+  const c = caseRows.find(row => {
+    const creds = row.bobbyAiPortalCredentials ?? "";
+    const idMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
+    return idMatch && idMatch[1].trim().toLowerCase() === caseId_.toLowerCase();
+  }) ?? caseRows[0];
+
   if (!c) {
     res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
     return;
