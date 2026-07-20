@@ -292,7 +292,7 @@ export default function RamriInterviewPage() {
   const [invigilatorName, setInvigilatorName] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [qrIncludeName, setQrIncludeName] = useState(true);
-  const [copiedMsg, setCopiedMsg] = useState<"en" | "zh" | null>(null);
+  const [copiedMsg, setCopiedMsg] = useState<"en" | "zh" | "ko" | null>(null);
   const qrDownloadRef = useRef<HTMLCanvasElement>(null);
 
   // Contributor-upload notification & gating
@@ -1359,7 +1359,8 @@ export default function RamriInterviewPage() {
                   const name = studentName ?? "[student name]";
                   const enMsg = `Hi everyone 👋 As part of ${name}'s assessment, we'd like to collect a recent sample of their maths work. Please scan the QR code in this image with your phone camera — it will open a secure upload form directly in your browser. A photo of a worksheet, test, or exercise book page works perfectly. Thank you! 🙏`;
                   const zhMsg = `大家好 👋 作为${name}评估的一部分，我们希望收集一份近期的数学作业样本。请用手机相机扫描图片中的二维码——它将直接在浏览器中打开一个安全的上传表单。拍一张练习册、测验卷或作业本的照片即可。感谢大家的配合！🙏`;
-                  const copy = (text: string, lang: "en" | "zh") => {
+                  const koMsg = `안녕하세요 👋 ${name} 학생의 평가 과정의 일환으로, 최근 수학 학습 자료 한 가지를 수집하려 합니다. 이 이미지의 QR 코드를 스마트폰 카메라로 스캔해 주세요 — 브라우저에서 바로 안전한 업로드 양식이 열립니다. 학습지, 시험지 또는 문제집 페이지 사진이면 충분합니다. 감사합니다! 🙏`;
+                  const copy = (text: string, lang: "en" | "zh" | "ko") => {
                     navigator.clipboard.writeText(text);
                     setCopiedMsg(lang);
                     setTimeout(() => setCopiedMsg(null), 2000);
@@ -1368,7 +1369,7 @@ export default function RamriInterviewPage() {
                     <div className="pt-2 border-t border-slate-100 space-y-2">
                       <p className="text-xs font-semibold text-slate-600">WeChat group message</p>
                       <div className="space-y-2">
-                        {([["en", "English", enMsg], ["zh", "中文", zhMsg]] as const).map(([lang, label, msg]) => (
+                        {([["en", "English", enMsg], ["zh", "中文", zhMsg], ["ko", "한국어", koMsg]] as const).map(([lang, label, msg]) => (
                           <div key={lang} className="flex items-start gap-2 bg-slate-50 rounded-lg p-2.5">
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>
