@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
-import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight, Smartphone, Copy, Check } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface ActiveCase {
   id: string;
@@ -59,6 +60,7 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
   const [loadingAll, setLoadingAll] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [ramriSessions, setRamriSessions] = useState<RamriSession[]>([]);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Fetch RAMRI sessions ready for this invigilator
   useEffect(() => {
@@ -119,6 +121,14 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
 
   const selectedCase = activeCases.find(c => c.id === selectedCaseId);
   const interviewDate = selectedCase?.assessmentMeetingDate ?? undefined;
+  const notetakerUrl = `${window.location.origin}/notetaker-pwa/`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(notetakerUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
 
   return (
     <Card className="border-none shadow-md bg-white">
@@ -129,6 +139,30 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 space-y-5">
+
+        {/* Open on phone */}
+        <div className="flex gap-3 items-center p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+          <div className="shrink-0 bg-white p-1.5 rounded-lg border border-indigo-100 shadow-sm">
+            <QRCodeSVG value={notetakerUrl} size={72} level="M" />
+          </div>
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-800">
+              <Smartphone size={12} />
+              Open on phone
+            </div>
+            <p className="text-xs text-indigo-600 leading-relaxed">
+              Scan to open the Notetaker. Log in with RAOS account, then tap <em>Add to Home Screen</em> in Safari.
+            </p>
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded border border-indigo-200 bg-white hover:bg-indigo-50 transition-colors text-indigo-700"
+            >
+              {linkCopied
+                ? <><Check size={11} className="text-emerald-600" />Copied!</>
+                : <><Copy size={11} />Copy link</>}
+            </button>
+          </div>
+        </div>
 
         {/* Case picker */}
         {loadingCases ? (
