@@ -148,8 +148,24 @@ export default function RamriUploadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [pendingFile, setPendingFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const SESSION_KEY = `ramri_pending_file_${token}`;
+
+  const [pendingFile, _setPendingFile] = useState<{ url: string; name: string; type: string } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem(`ramri_pending_file_${token}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const setPendingFile = (f: { url: string; name: string; type: string } | null) => {
+    _setPendingFile(f);
+    try {
+      if (f) sessionStorage.setItem(SESSION_KEY, JSON.stringify(f));
+      else sessionStorage.removeItem(SESSION_KEY);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     const style = document.createElement("style");
