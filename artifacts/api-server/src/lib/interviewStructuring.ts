@@ -26,10 +26,13 @@ const INTERVIEW_SECTION_DEFS: Record<
 > = {
   parent_intake: [
     { key: "presenting_concern", label: "Presenting Concern" },
-    { key: "background_history", label: "Background & History" },
-    { key: "key_observations", label: "Key Observations" },
+    { key: "developmental_medical", label: "Developmental & Medical History" },
+    { key: "educational_history", label: "Educational History & School Profile" },
+    { key: "home_social_behaviour", label: "Home & Social Behaviour" },
+    { key: "family_history", label: "Family Background & History" },
+    { key: "parent_priorities", label: "Parent's Priorities & Questions" },
     { key: "notable_quotes", label: "Notable Quotes" },
-    { key: "recommended_followups", label: "Recommended Follow-ups" },
+    { key: "agreed_next_steps", label: "Agreed Next Steps" },
   ],
   teacher_consultation: [
     { key: "presenting_concern", label: "Presenting Concern" },
@@ -88,9 +91,29 @@ function buildPrompt(
     .map((s) => `- "${s.key}": ${s.label}`)
     .join("\n");
 
+  const typeGuidance: Partial<Record<ConversationType, string>> = {
+    parent_intake: `Focus on:
+- presenting_concern: Why the parent sought assessment now. What specific behaviours, struggles, or milestones prompted the referral. Duration and severity.
+- developmental_medical: Pregnancy/birth history, developmental milestones (walking, talking, toilet training), medical diagnoses, medications, vision/hearing, sleep, appetite, hospitalisation history.
+- educational_history: Current school, year level, subjects of strength and difficulty, teacher concerns, any prior assessments, tutoring, learning support, school refusal, attendance issues.
+- home_social_behaviour: Behaviour at home, sibling/family relationships, friendships and peer relationships, extracurricular activities, technology use, emotional regulation, anxiety, mood.
+- family_history: Family structure, any known learning difficulties, mental health conditions, or neurodevelopmental diagnoses in immediate or extended family.
+- parent_priorities: What the parent most wants to understand or achieve from the assessment. Specific questions they want answered. Their hopes and concerns for the child.
+- notable_quotes: Exact words the parent used that are clinically striking, emotionally significant, or diagnostic — quote verbatim in "quotation marks".
+- agreed_next_steps: Any commitments, referrals, or next actions agreed during this conversation.`,
+    teacher_consultation: `Focus on academic performance, classroom behaviour, peer dynamics, learning supports already in place, and teacher hypotheses about underlying causes.`,
+    student_interview: `Focus on the student's own words, self-awareness, emotional state, how they describe their difficulties, and their insight into their own learning or social experience.`,
+    classroom_observation: `Focus on objective behavioural observations, on-task vs off-task behaviour, peer and teacher interactions, triggers, and how the student responds to instruction and transitions.`,
+    report_debrief: `Focus on what findings were communicated, how the family responded, questions they raised, any distress or resistance, and what was agreed as the plan going forward.`,
+  };
+
+  const guidance = typeGuidance[conversationType] ?? "";
+
   return `You are an expert psychoeducational clinician assistant. The following is a verbatim transcript of ${contextLabel[conversationType]} for a student named ${studentName || "the student"}.
 
 Your task is to organise the clinically relevant content from this transcript into structured note sections. Be concise but complete. Preserve important details, direct quotes (in quotation marks), and clinical observations. Do not invent information not present in the transcript.
+
+${guidance}
 
 TRANSCRIPT:
 ---
