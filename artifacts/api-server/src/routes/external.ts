@@ -940,53 +940,63 @@ Return ONLY valid JSON. No markdown code fences. No explanation outside the JSON
 
 // ── Portal credential login ───────────────────────────────────────────────────
 // POST /api/external/portal-login
-// Body: { caseId: string, accessCode: string }
-// Returns the portal token for the given case if credentials match and case is in debrief/complete phase.
+// Body: { caseId: string, password: string }
+// Authenticates using Bobby AI portal credentials (Case ID + Access Code) stored on the case.
 router.post("/external/portal-login", async (req, res) => {
-  const { email, accessCode } = req.body ?? {};
+  const { caseId, password } = req.body ?? {};
 
-  if (!email || !accessCode) {
-    res.status(400).json({ error: "bad_request", message: "Email and Access Code are required." });
+  if (!caseId || !password) {
+    res.status(400).json({ error: "bad_request", message: "Case ID and Password are required." });
     return;
   }
 
-  // Look up the report token by email + access code
+  // Look up case by Bobby AI case ID (case-insensitive)
+  const caseRows = await db
+    .select()
+    .from(casesTable)
+    .where(sql`lower(${casesTable.bobbyAiCaseId}) = lower(${String(caseId).trim()})`)
+    .limit(1);
+
+  const c = caseRows[0];
+  if (!c) {
+    res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
+    return;
+  }
+
+  // Extract the Bobby access code from the stored credentials and compare
+  const credentials = (c.bobbyAiPortalCredentials ?? "");
+  const codeMatch = credentials.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+  const expectedCode = codeMatch ? codeMatch[1].trim() : null;
+
+  if (!expectedCode || String(password).trim().toLowerCase() !== expectedCode.toLowerCase()) {
+    res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
+    return;
+  }
+
+  // Check the case is in debrief or complete phase
+  if (c.currentPhase !== "debrief" && c.currentPhase !== "complete") {
+    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
+    return;
+  }
+
+  // Find a report token for this case (prefer parent, then teacher, then any)
   const tokenRows = await db
     .select()
     .from(reportTokensTable)
-    .where(
-      and(
-        sql`lower(${reportTokensTable.email}) = lower(${String(email).trim()})`,
-        eq(reportTokensTable.accessCode, String(accessCode).trim())
-      )
-    )
-    .limit(5);
+    .where(eq(reportTokensTable.caseId, c.id))
+    .limit(10);
 
   if (!tokenRows.length) {
-    res.status(401).json({ error: "invalid_credentials", message: "Email address or Access Code is incorrect." });
+    res.status(403).json({ error: "not_ready", message: "Your portal link is not yet available. Please contact your clinician." });
     return;
   }
 
-  // Prefer parent token, then teacher, then any
   const matchedToken =
     tokenRows.find((t) => t.role === "parent") ??
     tokenRows.find((t) => t.role === "teacher") ??
     tokenRows[0];
 
-  // Check the linked case is in debrief or complete phase
-  const caseRows = await db
-    .select()
-    .from(casesTable)
-    .where(eq(casesTable.id, matchedToken.caseId))
-    .limit(1);
-
-  const c = caseRows[0];
-  if (!c || (c.currentPhase !== "debrief" && c.currentPhase !== "complete")) {
-    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
-    return;
-  }
-
-  res.json({ token: matchedToken.token });
+  res.json({ token: matchedToken!.token });
 });
 
 // ── RAMRI Contributor Upload (public, no auth) ────────────────────────────────

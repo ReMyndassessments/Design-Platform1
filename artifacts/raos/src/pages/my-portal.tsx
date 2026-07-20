@@ -5,8 +5,8 @@ const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function MyPortalLogin() {
   const [, navigate] = useLocation();
-  const [email, setEmail] = useState("");
-  const [accessCode, setAccessCode] = useState("");
+  const [caseId, setCaseId] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +18,7 @@ export default function MyPortalLogin() {
       const res = await fetch(`${apiBase}/api/external/portal-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), accessCode: accessCode.trim() }),
+        body: JSON.stringify({ caseId: caseId.trim(), password: password.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -63,35 +63,35 @@ export default function MyPortalLogin() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           <p className="text-sm text-slate-600 mb-6 text-center leading-relaxed">
-            Enter the <span className="font-semibold text-slate-800">email address</span> your report was sent to, and the{" "}
-            <span className="font-semibold text-slate-800">6-digit Access Code</span> included in that email.
+            Enter your <span className="font-semibold text-slate-800">Case ID</span> and{" "}
+            <span className="font-semibold text-slate-800">Password</span> from your Bobby AI portal credentials.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                Email Address
+                Case ID
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
+                type="text"
+                value={caseId}
+                onChange={(e) => setCaseId(e.target.value)}
+                placeholder="e.g. RM-2024-0123"
+                autoComplete="username"
                 required
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition font-mono"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                Access Code
+                Password
               </label>
               <input
                 type="password"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                placeholder="Your access code"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your access password"
                 autoComplete="current-password"
                 required
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition font-mono"
@@ -109,7 +109,7 @@ export default function MyPortalLogin() {
 
             <button
               type="submit"
-              disabled={loading || !email || !accessCode}
+              disabled={loading || !caseId || !password}
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-semibold transition-colors shadow-sm"
             >
               {loading ? (
