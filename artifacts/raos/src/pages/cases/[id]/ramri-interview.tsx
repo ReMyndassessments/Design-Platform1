@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useParams } from "wouter";
 import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1209,6 +1210,27 @@ export default function RamriInterviewPage() {
                       Copy link
                     </Button>
                 </div>
+
+                {/* QR code — scan with phone camera to open directly in browser */}
+                {!uploadsClosed && (
+                  <div className="flex gap-4 items-start pt-1 border-t border-slate-100">
+                    <div className="shrink-0 p-2 bg-white border border-slate-200 rounded-lg">
+                      <QRCodeSVG
+                        value={`${window.location.origin}/ramri-upload/${assignmentToken}`}
+                        size={96}
+                        level="H"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <p className="text-xs font-semibold text-slate-700 mb-1">Share via QR code</p>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Screenshot and share this QR code image (e.g. via WeChat or WhatsApp).
+                        Ask contributors to <strong>scan it with their phone camera</strong> — this opens the page directly in Safari or Chrome, bypassing in-app browsers.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                   <p className="text-xs text-slate-400">
                     {uploadsClosed

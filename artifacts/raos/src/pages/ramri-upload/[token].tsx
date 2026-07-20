@@ -81,6 +81,16 @@ const T = {
   footer:            { english: "This link was shared by the ReMynd assessment team. Your submission is confidential and will only be used as part of this assessment.",
                        mandarin: "此链接由 ReMynd 评估团队共享。您的提交内容保密，仅用于本次评估。",
                        korean:   "이 링크는 ReMynd 평가팀이 공유한 것입니다. 제출 내용은 기밀이며 이 평가에만 사용됩니다." },
+  browserBannerTitle:{ english: "Open in your browser for best results",
+                       mandarin: "请在浏览器中打开以获得最佳效果",
+                       korean:   "최상의 결과를 위해 브라우저에서 열어주세요" },
+  browserBannerBody: { english: "This link works best in Safari or Chrome. Copy the link from the address bar and paste it into your browser.",
+                       mandarin: "此链接在 Safari 或 Chrome 浏览器中效果最佳。请复制地址栏中的链接，然后粘贴到浏览器中打开。",
+                       korean:   "이 링크는 Safari 또는 Chrome 브라우저에서 가장 잘 작동합니다. 주소 표시줄의 링크를 복사하여 브라우저에 붙여넣으세요." },
+  browserBannerInApp:{ english: "You appear to be viewing this inside an app (WeChat, WhatsApp, etc.). Please tap ··· or the browser icon to open this page in Safari or Chrome before uploading.",
+                       mandarin: "您似乎正在应用内浏览此页面（如微信、WhatsApp 等）。请点击右上角的 ··· 或浏览器图标，在 Safari 或 Chrome 中打开此页面后再上传。",
+                       korean:   "앱 내에서 이 페이지를 보고 있는 것 같습니다 (카카오톡, WhatsApp 등). 업로드하기 전에 ··· 또는 브라우저 아이콘을 탭하여 Safari 또는 Chrome에서 열어주세요." },
+  browserBannerDismiss: { english: "I'm already in a browser", mandarin: "我已在浏览器中", korean: "브라우저에서 열었습니다" },
 };
 
 function t<K extends keyof typeof T>(key: K, lang: Lang): typeof T[K][Lang] {
@@ -137,12 +147,19 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
 const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent";
 const selectCls = "w-full border border-slate-200 rounded-xl px-4 py-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-violet-400";
 
+function detectInAppBrowser(): boolean {
+  const ua = navigator.userAgent || "";
+  return /MicroMessenger|WeChat|WhatsApp|FBAV|FBAN|Instagram|Line\/|Snapchat|TikTok|Twitter|LinkedInApp/i.test(ua);
+}
+
 export default function RamriUploadPage() {
   const { token } = useParams<{ token: string }>();
   const [lang, setLang] = useState<Lang>("english");
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const isInApp = detectInAppBrowser();
   const [meta, setMeta] = useState<Meta>(DEFAULT_META);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -311,6 +328,34 @@ export default function RamriUploadPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-3 py-4 space-y-4 pb-10">
+
+        {/* Browser warning banner */}
+        {!bannerDismissed && (
+          <div className={`rounded-2xl p-4 flex gap-3 ${isInApp ? "bg-red-50 border-2 border-red-300" : "bg-amber-50 border border-amber-300"}`}>
+            <div className={`text-2xl shrink-0 leading-none mt-0.5`}>
+              {isInApp ? "⚠️" : "🌐"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-bold text-base leading-snug mb-1 ${isInApp ? "text-red-800" : "text-amber-800"}`}>
+                {t(isInApp ? "browserBannerInApp" : "browserBannerTitle", lang) as string}
+              </p>
+              {!isInApp && (
+                <p className="text-sm text-amber-700 leading-relaxed">
+                  {t("browserBannerBody", lang) as string}
+                </p>
+              )}
+              {!isInApp && (
+                <button
+                  onClick={() => setBannerDismissed(true)}
+                  className="mt-2 text-xs font-medium text-amber-600 underline underline-offset-2"
+                >
+                  {t("browserBannerDismiss", lang) as string}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Instructions */}
         <div className="bg-violet-600 rounded-2xl p-5 text-white">
           <p className="font-bold text-lg leading-snug">
