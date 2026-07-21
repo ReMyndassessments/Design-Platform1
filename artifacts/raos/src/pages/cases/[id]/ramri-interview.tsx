@@ -703,8 +703,10 @@ export default function RamriInterviewPage() {
   };
 
   const changeSampleRole = async (sampleId: string, role: "interview" | "evidence" | "observation") => {
+    // Moving out of interview always clears approval — an evidence/observation item cannot be approved
+    const extra = role !== "interview" ? { approved: false } : {};
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
-      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ sampleRole: role }),
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ sampleRole: role, ...extra }),
     });
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
