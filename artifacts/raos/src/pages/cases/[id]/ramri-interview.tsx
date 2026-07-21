@@ -542,13 +542,14 @@ export default function RamriInterviewPage() {
   };
 
   const [extractRemaining, setExtractRemaining] = useState(0);
+  const [extractOffset, setExtractOffset] = useState(0);
 
   const extractSamples = async () => {
     if (!sessionId) return;
     setExtracting(true);
     setExtractErrors([]);
     try {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/extract-samples`, {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/extract-samples?offset=${extractOffset}`, {
         method: "POST", headers: jsonHeaders(),
       });
       if (!r.ok) {
@@ -556,11 +557,40 @@ export default function RamriInterviewPage() {
         throw new Error(body?.error ?? `Server error ${r.status}`);
       }
       const d = await r.json() as { candidates: Array<Record<string, unknown>>; errors: string[]; remaining: number; message?: string };
-      const keyed = (d.candidates ?? []).map((c, i) => ({ ...c, _key: `candidate-${Date.now()}-${i}` })) as ExtractionCandidate[];
-      // Append new candidates to any already in the tray
-      setExtractCandidates(prev => [...prev, ...keyed]);
+      const candidates = (d.candidates ?? []) as ExtractionCandidate[];
+
+      // Auto-save all candidates to DB immediately — no ephemeral tray, no data loss on refresh
+      const saved: WorkSample[] = [];
+      await Promise.all(candidates.map(async (c) => {
+        const body = {
+          extractedProblem: c.extractedProblem,
+          studentAnswer: c.studentAnswer ?? "",
+          visibleWorking: c.visibleWorking ?? "yes",
+          answerStatus: c.answerStatus ?? "unclear",
+          teacherCorrection: c.teacherCorrection ?? "",
+          domain: c.domain ?? "",
+          skill: c.skill ?? "",
+          difficulty: c.difficulty ?? "developing",
+          reasoningFocus: c.reasoningFocus ?? [],
+          suitability: c.suitability ?? "suitable",
+          languageDemand: c.languageDemand ?? "moderate",
+          estimatedGrade: c.estimatedGrade ?? "",
+          examinerNotes: c.examinerNotes ?? "",
+        };
+        const sr = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, {
+          method: "POST", headers: jsonHeaders(), body: JSON.stringify(body),
+        });
+        if (sr.ok) { const sd = await sr.json() as { sample: WorkSample }; saved.push(sd.sample); }
+      }));
+      if (saved.length > 0) setSamples(prev => [...prev, ...saved]);
+
+      // Advance offset for next batch
+      const newOffset = extractOffset + 6;
+      setExtractOffset(newOffset);
       setExtractRemaining(d.remaining ?? 0);
+
       const msgs: string[] = [];
+      if (saved.length > 0) msgs.push(`Saved ${saved.length} problem${saved.length !== 1 ? "s" : ""} — review below and approve the ones you want to use.`);
       if (d.message) msgs.push(d.message);
       if ((d.remaining ?? 0) > 0) msgs.push(`${d.remaining} document${d.remaining !== 1 ? "s" : ""} remaining — click Extract again to continue`);
       if (d.errors?.length) msgs.push(...d.errors);
@@ -1180,6 +1210,7 @@ export default function RamriInterviewPage() {
     setExtractCandidates([]);
     setExtractErrors([]);
     setExtractRemaining(0);
+    setExtractOffset(0);
     setPhase("upload");
   };
 

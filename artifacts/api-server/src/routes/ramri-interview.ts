@@ -552,25 +552,31 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
     }
 
     // ── 3. Documents ─────────────────────────────────────────────────────────
-    // Only fetch documents not yet extracted; process max 6 per run to avoid
-    // HTTP timeouts (each doc requires ~15–45 s of AI processing).
+    // Process max 6 per run to avoid HTTP timeouts (each doc needs ~15–45 s of AI).
+    // Client passes ?offset=N so subsequent "Extract next batch" clicks advance through all docs.
+    // We never filter by extraction_status — docs are always re-extractable so candidates
+    // are never lost if the page reloaded before the user saved them.
     const BATCH_SIZE = 6;
+    const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
     const allDocsResult = await db.execute(sql`
       SELECT * FROM ramri_work_documents
       WHERE session_id = ${sessionId}
-        AND (extraction_status IS NULL OR extraction_status != 'extracted')
       ORDER BY created_at ASC
     `);
-    const allPending = allDocsResult.rows as Array<{
+    const allDocs = allDocsResult.rows as Array<{
       id: string; file_name: string | null; file_url: string | null; file_type: string | null;
       grade_level: string | null; math_topic: string | null; source_type: string | null;
       teacher_marked: string | null; teacher_comments: string | null; contributor_notes: string | null;
     }>;
-    if (allPending.length === 0) {
-      return res.json({ candidates: [], errors: [], remaining: 0, message: "All documents have already been extracted" });
+    if (allDocs.length === 0) {
+      return res.json({ candidates: [], errors: ["No documents found for this session"], remaining: 0 });
     }
-    const docs = allPending.slice(0, BATCH_SIZE);
-    const remaining = Math.max(0, allPending.length - BATCH_SIZE);
+    const docs = allDocs.slice(offset, offset + BATCH_SIZE);
+    if (docs.length === 0) {
+      // offset beyond end — wrap back from the start
+      return res.json({ candidates: [], errors: [], remaining: 0, message: "All documents have been processed in this pass. Click Extract to start again from the beginning." });
+    }
+    const remaining = Math.max(0, allDocs.length - (offset + BATCH_SIZE));
 
     // ── 4. Extract from each image ───────────────────────────────────────────
     const objectStorage = new ObjectStorageService();
