@@ -1984,9 +1984,27 @@ export default function RamriInterviewPage() {
             </div>
 
             {samples.length > 0 && (
-              <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => setPhase("bank")}>
-                Continue to Sample Bank <ChevronRight size={14} className="ml-1" />
-              </Button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => {
+                  if (approvedSamples.length > 15) {
+                    const ok = confirm(
+                      `You have ${approvedSamples.length} approved items. A RAMRI interview can realistically probe 8–10 problems in depth.\n\nRecommended: use Re-suggest → Accept All to let the AI trim this to the strongest candidates, then continue.\n\nContinue anyway with ${approvedSamples.length} items?`
+                    );
+                    if (!ok) return;
+                  }
+                  setPhase("bank");
+                }}>
+                  Continue to Sample Bank <ChevronRight size={14} className="ml-1" />
+                </Button>
+                {approvedSamples.length > 0 && (
+                  <span className={`text-xs font-medium ${approvedSamples.length > 15 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {approvedSamples.length} approved for interview{approvedSamples.length > 15 ? ` — consider trimming to 8–10` : ""}
+                  </span>
+                )}
+                {approvedSamples.length === 0 && (
+                  <span className="text-xs text-slate-400">No items approved yet — approve samples or use Re-suggest → Accept All</span>
+                )}
+              </div>
             )}
           </div>
         )}
