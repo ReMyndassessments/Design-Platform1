@@ -529,6 +529,19 @@ export default function RamriInterviewPage() {
   };
 
   // ── Samples phase ───────────────────────────────────────────────────────────
+  /** Determine the initial sample_role from extraction fields.
+   *  - suitability=excluded  → evidence (AI explicitly flagged as unsuitable for interview)
+   *  - no mathematical content (no digits + no math operators/symbols) → observation
+   *  - otherwise             → interview
+   */
+  function detectSampleRole(candidate: ExtractionCandidate): "interview" | "evidence" | "observation" {
+    if (candidate.suitability === "excluded") return "evidence";
+    const text = String(candidate.extractedProblem ?? "");
+    const hasMathContent = /\d/.test(text) || /[+\-×÷*/=<>%$£€¥°½⅓¼√^]/.test(text) || /\bfraction|percent|ratio|decimal|algebra|geometry|probability|measurement\b/i.test(text);
+    if (!hasMathContent) return "observation";
+    return "interview";
+  }
+
   const addSample = async () => {
     if (!sessionId || !newSampleForm.extractedProblem.trim()) return;
     setSaving(true);
@@ -565,8 +578,7 @@ export default function RamriInterviewPage() {
       // Auto-save all candidates to DB immediately — no ephemeral tray, no data loss on refresh
       const saved: WorkSample[] = [];
       await Promise.all(candidates.map(async (c) => {
-        // Map suitability=excluded → evidence so those items don't pollute interview sample bank
-        const sampleRole = c.suitability === "excluded" ? "evidence" : "interview";
+        const sampleRole = detectSampleRole(c);
         const body = {
           extractedProblem: c.extractedProblem,
           studentAnswer: c.studentAnswer ?? "",
@@ -1901,9 +1913,6 @@ export default function RamriInterviewPage() {
                             → Obs
                           </Button>
                         )}
-                        <Button size="sm" variant="outline" className="text-xs h-7 text-red-500 border-red-200 hover:bg-red-50" onClick={() => deleteSample(sample.id)}>
-                          <Trash2 size={10} />
-                        </Button>
                       </div>
                     </div>
                     {sample.examiner_notes && (

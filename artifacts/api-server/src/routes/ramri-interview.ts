@@ -439,7 +439,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
     const samples = (await db.execute(sql`
       SELECT id, domain, skill, difficulty, answer_status, suitability, examiner_notes, extracted_problem
       FROM ramri_work_samples
-      WHERE id = ANY(${sampleIds})
+      WHERE id = ANY(${sampleIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
     `)).rows as Array<Record<string, string | null>>;
 
     if (samples.length === 0) return res.json({ suggestedIds: [] });
@@ -486,12 +486,13 @@ Return ONLY a JSON array of IDs (strings) — no markdown, no explanation:
     if (arrStart !== -1 && arrEnd > arrStart) {
       try { suggestedIds = JSON.parse(clean.slice(arrStart, arrEnd + 1)) as string[]; } catch { /* non-fatal */ }
     }
-    // Only mark IDs that were actually in the batch
-    const validIds = suggestedIds.filter(id => sampleIds.includes(id));
+    // Only mark IDs that were actually in the verified batch (already scoped by session_id/case_id above)
+    const verifiedIds = samples.map(s => s.id as string);
+    const validIds = suggestedIds.filter(id => verifiedIds.includes(id));
     if (validIds.length > 0) {
-      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds})`);
+      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
       // Return updated samples so frontend can refresh
-      const updated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ANY(${validIds})`)).rows;
+      const updated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
       return res.json({ suggestedIds: validIds, updatedSamples: updated });
     }
     return res.json({ suggestedIds: [] });
