@@ -320,6 +320,8 @@ export default function RamriInterviewPage() {
   const [showAddSample, setShowAddSample] = useState(false);
   const [classifying, setClassifying] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   const [sampleRoleFilter, setSampleRoleFilter] = useState<"all" | "interview" | "evidence" | "observation">("all");
   const [extractCandidates, setExtractCandidates] = useState<ExtractionCandidate[]>([]);
   const [extractErrors, setExtractErrors] = useState<string[]>([]);
@@ -614,14 +616,11 @@ export default function RamriInterviewPage() {
             body: JSON.stringify({ sampleIds: saved.map(s => s.id) }),
           });
           if (suggestRes.ok) {
-            const suggestData = await suggestRes.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[] };
-            // Clear stale suggestion flags in local state (backend already cleared in DB)
-            setSamples(prev => prev.map(s => {
-              const updated = suggestData.updatedSamples?.find(u => u.id === s.id);
-              if (updated) return updated;
-              // Clear flag for any item no longer suggested
-              return s.suggested_for_interview ? { ...s, suggested_for_interview: false } : s;
-            }));
+            const suggestData = await suggestRes.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[]; autoApproved?: boolean };
+            // Full reconciliation — server returns ALL samples with updated approved/suggested flags
+            if (suggestData.updatedSamples && suggestData.updatedSamples.length > 0) {
+              setSamples(suggestData.updatedSamples as WorkSample[]);
+            }
           }
         } catch { /* non-fatal — suggestions are a nice-to-have */ }
       }
@@ -711,25 +710,28 @@ export default function RamriInterviewPage() {
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
 
+  // Confirm all AI picks — clears the suggested flag, keeps approved=true
   const acceptAllSuggestions = async () => {
     await Promise.all(suggestedSamples.map(s =>
       fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${s.id}`, {
-        method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: true, suggestedForInterview: false }),
+        method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ suggestedForInterview: false }),
       }).then(r => r.ok ? r.json() as Promise<{ sample: WorkSample }> : null)
         .then(d => { if (d) setSamples(prev => prev.map(x => x.id === s.id ? d.sample : x)); })
     ));
   };
 
+  // Confirm a single AI pick — item stays approved, just clears the banner flag
   const acceptSuggestion = async (sampleId: string) => {
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
-      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: true, suggestedForInterview: false }),
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ suggestedForInterview: false }),
     });
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
 
+  // Un-approve a single AI pick — removes it from the bank
   const dismissSuggestion = async (sampleId: string) => {
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
-      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ suggestedForInterview: false }),
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: false, suggestedForInterview: false }),
     });
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
@@ -1290,7 +1292,8 @@ export default function RamriInterviewPage() {
 
   const interviewSamples = samples.filter(s => (s.sample_role ?? "interview") === "interview");
   const approvedSamples = interviewSamples.filter(s => s.approved);
-  const suggestedSamples = interviewSamples.filter(s => s.suggested_for_interview && !s.approved);
+  // After Re-suggest, AI items are auto-approved. Banner shows them for final human review.
+  const suggestedSamples = interviewSamples.filter(s => s.suggested_for_interview && s.approved);
 
   // ── Error screen ────────────────────────────────────────────────────────────
   if (pageError) {
@@ -1691,23 +1694,38 @@ export default function RamriInterviewPage() {
                   </Button>
                 )}
                 {samples.filter(s => (s.sample_role ?? "interview") === "interview").length > 0 && (
-                  <Button size="sm" variant="outline" className="gap-1.5 border-teal-200 text-teal-700 hover:bg-teal-50" onClick={async () => {
+                  <Button size="sm" variant="outline" className="gap-1.5 border-teal-200 text-teal-700 hover:bg-teal-50" disabled={suggesting || !sessionId} onClick={async () => {
+                    if (!sessionId) { setSuggestError("Session not loaded yet — please wait a moment and try again."); return; }
+                    setSuggesting(true);
+                    setSuggestError(null);
                     try {
                       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/suggest-interview-samples`, {
                         method: "POST", headers: jsonHeaders(), body: JSON.stringify({}),
                       });
-                      if (r.ok) {
-                        const d = await r.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[] };
-                        setSamples(prev => prev.map(s => {
-                          const updated = d.updatedSamples?.find(u => u.id === s.id);
-                          if (updated) return updated;
-                          return s.suggested_for_interview ? { ...s, suggested_for_interview: false } : s;
-                        }));
+                      if (!r.ok) {
+                        const err = await r.json().catch(() => ({})) as { error?: string };
+                        setSuggestError(err.error ?? `Server error ${r.status}`);
+                        return;
                       }
-                    } catch { /* non-fatal */ }
+                      const d = await r.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[]; autoApproved?: boolean };
+                      if (d.updatedSamples && d.updatedSamples.length > 0) {
+                        // Full reconciliation — server returned all samples
+                        setSamples(d.updatedSamples as WorkSample[]);
+                      } else {
+                        setSuggestError("AI returned no suggestions. Try extracting more samples first.");
+                      }
+                    } catch (e) {
+                      setSuggestError(e instanceof Error ? e.message : "Network error — check your connection.");
+                    } finally {
+                      setSuggesting(false);
+                    }
                   }}>
-                    <Sparkles size={13} /> Re-suggest
+                    {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {suggesting ? "Analysing…" : "Re-suggest"}
                   </Button>
+                )}
+                {suggestError && (
+                  <span className="text-xs text-red-500 max-w-xs">{suggestError}</span>
                 )}
                 {docs.length > 0 && (
                   <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={extractSamples} disabled={extracting}>
@@ -1726,13 +1744,13 @@ export default function RamriInterviewPage() {
               <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles size={14} className="text-teal-600" />
-                  <span className="text-sm font-semibold text-teal-800">AI suggests {suggestedSamples.length} item{suggestedSamples.length !== 1 ? "s" : ""} for interview</span>
+                  <span className="text-sm font-semibold text-teal-800">AI pre-approved {suggestedSamples.length} item{suggestedSamples.length !== 1 ? "s" : ""} for interview</span>
                   <span className="text-xs text-teal-600 ml-1">— based on error patterns and referral concern</span>
                   <button onClick={acceptAllSuggestions} className="ml-auto text-xs font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2 py-1 transition-colors">
-                    Accept All
+                    Confirm All
                   </button>
                 </div>
-                <p className="text-xs text-teal-700 mb-3">These are the problems the AI thinks are most worth investigating. Accept to approve for interview, or dismiss to keep as Evidence only.</p>
+                <p className="text-xs text-teal-700 mb-3">These items are already approved and ready for the Sample Bank. Confirm to accept the AI's choice, or remove to un-approve.</p>
                 <div className="flex gap-2 flex-wrap">
                   {suggestedSamples.map(s => (
                     <div key={s.id} className="flex items-center gap-2 bg-white border border-teal-200 rounded-lg px-3 py-2 text-xs max-w-xs">
@@ -1740,8 +1758,8 @@ export default function RamriInterviewPage() {
                         <p className="font-medium text-slate-800 truncate">{s.extracted_problem}</p>
                         <p className="text-slate-400">{s.domain} · {s.answer_status?.replace("_", " ")}</p>
                       </div>
-                      <button onClick={() => acceptSuggestion(s.id)} className="text-emerald-600 hover:text-emerald-700 shrink-0" title="Accept — approve for interview"><Check size={14} /></button>
-                      <button onClick={() => dismissSuggestion(s.id)} className="text-slate-400 hover:text-red-400 shrink-0" title="Dismiss suggestion"><X size={12} /></button>
+                      <button onClick={() => acceptSuggestion(s.id)} className="text-emerald-600 hover:text-emerald-700 shrink-0" title="Confirm — keep approved"><Check size={14} /></button>
+                      <button onClick={() => dismissSuggestion(s.id)} className="text-slate-400 hover:text-red-400 shrink-0" title="Remove — un-approve this item"><X size={12} /></button>
                     </div>
                   ))}
                 </div>

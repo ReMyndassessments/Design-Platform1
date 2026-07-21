@@ -568,10 +568,12 @@ Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no expla
     const verifiedIds = allSamples.map(s => s.id as string);
     const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, targetCount);
     if (validIds.length > 0) {
-      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
-      // Return updated samples so frontend can refresh
-      const updated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
-      return res.json({ suggestedIds: validIds, updatedSamples: updated });
+      // Auto-approve the AI picks; un-approve everything else in interview role
+      await db.execute(sql`UPDATE ramri_work_samples SET approved = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND (sample_role = 'interview' OR sample_role IS NULL)`);
+      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true, approved = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
+      // Return ALL samples so frontend can do a full state reconciliation
+      const allUpdated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
+      return res.json({ suggestedIds: validIds, updatedSamples: allUpdated, autoApproved: true });
     }
     return res.json({ suggestedIds: [] });
   } catch (err) {
