@@ -556,7 +556,7 @@ ${JSON.stringify(preFiltered.map(s => ({
 Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no explanation:
 ["id1", "id2", ...]`;
 
-    const raw = await callDeepSeekText(prompt, undefined, 512);
+    const raw = await callGroq(prompt, undefined, 512);
     const clean = raw.replace(/```(?:json)?\n?/g, "").replace(/\n?```/g, "").trim();
     const arrStart = clean.indexOf("[");
     const arrEnd = clean.lastIndexOf("]");
