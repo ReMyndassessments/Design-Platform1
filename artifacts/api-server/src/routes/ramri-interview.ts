@@ -701,7 +701,7 @@ For each valid problem return an object with exactly these keys:
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 
-        const raw = await callDeepSeekText(textPrompt);
+        const raw = await callGroq(textPrompt, undefined, 4096);
         const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
         let extracted: Array<Record<string, string | null>> = [];
         try { extracted = JSON.parse(clean); } catch {
