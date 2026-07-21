@@ -535,10 +535,11 @@ export default function RamriInterviewPage() {
     } finally { setSaving(false); }
   };
 
+  const [extractRemaining, setExtractRemaining] = useState(0);
+
   const extractSamples = async () => {
     if (!sessionId) return;
     setExtracting(true);
-    setExtractCandidates([]);
     setExtractErrors([]);
     try {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/extract-samples`, {
@@ -548,10 +549,16 @@ export default function RamriInterviewPage() {
         const body = await r.json().catch(() => null) as { error?: string } | null;
         throw new Error(body?.error ?? `Server error ${r.status}`);
       }
-      const d = await r.json() as { candidates: Array<Record<string, unknown>>; errors: string[] };
+      const d = await r.json() as { candidates: Array<Record<string, unknown>>; errors: string[]; remaining: number; message?: string };
       const keyed = (d.candidates ?? []).map((c, i) => ({ ...c, _key: `candidate-${Date.now()}-${i}` })) as ExtractionCandidate[];
-      setExtractCandidates(keyed);
-      setExtractErrors(d.errors ?? []);
+      // Append new candidates to any already in the tray
+      setExtractCandidates(prev => [...prev, ...keyed]);
+      setExtractRemaining(d.remaining ?? 0);
+      const msgs: string[] = [];
+      if (d.message) msgs.push(d.message);
+      if ((d.remaining ?? 0) > 0) msgs.push(`${d.remaining} document${d.remaining !== 1 ? "s" : ""} remaining — click Extract again to continue`);
+      if (d.errors?.length) msgs.push(...d.errors);
+      setExtractErrors(msgs);
     } catch (err) {
       setExtractErrors([err instanceof Error ? err.message : "Extraction request failed — please try again"]);
     } finally {
@@ -1164,6 +1171,9 @@ export default function RamriInterviewPage() {
     setChoiceSets([]);
     setSelections([]);
     setInterviewData({});
+    setExtractCandidates([]);
+    setExtractErrors([]);
+    setExtractRemaining(0);
     setPhase("upload");
   };
 
@@ -1557,7 +1567,7 @@ export default function RamriInterviewPage() {
                 {docs.length > 0 && (
                   <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={extractSamples} disabled={extracting}>
                     {extracting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                    {extracting ? "Extracting…" : "Extract from Docs"}
+                    {extracting ? "Extracting…" : extractRemaining > 0 ? `Extract Next Batch (${extractRemaining} left)` : "Extract from Docs"}
                   </Button>
                 )}
                 <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5" onClick={() => setShowAddSample(true)}>

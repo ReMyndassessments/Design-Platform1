@@ -552,17 +552,25 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
     }
 
     // ── 3. Documents ─────────────────────────────────────────────────────────
-    const docsResult = await db.execute(sql`
-      SELECT * FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC
+    // Only fetch documents not yet extracted; process max 6 per run to avoid
+    // HTTP timeouts (each doc requires ~15–45 s of AI processing).
+    const BATCH_SIZE = 6;
+    const allDocsResult = await db.execute(sql`
+      SELECT * FROM ramri_work_documents
+      WHERE session_id = ${sessionId}
+        AND (extraction_status IS NULL OR extraction_status != 'extracted')
+      ORDER BY created_at ASC
     `);
-    const docs = docsResult.rows as Array<{
+    const allPending = allDocsResult.rows as Array<{
       id: string; file_name: string | null; file_url: string | null; file_type: string | null;
       grade_level: string | null; math_topic: string | null; source_type: string | null;
       teacher_marked: string | null; teacher_comments: string | null; contributor_notes: string | null;
     }>;
-    if (docs.length === 0) {
-      return res.json({ candidates: [], errors: ["No documents found for this session"] });
+    if (allPending.length === 0) {
+      return res.json({ candidates: [], errors: [], remaining: 0, message: "All documents have already been extracted" });
     }
+    const docs = allPending.slice(0, BATCH_SIZE);
+    const remaining = Math.max(0, allPending.length - BATCH_SIZE);
 
     // ── 4. Extract from each image ───────────────────────────────────────────
     const objectStorage = new ObjectStorageService();
@@ -726,7 +734,7 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid 
         errors.push(`${name}: ${err instanceof Error ? err.message.slice(0, 160) : "extraction failed"}`);
       }
     }
-    return res.json({ candidates, errors });
+    return res.json({ candidates, errors, remaining });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err, msg }, "RAMRI extract-samples failed");
