@@ -475,21 +475,52 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { sessionId, caseId } = req.params;
-    const { sampleIds } = req.body as { sampleIds?: string[] };
-    if (!sampleIds?.length) return res.json({ suggestedIds: [] });
+    // sampleIds is accepted but ignored — we always consider the full session pool
+    // so suggestions improve as more batches are extracted
 
     // Fetch the session and case for referral context
     const caseRow = (await db.execute(sql`SELECT referral_reason, student_name, grade FROM cases WHERE id = ${caseId} LIMIT 1`)).rows[0] as Record<string, string | null> | undefined;
-    const samples = (await db.execute(sql`
+    const allSamples = (await db.execute(sql`
       SELECT id, domain, skill, difficulty, answer_status, suitability, examiner_notes, extracted_problem
       FROM ramri_work_samples
-      WHERE id = ANY(${sampleIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
-        AND sample_role = 'interview'
+      WHERE session_id = ${sessionId} AND case_id = ${caseId} AND sample_role = 'interview'
+      ORDER BY created_at ASC
     `)).rows as Array<Record<string, string | null>>;
 
-    if (samples.length === 0) return res.json({ suggestedIds: [] });
+    if (allSamples.length === 0) return res.json({ suggestedIds: [] });
 
-    // Clear any stale suggestions from a previous extraction batch so old suggestions don't persist
+    // ── Server-side pre-filter: top 3 per domain by clinical priority ────────
+    // Priority score: incorrect=3 partial=2 unclear=1 correct=0; hard=+2 developing=+1; notes=+1
+    const priorityScore = (s: Record<string, string | null>) => {
+      const status = s.answer_status ?? "";
+      const diff   = s.difficulty ?? "";
+      let score = 0;
+      if (status === "incorrect")        score += 3;
+      else if (status === "partial_correct") score += 2;
+      else if (status === "unclear")     score += 1;
+      if (diff === "hard")               score += 2;
+      else if (diff === "developing")    score += 1;
+      if (s.examiner_notes?.trim())      score += 1;
+      return score;
+    };
+    const byDomain = new Map<string, typeof allSamples>();
+    for (const s of allSamples) {
+      const d = s.domain ?? "Other";
+      if (!byDomain.has(d)) byDomain.set(d, []);
+      byDomain.get(d)!.push(s);
+    }
+    const preFiltered: typeof allSamples = [];
+    for (const domainItems of byDomain.values()) {
+      domainItems.sort((a, b) => priorityScore(b) - priorityScore(a));
+      preFiltered.push(...domainItems.slice(0, 3));
+    }
+
+    // ── Dynamic target count: clinically capped at 10 ────────────────────────
+    // RAMRI interviews realistically probe 6–10 problems in depth.
+    // Scale: ~6% of pool, min 6, max 10.
+    const targetCount = Math.min(10, Math.max(6, Math.ceil(allSamples.length * 0.06)));
+
+    // Clear stale suggestions before marking the new set
     await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true`);
 
     const referralContext = caseRow?.referral_reason ?? "not specified";
@@ -498,32 +529,31 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
     const prompt = `You are a clinical educational psychologist preparing a RAMRI interview for a student in ${studentGrade}.
 Referral concern: ${referralContext}
 
-From the work samples below, identify the 4–8 samples most worth investigating in the interview session.
+Total work samples in pool: ${allSamples.length}. Below is a pre-filtered representative subset (top 3 per domain by error pattern).
 
-Prioritise samples where:
-1. The student got the answer WRONG or PARTIALLY CORRECT — these reveal the most about reasoning gaps
-2. Error patterns appear that align directly with the referral concern
-3. The student showed partial understanding (some working, mixed correctness) — rich for probing WHERE reasoning breaks down
-4. Samples spanning a range of difficulty so you can find the ceiling and floor
-5. Samples where the examiner notes flag something clinically interesting
+Select exactly ${targetCount} samples most worth investigating in a 60–90 minute interview.
 
-Deprioritise:
-- Items marked as fully correct with no working visible (unless they are advanced difficulty)
-- Items with "excluded" suitability
+Prioritise:
+1. WRONG or PARTIALLY CORRECT answers — these reveal reasoning gaps
+2. Error patterns that align with the referral concern
+3. Items spanning a range of difficulty to find ceiling and floor
+4. Items with examiner notes flagging something clinically interesting
+5. Good domain spread — do not cluster all picks in one domain
 
-Work samples:
-${JSON.stringify(samples.map(s => ({
+Deprioritise fully correct items with no working unless they are hard difficulty.
+
+Pre-filtered candidates:
+${JSON.stringify(preFiltered.map(s => ({
   id: s.id,
   domain: s.domain,
   skill: s.skill,
   difficulty: s.difficulty,
   answerStatus: s.answer_status,
-  suitability: s.suitability,
   examinerNotes: s.examiner_notes,
   problem: (s.extracted_problem ?? "").slice(0, 120),
 })), null, 2)}
 
-Return ONLY a JSON array of IDs (strings) — no markdown, no explanation:
+Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no explanation:
 ["id1", "id2", ...]`;
 
     const raw = await callDeepSeekText(prompt, undefined, 512);
@@ -534,9 +564,9 @@ Return ONLY a JSON array of IDs (strings) — no markdown, no explanation:
     if (arrStart !== -1 && arrEnd > arrStart) {
       try { suggestedIds = JSON.parse(clean.slice(arrStart, arrEnd + 1)) as string[]; } catch { /* non-fatal */ }
     }
-    // Only mark IDs that were actually in the verified interview-role batch; clamp to 8
-    const verifiedIds = samples.map(s => s.id as string);
-    const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, 8);
+    // Only mark IDs verified to be in the session's interview pool; clamp to targetCount
+    const verifiedIds = allSamples.map(s => s.id as string);
+    const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, targetCount);
     if (validIds.length > 0) {
       await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
       // Return updated samples so frontend can refresh

@@ -615,12 +615,13 @@ export default function RamriInterviewPage() {
           });
           if (suggestRes.ok) {
             const suggestData = await suggestRes.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[] };
-            if (suggestData.updatedSamples?.length) {
-              setSamples(prev => prev.map(s => {
-                const updated = suggestData.updatedSamples!.find(u => u.id === s.id);
-                return updated ?? s;
-              }));
-            }
+            // Clear stale suggestion flags in local state (backend already cleared in DB)
+            setSamples(prev => prev.map(s => {
+              const updated = suggestData.updatedSamples?.find(u => u.id === s.id);
+              if (updated) return updated;
+              // Clear flag for any item no longer suggested
+              return s.suggested_for_interview ? { ...s, suggested_for_interview: false } : s;
+            }));
           }
         } catch { /* non-fatal — suggestions are a nice-to-have */ }
       }
@@ -1685,6 +1686,25 @@ export default function RamriInterviewPage() {
                     if (r.ok) setSamples([]);
                   }}>
                     <Trash2 size={13} /> Clear All
+                  </Button>
+                )}
+                {samples.filter(s => (s.sample_role ?? "interview") === "interview").length > 0 && (
+                  <Button size="sm" variant="outline" className="gap-1.5 border-teal-200 text-teal-700 hover:bg-teal-50" onClick={async () => {
+                    try {
+                      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/suggest-interview-samples`, {
+                        method: "POST", headers: jsonHeaders(), body: JSON.stringify({}),
+                      });
+                      if (r.ok) {
+                        const d = await r.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[] };
+                        setSamples(prev => prev.map(s => {
+                          const updated = d.updatedSamples?.find(u => u.id === s.id);
+                          if (updated) return updated;
+                          return s.suggested_for_interview ? { ...s, suggested_for_interview: false } : s;
+                        }));
+                      }
+                    } catch { /* non-fatal */ }
+                  }}>
+                    <Sparkles size={13} /> Re-suggest
                   </Button>
                 )}
                 {docs.length > 0 && (
