@@ -709,11 +709,19 @@ For each valid problem return an object with exactly these keys:
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 
-        const raw = await callDeepSeekText(textPrompt);
-        const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+        const raw = await callDeepSeekText(textPrompt, undefined, 8192);
+        // Strip all markdown code fences, then find the outermost JSON array
+        let clean = raw.replace(/```(?:json)?\n?/g, "").replace(/\n?```/g, "").trim();
+        // If the model prefixed text before the array, extract from first '[' to last ']'
+        const arrStart = clean.indexOf("[");
+        const arrEnd = clean.lastIndexOf("]");
+        if (arrStart !== -1 && arrEnd > arrStart) {
+          clean = clean.slice(arrStart, arrEnd + 1);
+        }
         let extracted: Array<Record<string, string | null>> = [];
         try { extracted = JSON.parse(clean); } catch {
-          errors.push(`${name}: AI returned unparseable response`);
+          const preview = raw.slice(0, 300).replace(/\n/g, " ");
+          errors.push(`${name}: AI returned unparseable response — raw: ${preview}`);
           continue;
         }
         for (const item of extracted) {
