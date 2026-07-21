@@ -505,6 +505,20 @@ export default function RamriInterviewPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const downloadDoc = async (docId: string, fileName: string) => {
+    if (!sessionId) return;
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents/${docId}/preview`, { headers: getAuth() });
+    if (!r.ok) { toast({ title: "Could not download file", variant: "destructive" }); return; }
+    const { url } = await r.json();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // ── Samples phase ───────────────────────────────────────────────────────────
   const addSample = async () => {
     if (!sessionId || !newSampleForm.extractedProblem.trim()) return;
@@ -1509,6 +1523,7 @@ export default function RamriInterviewPage() {
                         <Badge variant="outline" className="text-xs shrink-0 text-emerald-700 border-emerald-300 bg-emerald-50">Extracted</Badge>
                       )}
                       <button onClick={() => previewDoc(doc.id)} title="Preview" className="text-slate-400 hover:text-violet-600 shrink-0 transition-colors"><Eye size={14} /></button>
+                      <button onClick={() => downloadDoc(doc.id, doc.file_name)} title="Download" className="text-slate-400 hover:text-blue-600 shrink-0 transition-colors"><Download size={14} /></button>
                       <button onClick={() => deleteDoc(doc.id)} title="Delete" className="text-slate-400 hover:text-red-500 shrink-0 transition-colors"><Trash2 size={14} /></button>
                     </div>
                   ))}
