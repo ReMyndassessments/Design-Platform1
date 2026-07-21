@@ -1941,9 +1941,15 @@ export default function RamriInterviewPage() {
                         )}
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
-                        {role === "interview" && (
-                          <Button size="sm" variant="outline" className={`text-xs h-7 gap-1 ${sample.approved ? "border-emerald-300 text-emerald-700" : ""}`} onClick={() => approveSample(sample.id, !sample.approved)}>
-                            {sample.approved ? <><Check size={10} /> Approved</> : <><Check size={10} /> Approve</>}
+                        {role === "interview" && sample.approved && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium text-emerald-700 flex items-center gap-0.5"><Check size={10} /> Approved</span>
+                            <button onClick={() => approveSample(sample.id, false)} className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2">Undo</button>
+                          </div>
+                        )}
+                        {role === "interview" && !sample.approved && (
+                          <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => approveSample(sample.id, true)}>
+                            <Check size={10} /> Approve
                           </Button>
                         )}
                         {/* Role changer */}
