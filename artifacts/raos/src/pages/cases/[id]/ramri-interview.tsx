@@ -1674,6 +1674,19 @@ export default function RamriInterviewPage() {
                 <p className="text-xs text-slate-500">AI reads your uploaded images and extracts individual problems. Review roles and approve interview samples before building choice sets.</p>
               </div>
               <div className="flex gap-2 shrink-0">
+                {samples.length > 0 && (
+                  <Button size="sm" variant="outline" className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50" onClick={async () => {
+                    const approvedCount = samples.filter(s => s.approved).length;
+                    const msg = approvedCount > 0
+                      ? `This will permanently delete all ${samples.length} samples including ${approvedCount} approved item${approvedCount !== 1 ? "s" : ""}. This cannot be undone. Continue?`
+                      : `This will permanently delete all ${samples.length} samples so you can re-extract. Continue?`;
+                    if (!confirm(msg)) return;
+                    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, { method: "DELETE", headers: getAuth() });
+                    if (r.ok) setSamples([]);
+                  }}>
+                    <Trash2 size={13} /> Clear All
+                  </Button>
+                )}
                 {docs.length > 0 && (
                   <Button size="sm" variant="outline" className="gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={extractSamples} disabled={extracting}>
                     {extracting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}

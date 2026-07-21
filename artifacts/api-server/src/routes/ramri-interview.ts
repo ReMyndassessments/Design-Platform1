@@ -444,6 +444,20 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authM
   }
 });
 
+// Bulk-delete all samples for a session — allows examiner to wipe and re-extract
+router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
+  try {
+    const { sessionId, caseId } = req.params;
+    const result = await db.execute(sql`DELETE FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`);
+    const deleted = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+    return res.json({ ok: true, deleted });
+  } catch (err) {
+    logger.error({ err }, "RAMRI bulk delete samples failed");
+    return res.status(500).json({ error: "Failed to delete samples" });
+  }
+});
+
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authMiddleware, async (req, res) => {
   const role = (req as unknown as Record<string, Record<string, string>>).user?.role;
   if (!["supervisor", "administrator"].includes(role)) return res.status(403).json({ error: "Only supervisors/administrators can permanently delete samples" });
