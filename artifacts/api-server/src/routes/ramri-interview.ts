@@ -1420,18 +1420,21 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate the report" });
   try {
     const { caseId, sessionId } = req.params;
-    const [session, selections, ratings, allResponses, evidenceRows] = await Promise.all([
+    const [session, selections, ratings, allResponses, evidenceRows, unusedApprovedRows] = await Promise.all([
       db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`),
       db.execute(sql`SELECT sels.*, ws.extracted_problem, ws.domain, ws.skill, ws.answer_status FROM ramri_sample_selections sels JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id WHERE sels.session_id = ${sessionId} ORDER BY sels.sequence_number ASC`),
       db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${sessionId}`),
       db.execute(sql`SELECT ir.* FROM ramri_interview_responses ir JOIN ramri_sample_selections sels ON sels.id = ir.sample_selection_id WHERE sels.session_id = ${sessionId} ORDER BY ir.sequence_number ASC`),
       db.execute(sql`SELECT domain, skill, answer_status, sample_role, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND sample_role IN ('evidence', 'observation') ORDER BY domain ASC, created_at ASC`),
+      // Approved items that were never presented in the interview (approved but not in any selection)
+      db.execute(sql`SELECT domain, skill, difficulty, answer_status, extracted_problem, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId} AND approved = true AND sample_role = 'interview' AND id NOT IN (SELECT work_sample_id FROM ramri_sample_selections WHERE session_id = ${sessionId})`),
     ]);
     const s = session.rows[0] as Record<string, unknown>;
     const sels = selections.rows as Record<string, unknown>[];
     const ratingList = ratings.rows as Record<string, unknown>[];
     const respList = allResponses.rows as Record<string, unknown>[];
     const evidenceList = evidenceRows.rows as Array<{ domain: string | null; skill: string | null; answer_status: string | null; sample_role: string; examiner_notes: string | null }>;
+    const unusedApproved = unusedApprovedRows.rows as Array<{ domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; examiner_notes: string | null }>;
 
     // Build a domain-grouped digest of evidence & observation items
     const evidenceByDomain: Record<string, typeof evidenceList> = {};
@@ -1481,6 +1484,7 @@ Sample responses summary:
 ${respList.filter(r => r.direct_quote).slice(0, 10).map(r => `Q: ${r.approved_question ?? r.generated_question}\nA: "${r.direct_quote}"`).join("\n\n")}
 
 General notes: ${s?.general_notes ?? "None"}
+${unusedApproved.length > 0 ? `\nApproved samples not reached in interview (written work only — no verbal reasoning captured, but answer patterns are valid evidence of the student's mathematical thinking):\n${unusedApproved.map(u => `- ${u.domain ?? "?"} | ${u.skill ?? "?"} | ${u.difficulty ?? "?"} | ${u.answer_status ?? "?"}: ${(u.extracted_problem ?? "").slice(0, 100)}${u.examiner_notes ? ` [Note: ${u.examiner_notes}]` : ""}`).join("\n")}` : ""}
 ${evidenceDigest ? `\nBackground evidence (items classified as Evidence or Observation — NOT used in interview but preserved from submitted work for contextual reference):\n${evidenceDigest}` : ""}
 
 IMPORTANT rules for this report:
