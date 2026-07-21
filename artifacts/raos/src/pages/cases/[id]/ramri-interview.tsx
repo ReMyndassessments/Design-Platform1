@@ -544,13 +544,16 @@ export default function RamriInterviewPage() {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/extract-samples`, {
         method: "POST", headers: jsonHeaders(),
       });
-      if (!r.ok) throw new Error(await r.text());
+      if (!r.ok) {
+        const body = await r.json().catch(() => null) as { error?: string } | null;
+        throw new Error(body?.error ?? `Server error ${r.status}`);
+      }
       const d = await r.json() as { candidates: Array<Record<string, unknown>>; errors: string[] };
       const keyed = (d.candidates ?? []).map((c, i) => ({ ...c, _key: `candidate-${Date.now()}-${i}` })) as ExtractionCandidate[];
       setExtractCandidates(keyed);
       setExtractErrors(d.errors ?? []);
-    } catch {
-      setExtractErrors(["Extraction request failed — please try again"]);
+    } catch (err) {
+      setExtractErrors([err instanceof Error ? err.message : "Extraction request failed — please try again"]);
     } finally {
       setExtracting(false);
     }

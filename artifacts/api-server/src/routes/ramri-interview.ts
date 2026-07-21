@@ -701,7 +701,7 @@ For each valid problem return an object with exactly these keys:
 
 Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid standalone maths problems are visible return [].`;
 
-        const raw = await callGroq(textPrompt, undefined, 4096);
+        const raw = await callDeepSeekText(textPrompt);
         const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
         let extracted: Array<Record<string, string | null>> = [];
         try { extracted = JSON.parse(clean); } catch {
@@ -728,8 +728,9 @@ Return ONLY a valid JSON array (no markdown fences, no extra text). If no valid 
     }
     return res.json({ candidates, errors });
   } catch (err) {
-    logger.error({ err }, "RAMRI extract-samples failed");
-    return res.status(500).json({ error: "Extraction failed" });
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err, msg }, "RAMRI extract-samples failed");
+    return res.status(500).json({ error: `Extraction failed: ${msg}` });
   }
 });
 
