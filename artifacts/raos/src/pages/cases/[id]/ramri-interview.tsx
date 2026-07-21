@@ -114,6 +114,8 @@ type WorkSample = {
   skill: string; reasoning_focus: string[] | string; difficulty: string;
   estimated_grade: string; answer_status: string; language_demand: string;
   suitability: string; approved: boolean; examiner_notes: string;
+  sample_role: "interview" | "evidence" | "observation";
+  suggested_for_interview: boolean;
 };
 
 type ControlProblem = {
@@ -318,6 +320,7 @@ export default function RamriInterviewPage() {
   const [showAddSample, setShowAddSample] = useState(false);
   const [classifying, setClassifying] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [sampleRoleFilter, setSampleRoleFilter] = useState<"all" | "interview" | "evidence" | "observation">("all");
   const [extractCandidates, setExtractCandidates] = useState<ExtractionCandidate[]>([]);
   const [extractErrors, setExtractErrors] = useState<string[]>([]);
 
@@ -562,6 +565,8 @@ export default function RamriInterviewPage() {
       // Auto-save all candidates to DB immediately — no ephemeral tray, no data loss on refresh
       const saved: WorkSample[] = [];
       await Promise.all(candidates.map(async (c) => {
+        // Map suitability=excluded → evidence so those items don't pollute interview sample bank
+        const sampleRole = c.suitability === "excluded" ? "evidence" : "interview";
         const body = {
           extractedProblem: c.extractedProblem,
           studentAnswer: c.studentAnswer ?? "",
@@ -576,6 +581,7 @@ export default function RamriInterviewPage() {
           languageDemand: c.languageDemand ?? "moderate",
           estimatedGrade: c.estimatedGrade ?? "",
           examinerNotes: c.examinerNotes ?? "",
+          sampleRole,
         };
         const sr = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, {
           method: "POST", headers: jsonHeaders(), body: JSON.stringify(body),
@@ -583,6 +589,25 @@ export default function RamriInterviewPage() {
         if (sr.ok) { const sd = await sr.json() as { sample: WorkSample }; saved.push(sd.sample); }
       }));
       if (saved.length > 0) setSamples(prev => [...prev, ...saved]);
+
+      // Ask AI to flag the strongest interview candidates from this batch (non-fatal)
+      if (saved.length > 0) {
+        try {
+          const suggestRes = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/suggest-interview-samples`, {
+            method: "POST", headers: jsonHeaders(),
+            body: JSON.stringify({ sampleIds: saved.map(s => s.id) }),
+          });
+          if (suggestRes.ok) {
+            const suggestData = await suggestRes.json() as { suggestedIds: string[]; updatedSamples?: WorkSample[] };
+            if (suggestData.updatedSamples?.length) {
+              setSamples(prev => prev.map(s => {
+                const updated = suggestData.updatedSamples!.find(u => u.id === s.id);
+                return updated ?? s;
+              }));
+            }
+          }
+        } catch { /* non-fatal — suggestions are a nice-to-have */ }
+      }
 
       // Advance offset for next batch
       const newOffset = extractOffset + 6;
@@ -656,6 +681,27 @@ export default function RamriInterviewPage() {
   const approveSample = async (sampleId: string, approved: boolean) => {
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
       method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved }),
+    });
+    if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
+  };
+
+  const changeSampleRole = async (sampleId: string, role: "interview" | "evidence" | "observation") => {
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ sampleRole: role }),
+    });
+    if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
+  };
+
+  const acceptSuggestion = async (sampleId: string) => {
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: true, suggestedForInterview: false }),
+    });
+    if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
+  };
+
+  const dismissSuggestion = async (sampleId: string) => {
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
+      method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ suggestedForInterview: false }),
     });
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
@@ -1214,7 +1260,9 @@ export default function RamriInterviewPage() {
     setPhase("upload");
   };
 
-  const approvedSamples = samples.filter(s => s.approved);
+  const interviewSamples = samples.filter(s => (s.sample_role ?? "interview") === "interview");
+  const approvedSamples = interviewSamples.filter(s => s.approved);
+  const suggestedSamples = interviewSamples.filter(s => s.suggested_for_interview && !s.approved);
 
   // ── Error screen ────────────────────────────────────────────────────────────
   if (pageError) {
@@ -1598,7 +1646,7 @@ export default function RamriInterviewPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="font-semibold text-slate-800">Work Samples ({samples.length})</h2>
-                <p className="text-xs text-slate-500">AI reads your uploaded images and extracts individual problems. Review, then add or remove before saving.</p>
+                <p className="text-xs text-slate-500">AI reads your uploaded images and extracts individual problems. Review roles and approve interview samples before building choice sets.</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 {docs.length > 0 && (
@@ -1612,6 +1660,48 @@ export default function RamriInterviewPage() {
                 </Button>
               </div>
             </div>
+
+            {/* AI Suggestions banner */}
+            {suggestedSamples.length > 0 && (
+              <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={14} className="text-teal-600" />
+                  <span className="text-sm font-semibold text-teal-800">AI suggests {suggestedSamples.length} item{suggestedSamples.length !== 1 ? "s" : ""} for interview</span>
+                  <span className="text-xs text-teal-600 ml-1">— based on error patterns and referral concern</span>
+                </div>
+                <p className="text-xs text-teal-700 mb-3">These are the problems the AI thinks are most worth investigating. Accept to approve for interview, or dismiss to keep as Evidence only.</p>
+                <div className="flex gap-2 flex-wrap">
+                  {suggestedSamples.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 bg-white border border-teal-200 rounded-lg px-3 py-2 text-xs max-w-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-800 truncate">{s.extracted_problem}</p>
+                        <p className="text-slate-400">{s.domain} · {s.answer_status?.replace("_", " ")}</p>
+                      </div>
+                      <button onClick={() => acceptSuggestion(s.id)} className="text-emerald-600 hover:text-emerald-700 shrink-0" title="Accept — approve for interview"><Check size={14} /></button>
+                      <button onClick={() => dismissSuggestion(s.id)} className="text-slate-400 hover:text-red-400 shrink-0" title="Dismiss suggestion"><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Role filter bar */}
+            {samples.length > 0 && (
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                {(["all", "interview", "evidence", "observation"] as const).map(f => {
+                  const count = f === "all" ? samples.length : samples.filter(s => (s.sample_role ?? "interview") === f).length;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setSampleRoleFilter(f)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${sampleRoleFilter === f ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      {f.charAt(0).toUpperCase() + f.slice(1)} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Extraction errors / info */}
             {extractErrors.length > 0 && (
@@ -1744,17 +1834,33 @@ export default function RamriInterviewPage() {
             )}
 
             <div className="space-y-3">
-              {samples.map(sample => {
+              {samples.filter(s => sampleRoleFilter === "all" || (s.sample_role ?? "interview") === sampleRoleFilter).map(sample => {
+                const role = (sample.sample_role ?? "interview") as "interview" | "evidence" | "observation";
                 const reasoningFocus = Array.isArray(sample.reasoning_focus)
                   ? sample.reasoning_focus
                   : (typeof sample.reasoning_focus === "string" && sample.reasoning_focus
                     ? JSON.parse(sample.reasoning_focus) as string[]
                     : []);
+                const roleBadgeClass = role === "interview"
+                  ? "bg-violet-100 text-violet-700 border-violet-200"
+                  : role === "evidence"
+                  ? "bg-blue-100 text-blue-700 border-blue-200"
+                  : "bg-amber-100 text-amber-700 border-amber-200";
                 return (
-                  <div key={sample.id} className={`bg-white rounded-xl border p-4 ${sample.approved ? "border-emerald-200" : "border-slate-200"}`}>
+                  <div key={sample.id} className={`bg-white rounded-xl border p-4 ${sample.approved ? "border-emerald-200" : sample.suggested_for_interview ? "border-teal-300 shadow-sm" : "border-slate-200"}`}>
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {/* Role badge */}
+                          <Badge variant="outline" className={`text-xs ${roleBadgeClass}`}>
+                            {role.charAt(0).toUpperCase() + role.slice(1)}
+                          </Badge>
+                          {/* Suggested badge */}
+                          {sample.suggested_for_interview && !sample.approved && (
+                            <Badge className="text-xs bg-teal-100 text-teal-700 border border-teal-300 gap-1">
+                              <Sparkles size={9} /> AI Suggested
+                            </Badge>
+                          )}
                           {sample.approved && <Badge className="bg-emerald-100 text-emerald-700 text-xs border-0">Approved</Badge>}
                           {sample.domain && <Badge variant="outline" className="text-xs">{sample.domain}</Badge>}
                           {sample.answer_status && (
@@ -1774,9 +1880,27 @@ export default function RamriInterviewPage() {
                         )}
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
-                        <Button size="sm" variant="outline" className={`text-xs h-7 gap-1 ${sample.approved ? "border-emerald-300 text-emerald-700" : ""}`} onClick={() => approveSample(sample.id, !sample.approved)}>
-                          {sample.approved ? <><Check size={10} /> Approved</> : <><Check size={10} /> Approve</>}
-                        </Button>
+                        {role === "interview" && (
+                          <Button size="sm" variant="outline" className={`text-xs h-7 gap-1 ${sample.approved ? "border-emerald-300 text-emerald-700" : ""}`} onClick={() => approveSample(sample.id, !sample.approved)}>
+                            {sample.approved ? <><Check size={10} /> Approved</> : <><Check size={10} /> Approve</>}
+                          </Button>
+                        )}
+                        {/* Role changer */}
+                        {role === "interview" && (
+                          <Button size="sm" variant="outline" className="text-xs h-7 text-blue-500 border-blue-200 hover:bg-blue-50 gap-1" onClick={() => changeSampleRole(sample.id, "evidence")} title="Move to Evidence">
+                            → Evidence
+                          </Button>
+                        )}
+                        {role !== "interview" && (
+                          <Button size="sm" variant="outline" className="text-xs h-7 text-violet-600 border-violet-200 hover:bg-violet-50 gap-1" onClick={() => changeSampleRole(sample.id, "interview")} title="Move to Interview">
+                            → Interview
+                          </Button>
+                        )}
+                        {role === "interview" && (
+                          <Button size="sm" variant="outline" className="text-xs h-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => changeSampleRole(sample.id, "observation")} title="Mark as Observation">
+                            → Obs
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="text-xs h-7 text-red-500 border-red-200 hover:bg-red-50" onClick={() => deleteSample(sample.id)}>
                           <Trash2 size={10} />
                         </Button>

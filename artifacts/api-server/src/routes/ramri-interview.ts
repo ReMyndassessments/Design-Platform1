@@ -361,13 +361,14 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, 
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { caseId, sessionId } = req.params;
-    const { documentId, imageUrl, extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, examinerNotes } = req.body;
+    const { documentId, imageUrl, extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, examinerNotes, sampleRole } = req.body;
     const id = nanoid();
     const countRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_work_samples WHERE session_id = ${sessionId}`);
     const sortOrder = Number((countRes.rows[0] as { cnt: string })?.cnt ?? 0);
+    const resolvedRole = (sampleRole && ["interview", "evidence", "observation"].includes(sampleRole)) ? sampleRole : "interview";
     await db.execute(sql`
-      INSERT INTO ramri_work_samples (id, document_id, case_id, session_id, image_url, extracted_problem, student_answer, visible_working, teacher_correction, teacher_comments, domain, skill, reasoning_focus, difficulty, estimated_grade, answer_status, language_demand, suitability, approved, examiner_notes, sort_order, created_at, updated_at)
-      VALUES (${id}, ${documentId ?? null}, ${caseId}, ${sessionId}, ${imageUrl ?? null}, ${extractedProblem ?? null}, ${studentAnswer ?? null}, ${visibleWorking ?? null}, ${teacherCorrection ?? null}, ${teacherComments ?? null}, ${domain ?? null}, ${skill ?? null}, ${reasoningFocus ? JSON.stringify(reasoningFocus) : null}, ${difficulty ?? null}, ${estimatedGrade ?? null}, ${answerStatus ?? null}, ${languageDemand ?? null}, ${suitability ?? 'suitable'}, false, ${examinerNotes ?? null}, ${sortOrder}, NOW(), NOW())
+      INSERT INTO ramri_work_samples (id, document_id, case_id, session_id, image_url, extracted_problem, student_answer, visible_working, teacher_correction, teacher_comments, domain, skill, reasoning_focus, difficulty, estimated_grade, answer_status, language_demand, suitability, approved, examiner_notes, sort_order, sample_role, suggested_for_interview, created_at, updated_at)
+      VALUES (${id}, ${documentId ?? null}, ${caseId}, ${sessionId}, ${imageUrl ?? null}, ${extractedProblem ?? null}, ${studentAnswer ?? null}, ${visibleWorking ?? null}, ${teacherCorrection ?? null}, ${teacherComments ?? null}, ${domain ?? null}, ${skill ?? null}, ${reasoningFocus ? JSON.stringify(reasoningFocus) : null}, ${difficulty ?? null}, ${estimatedGrade ?? null}, ${answerStatus ?? null}, ${languageDemand ?? null}, ${suitability ?? 'suitable'}, false, ${examinerNotes ?? null}, ${sortOrder}, ${resolvedRole}, false, NOW(), NOW())
     `);
     const sample = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ${id} LIMIT 1`)).rows[0];
     return res.json({ sample });
@@ -381,7 +382,8 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authM
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { sampleId } = req.params;
-    const { extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, approved, examinerNotes, imageUrl } = req.body;
+    const { extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, approved, examinerNotes, imageUrl, sampleRole, suggestedForInterview } = req.body;
+    const validRole = (sampleRole && ["interview", "evidence", "observation"].includes(sampleRole)) ? sampleRole : null;
     await db.execute(sql`
       UPDATE ramri_work_samples SET
         extracted_problem = COALESCE(${extractedProblem ?? null}, extracted_problem),
@@ -400,6 +402,8 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authM
         approved = COALESCE(${approved ?? null}, approved),
         examiner_notes = COALESCE(${examinerNotes ?? null}, examiner_notes),
         image_url = COALESCE(${imageUrl ?? null}, image_url),
+        sample_role = COALESCE(${validRole}, sample_role),
+        suggested_for_interview = COALESCE(${suggestedForInterview ?? null}, suggested_for_interview),
         updated_at = NOW()
       WHERE id = ${sampleId}
     `);
@@ -419,6 +423,81 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", auth
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: "Failed to delete sample" });
+  }
+});
+
+// ── AI: Suggest strongest interview candidates from a batch ────────────────────
+router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
+  try {
+    const { sessionId, caseId } = req.params;
+    const { sampleIds } = req.body as { sampleIds?: string[] };
+    if (!sampleIds?.length) return res.json({ suggestedIds: [] });
+
+    // Fetch the session and case for referral context
+    const caseRow = (await db.execute(sql`SELECT referral_reason, student_name, grade FROM cases WHERE id = ${caseId} LIMIT 1`)).rows[0] as Record<string, string | null> | undefined;
+    const samples = (await db.execute(sql`
+      SELECT id, domain, skill, difficulty, answer_status, suitability, examiner_notes, extracted_problem
+      FROM ramri_work_samples
+      WHERE id = ANY(${sampleIds})
+    `)).rows as Array<Record<string, string | null>>;
+
+    if (samples.length === 0) return res.json({ suggestedIds: [] });
+
+    const referralContext = caseRow?.referral_reason ?? "not specified";
+    const studentGrade = caseRow?.grade ?? "unknown";
+
+    const prompt = `You are a clinical educational psychologist preparing a RAMRI interview for a student in ${studentGrade}.
+Referral concern: ${referralContext}
+
+From the work samples below, identify the 4–8 samples most worth investigating in the interview session.
+
+Prioritise samples where:
+1. The student got the answer WRONG or PARTIALLY CORRECT — these reveal the most about reasoning gaps
+2. Error patterns appear that align directly with the referral concern
+3. The student showed partial understanding (some working, mixed correctness) — rich for probing WHERE reasoning breaks down
+4. Samples spanning a range of difficulty so you can find the ceiling and floor
+5. Samples where the examiner notes flag something clinically interesting
+
+Deprioritise:
+- Items marked as fully correct with no working visible (unless they are advanced difficulty)
+- Items with "excluded" suitability
+
+Work samples:
+${JSON.stringify(samples.map(s => ({
+  id: s.id,
+  domain: s.domain,
+  skill: s.skill,
+  difficulty: s.difficulty,
+  answerStatus: s.answer_status,
+  suitability: s.suitability,
+  examinerNotes: s.examiner_notes,
+  problem: (s.extracted_problem ?? "").slice(0, 120),
+})), null, 2)}
+
+Return ONLY a JSON array of IDs (strings) — no markdown, no explanation:
+["id1", "id2", ...]`;
+
+    const raw = await callDeepSeekText(prompt, undefined, 512);
+    const clean = raw.replace(/```(?:json)?\n?/g, "").replace(/\n?```/g, "").trim();
+    const arrStart = clean.indexOf("[");
+    const arrEnd = clean.lastIndexOf("]");
+    let suggestedIds: string[] = [];
+    if (arrStart !== -1 && arrEnd > arrStart) {
+      try { suggestedIds = JSON.parse(clean.slice(arrStart, arrEnd + 1)) as string[]; } catch { /* non-fatal */ }
+    }
+    // Only mark IDs that were actually in the batch
+    const validIds = suggestedIds.filter(id => sampleIds.includes(id));
+    if (validIds.length > 0) {
+      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds})`);
+      // Return updated samples so frontend can refresh
+      const updated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ANY(${validIds})`)).rows;
+      return res.json({ suggestedIds: validIds, updatedSamples: updated });
+    }
+    return res.json({ suggestedIds: [] });
+  } catch (err) {
+    logger.error({ err }, "RAMRI suggest-interview-samples failed");
+    return res.json({ suggestedIds: [] }); // non-fatal
   }
 });
 
@@ -828,11 +907,11 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/generate-choice-sets", aut
       SELECT id, extracted_problem, student_answer, visible_working, answer_status,
              domain, skill, difficulty, examiner_notes
       FROM ramri_work_samples
-      WHERE session_id = ${sessionId} AND approved = true
+      WHERE session_id = ${sessionId} AND approved = true AND sample_role = 'interview'
       ORDER BY created_at ASC
     `)).rows as Array<Record<string, string | null>>;
 
-    if (samples.length === 0) return res.status(400).json({ error: "No approved samples to group" });
+    if (samples.length === 0) return res.status(400).json({ error: "No approved interview-role samples to group. Make sure samples have the Interview role set." });
 
     const prompt = `You are a clinical mathematics assessment specialist designing student choice sets for a ReMynd Authentic Mathematical Reasoning Interview (RAMRI).
 
@@ -1262,16 +1341,42 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate the report" });
   try {
     const { caseId, sessionId } = req.params;
-    const [session, selections, ratings, allResponses] = await Promise.all([
+    const [session, selections, ratings, allResponses, evidenceRows] = await Promise.all([
       db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`),
       db.execute(sql`SELECT sels.*, ws.extracted_problem, ws.domain, ws.skill, ws.answer_status FROM ramri_sample_selections sels JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id WHERE sels.session_id = ${sessionId} ORDER BY sels.sequence_number ASC`),
       db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${sessionId}`),
       db.execute(sql`SELECT ir.* FROM ramri_interview_responses ir JOIN ramri_sample_selections sels ON sels.id = ir.sample_selection_id WHERE sels.session_id = ${sessionId} ORDER BY ir.sequence_number ASC`),
+      db.execute(sql`SELECT domain, skill, answer_status, sample_role, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND sample_role IN ('evidence', 'observation') ORDER BY domain ASC, created_at ASC`),
     ]);
     const s = session.rows[0] as Record<string, unknown>;
     const sels = selections.rows as Record<string, unknown>[];
     const ratingList = ratings.rows as Record<string, unknown>[];
     const respList = allResponses.rows as Record<string, unknown>[];
+    const evidenceList = evidenceRows.rows as Array<{ domain: string | null; skill: string | null; answer_status: string | null; sample_role: string; examiner_notes: string | null }>;
+
+    // Build a domain-grouped digest of evidence & observation items
+    const evidenceByDomain: Record<string, typeof evidenceList> = {};
+    for (const e of evidenceList) {
+      const d = e.domain ?? "Unclassified";
+      if (!evidenceByDomain[d]) evidenceByDomain[d] = [];
+      evidenceByDomain[d].push(e);
+    }
+    const evidenceDigest = Object.entries(evidenceByDomain).map(([domain, items]) => {
+      const counts = { correct: 0, incorrect: 0, partial: 0, unclear: 0 };
+      const notes: string[] = [];
+      for (const i of items) {
+        if (i.answer_status === "correct") counts.correct++;
+        else if (i.answer_status === "incorrect") counts.incorrect++;
+        else if (i.answer_status === "partially_correct") counts.partial++;
+        else counts.unclear++;
+        if (i.examiner_notes) notes.push(i.examiner_notes);
+      }
+      const countStr = [`${counts.correct} correct`, `${counts.incorrect} incorrect`, counts.partial ? `${counts.partial} partial` : null, counts.unclear ? `${counts.unclear} unclear` : null].filter(Boolean).join(", ");
+      const noteSample = notes.slice(0, 2).join("; ");
+      const typeLabel = items.some(i => i.sample_role === "observation") ? "(observations included)" : "";
+      return `${domain} ${typeLabel}[${items.length} items: ${countStr}]${noteSample ? ` — Notes: ${noteSample}` : ""}`;
+    }).join("\n");
+    
 
     const ALL_MATH_DOMAINS = [
       "Number Sense", "Addition Reasoning", "Subtraction Reasoning", "Multiplicative Reasoning",
@@ -1297,6 +1402,7 @@ Sample responses summary:
 ${respList.filter(r => r.direct_quote).slice(0, 10).map(r => `Q: ${r.approved_question ?? r.generated_question}\nA: "${r.direct_quote}"`).join("\n\n")}
 
 General notes: ${s?.general_notes ?? "None"}
+${evidenceDigest ? `\nBackground evidence (items classified as Evidence or Observation — NOT used in interview but preserved from submitted work for contextual reference):\n${evidenceDigest}` : ""}
 
 IMPORTANT rules for this report:
 - RAMRI is a structured qualitative and criterion-referenced reasoning interview, NOT a standardized assessment

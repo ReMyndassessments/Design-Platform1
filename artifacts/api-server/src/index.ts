@@ -3097,6 +3097,8 @@ async function createRamriTables() {
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS ramri_choice_sets_session_idx ON ramri_choice_sets (session_id)`);
     await db.execute(sql`ALTER TABLE ramri_choice_sets ADD COLUMN IF NOT EXISTS control_problem JSONB`);
+    await db.execute(sql`ALTER TABLE ramri_work_samples ADD COLUMN IF NOT EXISTS sample_role TEXT NOT NULL DEFAULT 'interview'`);
+    await db.execute(sql`ALTER TABLE ramri_work_samples ADD COLUMN IF NOT EXISTS suggested_for_interview BOOLEAN NOT NULL DEFAULT false`);
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS ramri_choice_set_items (
