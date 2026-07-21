@@ -503,22 +503,33 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
       if (s.examiner_notes?.trim())      score += 1;
       return score;
     };
-    const byDomain = new Map<string, typeof allSamples>();
-    for (const s of allSamples) {
-      const d = s.domain ?? "Other";
-      if (!byDomain.has(d)) byDomain.set(d, []);
-      byDomain.get(d)!.push(s);
-    }
-    const preFiltered: typeof allSamples = [];
-    for (const domainItems of byDomain.values()) {
-      domainItems.sort((a, b) => priorityScore(b) - priorityScore(a));
-      preFiltered.push(...domainItems.slice(0, 3));
+    // ── Candidate selection: pre-filter only for large pools ────────────────
+    // For small pools (≤50) send every item — pre-filter would thin it to fewer
+    // candidates than targetCount, causing Groq to fabricate IDs.
+    let candidates: typeof allSamples;
+    if (allSamples.length <= 50) {
+      candidates = [...allSamples].sort((a, b) => priorityScore(b) - priorityScore(a));
+    } else {
+      const byDomain = new Map<string, typeof allSamples>();
+      for (const s of allSamples) {
+        const d = s.domain ?? "Other";
+        if (!byDomain.has(d)) byDomain.set(d, []);
+        byDomain.get(d)!.push(s);
+      }
+      candidates = [];
+      for (const domainItems of byDomain.values()) {
+        domainItems.sort((a, b) => priorityScore(b) - priorityScore(a));
+        candidates.push(...domainItems.slice(0, 3));
+      }
     }
 
     // ── Dynamic target count: clinically capped at 10 ────────────────────────
     // RAMRI interviews realistically probe 6–10 problems in depth.
-    // Scale: ~6% of pool, min 6, max 10.
-    const targetCount = Math.min(10, Math.max(6, Math.ceil(allSamples.length * 0.06)));
+    // Scale: ~6% of pool, min 6, max 10 — but never exceed available candidates.
+    const rawTarget = Math.min(10, Math.max(6, Math.ceil(allSamples.length * 0.06)));
+    const targetCount = Math.min(rawTarget, candidates.length);
+
+    if (targetCount === 0) return res.json({ suggestedIds: [] });
 
     // Clear stale suggestions before marking the new set
     await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true`);
@@ -529,9 +540,9 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
     const prompt = `You are a clinical educational psychologist preparing a RAMRI interview for a student in ${studentGrade}.
 Referral concern: ${referralContext}
 
-Total work samples in pool: ${allSamples.length}. Below is a pre-filtered representative subset (top 3 per domain by error pattern).
+Total work samples in interview pool: ${allSamples.length}. All candidates are listed below.
 
-Select exactly ${targetCount} samples most worth investigating in a 60–90 minute interview.
+Select the best ${targetCount} sample${targetCount !== 1 ? "s" : ""} to investigate in a 60–90 minute interview. Return FEWER if fewer are suitable — but aim for ${targetCount}.
 
 Prioritise:
 1. WRONG or PARTIALLY CORRECT answers — these reveal reasoning gaps
@@ -542,8 +553,8 @@ Prioritise:
 
 Deprioritise fully correct items with no working unless they are hard difficulty.
 
-Pre-filtered candidates:
-${JSON.stringify(preFiltered.map(s => ({
+Candidates:
+${JSON.stringify(candidates.map(s => ({
   id: s.id,
   domain: s.domain,
   skill: s.skill,
@@ -553,7 +564,7 @@ ${JSON.stringify(preFiltered.map(s => ({
   problem: (s.extracted_problem ?? "").slice(0, 120),
 })), null, 2)}
 
-Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no explanation:
+Return ONLY a JSON array of the chosen IDs (up to ${targetCount}) — no markdown, no explanation:
 ["id1", "id2", ...]`;
 
     const raw = await callGroq(prompt, undefined, 512);
