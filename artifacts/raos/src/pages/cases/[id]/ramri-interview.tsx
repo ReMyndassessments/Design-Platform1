@@ -704,6 +704,15 @@ export default function RamriInterviewPage() {
     if (r.ok) { const d = await r.json() as { sample: WorkSample }; setSamples(prev => prev.map(s => s.id === sampleId ? d.sample : s)); }
   };
 
+  const acceptAllSuggestions = async () => {
+    await Promise.all(suggestedSamples.map(s =>
+      fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${s.id}`, {
+        method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: true, suggestedForInterview: false }),
+      }).then(r => r.ok ? r.json() as Promise<{ sample: WorkSample }> : null)
+        .then(d => { if (d) setSamples(prev => prev.map(x => x.id === s.id ? d.sample : x)); })
+    ));
+  };
+
   const acceptSuggestion = async (sampleId: string) => {
     const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples/${sampleId}`, {
       method: "PATCH", headers: jsonHeaders(), body: JSON.stringify({ approved: true, suggestedForInterview: false }),
@@ -1680,6 +1689,9 @@ export default function RamriInterviewPage() {
                   <Sparkles size={14} className="text-teal-600" />
                   <span className="text-sm font-semibold text-teal-800">AI suggests {suggestedSamples.length} item{suggestedSamples.length !== 1 ? "s" : ""} for interview</span>
                   <span className="text-xs text-teal-600 ml-1">— based on error patterns and referral concern</span>
+                  <button onClick={acceptAllSuggestions} className="ml-auto text-xs font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2 py-1 transition-colors">
+                    Accept All
+                  </button>
                 </div>
                 <p className="text-xs text-teal-700 mb-3">These are the problems the AI thinks are most worth investigating. Accept to approve for interview, or dismiss to keep as Evidence only.</p>
                 <div className="flex gap-2 flex-wrap">
@@ -2576,6 +2588,51 @@ export default function RamriInterviewPage() {
                 <Check size={14} /> Save Ratings
               </Button>
             </div>
+
+            {/* Background Evidence — items classified as evidence or observation */}
+            {(() => {
+              const bgItems = samples.filter(s => s.sample_role === "evidence" || s.sample_role === "observation");
+              if (bgItems.length === 0) return null;
+              const byDomain = bgItems.reduce<Record<string, typeof bgItems>>((acc, s) => {
+                const d = s.domain ?? "Uncategorised";
+                if (!acc[d]) acc[d] = [];
+                acc[d].push(s);
+                return acc;
+              }, {});
+              return (
+                <details className="bg-slate-50 border border-slate-200 rounded-xl group">
+                  <summary className="flex items-center gap-2 px-5 py-3 cursor-pointer text-sm font-semibold text-slate-700 select-none list-none">
+                    <FileCheck size={14} className="text-slate-500" />
+                    Background Evidence ({bgItems.length} item{bgItems.length !== 1 ? "s" : ""})
+                    <span className="text-xs text-slate-400 font-normal ml-1">— not selected for interview; included in AI report context</span>
+                    <span className="ml-auto text-slate-400 group-open:rotate-180 transition-transform text-xs">▾</span>
+                  </summary>
+                  <div className="px-5 pb-4 space-y-4">
+                    {Object.entries(byDomain).map(([domain, items]) => (
+                      <div key={domain}>
+                        <p className="text-xs font-semibold text-slate-600 mb-1.5">{domain}</p>
+                        <div className="space-y-1.5">
+                          {items.map(s => (
+                            <div key={s.id} className="flex items-start gap-2 bg-white rounded-lg border border-slate-100 px-3 py-2 text-xs">
+                              <span className={`shrink-0 mt-0.5 rounded px-1.5 py-0.5 font-medium ${s.sample_role === "observation" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>
+                                {s.sample_role === "observation" ? "Obs" : "Evidence"}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-slate-700">{s.extracted_problem}</p>
+                                {s.examiner_notes && <p className="text-slate-400 mt-0.5 italic">{s.examiner_notes}</p>}
+                              </div>
+                              <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded ${s.answer_status === "correct" ? "text-emerald-600" : s.answer_status === "incorrect" ? "text-red-500" : "text-amber-600"}`}>
+                                {s.answer_status?.replace("_", " ")}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              );
+            })()}
 
             {/* Report generation */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">

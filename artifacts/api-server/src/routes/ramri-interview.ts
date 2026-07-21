@@ -416,10 +416,11 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authM
 });
 
 router.delete("/cases/:caseId/ramri/sessions/:sessionId/samples/:sampleId", authMiddleware, async (req, res) => {
-  if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
+  const role = (req as unknown as Record<string, Record<string, string>>).user?.role;
+  if (!["supervisor", "administrator"].includes(role)) return res.status(403).json({ error: "Only supervisors/administrators can permanently delete samples" });
   try {
-    const { sampleId } = req.params;
-    await db.execute(sql`DELETE FROM ramri_work_samples WHERE id = ${sampleId}`);
+    const { sampleId, sessionId, caseId } = req.params;
+    await db.execute(sql`DELETE FROM ramri_work_samples WHERE id = ${sampleId} AND session_id = ${sessionId} AND case_id = ${caseId}`);
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: "Failed to delete sample" });
@@ -440,9 +441,13 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
       SELECT id, domain, skill, difficulty, answer_status, suitability, examiner_notes, extracted_problem
       FROM ramri_work_samples
       WHERE id = ANY(${sampleIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
+        AND sample_role = 'interview'
     `)).rows as Array<Record<string, string | null>>;
 
     if (samples.length === 0) return res.json({ suggestedIds: [] });
+
+    // Clear any stale suggestions from a previous extraction batch so old suggestions don't persist
+    await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true`);
 
     const referralContext = caseRow?.referral_reason ?? "not specified";
     const studentGrade = caseRow?.grade ?? "unknown";
@@ -486,9 +491,9 @@ Return ONLY a JSON array of IDs (strings) — no markdown, no explanation:
     if (arrStart !== -1 && arrEnd > arrStart) {
       try { suggestedIds = JSON.parse(clean.slice(arrStart, arrEnd + 1)) as string[]; } catch { /* non-fatal */ }
     }
-    // Only mark IDs that were actually in the verified batch (already scoped by session_id/case_id above)
+    // Only mark IDs that were actually in the verified interview-role batch; clamp to 8
     const verifiedIds = samples.map(s => s.id as string);
-    const validIds = suggestedIds.filter(id => verifiedIds.includes(id));
+    const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, 8);
     if (validIds.length > 0) {
       await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
       // Return updated samples so frontend can refresh
