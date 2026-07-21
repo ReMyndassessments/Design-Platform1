@@ -341,6 +341,21 @@ router.delete("/cases/:caseId/ramri/sessions/:sessionId/documents/:docId", authM
   }
 });
 
+router.get("/cases/:caseId/ramri/sessions/:sessionId/documents/:docId/preview", authMiddleware, async (req, res) => {
+  try {
+    const { docId } = req.params;
+    const result = await db.execute(sql`SELECT file_url, file_name, file_type FROM ramri_work_documents WHERE id = ${docId} LIMIT 1`);
+    const doc = result.rows[0] as { file_url: string | null; file_name: string | null; file_type: string | null } | undefined;
+    if (!doc?.file_url) return res.status(404).json({ error: "Document not found" });
+    const objectStorage = new ObjectStorageService();
+    const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
+    return res.json({ url: signedUrl, fileName: doc.file_name, fileType: doc.file_type });
+  } catch (err) {
+    logger.error({ err }, "RAMRI doc preview failed");
+    return res.status(500).json({ error: "Failed to generate preview URL" });
+  }
+});
+
 // ── Work Samples ──────────────────────────────────────────────────────────────
 router.post("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, async (req, res) => {
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });

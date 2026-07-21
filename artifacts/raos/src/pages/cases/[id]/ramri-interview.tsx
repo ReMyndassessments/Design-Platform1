@@ -497,6 +497,14 @@ export default function RamriInterviewPage() {
     setDocs(prev => prev.filter(d => d.id !== docId));
   };
 
+  const previewDoc = async (docId: string) => {
+    if (!sessionId) return;
+    const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents/${docId}/preview`, { headers: getAuth() });
+    if (!r.ok) { toast({ title: "Could not load preview", variant: "destructive" }); return; }
+    const { url } = await r.json();
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   // ── Samples phase ───────────────────────────────────────────────────────────
   const addSample = async () => {
     if (!sessionId || !newSampleForm.extractedProblem.trim()) return;
@@ -1500,7 +1508,8 @@ export default function RamriInterviewPage() {
                       {doc.extraction_status === "extracted" && (
                         <Badge variant="outline" className="text-xs shrink-0 text-emerald-700 border-emerald-300 bg-emerald-50">Extracted</Badge>
                       )}
-                      <button onClick={() => deleteDoc(doc.id)} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 size={14} /></button>
+                      <button onClick={() => previewDoc(doc.id)} title="Preview" className="text-slate-400 hover:text-violet-600 shrink-0 transition-colors"><Eye size={14} /></button>
+                      <button onClick={() => deleteDoc(doc.id)} title="Delete" className="text-slate-400 hover:text-red-500 shrink-0 transition-colors"><Trash2 size={14} /></button>
                     </div>
                   ))}
                 </div>
