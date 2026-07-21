@@ -537,10 +537,17 @@ export default function RamriInterviewPage() {
    *  - otherwise             → interview
    */
   function detectSampleRole(candidate: ExtractionCandidate): "interview" | "evidence" | "observation" {
+    // Excluded suitability → background evidence (not suitable for interview probing)
     if (candidate.suitability === "excluded") return "evidence";
+    // No discernible maths content → observation note only
     const text = String(candidate.extractedProblem ?? "");
     const hasMathContent = /\d/.test(text) || /[+\-×÷*/=<>%$£€¥°½⅓¼√^]/.test(text) || /\bfraction|percent|ratio|decimal|algebra|geometry|probability|measurement\b/i.test(text);
     if (!hasMathContent) return "observation";
+    // Correct answers at introductory/developing level → evidence of competency, no interview value
+    const status = candidate.answerStatus ?? (candidate as Record<string, unknown>).answer_status as string ?? "";
+    const diff = candidate.difficulty ?? "";
+    if (status === "correct" && (diff === "introductory" || diff === "developing")) return "evidence";
+    // Everything else goes to interview pool; Re-suggest will refine further
     return "interview";
   }
 

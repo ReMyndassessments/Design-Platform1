@@ -568,9 +568,30 @@ Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no expla
     const verifiedIds = allSamples.map(s => s.id as string);
     const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, targetCount);
     if (validIds.length > 0) {
-      // Auto-approve the AI picks; un-approve everything else in interview role
-      await db.execute(sql`UPDATE ramri_work_samples SET approved = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND (sample_role = 'interview' OR sample_role IS NULL)`);
-      await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = true, approved = true WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}`);
+      // ── Reclassify the entire interview pool ─────────────────────────────────
+      // 1. Mark AI-selected items as interview, approved, suggested
+      await db.execute(sql`
+        UPDATE ramri_work_samples
+        SET sample_role = 'interview', approved = true, suggested_for_interview = true
+        WHERE id = ANY(${validIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
+      `);
+      // 2. Correct answers not selected → Evidence (demonstrate competency, no probing needed)
+      await db.execute(sql`
+        UPDATE ramri_work_samples
+        SET sample_role = 'evidence', approved = false, suggested_for_interview = false
+        WHERE session_id = ${sessionId} AND case_id = ${caseId}
+          AND id != ANY(${validIds})
+          AND (sample_role = 'interview' OR sample_role IS NULL)
+          AND (answer_status = 'correct' OR suitability = 'excluded')
+      `);
+      // 3. Everything else not selected → Observation (error pattern noted but not interview-worthy)
+      await db.execute(sql`
+        UPDATE ramri_work_samples
+        SET sample_role = 'observation', approved = false, suggested_for_interview = false
+        WHERE session_id = ${sessionId} AND case_id = ${caseId}
+          AND id != ANY(${validIds})
+          AND (sample_role = 'interview' OR sample_role IS NULL)
+      `);
       // Return ALL samples so frontend can do a full state reconciliation
       const allUpdated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
       return res.json({ suggestedIds: validIds, updatedSamples: allUpdated, autoApproved: true });
