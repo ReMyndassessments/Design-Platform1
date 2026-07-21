@@ -598,7 +598,11 @@ export default function RamriInterviewPage() {
         const sr = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/samples`, {
           method: "POST", headers: jsonHeaders(), body: JSON.stringify(body),
         });
-        if (sr.ok) { const sd = await sr.json() as { sample: WorkSample }; saved.push(sd.sample); }
+        if (sr.ok) {
+          const sd = await sr.json() as { sample: WorkSample; duplicate?: boolean };
+          // Only add to saved list if it's genuinely new (not a deduplicated match)
+          if (!sd.duplicate) saved.push(sd.sample);
+        }
       }));
       if (saved.length > 0) setSamples(prev => [...prev, ...saved]);
 

@@ -357,11 +357,40 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/documents/:docId/preview", 
 });
 
 // ── Work Samples ──────────────────────────────────────────────────────────────
+/** Normalise a problem string for duplicate detection.
+ *  Lowercases, collapses whitespace, strips punctuation that isn't a math
+ *  operator/symbol, and trims. Two problems are considered duplicates when
+ *  their normalised forms are identical. */
+function normaliseProblem(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s+\-×÷*/=<>%°½⅓¼√^.]/g, " ")  // strip punctuation except math
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 router.post("/cases/:caseId/ramri/sessions/:sessionId/samples", authMiddleware, async (req, res) => {
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot modify the sample bank" });
   try {
     const { caseId, sessionId } = req.params;
     const { documentId, imageUrl, extractedProblem, studentAnswer, visibleWorking, teacherCorrection, teacherComments, domain, skill, reasoningFocus, difficulty, estimatedGrade, answerStatus, languageDemand, suitability, examinerNotes, sampleRole } = req.body;
+
+    // ── Duplicate detection ───────────────────────────────────────────────────
+    const incomingNorm = normaliseProblem(extractedProblem);
+    if (incomingNorm) {
+      const existing = (await db.execute(sql`
+        SELECT id, extracted_problem FROM ramri_work_samples
+        WHERE session_id = ${sessionId} AND case_id = ${caseId}
+      `)).rows as Array<{ id: string; extracted_problem: string | null }>;
+      const dupe = existing.find(r => normaliseProblem(r.extracted_problem) === incomingNorm);
+      if (dupe) {
+        // Return the existing row — frontend handles it identically to a fresh insert
+        const existingSample = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE id = ${dupe.id} LIMIT 1`)).rows[0];
+        return res.json({ sample: existingSample, duplicate: true });
+      }
+    }
+
     const id = nanoid();
     const countRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_work_samples WHERE session_id = ${sessionId}`);
     const sortOrder = Number((countRes.rows[0] as { cnt: string })?.cnt ?? 0);
