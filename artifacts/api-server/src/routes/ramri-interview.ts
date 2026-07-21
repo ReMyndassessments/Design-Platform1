@@ -867,9 +867,47 @@ Return ONLY valid JSON (no markdown):
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       const id = nanoid();
+
+      // Generate one novel transfer/control problem matched to this set's domain & difficulty
+      const setMembers = g.sampleIds
+        .map(sid => samples.find(s => s.id === sid))
+        .filter(Boolean) as Array<Record<string, string | null>>;
+      let controlProblem: Record<string, string> | null = null;
+      if (setMembers.length > 0) {
+        try {
+          const ctrlPrompt = `You are a specialist mathematics assessment designer creating a transfer probe for a RAMRI (Authentic Mathematical Reasoning Interview).
+
+The student choice set contains these problems from the student's own work:
+${setMembers.map(s => `- Domain: ${s.domain}, Skill: ${s.skill}, Difficulty: ${s.difficulty}, Problem: "${s.extracted_problem}", Answer status: ${s.answer_status}`).join("\n")}
+
+Design ONE novel, self-contained maths problem that:
+- Targets the SAME domain and skill(s) as the problems above
+- Is at the SAME or ONE level harder difficulty
+- Uses DIFFERENT numbers, context, or surface structure so the student cannot recall a rehearsed answer
+- Can be read aloud and understood without any visual aids or prior work
+- Has a single unambiguous correct answer the examiner can verify immediately
+
+Return ONLY valid JSON (no markdown fences):
+{
+  "problem": "the problem text as it would be shown to the student",
+  "expectedAnswer": "the correct answer",
+  "domain": "domain name",
+  "skill": "specific skill",
+  "difficulty": "introductory|developing|expected|advanced",
+  "rationale": "one sentence — why this probes transfer of the skills in this set"
+}`;
+          const ctrlRaw = await callDeepSeekText(ctrlPrompt, undefined, 512);
+          const ctrlClean = ctrlRaw.replace(/```(?:json)?\n?/g, "").replace(/\n?```/g, "").trim();
+          const parsed = JSON.parse(ctrlClean);
+          if (parsed.problem && parsed.expectedAnswer) controlProblem = parsed;
+        } catch {
+          // non-fatal — set proceeds without control problem
+        }
+      }
+
       await db.execute(sql`
-        INSERT INTO ramri_choice_sets (id, session_id, case_id, title, choice_type, student_prompt, display_order, created_by, created_at)
-        VALUES (${id}, ${sessionId}, ${caseId}, ${g.title}, ${g.choiceType ?? "open"}, ${g.studentPrompt ?? null}, ${i}, 'ai', NOW())
+        INSERT INTO ramri_choice_sets (id, session_id, case_id, title, choice_type, student_prompt, display_order, created_by, control_problem, created_at)
+        VALUES (${id}, ${sessionId}, ${caseId}, ${g.title}, ${g.choiceType ?? "open"}, ${g.studentPrompt ?? null}, ${i}, 'ai', ${controlProblem ? JSON.stringify(controlProblem) : null}, NOW())
       `);
       const validIds = g.sampleIds.filter(sid => samples.some(s => s.id === sid));
       for (let j = 0; j < validIds.length; j++) {

@@ -116,9 +116,15 @@ type WorkSample = {
   suitability: string; approved: boolean; examiner_notes: string;
 };
 
+type ControlProblem = {
+  problem: string; expectedAnswer: string; domain: string;
+  skill: string; difficulty: string; rationale: string;
+};
+
 type ChoiceSet = {
   id: string; title: string; choice_type: string; target_domain: string | null;
   student_prompt: string; display_order: number; created_by: string | null;
+  control_problem: ControlProblem | null;
   items: Array<{ id: string; choice_set_id: string; work_sample_id: string; display_order: number }>;
 };
 
@@ -1973,6 +1979,19 @@ export default function RamriInterviewPage() {
                         );
                       })}
                       {cs.items.length === 0 && <p className="text-xs text-slate-400 italic">No samples added yet. Click "Edit Samples" to add.</p>}
+
+                      {/* Transfer / control problem */}
+                      {!isEditing && cs.control_problem && (
+                        <div className="mt-2 border border-dashed border-teal-400 rounded-lg p-3 bg-teal-50/50 space-y-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Transfer Probe</span>
+                            <span className="text-[10px] text-teal-600">{cs.control_problem.domain} · {cs.control_problem.skill} · {cs.control_problem.difficulty}</span>
+                          </div>
+                          <p className="text-xs font-medium text-slate-800">{cs.control_problem.problem}</p>
+                          <p className="text-[10px] text-teal-700">Expected answer: <strong>{cs.control_problem.expectedAnswer}</strong></p>
+                          <p className="text-[10px] text-slate-500 italic">{cs.control_problem.rationale}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2123,6 +2142,20 @@ export default function RamriInterviewPage() {
                             );
                           })}
                         </div>
+
+                        {/* Transfer probe — always shown as final option in the set */}
+                        {cs.control_problem && (
+                          <div className="border-2 border-dashed border-teal-400 rounded-lg p-3 bg-teal-50/40 text-xs space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-100 rounded px-1.5 py-0.5">Transfer Probe</span>
+                              <span className="text-[10px] text-teal-600">{cs.control_problem.domain} · {cs.control_problem.skill}</span>
+                            </div>
+                            <p className="font-medium text-slate-800">{cs.control_problem.problem}</p>
+                            <p className="text-teal-700 text-[10px]">Answer: <strong>{cs.control_problem.expectedAnswer}</strong></p>
+                            <p className="text-slate-500 text-[10px] italic">{cs.control_problem.rationale}</p>
+                            <p className="text-[10px] text-teal-800 bg-teal-100 rounded px-2 py-1 mt-1">Present this problem after the student discusses their chosen work — it has not appeared in their materials.</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Inline interview panel — one block per selection, preserving all attempts */}
