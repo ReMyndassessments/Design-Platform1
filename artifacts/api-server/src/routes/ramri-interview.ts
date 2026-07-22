@@ -509,17 +509,14 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
     };
 
     // ── Phase 1 (always runs): correct/excluded → Evidence immediately ────────
-    // These items definitively show competency — no interview probing needed.
-    const correctIds = allInterviewRows
-      .filter(s => s.answer_status === "correct" || s.suitability === "excluded")
-      .map(s => s.id as string);
-    if (correctIds.length > 0) {
-      await db.execute(sql`
-        UPDATE ramri_work_samples
-        SET sample_role = 'evidence', approved = false, suggested_for_interview = false
-        WHERE id = ANY(${correctIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
-      `);
-    }
+    // Attribute-based — no array parameter needed.
+    await db.execute(sql`
+      UPDATE ramri_work_samples
+      SET sample_role = 'evidence', approved = false, suggested_for_interview = false
+      WHERE session_id = ${sessionId} AND case_id = ${caseId}
+        AND (sample_role = 'interview' OR sample_role IS NULL)
+        AND (answer_status = 'correct' OR suitability = 'excluded')
+    `);
 
     // ── Phase 2: select top interview items from remaining pool ───────────────
     const errorItems = allInterviewRows
@@ -607,29 +604,30 @@ Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no expla
     }
 
     // ── Phase 3: apply final classification ──────────────────────────────────
-    // Clear stale suggestion flags
-    await db.execute(sql`UPDATE ramri_work_samples SET suggested_for_interview = false WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true`);
+    // Clear all stale suggestion flags first
+    await db.execute(sql`
+      UPDATE ramri_work_samples SET suggested_for_interview = false
+      WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true
+    `);
 
-    // Approve interview picks
-    if (finalInterviewIds.length > 0) {
+    // Approve AI/priority-score picks one at a time (≤10) — scalar params, no arrays
+    for (const pickId of finalInterviewIds) {
       await db.execute(sql`
         UPDATE ramri_work_samples
         SET sample_role = 'interview', approved = true, suggested_for_interview = true
-        WHERE id = ANY(${finalInterviewIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
+        WHERE id = ${pickId} AND session_id = ${sessionId} AND case_id = ${caseId}
       `);
     }
 
-    // Remaining error items (not selected) → Observation
-    const observationIds = errorItems
-      .map(s => s.id as string)
-      .filter(id => !finalInterviewIds.includes(id));
-    if (observationIds.length > 0) {
-      await db.execute(sql`
-        UPDATE ramri_work_samples
-        SET sample_role = 'observation', approved = false, suggested_for_interview = false
-        WHERE id = ANY(${observationIds}) AND session_id = ${sessionId} AND case_id = ${caseId}
-      `);
-    }
+    // Remaining interview items that are NOT marked suggested → Observation
+    // (Phase 1 already moved correct items to evidence; Phase 2 picks are now suggested=true)
+    await db.execute(sql`
+      UPDATE ramri_work_samples
+      SET sample_role = 'observation', approved = false, suggested_for_interview = false
+      WHERE session_id = ${sessionId} AND case_id = ${caseId}
+        AND (sample_role = 'interview' OR sample_role IS NULL)
+        AND suggested_for_interview = false
+    `);
 
     // Return all samples for full frontend reconciliation
     const allUpdated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
