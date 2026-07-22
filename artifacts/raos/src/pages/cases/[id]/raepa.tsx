@@ -254,6 +254,7 @@ export default function RaepaPage() {
       if (!r.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["raepa-session", caseId] });
       toast({ title: "Session saved" });
+      setActiveTab("samples");
     } catch {
       toast({ title: "Save failed", variant: "destructive" });
     } finally {
