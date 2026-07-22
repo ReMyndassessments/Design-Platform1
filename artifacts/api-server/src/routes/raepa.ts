@@ -568,7 +568,7 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
       sessionId
         ? db.execute(sql`SELECT function_name, level, evidence, subject_context FROM raepa_language_functions WHERE session_id = ${sessionId} ORDER BY function_name`)
         : Promise.resolve({ rows: [] }),
-      db.execute(sql`SELECT subject, grade_level, task_type FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at DESC LIMIT 6`),
+      db.execute(sql`SELECT title, subject, grade_level, task_type, teacher_comments, assignment_instructions, ai_analysis FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at ASC`),
     ]);
 
     const caseRow = caseRows.rows[0] as any;
@@ -579,6 +579,7 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
 
     // Student profile
     const studentName = caseRow?.student_name ?? "the student";
+    const firstName = studentName.split(" ")[0];
     let ageStr = "school-age";
     if (caseRow?.dob) {
       const dob = new Date(caseRow.dob);
@@ -601,7 +602,6 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
       `${r.domain}: ${r.score}/4 (${r.confidence || "no confidence noted"})${r.evidence ? ` — Evidence: ${r.evidence}` : ""}`
     ).join("\n");
 
-    // Domain strengths and needs
     const strengths = ratings.filter((r: any) => r.score >= 3).map((r: any) => r.domain);
     const developing = ratings.filter((r: any) => r.score === 2).map((r: any) => r.domain);
     const needs = ratings.filter((r: any) => r.score <= 1).map((r: any) => r.domain);
@@ -615,52 +615,105 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
     const emergingFns = fnLevels.filter((f: any) => ["emerging","developing"].includes(f.level)).map((f: any) => f.function_name);
     const notDemonstratedFns = fnLevels.filter((f: any) => f.level === "not_demonstrated").map((f: any) => f.function_name);
 
-    // Work samples
-    const sampleCtx = samples.length > 0
-      ? samples.map((s: any) => `${s.subject || "Unknown"} (${s.grade_level || "?"}, task: ${s.task_type || "?"})`).join("; ")
-      : "No work samples on file";
+    // Work sample AI analysis — extract rich findings
+    const parsedSamples = samples.map((s: any) => {
+      let analysis: any = {};
+      try { analysis = typeof s.ai_analysis === "string" ? JSON.parse(s.ai_analysis) : (s.ai_analysis ?? {}); } catch { /* */ }
+      return { ...s, analysis };
+    });
 
-    const systemPrompt = `You are an expert EAL/D assessment specialist writing a clinical RAEPA (ReMynd Academic English Performance Assessment) narrative report. 
+    const allAcademicVocab = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.academic_vocabulary ?? []))];
+    const allSubjectVocab = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.subject_vocabulary ?? []))];
+    const allBarriers = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.potential_barriers ?? []))];
+    const allCommandWords = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.command_words ?? []))];
+    const allFnsRequired = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.language_functions_required ?? []))];
+    const subjectsObserved = [...new Set(parsedSamples.map((s: any) => s.subject || s.analysis.subject).filter(Boolean))];
 
-Write a professional, structured report in third person using the student's name. Use clear, jargon-free clinical language appropriate for sharing with school staff and parents. Be specific — reference actual domains, scores, and functions. Do not make up information not present in the data.
+    const workSampleBlock = parsedSamples.length > 0
+      ? parsedSamples.map((s: any, i: number) => {
+          const a = s.analysis;
+          const lines = [
+            `Work Sample ${i + 1}: "${s.title || s.subject || "Untitled"}" — ${a.subject || s.subject || "?"} | ${a.task_type || s.task_type || "?"} | Grade: ${a.grade_range || s.grade_level || "?"}`,
+            a.text_complexity_notes ? `  Complexity: ${a.text_complexity_notes}` : null,
+            a.reading_demand ? `  Reading demand: ${a.reading_demand} | Writing demand: ${a.writing_demand || "?"}` : null,
+            s.assignment_instructions ? `  Assignment: ${s.assignment_instructions.slice(0, 200)}` : null,
+            s.teacher_comments ? `  Teacher comments: ${s.teacher_comments.slice(0, 200)}` : null,
+            (a.academic_vocabulary?.length) ? `  Academic vocabulary: ${a.academic_vocabulary.slice(0, 10).join(", ")}` : null,
+            (a.subject_vocabulary?.length) ? `  Subject vocabulary: ${a.subject_vocabulary.slice(0, 10).join(", ")}` : null,
+            (a.command_words?.length) ? `  Command words: ${a.command_words.join(", ")}` : null,
+            (a.potential_barriers?.length) ? `  Language barriers identified: ${a.potential_barriers.slice(0, 4).join("; ")}` : null,
+          ].filter(Boolean);
+          return lines.join("\n");
+        }).join("\n\n")
+      : "No work samples on file.";
 
-Format the report using these exact section headings (each on its own line, wrapped in **):
+    const systemPrompt = `You are an expert EAL/D assessment specialist writing a comprehensive, clinically rich RAEPA (ReMynd Academic English Performance Assessment) narrative report for a school team.
+
+Write a professional, detailed report in third person using the student's name. Use the student's first name for readability. Be SPECIFIC — reference actual domain scores, language function levels, vocabulary found in work samples, and language barriers identified. Draw directly on the work sample analysis data provided.
+
+Format the report using EXACTLY these section headings (each on its own line, wrapped in **):
 
 **Academic Language Profile Summary**
-**Domain Strengths**
-**Areas Requiring Targeted Support**
+**Key Findings from Work Sample Analysis**
+**Domain Performance Profile**
 **Language Function Profile**
-**Implications for Classroom Learning**
-**Recommended Support Strategies**
+**Subject-Specific Strategies**
+**Classroom Teacher Recommendations**
+**Home Support Strategies**
+**Tutor Support Strategies**
+**Department and School Recommendations**
+**Priority Learning Goals**
 
-Keep each section concise (3–6 sentences or bullet points). Use bullet points (- ) for recommendations.`;
+Rules:
+- Use bullet points (- ) for all strategy sections and goals
+- In Subject-Specific Strategies, provide tailored bullet points grouped by subject (e.g. Mathematics, Science, English/ELA, Humanities) — only include subjects that appear in the work samples or that are clearly impacted
+- In Home Support Strategies, write for parents/carers — practical, jargon-free daily activities
+- In Tutor Support Strategies, write for a private tutor or learning support teacher — targeted skill-building activities
+- In Department and School Recommendations, address school leadership — systemic supports, timetabling, EAL/D coordinator actions
+- In Priority Learning Goals, list 3–5 specific, measurable goals with a timeframe (e.g. "By end of Term 2…")
+- Never invent data not present in the input; if a section has limited data, say so briefly
+- Write 4–8 bullet points per strategy section`;
 
-    const userMessage = `Student: ${studentName}, ${ageStr}, Grade: ${gradeHint}
+    const userMessage = `Student: ${studentName} (${firstName}), ${ageStr}, Grade: ${gradeHint}
 First language: ${l1} | Years in English-medium schooling: ${yearsInEnglish}
-Work samples reviewed: ${sampleCtx}
+Subjects observed in work samples: ${subjectsObserved.length > 0 ? subjectsObserved.join(", ") : "Not specified"}
 
-**DOMAIN RATINGS (0–4 scale: 0=Not Demonstrated, 1=Emerging, 2=Developing, 3=Functional, 4=Independent)**
+═══════════════════════════════════════════
+WORK SAMPLE ANALYSIS (from AI analysis of uploaded student work)
+═══════════════════════════════════════════
+${workSampleBlock}
+
+Across all work samples:
+- Academic (Tier 2) vocabulary identified: ${allAcademicVocab.length > 0 ? allAcademicVocab.slice(0, 20).join(", ") : "None extracted"}
+- Subject-specific vocabulary identified: ${allSubjectVocab.length > 0 ? allSubjectVocab.slice(0, 20).join(", ") : "None extracted"}
+- Command words present in tasks: ${allCommandWords.length > 0 ? allCommandWords.join(", ") : "None extracted"}
+- Language functions required by tasks: ${allFnsRequired.length > 0 ? allFnsRequired.join(", ") : "None extracted"}
+- Language barriers identified: ${allBarriers.length > 0 ? allBarriers.join("; ") : "None noted"}
+
+═══════════════════════════════════════════
+DOMAIN RATINGS (0=Not Demonstrated, 1=Emerging, 2=Developing, 3=Functional, 4=Independent)
+═══════════════════════════════════════════
 ${ratingsSummary}
 
-Summary:
-- Domains at or above Functional (3–4): ${strengths.length > 0 ? strengths.join(", ") : "None"}
-- Domains Developing (2): ${developing.length > 0 ? developing.join(", ") : "None"}
-- Domains Emerging or Not Demonstrated (0–1): ${needs.length > 0 ? needs.join(", ") : "None"}
+- Functional/Independent (3–4): ${strengths.length > 0 ? strengths.join(", ") : "None"}
+- Developing (2): ${developing.length > 0 ? developing.join(", ") : "None"}
+- Emerging/Not Demonstrated (0–1): ${needs.length > 0 ? needs.join(", ") : "None"}
 
-**LANGUAGE FUNCTION LEVELS**
+═══════════════════════════════════════════
+LANGUAGE FUNCTION LEVELS
+═══════════════════════════════════════════
 ${fnSummary}
 
-Summary:
 - Secured (Functional/Independent): ${securedFns.length > 0 ? securedFns.join(", ") : "None"}
 - Emerging/Developing: ${emergingFns.length > 0 ? emergingFns.join(", ") : "None"}
 - Not Demonstrated: ${notDemonstratedFns.length > 0 ? notDemonstratedFns.join(", ") : "None"}
 
-Write the structured RAEPA narrative report now.`;
+Generate the full comprehensive RAEPA report now. Be specific, evidence-based, and practical.`;
 
     const report = await callGroq([
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },
-    ], 1200);
+    ], 3500);
 
     res.json({ report });
   } catch (err) {

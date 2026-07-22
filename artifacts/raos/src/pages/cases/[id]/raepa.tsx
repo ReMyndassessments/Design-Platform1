@@ -1859,10 +1859,65 @@ export default function RaepaPage() {
               </div>
             )}
 
+            {/* Domain Score Bar Chart */}
+            {domainRatings.length > 0 && (
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-slate-300 mb-4">Domain Performance Overview</h3>
+                <div className="space-y-2">
+                  {[...domainRatings].sort((a, b) => b.score - a.score).map((r) => {
+                    const pct = (r.score / 4) * 100;
+                    const color =
+                      r.score >= 4 ? "bg-emerald-500" :
+                      r.score === 3 ? "bg-blue-500" :
+                      r.score === 2 ? "bg-amber-500" :
+                      r.score === 1 ? "bg-orange-500" :
+                      "bg-red-700";
+                    const label =
+                      r.score === 4 ? "Independent" :
+                      r.score === 3 ? "Functional" :
+                      r.score === 2 ? "Developing" :
+                      r.score === 1 ? "Emerging" :
+                      "Not Demonstrated";
+                    return (
+                      <div key={r.domain} className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 w-44 shrink-0 truncate">{r.domain}</span>
+                        <div className="flex-1 h-5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${color}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-400 w-6 text-right shrink-0">{r.score}/4</span>
+                        <span className={`text-xs w-28 shrink-0 font-medium ${
+                          r.score >= 3 ? "text-emerald-400" :
+                          r.score === 2 ? "text-amber-400" : "text-orange-400"
+                        }`}>{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-slate-800">
+                  {[
+                    { color: "bg-emerald-500", label: "Independent (4)" },
+                    { color: "bg-blue-500", label: "Functional (3)" },
+                    { color: "bg-amber-500", label: "Developing (2)" },
+                    { color: "bg-orange-500", label: "Emerging (1)" },
+                    { color: "bg-red-700", label: "Not Demonstrated (0)" },
+                  ].map(l => (
+                    <div key={l.label} className="flex items-center gap-1.5">
+                      <div className={`w-3 h-3 rounded-full ${l.color}`} />
+                      <span className="text-xs text-slate-500">{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI Narrative Report */}
             <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
               {generatedReport ? (
                 <>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-5">
                     <h2 className="text-base font-semibold flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-indigo-400" /> RAEPA Narrative Report
                     </h2>
@@ -1887,26 +1942,62 @@ export default function RaepaPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    {generatedReport.split("\n\n").filter(Boolean).map((block, i) => {
-                      const isHeading = block.startsWith("**") && block.endsWith("**");
-                      const isBulletList = block.includes("\n- ");
-                      if (isHeading) {
-                        return <h3 key={i} className="text-sm font-semibold text-indigo-300 mt-5 mb-1">{block.replace(/\*\*/g, "")}</h3>;
-                      }
-                      if (isBulletList) {
-                        const [heading, ...items] = block.split("\n- ");
-                        return (
-                          <div key={i}>
-                            {heading && <p className="text-sm text-slate-300 leading-relaxed mb-1">{heading}</p>}
-                            <ul className="list-disc list-inside space-y-1">
-                              {items.map((item, j) => <li key={j} className="text-sm text-slate-300 leading-relaxed">{item}</li>)}
-                            </ul>
-                          </div>
-                        );
-                      }
-                      return <p key={i} className="text-sm text-slate-300 leading-relaxed">{block}</p>;
-                    })}
+                  <div className="space-y-1">
+                    {(() => {
+                      const sectionColors: Record<string, string> = {
+                        "Academic Language Profile Summary": "text-indigo-300 border-indigo-500/40 bg-indigo-500/5",
+                        "Key Findings from Work Sample Analysis": "text-violet-300 border-violet-500/40 bg-violet-500/5",
+                        "Domain Performance Profile": "text-blue-300 border-blue-500/40 bg-blue-500/5",
+                        "Language Function Profile": "text-cyan-300 border-cyan-500/40 bg-cyan-500/5",
+                        "Subject-Specific Strategies": "text-teal-300 border-teal-500/40 bg-teal-500/5",
+                        "Classroom Teacher Recommendations": "text-emerald-300 border-emerald-500/40 bg-emerald-500/5",
+                        "Home Support Strategies": "text-amber-300 border-amber-500/40 bg-amber-500/5",
+                        "Tutor Support Strategies": "text-orange-300 border-orange-500/40 bg-orange-500/5",
+                        "Department and School Recommendations": "text-rose-300 border-rose-500/40 bg-rose-500/5",
+                        "Priority Learning Goals": "text-purple-300 border-purple-500/40 bg-purple-500/5",
+                      };
+                      const blocks = generatedReport.split("\n\n").filter(Boolean);
+                      let currentSection = "";
+                      return blocks.map((block, i) => {
+                        const headingMatch = block.match(/^\*\*(.+)\*\*$/);
+                        if (headingMatch) {
+                          currentSection = headingMatch[1];
+                          const cls = sectionColors[currentSection] ?? "text-indigo-300 border-indigo-500/40 bg-indigo-500/5";
+                          const [textCls, borderCls, bgCls] = cls.split(" ");
+                          return (
+                            <div key={i} className={`flex items-center gap-2 mt-6 mb-2 px-3 py-2 rounded-lg border ${borderCls} ${bgCls}`}>
+                              <span className={`text-sm font-bold ${textCls}`}>{currentSection}</span>
+                            </div>
+                          );
+                        }
+                        const hasBullets = block.includes("\n- ") || block.startsWith("- ");
+                        if (hasBullets) {
+                          const lines = block.split("\n");
+                          const introLines: string[] = [];
+                          const bulletLines: string[] = [];
+                          for (const line of lines) {
+                            if (line.startsWith("- ")) bulletLines.push(line.slice(2));
+                            else if (bulletLines.length === 0) introLines.push(line);
+                          }
+                          return (
+                            <div key={i} className="mt-1">
+                              {introLines.filter(Boolean).map((l, j) => (
+                                <p key={j} className="text-sm text-slate-300 leading-relaxed mb-1">{l}</p>
+                              ))}
+                              <ul className="space-y-1.5 mt-1">
+                                {bulletLines.map((item, j) => (
+                                  <li key={j} className="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
+                                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        }
+                        return <p key={i} className="text-sm text-slate-300 leading-relaxed mt-1">{block}</p>;
+                      });
+                    })()}
                   </div>
                 </>
               ) : (
