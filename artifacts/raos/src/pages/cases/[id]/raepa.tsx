@@ -538,7 +538,6 @@ export default function RaepaPage() {
                   >
                     <option value="">— Select —</option>
                     {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-                    <option value="English">English</option>
                   </select>
                 </div>
                 <div className="col-span-2">
