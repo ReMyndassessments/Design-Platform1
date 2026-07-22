@@ -10,7 +10,7 @@ import {
   ArrowLeft, Save, Upload, Trash2, Loader2, CheckCircle2,
   AlertTriangle, FileText, Sparkles, ChevronRight, BookOpen,
   Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
-  Share2, Copy, Check, QrCode, X, ChevronDown,
+  Share2, Copy, Check, QrCode, X, ChevronDown, Printer,
 } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
@@ -887,6 +887,122 @@ export default function RaepaPage() {
       setGeneratingReport(false);
     }
   }, [caseId, toast]);
+
+  // Render inline markdown: **bold**, *italic*
+  const renderInline = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**"))
+        return <strong key={i} className="font-semibold text-slate-100">{part.slice(2, -2)}</strong>;
+      if (part.startsWith("*") && part.endsWith("*"))
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      return part;
+    });
+  };
+
+  const printReport = useCallback(() => {
+    if (!generatedReport) return;
+    const scoreLabel = (s: number) =>
+      s === 4 ? "Independent" : s === 3 ? "Functional" : s === 2 ? "Developing" : s === 1 ? "Emerging" : "Not Demonstrated";
+    const scoreColor = (s: number) =>
+      s >= 4 ? "#10b981" : s === 3 ? "#3b82f6" : s === 2 ? "#f59e0b" : s === 1 ? "#f97316" : "#b91c1c";
+
+    const chartRows = domainRatings.map(r => {
+      const pct = Math.round((r.score / 4) * 100);
+      const color = scoreColor(r.score);
+      return `<div class="bar-row">
+        <span class="bar-label">${r.domain}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="bar-score" style="color:${color}">${r.score} — ${scoreLabel(r.score)}</span>
+      </div>`;
+    }).join("");
+
+    const sectionIcons: Record<string, string> = {
+      "Academic Language Profile Summary": "📋",
+      "Key Findings from Work Sample Analysis": "🔍",
+      "Domain Performance Profile": "📊",
+      "Language Function Profile": "💬",
+      "Subject-Specific Strategies": "📚",
+      "Classroom Teacher Recommendations": "🏫",
+      "Home Support Strategies": "🏠",
+      "Tutor Support Strategies": "🎯",
+      "Department and School Recommendations": "🏛️",
+      "Priority Learning Goals": "⭐",
+    };
+
+    const blocks = generatedReport.split("\n\n").filter(Boolean);
+    let bodyHtml = "";
+    for (const block of blocks) {
+      const hm = block.match(/^\*\*(.+)\*\*$/);
+      if (hm) {
+        const title = hm[1];
+        const icon = sectionIcons[title] ?? "▸";
+        bodyHtml += `<div class="section-heading"><span class="section-icon">${icon}</span>${title}</div>`;
+        continue;
+      }
+      const hasBullets = block.includes("\n- ") || block.startsWith("- ");
+      if (hasBullets) {
+        const lines = block.split("\n");
+        const intros: string[] = [];
+        const bullets: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith("- ")) bullets.push(line.slice(2).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"));
+          else if (bullets.length === 0 && line.trim()) intros.push(line.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"));
+        }
+        if (intros.length) bodyHtml += `<p>${intros.join(" ")}</p>`;
+        if (bullets.length) bodyHtml += `<ul>${bullets.map(b => `<li>${b}</li>`).join("")}</ul>`;
+        continue;
+      }
+      const safe = block.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      bodyHtml += `<p>${safe}</p>`;
+    }
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head>
+<title>RAEPA Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 30px 40px; }
+  h1 { font-size: 18pt; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
+  .subtitle { font-size: 10pt; color: #64748b; margin-bottom: 20px; }
+  .chart-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
+  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 10px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; height: 22px; }
+  .bar-label { width: 160px; font-size: 9pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 10px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; }
+  .bar-score { width: 130px; font-size: 8.5pt; font-weight: 600; flex-shrink: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #64748b; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .section-heading { font-size: 11pt; font-weight: 700; color: #1e3a5f; border-left: 4px solid #3b82f6; padding: 6px 10px; margin: 20px 0 8px; background: #f0f7ff; border-radius: 0 6px 6px 0; }
+  .section-icon { margin-right: 6px; }
+  p { font-size: 10.5pt; line-height: 1.65; color: #334155; margin-bottom: 8px; }
+  ul { padding-left: 0; margin: 0 0 10px; list-style: none; }
+  li { font-size: 10.5pt; line-height: 1.6; color: #334155; padding: 3px 0 3px 18px; position: relative; }
+  li::before { content: "•"; position: absolute; left: 4px; color: #3b82f6; font-weight: 700; }
+  strong { font-weight: 600; color: #0f172a; }
+  .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 8pt; color: #94a3b8; text-align: center; }
+  @media print { body { padding: 20px 30px; } }
+</style>
+</head><body>
+<h1>RAEPA Narrative Report</h1>
+<div class="subtitle">ReMynd Academic English Performance Assessment — Generated ${new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}</div>
+<div class="chart-section">
+  <div class="chart-title">Domain Performance Overview</div>
+  <div class="chart-grid">${chartRows}</div>
+  <div class="legend">
+    ${[["#10b981","Independent (4)"],["#3b82f6","Functional (3)"],["#f59e0b","Developing (2)"],["#f97316","Emerging (1)"],["#b91c1c","Not Demonstrated (0)"]].map(([c,l]) => `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}</div>`).join("")}
+  </div>
+</div>
+${bodyHtml}
+<div class="footer">Confidential — ReMynd Assessment Operating System · RAEPA © ${new Date().getFullYear()}</div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`);
+    win.document.close();
+  }, [generatedReport, domainRatings]);
 
   // ── Upload work sample ─────────────────────────────────────────────────────────
 
@@ -1872,6 +1988,14 @@ export default function RaepaPage() {
                         variant="outline"
                         size="sm"
                         className="text-xs h-7"
+                        onClick={printReport}
+                      >
+                        <Printer className="w-3 h-3 mr-1.5" /> Print / PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
                         onClick={() => { navigator.clipboard.writeText(generatedReport); toast({ title: "Copied to clipboard" }); }}
                       >
                         <Copy className="w-3 h-3 mr-1.5" /> Copy
@@ -1970,20 +2094,20 @@ export default function RaepaPage() {
                           return (
                             <div key={i} className="mt-1">
                               {introLines.filter(Boolean).map((l, j) => (
-                                <p key={j} className="text-sm text-slate-300 leading-relaxed mb-1">{l}</p>
+                                <p key={j} className="text-sm text-slate-300 leading-relaxed mb-1">{renderInline(l)}</p>
                               ))}
                               <ul className="space-y-1.5 mt-1">
                                 {bulletLines.map((item, j) => (
                                   <li key={j} className="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
                                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                                    <span>{item}</span>
+                                    <span>{renderInline(item)}</span>
                                   </li>
                                 ))}
                               </ul>
                             </div>
                           );
                         }
-                        return <p key={i} className="text-sm text-slate-300 leading-relaxed mt-1">{block}</p>;
+                        return <p key={i} className="text-sm text-slate-300 leading-relaxed mt-1">{renderInline(block)}</p>;
                       });
                     })()}
                   </div>
