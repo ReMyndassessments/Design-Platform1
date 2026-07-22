@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
+import { canUserAccessCase } from "../lib/permissions.js";
 import multer from "multer";
 import { ai } from "@workspace/integrations-gemini-ai";
 
@@ -45,12 +46,7 @@ const LANGUAGE_FUNCTIONS = [
 ];
 
 async function verifyCaseAccess(caseId: string, userId: string, role: string): Promise<boolean> {
-  if (["assessment_coordinator","assessment_invigilator","administrator"].includes(role)) return true;
-  const asgn = await db.select({ id: assignmentsTable.id })
-    .from(assignmentsTable)
-    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.staffId, userId)))
-    .limit(1);
-  return asgn.length > 0;
+  return canUserAccessCase({ id: userId, role }, caseId);
 }
 
 // ── GET session ──────────────────────────────────────────────────────────────

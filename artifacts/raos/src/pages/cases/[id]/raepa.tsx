@@ -425,7 +425,7 @@ export default function RaepaPage() {
               </Badge>
             )}
             <Badge className="bg-indigo-900 text-indigo-300 font-mono text-xs">
-              {session?.pathway === "comprehensive" ? "Add-on" : "Standalone"}
+              {pathway === "comprehensive" ? "Add-on" : "Standalone"}
             </Badge>
           </div>
         </div>
