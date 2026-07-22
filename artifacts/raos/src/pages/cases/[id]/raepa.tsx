@@ -2068,7 +2068,19 @@ ${bodyHtml}
                         "Department and School Recommendations": "text-rose-300 border-rose-500/40 bg-rose-500/5",
                         "Priority Learning Goals": "text-purple-300 border-purple-500/40 bg-purple-500/5",
                       };
-                      const blocks = generatedReport.split("\n\n").filter(Boolean);
+                      // Normalise: split any block that starts with **Heading** followed by text on same line
+                      const rawBlocks = generatedReport.split("\n\n").filter(Boolean);
+                      const blocks: string[] = [];
+                      for (const b of rawBlocks) {
+                        const inlineHeading = b.match(/^(\*\*[^*\n]+\*\*)[ \t]+(.+)/s);
+                        if (inlineHeading) {
+                          blocks.push(inlineHeading[1]);          // heading block alone
+                          blocks.push(inlineHeading[2].trimStart()); // rest as separate block
+                        } else {
+                          blocks.push(b);
+                        }
+                      }
+
                       let currentSection = "";
                       return blocks.map((block, i) => {
                         const headingMatch = block.match(/^\*\*(.+)\*\*$/);
