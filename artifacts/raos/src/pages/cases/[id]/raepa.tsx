@@ -11,6 +11,7 @@ import {
   AlertTriangle, FileText, Sparkles, ChevronRight, BookOpen,
   Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
   Share2, Copy, Check, QrCode, X, ChevronDown, Printer,
+  Pencil, Globe, Languages,
 } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
@@ -600,6 +601,9 @@ export default function RaepaPage() {
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
   const [generatedReport, setGeneratedReport] = useState<string>("");
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [editableReport, setEditableReport] = useState<string>("");
+  const [isEditingReport, setIsEditingReport] = useState(false);
+  const [translatingReport, setTranslatingReport] = useState(false);
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -888,6 +892,14 @@ export default function RaepaPage() {
     }
   }, [caseId, toast]);
 
+  // Sync editable copy whenever a fresh report is generated
+  useEffect(() => {
+    if (generatedReport) {
+      setEditableReport(generatedReport);
+      setIsEditingReport(false);
+    }
+  }, [generatedReport]);
+
   // Render inline markdown: **bold**, *italic*
   const renderInline = (text: string): React.ReactNode => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -900,8 +912,65 @@ export default function RaepaPage() {
     });
   };
 
-  const printReport = useCallback(() => {
-    if (!generatedReport) return;
+  const printReport = useCallback(async (lang: "en" | "zh" | "ko" = "en") => {
+    const reportText = editableReport || generatedReport;
+    if (!reportText) return;
+
+    // Static UI label translations
+    const labels = {
+      en: {
+        title: "Academic English Performance Assessment",
+        subtitle: "ReMynd Narrative Assessment Report",
+        name: "NAME:", dob: "DATE OF BIRTH:", grade: "GRADE:", school: "SCHOOL:", age: "AGE AT ASSESSMENT:",
+        assessmentDate: "ASSESSMENT DATE:", reportDate: "REPORT DATE:", type: "ASSESSMENT TYPE:",
+        l1: "FIRST LANGUAGE (L1):", yrs: "YEARS IN ENGLISH SCHOOLING:",
+        confLabel: "Confidentiality:", confText: "This assessment report contains sensitive information intended solely for the named student, their parents/carers, and authorised school staff. Non-consensual redisclosure to unauthorised individuals is prohibited. This report should be stored securely and handled in accordance with applicable privacy legislation.",
+        domainTitle: "DOMAIN PERFORMANCE OVERVIEW",
+        footer: `Confidential — ReMynd Assessment Operating System · Academic English Performance Assessment · © ${new Date().getFullYear()} ReMynd`,
+      },
+      zh: {
+        title: "学术英语能力评估",
+        subtitle: "ReMynd 叙述性评估报告",
+        name: "姓名：", dob: "出生日期：", grade: "年级：", school: "学校：", age: "测评时年龄：",
+        assessmentDate: "测评日期：", reportDate: "报告日期：", type: "测评类型：",
+        l1: "第一语言（L1）：", yrs: "英语学校教育年数：",
+        confLabel: "保密声明：", confText: "本评估报告含有敏感信息，仅供被评估学生、其父母／监护人及经授权的学校工作人员使用。未经同意，不得向未授权人员披露本报告内容。本报告应妥善保管，并依据相关隐私法律法规进行处理。",
+        domainTitle: "领域表现概览",
+        footer: `保密文件 — ReMynd 测评操作系统 · 学术英语能力评估 · © ${new Date().getFullYear()} ReMynd`,
+      },
+      ko: {
+        title: "학업 영어 능력 평가",
+        subtitle: "ReMynd 서술형 평가 보고서",
+        name: "이름:", dob: "생년월일:", grade: "학년:", school: "학교:", age: "평가 시 연령:",
+        assessmentDate: "평가 날짜:", reportDate: "보고서 날짜:", type: "평가 유형:",
+        l1: "제1언어 (L1):", yrs: "영어 교육 연수:",
+        confLabel: "기밀 유지:", confText: "본 평가 보고서에는 해당 학생, 학부모/보호자 및 권한을 부여받은 학교 직원만을 위한 민감한 정보가 포함되어 있습니다. 무단 공개는 금지되어 있으며, 관련 개인정보 보호 법령에 따라 안전하게 보관·처리되어야 합니다.",
+        domainTitle: "영역별 수행 개요",
+        footer: `기밀 — ReMynd 평가 운영 시스템 · 학업 영어 능력 평가 · © ${new Date().getFullYear()} ReMynd`,
+      },
+    };
+    const L = labels[lang];
+
+    // Translate narrative if not English
+    let narrativeText = reportText;
+    if (lang !== "en") {
+      setTranslatingReport(true);
+      try {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/translate-report`, {
+          method: "POST",
+          headers: { ...authHeader(), "Content-Type": "application/json" },
+          body: JSON.stringify({ text: reportText, targetLang: lang }),
+        });
+        if (!r.ok) throw new Error("Translation failed");
+        const d = await r.json();
+        narrativeText = d.translatedText ?? reportText;
+      } catch {
+        toast({ title: "Translation failed", description: "Printing in English instead.", variant: "destructive" });
+        narrativeText = reportText;
+      } finally {
+        setTranslatingReport(false);
+      }
+    }
 
     // Build demographics
     const cd = caseData as any;
@@ -930,24 +999,6 @@ export default function RaepaPage() {
       session?.pathway === "parent_referred" ? "Parent-Referred" :
       session?.pathway ?? "—";
 
-    const demoFields: [string, string][] = [
-      ["Student Name", studentName],
-      ["School", school],
-      ["Date of Birth", dobFormatted],
-      ["Year / Grade", grade],
-      ["Age at Assessment", ageAtAssessment],
-      ["First Language (L1)", l1],
-      ["Assessment Date", assessmentDate],
-      ["Years in English Schooling", yrsEnglish],
-      ["Assessment Type", pathwayLabel],
-      ["Report Date", reportDate],
-    ];
-    const demoHtml = demoFields.map(([l, v]) =>
-      `<div class="demo-field"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`
-    ).join("");
-
-    const scoreLabel = (s: number) =>
-      s === 4 ? "Independent" : s === 3 ? "Functional" : s === 2 ? "Developing" : s === 1 ? "Emerging" : "Not Demonstrated";
     const scoreColor = (s: number) =>
       s >= 4 ? "#10b981" : s === 3 ? "#3b82f6" : s === 2 ? "#f59e0b" : s === 1 ? "#f97316" : "#b91c1c";
 
@@ -957,31 +1008,16 @@ export default function RaepaPage() {
       return `<div class="bar-row">
         <span class="bar-label">${r.domain}</span>
         <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
-        <span class="bar-score" style="color:${color}">${r.score} — ${scoreLabel(r.score)}</span>
+        <span class="bar-score" style="color:${color}">${r.score}/4</span>
       </div>`;
     }).join("");
 
-    const sectionIcons: Record<string, string> = {
-      "Academic Language Profile Summary": "📋",
-      "Key Findings from Work Sample Analysis": "🔍",
-      "Domain Performance Profile": "📊",
-      "Language Function Profile": "💬",
-      "Subject-Specific Strategies": "📚",
-      "Classroom Teacher Recommendations": "🏫",
-      "Home Support Strategies": "🏠",
-      "Tutor Support Strategies": "🎯",
-      "Department and School Recommendations": "🏛️",
-      "Priority Learning Goals": "⭐",
-    };
-
-    const blocks = generatedReport.split("\n\n").filter(Boolean);
+    const blocks = narrativeText.split("\n\n").filter(Boolean);
     let bodyHtml = "";
     for (const block of blocks) {
       const hm = block.match(/^\*\*(.+)\*\*$/);
       if (hm) {
-        const title = hm[1];
-        const icon = sectionIcons[title] ?? "▸";
-        bodyHtml += `<div class="section-heading"><span class="section-icon">${icon}</span>${title}</div>`;
+        bodyHtml += `<div class="section-heading">${hm[1]}</div>`;
         continue;
       }
       const hasBullets = block.includes("\n- ") || block.startsWith("- ");
@@ -1003,58 +1039,44 @@ export default function RaepaPage() {
 
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
-    // Build two-column demo table for print
-    const leftPrintFields: [string,string][] = [
-      ["NAME:", studentName],
-      ["DATE OF BIRTH:", dobFormatted],
-      ["GRADE:", grade],
-      ["SCHOOL:", school],
-      ["AGE AT ASSESSMENT:", ageAtAssessment],
-    ];
-    const rightPrintFields: [string,string][] = [
-      ["ASSESSMENT DATE:", assessmentDate],
-      ["REPORT DATE:", reportDate],
-      ["ASSESSMENT TYPE:", pathwayLabel],
-      ["FIRST LANGUAGE (L1):", l1],
-      ["YEARS IN ENGLISH SCHOOLING:", yrsEnglish ? `${yrsEnglish} year(s)` : "—"],
-    ];
-    const leftColHtml = leftPrintFields.map(([l,v]) =>
-      `<div class="demo-row"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`).join("");
-    const rightColHtml = rightPrintFields.map(([l,v]) =>
-      `<div class="demo-row"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`).join("");
 
-    win.document.write(`<!DOCTYPE html><html><head>
+    const leftColHtml = [
+      [L.name, studentName], [L.dob, dobFormatted], [L.grade, grade],
+      [L.school, school], [L.age, ageAtAssessment],
+    ].map(([lbl,v]) => `<div class="demo-row"><span class="demo-label">${lbl}</span><span class="demo-value">${v}</span></div>`).join("");
+    const rightColHtml = [
+      [L.assessmentDate, assessmentDate], [L.reportDate, reportDate], [L.type, pathwayLabel],
+      [L.l1, l1], [L.yrs, yrsEnglish ? `${yrsEnglish}` : "—"],
+    ].map(([lbl,v]) => `<div class="demo-row"><span class="demo-label">${lbl}</span><span class="demo-value">${v}</span></div>`).join("");
+
+    win.document.write(`<!DOCTYPE html><html lang="${lang}"><head>
+<meta charset="utf-8">
 <title>RAEPA Report — ${studentName}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Georgia", "Times New Roman", serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 32px 44px; max-width: 900px; margin: 0 auto; }
-  /* Title */
   .report-title { text-align: center; margin-bottom: 22px; }
   .report-title h1 { font-size: 18pt; font-weight: 700; color: #1e40af; margin-bottom: 4px; }
   .report-title p { font-size: 11pt; font-style: italic; color: #475569; }
-  /* Demographics table */
   .demo-table { border: 1.5px solid #1e40af; border-radius: 4px; overflow: hidden; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; }
   .demo-col { padding: 12px 16px; }
   .demo-col:first-child { border-right: 1.5px solid #1e40af; }
   .demo-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: baseline; }
-  .demo-label { font-size: 9pt; font-weight: 700; color: #1e40af; white-space: nowrap; min-width: 140px; }
+  .demo-label { font-size: 9pt; font-weight: 700; color: #1e40af; white-space: nowrap; min-width: 130px; }
   .demo-value { font-size: 10pt; font-weight: 600; color: #1e293b; }
-  /* Confidentiality */
   .confidentiality { font-size: 9.5pt; line-height: 1.6; color: #334155; margin-bottom: 20px; text-align: justify; }
   .confidentiality strong { color: #1e40af; }
-  /* Chart */
   .chart-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; break-inside: avoid; }
-  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1e40af; margin-bottom: 10px; }
+  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1e40af; margin-bottom: 10px; }
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
   .bar-row { display: flex; align-items: center; gap: 8px; height: 22px; }
   .bar-label { width: 155px; font-size: 8.5pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
   .bar-track { flex: 1; height: 9px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 99px; }
-  .bar-score { width: 128px; font-size: 8pt; font-weight: 600; flex-shrink: 0; }
+  .bar-score { width: 80px; font-size: 8pt; font-weight: 600; flex-shrink: 0; }
   .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #64748b; }
   .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-  /* Narrative */
   .section-heading { font-size: 11pt; font-weight: 700; color: #1e40af; text-transform: uppercase; border-bottom: 2px solid #1e40af; padding-bottom: 3px; margin: 22px 0 8px; letter-spacing: 0.03em; }
   p { font-size: 10.5pt; line-height: 1.7; color: #1e293b; margin-bottom: 9px; text-align: justify; }
   ul { padding-left: 0; margin: 0 0 10px; list-style: none; }
@@ -1062,35 +1084,31 @@ export default function RaepaPage() {
   li::before { content: "•"; position: absolute; left: 4px; color: #1e40af; font-weight: 700; }
   strong { font-weight: 700; }
   .footer { margin-top: 36px; border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 8pt; color: #94a3b8; text-align: center; font-style: italic; }
-  @media print {
-    body { padding: 18px 28px; }
-    .demo-table { break-inside: avoid; }
-    .chart-section { break-inside: avoid; }
-  }
+  @media print { body { padding: 18px 28px; } .demo-table,.chart-section { break-inside: avoid; } }
 </style>
 </head><body>
 <div class="report-title">
-  <h1>Academic English Performance Assessment</h1>
-  <p>ReMynd Narrative Assessment Report</p>
+  <h1>${L.title}</h1>
+  <p>${L.subtitle}</p>
 </div>
 <div class="demo-table">
   <div class="demo-col">${leftColHtml}</div>
   <div class="demo-col">${rightColHtml}</div>
 </div>
-<p class="confidentiality"><strong>Confidentiality:</strong> This assessment report contains sensitive information intended solely for the named student, their parents/carers, and authorised school staff. Non-consensual redisclosure to unauthorised individuals is prohibited. This report should be stored securely and handled in accordance with applicable privacy legislation.</p>
+<p class="confidentiality"><strong>${L.confLabel}</strong> ${L.confText}</p>
 <div class="chart-section">
-  <div class="chart-title">Domain Performance Overview</div>
+  <div class="chart-title">${L.domainTitle}</div>
   <div class="chart-grid">${chartRows}</div>
   <div class="legend">
-    ${[["#10b981","Independent (4)"],["#3b82f6","Functional (3)"],["#f59e0b","Developing (2)"],["#f97316","Emerging (1)"],["#b91c1c","Not Demonstrated (0)"]].map(([c,l]) => `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}</div>`).join("")}
+    ${[["#10b981","4"],["#3b82f6","3"],["#f59e0b","2"],["#f97316","1"],["#b91c1c","0"]].map(([c,s]) => `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${s}</div>`).join("")}
   </div>
 </div>
 ${bodyHtml}
-<div class="footer">Confidential — ReMynd Assessment Operating System &nbsp;·&nbsp; Academic English Performance Assessment &nbsp;·&nbsp; © ${new Date().getFullYear()} ReMynd</div>
+<div class="footer">${L.footer}</div>
 <script>window.onload=()=>{window.print();}<\/script>
 </body></html>`);
     win.document.close();
-  }, [generatedReport, domainRatings, caseData, langBg, session]);
+  }, [editableReport, generatedReport, domainRatings, caseData, langBg, session, caseId, toast]);
 
   // ── Upload work sample ─────────────────────────────────────────────────────────
 
@@ -2071,20 +2089,59 @@ ${bodyHtml}
                     <h2 className="text-base font-semibold flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-indigo-400" /> RAEPA Narrative Report
                     </h2>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {/* Edit toggle */}
+                      <Button
+                        variant={isEditingReport ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => {
+                          if (isEditingReport) {
+                            setIsEditingReport(false);
+                          } else {
+                            setEditableReport(editableReport || generatedReport);
+                            setIsEditingReport(true);
+                          }
+                        }}
+                      >
+                        <Pencil className="w-3 h-3 mr-1.5" />
+                        {isEditingReport ? "Done Editing" : "Edit"}
+                      </Button>
+                      {/* Print in each language */}
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-xs h-7"
-                        onClick={printReport}
+                        onClick={() => printReport("en")}
+                        disabled={translatingReport}
                       >
-                        <Printer className="w-3 h-3 mr-1.5" /> Print / PDF
+                        <Printer className="w-3 h-3 mr-1.5" /> EN
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-xs h-7"
-                        onClick={() => { navigator.clipboard.writeText(generatedReport); toast({ title: "Copied to clipboard" }); }}
+                        onClick={() => printReport("zh")}
+                        disabled={translatingReport}
+                      >
+                        {translatingReport ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Languages className="w-3 h-3 mr-1.5" />}
+                        中文
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => printReport("ko")}
+                        disabled={translatingReport}
+                      >
+                        {translatingReport ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Languages className="w-3 h-3 mr-1.5" />}
+                        한국어
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => { navigator.clipboard.writeText(editableReport || generatedReport); toast({ title: "Copied to clipboard" }); }}
                       >
                         <Copy className="w-3 h-3 mr-1.5" /> Copy
                       </Button>
@@ -2220,8 +2277,23 @@ ${bodyHtml}
                     </div>
                   )}
 
+                  {/* Edit mode textarea vs. rendered blocks */}
+                  {isEditingReport ? (
+                    <div className="mb-4">
+                      <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                        <Pencil className="w-3 h-3" /> Editing — use <code className="bg-slate-700 px-1 rounded text-indigo-300">**Heading**</code> for sections, <code className="bg-slate-700 px-1 rounded text-indigo-300">- bullet</code> for lists. Click <strong className="text-slate-300">Done Editing</strong> when finished.
+                      </p>
+                      <Textarea
+                        value={editableReport}
+                        onChange={e => setEditableReport(e.target.value)}
+                        className="w-full font-mono text-xs bg-slate-900 border-slate-600 text-slate-200 min-h-[600px] resize-y"
+                        spellCheck={false}
+                      />
+                    </div>
+                  ) : (
                   <div className="space-y-1">
                     {(() => {
+                      const displayText = editableReport || generatedReport;
                       const sectionColors: Record<string, string> = {
                         "Academic Language Profile Summary": "text-indigo-300 border-indigo-500/40 bg-indigo-500/5",
                         "Key Findings from Work Sample Analysis": "text-violet-300 border-violet-500/40 bg-violet-500/5",
@@ -2235,7 +2307,7 @@ ${bodyHtml}
                         "Priority Learning Goals": "text-purple-300 border-purple-500/40 bg-purple-500/5",
                       };
                       // Normalise: split any block that starts with **Heading** followed by text on same line
-                      const rawBlocks = generatedReport.split("\n\n").filter(Boolean);
+                      const rawBlocks = displayText.split("\n\n").filter(Boolean);
                       const blocks: string[] = [];
                       for (const b of rawBlocks) {
                         const inlineHeading = b.match(/^(\*\*[^*\n]+\*\*)[ \t]+(.+)/s);
@@ -2289,6 +2361,7 @@ ${bodyHtml}
                       });
                     })()}
                   </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center">

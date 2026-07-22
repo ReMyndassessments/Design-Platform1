@@ -722,6 +722,29 @@ Generate the full comprehensive RAEPA report now. Be specific, evidence-based, a
   }
 });
 
+// ── AI: translate RAEPA report ────────────────────────────────────────────────
+router.post("/cases/:caseId/raepa/translate-report", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  const { text, targetLang } = req.body as { text: string; targetLang: "zh" | "ko" };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+    if (!text || !["zh", "ko"].includes(targetLang)) return res.status(400).json({ error: "Missing text or invalid targetLang" });
+    const langName = targetLang === "zh" ? "Simplified Chinese (简体中文)" : "Korean (한국어)";
+    const report = await callGroq([
+      {
+        role: "system",
+        content: `You are a professional educational assessment translator specialising in psychoeducational and language assessment reports. Translate the following assessment report into ${langName}. Rules: preserve ALL markdown formatting exactly — bullet points starting with "- ", section headings wrapped in "**...**", bold text with **. Maintain the professional clinical tone. Output ONLY the translated text with no commentary.`,
+      },
+      { role: "user", content: text },
+    ], 4000);
+    res.json({ translatedText: report });
+  } catch (err) {
+    logger.error({ err }, "raepa translate-report");
+    res.status(500).json({ error: "Translation failed" });
+  }
+});
+
 // ── Public: validate teacher token ─────────────────────────────────────────────
 router.get("/public/raepa/teacher/:token", async (req, res) => {
   const { token } = req.params;
