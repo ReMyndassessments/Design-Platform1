@@ -598,6 +598,8 @@ export default function RaepaPage() {
   const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
+  const [generatedReport, setGeneratedReport] = useState<string>("");
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -869,6 +871,22 @@ export default function RaepaPage() {
       setSaving(false);
     }
   }, [caseId, functions, qc, toast, setActiveTab]);
+
+  // ── Generate RAEPA narrative report ───────────────────────────────────────────
+
+  const generateReport = useCallback(async () => {
+    setGeneratingReport(true);
+    try {
+      const r = await api(`/cases/${caseId}/raepa/generate-report`, { method: "POST" });
+      if (!r.ok) throw new Error("Generation failed");
+      const data = await r.json();
+      setGeneratedReport(data.report);
+    } catch {
+      toast({ title: "Report generation failed", variant: "destructive" });
+    } finally {
+      setGeneratingReport(false);
+    }
+  }, [caseId, toast]);
 
   // ── Upload work sample ─────────────────────────────────────────────────────────
 
@@ -1841,13 +1859,76 @@ export default function RaepaPage() {
               </div>
             )}
 
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-center">
-              <Sparkles className="w-10 h-10 text-indigo-400 mx-auto mb-3 opacity-70" />
-              <p className="text-sm text-slate-400 mb-1">AI-generated narrative report</p>
-              <p className="text-xs text-slate-500 mb-4">Complete domain scoring and language function profile first. AI report generation will be available in the next phase.</p>
-              <Button disabled className="bg-indigo-600 hover:bg-indigo-700 opacity-50 cursor-not-allowed">
-                <Sparkles className="w-4 h-4 mr-2" /> Generate RAEPA Report
-              </Button>
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
+              {generatedReport ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-semibold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-400" /> RAEPA Narrative Report
+                    </h2>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => { navigator.clipboard.writeText(generatedReport); toast({ title: "Copied to clipboard" }); }}
+                      >
+                        <Copy className="w-3 h-3 mr-1.5" /> Copy
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={generateReport}
+                        disabled={generatingReport}
+                      >
+                        <RefreshCw className={`w-3 h-3 mr-1.5 ${generatingReport ? "animate-spin" : ""}`} />
+                        Regenerate
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {generatedReport.split("\n\n").filter(Boolean).map((block, i) => {
+                      const isHeading = block.startsWith("**") && block.endsWith("**");
+                      const isBulletList = block.includes("\n- ");
+                      if (isHeading) {
+                        return <h3 key={i} className="text-sm font-semibold text-indigo-300 mt-5 mb-1">{block.replace(/\*\*/g, "")}</h3>;
+                      }
+                      if (isBulletList) {
+                        const [heading, ...items] = block.split("\n- ");
+                        return (
+                          <div key={i}>
+                            {heading && <p className="text-sm text-slate-300 leading-relaxed mb-1">{heading}</p>}
+                            <ul className="list-disc list-inside space-y-1">
+                              {items.map((item, j) => <li key={j} className="text-sm text-slate-300 leading-relaxed">{item}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      return <p key={i} className="text-sm text-slate-300 leading-relaxed">{block}</p>;
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <Sparkles className="w-10 h-10 text-indigo-400 mx-auto mb-3 opacity-70" />
+                  <p className="text-sm text-slate-400 mb-1">AI-generated narrative report</p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    {progressCounts.rated > 0 || fnProgressCounts.assessed > 0
+                      ? "Ready — uses your domain ratings, language function profile, work samples, and student background."
+                      : "Complete domain scoring and language function profile first."}
+                  </p>
+                  <Button
+                    onClick={generateReport}
+                    disabled={generatingReport || (progressCounts.rated === 0 && fnProgressCounts.assessed === 0)}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {generatingReport
+                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating…</>
+                      : <><Sparkles className="w-4 h-4 mr-2" /> Generate RAEPA Report</>}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

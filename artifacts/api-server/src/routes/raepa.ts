@@ -548,6 +548,119 @@ Generate the ready-to-use content (passage, question, instructions, vocabulary l
   }
 });
 
+// ── AI: generate RAEPA narrative report ──────────────────────────────────────
+router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+
+    const [caseRows, sessionRows, ratingsRows, functionsRows, samplesRows] = await Promise.all([
+      db.execute(sql`SELECT student_name, date_of_birth FROM cases WHERE id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT language_background, pathway FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT domain, score, confidence, evidence FROM raepa_domain_ratings WHERE case_id = ${caseId} ORDER BY domain`),
+      db.execute(sql`SELECT function_name, level, evidence, subject_context FROM raepa_language_functions WHERE case_id = ${caseId} ORDER BY function_name`),
+      db.execute(sql`SELECT subject, grade_level, task_type FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at DESC LIMIT 6`),
+    ]);
+
+    const caseRow = caseRows.rows[0] as any;
+    const sessionRow = sessionRows.rows[0] as any;
+    const ratings = ratingsRows.rows as any[];
+    const fnLevels = functionsRows.rows as any[];
+    const samples = samplesRows.rows as any[];
+
+    // Student profile
+    const studentName = caseRow?.student_name ?? "the student";
+    let ageStr = "school-age";
+    if (caseRow?.date_of_birth) {
+      const dob = new Date(caseRow.date_of_birth);
+      const today = new Date();
+      let a = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) a--;
+      ageStr = `${a} years old`;
+    }
+
+    const langBg: Record<string, string> = sessionRow?.language_background
+      ? (typeof sessionRow.language_background === "string" ? JSON.parse(sessionRow.language_background) : sessionRow.language_background)
+      : {};
+    const l1 = langBg.l1 || "unknown";
+    const yearsInEnglish = langBg.years_in_english || "unknown";
+    const gradeHint = samples.find((s: any) => s.grade_level)?.grade_level ?? "unknown grade";
+
+    // Domain ratings summary
+    const ratingsSummary = ratings.map((r: any) =>
+      `${r.domain}: ${r.score}/4 (${r.confidence || "no confidence noted"})${r.evidence ? ` — Evidence: ${r.evidence}` : ""}`
+    ).join("\n");
+
+    // Domain strengths and needs
+    const strengths = ratings.filter((r: any) => r.score >= 3).map((r: any) => r.domain);
+    const developing = ratings.filter((r: any) => r.score === 2).map((r: any) => r.domain);
+    const needs = ratings.filter((r: any) => r.score <= 1).map((r: any) => r.domain);
+
+    // Language functions summary
+    const fnSummary = fnLevels.map((f: any) =>
+      `${f.function_name}: ${f.level}${f.subject_context ? ` (${f.subject_context})` : ""}${f.evidence ? ` — ${f.evidence}` : ""}`
+    ).join("\n");
+
+    const securedFns = fnLevels.filter((f: any) => ["functional","independent"].includes(f.level)).map((f: any) => f.function_name);
+    const emergingFns = fnLevels.filter((f: any) => ["emerging","developing"].includes(f.level)).map((f: any) => f.function_name);
+    const notDemonstratedFns = fnLevels.filter((f: any) => f.level === "not_demonstrated").map((f: any) => f.function_name);
+
+    // Work samples
+    const sampleCtx = samples.length > 0
+      ? samples.map((s: any) => `${s.subject || "Unknown"} (${s.grade_level || "?"}, task: ${s.task_type || "?"})`).join("; ")
+      : "No work samples on file";
+
+    const systemPrompt = `You are an expert EAL/D assessment specialist writing a clinical RAEPA (ReMynd Academic English Performance Assessment) narrative report. 
+
+Write a professional, structured report in third person using the student's name. Use clear, jargon-free clinical language appropriate for sharing with school staff and parents. Be specific — reference actual domains, scores, and functions. Do not make up information not present in the data.
+
+Format the report using these exact section headings (each on its own line, wrapped in **):
+
+**Academic Language Profile Summary**
+**Domain Strengths**
+**Areas Requiring Targeted Support**
+**Language Function Profile**
+**Implications for Classroom Learning**
+**Recommended Support Strategies**
+
+Keep each section concise (3–6 sentences or bullet points). Use bullet points (- ) for recommendations.`;
+
+    const userMessage = `Student: ${studentName}, ${ageStr}, Grade: ${gradeHint}
+First language: ${l1} | Years in English-medium schooling: ${yearsInEnglish}
+Work samples reviewed: ${sampleCtx}
+
+**DOMAIN RATINGS (0–4 scale: 0=Not Demonstrated, 1=Emerging, 2=Developing, 3=Functional, 4=Independent)**
+${ratingsSummary}
+
+Summary:
+- Domains at or above Functional (3–4): ${strengths.length > 0 ? strengths.join(", ") : "None"}
+- Domains Developing (2): ${developing.length > 0 ? developing.join(", ") : "None"}
+- Domains Emerging or Not Demonstrated (0–1): ${needs.length > 0 ? needs.join(", ") : "None"}
+
+**LANGUAGE FUNCTION LEVELS**
+${fnSummary}
+
+Summary:
+- Secured (Functional/Independent): ${securedFns.length > 0 ? securedFns.join(", ") : "None"}
+- Emerging/Developing: ${emergingFns.length > 0 ? emergingFns.join(", ") : "None"}
+- Not Demonstrated: ${notDemonstratedFns.length > 0 ? notDemonstratedFns.join(", ") : "None"}
+
+Write the structured RAEPA narrative report now.`;
+
+    const report = await callGroq([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ], 1200);
+
+    res.json({ report });
+  } catch (err) {
+    logger.error({ err }, "raepa generate-report");
+    res.status(500).json({ error: "Report generation failed" });
+  }
+});
+
 // ── Public: validate teacher token ─────────────────────────────────────────────
 router.get("/public/raepa/teacher/:token", async (req, res) => {
   const { token } = req.params;
