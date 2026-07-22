@@ -902,6 +902,50 @@ export default function RaepaPage() {
 
   const printReport = useCallback(() => {
     if (!generatedReport) return;
+
+    // Build demographics
+    const cd = caseData as any;
+    const studentName = cd?.student_name ?? "—";
+    const school = cd?.school ?? "—";
+    const grade = cd?.grade ?? "—";
+    const dobRaw = cd?.dob ?? null;
+    const dobFormatted = dobRaw
+      ? new Date(dobRaw).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+      : "—";
+    let ageAtAssessment = "—";
+    if (dobRaw) {
+      const d = new Date(dobRaw); const t = new Date();
+      let a = t.getFullYear() - d.getFullYear();
+      if (t.getMonth() - d.getMonth() < 0 || (t.getMonth() === d.getMonth() && t.getDate() < d.getDate())) a--;
+      ageAtAssessment = `${a} years`;
+    }
+    const l1 = langBg.l1 || "—";
+    const yrsEnglish = langBg.years_in_english || "—";
+    const assessmentDate = session?.created_at
+      ? new Date(session.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+      : "—";
+    const reportDate = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+    const pathwayLabel = session?.pathway === "standalone" ? "Standalone Assessment" :
+      session?.pathway === "school_referred" ? "School-Referred" :
+      session?.pathway === "parent_referred" ? "Parent-Referred" :
+      session?.pathway ?? "—";
+
+    const demoFields: [string, string][] = [
+      ["Student Name", studentName],
+      ["School", school],
+      ["Date of Birth", dobFormatted],
+      ["Year / Grade", grade],
+      ["Age at Assessment", ageAtAssessment],
+      ["First Language (L1)", l1],
+      ["Assessment Date", assessmentDate],
+      ["Years in English Schooling", yrsEnglish],
+      ["Assessment Type", pathwayLabel],
+      ["Report Date", reportDate],
+    ];
+    const demoHtml = demoFields.map(([l, v]) =>
+      `<div class="demo-field"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`
+    ).join("");
+
     const scoreLabel = (s: number) =>
       s === 4 ? "Independent" : s === 3 ? "Functional" : s === 2 ? "Developing" : s === 1 ? "Emerging" : "Not Demonstrated";
     const scoreColor = (s: number) =>
@@ -959,37 +1003,81 @@ export default function RaepaPage() {
 
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
+    // Build two-column demo table for print
+    const leftPrintFields: [string,string][] = [
+      ["NAME:", studentName],
+      ["DATE OF BIRTH:", dobFormatted],
+      ["GRADE:", grade],
+      ["SCHOOL:", school],
+      ["AGE AT ASSESSMENT:", ageAtAssessment],
+    ];
+    const rightPrintFields: [string,string][] = [
+      ["ASSESSMENT DATE:", assessmentDate],
+      ["REPORT DATE:", reportDate],
+      ["ASSESSMENT TYPE:", pathwayLabel],
+      ["FIRST LANGUAGE (L1):", l1],
+      ["YEARS IN ENGLISH SCHOOLING:", yrsEnglish ? `${yrsEnglish} year(s)` : "—"],
+    ];
+    const leftColHtml = leftPrintFields.map(([l,v]) =>
+      `<div class="demo-row"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`).join("");
+    const rightColHtml = rightPrintFields.map(([l,v]) =>
+      `<div class="demo-row"><span class="demo-label">${l}</span><span class="demo-value">${v}</span></div>`).join("");
+
     win.document.write(`<!DOCTYPE html><html><head>
-<title>RAEPA Report</title>
+<title>RAEPA Report — ${studentName}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 30px 40px; }
-  h1 { font-size: 18pt; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
-  .subtitle { font-size: 10pt; color: #64748b; margin-bottom: 20px; }
-  .chart-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; }
-  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 10px; }
+  body { font-family: "Georgia", "Times New Roman", serif; font-size: 11pt; color: #1e293b; background: #fff; padding: 32px 44px; max-width: 900px; margin: 0 auto; }
+  /* Title */
+  .report-title { text-align: center; margin-bottom: 22px; }
+  .report-title h1 { font-size: 18pt; font-weight: 700; color: #1e40af; margin-bottom: 4px; }
+  .report-title p { font-size: 11pt; font-style: italic; color: #475569; }
+  /* Demographics table */
+  .demo-table { border: 1.5px solid #1e40af; border-radius: 4px; overflow: hidden; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; }
+  .demo-col { padding: 12px 16px; }
+  .demo-col:first-child { border-right: 1.5px solid #1e40af; }
+  .demo-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: baseline; }
+  .demo-label { font-size: 9pt; font-weight: 700; color: #1e40af; white-space: nowrap; min-width: 140px; }
+  .demo-value { font-size: 10pt; font-weight: 600; color: #1e293b; }
+  /* Confidentiality */
+  .confidentiality { font-size: 9.5pt; line-height: 1.6; color: #334155; margin-bottom: 20px; text-align: justify; }
+  .confidentiality strong { color: #1e40af; }
+  /* Chart */
+  .chart-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; break-inside: avoid; }
+  .chart-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1e40af; margin-bottom: 10px; }
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
   .bar-row { display: flex; align-items: center; gap: 8px; height: 22px; }
-  .bar-label { width: 160px; font-size: 9pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-  .bar-track { flex: 1; height: 10px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .bar-label { width: 155px; font-size: 8.5pt; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 9px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 99px; }
-  .bar-score { width: 130px; font-size: 8.5pt; font-weight: 600; flex-shrink: 0; }
+  .bar-score { width: 128px; font-size: 8pt; font-weight: 600; flex-shrink: 0; }
   .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 8pt; color: #64748b; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .section-heading { font-size: 11pt; font-weight: 700; color: #1e3a5f; border-left: 4px solid #3b82f6; padding: 6px 10px; margin: 20px 0 8px; background: #f0f7ff; border-radius: 0 6px 6px 0; }
-  .section-icon { margin-right: 6px; }
-  p { font-size: 10.5pt; line-height: 1.65; color: #334155; margin-bottom: 8px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  /* Narrative */
+  .section-heading { font-size: 11pt; font-weight: 700; color: #1e40af; text-transform: uppercase; border-bottom: 2px solid #1e40af; padding-bottom: 3px; margin: 22px 0 8px; letter-spacing: 0.03em; }
+  p { font-size: 10.5pt; line-height: 1.7; color: #1e293b; margin-bottom: 9px; text-align: justify; }
   ul { padding-left: 0; margin: 0 0 10px; list-style: none; }
-  li { font-size: 10.5pt; line-height: 1.6; color: #334155; padding: 3px 0 3px 18px; position: relative; }
-  li::before { content: "•"; position: absolute; left: 4px; color: #3b82f6; font-weight: 700; }
-  strong { font-weight: 600; color: #0f172a; }
-  .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 8pt; color: #94a3b8; text-align: center; }
-  @media print { body { padding: 20px 30px; } }
+  li { font-size: 10.5pt; line-height: 1.65; color: #1e293b; padding: 3px 0 3px 18px; position: relative; }
+  li::before { content: "•"; position: absolute; left: 4px; color: #1e40af; font-weight: 700; }
+  strong { font-weight: 700; }
+  .footer { margin-top: 36px; border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 8pt; color: #94a3b8; text-align: center; font-style: italic; }
+  @media print {
+    body { padding: 18px 28px; }
+    .demo-table { break-inside: avoid; }
+    .chart-section { break-inside: avoid; }
+  }
 </style>
 </head><body>
-<h1>RAEPA Narrative Report</h1>
-<div class="subtitle">ReMynd Academic English Performance Assessment — Generated ${new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}</div>
+<div class="report-title">
+  <h1>Academic English Performance Assessment</h1>
+  <p>ReMynd Narrative Assessment Report</p>
+</div>
+<div class="demo-table">
+  <div class="demo-col">${leftColHtml}</div>
+  <div class="demo-col">${rightColHtml}</div>
+</div>
+<p class="confidentiality"><strong>Confidentiality:</strong> This assessment report contains sensitive information intended solely for the named student, their parents/carers, and authorised school staff. Non-consensual redisclosure to unauthorised individuals is prohibited. This report should be stored securely and handled in accordance with applicable privacy legislation.</p>
 <div class="chart-section">
   <div class="chart-title">Domain Performance Overview</div>
   <div class="chart-grid">${chartRows}</div>
@@ -998,11 +1086,11 @@ export default function RaepaPage() {
   </div>
 </div>
 ${bodyHtml}
-<div class="footer">Confidential — ReMynd Assessment Operating System · RAEPA © ${new Date().getFullYear()}</div>
+<div class="footer">Confidential — ReMynd Assessment Operating System &nbsp;·&nbsp; Academic English Performance Assessment &nbsp;·&nbsp; © ${new Date().getFullYear()} ReMynd</div>
 <script>window.onload=()=>{window.print();}<\/script>
 </body></html>`);
     win.document.close();
-  }, [generatedReport, domainRatings]);
+  }, [generatedReport, domainRatings, caseData, langBg, session]);
 
   // ── Upload work sample ─────────────────────────────────────────────────────────
 
@@ -2012,6 +2100,84 @@ ${bodyHtml}
                       </Button>
                     </div>
                   </div>
+
+                  {/* Professional demographic header — matching reference report style */}
+                  {(() => {
+                    const cd = caseData as any;
+                    const studentName = cd?.student_name ?? "—";
+                    const dob = cd?.dob ?? null;
+                    const school = cd?.school ?? "—";
+                    const grade = cd?.grade ?? "—";
+                    let age = "—";
+                    if (dob) {
+                      const d = new Date(dob); const t = new Date();
+                      let a = t.getFullYear() - d.getFullYear();
+                      if (t.getMonth() - d.getMonth() < 0 || (t.getMonth() === d.getMonth() && t.getDate() < d.getDate())) a--;
+                      const m = t.getMonth() - d.getMonth() < 0 ? 12 + t.getMonth() - d.getMonth() : t.getMonth() - d.getMonth();
+                      age = `${a} years, ${m} months`;
+                    }
+                    const l1 = langBg.l1 || "—";
+                    const yrs = langBg.years_in_english ? `${langBg.years_in_english} year(s)` : "—";
+                    const assessmentDate = session?.created_at
+                      ? new Date(session.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })
+                      : "—";
+                    const reportDate = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+                    const pathway = session?.pathway === "standalone" ? "Standalone" :
+                      session?.pathway === "school_referred" ? "School-Referred" :
+                      session?.pathway === "parent_referred" ? "Parent-Referred" :
+                      session?.pathway ?? "—";
+                    const leftFields: [string, string][] = [
+                      ["NAME:", studentName],
+                      ["DATE OF BIRTH:", dob ? new Date(dob).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }) : "—"],
+                      ["GRADE:", grade],
+                      ["SCHOOL:", school],
+                      ["AGE AT ASSESSMENT:", age],
+                    ];
+                    const rightFields: [string, string][] = [
+                      ["ASSESSMENT DATE:", assessmentDate],
+                      ["REPORT DATE:", reportDate],
+                      ["PATHWAY:", pathway],
+                      ["FIRST LANGUAGE (L1):", l1],
+                      ["YEARS IN ENGLISH SCHOOLING:", yrs],
+                    ];
+                    return (
+                      <div className="mb-6">
+                        {/* Title block */}
+                        <div className="text-center mb-4">
+                          <h1 className="text-xl font-bold text-indigo-300 leading-tight">Academic English Performance Assessment</h1>
+                          <p className="text-sm text-slate-400 italic mt-1">ReMynd Narrative Assessment Report</p>
+                        </div>
+                        {/* Demographics table */}
+                        <div className="border border-slate-600 rounded-lg overflow-hidden">
+                          <div className="grid grid-cols-2 divide-x divide-slate-600">
+                            <div className="p-4 space-y-1.5">
+                              {leftFields.map(([label, value]) => (
+                                <div key={label} className="flex gap-2">
+                                  <span className="text-xs font-bold text-indigo-400 w-40 shrink-0">{label}</span>
+                                  <span className="text-sm text-slate-200">{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="p-4 space-y-1.5">
+                              {rightFields.map(([label, value]) => (
+                                <div key={label} className="flex gap-2">
+                                  <span className="text-xs font-bold text-indigo-400 w-44 shrink-0">{label}</span>
+                                  <span className="text-sm text-slate-200">{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {/* Confidentiality notice */}
+                        <div className="mt-3 px-1">
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            <span className="font-bold text-indigo-400">Confidentiality: </span>
+                            This assessment report contains sensitive information intended solely for the named student, their parents/carers, and authorised school staff. Non-consensual disclosure to unauthorised individuals is prohibited. This report should be stored securely and handled in accordance with applicable privacy legislation.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Domain Performance Chart — embedded as part of the report */}
                   {domainRatings.length > 0 && (
