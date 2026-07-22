@@ -467,7 +467,9 @@ export default function RaepaPage() {
 
   // Domain scoring state
   const [ratings, setRatings] = useState<Record<string, { score: number; confidence: string; evidence: string }>>({});
-  const [openGuides, setOpenGuides] = useState<Record<string, boolean>>({});
+  const [openGuides, setOpenGuides] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(DOMAINS.map(d => [d, true]))
+  );
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
