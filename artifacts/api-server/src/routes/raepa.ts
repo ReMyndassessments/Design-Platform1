@@ -460,7 +460,7 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
     const [caseRows, sessionRows, sampleRows] = await Promise.all([
       db.execute(sql`SELECT student_name, date_of_birth FROM cases WHERE id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT language_background FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
-      db.execute(sql`SELECT subject, grade_level, task_type FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at DESC LIMIT 6`),
+      db.execute(sql`SELECT subject, grade_level, task_type, ai_analysis FROM raepa_work_samples WHERE case_id = ${caseId} AND ai_analysis IS NOT NULL ORDER BY created_at DESC LIMIT 6`),
     ]);
 
     const caseRow = caseRows.rows[0] as any;
@@ -486,11 +486,36 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
     const l1 = langBg.l1 || "unknown";
     const yearsInEnglish = langBg.years_in_english || "unknown";
 
-    const sampleContext = samples.length > 0
-      ? samples.map(s => `- Subject: ${s.subject || "unknown"}, Grade: ${s.grade_level || "not specified"}, Task type: ${s.task_type || "unknown"}`).join("\n")
+    // Parse AI analysis from each work sample to extract vocabulary and suggested questions
+    const parsedSamples = samples.map(s => {
+      let analysis: any = {};
+      try {
+        analysis = typeof s.ai_analysis === "string" ? JSON.parse(s.ai_analysis) : (s.ai_analysis ?? {});
+      } catch { /* ignore */ }
+      return { subject: s.subject, grade_level: s.grade_level, task_type: s.task_type, analysis };
+    });
+
+    const allAcademicVocab = [...new Set(parsedSamples.flatMap(s => s.analysis.academic_vocabulary ?? []))].slice(0, 12);
+    const allSubjectVocab  = [...new Set(parsedSamples.flatMap(s => s.analysis.subject_vocabulary  ?? []))].slice(0, 12);
+    const allCommandWords  = [...new Set(parsedSamples.flatMap(s => s.analysis.command_words       ?? []))].slice(0, 8);
+    const allBarriers      = [...new Set(parsedSamples.flatMap(s => s.analysis.potential_barriers  ?? []))].slice(0, 5);
+    const suggestedQs      = parsedSamples[0]?.analysis.suggested_questions ?? {};
+
+    const sampleContext = parsedSamples.length > 0
+      ? parsedSamples.map(s => `- Subject: ${s.subject || "unknown"}, Grade: ${s.grade_level || "not specified"}, Task type: ${s.task_type || "unknown"}`).join("\n")
       : "No work samples on file.";
 
-    const gradeHint = samples.find(s => s.grade_level)?.grade_level ?? "primary/secondary school";
+    const vocabContext = [
+      allAcademicVocab.length > 0 ? `Academic (Tier 2) vocabulary found in work samples: ${allAcademicVocab.join(", ")}` : null,
+      allSubjectVocab.length  > 0 ? `Subject-specific (Tier 3) vocabulary found: ${allSubjectVocab.join(", ")}` : null,
+      allCommandWords.length  > 0 ? `Task command words used: ${allCommandWords.join(", ")}` : null,
+      allBarriers.length      > 0 ? `Identified language barriers: ${allBarriers.join("; ")}` : null,
+      suggestedQs.vocabulary  ? `Suggested vocabulary probe questions from work sample analysis: ${(suggestedQs.vocabulary as string[]).join(" | ")}` : null,
+      suggestedQs.explanation ? `Suggested explanation questions: ${(suggestedQs.explanation as string[]).join(" | ")}` : null,
+      suggestedQs.reasoning   ? `Suggested reasoning questions: ${(suggestedQs.reasoning as string[]).join(" | ")}` : null,
+    ].filter(Boolean).join("\n");
+
+    const gradeHint = parsedSamples.find(s => s.grade_level)?.grade_level ?? "primary/secondary school";
 
     const systemPrompt = `You are an expert EAL/D (English as an Additional Language or Dialect) assessment specialist creating ready-to-use elicitation content for the ReMynd Academic English Performance Assessment (RAEPA).
 
@@ -504,12 +529,12 @@ Generate ONLY the actual content the examiner can immediately read aloud or pres
 
 Work samples on file:
 ${sampleContext}
-
+${vocabContext ? `\nExtracted from work sample AI analysis:\n${vocabContext}` : ""}
 RAEPA domain being assessed: ${domain}
 
 The examiner prompt says: "${promptText}"
 
-Generate the ready-to-use content (passage, question, instructions, vocabulary list, or scenario as appropriate). Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute assessment activity.`;
+Generate the ready-to-use content (passage, question, instructions, vocabulary list, or scenario as appropriate). Where vocabulary lists or suggested questions are available above, use them directly. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute assessment activity.`;
 
     const content = await callGroq([
       { role: "system", content: systemPrompt },

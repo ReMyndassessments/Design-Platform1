@@ -73,9 +73,8 @@ const DOMAIN_GUIDES: Record<string, {
   "Social Communication English": {
     description: "Ability to use English for social and interpersonal communication in school contexts.",
     prompts: [
-      "Engage the student in casual conversation — ask about their weekend, interests, or how they find school.",
-      "Observe their initiation and response in informal interactions with peers or the examiner.",
-      "Note their use of greetings, turn-taking, repair strategies, and social phrases.",
+      "Engage the student in a short conversation — ask about their interests, school day, or subjects they are currently studying (2–3 minutes).",
+      "Note use of greetings, turn-taking, repair strategies, and social phrases during the session.",
     ],
     descriptors: {
       0: "Does not attempt social English; remains silent or uses only L1.",
@@ -89,8 +88,7 @@ const DOMAIN_GUIDES: Record<string, {
     description: "Ability to understand spoken academic English — explanations, lectures, and instructions.",
     prompts: [
       "Give a brief 3–4 sentence explanation of a simple concept (e.g. the water cycle) without visual support. Ask the student to summarise what they heard.",
-      "Observe how the student responds to verbal classroom instructions — do they wait to copy others, or follow independently?",
-      "Ask the student to repeat back the key steps from a 2-step instruction.",
+      "Give a 2–3 step verbal instruction without gesture or visual support and ask the student to carry it out.",
     ],
     descriptors: {
       0: "No comprehension of academic speech; does not respond to verbal instructions.",
@@ -103,9 +101,8 @@ const DOMAIN_GUIDES: Record<string, {
   "Academic Speaking": {
     description: "Ability to use spoken English for academic purposes — explaining, describing, discussing, presenting.",
     prompts: [
-      "Ask the student to explain how to solve a maths problem or describe a science process in their own words.",
-      "Ask for their opinion on a topic from class (e.g. 'Why do you think people migrate?').",
-      "Observe participation in class discussion — does the student contribute ideas using academic language?",
+      "Ask the student to explain a process or concept from their subject area in their own words (e.g. a maths procedure, a science process, or a humanities concept).",
+      "Ask for their opinion on a topic drawn from their work and prompt elaboration: 'Why do you think that? Can you tell me more?'",
     ],
     descriptors: {
       0: "Does not produce academic English orally; silent or uses only L1.",
@@ -118,9 +115,8 @@ const DOMAIN_GUIDES: Record<string, {
   "Academic Reading": {
     description: "Ability to comprehend grade-level academic texts including textbooks, worksheets, and articles.",
     prompts: [
-      "Provide a short grade-level text (3–5 sentences) from a subject area. Ask 2–3 comprehension questions.",
+      "Present a short grade-level text (3–5 sentences) from a subject area. Ask 2–3 comprehension questions.",
       "Ask the student to read a brief passage aloud, then paraphrase the meaning in their own words.",
-      "Observe how the student interacts with written tasks — do they attempt to read instructions independently?",
     ],
     descriptors: {
       0: "Cannot access grade-level text; does not attempt to read or makes no meaning from it.",
@@ -372,26 +368,114 @@ const DOMAIN_GUIDES: Record<string, {
   },
 };
 
-// Which prompt indices within each domain have a "Generate" button
-// (prompts where the examiner must produce content to show/read to the student)
+// Which prompt indices have a "Generate" button.
+// Includes items generatable from uploaded work sample analysis (vocabulary, topics, genre).
 const GENERATABLE_PROMPTS: Record<string, number[]> = {
-  "Academic Listening":              [0],
-  "Academic Reading":                [0],
-  "Academic Writing":                [1],
-  "General Academic Vocabulary":     [0],
-  "Subject-Specific Vocabulary":     [1],
-  "Understanding of Classroom Directions": [0],
-  "Explanation and Elaboration":     [0],
-  "Sequencing and Organization":     [0],
-  "Comparison and Classification":   [0],
-  "Cause-and-Effect Reasoning":      [0],
-  "Inference and Prediction":        [0],
-  "Justification and Evidence":      [2],
-  "Evaluation and Hypothesizing":    [1],
-  "Mathematics Language":            [0],
-  "Science Language":                [1],
-  "Humanities Language":             [0],
-  "Response to Scaffolding":         [0],
+  "Social Communication English":          [0],      // personalised conversation starter
+  "Academic Listening":                    [0, 1],   // explanation passage + multi-step instruction
+  "Academic Speaking":                     [0, 1],   // explanation topic + opinion question
+  "Academic Reading":                      [0, 1],   // reading passage + comprehension/paraphrase
+  "Academic Writing":                      [1],      // writing prompt from work sample topics
+  "General Academic Vocabulary":           [0, 1],   // Tier 2 probe using work sample vocab + task instruction
+  "Subject-Specific Vocabulary":           [0, 1],   // Tier 3 probe from work sample subject_vocabulary
+  "Understanding of Classroom Directions": [0],      // multi-step instructions
+  "Explanation and Elaboration":           [0],      // explanation topic from subject area
+  "Sequencing and Organization":           [0],      // sequencing task from work sample topic
+  "Comparison and Classification":         [0],      // comparison items from work sample subjects
+  "Cause-and-Effect Reasoning":            [0],      // scenario from work sample subject
+  "Inference and Prediction":              [0],      // short inference passage
+  "Justification and Evidence":            [1],      // debatable question from work sample topic
+  "Evaluation and Hypothesizing":          [1],      // hypothetical from work sample context
+  "Mathematics Language":                  [0, 2],   // word problem + vocab probe from maths samples
+  "Science Language":                      [1, 2],   // process explanation + vocab probe from science samples
+  "Humanities Language":                   [0, 2],   // event explanation + vocab probe from humanities samples
+  "Academic Independence":                 [0],      // independence task from work sample subject
+  "Response to Scaffolding":               [0],      // scaffold from work sample genre/content
+};
+
+// Classroom observation notes — separate optional section (requires in-class access)
+const DOMAIN_OBSERVATIONS: Record<string, string[]> = {
+  "Social Communication English": [
+    "Observe whether the student initiates peer interaction in English or waits to be spoken to.",
+    "Note whether the student uses English with classmates or defaults to L1 during unstructured time.",
+  ],
+  "Academic Listening": [
+    "Note whether the student follows verbal teacher instructions independently or waits to copy peers before starting tasks.",
+    "Observe response to novel verbal instructions — does the student need them repeated or simplified?",
+  ],
+  "Academic Speaking": [
+    "Note spontaneous academic contributions in class discussion — does the student volunteer explanations or only give minimal answers when called upon?",
+    "Observe whether the student uses academic register or only social/informal language when contributing to class.",
+  ],
+  "Academic Reading": [
+    "Note whether the student reads written task instructions independently before starting, or waits for teacher guidance.",
+    "Observe reading behaviour during independent work — does the student re-read, look up words, or give up quickly?",
+  ],
+  "Academic Writing": [
+    "In class, note whether the student drafts independently or requires frequent prompting and reassurance.",
+    "Observe how the student responds to written feedback — does revision show understanding of the correction?",
+  ],
+  "General Academic Vocabulary": [
+    "Note spontaneous use of Tier 2 vocabulary in classroom discussions — does the student use academic language naturally?",
+    "Observe whether the student understands task instructions containing academic verbs without needing clarification.",
+  ],
+  "Subject-Specific Vocabulary": [
+    "Observe accuracy of technical vocabulary in independent written subject-area work.",
+    "Note whether the student uses subject-specific terms correctly in verbal responses during lessons.",
+  ],
+  "Understanding of Classroom Directions": [
+    "Note whether the student reads written worksheet instructions independently, or copies peers.",
+    "Observe how quickly the student begins tasks after verbal instructions — without needing teacher repetition.",
+  ],
+  "Explanation and Elaboration": [
+    "Note the depth and clarity of explanations offered spontaneously during class discussions.",
+    "Observe whether the student elaborates on initial responses or consistently gives minimal answers.",
+  ],
+  "Sequencing and Organization": [
+    "Observe how the student organises multi-step tasks in class without adult direction.",
+    "Note whether written work shows logical sequencing when produced independently.",
+  ],
+  "Comparison and Classification": [
+    "Note use of comparative language (both, similarly, whereas, in contrast) in classroom speech.",
+    "Observe written work for structured comparison — does the student use formal comparison frameworks independently?",
+  ],
+  "Cause-and-Effect Reasoning": [
+    "Note use of causal connectives (because, therefore, as a result, due to) in spontaneous speech and independent writing.",
+    "Observe whether the student makes causal connections in class discussions without explicit prompting.",
+  ],
+  "Inference and Prediction": [
+    "Note whether the student responds to implied meaning or subtext in classroom reading and discussion.",
+    "Observe comprehension behaviour during independent reading — does the student attempt to infer beyond the literal text?",
+  ],
+  "Justification and Evidence": [
+    "Note use of evidence-based language in independently written work (e.g. for example, this shows, according to).",
+    "Observe whether the student supports opinions with evidence during class discussions unprompted.",
+  ],
+  "Evaluation and Hypothesizing": [
+    "Note whether the student volunteers evaluative or speculative comments during class discussion.",
+    "Observe written work for evaluative language — does the student give opinions with justification independently?",
+  ],
+  "Mathematics Language": [
+    "In maths class, note whether the student understands word problems independently or requires language support.",
+    "Observe whether the student uses precise mathematical language when explaining to peers.",
+  ],
+  "Science Language": [
+    "Note accuracy and register of scientific reporting language in independently written science work.",
+    "Observe whether the student uses correct procedural and conceptual language during science activities.",
+  ],
+  "Humanities Language": [
+    "Note use of analytical and evaluative language (significant, perspective, contributed to, impact) in humanities discussions.",
+    "Observe written responses — does the student use discipline-specific discourse structures independently?",
+  ],
+  "Academic Independence": [
+    "In class, observe whether the student begins tasks independently or waits for adult direction.",
+    "Note persistence through challenging work — does the student apply strategies before seeking help?",
+    "Observe self-monitoring — does the student check their work and self-correct errors?",
+  ],
+  "Response to Scaffolding": [
+    "Note how quickly the student independently internalises scaffolds over repeated exposures in class.",
+    "Observe whether scaffolded strategies transfer to new tasks or are used only for the immediate activity.",
+  ],
 };
 
 const SUBJECTS = ["English / Language Arts","Mathematics","Science","Humanities / Social Studies","History","Geography","Literature","General / Homeroom","Other"];
@@ -494,6 +578,7 @@ export default function RaepaPage() {
   );
   const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
+  const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -1466,6 +1551,28 @@ export default function RaepaPage() {
                                   })}
                                 </div>
                               </div>
+
+                              {/* Classroom observation notes — optional collapsible */}
+                              {(DOMAIN_OBSERVATIONS[domain] ?? []).length > 0 && (
+                                <div className="border-t border-slate-700/50 pt-3">
+                                  <button
+                                    onClick={() => setOpenObs(prev => ({ ...prev, [domain]: !prev[domain] }))}
+                                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors"
+                                  >
+                                    <Eye size={11} />
+                                    <span>Classroom observation notes</span>
+                                    <span className="text-slate-600 ml-0.5">(optional — requires in-class access)</span>
+                                    <ChevronDown size={11} className={`ml-auto transition-transform ${openObs[domain] ? "rotate-180" : ""}`} />
+                                  </button>
+                                  {openObs[domain] && (
+                                    <ul className="mt-2 pl-3 space-y-1.5 border-l border-slate-700">
+                                      {(DOMAIN_OBSERVATIONS[domain] ?? []).map((obs, oi) => (
+                                        <li key={oi} className="text-xs text-slate-500 italic leading-relaxed">{obs}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
