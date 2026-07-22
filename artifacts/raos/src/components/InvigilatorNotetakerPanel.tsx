@@ -257,7 +257,7 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
               RAMRI Interview Ready
             </p>
             {ramriSessions.map(sess => {
-              const isTest = sess.case_mode === "test";
+              const isTest = sess.case_mode === "test" || sess.student_name === "Demo Student";
               const isConfirming = deleteConfirmId === sess.case_id;
               const isDeleting = deletingCaseId === sess.case_id;
               return (

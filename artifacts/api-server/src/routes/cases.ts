@@ -609,8 +609,8 @@ router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   const isInvigilator = req.userRole === "assessment_invigilator";
-  const isTestCase = rows[0].caseMode === "test";
-  if (!isAdminLike(req.userRole) && !(isInvigilator && isTestCase)) {
+  const isDemoCase = rows[0].caseMode === "test" || rows[0].studentName === "Demo Student";
+  if (!isAdminLike(req.userRole) && !(isInvigilator && isDemoCase)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can delete live cases" });
     return;
   }
