@@ -324,6 +324,34 @@ const en: OverviewMap = {
     typicalTimeline: "7–10 working days from intake",
   },
 
+  "ReMynd Academic English Performance Assessment": {
+    fullDesc: "A curriculum-connected, work-product-based academic language assessment that evaluates whether a student can successfully access, process, express, and demonstrate learning through English across the curriculum. RAEPA distinguishes social communication fluency from academic language proficiency — examining how language affects a student's actual performance in English-medium instruction. The assessment is modular and authentic, identifying which academic language functions are secure, which are emerging, and which require explicit support. Produces a structured academic language profile with curriculum-referenced classroom recommendations.",
+    whenToUse: [
+      "Students who communicate confidently in social English but struggle to perform academically through English",
+      "Students enrolled in English-medium schools whose classroom progress does not reflect their social fluency",
+      "Students who understand more than they can express in academic English",
+      "Students whose difficulty may reflect a language barrier rather than a learning difficulty",
+      "Students who perform better orally than in written academic English",
+      "Distinguishing between English-learning needs and other learning difficulties",
+      "Students receiving EAL support whose progress has plateaued",
+      "Pre-intervention baseline before an academic English support programme begins",
+    ],
+    initiatedBy: ["Class teacher", "EAL / ESL coordinator", "Learning support coordinator", "SENCO", "School counsellor", "Parent referral"],
+    studentProfile: "Students in Years 3–10 enrolled in English-medium instruction who show a discrepancy between their social communication fluency and their academic performance through English. Particularly effective for students who appear verbally capable in informal settings but struggle with subject vocabulary, classroom instructions, academic texts, or written extended responses. Also appropriate for students where the distinction between a language-acquisition need and a learning difficulty has not been clearly established.",
+    benefits: [
+      "Directly addresses the most commonly misunderstood gap in international school learning support — the social vs. academic English distinction",
+      "Authentic, curriculum-connected tasks provide ecologically valid evidence of academic language function",
+      "Dynamic scaffolding trials reveal the type and level of support that produces successful performance",
+      "Identifies which academic language functions are secure, emerging, or requiring explicit support",
+      "Produces immediately actionable classroom accommodation recommendations",
+      "Can be integrated as a component of a Comprehensive Educational Profile — avoiding duplication",
+      "Does not require a medical referral and does not produce a diagnosis",
+    ],
+    costContext: "Formal language assessments from speech and language pathologists in Shanghai typically cost 8,000–18,000 RMB and are designed to assess language disorders, not academic language access within English-medium education. At 5,800 RMB, RAEPA provides a purpose-built, curriculum-connected academic English assessment that directly addresses the question most teachers and parents are asking — whether this student can learn effectively through English, and what specific classroom support is needed.",
+    deliverables: ["Academic language profile", "Social vs. academic English comparison", "Domain scores across listening, speaking, reading, and writing", "Subject-specific language findings", "Dynamic scaffolding trial results", "Classroom accommodation recommendations", "Recommendations for further assessment where applicable"],
+    typicalTimeline: "10–14 working days from assessment session",
+  },
+
   "ReMynd Authentic Mathematical Reasoning Interview": {
     fullDesc: "A structured mathematical reasoning interview designed to assess how students approach, explain, and self-correct mathematical problems. Rather than testing procedural recall alone, RAMRI surfaces authentic reasoning through a structured interview protocol — capturing spoken and written work samples, generating clinically-weighted choice sets, and supporting systematic examiner scoring across reasoning quality, self-correction, and mathematical language. Produces a curriculum-referenced mathematical reasoning profile with specific recommendations for learning support and differentiation.",
     whenToUse: [
@@ -663,6 +691,34 @@ const zh: OverviewMap = {
     typicalTimeline: "入学后7–10个工作日",
   },
 
+  "ReMynd Academic English Performance Assessment": {
+    fullDesc: "一项以课程为基础、以学生作业为核心的学术语言评估，评估学生能否通过英语跨学科获取、处理、表达并展示学习成果。RAEPA区分社交沟通流利程度与学术语言能力——考察语言如何影响学生在英语授课中的实际表现。评估采用模块化设计，以真实任务为基础，旨在识别哪些学术语言功能已稳固掌握、哪些正在发展、哪些需要明确支持。提供结构化的学术语言档案及基于课程标准的课堂建议。",
+    whenToUse: [
+      "社交沟通流利但学业表现不佳的学生",
+      "就读英语授课学校但课堂进步与社交流利程度不匹配的学生",
+      "理解能力强于英语学术表达能力的学生",
+      "困难可能源于语言障碍而非学习困难的学生",
+      "口头表达优于书面学术英语的学生",
+      "区分英语习得需求与其他学习困难",
+      "英语附加语言支持进展停滞的学生",
+      "英语学术干预计划开始前的基线评估",
+    ],
+    initiatedBy: ["班主任", "英语附加语言/ESL协调员", "学习支持协调员", "特殊教育协调员", "学校辅导老师", "家长转介"],
+    studentProfile: "就读英语授课学校的3–10年级学生，其社交沟通流利程度与英语学业表现之间存在差距。对那些在非正式场合言语能力良好，但在学科词汇、课堂指令、学术文本或书面延伸回答方面存在困难的学生尤为有效。同样适用于语言习得需求与学习困难之间的区分尚未明确的学生。",
+    benefits: [
+      "直接针对国际学校学习支持中最常被误解的问题——社交英语与学术英语的区别",
+      "以课程为基础的真实任务提供具有生态效度的学术语言功能证据",
+      "动态支架试验揭示哪种类型和程度的支持能带来成功表现",
+      "识别哪些学术语言功能已稳固、正在发展或需要明确支持",
+      "提供可立即执行的课堂便利措施和教师建议",
+      "可作为综合教育档案的组成部分整合，避免重复收集已有信息",
+      "无需医疗转介，不产生诊断结论",
+    ],
+    costContext: "上海言语语言病理学家的正式语言评估通常收费8,000–18,000元人民币，且主要针对语言障碍，而非英语授课环境中的学术语言能力。以5,800元人民币的价格，RAEPA提供专门为课程设计的学术英语评估，直接回答教师和家长最关心的问题——这位学生能否通过英语有效学习，以及课堂上需要哪些具体支持。",
+    deliverables: ["学术语言档案", "社交英语与学术英语对比分析", "听、说、读、写各领域得分", "学科语言发现", "动态支架试验结果", "课堂便利措施建议", "如适用，提供进一步评估建议"],
+    typicalTimeline: "评估完成后10–14个工作日",
+  },
+
   "ReMynd Authentic Mathematical Reasoning Interview": {
     fullDesc: "一项由人工智能支持的数学推理访谈，旨在评估学生如何处理、解释和自我纠正数学问题。RAMRI通过结构化访谈协议呈现真实推理过程——而非单纯考察程序性记忆，捕捉口头和书面作业样本，生成临床加权选择集，并支持系统化的考官评分，涵盖推理质量、自我纠正能力和数学语言。提供基于课程标准的数学推理档案，并附有针对学习支持和差异化教学的具体建议。",
     whenToUse: [
@@ -1000,6 +1056,34 @@ const ko: OverviewMap = {
     ],
     costContext: "상하이의 발달 소아과 의사 또는 초기 교육 전문가의 전문 발달 및 학교 준비 평가는 일반적으로 6,000–12,000위안부터 시작합니다. 여름 할인가 3,600위안으로, ReMynd 학교 준비도 및 전환 평가는 훨씬 더 접근하기 쉬운 비용으로 철저하고 교육에 초점을 맞춘 준비 프로파일을 제공합니다.",
     typicalTimeline: "접수 후 7–10 영업일",
+  },
+
+  "ReMynd Academic English Performance Assessment": {
+    fullDesc: "학생이 영어를 통해 교과 전반에 걸쳐 학습 내용에 접근하고, 처리하며, 표현하고, 입증할 수 있는지를 평가하는 교육과정 연계, 학생 작업물 기반의 학문적 언어 평가입니다. RAEPA는 사회적 의사소통 유창성과 학문적 언어 능숙도를 구분합니다 — 언어가 영어 매체 수업에서 학생의 실제 수행에 어떤 영향을 미치는지 검토합니다. 평가는 모듈식으로 설계되어 있으며, 어떤 학문적 언어 기능이 안정적으로 확립되었는지, 어떤 것이 발달 중인지, 어떤 것이 명시적 지원을 필요로 하는지 파악합니다. 교육과정 기반 교실 권고 사항이 포함된 구조화된 학문적 언어 프로파일을 제공합니다.",
+    whenToUse: [
+      "사회적으로는 영어를 유창하게 구사하지만 학업 수행이 어려운 학생",
+      "영어 매체 학교에 재학 중이지만 교실 진도가 사회적 유창성과 일치하지 않는 학생",
+      "학문적 영어로 표현하는 것보다 이해 능력이 뛰어난 학생",
+      "어려움이 학습 장애가 아닌 언어 장벽에서 비롯될 수 있는 학생",
+      "서면 학문적 영어보다 구두 표현이 더 나은 학생",
+      "영어 습득 필요와 기타 학습 어려움의 구별",
+      "EAL 지원을 받고 있지만 진전이 정체된 학생",
+      "학문적 영어 중재 프로그램 시작 전 기준선 평가",
+    ],
+    initiatedBy: ["담임 교사", "EAL/ESL 코디네이터", "학습 지원 코디네이터", "특수교육 코디네이터", "학교 상담사", "학부모 의뢰"],
+    studentProfile: "사회적 의사소통 유창성과 영어 학업 수행 사이에 불일치를 보이는 영어 매체 학교의 3–10학년 학생. 비공식적 환경에서는 언어적으로 유능해 보이지만 교과 어휘, 수업 지시사항, 학문적 텍스트 또는 서면 확장 응답에 어려움을 겪는 학생에게 특히 효과적입니다. 언어 습득 필요와 학습 어려움 사이의 구별이 아직 명확하게 확립되지 않은 학생에게도 적합합니다.",
+    benefits: [
+      "국제학교 학습 지원에서 가장 흔히 오해되는 격차 — 사회적 영어와 학문적 영어의 구분 — 을 직접 다룸",
+      "교육과정 연계 실제 과제가 학문적 언어 기능에 대한 생태학적으로 타당한 증거 제공",
+      "동적 비계 시험으로 어떤 유형과 수준의 지원이 성공적인 수행을 이끄는지 파악",
+      "안정적, 발달 중, 또는 명시적 지원이 필요한 학문적 언어 기능 식별",
+      "즉시 실행 가능한 교실 편의 조치와 교사 권고 사항 제공",
+      "종합 교육 프로파일의 구성 요소로 통합 가능 — 이미 수집된 정보의 중복 방지",
+      "의료 의뢰 불필요, 진단 결과 없음",
+    ],
+    costContext: "상하이의 언어병리학자의 공식 언어 평가는 일반적으로 8,000–18,000위안이며, 영어 매체 교육 내 학문적 언어 접근이 아닌 언어 장애 평가를 위해 설계됩니다. 5,800위안으로, RAEPA는 교사와 학부모가 가장 궁금해하는 질문 — 이 학생이 영어를 통해 효과적으로 학습할 수 있는지, 그리고 교실에서 어떤 구체적인 지원이 필요한지 — 에 직접 답하는 교육과정 연계 학문적 영어 평가를 제공합니다.",
+    deliverables: ["학문적 언어 프로파일", "사회적 영어와 학문적 영어 비교", "듣기, 말하기, 읽기, 쓰기 영역 점수", "교과별 언어 발견사항", "동적 비계 시험 결과", "교실 편의 조치 권고", "해당하는 경우 추가 평가 권고"],
+    typicalTimeline: "평가 세션 후 10–14 영업일",
   },
 
   "ReMynd Authentic Mathematical Reasoning Interview": {

@@ -586,6 +586,7 @@ export const translations = {
       specialistLabel: "Specialist Assessments",
       specialistServices: [
         { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "A mathematical reasoning interview that extracts authentic work samples, generates clinically-weighted choice sets, and supports structured examiner scoring of reasoning quality, self-correction, and mathematical language.", bestFor: ["Mathematical reasoning difficulties", "Work sample analysis", "Learning support planning", "IEP goal-setting for maths"] },
+        { title: "ReMynd Academic English Performance Assessment", price: "5,800", desc: "A curriculum-connected academic language assessment that evaluates a student's ability to access, process, express, and demonstrate learning through English across the curriculum — distinguishing social communication fluency from academic language proficiency.", bestFor: ["Academic English barriers", "EAL / ESL students", "Distinguishing language from learning difficulty", "Classroom access and participation concerns"] },
       ],
       specialistBtn: "Enquire About This Assessment",
       specialistPricingLabel: "Specialist Assessments",
@@ -1220,6 +1221,7 @@ export const translations = {
       specialistLabel: "专项评估",
       specialistServices: [
         { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "一项数学推理访谈，提取真实作业样本，生成临床加权选择集，并支持对推理质量、自我纠正能力和数学语言的结构化考官评分。", bestFor: ["数学推理困难", "作业样本分析", "学习支持规划", "数学IEP目标制定"] },
+        { title: "ReMynd学术英语表现评估", price: "5,800", desc: "一项以课程为基础的学术语言评估，评估学生通过英语跨学科获取、处理、表达和展示学习成果的能力——区分社交沟通流利程度与学术语言能力。", bestFor: ["学术英语障碍", "英语附加语言学生", "区分语言习得与学习困难", "课堂参与和融入问题"] },
       ],
       specialistBtn: "咨询本评估",
       specialistPricingLabel: "专项评估",
@@ -1854,6 +1856,7 @@ export const translations = {
       specialistLabel: "전문 평가",
       specialistServices: [
         { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "실제 작업 샘플을 추출하고, 임상적 가중치를 부여한 선택지 세트를 생성하며, 추론 품질, 자기 교정, 수학 언어에 대한 구조화된 평가자 채점을 지원하는 수학적 추론 인터뷰입니다.", bestFor: ["수학적 추론 어려움", "작업 샘플 분석", "학습 지원 계획", "수학 IEP 목표 수립"] },
+        { title: "ReMynd 학문적 영어 수행 평가", price: "5,800", desc: "학생이 영어를 통해 교과 전반에 걸쳐 학습 내용에 접근하고, 처리하며, 표현하고, 입증하는 능력을 평가하는 교육과정 연계 학문적 언어 평가 — 사회적 의사소통 유창성과 학문적 언어 능숙도를 구분합니다.", bestFor: ["학문적 영어 장벽", "EAL/ESL 학생", "언어 습득과 학습 어려움 구별", "수업 접근성 및 참여 우려"] },
       ],
       specialistBtn: "이 평가 문의하기",
       specialistPricingLabel: "전문 평가",
