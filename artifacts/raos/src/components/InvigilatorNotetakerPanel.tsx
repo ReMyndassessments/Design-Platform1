@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
-import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight, Smartphone, Copy, Check, Trash2 } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight, Smartphone, Copy, Check, Trash2, LayoutGrid } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface ActiveCase {
@@ -194,17 +194,26 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
 
             {/* Selected case context */}
             {selectedCase && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <User size={11} className="text-indigo-400 shrink-0" />
-                  <span className="font-medium text-slate-700">{selectedCase.studentName}</span>
-                </div>
-                {selectedCase.assessmentMeetingDate && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
                   <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Calendar size={11} className="text-indigo-400 shrink-0" />
-                    <span>Scheduled: {formatMeetingDate(selectedCase.assessmentMeetingDate)}</span>
+                    <User size={11} className="text-indigo-400 shrink-0" />
+                    <span className="font-medium text-slate-700">{selectedCase.studentName}</span>
                   </div>
-                )}
+                  {selectedCase.assessmentMeetingDate && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <Calendar size={11} className="text-indigo-400 shrink-0" />
+                      <span>Scheduled: {formatMeetingDate(selectedCase.assessmentMeetingDate)}</span>
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={`/cases/${selectedCase.id}/dashboards`}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 rounded-md px-2.5 py-1 transition-colors"
+                >
+                  <LayoutGrid size={11} />
+                  View Dashboards
+                </a>
               </div>
             )}
           </div>
