@@ -944,6 +944,38 @@ export default function RaepaPage() {
                 ))}
               </div>
             )}
+
+            {/* ── Next step guidance ───────────────────────────────── */}
+            {workSamples.length > 0 && (
+              <section className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <ChevronRight className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 mb-1">Ready to score? Proceed to Domain Scoring</p>
+                    <p className="text-xs text-slate-400 mb-3">
+                      Review the work samples above — use teacher comments and AI analysis to inform your ratings. Then move to <span className="text-slate-300 font-medium">Domain Scoring</span> to rate the student across all 8 academic English domains.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => setActiveTab("scoring")}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm"
+                      >
+                        Domain Scoring <ChevronRight className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setActiveTab("functions")}
+                        className="border-slate-600 text-slate-300 hover:bg-slate-800 gap-2 text-sm"
+                      >
+                        Language Functions <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         )}
 
