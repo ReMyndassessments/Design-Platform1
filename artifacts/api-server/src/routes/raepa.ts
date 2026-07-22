@@ -54,7 +54,7 @@ async function verifyCaseAccess(caseId: string, userId: string, role: string): P
 }
 
 // ── GET session ──────────────────────────────────────────────────────────────
-router.get("/api/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
+router.get("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -66,7 +66,7 @@ router.get("/api/cases/:caseId/raepa/session", authMiddleware, async (req, res) 
 });
 
 // ── POST session (create or update) ─────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
+router.post("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -108,7 +108,7 @@ router.post("/api/cases/:caseId/raepa/session", authMiddleware, async (req, res)
 });
 
 // ── GET work samples ──────────────────────────────────────────────────────────
-router.get("/api/cases/:caseId/raepa/work-samples", authMiddleware, async (req, res) => {
+router.get("/cases/:caseId/raepa/work-samples", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -119,7 +119,7 @@ router.get("/api/cases/:caseId/raepa/work-samples", authMiddleware, async (req, 
 });
 
 // ── POST work sample (upload) ─────────────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("file"), async (req, res) => {
+router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("file"), async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -160,7 +160,7 @@ router.post("/api/cases/:caseId/raepa/work-samples", authMiddleware, upload.sing
 });
 
 // ── PATCH work sample ─────────────────────────────────────────────────────────
-router.patch("/api/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
+router.patch("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
   const user = (req as any).user;
   try {
@@ -185,7 +185,7 @@ router.patch("/api/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, 
 });
 
 // ── DELETE work sample ────────────────────────────────────────────────────────
-router.delete("/api/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
+router.delete("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
   const user = (req as any).user;
   try {
@@ -196,7 +196,7 @@ router.delete("/api/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware,
 });
 
 // ── POST work sample AI analysis ───────────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/work-samples/:sampleId/analyze", authMiddleware, async (req, res) => {
+router.post("/cases/:caseId/raepa/work-samples/:sampleId/analyze", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
   const user = (req as any).user;
   try {
@@ -288,7 +288,7 @@ Return ONLY valid JSON. Do not include any text outside the JSON object.`;
 });
 
 // ── GET domain ratings ────────────────────────────────────────────────────────
-router.get("/api/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
+router.get("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -302,7 +302,7 @@ router.get("/api/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req
 });
 
 // ── POST domain ratings (upsert) ──────────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
+router.post("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -332,7 +332,7 @@ router.post("/api/cases/:caseId/raepa/domain-ratings", authMiddleware, async (re
 });
 
 // ── GET language functions ────────────────────────────────────────────────────
-router.get("/api/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
+router.get("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -346,7 +346,7 @@ router.get("/api/cases/:caseId/raepa/language-functions", authMiddleware, async 
 });
 
 // ── POST language functions (upsert) ──────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
+router.post("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -376,7 +376,7 @@ router.post("/api/cases/:caseId/raepa/language-functions", authMiddleware, async
 });
 
 // ── GET module scores ─────────────────────────────────────────────────────────
-router.get("/api/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
+router.get("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
@@ -390,7 +390,7 @@ router.get("/api/cases/:caseId/raepa/module-scores", authMiddleware, async (req,
 });
 
 // ── POST module score (upsert) ────────────────────────────────────────────────
-router.post("/api/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
+router.post("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
   const user = (req as any).user;
   try {
