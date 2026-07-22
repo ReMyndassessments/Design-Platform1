@@ -1960,7 +1960,7 @@ export default function RamriInterviewPage() {
                         </div>
                         <p className="text-sm font-medium text-slate-800">{sample.extracted_problem || "No problem text"}</p>
                         {sample.student_answer && <p className="text-xs text-slate-500 mt-0.5">Answer: {sample.student_answer}</p>}
-                        {sample.skill && <p className="text-xs text-slate-400">Skill: {sample.skill}</p>}
+                        {sample.skill && <p className="text-xs text-slate-400">Skill: {sample.skill} {sample.estimated_grade ? `· Yr ${sample.estimated_grade}` : ""}</p>}
                         {reasoningFocus.length > 0 && (
                           <div className="flex gap-1 flex-wrap mt-1">
                             {reasoningFocus.map((f: string) => <span key={f} className="text-xs bg-violet-50 text-violet-600 rounded px-1.5 py-0.5">{f}</span>)}
@@ -1979,30 +1979,51 @@ export default function RamriInterviewPage() {
                             <Check size={10} /> Approve
                           </Button>
                         )}
-                        {/* Role changer */}
-                        {role === "interview" && (
-                          <Button size="sm" variant="outline" className="text-xs h-7 text-blue-500 border-blue-200 hover:bg-blue-50 gap-1" onClick={() => changeSampleRole(sample.id, "evidence")} title="Move to Evidence">
-                            → Evidence
-                          </Button>
-                        )}
+                        {/* Role changers — all three directions always available */}
                         {role !== "interview" && (
                           <Button size="sm" variant="outline" className="text-xs h-7 text-violet-600 border-violet-200 hover:bg-violet-50 gap-1" onClick={() => changeSampleRole(sample.id, "interview")} title="Move to Interview">
                             → Interview
                           </Button>
                         )}
-                        {role === "interview" && (
+                        {role !== "evidence" && (
+                          <Button size="sm" variant="outline" className="text-xs h-7 text-blue-500 border-blue-200 hover:bg-blue-50 gap-1" onClick={() => changeSampleRole(sample.id, "evidence")} title="Move to Evidence">
+                            → Evidence
+                          </Button>
+                        )}
+                        {role !== "observation" && (
                           <Button size="sm" variant="outline" className="text-xs h-7 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => changeSampleRole(sample.id, "observation")} title="Mark as Observation">
                             → Obs
                           </Button>
                         )}
                       </div>
                     </div>
-                    {sample.examiner_notes && (
-                      <div className="mt-2 flex items-start gap-1.5">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">Written work:</span>
-                        <p className="text-xs text-slate-500 italic">{sample.examiner_notes}</p>
-                      </div>
-                    )}
+                    {/* All extracted fields — none hidden */}
+                    <div className="mt-2 space-y-1">
+                      {sample.visible_working && sample.visible_working !== "no" && (
+                        <div className="flex items-start gap-1.5">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">Working shown:</span>
+                          <p className="text-xs text-slate-500">{sample.visible_working}</p>
+                        </div>
+                      )}
+                      {sample.teacher_correction && (
+                        <div className="flex items-start gap-1.5">
+                          <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide shrink-0 mt-0.5">Correction:</span>
+                          <p className="text-xs text-amber-700">{sample.teacher_correction}</p>
+                        </div>
+                      )}
+                      {sample.teacher_comments && (
+                        <div className="flex items-start gap-1.5">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">Teacher notes:</span>
+                          <p className="text-xs text-slate-500 italic">{sample.teacher_comments}</p>
+                        </div>
+                      )}
+                      {sample.examiner_notes && (
+                        <div className="flex items-start gap-1.5">
+                          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">Examiner notes:</span>
+                          <p className="text-xs text-slate-500 italic">{sample.examiner_notes}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

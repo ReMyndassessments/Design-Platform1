@@ -6,3 +6,4 @@
 - [AI provider rules](ai-provider-rules.md) — Groq approved only for RAMRI+RMRA text calls; vision→Gemini (Replit integration); ALWAYS ask before adding new Groq usage; never use OpenRouter without permission.
 - [LSC subscription states](lsc-subscription-states.md) — trial_available→trial_active (during AI)→trial_used; active: active_monthly/annual/complimentary/administrator_override; follow-up + role versions always free.
 - [api-server esbuild externals](api-server-esbuild-externals.md) — `@google/genai` must be bundled (not external); use `@google-cloud/*` not `@google/*` in the external list.
+- [Drizzle raw SQL array parameters](drizzle-raw-sql-arrays.md) — ANY(${array}) in db.execute(sql`...`) silently 500s; use attribute WHERE or scalar loops instead.

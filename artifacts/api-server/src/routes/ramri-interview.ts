@@ -479,8 +479,8 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
     // Fetch case for referral context
     const caseRow = (await db.execute(sql`SELECT referral_reason, student_name, grade FROM cases WHERE id = ${caseId} LIMIT 1`)).rows[0] as Record<string, string | null> | undefined;
 
-    // All items currently in interview pool (any role=interview or null)
-    const allInterviewRows = (await db.execute(sql`
+    // ── Fetch all unclassified items (role=interview or null) ─────────────────
+    const allRows = (await db.execute(sql`
       SELECT id, domain, skill, difficulty, answer_status, suitability, examiner_notes, extracted_problem
       FROM ramri_work_samples
       WHERE session_id = ${sessionId} AND case_id = ${caseId}
@@ -488,86 +488,114 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/suggest-interview-samples"
       ORDER BY created_at ASC
     `)).rows as Array<Record<string, string | null>>;
 
-    if (allInterviewRows.length === 0) {
-      // Pool already fully classified — just return current state
-      const allRows = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
-      return res.json({ suggestedIds: [], updatedSamples: allRows, autoApproved: false });
+    if (allRows.length === 0) {
+      const existing = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
+      return res.json({ suggestedIds: [], updatedSamples: existing, autoApproved: false });
     }
 
-    // ── Priority score ────────────────────────────────────────────────────────
-    const priorityScore = (s: Record<string, string | null>) => {
-      const status = s.answer_status ?? "";
-      const diff   = s.difficulty ?? "";
-      let score = 0;
-      if (status === "incorrect")           score += 3;
-      else if (status === "partial_correct") score += 2;
-      else if (status === "unclear")         score += 1;
-      if (diff === "hard")                   score += 2;
-      else if (diff === "developing")        score += 1;
-      if (s.examiner_notes?.trim())          score += 1;
-      return score;
-    };
-
-    // ── Phase 1 (always runs): correct/excluded → Evidence immediately ────────
-    // Attribute-based — no array parameter needed.
+    // ── suitability=excluded: always Evidence, never Interview ───────────────
+    // Move them first so they're out of the selection pool.
     await db.execute(sql`
       UPDATE ramri_work_samples
       SET sample_role = 'evidence', approved = false, suggested_for_interview = false
       WHERE session_id = ${sessionId} AND case_id = ${caseId}
         AND (sample_role = 'interview' OR sample_role IS NULL)
-        AND (answer_status = 'correct' OR suitability = 'excluded')
+        AND suitability = 'excluded'
     `);
 
-    // ── Phase 2: select top interview items from remaining pool ───────────────
-    const errorItems = allInterviewRows
-      .filter(s => s.answer_status !== "correct" && s.suitability !== "excluded")
-      .sort((a, b) => priorityScore(b) - priorityScore(a));
+    // Candidates = everything that isn't suitability=excluded
+    const candidates = allRows.filter(s => s.suitability !== "excluded");
 
-    // RAMRI interviews probe 6–10 problems in depth
-    const targetCount = Math.min(10, Math.max(Math.min(6, errorItems.length), Math.ceil(errorItems.length * 0.06)));
+    if (candidates.length === 0) {
+      const existing = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
+      return res.json({ suggestedIds: [], updatedSamples: existing, autoApproved: false });
+    }
 
-    let finalInterviewIds: string[] = [];
+    // ── Unified priority score ────────────────────────────────────────────────
+    // Error items score higher — they expose gaps.
+    // Hard/developing correct items score mid-range — they confirm strengths & ceiling.
+    // Easy correct items score lowest — minimal clinical interview value.
+    const priorityScore = (s: Record<string, string | null>): number => {
+      const status = s.answer_status ?? "";
+      const diff   = s.difficulty ?? "";
+      const isError = status === "incorrect" || status === "partial_correct" || status === "unclear";
+      let score = 0;
+      if (status === "incorrect")            score = 10;
+      else if (status === "partial_correct") score = 8;
+      else if (status === "unclear")         score = 6;
+      else if (diff === "hard")              score = 4;  // correct + hard: confirms ceiling
+      else if (diff === "developing")        score = 2;  // correct + developing: confirms progress
+      else                                   score = 1;  // correct + easy: low value
+      if (isError && diff === "hard")        score += 1; // hard error: especially revealing
+      if (s.examiner_notes?.trim())          score += 1; // examiner flagged something
+      return score;
+    };
 
-    if (errorItems.length <= targetCount) {
-      // All remaining error items fit — approve them all without AI
-      finalInterviewIds = errorItems.map(s => s.id as string);
-    } else {
-      // Try AI refinement — fall back to priority score if it fails
+    // ── Target count: RAMRI interviews probe 6–10 items ──────────────────────
+    // For small pools always take all candidates rather than leaving interview empty.
+    const targetCount = Math.min(10, Math.max(Math.min(6, candidates.length), Math.ceil(candidates.length * 0.06)));
+
+    // ── Deterministic selection with domain spread ────────────────────────────
+    // Sort by score desc, then pick greedily preferring domain variety.
+    const sortedCandidates = [...candidates].sort((a, b) => priorityScore(b) - priorityScore(a));
+
+    const domainCount = new Map<string, number>();
+    const deterministicPicks: typeof candidates = [];
+    // First pass: pick top items, max 2 per domain, until targetCount filled
+    for (const item of sortedCandidates) {
+      if (deterministicPicks.length >= targetCount) break;
+      const d = item.domain ?? "Other";
+      if ((domainCount.get(d) ?? 0) < 2) {
+        deterministicPicks.push(item);
+        domainCount.set(d, (domainCount.get(d) ?? 0) + 1);
+      }
+    }
+    // Second pass: fill remaining slots from highest-score items (relax domain spread)
+    if (deterministicPicks.length < targetCount) {
+      const pickedIds = new Set(deterministicPicks.map(p => p.id));
+      for (const item of sortedCandidates) {
+        if (deterministicPicks.length >= targetCount) break;
+        if (!pickedIds.has(item.id)) {
+          deterministicPicks.push(item);
+          pickedIds.add(item.id as string);
+        }
+      }
+    }
+
+    // ── AI refinement (for large pools only) ─────────────────────────────────
+    // AI sees the full pre-filtered candidate set and picks the best N.
+    // Falls back to deterministic picks if AI fails or returns bad IDs.
+    let finalInterviewIds: string[] = deterministicPicks.map(s => s.id as string);
+
+    if (candidates.length > 20) {
       try {
         const referralContext = caseRow?.referral_reason ?? "not specified";
         const studentGrade = caseRow?.grade ?? "unknown";
 
-        // Pre-filter for AI: top 3 per domain (to stay within token budget)
-        let aiCandidates: typeof errorItems;
-        if (errorItems.length <= 50) {
-          aiCandidates = errorItems;
-        } else {
-          const byDomain = new Map<string, typeof errorItems>();
-          for (const s of errorItems) {
-            const d = s.domain ?? "Other";
-            if (!byDomain.has(d)) byDomain.set(d, []);
-            byDomain.get(d)!.push(s);
-          }
-          aiCandidates = [];
-          for (const domainItems of byDomain.values()) {
-            aiCandidates.push(...domainItems.slice(0, 3));
-          }
-        }
+        // Give AI the top-scoring candidates (capped for token budget)
+        const aiPool = sortedCandidates.slice(0, Math.min(60, sortedCandidates.length));
+
+        const errorCount = aiPool.filter(s => ["incorrect","partial_correct","unclear"].includes(s.answer_status ?? "")).length;
+        const correctCount = aiPool.length - errorCount;
 
         const prompt = `You are a clinical educational psychologist preparing a RAMRI interview for a student in ${studentGrade}.
 Referral concern: ${referralContext}
 
-Select the best ${targetCount} items from the list below to investigate in a 60–90 minute interview.
-All items listed are INCORRECT or PARTIALLY CORRECT — focus on clinical value.
+Select exactly ${targetCount} items for a 60–90 minute RAMRI interview that will:
+1. INVESTIGATE gaps — probe items the student got wrong or partially right
+2. CONFIRM strengths — probe 1–3 hard/developing correct items to understand reasoning strategy
 
-Prioritise:
-1. Items with error patterns matching the referral concern
-2. Items spanning a range of difficulty (find ceiling and floor)
-3. Items with examiner notes flagging clinical interest
-4. Good domain spread — do not cluster picks in one domain
+The pool has ${errorCount} error items (incorrect/partial/unclear) and ${correctCount} correct items.
+Prioritise errors — but if the student got most things right, include some hard correct items to map their ceiling.
 
-Candidates:
-${JSON.stringify(aiCandidates.map(s => ({
+Rules:
+- Prefer items matching the referral concern
+- Spread across different domains — do not cluster all picks in one domain
+- Include at least one hard-difficulty item if available
+- Include items with examiner notes flagging clinical interest
+
+Candidates (sorted by clinical priority):
+${JSON.stringify(aiPool.map(s => ({
   id: s.id,
   domain: s.domain,
   skill: s.skill,
@@ -577,7 +605,7 @@ ${JSON.stringify(aiCandidates.map(s => ({
   problem: (s.extracted_problem ?? "").slice(0, 100),
 })), null, 2)}
 
-Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no explanation:
+Return ONLY a JSON array of exactly ${targetCount} IDs from the list above — no markdown, no explanation:
 ["id1", "id2", ...]`;
 
         const raw = await callGroq(prompt, undefined, 512);
@@ -588,29 +616,26 @@ Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no expla
         if (arrStart !== -1 && arrEnd > arrStart) {
           try { suggestedIds = JSON.parse(clean.slice(arrStart, arrEnd + 1)) as string[]; } catch { /* fall through */ }
         }
-        const verifiedIds = errorItems.map(s => s.id as string);
-        const validIds = suggestedIds.filter(id => verifiedIds.includes(id)).slice(0, targetCount);
+        const verifiedCandidateIds = new Set(candidates.map(s => s.id as string));
+        const validIds = suggestedIds.filter(id => verifiedCandidateIds.has(id)).slice(0, targetCount);
         if (validIds.length > 0) {
           finalInterviewIds = validIds;
         }
       } catch (aiErr) {
-        logger.warn({ aiErr }, "RAMRI AI suggest failed — using priority score fallback");
-      }
-
-      // Fallback: priority score top-N if AI returned nothing
-      if (finalInterviewIds.length === 0) {
-        finalInterviewIds = errorItems.slice(0, targetCount).map(s => s.id as string);
+        logger.warn({ aiErr }, "RAMRI AI suggest failed — using priority-score deterministic fallback");
       }
     }
 
-    // ── Phase 3: apply final classification ──────────────────────────────────
-    // Clear all stale suggestion flags first
+    // ── Apply classification ──────────────────────────────────────────────────
+    const finalSet = new Set(finalInterviewIds);
+
+    // Clear stale suggestion flags
     await db.execute(sql`
       UPDATE ramri_work_samples SET suggested_for_interview = false
       WHERE session_id = ${sessionId} AND case_id = ${caseId} AND suggested_for_interview = true
     `);
 
-    // Approve AI/priority-score picks one at a time (≤10) — scalar params, no arrays
+    // Mark selected items as interview + approved (≤10 scalar updates, no arrays)
     for (const pickId of finalInterviewIds) {
       await db.execute(sql`
         UPDATE ramri_work_samples
@@ -619,15 +644,25 @@ Return ONLY a JSON array of exactly ${targetCount} IDs — no markdown, no expla
       `);
     }
 
-    // Remaining interview items that are NOT marked suggested → Observation
-    // (Phase 1 already moved correct items to evidence; Phase 2 picks are now suggested=true)
-    await db.execute(sql`
-      UPDATE ramri_work_samples
-      SET sample_role = 'observation', approved = false, suggested_for_interview = false
-      WHERE session_id = ${sessionId} AND case_id = ${caseId}
-        AND (sample_role = 'interview' OR sample_role IS NULL)
-        AND suggested_for_interview = false
-    `);
+    // Non-selected error items → Observation
+    for (const item of candidates) {
+      if (finalSet.has(item.id as string)) continue;
+      const isError = item.answer_status === "incorrect" || item.answer_status === "partial_correct" || item.answer_status === "unclear";
+      if (isError) {
+        await db.execute(sql`
+          UPDATE ramri_work_samples
+          SET sample_role = 'observation', approved = false, suggested_for_interview = false
+          WHERE id = ${item.id} AND session_id = ${sessionId} AND case_id = ${caseId}
+        `);
+      } else {
+        // Non-selected correct items → Evidence
+        await db.execute(sql`
+          UPDATE ramri_work_samples
+          SET sample_role = 'evidence', approved = false, suggested_for_interview = false
+          WHERE id = ${item.id} AND session_id = ${sessionId} AND case_id = ${caseId}
+        `);
+      }
+    }
 
     // Return all samples for full frontend reconciliation
     const allUpdated = (await db.execute(sql`SELECT * FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId}`)).rows;
