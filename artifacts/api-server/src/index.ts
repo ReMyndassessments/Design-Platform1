@@ -1127,6 +1127,53 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     formItems: [],
   },
   {
+    id: "RAEPA",
+    name: "RAEPA — ReMynd Academic English Performance Assessment",
+    category: "Learning & Academic",
+    description: "The ReMynd Academic English Performance Assessment (RAEPA) evaluates whether a student can successfully access, process, express, and demonstrate learning through English across the curriculum. Unlike conversational English screening, RAEPA examines academic language demands across reading, writing, listening, speaking, mathematics, science, humanities, and classroom instruction using authentic student work products. Identifies academic-language strengths, barriers, scaffolding response, independence level, and required classroom accommodations. Administration: 90–120 minutes.",
+    isRemyndOwned: true,
+    respondentTypes: ["examiner"],
+    scoringType: "manual",
+    domains: [
+      "Social Communication English", "Academic Listening", "Academic Speaking",
+      "Academic Reading", "Academic Writing", "General Academic Vocabulary",
+      "Subject-Specific Vocabulary", "Understanding of Classroom Directions",
+      "Explanation and Elaboration", "Sequencing and Organization",
+      "Comparison and Classification", "Cause-and-Effect Reasoning",
+      "Inference and Prediction", "Justification and Evidence",
+      "Evaluation and Hypothesizing", "Mathematics Language",
+      "Science Language", "Humanities Language",
+      "Academic Independence", "Response to Scaffolding",
+    ],
+    scoringConfig: {
+      max: 4,
+      thresholds: { low: 75, mild: 50, moderate: 25 },
+      domains: {
+        "Social Communication English": { label: "Social Communication English", shortLabel: "Social Comms", narratives: { low: "Communicates effectively and confidently in familiar social English contexts across a range of everyday topics.", mild: "Generally communicates in social English with minor gaps in vocabulary or fluency that do not impede conversation.", moderate: "Social communication is developing; some difficulty with less familiar topics or extended conversation.", elevated: "Social English is limited; significant difficulty communicating even in familiar conversational contexts." } },
+        "Academic Listening": { label: "Academic Listening", shortLabel: "Acad. Listening", narratives: { low: "Independently follows complex classroom instruction, multi-step directions, and extended academic explanations.", mild: "Generally follows academic listening tasks with occasional need for repetition or clarification.", moderate: "Significant difficulty following multi-step directions or extended academic explanation without substantial support.", elevated: "Academic listening is severely limited; cannot access classroom instruction without intensive modification." } },
+        "Academic Speaking": { label: "Academic Speaking", shortLabel: "Acad. Speaking", narratives: { low: "Explains, justifies, compares, and elaborates ideas in academic English independently across subjects.", mild: "Can express academic ideas with some inconsistency in vocabulary, grammar, or organisation.", moderate: "Academic speaking is developing; relies on simple structures and has difficulty elaborating or justifying answers.", elevated: "Academic oral expression is severely limited; cannot explain or reason through English without intensive support." } },
+        "Academic Reading": { label: "Academic Reading", shortLabel: "Acad. Reading", narratives: { low: "Reads and comprehends curriculum-level academic texts independently, including inferential and vocabulary tasks.", mild: "Generally reads academic texts adequately; some difficulty with complex vocabulary or inferential questions.", moderate: "Academic reading is developing; significant difficulty with subject vocabulary, inference, or text structure.", elevated: "Academic reading is severely limited; cannot access curriculum texts even with substantial support." } },
+        "Academic Writing": { label: "Academic Writing", shortLabel: "Acad. Writing", narratives: { low: "Produces coherent, organised academic writing with appropriate vocabulary, grammar, and evidence use.", mild: "Academic writing is functional; some inconsistency in structure, vocabulary, or cohesion.", moderate: "Academic writing is developing; significant difficulty organising ideas, using subject vocabulary, or extending responses.", elevated: "Academic writing is severely limited; cannot produce an intelligible academic response without intensive support." } },
+        "General Academic Vocabulary": { label: "General Academic Vocabulary", shortLabel: "Gen. Vocab", narratives: { low: "Uses and understands a wide range of general academic vocabulary across subject contexts independently.", mild: "Generally understands academic vocabulary; occasional gaps with less common or abstract terms.", moderate: "Significant gaps in general academic vocabulary that limit comprehension and expression across subjects.", elevated: "Very limited academic vocabulary that prevents access to grade-level academic content." } },
+        "Subject-Specific Vocabulary": { label: "Subject-Specific Vocabulary", shortLabel: "Subject Vocab", narratives: { low: "Uses and understands subject-specific vocabulary accurately across assessed curriculum areas.", mild: "Generally understands subject vocabulary; some gaps with less frequently used or highly technical terms.", moderate: "Significant gaps in subject vocabulary that limit performance in assessed curriculum subjects.", elevated: "Very limited subject vocabulary; unable to access or demonstrate knowledge in subject areas through language." } },
+        "Understanding of Classroom Directions": { label: "Understanding of Classroom Directions", shortLabel: "Directions", narratives: { low: "Accurately understands and follows multi-step classroom directions independently without clarification.", mild: "Generally follows classroom directions; occasional difficulty with multi-step or complex instructions.", moderate: "Significant difficulty understanding classroom directions; requires regular simplification or repetition.", elevated: "Cannot follow classroom directions without intensive support, visual aids, or extensive simplification." } },
+        "Explanation and Elaboration": { label: "Explanation and Elaboration", shortLabel: "Explanation", narratives: { low: "Explains and elaborates ideas clearly and independently in academic English with appropriate detail.", mild: "Can explain ideas adequately; elaboration is sometimes limited or inconsistent.", moderate: "Explanation is developing; tends toward minimal responses and has difficulty extending or supporting ideas.", elevated: "Cannot explain or elaborate ideas through English without intensive scaffolding." } },
+        "Sequencing and Organization": { label: "Sequencing and Organization", shortLabel: "Sequencing", narratives: { low: "Accurately sequences information and organises academic responses with clear logical structure.", mild: "Generally organises responses adequately; occasional gaps in sequencing or transitional language.", moderate: "Sequencing and organisation are developing; frequent gaps in logical order or textual cohesion.", elevated: "Cannot sequence or organise academic information through English without intensive support." } },
+        "Comparison and Classification": { label: "Comparison and Classification", shortLabel: "Compare/Classify", narratives: { low: "Accurately compares, contrasts, and classifies concepts using appropriate comparative language.", mild: "Can compare and classify with adequate language; some difficulty with complex comparisons.", moderate: "Comparison and classification are developing; relies on simple structures and limited vocabulary.", elevated: "Cannot perform comparison or classification tasks in English without intensive language support." } },
+        "Cause-and-Effect Reasoning": { label: "Cause-and-Effect Reasoning", shortLabel: "Cause-Effect", narratives: { low: "Accurately explains cause-and-effect relationships using appropriate academic language independently.", mild: "Can express cause-and-effect with adequate language; some inconsistency in causal structures.", moderate: "Cause-and-effect reasoning is developing; has difficulty expressing causal relationships clearly in English.", elevated: "Cannot articulate cause-and-effect relationships in English without intensive scaffolding." } },
+        "Inference and Prediction": { label: "Inference and Prediction", shortLabel: "Inference", narratives: { low: "Makes accurate inferences and predictions from academic texts and spoken information independently.", mild: "Generally makes reasonable inferences; occasional difficulty with less explicit inference tasks.", moderate: "Inference and prediction are developing; significant difficulty moving beyond literal information.", elevated: "Cannot make inferences or predictions from academic language tasks without intensive support." } },
+        "Justification and Evidence": { label: "Justification and Evidence", shortLabel: "Justification", narratives: { low: "Justifies positions and supports answers with relevant evidence using academic language independently.", mild: "Can justify answers with some evidence; support is sometimes incomplete or poorly expressed.", moderate: "Justification is developing; tends to assert without evidence or cannot express supporting reasoning.", elevated: "Cannot justify answers or use evidence in English without intensive scaffolding." } },
+        "Evaluation and Hypothesizing": { label: "Evaluation and Hypothesizing", shortLabel: "Evaluation", narratives: { low: "Evaluates information and hypothesizes independently using appropriate academic language.", mild: "Can evaluate or hypothesize with adequate language; some inconsistency with complex evaluative tasks.", moderate: "Evaluation and hypothesizing are developing; has difficulty with higher-order language demands.", elevated: "Cannot evaluate or hypothesize through English without intensive language support." } },
+        "Mathematics Language": { label: "Mathematics Language", shortLabel: "Maths Language", narratives: { low: "Accurately understands and uses mathematical language, symbols, and command words independently.", mild: "Generally understands mathematical language; occasional difficulty with abstract or multi-step language.", moderate: "Mathematical language is developing; significant gaps in vocabulary limit access to word problems.", elevated: "Cannot access mathematics language tasks without intensive vocabulary and language support." } },
+        "Science Language": { label: "Science Language", shortLabel: "Science Language", narratives: { low: "Uses and understands science process vocabulary and academic science language independently.", mild: "Generally understands science language; occasional difficulty with technical or process vocabulary.", moderate: "Science language is developing; significant gaps in vocabulary limit access to science tasks.", elevated: "Cannot access science language tasks without intensive support." } },
+        "Humanities Language": { label: "Humanities Language", shortLabel: "Humanities Lang.", narratives: { low: "Uses and understands humanities vocabulary including cause, perspective, evidence, and argument independently.", mild: "Generally understands humanities language; occasional difficulty with evaluative or analytical vocabulary.", moderate: "Humanities language is developing; significant gaps limit access to history, geography, or social studies tasks.", elevated: "Cannot access humanities language tasks without intensive vocabulary support." } },
+        "Academic Independence": { label: "Academic Independence", shortLabel: "Independence", narratives: { low: "Initiates, completes, and reviews academic tasks independently without requiring language clarification.", mild: "Generally independent; occasionally requires clarification of instructions or task requirements.", moderate: "Academic independence is developing; frequently requires support to begin, sustain, or complete tasks.", elevated: "Cannot initiate or complete academic tasks independently; requires extensive guidance throughout." } },
+        "Response to Scaffolding": { label: "Response to Scaffolding", shortLabel: "Scaffolding", narratives: { low: "Does not require scaffolding; performs at grade level without additional support.", mild: "Responds well to minimal scaffolding (e.g., vocabulary clarification) with clear performance improvement.", moderate: "Responds to structured scaffolding (broken steps, visual support); significant support is required for access.", elevated: "Responds only to intensive mediation; knowledge may become visible only with substantial language simplification." } },
+      },
+    } as unknown as ScoringConfig,
+    formItems: [],
+  },
+  {
     id: "RAMRI",
     name: "RAMRI — ReMynd Authentic Mathematical Reasoning Interview",
     category: "Learning & Academic",
@@ -3245,6 +3292,124 @@ async function createRamriTables() {
   }
 }
 
+async function createRaepaTables() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_sessions (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        examiner_id TEXT,
+        status TEXT NOT NULL DEFAULT 'setup',
+        pathway TEXT NOT NULL DEFAULT 'standalone',
+        language_background JSONB NOT NULL DEFAULT '{}',
+        modules_selected JSONB NOT NULL DEFAULT '[]',
+        overall_summary TEXT,
+        interpretive_profiles JSONB,
+        confidence_level TEXT,
+        general_notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_sessions_case_id_idx ON raepa_sessions (case_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_work_samples (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        file_name TEXT,
+        file_url TEXT,
+        file_type TEXT,
+        title TEXT,
+        subject TEXT,
+        task_type TEXT,
+        date_completed DATE,
+        teacher TEXT,
+        grade_level TEXT,
+        independent_completion BOOLEAN NOT NULL DEFAULT TRUE,
+        support_provided TEXT,
+        assignment_instructions TEXT,
+        student_score TEXT,
+        teacher_comments TEXT,
+        student_selected BOOLEAN NOT NULL DEFAULT FALSE,
+        ai_analysis_status TEXT NOT NULL DEFAULT 'pending',
+        ai_analysis JSONB,
+        assessor_approved BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_work_samples_case_id_idx ON raepa_work_samples (case_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_domain_ratings (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        score INTEGER NOT NULL DEFAULT 0,
+        confidence TEXT,
+        evidence TEXT,
+        support_level_required TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_domain_ratings_session_domain_idx ON raepa_domain_ratings (session_id, domain)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_language_functions (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        function_name TEXT NOT NULL,
+        level TEXT NOT NULL DEFAULT 'not_assessed',
+        evidence TEXT,
+        subject_context TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_language_functions_session_fn_idx ON raepa_language_functions (session_id, function_name)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_module_scores (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        case_id TEXT NOT NULL,
+        module_id TEXT NOT NULL,
+        administered BOOLEAN NOT NULL DEFAULT FALSE,
+        score INTEGER NOT NULL DEFAULT 0,
+        support_level TEXT,
+        observations TEXT,
+        task_notes JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_module_scores_session_module_idx ON raepa_module_scores (session_id, module_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_reports (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        report_type TEXT NOT NULL DEFAULT 'standalone',
+        generated_narrative JSONB,
+        edited_narrative JSONB,
+        status TEXT NOT NULL DEFAULT 'draft',
+        approved_by TEXT,
+        approved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_reports_case_id_idx ON raepa_reports (case_id)`);
+
+    logger.info("RAEPA tables ensured");
+  } catch (err) {
+    logger.error({ err }, "createRaepaTables failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -3293,6 +3458,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => ensureStudentAnswerColumn())
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => createRamriTables())
+  .then(() => createRaepaTables())
   .then(() => createInterviewRecordingsTable())
   .then(() => backfillBobbyAiCaseIds())
   .then(() => createLscTables())

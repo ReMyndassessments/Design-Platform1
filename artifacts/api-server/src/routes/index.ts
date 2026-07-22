@@ -20,6 +20,7 @@ import remyndIndexRouter from "./remynd-index";
 import productsRouter from "./products";
 import rmraRouter from "./rmra";
 import ramriInterviewRouter from "./ramri-interview";
+import raepaRouter from "./raepa";
 import apprenticesRouter from "./apprentices";
 import interviewRecordingsRouter from "./interviewRecordings";
 import { denyApprentice } from "../middlewares/denyApprentice.js";
@@ -49,6 +50,7 @@ router.use(apprenticeGuard, remyndIndexRouter);
 router.use(apprenticeGuard, productsRouter);
 router.use(apprenticeGuard, rmraRouter);
 router.use(apprenticeGuard, ramriInterviewRouter);
+router.use(apprenticeGuard, raepaRouter);
 router.use(apprenticeGuard, interviewRecordingsRouter);
 
 export default router;
