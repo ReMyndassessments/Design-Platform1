@@ -64,7 +64,7 @@ const FUNCTION_LEVELS: Record<string, { label: string; color: string }> = {
 
 const SUBJECTS = ["English / Language Arts","Mathematics","Science","Humanities / Social Studies","History","Geography","Literature","General / Homeroom","Other"];
 const GRADE_LEVELS = ["Year 1","Year 2","Year 3","Year 4","Year 5","Year 6","Year 7","Year 8","Year 9","Year 10","Year 11","Year 12","Grade 1","Grade 2","Grade 3","Grade 4","Grade 5","Grade 6","Grade 7","Grade 8","Grade 9","Grade 10","Grade 11","Grade 12"];
-const LANGUAGES = ["Mandarin Chinese","Cantonese","Korean","Japanese","Thai","Vietnamese","Malay","Tamil","Hindi","Tagalog","Indonesian","Arabic","Spanish","French","German","Other"];
+const LANGUAGES = ["Mandarin Chinese","Cantonese","Korean","Japanese","Thai","Vietnamese","Malay","Tamil","Hindi","Tagalog","Indonesian","Arabic","Spanish","French","German","English","Other"];
 const PATHWAYS = [
   { value: "standalone", label: "Standalone RAEPA", desc: "Full 90–120 min independent assessment" },
   { value: "comprehensive", label: "Add-on (Comprehensive Assessment)", desc: "Supplement to a broader assessment package" },
