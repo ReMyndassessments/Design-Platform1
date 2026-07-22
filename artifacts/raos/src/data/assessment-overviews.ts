@@ -325,7 +325,7 @@ const en: OverviewMap = {
   },
 
   "ReMynd Authentic Mathematical Reasoning Interview": {
-    fullDesc: "An AI-powered mathematical reasoning interview designed to assess how students approach, explain, and self-correct mathematical problems. Rather than testing procedural recall alone, RAMRI surfaces authentic reasoning through a structured interview protocol — capturing spoken and written work samples, generating clinically-weighted choice sets, and supporting systematic examiner scoring across reasoning quality, self-correction, and mathematical language. Produces a curriculum-referenced mathematical reasoning profile with specific recommendations for learning support and differentiation.",
+    fullDesc: "A structured mathematical reasoning interview designed to assess how students approach, explain, and self-correct mathematical problems. Rather than testing procedural recall alone, RAMRI surfaces authentic reasoning through a structured interview protocol — capturing spoken and written work samples, generating clinically-weighted choice sets, and supporting systematic examiner scoring across reasoning quality, self-correction, and mathematical language. Produces a curriculum-referenced mathematical reasoning profile with specific recommendations for learning support and differentiation.",
     whenToUse: [
       "Students showing unexpected gaps between mathematical procedural ability and reasoning quality",
       "Diagnostic assessment before learning support placement in mathematics",
@@ -339,7 +339,7 @@ const en: OverviewMap = {
     studentProfile: "Students in Years 3–10 showing a discrepancy between their perceived mathematical ability and their actual reasoning quality. Particularly effective for students who appear mathematically capable but produce inconsistent work, struggle to explain their thinking, or whose mathematical difficulties have not been resolved by standard teaching or support. Also appropriate for students approaching high-stakes examinations who require a structured reasoning baseline.",
     benefits: [
       "The only ReMynd assessment specifically designed to evaluate mathematical reasoning quality",
-      "AI-powered work sample extraction reduces examiner burden and increases scoring consistency",
+      "Structured work sample extraction reduces examiner burden and increases scoring consistency",
       "Assesses reasoning process, not just procedural accuracy — capturing what standard tests miss",
       "Produces specific, curriculum-referenced recommendations for mathematics support",
       "Can differentiate between reasoning difficulties, working memory issues, and mathematical anxiety",

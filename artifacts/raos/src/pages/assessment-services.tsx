@@ -598,7 +598,7 @@ export default function AssessmentServicesPage() {
               <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 <div className="flex items-center gap-1.5 mb-3">
                   <Sparkles size={11} className="text-purple-500 flex-shrink-0" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-purple-500">AI</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-purple-500">Specialist</span>
                 </div>
                 <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
                 <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
