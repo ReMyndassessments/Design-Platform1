@@ -10,7 +10,7 @@ import {
   ArrowLeft, Save, Upload, Trash2, Loader2, CheckCircle2,
   AlertTriangle, FileText, Sparkles, ChevronRight, BookOpen,
   Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
-  Share2, Copy, Check, QrCode, X,
+  Share2, Copy, Check, QrCode, X, ChevronDown,
 } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
@@ -62,6 +62,314 @@ const FUNCTION_LEVELS: Record<string, { label: string; color: string }> = {
   developing:      { label: "Developing",       color: "text-amber-600" },
   functional:      { label: "Functional",       color: "text-blue-600" },
   independent:     { label: "Independent",      color: "text-emerald-600" },
+};
+
+// ── Domain observation guides ──────────────────────────────────────────────────
+const DOMAIN_GUIDES: Record<string, {
+  description: string;
+  prompts: string[];
+  descriptors: Record<number, string>;
+}> = {
+  "Social Communication English": {
+    description: "Ability to use English for social and interpersonal communication in school contexts.",
+    prompts: [
+      "Engage the student in casual conversation — ask about their weekend, interests, or how they find school.",
+      "Observe their initiation and response in informal interactions with peers or the examiner.",
+      "Note their use of greetings, turn-taking, repair strategies, and social phrases.",
+    ],
+    descriptors: {
+      0: "Does not attempt social English; remains silent or uses only L1.",
+      1: "Produces only isolated words or formulaic phrases (e.g. 'yes', 'okay'); relies on gesture.",
+      2: "Produces short simple sentences in familiar social contexts; limited repair strategies.",
+      3: "Engages in simple conversations; can initiate and respond; errors don't impede meaning.",
+      4: "Communicates fluently and naturally; uses varied vocabulary; repairs breakdown independently.",
+    },
+  },
+  "Academic Listening": {
+    description: "Ability to understand spoken academic English — explanations, lectures, and instructions.",
+    prompts: [
+      "Give a brief 3–4 sentence explanation of a simple concept (e.g. the water cycle) without visual support. Ask the student to summarise what they heard.",
+      "Observe how the student responds to verbal classroom instructions — do they wait to copy others, or follow independently?",
+      "Ask the student to repeat back the key steps from a 2-step instruction.",
+    ],
+    descriptors: {
+      0: "No comprehension of academic speech; does not respond to verbal instructions.",
+      1: "Understands isolated key words; relies heavily on visual supports, gesture, or watching peers.",
+      2: "Follows simple, slow, clear speech; manages basic 2-step instructions; misses complex structures.",
+      3: "Understands grade-level academic speech; follows multi-step instructions with occasional clarification.",
+      4: "Comprehends academic discourse consistently without scaffolding; self-repairs misunderstandings.",
+    },
+  },
+  "Academic Speaking": {
+    description: "Ability to use spoken English for academic purposes — explaining, describing, discussing, presenting.",
+    prompts: [
+      "Ask the student to explain how to solve a maths problem or describe a science process in their own words.",
+      "Ask for their opinion on a topic from class (e.g. 'Why do you think people migrate?').",
+      "Observe participation in class discussion — does the student contribute ideas using academic language?",
+    ],
+    descriptors: {
+      0: "Does not produce academic English orally; silent or uses only L1.",
+      1: "Produces single words or short phrases; heavily reliant on prompting; cannot sustain a turn.",
+      2: "Produces short sentences; attempts to explain ideas but vocabulary and grammar are limited; meaning sometimes unclear.",
+      3: "Communicates ideas in extended sentences; uses some academic language; errors present but meaning is clear.",
+      4: "Uses academic English fluently; can explain, present, and discuss with appropriate vocabulary and structure.",
+    },
+  },
+  "Academic Reading": {
+    description: "Ability to comprehend grade-level academic texts including textbooks, worksheets, and articles.",
+    prompts: [
+      "Provide a short grade-level text (3–5 sentences) from a subject area. Ask 2–3 comprehension questions.",
+      "Ask the student to read a brief passage aloud, then paraphrase the meaning in their own words.",
+      "Observe how the student interacts with written tasks — do they attempt to read instructions independently?",
+    ],
+    descriptors: {
+      0: "Cannot access grade-level text; does not attempt to read or makes no meaning from it.",
+      1: "Decodes individual words but cannot construct meaning from connected academic text.",
+      2: "Understands simple texts with familiar topics; struggles with complex syntax and academic vocabulary.",
+      3: "Comprehends most grade-level texts using context clues; may need to re-read complex sections.",
+      4: "Reads and understands grade-level academic texts independently; can analyse and critically respond.",
+    },
+  },
+  "Academic Writing": {
+    description: "Ability to produce written English for academic purposes — explanations, analyses, and extended responses.",
+    prompts: [
+      "Review the student's work samples for evidence of written academic language.",
+      "Optionally, ask the student to write 3–5 sentences explaining a concept from their subject area (allow 5–8 minutes).",
+      "Note sentence structure, vocabulary range, use of connectives, and text organisation.",
+    ],
+    descriptors: {
+      0: "Does not produce written academic English; may copy text or write only in L1.",
+      1: "Produces isolated words, labels, or lists; cannot construct full sentences independently.",
+      2: "Writes simple sentences; limited connectives; ideas are present but undeveloped.",
+      3: "Writes in paragraphs; uses some academic language and text structures; errors present but meaning is clear.",
+      4: "Writes extended academic texts with appropriate structure, vocabulary, and grammatical accuracy.",
+    },
+  },
+  "General Academic Vocabulary": {
+    description: "Knowledge of Tier 2 cross-curricular vocabulary used across subject areas (e.g. analyse, identify, significant, process).",
+    prompts: [
+      "Ask the student to define or use in a sentence: 'compare', 'significant', 'evidence', 'process', 'identify'.",
+      "Present a task instruction using academic verbs (e.g. 'Evaluate the following…') and observe whether the student understands the task type.",
+      "Review work samples for use of Tier 2 vocabulary.",
+    ],
+    descriptors: {
+      0: "No evidence of Tier 2 vocabulary; uses only everyday concrete words.",
+      1: "Recognises a few high-frequency academic words but cannot define or use them productively.",
+      2: "Uses some Tier 2 words inconsistently or imprecisely; receptive understanding exceeds production.",
+      3: "Uses a range of Tier 2 words correctly in context; occasional semantic errors.",
+      4: "Consistently uses appropriate Tier 2 vocabulary across subjects with accuracy and flexibility.",
+    },
+  },
+  "Subject-Specific Vocabulary": {
+    description: "Knowledge of Tier 3 discipline-specific terminology (e.g. ecosystem, denominator, parliament, photosynthesis).",
+    prompts: [
+      "Ask the student to explain subject-specific terms from their work samples (e.g. 'ecosystem', 'denominator', 'push-pull factor').",
+      "Show 4–5 key terms from a subject the student studies and ask them to select and use 2 in a sentence.",
+      "Review work samples for correct use of technical vocabulary.",
+    ],
+    descriptors: {
+      0: "No evidence of subject-specific terminology in any curriculum area.",
+      1: "Recognises some key terms with prompting; cannot define or use them independently.",
+      2: "Uses basic subject-specific terms correctly but limited range; may confuse related terms.",
+      3: "Uses subject-specific vocabulary accurately across most subject areas; some gaps remain.",
+      4: "Demonstrates accurate, flexible use of subject-specific vocabulary across multiple disciplines.",
+    },
+  },
+  "Understanding of Classroom Directions": {
+    description: "Ability to follow verbal and written classroom instructions and procedural language.",
+    prompts: [
+      "Give multi-step verbal instructions without gesture or visual support (e.g. 'Open your book to page 12, read the first paragraph, then answer questions 1 to 3 in your notebook.').",
+      "Provide a written task instruction and observe whether the student reads and follows it independently.",
+      "Note whether the student waits to copy peers before beginning tasks.",
+    ],
+    descriptors: {
+      0: "Does not respond to classroom directions; requires full translation or L1 support to begin tasks.",
+      1: "Follows single-step instructions with visual support or modelling; misses multi-step directions.",
+      2: "Follows familiar 2-step directions; struggles with novel or complex procedural language.",
+      3: "Follows most classroom directions independently; occasionally needs clarification for complex instructions.",
+      4: "Consistently follows all classroom directions without additional support; self-monitors task completion.",
+    },
+  },
+  "Explanation and Elaboration": {
+    description: "Ability to explain ideas, processes, and concepts clearly and with sufficient detail.",
+    prompts: [
+      "Ask the student to explain why something happens (e.g. 'Why do seasons change?' or 'Why do fractions need the same denominator to add?').",
+      "Prompt elaboration: after a brief response, ask 'Can you tell me more about that?'",
+      "Review work samples for quality of explanatory language.",
+    ],
+    descriptors: {
+      0: "Cannot produce any explanation; responds with single words or silence.",
+      1: "Produces a minimal attempt at explanation but omits key steps or reasoning.",
+      2: "Provides a basic explanation with some gaps; limited elaboration beyond the first point.",
+      3: "Explains ideas clearly with adequate detail; uses some connectives and cause-effect language.",
+      4: "Produces thorough, well-elaborated explanations with precise language and logical structure.",
+    },
+  },
+  "Sequencing and Organization": {
+    description: "Ability to organise and sequence information logically in spoken and written language.",
+    prompts: [
+      "Ask the student to recount a process in order (e.g. 'Describe the steps to complete an experiment you've done in Science.').",
+      "Ask the student to describe how to get from school to home, or describe the plot of a story.",
+      "Review written work for use of sequence markers (first, then, next, finally).",
+    ],
+    descriptors: {
+      0: "No evidence of sequencing; information presented randomly or not at all.",
+      1: "Attempts to sequence but omits most steps; no sequence markers used.",
+      2: "Sequences familiar events with some logical order; limited use of connectives.",
+      3: "Sequences ideas logically with appropriate markers; minor lapses in organisation.",
+      4: "Organises information in a clear, logical sequence using varied connectives and discourse markers.",
+    },
+  },
+  "Comparison and Classification": {
+    description: "Ability to identify similarities, differences, and categories using comparative language.",
+    prompts: [
+      "Show two related items or concepts (e.g. two animals, two historical events) and ask 'How are these similar? How are they different?'",
+      "Ask the student to group a set of vocabulary words into categories and explain their reasoning.",
+      "Review work samples for use of comparison language (both, similarly, in contrast, whereas).",
+    ],
+    descriptors: {
+      0: "Cannot identify similarities or differences; no comparative language used.",
+      1: "Identifies one obvious similarity or difference but cannot use comparative language.",
+      2: "Makes basic comparisons using simple language ('X is bigger than Y'); limited range of structures.",
+      3: "Uses a range of comparative structures; identifies multiple points of comparison.",
+      4: "Produces sophisticated, nuanced comparisons with accurate use of comparative and contrastive language.",
+    },
+  },
+  "Cause-and-Effect Reasoning": {
+    description: "Ability to identify and express causal relationships using appropriate language.",
+    prompts: [
+      "Ask 'What caused [event]?' and 'What happened as a result?' about a topic from class.",
+      "Present a scenario: 'If [X] happens, what do you think will happen next? Why?'",
+      "Review work samples for use of cause-effect language (because, therefore, as a result, due to).",
+    ],
+    descriptors: {
+      0: "Cannot express cause-effect relationships; no causal language used.",
+      1: "Identifies a cause or effect but cannot connect them linguistically.",
+      2: "Uses simple causal language ('because') but does not elaborate on the reasoning.",
+      3: "Expresses cause-effect relationships with adequate language; uses a range of connectives.",
+      4: "Articulates complex causal chains with precise language; uses varied academic causal structures.",
+    },
+  },
+  "Inference and Prediction": {
+    description: "Ability to draw conclusions beyond the literal text and make evidence-based predictions.",
+    prompts: [
+      "Present a short text or image and ask 'What do you think will happen next? Why do you think that?'",
+      "Ask inferential questions about a reading text (e.g. 'How do you think the character felt? What makes you think that?').",
+      "Ask 'What do you think the author was trying to say?'",
+    ],
+    descriptors: {
+      0: "Cannot make inferences; only states literal information or cannot respond.",
+      1: "Makes a simple guess without justification; does not use evidence from the text.",
+      2: "Makes basic inferences with prompting; limited ability to justify using text evidence.",
+      3: "Makes reasonable inferences and supports them with some text evidence.",
+      4: "Makes sophisticated inferences with clear, precise evidence; can discuss implied meaning.",
+    },
+  },
+  "Justification and Evidence": {
+    description: "Ability to support opinions and claims with relevant evidence and reasoning.",
+    prompts: [
+      "Ask the student to share an opinion and then ask 'Why do you think that? What evidence do you have?'",
+      "Review written work for use of evidence-based language (for example, this shows, according to, the text states).",
+      "Pose a debatable question from a class topic and ask the student to take a position and justify it.",
+    ],
+    descriptors: {
+      0: "States opinions without any attempt at justification or evidence.",
+      1: "Provides a simple reason but it is not connected to evidence.",
+      2: "Attempts to justify claims; uses some evidence but connection to the argument is unclear.",
+      3: "Supports claims with relevant evidence; argument is coherent though not always elaborated.",
+      4: "Constructs well-justified arguments with precise evidence and clear logical reasoning.",
+    },
+  },
+  "Evaluation and Hypothesizing": {
+    description: "Ability to evaluate information critically and form hypotheses or conditional arguments.",
+    prompts: [
+      "Ask 'Do you think [event/decision] was a good idea? Why or why not?'",
+      "Pose a hypothetical: 'What do you think would happen if [X]? What might be the consequences?'",
+      "Ask the student to evaluate the quality of a piece of writing or an argument.",
+    ],
+    descriptors: {
+      0: "Cannot engage with evaluative or hypothetical questions; no response or repeats the question.",
+      1: "Gives a simple agree/disagree response without justification.",
+      2: "Provides a basic evaluation or hypothesis with a simple reason; limited conditional language.",
+      3: "Evaluates or hypothesizes with adequate reasoning; uses conditional language (if… then…).",
+      4: "Produces sophisticated evaluations or hypotheses; uses nuanced, hedged academic language.",
+    },
+  },
+  "Mathematics Language": {
+    description: "Ability to understand and use mathematical language, including procedural and conceptual vocabulary.",
+    prompts: [
+      "Read aloud a word problem and ask the student to identify the key mathematical operation required.",
+      "Ask the student to explain their thinking while solving a maths problem: 'Tell me what you are doing as you work through this.'",
+      "Ask the student to define: numerator, denominator, equivalent, estimate, perimeter.",
+    ],
+    descriptors: {
+      0: "No evidence of mathematical language; cannot identify or use maths-specific terms.",
+      1: "Recognises a few basic maths terms (e.g. 'add', 'take away'); struggles with formal vocabulary.",
+      2: "Uses basic mathematical language correctly; struggles with procedural or conceptual explanations.",
+      3: "Uses mathematical vocabulary accurately; can explain procedures though explanations may be brief.",
+      4: "Uses precise mathematical language fluently; articulates both procedural and conceptual understanding.",
+    },
+  },
+  "Science Language": {
+    description: "Ability to understand and use scientific language including processes, concepts, and reporting vocabulary.",
+    prompts: [
+      "Ask the student to describe a science experiment they did: 'What was the aim? What did you observe? What did you conclude?'",
+      "Ask the student to explain a scientific process (e.g. photosynthesis, the water cycle) in their own words.",
+      "Ask the student to define or use: hypothesis, organism, variable, result, conclusion.",
+    ],
+    descriptors: {
+      0: "No evidence of scientific language; cannot use or identify science-specific terms.",
+      1: "Uses a few familiar science words (e.g. 'plant', 'water') but not scientific register.",
+      2: "Uses some scientific vocabulary correctly; struggles with procedural science discourse.",
+      3: "Uses scientific language appropriately including reporting and procedural genres; some gaps.",
+      4: "Uses scientific register fluently and accurately across multiple science discourse types.",
+    },
+  },
+  "Humanities Language": {
+    description: "Ability to understand and use the language of Humanities — historical, geographical, and social studies discourse.",
+    prompts: [
+      "Ask the student to explain a historical event or geographic concept in their own words.",
+      "Ask the student to describe cause-effect relationships in a historical event (e.g. 'Why did migration happen? What were the effects?').",
+      "Ask the student to define or use: source, evidence, significant, impact, perspective, era.",
+    ],
+    descriptors: {
+      0: "No evidence of humanities language; cannot use discipline-specific terms.",
+      1: "Uses everyday language to describe historical or geographical concepts; no technical register.",
+      2: "Uses some humanities vocabulary correctly; limited range of discourse structures.",
+      3: "Uses humanities-specific language appropriately; can discuss events with some analytical language.",
+      4: "Uses humanities discourse fluently including analytical, evaluative, and interpretive language.",
+    },
+  },
+  "Academic Independence": {
+    description: "Degree to which the student initiates, sustains, and self-monitors academic tasks without prompting.",
+    prompts: [
+      "Observe the student beginning a task — do they start independently or wait for guidance?",
+      "Give the student a task and step back; observe how long they work independently before seeking help.",
+      "Ask the student: 'When you don't understand something in class, what do you do?'",
+    ],
+    descriptors: {
+      0: "Cannot begin or sustain any academic task without constant adult direction.",
+      1: "Begins tasks only with direct prompting; stops immediately when unsure.",
+      2: "Attempts tasks independently but frequently seeks reassurance; limited self-monitoring.",
+      3: "Works independently for extended periods; self-corrects and seeks help appropriately.",
+      4: "Highly self-directed; monitors own progress, applies strategies independently, and persists through difficulty.",
+    },
+  },
+  "Response to Scaffolding": {
+    description: "How effectively the student benefits from and builds on scaffolds, prompts, and support.",
+    prompts: [
+      "Provide a scaffold (sentence starter, word bank, or visual organiser) and observe whether the student uses it effectively.",
+      "During a task, offer a hint or model; observe whether the student applies the support to continue.",
+      "After providing support, gradually withdraw it and note whether the student maintains performance.",
+    ],
+    descriptors: {
+      0: "Does not respond to scaffolding; support makes no difference to performance.",
+      1: "Uses scaffolds passively (e.g. copies a sentence starter) without building on them.",
+      2: "Uses scaffolds to complete immediate tasks but does not transfer learning beyond the scaffold.",
+      3: "Uses scaffolds effectively; shows evidence of transfer when scaffold is gradually reduced.",
+      4: "Responds rapidly to scaffolding and independently internalises the support; strong potential for growth.",
+    },
+  },
 };
 
 const SUBJECTS = ["English / Language Arts","Mathematics","Science","Humanities / Social Studies","History","Geography","Literature","General / Homeroom","Other"];
@@ -159,6 +467,7 @@ export default function RaepaPage() {
 
   // Domain scoring state
   const [ratings, setRatings] = useState<Record<string, { score: number; confidence: string; evidence: string }>>({});
+  const [openGuides, setOpenGuides] = useState<Record<string, boolean>>({});
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -1009,7 +1318,74 @@ export default function RaepaPage() {
                         {idx + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm mb-3">{domain}</div>
+                        {/* Domain header with guide toggle */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-medium text-sm">{domain}</div>
+                          {DOMAIN_GUIDES[domain] && (
+                            <button
+                              onClick={() => setOpenGuides(prev => ({ ...prev, [domain]: !prev[domain] }))}
+                              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                                openGuides[domain]
+                                  ? "bg-indigo-900/50 border-indigo-600/40 text-indigo-300"
+                                  : "border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500"
+                              }`}
+                            >
+                              <BookOpen size={11} />
+                              Scoring Guide
+                              <ChevronDown size={11} className={`transition-transform ${openGuides[domain] ? "rotate-180" : ""}`} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Expandable guide */}
+                        {openGuides[domain] && DOMAIN_GUIDES[domain] && (() => {
+                          const guide = DOMAIN_GUIDES[domain];
+                          return (
+                            <div className="mb-4 bg-slate-800/60 border border-indigo-800/30 rounded-xl p-4 space-y-4">
+                              <p className="text-xs text-slate-300">{guide.description}</p>
+
+                              {/* Observation prompts */}
+                              <div>
+                                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">What to observe / elicit</p>
+                                <ul className="space-y-1.5">
+                                  {guide.prompts.map((p, i) => (
+                                    <li key={i} className="flex gap-2 text-xs text-slate-300">
+                                      <span className="text-indigo-500 font-bold shrink-0 mt-0.5">›</span>
+                                      <span>{p}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Score descriptors */}
+                              <div>
+                                <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">Score level descriptors</p>
+                                <div className="space-y-1.5">
+                                  {[0, 1, 2, 3, 4].map(s => {
+                                    const info = SCORE_LABELS[s];
+                                    const isActive = current.score === s;
+                                    return (
+                                      <div key={s} className={`flex gap-2.5 rounded-lg px-3 py-2 text-xs border transition-colors cursor-pointer ${
+                                        isActive
+                                          ? `${info.bg} ${info.color} border-current/40`
+                                          : "border-slate-700/50 text-slate-400 hover:border-slate-600"
+                                      }`}
+                                        onClick={() => setRatings(prev => ({
+                                          ...prev,
+                                          [domain]: { ...prev[domain] ?? { confidence: "", evidence: "" }, score: s },
+                                        }))}
+                                      >
+                                        <span className="font-bold shrink-0 w-4">{s}</span>
+                                        <span className="font-semibold shrink-0">{info.label} —</span>
+                                        <span>{guide.descriptors[s]}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Score buttons */}
                         <div className="flex gap-2 flex-wrap mb-3">
