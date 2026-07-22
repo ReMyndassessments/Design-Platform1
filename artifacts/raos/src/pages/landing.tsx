@@ -170,7 +170,7 @@ export default function LandingPage() {
             {/* My Portal card */}
             <Link href="/my-portal">
               <div className="group border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50 rounded-xl p-5 cursor-pointer transition-all duration-200 hover:shadow-md bg-indigo-50/10">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3.5">
                     <div className="w-9 h-9 rounded-lg bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors border border-indigo-100 flex-shrink-0">
                       <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-500">
@@ -183,6 +183,11 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {l.myPortalFeatures.map(f => (
+                    <span key={f} className="text-[10px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">{f}</span>
+                  ))}
                 </div>
               </div>
             </Link>
