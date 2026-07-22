@@ -12,7 +12,7 @@ import {
   Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
   Share2, Copy, Check, QrCode, X,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -168,6 +168,7 @@ export default function RaepaPage() {
   const [teacherToken, setTeacherToken] = useState<string | null>(null);
   const [teacherTokenLoading, setTeacherTokenLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const qrDownloadRef = useRef<HTMLCanvasElement>(null);
 
   async function openShareModal() {
     setShareModalOpen(true);
@@ -184,6 +185,69 @@ export default function RaepaPage() {
     } finally {
       setTeacherTokenLoading(false);
     }
+  }
+
+  function downloadQrCard() {
+    const qrCanvas = qrDownloadRef.current;
+    if (!qrCanvas || !teacherToken) return;
+    const name = (caseData as Record<string, unknown>)?.student_name as string ?? null;
+    const W = 800, H = 960;
+    const card = document.createElement("canvas");
+    card.width = W; card.height = H;
+    const ctx = card.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, "#6d28d9");
+    grad.addColorStop(1, "#7c3aed");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 148);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 44px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("ReMynd", W / 2, 68);
+    ctx.font = "22px system-ui, -apple-system, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.fillText("Work Sample Upload Request", W / 2, 110);
+    ctx.fillStyle = "#a78bfa";
+    ctx.fillRect(60, 136, W - 120, 3);
+    const label = name ?? "Student";
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, W / 2, 216);
+    ctx.fillStyle = "#7c3aed";
+    ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
+    ctx.fillText("ACADEMIC ENGLISH PERFORMANCE ASSESSMENT", W / 2, 252);
+    const qrSize = 360, qrX = (W - qrSize) / 2, qrY = 286, pad = 24;
+    ctx.fillStyle = "#f8fafc"; ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2, 20);
+    ctx.fill(); ctx.stroke();
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Scan to submit a work sample", W / 2, qrY + qrSize + pad * 2 + 20);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "18px system-ui, -apple-system, sans-serif";
+    ctx.fillText("Point your camera at the QR code above.", W / 2, qrY + qrSize + pad * 2 + 56);
+    ctx.fillText("The upload form will open directly in your browser.", W / 2, qrY + qrSize + pad * 2 + 84);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, H - 64, W, 64);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "16px system-ui, -apple-system, sans-serif";
+    ctx.fillText("remyndassessments.com", W / 2, H - 22);
+    card.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(name ?? "student").replace(/\s+/g, "-")}-raepa-qr-card.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
   }
 
   function copyTeacherLink() {
@@ -1192,7 +1256,7 @@ export default function RaepaPage() {
                   </div>
 
                   {/* Link + copy */}
-                  <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-4 min-w-0">
+                  <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-3 min-w-0">
                     <span className="text-xs text-slate-300 truncate flex-1 font-mono">
                       {`${window.location.origin}${BASE_URL}/raepa-teacher/${teacherToken}`}
                     </span>
@@ -1204,9 +1268,29 @@ export default function RaepaPage() {
                     </button>
                   </div>
 
+                  {/* Download card button */}
+                  <button
+                    onClick={downloadQrCard}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-4"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download QR Card (PNG)
+                  </button>
+
                   <p className="text-xs text-slate-500 text-center">
                     This link is unique to this student's assessment. Each teacher submission will appear in the Work Samples list above.
                   </p>
+
+                  {/* Hidden high-res canvas for card generation */}
+                  <div className="hidden">
+                    <QRCodeCanvas
+                      ref={qrDownloadRef}
+                      value={`${window.location.origin}${BASE_URL}/raepa-teacher/${teacherToken}`}
+                      size={720}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  </div>
                 </>
               ) : null}
             </div>
