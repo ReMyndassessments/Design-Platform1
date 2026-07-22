@@ -10,7 +10,9 @@ import {
   ArrowLeft, Save, Upload, Trash2, Loader2, CheckCircle2,
   AlertTriangle, FileText, Sparkles, ChevronRight, BookOpen,
   Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
+  Share2, Copy, Check, QrCode, X,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -160,6 +162,38 @@ export default function RaepaPage() {
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
+
+  // Teacher share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [teacherToken, setTeacherToken] = useState<string | null>(null);
+  const [teacherTokenLoading, setTeacherTokenLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  async function openShareModal() {
+    setShareModalOpen(true);
+    if (teacherToken) return;
+    setTeacherTokenLoading(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/teacher-token`, { headers: authHeader() });
+      if (!r.ok) throw new Error("Failed");
+      const data = await r.json() as { token: string };
+      setTeacherToken(data.token);
+    } catch {
+      toast({ title: "Error", description: "Could not generate teacher link. Make sure you have saved setup first.", variant: "destructive" });
+      setShareModalOpen(false);
+    } finally {
+      setTeacherTokenLoading(false);
+    }
+  }
+
+  function copyTeacherLink() {
+    if (!teacherToken) return;
+    const url = `${window.location.origin}${BASE_URL}/raepa-teacher/${teacherToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -624,6 +658,18 @@ export default function RaepaPage() {
         {/* ── WORK SAMPLES TAB ──────────────────────────────────────── */}
         {activeTab === "samples" && (
           <div className="space-y-6">
+
+            {/* Teacher share banner */}
+            <section className="bg-indigo-950/40 border border-indigo-700/40 rounded-xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-indigo-200">Collect samples from subject teachers</p>
+                <p className="text-xs text-indigo-400 mt-0.5">Share a link or QR code — teachers can upload directly, no login required.</p>
+              </div>
+              <Button onClick={openShareModal} className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
+                <Share2 size={15} /> Share with Teachers
+              </Button>
+            </section>
+
             {/* Upload area */}
             <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h2 className="text-base font-semibold text-slate-100 mb-4">Upload Work Sample</h2>
@@ -1106,6 +1152,68 @@ export default function RaepaPage() {
         )}
 
       </main>
+
+      {/* ── Teacher share modal ───────────────────────────────────────────── */}
+      {shareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-indigo-400" />
+                <h2 className="text-base font-semibold text-slate-100">Share with Subject Teachers</h2>
+              </div>
+              <button onClick={() => setShareModalOpen(false)} className="text-slate-500 hover:text-slate-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {teacherTokenLoading ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                  <p className="text-sm text-slate-400">Generating secure link…</p>
+                </div>
+              ) : teacherToken ? (
+                <>
+                  <p className="text-sm text-slate-400 mb-5">
+                    Send this link or show the QR code to any subject teacher. They can upload a work sample directly — no login required.
+                  </p>
+
+                  {/* QR code */}
+                  <div className="flex justify-center mb-5">
+                    <div className="bg-white p-4 rounded-xl">
+                      <QRCodeSVG
+                        value={`${window.location.origin}${BASE_URL}/raepa-teacher/${teacherToken}`}
+                        size={200}
+                        level="H"
+                        includeMargin={false}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Link + copy */}
+                  <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-4 min-w-0">
+                    <span className="text-xs text-slate-300 truncate flex-1 font-mono">
+                      {`${window.location.origin}${BASE_URL}/raepa-teacher/${teacherToken}`}
+                    </span>
+                    <button
+                      onClick={copyTeacherLink}
+                      className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                    >
+                      {linkCopied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-500 text-center">
+                    This link is unique to this student's assessment. Each teacher submission will appear in the Work Samples list above.
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

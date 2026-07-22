@@ -85,6 +85,7 @@ const RdaStudentView = React.lazy(() => import("@/pages/student-view/rda"));
 const RrcaStudentView = React.lazy(() => import("@/pages/student-view/rrca"));
 const RrfaStudentView = React.lazy(() => import("@/pages/student-view/rrfa"));
 const RmraStudentView = React.lazy(() => import("@/pages/student-view/rmra"));
+const RaepaTeacherUpload = React.lazy(() => import("@/pages/raepa-teacher"));
 const RmraLandingPage = React.lazy(() => import("@/pages/rmra-landing"));
 const RmraStandaloneSessionPage = React.lazy(() => import("@/pages/rmra-session"));
 const ApprenticeDashboard = React.lazy(() => import("@/pages/apprentice/dashboard"));
@@ -170,6 +171,7 @@ function Router() {
         <Route path="/student-view/rrfa/:token" component={RrfaStudentView} />
         <Route path="/student-view/rmra/:token" component={RmraStudentView} />
         <Route path="/rmra/student/:token" component={RmraStudentView} />
+        <Route path="/raepa-teacher/:token" component={RaepaTeacherUpload} />
         <Route path="/rmra" component={RmraLandingPage} />
         <Route path="/rmra/session/:sessionId" component={RmraStandaloneSessionPage} />
         <Route path="/join/:room" component={JoinMeetingPage} />

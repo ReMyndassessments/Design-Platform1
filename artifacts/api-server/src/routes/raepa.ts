@@ -416,5 +416,72 @@ router.post("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, re
   } catch (err) { logger.error({ err }, "raepa post module score"); res.status(500).json({ error: "Server error" }); }
 });
 
+// ── GET / generate teacher upload token ────────────────────────────────────────
+router.get("/cases/:caseId/raepa/teacher-token", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id!, user.role!)) return res.status(403).json({ error: "Forbidden" });
+    const existing = await db.execute(sql`SELECT id, teacher_upload_token FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
+    if (existing.rows.length === 0) return res.status(404).json({ error: "Session not found. Save setup first." });
+    let token = existing.rows[0].teacher_upload_token as string | null;
+    if (!token) {
+      token = nanoid(32);
+      await db.execute(sql`UPDATE raepa_sessions SET teacher_upload_token = ${token} WHERE case_id = ${caseId}`);
+    }
+    res.json({ token });
+  } catch (err) { logger.error({ err }, "raepa get teacher token"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Public: validate teacher token ─────────────────────────────────────────────
+router.get("/public/raepa/teacher/:token", async (req, res) => {
+  const { token } = req.params;
+  try {
+    const row = await db.execute(sql`SELECT id FROM raepa_sessions WHERE teacher_upload_token = ${token} LIMIT 1`);
+    if (row.rows.length === 0) return res.status(404).json({ error: "Invalid or expired link" });
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa public teacher validate"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Public: teacher uploads a work sample ──────────────────────────────────────
+router.post("/public/raepa/teacher/:token/upload", upload.single("file"), async (req, res) => {
+  const { token } = req.params;
+  try {
+    const row = await db.execute(sql`SELECT id, case_id FROM raepa_sessions WHERE teacher_upload_token = ${token} LIMIT 1`);
+    if (row.rows.length === 0) return res.status(404).json({ error: "Invalid or expired link" });
+    const caseId = row.rows[0].case_id as string;
+    const body = req.body;
+    let fileUrl: string | null = null;
+    let fileName: string | null = null;
+    let fileType: string | null = null;
+    if (req.file) {
+      const ext = req.file.originalname.split(".").pop() ?? "bin";
+      const key = `raepa/${caseId}/teacher-${nanoid()}.${ext}`;
+      await storage.upload(key, req.file.buffer, req.file.mimetype);
+      fileUrl = await storage.getSignedUrl(key);
+      fileName = req.file.originalname;
+      fileType = req.file.mimetype;
+    }
+    const id = nanoid();
+    await db.execute(sql`
+      INSERT INTO raepa_work_samples (
+        id, case_id, file_name, file_url, file_type, title, subject, grade_level,
+        teacher, task_type, date_completed, independent_completion, support_provided,
+        teacher_comments, student_selected, ai_analysis_status, created_at, updated_at
+      ) VALUES (
+        ${id}, ${caseId}, ${fileName}, ${fileUrl}, ${fileType},
+        ${body.title ?? null}, ${body.subject ?? null}, ${body.grade_level ?? null},
+        ${body.teacher ?? null}, ${body.task_type ?? null},
+        ${body.date_completed ? body.date_completed : null},
+        ${body.independent_completion === "true" || body.independent_completion === true},
+        ${body.support_provided ?? null}, ${body.teacher_comments ?? null},
+        ${body.student_selected === "true"},
+        'pending', NOW(), NOW()
+      )
+    `);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa public teacher upload"); res.status(500).json({ error: "Server error" }); }
+});
+
 export { MODULES, DOMAINS, LANGUAGE_FUNCTIONS };
 export default router;

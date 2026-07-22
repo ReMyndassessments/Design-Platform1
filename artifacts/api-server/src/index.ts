@@ -3459,6 +3459,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => ensureRmraTaskResponseUniqueIndex())
   .then(() => createRamriTables())
   .then(() => createRaepaTables())
+  .then(() => db.execute(sql`ALTER TABLE raepa_sessions ADD COLUMN IF NOT EXISTS teacher_upload_token TEXT`))
   .then(() => createInterviewRecordingsTable())
   .then(() => backfillBobbyAiCaseIds())
   .then(() => createLscTables())
