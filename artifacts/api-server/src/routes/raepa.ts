@@ -555,11 +555,19 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
 
+    // First fetch the session id (domain_ratings and language_functions are keyed by session_id)
+    const sessionIdRow = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
+    const sessionId = (sessionIdRow.rows[0] as any)?.id as string | undefined;
+
     const [caseRows, sessionRows, ratingsRows, functionsRows, samplesRows] = await Promise.all([
       db.execute(sql`SELECT student_name, dob FROM cases WHERE id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT language_background, pathway FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
-      db.execute(sql`SELECT domain, score, confidence, evidence FROM raepa_domain_ratings WHERE case_id = ${caseId} ORDER BY domain`),
-      db.execute(sql`SELECT function_name, level, evidence, subject_context FROM raepa_language_functions WHERE case_id = ${caseId} ORDER BY function_name`),
+      sessionId
+        ? db.execute(sql`SELECT domain, score, confidence, evidence FROM raepa_domain_ratings WHERE session_id = ${sessionId} ORDER BY domain`)
+        : Promise.resolve({ rows: [] }),
+      sessionId
+        ? db.execute(sql`SELECT function_name, level, evidence, subject_context FROM raepa_language_functions WHERE session_id = ${sessionId} ORDER BY function_name`)
+        : Promise.resolve({ rows: [] }),
       db.execute(sql`SELECT subject, grade_level, task_type FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at DESC LIMIT 6`),
     ]);
 
