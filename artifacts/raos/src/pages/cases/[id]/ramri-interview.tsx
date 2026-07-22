@@ -818,14 +818,62 @@ export default function RamriInterviewPage() {
     } catch { /* non-fatal */ }
   };
 
-  const printStudentSheet = () => {
+  const printStudentSheet = (lang: "en" | "zh" | "ko" = "en") => {
     const letters = ["A", "B", "C", "D"];
-    const date = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+
+    const T = {
+      en: {
+        htmlLang: "en",
+        fontFamily: "Georgia, serif",
+        title: "RAMRI — Student Work Sheet",
+        student: "Student:",
+        date: "Date:",
+        examiner: "Examiner:",
+        set: "Set",
+        option: "Option",
+        workSpaceLabel: "Student's explanation / work",
+        examinerNotes: "Examiner notes",
+        defaultPrompt: "Which piece of work would you like to show me?",
+        noSets: "No choice sets with samples yet.",
+      },
+      zh: {
+        htmlLang: "zh",
+        fontFamily: "'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif",
+        title: "RAMRI — 学生工作表",
+        student: "学生：",
+        date: "日期：",
+        examiner: "考官：",
+        set: "组",
+        option: "选项",
+        workSpaceLabel: "学生的解释 / 作答",
+        examinerNotes: "考官备注",
+        defaultPrompt: "你想给我展示哪道题？",
+        noSets: "暂无带样本的选择集。",
+      },
+      ko: {
+        htmlLang: "ko",
+        fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif",
+        title: "RAMRI — 학생 학습지",
+        student: "학생:",
+        date: "날짜:",
+        examiner: "검사관:",
+        set: "세트",
+        option: "선택지",
+        workSpaceLabel: "학생의 설명 / 작업",
+        examinerNotes: "검사관 메모",
+        defaultPrompt: "어떤 문제를 보여주고 싶으신가요?",
+        noSets: "아직 샘플이 있는 선택 세트가 없습니다.",
+      },
+    }[lang];
+
+    const dateLocale = lang === "zh" ? "zh-CN" : lang === "ko" ? "ko-KR" : "en-AU";
+    const date = new Date().toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" });
+
     const setsHtml = choiceSets
       .filter(cs => cs.items.length > 0)
       .sort((a, b) => a.display_order - b.display_order)
       .map((cs, si) => {
-        const prompt = cs.student_prompt || "Which piece of work would you like to show me?";
+        const prompt = cs.student_prompt || T.defaultPrompt;
         const itemsHtml = cs.items
           .sort((a, b) => a.display_order - b.display_order)
           .map((item, ii) => {
@@ -833,24 +881,23 @@ export default function RamriInterviewPage() {
             if (!s) return "";
             return `
               <div class="problem">
-                <div class="problem-label">Option ${letters[ii] ?? ii + 1}</div>
+                <div class="problem-label">${T.option} ${letters[ii] ?? ii + 1}</div>
                 <div class="problem-text">${s.extracted_problem}</div>
-                ${s.student_answer ? `<div class="problem-answer">Original answer: ${s.student_answer}</div>` : ""}
                 <div class="work-space">
-                  <div class="work-space-label">Student's explanation / work</div>
+                  <div class="work-space-label">${T.workSpaceLabel}</div>
                 </div>
               </div>`;
           }).join("");
         return `
           <div class="set">
             <div class="set-header">
-              <span class="set-number">Set ${si + 1}</span>
+              <span class="set-number">${T.set} ${si + 1}</span>
               <span class="set-title">${cs.title}</span>
             </div>
             <p class="set-prompt">"${prompt}"</p>
             ${itemsHtml}
             <div class="examiner-notes">
-              <strong>Examiner notes</strong>
+              <strong>${T.examinerNotes}</strong>
               <div class="notes-lines">
                 <div class="notes-line"></div>
                 <div class="notes-line"></div>
@@ -861,13 +908,13 @@ export default function RamriInterviewPage() {
       }).join("");
 
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${T.htmlLang}">
 <head>
   <meta charset="UTF-8" />
-  <title>RAMRI Student Work Sheet</title>
+  <title>${T.title}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Georgia, serif; font-size: 13pt; color: #111; background: #fff; padding: 24mm 20mm; }
+    body { font-family: ${T.fontFamily}; font-size: 13pt; color: #111; background: #fff; padding: 24mm 20mm; }
     header { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 24px; }
     header h1 { font-size: 16pt; font-weight: bold; letter-spacing: 0.02em; }
     header .meta { font-size: 10pt; color: #555; margin-top: 6px; display: flex; gap: 32px; }
@@ -881,7 +928,6 @@ export default function RamriInterviewPage() {
     .problem { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
     .problem-label { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 6px; }
     .problem-text { font-size: 13pt; line-height: 1.5; margin-bottom: 6px; }
-    .problem-answer { font-size: 10pt; color: #555; margin-bottom: 8px; }
     .work-space { border: 1px dashed #bbb; border-radius: 4px; min-height: 64px; padding: 8px 10px; }
     .work-space-label { font-size: 8.5pt; color: #aaa; font-style: italic; }
     .examiner-notes { margin-top: 10px; }
@@ -896,14 +942,14 @@ export default function RamriInterviewPage() {
 </head>
 <body>
   <header>
-    <h1>RAMRI — Student Work Sheet</h1>
+    <h1>${T.title}</h1>
     <div class="meta">
-      <span>Student: <span class="blank"></span></span>
-      <span>Date: ${date}</span>
-      <span>Examiner: <span class="blank"></span></span>
+      <span>${T.student} <span class="blank"></span></span>
+      <span>${T.date} ${date}</span>
+      <span>${T.examiner} <span class="blank"></span></span>
     </div>
   </header>
-  ${setsHtml || "<p>No choice sets with samples yet.</p>"}
+  ${setsHtml || `<p>${T.noSets}</p>`}
 </body>
 </html>`;
 
@@ -2285,9 +2331,20 @@ export default function RamriInterviewPage() {
 
             {choiceSets.some(cs => cs.items.length > 0) && (
               <div className="flex items-center gap-3 flex-wrap">
-                <Button variant="outline" className="gap-2 text-slate-700 border-slate-300" onClick={printStudentSheet}>
-                  <Printer size={14} /> Print Student Sheet
-                </Button>
+                <div className="flex items-center gap-1 border border-slate-300 rounded-lg overflow-hidden">
+                  <span className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 bg-white border-r border-slate-200">
+                    <Printer size={13} /> Student Sheet
+                  </span>
+                  {(["en", "zh", "ko"] as const).map((lang, i) => (
+                    <button
+                      key={lang}
+                      onClick={() => printStudentSheet(lang)}
+                      className={`px-3 py-2 text-xs font-semibold hover:bg-slate-100 transition-colors ${i < 2 ? "border-r border-slate-200" : ""} text-slate-700 bg-white`}
+                    >
+                      {lang === "en" ? "EN" : lang === "zh" ? "中文" : "한국어"}
+                    </button>
+                  ))}
+                </div>
                 <Button variant="outline" className="gap-2 text-violet-700 border-violet-300" onClick={printExaminerSheets}>
                   <Printer size={14} /> Print Examiner Sheets
                 </Button>
