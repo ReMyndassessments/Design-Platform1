@@ -818,7 +818,7 @@ export default function RamriInterviewPage() {
     } catch { /* non-fatal */ }
   };
 
-  const printStudentSheet = (lang: "en" | "zh" | "ko" = "en") => {
+  const printStudentSheet = async (lang: "en" | "zh" | "ko" = "en") => {
     const letters = ["A", "B", "C", "D"];
 
     const T = {
@@ -869,20 +869,66 @@ export default function RamriInterviewPage() {
     const dateLocale = lang === "zh" ? "zh-CN" : lang === "ko" ? "ko-KR" : "en-AU";
     const date = new Date().toLocaleDateString(dateLocale, { day: "numeric", month: "long", year: "numeric" });
 
-    const setsHtml = choiceSets
+    const activeSets = choiceSets
       .filter(cs => cs.items.length > 0)
-      .sort((a, b) => a.display_order - b.display_order)
-      .map((cs, si) => {
-        const prompt = cs.student_prompt || T.defaultPrompt;
+      .sort((a, b) => a.display_order - b.display_order);
+
+    // ── Collect all content strings that need translation ──────────────────
+    type TextSlot = { kind: "title" | "prompt" | "problem"; setIdx: number; itemIdx?: number };
+    const textSlots: TextSlot[] = [];
+    const rawTexts: string[] = [];
+
+    activeSets.forEach((cs, si) => {
+      textSlots.push({ kind: "title", setIdx: si });
+      rawTexts.push(cs.title);
+      textSlots.push({ kind: "prompt", setIdx: si });
+      rawTexts.push(cs.student_prompt || T.defaultPrompt);
+      cs.items.sort((a, b) => a.display_order - b.display_order).forEach((item, ii) => {
+        const s = samples.find(x => x.id === item.work_sample_id);
+        if (s?.extracted_problem) {
+          textSlots.push({ kind: "problem", setIdx: si, itemIdx: ii });
+          rawTexts.push(s.extracted_problem);
+        }
+      });
+    });
+
+    // ── Translate if ZH or KO ──────────────────────────────────────────────
+    let translated = rawTexts;
+    if ((lang === "zh" || lang === "ko") && rawTexts.length > 0) {
+      try {
+        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/translate-worksheet`, {
+          method: "POST",
+          headers: { ...getAuth(), "Content-Type": "application/json" },
+          body: JSON.stringify({ lang, texts: rawTexts }),
+        });
+        if (r.ok) {
+          const d = await r.json() as { translations: string[] };
+          translated = d.translations.map((t, i) => t || rawTexts[i]);
+        }
+      } catch { /* fall back to raw */ }
+    }
+
+    // ── Build per-set/item lookup maps from translated texts ───────────────
+    const setTitles: Record<number, string> = {};
+    const setPrompts: Record<number, string> = {};
+    const problemTexts: Record<string, string> = {};
+    textSlots.forEach((slot, idx) => {
+      if (slot.kind === "title")   setTitles[slot.setIdx] = translated[idx];
+      if (slot.kind === "prompt")  setPrompts[slot.setIdx] = translated[idx];
+      if (slot.kind === "problem") problemTexts[`${slot.setIdx}-${slot.itemIdx}`] = translated[idx];
+    });
+
+    const setsHtml = activeSets.map((cs, si) => {
         const itemsHtml = cs.items
           .sort((a, b) => a.display_order - b.display_order)
           .map((item, ii) => {
             const s = samples.find(x => x.id === item.work_sample_id);
             if (!s) return "";
+            const problemText = problemTexts[`${si}-${ii}`] ?? s.extracted_problem;
             return `
               <div class="problem">
                 <div class="problem-label">${T.option} ${letters[ii] ?? ii + 1}</div>
-                <div class="problem-text">${s.extracted_problem}</div>
+                <div class="problem-text">${problemText}</div>
                 <div class="work-space">
                   <div class="work-space-label">${T.workSpaceLabel}</div>
                 </div>
@@ -892,9 +938,9 @@ export default function RamriInterviewPage() {
           <div class="set">
             <div class="set-header">
               <span class="set-number">${T.set} ${si + 1}</span>
-              <span class="set-title">${cs.title}</span>
+              <span class="set-title">${setTitles[si] ?? cs.title}</span>
             </div>
-            <p class="set-prompt">"${prompt}"</p>
+            <p class="set-prompt">"${setPrompts[si] ?? T.defaultPrompt}"</p>
             ${itemsHtml}
             <div class="examiner-notes">
               <strong>${T.examinerNotes}</strong>

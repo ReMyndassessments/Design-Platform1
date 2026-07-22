@@ -1799,6 +1799,28 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/recordings", authMiddleware
   }
 });
 
+// ── Translate worksheet texts for student sheet printing ──────────────────────
+router.post("/cases/:caseId/ramri/translate-worksheet", authMiddleware, async (req, res) => {
+  try {
+    const { lang, texts } = req.body as { lang: "zh" | "ko"; texts: string[] };
+    if (!lang || !texts?.length) return res.status(400).json({ error: "Missing lang or texts" });
+    const langName = lang === "zh" ? "Simplified Chinese" : "Korean";
+    const numbered = texts.map((t, i) => `[${i}] ${t}`).join("\n");
+    const prompt = `You are a translator. Translate each numbered item below into ${langName}. Return ONLY the translations, one per line, in the same numbered format [0], [1], etc. Do not add any explanation or extra text. Preserve any mathematical notation, numbers, equations, and symbols exactly as they appear.\n\n${numbered}`;
+    const raw = await callGroq(prompt, undefined, 4096);
+    const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+    const result: string[] = new Array(texts.length).fill("");
+    for (const line of lines) {
+      const m = line.match(/^\[(\d+)\]\s*(.*)/s);
+      if (m) result[parseInt(m[1])] = m[2].trim();
+    }
+    return res.json({ translations: result });
+  } catch (err) {
+    logger.error({ err }, "RAMRI worksheet translation failed");
+    return res.status(500).json({ error: "Translation failed" });
+  }
+});
+
 // ── Update recording (edited transcript / report_mode toggle) ─────────────────
 router.patch("/cases/:caseId/ramri/sessions/:sessionId/recordings/:recordingId", authMiddleware, async (req, res) => {
   try {
