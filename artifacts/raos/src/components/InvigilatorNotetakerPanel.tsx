@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AiNotetaker, type Recording as InterviewRecording } from "./AiNotetaker";
-import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight, Smartphone, Copy, Check } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Calendar, User, History, ClipboardList, ArrowRight, Smartphone, Copy, Check, Trash2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface ActiveCase {
@@ -15,6 +15,7 @@ interface RamriSession {
   case_id: string;
   assignment_id: string;
   student_name: string;
+  case_mode: string | null;
   item_count: number;
   selection_count: number;
 }
@@ -61,6 +62,8 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [ramriSessions, setRamriSessions] = useState<RamriSession[]>([]);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [deletingCaseId, setDeletingCaseId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Fetch RAMRI sessions ready for this invigilator
   useEffect(() => {
@@ -253,22 +256,68 @@ export function InvigilatorNotetakerPanel({ currentCaseId, baseUrl, token }: Inv
               <ClipboardList size={11} className="text-violet-400" />
               RAMRI Interview Ready
             </p>
-            {ramriSessions.map(sess => (
-              <a
-                key={sess.session_id}
-                href={`/cases/${sess.case_id}/ramri/${sess.assignment_id}`}
-                className="flex items-center gap-3 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5 hover:bg-violet-100 transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-violet-900 truncate">{sess.student_name}</p>
-                  <p className="text-[11px] text-violet-500 mt-0.5">
-                    {Number(sess.item_count)} choice{Number(sess.item_count) !== 1 ? "s" : ""} prepared
-                    {Number(sess.selection_count) > 0 && ` · ${Number(sess.selection_count)} selected`}
-                  </p>
+            {ramriSessions.map(sess => {
+              const isTest = sess.case_mode === "test";
+              const isConfirming = deleteConfirmId === sess.case_id;
+              const isDeleting = deletingCaseId === sess.case_id;
+              return (
+                <div key={sess.session_id} className="flex items-center gap-2">
+                  <a
+                    href={`/cases/${sess.case_id}/ramri/${sess.assignment_id}`}
+                    className="flex items-center gap-3 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5 hover:bg-violet-100 transition-colors group flex-1 min-w-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-violet-900 truncate">{sess.student_name}</p>
+                      <p className="text-[11px] text-violet-500 mt-0.5">
+                        {Number(sess.item_count)} choice{Number(sess.item_count) !== 1 ? "s" : ""} prepared
+                        {Number(sess.selection_count) > 0 && ` · ${Number(sess.selection_count)} selected`}
+                      </p>
+                    </div>
+                    <ArrowRight size={13} className="text-violet-400 group-hover:text-violet-600 shrink-0 transition-colors" />
+                  </a>
+                  {isTest && (
+                    isConfirming ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={async () => {
+                            setDeleteConfirmId(null);
+                            setDeletingCaseId(sess.case_id);
+                            try {
+                              await fetch(`${baseUrl}/api/cases/${sess.case_id}`, {
+                                method: "DELETE",
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              setRamriSessions(prev => prev.filter(s => s.case_id !== sess.case_id));
+                            } catch { /* ignore */ } finally {
+                              setDeletingCaseId(null);
+                            }
+                          }}
+                          disabled={isDeleting}
+                          className="text-[10px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded px-2 py-1 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 rounded px-2 py-1 border border-slate-200 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(sess.case_id)}
+                        disabled={isDeleting}
+                        title="Delete demo case"
+                        className="shrink-0 p-1.5 rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                      >
+                        {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      </button>
+                    )
+                  )}
                 </div>
-                <ArrowRight size={13} className="text-violet-400 group-hover:text-violet-600 shrink-0 transition-colors" />
-              </a>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -1669,6 +1669,7 @@ router.get("/invigilator/ramri-sessions", authMiddleware, async (req, res) => {
         rs.assignment_id,
         rs.invigilator_id,
         c.student_name,
+        c.case_mode,
         COUNT(DISTINCT csi.id)  AS item_count,
         COUNT(DISTINCT sel.id)  AS selection_count
       FROM ramri_sessions rs
@@ -1687,7 +1688,7 @@ router.get("/invigilator/ramri-sessions", authMiddleware, async (req, res) => {
               AND u.id               = ${userId}
           )
         )
-      GROUP BY rs.id, rs.case_id, rs.assignment_id, rs.invigilator_id, c.student_name
+      GROUP BY rs.id, rs.case_id, rs.assignment_id, rs.invigilator_id, c.student_name, c.case_mode
       HAVING COUNT(DISTINCT csi.id) > 0
     `);
     return res.json(rows.rows);

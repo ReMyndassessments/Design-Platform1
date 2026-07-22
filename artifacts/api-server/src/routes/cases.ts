@@ -603,13 +603,15 @@ router.delete("/cases/:caseId/assignments/by-tool/:toolId", authMiddleware, asyn
 });
 
 router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
-  if (!isAdminLike(req.userRole)) {
-    res.status(403).json({ error: "forbidden", message: "Only admins can delete cases" });
-    return;
-  }
   const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const isInvigilator = req.userRole === "assessment_invigilator";
+  const isTestCase = rows[0].caseMode === "test";
+  if (!isAdminLike(req.userRole) && !(isInvigilator && isTestCase)) {
+    res.status(403).json({ error: "forbidden", message: "Only admins can delete live cases" });
     return;
   }
   await db.delete(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
