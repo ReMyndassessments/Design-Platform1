@@ -1859,60 +1859,6 @@ export default function RaepaPage() {
               </div>
             )}
 
-            {/* Domain Score Bar Chart */}
-            {domainRatings.length > 0 && (
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-slate-300 mb-4">Domain Performance Overview</h3>
-                <div className="space-y-2">
-                  {[...domainRatings].sort((a, b) => b.score - a.score).map((r) => {
-                    const pct = (r.score / 4) * 100;
-                    const color =
-                      r.score >= 4 ? "bg-emerald-500" :
-                      r.score === 3 ? "bg-blue-500" :
-                      r.score === 2 ? "bg-amber-500" :
-                      r.score === 1 ? "bg-orange-500" :
-                      "bg-red-700";
-                    const label =
-                      r.score === 4 ? "Independent" :
-                      r.score === 3 ? "Functional" :
-                      r.score === 2 ? "Developing" :
-                      r.score === 1 ? "Emerging" :
-                      "Not Demonstrated";
-                    return (
-                      <div key={r.domain} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400 w-44 shrink-0 truncate">{r.domain}</span>
-                        <div className="flex-1 h-5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${color}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-400 w-6 text-right shrink-0">{r.score}/4</span>
-                        <span className={`text-xs w-28 shrink-0 font-medium ${
-                          r.score >= 3 ? "text-emerald-400" :
-                          r.score === 2 ? "text-amber-400" : "text-orange-400"
-                        }`}>{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap gap-4 mt-4 pt-3 border-t border-slate-800">
-                  {[
-                    { color: "bg-emerald-500", label: "Independent (4)" },
-                    { color: "bg-blue-500", label: "Functional (3)" },
-                    { color: "bg-amber-500", label: "Developing (2)" },
-                    { color: "bg-orange-500", label: "Emerging (1)" },
-                    { color: "bg-red-700", label: "Not Demonstrated (0)" },
-                  ].map(l => (
-                    <div key={l.label} className="flex items-center gap-1.5">
-                      <div className={`w-3 h-3 rounded-full ${l.color}`} />
-                      <span className="text-xs text-slate-500">{l.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* AI Narrative Report */}
             <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
               {generatedReport ? (
@@ -1942,6 +1888,48 @@ export default function RaepaPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Domain Performance Chart — embedded as part of the report */}
+                  {domainRatings.length > 0 && (
+                    <div className="mb-6 rounded-xl bg-slate-900 border border-slate-700 p-4">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Domain Performance Overview</p>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                        {domainRatings.map((r) => {
+                          const pct = (r.score / 4) * 100;
+                          const barColor =
+                            r.score >= 4 ? "bg-emerald-500" :
+                            r.score === 3 ? "bg-blue-500" :
+                            r.score === 2 ? "bg-amber-500" :
+                            r.score === 1 ? "bg-orange-500" :
+                            "bg-red-700";
+                          return (
+                            <div key={r.domain} className="flex items-center gap-2 min-w-0">
+                              <span className="text-xs text-slate-400 w-36 shrink-0 truncate">{r.domain}</span>
+                              <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden min-w-0">
+                                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-300 w-4 shrink-0 text-right">{r.score}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-slate-800">
+                        {[
+                          { c: "bg-emerald-500", l: "Independent (4)" },
+                          { c: "bg-blue-500", l: "Functional (3)" },
+                          { c: "bg-amber-500", l: "Developing (2)" },
+                          { c: "bg-orange-500", l: "Emerging (1)" },
+                          { c: "bg-red-700", l: "Not Demonstrated (0)" },
+                        ].map(({ c, l }) => (
+                          <div key={l} className="flex items-center gap-1.5">
+                            <div className={`w-2.5 h-2.5 rounded-full ${c}`} />
+                            <span className="text-xs text-slate-500">{l}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     {(() => {
                       const sectionColors: Record<string, string> = {
