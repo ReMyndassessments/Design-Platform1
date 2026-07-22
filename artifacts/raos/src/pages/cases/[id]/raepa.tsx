@@ -64,6 +64,25 @@ const FUNCTION_LEVELS: Record<string, { label: string; color: string }> = {
   independent:     { label: "Independent",      color: "text-emerald-600" },
 };
 
+// Brief description + elicitation cue for each language function
+const FUNCTION_GUIDES: Record<string, { desc: string; cue: string }> = {
+  "identify":              { desc: "Name, label, or point to a specific concept, person, place, object, or term.", cue: "What is this called? / Can you point to the…?" },
+  "recall":                { desc: "Retrieve information from memory — facts, steps, or details from a previous explanation or text.", cue: "What do you remember about…? / What were the steps?" },
+  "describe":              { desc: "Give attributes, qualities, features, or characteristics of something.", cue: "Can you describe…? / Tell me about the features of…" },
+  "sequence":              { desc: "Order events, steps, or information in correct chronological or procedural order.", cue: "What happened first/next/then? / Walk me through the steps." },
+  "classify":              { desc: "Group or sort items, concepts, or information by shared characteristics.", cue: "Which of these belong together? / How would you group these?" },
+  "compare":               { desc: "Identify similarities and differences between two or more items or concepts.", cue: "How are these the same? How are they different?" },
+  "summarize":             { desc: "Condense the key points of a text, explanation, or event into a concise statement.", cue: "Can you summarise what you just heard/read in a few sentences?" },
+  "explain":               { desc: "Give reasons, causes, mechanisms, or make an idea understandable to another person.", cue: "Why does this happen? / Can you explain how…?" },
+  "infer":                 { desc: "Draw logical conclusions that are implied but not explicitly stated in the text or stimulus.", cue: "What do you think is happening here? / What can you tell from this?" },
+  "predict":               { desc: "Use evidence or patterns to anticipate what will happen next.", cue: "What do you think will happen next? / Why?" },
+  "justify":               { desc: "Support a claim, decision, or position with logical reasons.", cue: "Why do you think that? / What makes you say that?" },
+  "evaluate":              { desc: "Make a judgement about quality, value, or effectiveness and explain the reasoning.", cue: "Do you think this was a good idea? / How effective was…?" },
+  "hypothesize":           { desc: "Propose a possible explanation or outcome based on available evidence.", cue: "What might cause this? / If X happened, what do you think would occur?" },
+  "argue":                 { desc: "Present a structured position with supporting points and awareness of counterarguments.", cue: "Do you agree or disagree with…? Build a case for your view." },
+  "support with evidence": { desc: "Use specific data, examples, quotations, or references to back claims.", cue: "Can you give me an example? / What evidence supports that?" },
+};
+
 // ── Domain observation guides ──────────────────────────────────────────────────
 const DOMAIN_GUIDES: Record<string, {
   description: string;
@@ -817,12 +836,13 @@ export default function RaepaPage() {
       if (!r.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["raepa-ratings", caseId] });
       toast({ title: "Domain ratings saved" });
+      setActiveTab("functions");
     } catch {
       toast({ title: "Save failed", variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [caseId, ratings, qc, toast]);
+  }, [caseId, ratings, qc, toast, setActiveTab]);
 
   // ── Save language functions ───────────────────────────────────────────────────
 
@@ -842,12 +862,13 @@ export default function RaepaPage() {
       if (!r.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["raepa-functions", caseId] });
       toast({ title: "Language function profile saved" });
+      setActiveTab("report");
     } catch {
       toast({ title: "Save failed", variant: "destructive" });
     } finally {
       setSaving(false);
     }
-  }, [caseId, functions, qc, toast]);
+  }, [caseId, functions, qc, toast, setActiveTab]);
 
   // ── Upload work sample ─────────────────────────────────────────────────────────
 
@@ -1655,21 +1676,39 @@ export default function RaepaPage() {
           <div className="space-y-4">
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-5">
               <h2 className="text-base font-semibold mb-1">Language Function Profile</h2>
-              <p className="text-xs text-slate-400 mb-5">
-                Assess the student's ability to use each of the 15 academic language functions. Rate based on evidence observed during the assessment session and from work sample analysis.
+              <p className="text-xs text-slate-400 mb-3">
+                Rate each of the 15 academic language functions based on evidence observed during the assessment session and from work sample analysis.
               </p>
+              {/* Rating level reference */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-5 pb-4 border-b border-slate-800">
+                {Object.entries(FUNCTION_LEVELS).filter(([k]) => k !== "not_assessed").map(([, info]) => (
+                  <span key={info.label} className={`${info.color} font-medium`}>{info.label}</span>
+                ))}
+                <span className="text-slate-600 ml-auto">Not Assessed = not elicited in session</span>
+              </div>
               <div className="space-y-4">
                 {LANGUAGE_FUNCTIONS.map((fn, idx) => {
                   const current = functions[fn] ?? { level: "not_assessed", evidence: "", subject_context: "" };
                   const levelInfo = FUNCTION_LEVELS[current.level] ?? FUNCTION_LEVELS.not_assessed;
+                  const guide = FUNCTION_GUIDES[fn];
                   return (
                     <div key={fn} className="border border-slate-800 rounded-lg p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className="w-6 h-6 rounded-full bg-purple-900 flex items-center justify-center text-purple-300 text-xs font-bold">{idx + 1}</span>
-                        <span className="font-medium text-sm capitalize">{fn}</span>
-                        <span className={`ml-auto text-xs font-medium ${levelInfo.color}`}>{levelInfo.label}</span>
+                      <div className="flex items-start gap-3 mb-2">
+                        <span className="w-6 h-6 rounded-full bg-purple-900 flex items-center justify-center text-purple-300 text-xs font-bold shrink-0 mt-0.5">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm capitalize">{fn}</span>
+                            <span className={`ml-auto text-xs font-medium shrink-0 ${levelInfo.color}`}>{levelInfo.label}</span>
+                          </div>
+                          {guide && (
+                            <p className="text-xs text-slate-500 mt-0.5">{guide.desc}</p>
+                          )}
+                          {guide && (
+                            <p className="text-xs text-slate-600 mt-0.5 italic">Elicit: "{guide.cue}"</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-3 mt-3">
                         <div>
                           <label className="block text-xs text-slate-500 mb-1">Level</label>
                           <select
