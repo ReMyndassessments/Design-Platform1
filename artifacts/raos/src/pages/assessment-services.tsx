@@ -605,6 +605,12 @@ export default function AssessmentServicesPage() {
                 <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
                 <BestForList items={item.bestFor} />
                 <OverviewBtn title={item.title} enKey={translations.en.assessmentServices.specialistServices[idx].title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, item.price)} />
+                <Link href="/portal?tab=school" className="mt-2">
+                  <button className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl py-2.5 px-3 transition-colors">
+                    <ArrowRight size={12} />
+                    {a.specialistBtn}
+                  </button>
+                </Link>
               </div>
             ))}
           </div>
@@ -712,6 +718,25 @@ export default function AssessmentServicesPage() {
                   </li>
                 ))}
               </ul>
+            </div>
+
+            <div className="mt-6 bg-purple-50 border border-purple-200 rounded-2xl p-6 text-left">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles size={13} className="text-purple-600" />
+                <p className="text-xs font-bold uppercase tracking-widest text-purple-700">{a.specialistPricingLabel}</p>
+              </div>
+              <div className="space-y-3">
+                {a.specialistServices.map(item => (
+                  <div key={item.title} className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-slate-700 flex-1">{item.title}</span>
+                    <div className="flex-shrink-0 text-right">
+                      <span className="text-xs text-slate-400 line-through mr-1">{item.price}</span>
+                      <span className="text-sm font-bold text-slate-900">{summerPx(item.price)} RMB</span>
+                      <span className="ml-1 text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">{a.summerDiscountLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
