@@ -372,6 +372,28 @@ const DOMAIN_GUIDES: Record<string, {
   },
 };
 
+// Which prompt indices within each domain have a "Generate" button
+// (prompts where the examiner must produce content to show/read to the student)
+const GENERATABLE_PROMPTS: Record<string, number[]> = {
+  "Academic Listening":              [0],
+  "Academic Reading":                [0],
+  "Academic Writing":                [1],
+  "General Academic Vocabulary":     [0],
+  "Subject-Specific Vocabulary":     [1],
+  "Understanding of Classroom Directions": [0],
+  "Explanation and Elaboration":     [0],
+  "Sequencing and Organization":     [0],
+  "Comparison and Classification":   [0],
+  "Cause-and-Effect Reasoning":      [0],
+  "Inference and Prediction":        [0],
+  "Justification and Evidence":      [2],
+  "Evaluation and Hypothesizing":    [1],
+  "Mathematics Language":            [0],
+  "Science Language":                [1],
+  "Humanities Language":             [0],
+  "Response to Scaffolding":         [0],
+};
+
 const SUBJECTS = ["English / Language Arts","Mathematics","Science","Humanities / Social Studies","History","Geography","Literature","General / Homeroom","Other"];
 const GRADE_LEVELS = ["Year 1","Year 2","Year 3","Year 4","Year 5","Year 6","Year 7","Year 8","Year 9","Year 10","Year 11","Year 12","Grade 1","Grade 2","Grade 3","Grade 4","Grade 5","Grade 6","Grade 7","Grade 8","Grade 9","Grade 10","Grade 11","Grade 12"];
 const LANGUAGES = ["Mandarin Chinese","Cantonese","Korean","Japanese","Thai","Vietnamese","Malay","Tamil","Hindi","Tagalog","Indonesian","Arabic","Spanish","French","German","English","Other"];
@@ -470,6 +492,8 @@ export default function RaepaPage() {
   const [openGuides, setOpenGuides] = useState<Record<string, boolean>>(
     () => Object.fromEntries(DOMAINS.map(d => [d, true]))
   );
+  const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
+  const [generating, setGenerating] = useState<Record<string, boolean>>({});
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -577,6 +601,25 @@ export default function RaepaPage() {
     task_type: "", date_completed: "", independent_completion: true,
     support_provided: "", student_selected: false, teacher_comments: "",
   });
+
+  async function generateElicitation(domain: string, promptIndex: number, promptText: string) {
+    const key = `${domain}:${promptIndex}`;
+    setGenerating(prev => ({ ...prev, [key]: true }));
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/generate-elicitation`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ domain, promptIndex, promptText }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      const data = await r.json() as { content: string };
+      setGeneratedContent(prev => ({ ...prev, [key]: data.content }));
+    } catch {
+      toast({ title: "Generation failed", description: "Could not generate content. Try again.", variant: "destructive" });
+    } finally {
+      setGenerating(prev => ({ ...prev, [key]: false }));
+    }
+  }
 
   // ── Data queries ─────────────────────────────────────────────────────────────
 
@@ -1350,12 +1393,50 @@ export default function RaepaPage() {
                               <div>
                                 <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">What to observe / elicit</p>
                                 <ul className="space-y-1.5">
-                                  {guide.prompts.map((p, i) => (
-                                    <li key={i} className="flex gap-2 text-xs text-slate-300">
-                                      <span className="text-indigo-500 font-bold shrink-0 mt-0.5">›</span>
-                                      <span>{p}</span>
-                                    </li>
-                                  ))}
+                                  {guide.prompts.map((p, i) => {
+                                    const genKey = `${domain}:${i}`;
+                                    const canGenerate = (GENERATABLE_PROMPTS[domain] ?? []).includes(i);
+                                    const isGenerating = generating[genKey];
+                                    const generated = generatedContent[genKey];
+                                    return (
+                                      <li key={i} className="space-y-2">
+                                        <div className="flex items-start gap-2 text-xs text-slate-300">
+                                          <span className="text-indigo-500 font-bold shrink-0 mt-0.5">›</span>
+                                          <span className="flex-1">{p}</span>
+                                          {canGenerate && (
+                                            <button
+                                              onClick={() => generateElicitation(domain, i, p)}
+                                              disabled={isGenerating}
+                                              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-violet-600/50 bg-violet-900/30 text-violet-300 hover:bg-violet-800/40 transition-colors shrink-0 disabled:opacity-50"
+                                            >
+                                              {isGenerating
+                                                ? <><Loader2 size={10} className="animate-spin" /> Generating…</>
+                                                : <><Sparkles size={10} /> Generate</>
+                                              }
+                                            </button>
+                                          )}
+                                        </div>
+                                        {generated && (
+                                          <div className="ml-4 bg-slate-900 border border-violet-700/40 rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <span className="text-xs font-semibold text-violet-400 flex items-center gap-1">
+                                                <Sparkles size={10} /> Generated content
+                                              </span>
+                                              <button
+                                                onClick={() => generateElicitation(domain, i, p)}
+                                                disabled={isGenerating}
+                                                className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
+                                              >
+                                                <RefreshCw size={10} className={isGenerating ? "animate-spin" : ""} />
+                                                Regenerate
+                                              </button>
+                                            </div>
+                                            <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">{generated}</p>
+                                          </div>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               </div>
 

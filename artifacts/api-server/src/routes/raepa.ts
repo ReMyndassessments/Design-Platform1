@@ -14,6 +14,21 @@ const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 const storage = new ObjectStorageService();
 
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+async function callGroq(messages: Array<{ role: string; content: string }>, maxTokens = 1024): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.8, max_tokens: maxTokens }),
+  });
+  if (!r.ok) throw new Error(`Groq error: ${r.status}`);
+  const data = await r.json() as any;
+  return data.choices[0].message.content;
+}
+
 const MODULES = [
   { id: "social_communication", name: "Module 1: Social Communication Baseline", required: true },
   { id: "academic_listening",   name: "Module 2: Academic Listening" },
@@ -431,6 +446,81 @@ router.get("/cases/:caseId/raepa/teacher-token", authMiddleware, async (req, res
     }
     res.json({ token });
   } catch (err) { logger.error({ err }, "raepa get teacher token"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── AI: generate elicitation content ──────────────────────────────────────────
+router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  const { domain, promptIndex, promptText } = req.body as { domain: string; promptIndex: number; promptText: string };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+
+    // Fetch case, session, and work sample context in parallel
+    const [caseRows, sessionRows, sampleRows] = await Promise.all([
+      db.execute(sql`SELECT student_name, date_of_birth FROM cases WHERE id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT language_background FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT subject, grade_level, task_type FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at DESC LIMIT 6`),
+    ]);
+
+    const caseRow = caseRows.rows[0] as any;
+    const sessionRow = sessionRows.rows[0] as any;
+    const samples = sampleRows.rows as any[];
+
+    // Calculate student age
+    let ageStr = "school-age";
+    if (caseRow?.date_of_birth) {
+      const dob = new Date(caseRow.date_of_birth);
+      const today = new Date();
+      let a = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) a--;
+      ageStr = `${a} years old`;
+    }
+
+    const langBg: Record<string, string> = sessionRow?.language_background
+      ? (typeof sessionRow.language_background === "string"
+          ? JSON.parse(sessionRow.language_background)
+          : sessionRow.language_background)
+      : {};
+    const l1 = langBg.l1 || "unknown";
+    const yearsInEnglish = langBg.years_in_english || "unknown";
+
+    const sampleContext = samples.length > 0
+      ? samples.map(s => `- Subject: ${s.subject || "unknown"}, Grade: ${s.grade_level || "not specified"}, Task type: ${s.task_type || "unknown"}`).join("\n")
+      : "No work samples on file.";
+
+    const gradeHint = samples.find(s => s.grade_level)?.grade_level ?? "primary/secondary school";
+
+    const systemPrompt = `You are an expert EAL/D (English as an Additional Language or Dialect) assessment specialist creating ready-to-use elicitation content for the ReMynd Academic English Performance Assessment (RAEPA).
+
+Generate ONLY the actual content the examiner can immediately read aloud or present to the student. Do NOT include any preamble, instructions to the examiner, or meta-commentary. Format clearly and concisely for direct use in a clinical session.`;
+
+    const userMessage = `Student profile:
+- Age: ${ageStr}
+- First language (L1): ${l1}
+- Years in English-medium schooling: ${yearsInEnglish}
+- Approximate grade: ${gradeHint}
+
+Work samples on file:
+${sampleContext}
+
+RAEPA domain being assessed: ${domain}
+
+The examiner prompt says: "${promptText}"
+
+Generate the ready-to-use content (passage, question, instructions, vocabulary list, or scenario as appropriate). Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute assessment activity.`;
+
+    const content = await callGroq([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ], 700);
+
+    res.json({ content });
+  } catch (err) {
+    logger.error({ err }, "raepa generate-elicitation");
+    res.status(500).json({ error: "Generation failed" });
+  }
 });
 
 // ── Public: validate teacher token ─────────────────────────────────────────────
