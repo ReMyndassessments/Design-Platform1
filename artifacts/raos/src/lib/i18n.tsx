@@ -582,6 +582,10 @@ export const translations = {
       flagshipDeliverablesLabel: "Deliverables",
       flagshipDeliverables: ["Comprehensive Educational Profile", "Individualised Support Plan", "Teacher Recommendations", "Parent Recommendations", "Classroom Accommodations", "Intervention Priorities", "Debrief Meeting"],
       flagshipBtn: "Refer a Student for Comprehensive Assessment",
+      specialistLabel: "AI-Powered Specialist Assessments",
+      specialistServices: [
+        { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "An AI-powered mathematical reasoning interview that extracts authentic work samples, generates clinically-weighted choice sets, and supports structured examiner scoring of reasoning quality, self-correction, and mathematical language.", bestFor: ["Mathematical reasoning difficulties", "Work sample analysis", "Learning support planning", "IEP goal-setting for maths"] },
+      ],
       s3Title: "Parent Assessment Services",
       s3Sub: "Schools may also refer families directly to ReMynd for independent parent-requested assessment services.",
       parentServices: [
@@ -1209,6 +1213,10 @@ export const translations = {
       flagshipDeliverablesLabel: "交付成果",
       flagshipDeliverables: ["综合教育档案", "个性化支持计划", "教师建议", "家长建议", "课堂调整措施", "干预优先事项", "汇报会议"],
       flagshipBtn: "转介学生进行综合评估",
+      specialistLabel: "人工智能专项评估",
+      specialistServices: [
+        { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "一项人工智能驱动的数学推理访谈，提取真实作业样本，生成临床加权选择集，并支持对推理质量、自我纠正能力和数学语言的结构化考官评分。", bestFor: ["数学推理困难", "作业样本分析", "学习支持规划", "数学IEP目标制定"] },
+      ],
       s3Title: "家长评估服务",
       s3Sub: "学校也可直接将家庭转介至 ReMynd，获取独立的家长申请评估服务。",
       parentServices: [
@@ -1836,6 +1844,10 @@ export const translations = {
       flagshipDeliverablesLabel: "제공 결과물",
       flagshipDeliverables: ["종합 교육 프로파일", "개인화된 지원 계획", "교사 권고 사항", "학부모 권고 사항", "교실 조정 사항", "중재 우선순위", "디브리핑 회의"],
       flagshipBtn: "종합 평가를 위한 학생 의뢰",
+      specialistLabel: "AI 기반 전문 평가",
+      specialistServices: [
+        { title: "ReMynd Authentic Mathematical Reasoning Interview", price: "8,500", desc: "실제 작업 샘플을 추출하고, 임상적 가중치를 부여한 선택지 세트를 생성하며, 추론 품질, 자기 교정, 수학 언어에 대한 구조화된 평가자 채점을 지원하는 AI 기반 수학적 추론 인터뷰입니다.", bestFor: ["수학적 추론 어려움", "작업 샘플 분석", "학습 지원 계획", "수학 IEP 목표 수립"] },
+      ],
       s3Title: "학부모 평가 서비스",
       s3Sub: "학교는 가족을 ReMynd에 직접 의뢰하여 독립적인 학부모 요청 평가 서비스를 받을 수도 있습니다.",
       parentServices: [

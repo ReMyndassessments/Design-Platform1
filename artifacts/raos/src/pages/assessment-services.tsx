@@ -584,6 +584,33 @@ export default function AssessmentServicesPage() {
         </div>
       </section>
 
+      {/* ── SPECIALIST AI SERVICES ── */}
+      <section className="py-20 bg-slate-50">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex items-center gap-2 bg-purple-100 border border-purple-200 rounded-full px-4 py-1">
+              <Sparkles size={12} className="text-purple-700" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-purple-700">{a.specialistLabel}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {a.specialistServices.map((item, idx) => (
+              <div key={item.title} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Sparkles size={11} className="text-purple-500 flex-shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-purple-500">AI</span>
+                </div>
+                <PriceTag price={item.price} summer summerLabel={a.summerDiscountLabel} />
+                <h3 className="font-bold text-slate-800 text-sm mt-3 mb-2">{item.title}</h3>
+                <p className="text-slate-500 text-xs leading-relaxed flex-1">{item.desc}</p>
+                <BestForList items={item.bestFor} />
+                <OverviewBtn title={item.title} enKey={translations.en.assessmentServices.specialistServices[idx].title} btnLabel={a.overviewDrawer.btnLabel} onOpen={(enKey, displayTitle) => openOverview(enKey, displayTitle, item.price)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── SECTION 3: PARENT SERVICES ── */}
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">

@@ -323,6 +323,33 @@ const en: OverviewMap = {
     costContext: "Specialist developmental and school readiness assessments in Shanghai typically start at 6,000–12,000 RMB from developmental paediatricians or early years specialists. At 3,600 RMB (summer rate), ReMynd's School Readiness & Transition Assessment provides a thorough, educationally-focused readiness profile at a significantly more accessible cost.",
     typicalTimeline: "7–10 working days from intake",
   },
+
+  "ReMynd Authentic Mathematical Reasoning Interview": {
+    fullDesc: "An AI-powered mathematical reasoning interview designed to assess how students approach, explain, and self-correct mathematical problems. Rather than testing procedural recall alone, RAMRI surfaces authentic reasoning through a structured interview protocol — capturing spoken and written work samples, generating clinically-weighted choice sets, and supporting systematic examiner scoring across reasoning quality, self-correction, and mathematical language. Produces a curriculum-referenced mathematical reasoning profile with specific recommendations for learning support and differentiation.",
+    whenToUse: [
+      "Students showing unexpected gaps between mathematical procedural ability and reasoning quality",
+      "Diagnostic assessment before learning support placement in mathematics",
+      "Students who can calculate correctly but cannot explain their reasoning",
+      "Pre-intervention baseline for students receiving mathematics support",
+      "Identifying whether mathematical difficulties reflect reasoning, processing, or language factors",
+      "Supporting IEP goal-setting for mathematics learning objectives",
+      "Students with known learning differences whose mathematical reasoning has not been formally assessed",
+    ],
+    initiatedBy: ["Mathematics teacher", "Learning support coordinator", "SENCO", "Parent referral", "School counsellor with academic concern"],
+    studentProfile: "Students in Years 3–10 showing a discrepancy between their perceived mathematical ability and their actual reasoning quality. Particularly effective for students who appear mathematically capable but produce inconsistent work, struggle to explain their thinking, or whose mathematical difficulties have not been resolved by standard teaching or support. Also appropriate for students approaching high-stakes examinations who require a structured reasoning baseline.",
+    benefits: [
+      "The only ReMynd assessment specifically designed to evaluate mathematical reasoning quality",
+      "AI-powered work sample extraction reduces examiner burden and increases scoring consistency",
+      "Assesses reasoning process, not just procedural accuracy — capturing what standard tests miss",
+      "Produces specific, curriculum-referenced recommendations for mathematics support",
+      "Can differentiate between reasoning difficulties, working memory issues, and mathematical anxiety",
+      "Supports evidence-based IEP goal-setting for mathematics",
+      "Available as a standalone service or as a complement to a broader learning support evaluation",
+    ],
+    costContext: "Specialist mathematics assessment from educational psychologists in Shanghai typically forms part of a broader psychoeducational evaluation costing 15,000–25,000 RMB, with standalone mathematics assessments rarely available as a separate service. At 6,800 RMB (summer rate), RAMRI provides a professionally scored, AI-assisted mathematical reasoning profile as a standalone service — making targeted mathematics assessment accessible without requiring a full psychoeducational referral.",
+    deliverables: ["Mathematical reasoning profile", "Work sample analysis", "Curriculum-referenced recommendations", "Learning support planning guidance", "IEP goal suggestions for mathematics"],
+    typicalTimeline: "7–10 working days from assessment session",
+  },
 };
 
 // ─────────────────────────────────────────────
@@ -635,6 +662,33 @@ const zh: OverviewMap = {
     costContext: "上海发育儿科医生或早教专科的专业发育和学校准备度评估通常起步价为6,000–12,000元人民币。按暑期价3,600元，ReMynd学校准备度与过渡评估以显著更低的成本提供全面、以教育为重点的准备档案。",
     typicalTimeline: "入学后7–10个工作日",
   },
+
+  "ReMynd Authentic Mathematical Reasoning Interview": {
+    fullDesc: "一项由人工智能支持的数学推理访谈，旨在评估学生如何处理、解释和自我纠正数学问题。RAMRI通过结构化访谈协议呈现真实推理过程——而非单纯考察程序性记忆，捕捉口头和书面作业样本，生成临床加权选择集，并支持系统化的考官评分，涵盖推理质量、自我纠正能力和数学语言。提供基于课程标准的数学推理档案，并附有针对学习支持和差异化教学的具体建议。",
+    whenToUse: [
+      "学生数学程序能力与推理质量之间存在意外差距",
+      "数学学习支持安置前的诊断性评估",
+      "能正确计算但无法解释推理过程的学生",
+      "接受数学支持的学生的干预前基线评估",
+      "识别数学困难是否源于推理、信息处理或语言因素",
+      "支持数学学习目标的IEP目标制定",
+      "已知学习差异但数学推理从未经过正式评估的学生",
+    ],
+    initiatedBy: ["数学老师", "学习支持协调员", "特殊教育协调员", "家长转介", "有学业关切的学校辅导老师"],
+    studentProfile: "3–10年级中，感知数学能力与实际推理质量之间存在差异的学生。对于表面上数学能力尚可，但作业成绩不稳定、难以解释思路，或数学困难经标准教学或支持后仍未改善的学生，效果尤为显著。同样适用于临近重要考试、需要结构化推理基线评估的学生。",
+    benefits: [
+      "ReMynd评估体系中唯一专门评估数学推理质量的评估",
+      "人工智能驱动的作业样本提取减轻考官负担，提高评分一致性",
+      "评估推理过程而非仅关注程序准确性——捕捉标准测试所遗漏的内容",
+      "提供具体的、基于课程标准的数学支持建议",
+      "可区分推理困难、工作记忆问题和数学焦虑",
+      "支持数学IEP目标的循证制定",
+      "可作为独立服务，或作为更广泛学习支持评估的补充",
+    ],
+    costContext: "上海教育心理学家的专项数学评估通常作为综合心理教育评估的一部分，费用为15,000–25,000元人民币，独立数学评估鲜有单独提供。按暑期价6,800元，RAMRI提供专业评分、人工智能辅助的独立数学推理档案——无需完整心理教育转介，即可获得有针对性的数学评估。",
+    deliverables: ["数学推理档案", "作业样本分析", "基于课程标准的建议", "学习支持规划指导", "数学IEP目标建议"],
+    typicalTimeline: "评估完成后7–10个工作日",
+  },
 };
 
 // ─────────────────────────────────────────────
@@ -946,6 +1000,33 @@ const ko: OverviewMap = {
     ],
     costContext: "상하이의 발달 소아과 의사 또는 초기 교육 전문가의 전문 발달 및 학교 준비 평가는 일반적으로 6,000–12,000위안부터 시작합니다. 여름 할인가 3,600위안으로, ReMynd 학교 준비도 및 전환 평가는 훨씬 더 접근하기 쉬운 비용으로 철저하고 교육에 초점을 맞춘 준비 프로파일을 제공합니다.",
     typicalTimeline: "접수 후 7–10 영업일",
+  },
+
+  "ReMynd Authentic Mathematical Reasoning Interview": {
+    fullDesc: "학생이 수학 문제에 어떻게 접근하고, 설명하며, 자기 교정하는지를 평가하는 AI 기반 수학적 추론 인터뷰입니다. 절차적 암기만을 테스트하는 것이 아니라, RAMRI는 구조화된 인터뷰 프로토콜을 통해 진정한 추론 과정을 드러냅니다 — 구술 및 서면 작업 샘플을 수집하고, 임상적 가중치를 부여한 선택지 세트를 생성하며, 추론 품질, 자기 교정, 수학 언어에 걸쳐 체계적인 평가자 채점을 지원합니다. 학습 지원 및 차별화 수업을 위한 구체적인 권고 사항이 포함된 교육과정 기반 수학적 추론 프로파일을 제공합니다.",
+    whenToUse: [
+      "수학적 절차 능력과 추론 품질 사이에 예상치 못한 격차를 보이는 학생",
+      "수학 학습 지원 배치 전 진단 평가",
+      "정확하게 계산할 수 있지만 추론 과정을 설명하지 못하는 학생",
+      "수학 지원을 받는 학생의 중재 전 기준선",
+      "수학적 어려움이 추론, 처리 또는 언어 요인에서 비롯되는지 파악",
+      "수학 학습 목표에 대한 IEP 목표 수립 지원",
+      "학습 차이가 알려져 있지만 수학적 추론이 공식적으로 평가되지 않은 학생",
+    ],
+    initiatedBy: ["수학 교사", "학습 지원 코디네이터", "특수교육 코디네이터", "학부모 의뢰", "학업 우려가 있는 학교 상담사"],
+    studentProfile: "인식된 수학 능력과 실제 추론 품질 사이에 불일치를 보이는 3–10학년 학생. 수학적으로 유능해 보이지만 일관성 없는 작업을 생성하거나, 사고 과정을 설명하는 데 어려움을 겪거나, 표준 교육 또는 지원으로도 수학적 어려움이 해결되지 않은 학생에게 특히 효과적입니다. 중요한 시험을 앞두고 구조화된 추론 기준선이 필요한 학생에게도 적합합니다.",
+    benefits: [
+      "ReMynd 평가 체계에서 수학적 추론 품질을 평가하도록 특별히 설계된 유일한 평가",
+      "AI 기반 작업 샘플 추출로 평가자 부담을 줄이고 채점 일관성을 향상",
+      "절차적 정확성만이 아닌 추론 과정을 평가 — 표준 테스트가 놓치는 부분 포착",
+      "수학 지원을 위한 구체적이고 교육과정 기반의 권고 사항 제공",
+      "추론 어려움, 작업 기억 문제, 수학 불안을 구별하는 데 활용 가능",
+      "수학에 대한 증거 기반 IEP 목표 수립 지원",
+      "독립 서비스로 또는 더 넓은 학습 지원 평가의 보완으로 활용 가능",
+    ],
+    costContext: "상하이의 교육 심리학자의 전문 수학 평가는 일반적으로 15,000–25,000위안의 종합 심리교육 평가의 일부로 포함되며, 독립적인 수학 평가는 별도 서비스로 제공되는 경우가 드뭅니다. 여름 할인가 6,800위안으로, RAMRI는 전문적으로 채점되고 AI가 지원하는 독립적인 수학적 추론 프로파일을 제공합니다 — 전체 심리교육 의뢰 없이도 목표 지향적인 수학 평가를 받을 수 있습니다.",
+    deliverables: ["수학적 추론 프로파일", "작업 샘플 분석", "교육과정 기반 권고 사항", "학습 지원 계획 지침", "수학 IEP 목표 제안"],
+    typicalTimeline: "평가 세션 후 7–10 영업일",
   },
 };
 
