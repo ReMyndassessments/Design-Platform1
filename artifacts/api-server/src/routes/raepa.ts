@@ -56,7 +56,7 @@ async function verifyCaseAccess(caseId: string, userId: string, role: string): P
 // ── GET session ──────────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const rows = await db.execute(sql`SELECT * FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -68,7 +68,7 @@ router.get("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
 // ── POST session (create or update) ─────────────────────────────────────────
 router.post("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const existing = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -110,7 +110,7 @@ router.post("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => 
 // ── GET work samples ──────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/work-samples", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const rows = await db.execute(sql`SELECT * FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at ASC`);
@@ -121,7 +121,7 @@ router.get("/cases/:caseId/raepa/work-samples", authMiddleware, async (req, res)
 // ── POST work sample (upload) ─────────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("file"), async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const body = req.body;
@@ -162,7 +162,7 @@ router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("
 // ── PATCH work sample ─────────────────────────────────────────────────────────
 router.patch("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const b = req.body;
@@ -187,7 +187,7 @@ router.patch("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, asyn
 // ── DELETE work sample ────────────────────────────────────────────────────────
 router.delete("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     await db.execute(sql`DELETE FROM raepa_work_samples WHERE id = ${sampleId} AND case_id = ${caseId}`);
@@ -198,7 +198,7 @@ router.delete("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, asy
 // ── POST work sample AI analysis ───────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/work-samples/:sampleId/analyze", authMiddleware, async (req, res) => {
   const { caseId, sampleId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const rows = await db.execute(sql`SELECT * FROM raepa_work_samples WHERE id = ${sampleId} AND case_id = ${caseId}`);
@@ -290,7 +290,7 @@ Return ONLY valid JSON. Do not include any text outside the JSON object.`;
 // ── GET domain ratings ────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -304,7 +304,7 @@ router.get("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, re
 // ── POST domain ratings (upsert) ──────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -334,7 +334,7 @@ router.post("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, r
 // ── GET language functions ────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -348,7 +348,7 @@ router.get("/cases/:caseId/raepa/language-functions", authMiddleware, async (req
 // ── POST language functions (upsert) ──────────────────────────────────────────
 router.post("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -378,7 +378,7 @@ router.post("/cases/:caseId/raepa/language-functions", authMiddleware, async (re
 // ── GET module scores ─────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
@@ -392,7 +392,7 @@ router.get("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res
 // ── POST module score (upsert) ────────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
   const { caseId } = req.params;
-  const user = (req as any).user;
+  const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const session = await db.execute(sql`SELECT id FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);

@@ -80,10 +80,12 @@ const TABS = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("raos_token")}` });
+
 function api(path: string, options?: RequestInit) {
   return fetch(`${BASE_URL}/api${path}`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...authHeader(), ...(options?.headers ?? {}) },
     ...options,
   });
 }
@@ -329,6 +331,7 @@ export default function RaepaPage() {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/work-samples`, {
         method: "POST",
         credentials: "include",
+        headers: authHeader(),
         body: formData,
       });
       if (!r.ok) throw new Error("Upload failed");
