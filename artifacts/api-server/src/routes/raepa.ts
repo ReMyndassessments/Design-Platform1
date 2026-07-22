@@ -458,7 +458,7 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
 
     // Fetch case, session, and work sample context in parallel
     const [caseRows, sessionRows, sampleRows] = await Promise.all([
-      db.execute(sql`SELECT student_name, date_of_birth FROM cases WHERE id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT student_name, dob FROM cases WHERE id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT language_background FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT subject, grade_level, task_type, ai_analysis FROM raepa_work_samples WHERE case_id = ${caseId} AND ai_analysis IS NOT NULL ORDER BY created_at DESC LIMIT 6`),
     ]);
@@ -469,8 +469,8 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
 
     // Calculate student age
     let ageStr = "school-age";
-    if (caseRow?.date_of_birth) {
-      const dob = new Date(caseRow.date_of_birth);
+    if (caseRow?.dob) {
+      const dob = new Date(caseRow.dob);
       const today = new Date();
       let a = today.getFullYear() - dob.getFullYear();
       const m = today.getMonth() - dob.getMonth();
@@ -556,7 +556,7 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
 
     const [caseRows, sessionRows, ratingsRows, functionsRows, samplesRows] = await Promise.all([
-      db.execute(sql`SELECT student_name, date_of_birth FROM cases WHERE id = ${caseId} LIMIT 1`),
+      db.execute(sql`SELECT student_name, dob FROM cases WHERE id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT language_background, pathway FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`),
       db.execute(sql`SELECT domain, score, confidence, evidence FROM raepa_domain_ratings WHERE case_id = ${caseId} ORDER BY domain`),
       db.execute(sql`SELECT function_name, level, evidence, subject_context FROM raepa_language_functions WHERE case_id = ${caseId} ORDER BY function_name`),
@@ -572,8 +572,8 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
     // Student profile
     const studentName = caseRow?.student_name ?? "the student";
     let ageStr = "school-age";
-    if (caseRow?.date_of_birth) {
-      const dob = new Date(caseRow.date_of_birth);
+    if (caseRow?.dob) {
+      const dob = new Date(caseRow.dob);
       const today = new Date();
       let a = today.getFullYear() - dob.getFullYear();
       const m = today.getMonth() - dob.getMonth();
