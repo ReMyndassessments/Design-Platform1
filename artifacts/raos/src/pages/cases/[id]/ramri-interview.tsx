@@ -1117,17 +1117,17 @@ export default function RamriInterviewPage() {
     header .meta { font-size: 10pt; color: #555; margin-top: 6px; display: flex; gap: 32px; }
     header .meta span { display: inline-flex; align-items: baseline; gap: 6px; }
     header .meta .blank { display: inline-block; border-bottom: 1px solid #555; min-width: 120px; height: 14px; }
-    .set { margin-bottom: 32px; page-break-inside: avoid; }
+    .set { margin-bottom: 40px; }
     .set-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
     .set-number { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.08em; color: #555; }
     .set-title { font-size: 13pt; font-weight: bold; }
     .set-prompt { font-size: 10.5pt; font-style: italic; color: #444; margin-bottom: 14px; border-left: 3px solid #bbb; padding-left: 10px; }
-    .problem { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
+    .problem { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; page-break-inside: avoid; }
     .problem-label { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; margin-bottom: 6px; }
     .problem-text { font-size: 13pt; line-height: 1.5; margin-bottom: 6px; }
     .work-space { border: 1px dashed #bbb; border-radius: 4px; min-height: 64px; padding: 8px 10px; }
     .work-space-label { font-size: 8.5pt; color: #aaa; font-style: italic; }
-    .examiner-notes { margin-top: 10px; }
+    .examiner-notes { margin-top: 10px; page-break-inside: avoid; }
     .examiner-notes strong { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; color: #777; }
     .notes-lines { margin-top: 6px; }
     .notes-line { border-bottom: 1px solid #ccc; height: 22px; }
@@ -1135,7 +1135,6 @@ export default function RamriInterviewPage() {
     .transfer-label { color: #0d9488 !important; }
     @media print {
       body { padding: 14mm 16mm; }
-      .set { page-break-inside: avoid; }
     }
   </style>
 </head>
