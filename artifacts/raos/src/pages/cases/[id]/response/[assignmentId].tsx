@@ -978,8 +978,8 @@ export default function ResponseViewer() {
         {/* Score Card — rich report with charts and narratives (not shown for BEHAVOBS which uses narrative summary instead) */}
         {score && assignment.toolId !== "BEHAVOBS" && (() => {
           const { domains: resolvedDomains, normalized: resolvedNorm } = resolveDomainScores(
-            score.domainScores as Record<string, number | null>,
-            score.normalizedScores as Record<string, number | null>,
+            (score.domainScores ?? {}) as Record<string, number | null>,
+            (score.normalizedScores ?? {}) as Record<string, number | null>,
             scoringConfig,
           );
           const domainEntries = Object.entries(resolvedDomains);

@@ -1350,7 +1350,7 @@ async function syncTools() {
           description: tool.description,
           isRemyndOwned: tool.isRemyndOwned,
           respondentTypes: tool.respondentTypes,
-          scoringType: tool.scoringType,
+          // scoringType intentionally omitted — user edits must persist across restarts
           domains: tool.domains,
           scoringConfig: tool.scoringConfig ?? null,
           // Only overwrite formItems when the canonical definition includes them —
