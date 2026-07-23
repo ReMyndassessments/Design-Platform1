@@ -7,3 +7,4 @@
 - [LSC subscription states](lsc-subscription-states.md) — trial_available→trial_active (during AI)→trial_used; active: active_monthly/annual/complimentary/administrator_override; follow-up + role versions always free.
 - [api-server esbuild externals](api-server-esbuild-externals.md) — `@google/genai` must be bundled (not external); use `@google-cloud/*` not `@google/*` in the external list.
 - [Drizzle raw SQL array parameters](drizzle-raw-sql-arrays.md) — ANY(${array}) in db.execute(sql`...`) silently 500s; use attribute WHERE or scalar loops instead.
+- [Scoring config null domains](scoring-config-null-domains.md) — BRIEF-2 scoring_config is {"max":2} with no domains key; use scoringConfig?.domains?.[key] double-chaining; normalizedScores can be DB-null too.

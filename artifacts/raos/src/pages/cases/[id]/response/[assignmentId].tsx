@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Component } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp, Languages, AlertTriangle } from "lucide-react";
@@ -317,6 +317,29 @@ function getNarrative(info: DomainInfo, normalized: number): string {
     if (normalized <= n.max) return n.text;
   }
   return info.narratives[info.narratives.length - 1]?.text ?? "";
+}
+
+class ScoreCardErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: string | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+          <p className="font-semibold mb-1">Score display encountered an error.</p>
+          <p className="font-mono text-xs break-all opacity-70">{this.state.error}</p>
+          <button className="mt-3 text-xs underline" onClick={() => this.setState({ error: null })}>Retry</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -976,6 +999,7 @@ export default function ResponseViewer() {
         )}
 
         {/* Score Card — rich report with charts and narratives (not shown for BEHAVOBS which uses narrative summary instead) */}
+        <ScoreCardErrorBoundary>
         {score && assignment.toolId !== "BEHAVOBS" && (() => {
           const { domains: resolvedDomains, normalized: resolvedNorm } = resolveDomainScores(
             (score.domainScores ?? {}) as Record<string, number | null>,
@@ -1328,6 +1352,7 @@ export default function ResponseViewer() {
             </div>
           );
         })()}
+        </ScoreCardErrorBoundary>
       </div>
     </>
   );
