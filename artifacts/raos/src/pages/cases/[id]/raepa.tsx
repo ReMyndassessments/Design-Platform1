@@ -1876,27 +1876,49 @@ ${bodyHtml}
                                           )}
                                         </div>
                                         {generated && (
-                                          <div className="ml-4 bg-slate-900 border border-violet-700/40 rounded-lg p-3">
-                                            <div className="flex items-center justify-between mb-2">
+                                          <div className={`ml-4 rounded-lg overflow-hidden transition-all duration-300 ${
+                                            activeStudentKey === genKey
+                                              ? "border-2 border-teal-500 shadow-[0_0_16px_rgba(20,184,166,0.3)] bg-slate-900"
+                                              : "border border-violet-700/40 bg-slate-900"
+                                          }`}>
+                                            {/* Live banner */}
+                                            {activeStudentKey === genKey && (
+                                              <div className="flex items-center justify-between px-3 py-1.5 bg-teal-500/20 border-b border-teal-500/40">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                                                  <span className="text-[11px] font-bold text-teal-300 tracking-wide uppercase">Live on student screen</span>
+                                                </div>
+                                                <button
+                                                  onClick={clearStudentStimulus}
+                                                  disabled={pushingStimulus}
+                                                  className="text-[10px] text-teal-400 hover:text-red-400 transition-colors"
+                                                >
+                                                  Hide ✕
+                                                </button>
+                                              </div>
+                                            )}
+                                            {/* Inactive preview hint */}
+                                            {activeStudentKey !== genKey && (
+                                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border-b border-slate-700/40">
+                                                <Eye size={10} className="text-slate-500" />
+                                                <span className="text-[10px] text-slate-500">Not yet shown to student</span>
+                                              </div>
+                                            )}
+                                            <div className="flex items-center justify-between px-3 pt-3 pb-2">
                                               <span className="text-xs font-semibold text-violet-400 flex items-center gap-1">
                                                 <Sparkles size={10} /> Generated content
-                                                {activeStudentKey === genKey && (
-                                                  <span className="ml-1 text-[9px] bg-teal-900 text-teal-300 rounded px-1.5 py-0.5 font-medium">Showing to student</span>
-                                                )}
                                               </span>
                                               <div className="flex items-center gap-2">
-                                                <button
-                                                  onClick={() => activeStudentKey === genKey ? clearStudentStimulus() : pushToStudent(genKey, generated!)}
-                                                  disabled={pushingStimulus}
-                                                  className={`text-xs flex items-center gap-1 transition-colors ${
-                                                    activeStudentKey === genKey
-                                                      ? "text-teal-400 hover:text-red-400"
-                                                      : "text-slate-500 hover:text-teal-400"
-                                                  }`}
-                                                >
-                                                  <Eye size={10} />
-                                                  {activeStudentKey === genKey ? "Hide" : "Show to student"}
-                                                </button>
+                                                {activeStudentKey !== genKey && (
+                                                  <button
+                                                    onClick={() => pushToStudent(genKey, generated!)}
+                                                    disabled={pushingStimulus}
+                                                    className="text-xs flex items-center gap-1 px-2 py-0.5 rounded bg-teal-900/60 border border-teal-700/50 text-teal-300 hover:bg-teal-800/60 transition-colors"
+                                                  >
+                                                    <Eye size={10} />
+                                                    Show to student
+                                                  </button>
+                                                )}
                                                 <button
                                                   onClick={() => generateElicitation(domain, i, p)}
                                                   disabled={isGenerating}
@@ -1908,7 +1930,7 @@ ${bodyHtml}
                                               </div>
                                             </div>
                                             {generated.images && generated.images.length > 0 && (
-                                              <div className="flex flex-wrap gap-3 mb-3">
+                                              <div className="flex flex-wrap gap-3 px-3 pb-2">
                                                 {generated.images.map(img => (
                                                   <div key={img.label} className="flex flex-col items-center gap-1">
                                                     <img
@@ -1921,7 +1943,7 @@ ${bodyHtml}
                                                 ))}
                                               </div>
                                             )}
-                                            <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">{generated.text}</p>
+                                            <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed px-3 pb-3">{generated.text}</p>
                                           </div>
                                         )}
                                       </li>
