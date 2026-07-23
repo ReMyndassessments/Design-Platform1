@@ -23,7 +23,7 @@ export const translations = {
       selectPath: "Select your access pathway below.",
       schools: "For Schools",
       schoolsDesc: "Submit a referral or enquiry for a student",
-      parents: "For Parents & Families",
+      parents: "For Parents",
       parentsDesc: "Make an enquiry about an assessment for your child",
       partners: "For Partner Schools",
       partnersDesc: "License RAOS in-house with a trained School Clinical Coordinator",
