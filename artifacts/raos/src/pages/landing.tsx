@@ -120,7 +120,7 @@ export default function LandingPage() {
 
             {/* Student Case Portal */}
             <Link href="/my-portal">
-              <div className="group flex flex-col rounded-2xl border border-indigo-500/40 bg-[#1a2744] hover:border-indigo-500 hover:bg-[#1f2f52] transition-all duration-300 overflow-hidden cursor-pointer">
+              <div className="group flex flex-col rounded-2xl border border-indigo-500/30 bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(99,102,241)] transition-all duration-200 overflow-hidden cursor-pointer">
                 <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-transparent" />
                 <div className="px-5 py-4">
                   <div className="flex items-center gap-4 mb-3">
@@ -151,7 +151,7 @@ export default function LandingPage() {
 
             {/* Schools */}
             <Link href="/portal?tab=school">
-              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-indigo-500 hover:bg-[#1f2f52] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(99,102,241)] transition-all duration-200 overflow-hidden px-5 py-4 cursor-pointer">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
@@ -168,7 +168,7 @@ export default function LandingPage() {
 
             {/* Parents */}
             <Link href="/portal?tab=parent">
-              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-teal-500 hover:bg-[#1f2f52] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(20,184,166)] transition-all duration-200 overflow-hidden px-5 py-4 cursor-pointer">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-teal-400">
@@ -185,7 +185,7 @@ export default function LandingPage() {
 
             {/* Partner Schools */}
             <Link href="/partner-schools">
-              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-violet-500 hover:bg-[#1f2f52] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(139,92,246)] transition-all duration-200 overflow-hidden px-5 py-4 cursor-pointer">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-violet-400">
@@ -202,7 +202,7 @@ export default function LandingPage() {
 
             {/* Assessment Services */}
             <Link href="/assessment-services">
-              <div className="group relative flex items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#1a2744] hover:border-amber-500 hover:bg-[#1f2f52] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(245,158,11)] transition-all duration-200 overflow-hidden px-5 py-4 cursor-pointer">
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-400">
