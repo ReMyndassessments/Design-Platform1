@@ -25,7 +25,7 @@ export default function LandingPage() {
           style={{ backgroundImage: "radial-gradient(circle, #7eb0ff 1px, transparent 1px)", backgroundSize: "32px 32px" }}
         />
         {/* Horizontal rule separating columns on md+ */}
-        <div className="hidden md:block absolute top-0 bottom-0 left-[42%] w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent" />
+        <div className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent" />
       </div>
 
       {/* ── Language switcher ── */}
@@ -101,12 +101,12 @@ export default function LandingPage() {
       {/* ════════════════════════════════
           RIGHT — Access pathways
       ════════════════════════════════ */}
-      <div className="md:w-1/2 relative z-10 flex flex-col justify-center px-10 py-14" style={{ background: "#f0f4fb" }}>
+      <div className="md:w-1/2 relative z-10 flex flex-col justify-center px-10 py-14">
         <div className="max-w-md w-full mx-auto">
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-800 mb-1">{l.welcome}</h2>
-            <p className="text-slate-400 text-sm">{l.selectPath}</p>
+            <h2 className="text-2xl font-bold text-white mb-1">{l.welcome}</h2>
+            <p className="text-slate-500 text-sm">{l.selectPath}</p>
           </div>
 
           <div className="flex flex-col gap-3">
