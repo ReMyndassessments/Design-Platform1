@@ -3,7 +3,12 @@ import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
 import { ClipboardList, BarChart2, ShieldCheck, FileCheck, ChevronRight, Lock, ArrowRight } from "lucide-react";
 
 const CAP_ICONS = [ClipboardList, BarChart2, ShieldCheck, FileCheck];
-const CAP_COLORS = ["blue", "blue", "blue", "blue"];
+const CAP_ACCENTS = [
+  { strip: "from-indigo-500", iconBg: "bg-indigo-500/15", iconBorder: "border-indigo-500/25", iconColor: "text-indigo-400", glow: "hover:border-indigo-500/30 hover:shadow-[0_0_20px_rgba(99,102,241,0.08)]" },
+  { strip: "from-teal-500",   iconBg: "bg-teal-500/15",   iconBorder: "border-teal-500/25",   iconColor: "text-teal-400",   glow: "hover:border-teal-500/30 hover:shadow-[0_0_20px_rgba(20,184,166,0.08)]" },
+  { strip: "from-violet-500", iconBg: "bg-violet-500/15", iconBorder: "border-violet-500/25", iconColor: "text-violet-400", glow: "hover:border-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.08)]" },
+  { strip: "from-amber-500",  iconBg: "bg-amber-500/15",  iconBorder: "border-amber-500/25",  iconColor: "text-amber-400",  glow: "hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.08)]" },
+];
 
 export default function LandingPage() {
   const { t } = useI18n();
@@ -68,13 +73,15 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 gap-3 w-full max-w-[400px]">
           {l.caps.map((item, i) => {
             const Icon = CAP_ICONS[i];
+            const a = CAP_ACCENTS[i];
             return (
               <div
                 key={item}
-                className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm p-4"
+                className={`relative flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm overflow-hidden transition-all duration-300 p-4 ${a.glow}`}
               >
-                <div className="w-9 h-9 rounded-xl bg-[#1a2744] border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <Icon size={16} className="text-blue-400" />
+                <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${a.strip} to-transparent`} />
+                <div className={`w-9 h-9 rounded-xl ${a.iconBg} border ${a.iconBorder} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={16} className={a.iconColor} />
                 </div>
                 <p className="text-[13px] font-medium text-slate-300 leading-snug">{item}</p>
               </div>
