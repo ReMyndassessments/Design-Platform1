@@ -3,6 +3,7 @@ import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
 import { ClipboardList, BarChart2, ShieldCheck, FileCheck, ChevronRight, Lock, ArrowRight } from "lucide-react";
 
 const CAP_ICONS = [ClipboardList, BarChart2, ShieldCheck, FileCheck];
+const CAP_COLORS = ["blue", "blue", "blue", "blue"];
 
 export default function LandingPage() {
   const { t } = useI18n();
@@ -35,65 +36,62 @@ export default function LandingPage() {
       {/* ════════════════════════════════
           LEFT — Brand identity
       ════════════════════════════════ */}
-      <div className="md:w-[42%] relative z-10 flex flex-col justify-between px-12 py-14 min-h-[50vh] md:min-h-screen">
+      <div className="md:w-[42%] relative z-10 flex flex-col items-center justify-center px-10 py-14 min-h-[50vh] md:min-h-screen gap-8">
 
-        {/* Logo mark */}
-        <div className="flex flex-col items-start gap-6">
+        {/* App icon */}
+        <div className="flex flex-col items-center gap-5">
           <div className="relative">
-            <div className="absolute -inset-3 bg-blue-500/10 rounded-[32px] blur-xl" />
-            <div className="relative w-[76px] h-[76px] bg-white/[0.06] backdrop-blur-sm rounded-[20px] flex items-center justify-center shadow-2xl ring-1 ring-white/10">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-[50px] h-[50px] object-contain" />
+            <div className="absolute -inset-4 bg-blue-500/15 rounded-[40px] blur-2xl" />
+            <div className="relative w-[112px] h-[112px] bg-white rounded-[28px] flex items-center justify-center shadow-2xl">
+              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-[76px] h-[76px] object-contain" />
             </div>
           </div>
 
-          <div>
-            <div className="flex items-baseline gap-3 mb-1">
-              <h1 className="text-4xl font-black text-white tracking-tight leading-none">ReMynd</h1>
-              <span className="text-blue-400/70 text-sm font-medium">Student Services</span>
-            </div>
-            <span className="inline-block text-[9px] font-bold tracking-[0.25em] uppercase text-slate-500 border border-slate-700/60 rounded-full px-3 py-[3px] mt-1">
-              {l.subtitle}
-            </span>
+          {/* Brand name + tagline */}
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-5xl font-black text-white tracking-tight leading-none">ReMynd</h1>
+            <p className="text-[22px] font-semibold text-blue-400 leading-tight">Student Services</p>
           </div>
+
+          {/* Badge */}
+          <span className="inline-block text-[10px] font-semibold tracking-[0.22em] uppercase text-slate-400 border border-slate-600/60 rounded-full px-4 py-1.5">
+            {l.subtitle}
+          </span>
         </div>
 
-        {/* Hero text */}
-        <div className="flex flex-col gap-8">
-          <div>
-            <p className="text-2xl font-light text-slate-200 leading-snug mb-4 max-w-xs">
-              End-to-end psychoeducational<br />
-              <span className="text-white font-semibold">assessment management.</span>
-            </p>
-            <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
-              {l.description}
-            </p>
-          </div>
+        {/* Description */}
+        <p className="text-slate-400 text-sm leading-relaxed text-center max-w-[360px]">
+          {l.description}
+        </p>
 
-          {/* Capability chips */}
-          <div className="flex flex-col gap-2">
-            {l.caps.map((item, i) => {
-              const Icon = CAP_ICONS[i];
-              return (
-                <div key={item} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                    <Icon size={11} className="text-blue-400" />
-                  </div>
-                  <p className="text-[12px] text-slate-400">{item}</p>
+        {/* 2×2 capability cards */}
+        <div className="grid grid-cols-2 gap-3 w-full max-w-[400px]">
+          {l.caps.map((item, i) => {
+            const Icon = CAP_ICONS[i];
+            return (
+              <div
+                key={item}
+                className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm p-4"
+              >
+                <div className="w-9 h-9 rounded-xl bg-[#1a2744] border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Icon size={16} className="text-blue-400" />
                 </div>
-              );
-            })}
-          </div>
+                <p className="text-[13px] font-medium text-slate-300 leading-snug">{item}</p>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Bottom */}
-        <div className="flex items-center justify-between">
+        {/* Bottom links */}
+        <div className="flex items-center gap-4 mt-2">
           <a
             href="/login"
-            className="group inline-flex items-center gap-2 text-[11px] text-slate-600 hover:text-slate-400 transition-colors"
+            className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 hover:text-slate-400 transition-colors"
           >
             <Lock size={10} />
             {l.adminLogin}
           </a>
+          <span className="text-slate-700 text-[10px]">·</span>
           <p className="text-[10px] text-slate-700">
             © {new Date().getFullYear()} {l.copyright}
           </p>
