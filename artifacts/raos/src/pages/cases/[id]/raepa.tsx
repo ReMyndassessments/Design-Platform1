@@ -619,6 +619,7 @@ export default function RaepaPage() {
   const [teacherTokenLoading, setTeacherTokenLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const qrDownloadRef = useRef<HTMLCanvasElement>(null);
+  const studentQrDownloadRef = useRef<HTMLCanvasElement>(null);
 
   async function openShareModal() {
     setShareModalOpen(true);
@@ -695,6 +696,69 @@ export default function RaepaPage() {
       const a = document.createElement("a");
       a.href = url;
       a.download = `${(name ?? "student").replace(/\s+/g, "-")}-raepa-qr-card.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }
+
+  function downloadStudentQrCard() {
+    const qrCanvas = studentQrDownloadRef.current;
+    if (!qrCanvas) return;
+    const name = (caseData as Record<string, unknown>)?.student_name as string ?? null;
+    const W = 800, H = 920;
+    const card = document.createElement("canvas");
+    card.width = W; card.height = H;
+    const ctx = card.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, "#0f766e");
+    grad.addColorStop(1, "#0d9488");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 148);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 44px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("ReMynd", W / 2, 68);
+    ctx.font = "22px system-ui, -apple-system, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.fillText("Assessment Student View", W / 2, 110);
+    ctx.fillStyle = "#5eead4";
+    ctx.fillRect(60, 136, W - 120, 3);
+    const label = name ?? "Student";
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, W / 2, 216);
+    ctx.fillStyle = "#0f766e";
+    ctx.font = "bold 18px system-ui, -apple-system, sans-serif";
+    ctx.fillText("ACADEMIC ENGLISH PERFORMANCE ASSESSMENT", W / 2, 252);
+    const qrSize = 360, qrX = (W - qrSize) / 2, qrY = 280, pad = 24;
+    ctx.fillStyle = "#f8fafc"; ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(qrX - pad, qrY - pad, qrSize + pad * 2, qrSize + pad * 2, 20);
+    ctx.fill(); ctx.stroke();
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 22px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Scan to open the student stimulus screen", W / 2, qrY + qrSize + pad * 2 + 20);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "18px system-ui, -apple-system, sans-serif";
+    ctx.fillText("Point your camera at the QR code above.", W / 2, qrY + qrSize + pad * 2 + 56);
+    ctx.fillText("The student view will open in your browser.", W / 2, qrY + qrSize + pad * 2 + 84);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, H - 64, W, 64);
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "16px system-ui, -apple-system, sans-serif";
+    ctx.fillText("remyndassessments.com", W / 2, H - 22);
+    card.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(name ?? "student").replace(/\s+/g, "-")}-raepa-student-view-qr.png`;
       a.click();
       URL.revokeObjectURL(url);
     }, "image/png");
@@ -2505,9 +2569,25 @@ ${bodyHtml}
                 </button>
               </div>
               <a href={`${BASE_URL}/student-view/raepa/${caseId}`} target="_blank" rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-5">
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-3">
                 <Eye size={14} /> Open in new tab
               </a>
+              <button
+                onClick={downloadStudentQrCard}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download QR Card (PNG)
+              </button>
+              <div className="hidden">
+                <QRCodeCanvas
+                  ref={studentQrDownloadRef}
+                  value={`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
+                  size={720}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
               <div className="bg-slate-800/60 rounded-xl p-4 space-y-2.5">
                 <p className="text-xs font-semibold text-teal-400 uppercase tracking-wider">How it works</p>
                 {([
