@@ -137,7 +137,7 @@ interface Respondent {
   respondentType: string;
   respondentLabel: string;
   domainScores: Record<string, number>;
-  normalizedScores: Record<string, number>;
+  normalizedScores: Record<string, number> | null;
   rawScore: number;
 }
 
@@ -224,7 +224,7 @@ function SingleRespondentChart({ tool }: { tool: ToolData }) {
   const chartData = tool.domains
     .filter(domain => !NON_CLINICAL_DOMAINS.has(domain))
     .map(domain => {
-      const value = Math.min(100, Math.max(0, r.normalizedScores[domain] ?? 0));
+      const value = Math.min(100, Math.max(0, r.normalizedScores?.[domain] ?? 0));
       return { domainLabel: dLabel(domain), value, band: getRiskBand(value, t) };
     });
 
@@ -270,7 +270,7 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
     .map(domain => {
       const row: Record<string, string | number> = { domainLabel: dLabel(domain) };
       for (const r of tool.respondents) {
-        const val = r.normalizedScores[domain];
+        const val = r.normalizedScores?.[domain];
         if (val !== undefined) row[r.respondentType] = Math.min(100, Math.max(0, val));
       }
       return row;
@@ -422,7 +422,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                   {dLabel(domain)}
                 </td>
                 {columns.map(col => {
-                  const score = col.normalizedScores[domain];
+                  const score = col.normalizedScores?.[domain];
                   if (score === undefined) {
                     return (
                       <td key={col.key} className="py-1.5 px-2 text-center text-[10px] text-slate-300">—</td>
