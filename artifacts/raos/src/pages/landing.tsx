@@ -151,7 +151,8 @@ export default function LandingPage() {
 
             {/* Schools */}
             <Link href="/portal?tab=school">
-              <div className="group flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-indigo-500/50 hover:bg-[#1f2f52] transition-all duration-200 px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-indigo-500/40 hover:bg-[#1f2f52] hover:shadow-[0_0_24px_rgba(99,102,241,0.10)] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
                     <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
@@ -167,7 +168,8 @@ export default function LandingPage() {
 
             {/* Parents */}
             <Link href="/portal?tab=parent">
-              <div className="group flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-teal-500/50 hover:bg-[#1f2f52] transition-all duration-200 px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-teal-500/40 hover:bg-[#1f2f52] hover:shadow-[0_0_24px_rgba(20,184,166,0.10)] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-teal-400">
                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
@@ -183,7 +185,8 @@ export default function LandingPage() {
 
             {/* Partner Schools */}
             <Link href="/partner-schools">
-              <div className="group flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-violet-500/50 hover:bg-[#1f2f52] transition-all duration-200 px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-[#243a5e] bg-[#1a2744] hover:border-violet-500/40 hover:bg-[#1f2f52] hover:shadow-[0_0_24px_rgba(139,92,246,0.10)] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-violet-400">
                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
@@ -199,7 +202,8 @@ export default function LandingPage() {
 
             {/* Assessment Services */}
             <Link href="/assessment-services">
-              <div className="group flex items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#1a2744] hover:border-amber-400/50 hover:bg-[#1f2f52] transition-all duration-200 px-5 py-4 cursor-pointer">
+              <div className="group relative flex items-center gap-4 rounded-2xl border border-amber-500/30 bg-[#1a2744] hover:border-amber-400/40 hover:bg-[#1f2f52] hover:shadow-[0_0_24px_rgba(245,158,11,0.10)] transition-all duration-300 overflow-hidden px-5 py-4 cursor-pointer">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500 to-transparent" />
                 <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-400">
                     <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
