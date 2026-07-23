@@ -135,6 +135,146 @@ type Selection = {
   selection_latency_label: string; selection_behavior: string; sequence_number: number;
 };
 
+// ── Shape visual detection & rendering ────────────────────────────────────────
+type ShapeVisual =
+  | { kind: "triangle_vertices" }
+  | { kind: "quadrilateral_choices" }
+  | { kind: "clock"; hour: number; minute: number }
+  | null;
+
+function detectShapeVisual(text: string): ShapeVisual {
+  const t = (text ?? "").toLowerCase();
+  if (/triangle/.test(t) && /vert(ex|ices)|circle.*vert/.test(t)) {
+    return { kind: "triangle_vertices" };
+  }
+  if (/clock|hand-drawn.*clock|drawn.*clock|hand.*point.*\d/.test(t)) {
+    const m = t.match(/pointing\s+to\s+(\d+)\s+and\s+(\d+)/);
+    if (m) {
+      const a = parseInt(m[1]), b = parseInt(m[2]);
+      const hour = b <= 12 ? b : a;
+      const minute = (a === 12 ? 0 : a === 6 ? 30 : a * 5) % 60;
+      return { kind: "clock", hour, minute };
+    }
+    return { kind: "clock", hour: 6, minute: 0 };
+  }
+  if (/4 sides|four sides/.test(t) && /shape|which could/.test(t)) {
+    return { kind: "quadrilateral_choices" };
+  }
+  return null;
+}
+
+function clockHandCoords(hour: number, minute: number, cx: number, cy: number) {
+  const minuteRad = ((minute / 60) * 360 - 90) * (Math.PI / 180);
+  const hourRad = (((hour % 12) / 12) * 360 + (minute / 60) * 30 - 90) * (Math.PI / 180);
+  return {
+    minute: { x: cx + 52 * Math.cos(minuteRad), y: cy + 52 * Math.sin(minuteRad) },
+    hour:   { x: cx + 36 * Math.cos(hourRad),   y: cy + 36 * Math.sin(hourRad)   },
+  };
+}
+
+function WorkSampleShapeVisual({ problem }: { problem: string }) {
+  const visual = detectShapeVisual(problem);
+  if (!visual) return null;
+
+  const cx = 75, cy = 75;
+
+  if (visual.kind === "triangle_vertices") {
+    return (
+      <div className="flex justify-center my-3">
+        <svg width="160" height="140" viewBox="0 0 180 155" aria-label="Triangle diagram">
+          <polygon points="90,18 18,142 162,142" fill="none" stroke="#334155" strokeWidth="2.5" strokeLinejoin="round" />
+          <circle cx="90" cy="18" r="9" fill="white" stroke="#2563eb" strokeWidth="2" />
+          <circle cx="18" cy="142" r="9" fill="white" stroke="#2563eb" strokeWidth="2" />
+          <circle cx="162" cy="142" r="9" fill="white" stroke="#2563eb" strokeWidth="2" />
+          <text x="90" y="8" textAnchor="middle" fontSize="8" fill="#64748b">↑ vertex</text>
+        </svg>
+      </div>
+    );
+  }
+
+  if (visual.kind === "quadrilateral_choices") {
+    return (
+      <div className="flex gap-5 justify-center my-3 flex-wrap">
+        <svg width="55" height="55" viewBox="0 0 55 55" aria-label="Square"><rect x="7" y="7" width="41" height="41" fill="none" stroke="#334155" strokeWidth="2" /></svg>
+        <svg width="70" height="55" viewBox="0 0 70 55" aria-label="Rectangle"><rect x="5" y="12" width="60" height="31" fill="none" stroke="#334155" strokeWidth="2" /></svg>
+        <svg width="65" height="55" viewBox="0 0 65 55" aria-label="Trapezoid"><polygon points="14,8 51,8 62,47 3,47" fill="none" stroke="#334155" strokeWidth="2" /></svg>
+        <svg width="60" height="55" viewBox="0 0 60 55" aria-label="Rhombus"><polygon points="30,5 55,27 30,50 5,27" fill="none" stroke="#334155" strokeWidth="2" /></svg>
+        <svg width="60" height="55" viewBox="0 0 60 55" aria-label="Triangle"><polygon points="30,5 5,50 55,50" fill="none" stroke="#334155" strokeWidth="2" /></svg>
+      </div>
+    );
+  }
+
+  if (visual.kind === "clock") {
+    const hands = clockHandCoords(visual.hour, visual.minute, cx, cy);
+    const nums = Array.from({ length: 12 }, (_, i) => i + 1);
+    return (
+      <div className="flex justify-center my-3">
+        <svg width="150" height="150" viewBox="0 0 150 150" aria-label="Analog clock">
+          <circle cx={cx} cy={cy} r="68" fill="white" stroke="#334155" strokeWidth="2.5" />
+          {nums.map(n => {
+            const a = ((n / 12) * 360 - 90) * (Math.PI / 180);
+            return <text key={n} x={cx + 55 * Math.cos(a)} y={cy + 55 * Math.sin(a) + 4} textAnchor="middle" fontSize="10" fill="#334155">{n}</text>;
+          })}
+          <line x1={cx} y1={cy} x2={hands.hour.x} y2={hands.hour.y} stroke="#334155" strokeWidth="4" strokeLinecap="round" />
+          <line x1={cx} y1={cy} x2={hands.minute.x} y2={hands.minute.y} stroke="#334155" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r="3.5" fill="#334155" />
+        </svg>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function shapeVisualHtml(problemText: string): string {
+  const visual = detectShapeVisual(problemText);
+  if (!visual) return "";
+
+  if (visual.kind === "triangle_vertices") {
+    return `<div style="text-align:center;margin:10px 0 6px;">
+      <svg width="160" height="138" viewBox="0 0 180 155" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="90,18 18,142 162,142" fill="none" stroke="#334155" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="90" cy="18" r="9" fill="white" stroke="#2563eb" stroke-width="2"/>
+        <circle cx="18" cy="142" r="9" fill="white" stroke="#2563eb" stroke-width="2"/>
+        <circle cx="162" cy="142" r="9" fill="white" stroke="#2563eb" stroke-width="2"/>
+      </svg></div>`;
+  }
+
+  if (visual.kind === "quadrilateral_choices") {
+    return `<div style="display:flex;gap:18px;justify-content:center;align-items:center;margin:10px 0 6px;flex-wrap:wrap;">
+      <svg width="55" height="55" viewBox="0 0 55 55" xmlns="http://www.w3.org/2000/svg"><rect x="7" y="7" width="41" height="41" fill="none" stroke="#334155" stroke-width="2"/></svg>
+      <svg width="70" height="55" viewBox="0 0 70 55" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="12" width="60" height="31" fill="none" stroke="#334155" stroke-width="2"/></svg>
+      <svg width="65" height="55" viewBox="0 0 65 55" xmlns="http://www.w3.org/2000/svg"><polygon points="14,8 51,8 62,47 3,47" fill="none" stroke="#334155" stroke-width="2"/></svg>
+      <svg width="60" height="55" viewBox="0 0 60 55" xmlns="http://www.w3.org/2000/svg"><polygon points="30,5 55,27 30,50 5,27" fill="none" stroke="#334155" stroke-width="2"/></svg>
+      <svg width="60" height="55" viewBox="0 0 60 55" xmlns="http://www.w3.org/2000/svg"><polygon points="30,5 5,50 55,50" fill="none" stroke="#334155" stroke-width="2"/></svg>
+    </div>`;
+  }
+
+  if (visual.kind === "clock") {
+    const { hour, minute } = visual;
+    const minuteRad = ((minute / 60) * 360 - 90) * (Math.PI / 180);
+    const hourRad = (((hour % 12) / 12) * 360 + (minute / 60) * 30 - 90) * (Math.PI / 180);
+    const cx = 75, cy = 75;
+    const mx = cx + 52 * Math.cos(minuteRad), my = cy + 52 * Math.sin(minuteRad);
+    const hx = cx + 36 * Math.cos(hourRad),  hy = cy + 36 * Math.sin(hourRad);
+    const numsHtml = Array.from({ length: 12 }, (_, i) => {
+      const n = i + 1;
+      const a = ((n / 12) * 360 - 90) * (Math.PI / 180);
+      return `<text x="${cx + 55 * Math.cos(a)}" y="${cy + 55 * Math.sin(a) + 4}" text-anchor="middle" font-size="10" fill="#334155">${n}</text>`;
+    }).join("");
+    return `<div style="text-align:center;margin:10px 0 6px;">
+      <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${cx}" cy="${cy}" r="68" fill="white" stroke="#334155" stroke-width="2.5"/>
+        ${numsHtml}
+        <line x1="${cx}" y1="${cy}" x2="${hx}" y2="${hy}" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+        <line x1="${cx}" y1="${cy}" x2="${mx}" y2="${my}" stroke="#334155" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="${cx}" cy="${cy}" r="3.5" fill="#334155"/>
+      </svg></div>`;
+  }
+
+  return "";
+}
+
 type DomainRating = {
   domain: string; rating: number | null; evidence_strength: string; supporting_evidence: string;
 };
@@ -929,6 +1069,7 @@ export default function RamriInterviewPage() {
               <div class="problem">
                 <div class="problem-label">${T.option} ${letters[ii] ?? ii + 1}</div>
                 <div class="problem-text">${problemText}</div>
+                ${shapeVisualHtml(s.extracted_problem)}
                 <div class="work-space">
                   <div class="work-space-label">${T.workSpaceLabel}</div>
                 </div>
@@ -1065,6 +1206,7 @@ export default function RamriInterviewPage() {
                 <div class="problem-box">
                   <div class="section-label">Work Sample</div>
                   <div class="problem-text">${s.extracted_problem ?? "(no problem text)"}</div>
+                  ${shapeVisualHtml(s.extracted_problem ?? "")}
                   ${s.student_answer ? `<div class="answer-row"><strong>Student's answer:</strong> ${s.student_answer}</div>` : ""}
                   <div class="meta-row">
                     ${s.domain ? `<span class="meta-pill">Domain: ${s.domain}</span>` : ""}
@@ -2514,6 +2656,7 @@ export default function RamriInterviewPage() {
                                 onClick={() => !isSelected && recordSelection(s.id, cs.id)}
                               >
                                 <p className="font-medium text-slate-700">{s.extracted_problem}</p>
+                                <WorkSampleShapeVisual problem={s.extracted_problem} />
                                 {isSelected && (
                                   <div className="flex items-center justify-between mt-2">
                                     <span className="text-violet-600 font-semibold">✓ Student selected this</span>
@@ -2573,6 +2716,7 @@ export default function RamriInterviewPage() {
                             {csSample && (
                               <div className="bg-white rounded-lg border border-slate-100 p-3 text-xs space-y-1">
                                 <p className="font-semibold text-slate-700">Problem: {csSample.extracted_problem}</p>
+                                <WorkSampleShapeVisual problem={csSample.extracted_problem} />
                                 <p className="text-slate-500">Student's answer: <strong>{csSample.student_answer || "—"}</strong> · {csSample.answer_status?.replace("_", " ")}</p>
                                 {csSample.visible_working !== "no" && <p className="text-slate-500">Working visible: {csSample.visible_working}</p>}
                                 {csSample.teacher_correction && <p className="text-amber-700">Teacher correction: {csSample.teacher_correction}</p>}
@@ -2685,6 +2829,7 @@ export default function RamriInterviewPage() {
                           {sample && (
                             <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
                               <p className="font-semibold text-slate-700">Problem: {sample.extracted_problem}</p>
+                              <WorkSampleShapeVisual problem={sample.extracted_problem} />
                               <p className="text-slate-500">Student's answer: <strong>{sample.student_answer || "—"}</strong> · {sample.answer_status?.replace("_", " ")}</p>
                               {sample.visible_working !== "no" && <p className="text-slate-500">Working visible: {sample.visible_working}</p>}
                               {sample.teacher_correction && <p className="text-amber-700">Teacher correction: {sample.teacher_correction}</p>}
