@@ -567,18 +567,33 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
       }
     } catch { /* fall back to raw text */ }
 
-    // Fallback: detect inline picture descriptions the model left in the text
-    // e.g. "(Picture 1: A cat playing with yarn)" or "[Picture 2: A dog]"
+    // Fallback: detect inline picture descriptions the model left in the text.
+    // Handles both bracketed "(Picture 1: A cat)" and bare "Picture 1: A cat" on its own line.
     if (!imagePrompts) {
-      const inlinePattern = /[\[\(](?:Picture|Image|Stimulus|Photo|Item)\s*(\d+)[:\s-]+([^\]\)]{5,150})[\]\)]/gi;
-      const matches = [...textContent.matchAll(inlinePattern)];
-      if (matches.length > 0) {
-        imagePrompts = matches.map(m => ({
-          label: `Picture ${m[1]}`,
-          description: m[2].trim(),
-        }));
-        // Replace inline descriptions with clean label references
-        textContent = textContent.replace(inlinePattern, (_m, n) => `[Picture ${n} shown below]`);
+      // Pattern A — bracketed: (Picture 1: ...) or [Image 2: ...]
+      const bracketedPattern = /[\[\(](?:Picture|Image|Stimulus|Photo|Item)\s*(\d+)[:\s-]+([^\]\)\n]{3,200})[\]\)]/gi;
+      // Pattern B — bare line: "Picture 1: A cat" or "Image 2 - A dog" (must start at line boundary)
+      const barePattern = /^[ \t]*(?:Picture|Image|Stimulus|Photo|Item)\s*(\d+)[:\s-]+([^\n]{3,200})/gim;
+
+      const seen = new Set<string>();
+      const extracted: Array<{ label: string; description: string }> = [];
+
+      for (const pattern of [bracketedPattern, barePattern]) {
+        for (const m of textContent.matchAll(pattern)) {
+          const key = `Picture ${m[1]}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            extracted.push({ label: key, description: m[2].trim() });
+          }
+        }
+      }
+
+      if (extracted.length > 0) {
+        imagePrompts = extracted;
+        // Replace all matching text with clean label references
+        textContent = textContent
+          .replace(bracketedPattern, (_m, n) => `[Picture ${n} shown below]`)
+          .replace(barePattern, (_m, n) => `[Picture ${n} shown below]`);
       }
     }
 
