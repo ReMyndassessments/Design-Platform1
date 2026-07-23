@@ -120,12 +120,12 @@ export default function LandingPage() {
 
             {/* Student Case Portal */}
             <Link href="/my-portal">
-              <div className="group flex flex-col rounded-2xl border border-indigo-500/30 bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(99,102,241)] transition-all duration-200 overflow-hidden cursor-pointer">
-                <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-transparent" />
+              <div className="group flex flex-col rounded-2xl border border-sky-500/30 bg-[#1a2744] hover:shadow-[inset_0_0_0_2px_rgb(56,189,248)] transition-all duration-200 overflow-hidden cursor-pointer">
+                <div className="h-0.5 bg-gradient-to-r from-sky-400 via-cyan-400 to-transparent" />
                 <div className="px-5 py-4">
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
+                    <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-sky-400">
                         <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd"/>
                       </svg>
                     </div>
@@ -133,11 +133,11 @@ export default function LandingPage() {
                       <p className="text-sm font-semibold text-slate-200">{l.myPortal}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{l.myPortalDesc}</p>
                     </div>
-                    <ArrowRight size={15} className="text-slate-600 group-hover:text-indigo-400 flex-shrink-0 transition-all group-hover:translate-x-0.5" />
+                    <ArrowRight size={15} className="text-slate-600 group-hover:text-sky-400 flex-shrink-0 transition-all group-hover:translate-x-0.5" />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {l.myPortalFeatures.map(f => (
-                      <span key={f} className="text-[10px] font-medium text-indigo-300/80 bg-indigo-500/10 border border-indigo-500/15 rounded-full px-2.5 py-0.5">
+                      <span key={f} className="text-[10px] font-medium text-sky-300/80 bg-sky-500/10 border border-sky-500/15 rounded-full px-2.5 py-0.5">
                         {f}
                       </span>
                     ))}
