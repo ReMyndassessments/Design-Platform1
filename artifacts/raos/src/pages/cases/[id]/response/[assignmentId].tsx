@@ -265,7 +265,7 @@ function resolveDomainScores(
 }
 
 function getDomainInfo(key: string, scoringConfig?: ScoringConfig | null, colorIndex?: number): DomainInfo {
-  const cfgDomain = scoringConfig?.domains[key];
+  const cfgDomain = scoringConfig?.domains?.[key];
   if (cfgDomain) {
     const thresholds = scoringConfig!.thresholds;
     const color = DOMAIN_COLORS[(colorIndex ?? 0) % DOMAIN_COLORS.length];
