@@ -599,6 +599,8 @@ export default function RaepaPage() {
   type GeneratedElicitation = { text: string; images?: { label: string; dataUrl: string }[] };
   const [generatedContent, setGeneratedContent] = useState<Record<string, GeneratedElicitation>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
+  const [activeStudentKey, setActiveStudentKey] = useState<string | null>(null);
+  const [pushingStimulus, setPushingStimulus] = useState(false);
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
   const [generatedReport, setGeneratedReport] = useState<string>("");
   const [generatingReport, setGeneratingReport] = useState(false);
@@ -712,6 +714,33 @@ export default function RaepaPage() {
     task_type: "", date_completed: "", independent_completion: true,
     support_provided: "", student_selected: false, teacher_comments: "",
   });
+
+  async function pushToStudent(key: string, content: GeneratedElicitation) {
+    setPushingStimulus(true);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/push-stimulus`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ text: content.text, images: content.images }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      setActiveStudentKey(key);
+    } catch {
+      toast({ title: "Could not push to student view", variant: "destructive" });
+    } finally {
+      setPushingStimulus(false);
+    }
+  }
+
+  async function clearStudentStimulus() {
+    try {
+      await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/push-stimulus`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+      setActiveStudentKey(null);
+    } catch { /* silent */ }
+  }
 
   async function generateElicitation(domain: string, promptIndex: number, promptText: string) {
     const key = `${domain}:${promptIndex}`;
@@ -1227,6 +1256,21 @@ ${bodyHtml}
             <Badge className="bg-indigo-900 text-indigo-300 font-mono text-xs">
               {pathway === "comprehensive" ? "Add-on" : "Standalone"}
             </Badge>
+            <a
+              href={`${BASE_URL}/student-view/raepa/${caseId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button size="sm" variant="outline" className="border-teal-700 text-teal-400 hover:bg-teal-900/30 gap-1.5">
+                <Eye className="w-3.5 h-3.5" />
+                Student view
+              </Button>
+            </a>
+            {activeStudentKey && (
+              <Button size="sm" variant="ghost" onClick={clearStudentStimulus} className="text-slate-500 hover:text-red-400 gap-1">
+                <X className="w-3 h-3" /> Clear stimulus
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1768,15 +1812,32 @@ ${bodyHtml}
                                             <div className="flex items-center justify-between mb-2">
                                               <span className="text-xs font-semibold text-violet-400 flex items-center gap-1">
                                                 <Sparkles size={10} /> Generated content
+                                                {activeStudentKey === genKey && (
+                                                  <span className="ml-1 text-[9px] bg-teal-900 text-teal-300 rounded px-1.5 py-0.5 font-medium">Showing to student</span>
+                                                )}
                                               </span>
-                                              <button
-                                                onClick={() => generateElicitation(domain, i, p)}
-                                                disabled={isGenerating}
-                                                className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
-                                              >
-                                                <RefreshCw size={10} className={isGenerating ? "animate-spin" : ""} />
-                                                Regenerate
-                                              </button>
+                                              <div className="flex items-center gap-2">
+                                                <button
+                                                  onClick={() => activeStudentKey === genKey ? clearStudentStimulus() : pushToStudent(genKey, generated!)}
+                                                  disabled={pushingStimulus}
+                                                  className={`text-xs flex items-center gap-1 transition-colors ${
+                                                    activeStudentKey === genKey
+                                                      ? "text-teal-400 hover:text-red-400"
+                                                      : "text-slate-500 hover:text-teal-400"
+                                                  }`}
+                                                >
+                                                  <Eye size={10} />
+                                                  {activeStudentKey === genKey ? "Hide" : "Show to student"}
+                                                </button>
+                                                <button
+                                                  onClick={() => generateElicitation(domain, i, p)}
+                                                  disabled={isGenerating}
+                                                  className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
+                                                >
+                                                  <RefreshCw size={10} className={isGenerating ? "animate-spin" : ""} />
+                                                  Regenerate
+                                                </button>
+                                              </div>
                                             </div>
                                             {generated.images && generated.images.length > 0 && (
                                               <div className="flex flex-wrap gap-3 mb-3">

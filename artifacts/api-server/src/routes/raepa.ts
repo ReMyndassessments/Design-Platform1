@@ -874,5 +874,39 @@ router.post("/public/raepa/teacher/:token/upload", upload.single("file"), async 
   } catch (err) { logger.error({ err }, "raepa public teacher upload"); res.status(500).json({ error: "Server error" }); }
 });
 
+// ── Examiner: push stimulus to student view ────────────────────────────────
+router.post("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+    const { text, images } = req.body as { text: string; images?: { label: string; dataUrl: string }[] };
+    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images })}::jsonb WHERE case_id = ${caseId}`);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa push-stimulus"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Examiner: clear student stimulus ───────────────────────────────────────
+router.delete("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = NULL WHERE case_id = ${caseId}`);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa clear-stimulus"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Public: student view polls current stimulus ────────────────────────────
+router.get("/public/raepa/student/:caseId", async (req, res) => {
+  const { caseId } = req.params;
+  try {
+    const row = await db.execute(sql`SELECT current_stimulus FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
+    if (row.rows.length === 0) return res.status(404).json({ error: "Session not found" });
+    const stimulus = (row.rows[0] as any).current_stimulus ?? null;
+    res.json({ stimulus });
+  } catch (err) { logger.error({ err }, "raepa student poll"); res.status(500).json({ error: "Server error" }); }
+});
+
 export { MODULES, DOMAINS, LANGUAGE_FUNCTIONS };
 export default router;

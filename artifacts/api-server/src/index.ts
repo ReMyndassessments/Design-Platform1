@@ -3404,6 +3404,8 @@ async function createRaepaTables() {
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_reports_case_id_idx ON raepa_reports (case_id)`);
 
+    await db.execute(sql`ALTER TABLE raepa_sessions ADD COLUMN IF NOT EXISTS current_stimulus JSONB`);
+
     logger.info("RAEPA tables ensured");
   } catch (err) {
     logger.error({ err }, "createRaepaTables failed");
