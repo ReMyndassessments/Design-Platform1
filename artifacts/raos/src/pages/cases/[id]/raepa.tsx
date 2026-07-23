@@ -601,6 +601,8 @@ export default function RaepaPage() {
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [activeStudentKey, setActiveStudentKey] = useState<string | null>(null);
   const [pushingStimulus, setPushingStimulus] = useState(false);
+  const [studentShareOpen, setStudentShareOpen] = useState(false);
+  const [studentLinkCopied, setStudentLinkCopied] = useState(false);
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
   const [generatedReport, setGeneratedReport] = useState<string>("");
   const [generatingReport, setGeneratingReport] = useState(false);
@@ -714,6 +716,14 @@ export default function RaepaPage() {
     task_type: "", date_completed: "", independent_completion: true,
     support_provided: "", student_selected: false, teacher_comments: "",
   });
+
+  function copyStudentLink() {
+    const url = `${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setStudentLinkCopied(true);
+      setTimeout(() => setStudentLinkCopied(false), 2000);
+    });
+  }
 
   async function pushToStudent(key: string, content: GeneratedElicitation) {
     setPushingStimulus(true);
@@ -1256,16 +1266,10 @@ ${bodyHtml}
             <Badge className="bg-indigo-900 text-indigo-300 font-mono text-xs">
               {pathway === "comprehensive" ? "Add-on" : "Standalone"}
             </Badge>
-            <a
-              href={`${BASE_URL}/student-view/raepa/${caseId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button size="sm" variant="outline" className="border-teal-700 text-teal-400 hover:bg-teal-900/30 gap-1.5">
-                <Eye className="w-3.5 h-3.5" />
-                Student view
-              </Button>
-            </a>
+            <Button size="sm" variant="outline" onClick={() => setStudentShareOpen(true)} className="border-teal-700 text-teal-400 hover:bg-teal-900/30 gap-1.5">
+              <QrCode className="w-3.5 h-3.5" />
+              Student view
+            </Button>
             {activeStudentKey && (
               <Button size="sm" variant="ghost" onClick={clearStudentStimulus} className="text-slate-500 hover:text-red-400 gap-1">
                 <X className="w-3 h-3" /> Clear stimulus
@@ -2464,6 +2468,65 @@ ${bodyHtml}
         )}
 
       </main>
+
+      {/* ── Student view share modal ─────────────────────────────────────── */}
+      {studentShareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-teal-400" />
+                <h2 className="text-base font-semibold text-slate-100">Student View</h2>
+              </div>
+              <button onClick={() => setStudentShareOpen(false)} className="text-slate-500 hover:text-slate-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-400 mb-5">
+                Open this page on the student's device (tablet or second screen). It shows a waiting screen until you push content from the assessment.
+              </p>
+              <div className="flex justify-center mb-5">
+                <div className="bg-white p-4 rounded-xl">
+                  <QRCodeSVG
+                    value={`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
+                    size={200}
+                    level="H"
+                    includeMargin={false}
+                  />
+                </div>
+              </div>
+              <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-4 min-w-0">
+                <span className="text-xs text-slate-300 truncate flex-1 font-mono">
+                  {`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
+                </span>
+                <button onClick={copyStudentLink} className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-teal-700 hover:bg-teal-600 text-white transition-colors">
+                  {studentLinkCopied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
+                </button>
+              </div>
+              <a href={`${BASE_URL}/student-view/raepa/${caseId}`} target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-5">
+                <Eye size={14} /> Open in new tab
+              </a>
+              <div className="bg-slate-800/60 rounded-xl p-4 space-y-2.5">
+                <p className="text-xs font-semibold text-teal-400 uppercase tracking-wider">How it works</p>
+                {([
+                  ["1", "Open the student view on a tablet or second screen using the QR code or link above."],
+                  ["2", "The student sees a waiting screen — nothing from the assessment is visible yet."],
+                  ["3", "In the assessment, use the Generate button to create content for a domain."],
+                  ["4", 'Click "Show to student" on any generated content to push it to their screen instantly.'],
+                  ["5", 'Click "Hide" or "Clear stimulus" to return the student screen to the waiting state.'],
+                ] as [string, string][]).map(([n, text]) => (
+                  <div key={n} className="flex gap-2.5 items-start">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-teal-900 text-teal-300 text-[10px] font-bold flex items-center justify-center">{n}</span>
+                    <p className="text-xs text-slate-400 leading-relaxed">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Teacher share modal ───────────────────────────────────────────── */}
       {shareModalOpen && (
