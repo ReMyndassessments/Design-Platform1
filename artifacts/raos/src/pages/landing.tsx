@@ -108,7 +108,7 @@ export default function LandingPage() {
       {/* ════════════════════════════════
           RIGHT — Access pathways
       ════════════════════════════════ */}
-      <div className="md:w-1/2 relative z-10 flex flex-col justify-center px-10 py-14" style={{ background: "#f0f4fb" }}>
+      <div className="md:w-1/2 relative z-10 flex flex-col justify-center px-10 py-14" style={{ background: "#d6dff0" }}>
         <div className="max-w-md w-full mx-auto">
 
           <div className="mb-8">
