@@ -113,94 +113,97 @@ export default function LandingPage() {
 
             {/* Schools */}
             <Link href="/portal?tab=school">
-              <div className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-200 px-5 py-4 cursor-pointer">
-                <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-500">
+              <div className="group flex items-center gap-4 rounded-2xl border border-[#1e3054] bg-[#0d1829] hover:border-indigo-500/40 hover:bg-[#111f38] transition-all duration-200 px-5 py-4 cursor-pointer">
+                <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
                     <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-800">{l.schools}</p>
+                  <p className="text-sm font-semibold text-slate-200">{l.schools}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{l.schoolsDesc}</p>
                 </div>
-                <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400 flex-shrink-0 transition-colors" />
+                <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 flex-shrink-0 transition-colors" />
               </div>
             </Link>
 
             {/* Parents */}
             <Link href="/portal?tab=parent">
-              <div className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/30 transition-all duration-200 px-5 py-4 cursor-pointer">
-                <div className="w-11 h-11 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-teal-500">
+              <div className="group flex items-center gap-4 rounded-2xl border border-[#1e3054] bg-[#0d1829] hover:border-teal-500/40 hover:bg-[#111f38] transition-all duration-200 px-5 py-4 cursor-pointer">
+                <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-teal-400">
                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-800">{l.parents}</p>
+                  <p className="text-sm font-semibold text-slate-200">{l.parents}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{l.parentsDesc}</p>
                 </div>
-                <ChevronRight size={16} className="text-slate-300 group-hover:text-teal-400 flex-shrink-0 transition-colors" />
+                <ChevronRight size={16} className="text-slate-600 group-hover:text-teal-400 flex-shrink-0 transition-colors" />
               </div>
             </Link>
 
             {/* Partner Schools */}
             <Link href="/partner-schools">
-              <div className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/30 transition-all duration-200 px-5 py-4 cursor-pointer">
-                <div className="w-11 h-11 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-violet-500">
+              <div className="group flex items-center gap-4 rounded-2xl border border-[#1e3054] bg-[#0d1829] hover:border-violet-500/40 hover:bg-[#111f38] transition-all duration-200 px-5 py-4 cursor-pointer">
+                <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-violet-400">
                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-800">{l.partners}</p>
+                  <p className="text-sm font-semibold text-slate-200">{l.partners}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{l.partnersDesc}</p>
                 </div>
-                <ChevronRight size={16} className="text-slate-300 group-hover:text-violet-400 flex-shrink-0 transition-colors" />
+                <ChevronRight size={16} className="text-slate-600 group-hover:text-violet-400 flex-shrink-0 transition-colors" />
               </div>
             </Link>
 
             {/* Student Case Portal */}
             <Link href="/my-portal">
-              <div className="group flex flex-col rounded-2xl border border-indigo-200 bg-indigo-50/50 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 px-5 py-4 cursor-pointer">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-500">
-                      <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd"/>
-                    </svg>
+              <div className="group flex flex-col rounded-2xl border border-indigo-500/25 bg-[#0d1829] hover:border-indigo-400/40 hover:bg-[#111f38] transition-all duration-200 overflow-hidden cursor-pointer">
+                <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-transparent" />
+                <div className="px-5 py-4">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-indigo-400">
+                        <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-200">{l.myPortal}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{l.myPortalDesc}</p>
+                    </div>
+                    <ArrowRight size={15} className="text-slate-600 group-hover:text-indigo-400 flex-shrink-0 transition-all group-hover:translate-x-0.5" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800">{l.myPortal}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{l.myPortalDesc}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {l.myPortalFeatures.map(f => (
+                      <span key={f} className="text-[10px] font-medium text-indigo-300/80 bg-indigo-500/10 border border-indigo-500/15 rounded-full px-2.5 py-0.5">
+                        {f}
+                      </span>
+                    ))}
                   </div>
-                  <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400 flex-shrink-0 transition-colors" />
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {l.myPortalFeatures.map(f => (
-                    <span key={f} className="text-[10px] font-medium text-indigo-600 bg-white border border-indigo-200 rounded-full px-2.5 py-0.5">
-                      {f}
-                    </span>
-                  ))}
                 </div>
               </div>
             </Link>
 
             {/* Assessment Services */}
             <Link href="/assessment-services">
-              <div className="group flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50 transition-all duration-200 px-5 py-4 cursor-pointer">
-                <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-500">
+              <div className="group flex items-center gap-4 rounded-2xl border border-amber-500/20 bg-[#0d1829] hover:border-amber-400/35 hover:bg-[#111f38] transition-all duration-200 px-5 py-4 cursor-pointer">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-400">
                     <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
                     <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-sm font-bold text-slate-800">{t.assessmentServices.landingTitle}</p>
-                    <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">2026–2027</span>
+                    <p className="text-sm font-semibold text-slate-200">{t.assessmentServices.landingTitle}</p>
+                    <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full whitespace-nowrap">2026–2027</span>
                   </div>
                   <p className="text-xs text-slate-500">{t.assessmentServices.landingDesc}</p>
                 </div>
-                <ChevronRight size={16} className="text-slate-300 group-hover:text-amber-400 flex-shrink-0 transition-colors mt-0.5" />
+                <ChevronRight size={16} className="text-slate-600 group-hover:text-amber-400 flex-shrink-0 transition-colors" />
               </div>
             </Link>
 
