@@ -607,9 +607,11 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
       try {
         images = await Promise.all(
           imagePrompts.map(async (ip) => {
-            const dataUrl = await generateImage(
+            const result = await generateImage(
               `Simple, clean educational illustration for a child language assessment. ${ip.description}. White background, no text or letters in the image, clear cartoon style suitable for school-age children.`
             );
+            const dataUrl = `data:${result.mimeType};base64,${result.b64_json}`;
+            logger.info({ label: ip.label, mimeType: result.mimeType, b64Len: result.b64_json.length }, "raepa image generated");
             return { label: ip.label, dataUrl };
           })
         );
