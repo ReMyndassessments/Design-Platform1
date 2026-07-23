@@ -1075,6 +1075,15 @@ export default function RamriInterviewPage() {
                 </div>
               </div>`;
           }).join("");
+        const transferProbeHtml = cs.control_problem ? `
+          <div class="problem transfer-probe">
+            <div class="problem-label transfer-label">Transfer Problem</div>
+            <div class="problem-text">${cs.control_problem.problem}</div>
+            ${shapeVisualHtml(cs.control_problem.problem)}
+            <div class="work-space">
+              <div class="work-space-label">${T.workSpaceLabel}</div>
+            </div>
+          </div>` : "";
         return `
           <div class="set">
             <div class="set-header">
@@ -1083,6 +1092,7 @@ export default function RamriInterviewPage() {
             </div>
             <p class="set-prompt">"${setPrompts[si] ?? T.defaultPrompt}"</p>
             ${itemsHtml}
+            ${transferProbeHtml}
             <div class="examiner-notes">
               <strong>${T.examinerNotes}</strong>
               <div class="notes-lines">
@@ -1121,6 +1131,8 @@ export default function RamriInterviewPage() {
     .examiner-notes strong { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; color: #777; }
     .notes-lines { margin-top: 6px; }
     .notes-line { border-bottom: 1px solid #ccc; height: 22px; }
+    .transfer-probe { background: #f0fdfa; border-color: #5eead4; }
+    .transfer-label { color: #0d9488 !important; }
     @media print {
       body { padding: 14mm 16mm; }
       .set { page-break-inside: avoid; }
@@ -1247,6 +1259,71 @@ export default function RamriInterviewPage() {
                 </div>
               </div>`;
           });
+
+        // ── Transfer probe sheet (one per choice set) ────────────────────────
+        if (cs.control_problem) {
+          const cp = cs.control_problem;
+          sheetsHtml += `
+            <div class="sheet page-break">
+              <div class="sheet-header">
+                <div class="sheet-title-row">
+                  <span class="sheet-title">RAMRI — Transfer Probe Sheet</span>
+                  <span class="option-badge transfer-badge">Set ${si + 1} · Transfer</span>
+                </div>
+                <div class="sheet-meta">
+                  <span>Student: <span class="blank w180"></span></span>
+                  <span>Date: ${date}</span>
+                  <span>Examiner: <span class="blank w140"></span></span>
+                </div>
+              </div>
+
+              <div class="set-strip">${cs.title || "Choice Set " + (si + 1)}</div>
+
+              <div class="transfer-instruction">
+                Present this problem <strong>after</strong> the student has discussed their chosen work sample. This problem has not appeared in their materials.
+              </div>
+
+              <div class="problem-box transfer-box">
+                <div class="section-label">Transfer Problem</div>
+                <div class="problem-text">${cp.problem}</div>
+                ${shapeVisualHtml(cp.problem)}
+                <div class="meta-row">
+                  ${cp.domain ? `<span class="meta-pill">${cp.domain}</span>` : ""}
+                  ${cp.skill ? `<span class="meta-pill">${cp.skill}</span>` : ""}
+                  ${cp.difficulty ? `<span class="meta-pill">${cp.difficulty}</span>` : ""}
+                </div>
+              </div>
+
+              <div class="expected-answer-box">
+                <span class="section-label">Expected Answer</span>
+                <span class="expected-answer-val">${cp.expectedAnswer}</span>
+              </div>
+
+              <div class="rationale-box">
+                <div class="section-label">Clinical Rationale</div>
+                <p class="rationale-text">${cp.rationale}</p>
+              </div>
+
+              <div class="section-label mt12">Examiner Observations &amp; Notes</div>
+              ${Array(6).fill('<div class="q-line"></div>').join("")}
+
+              <div class="obs-section">
+                <div class="section-label">Behavioural Observations</div>
+                <table class="obs-table">
+                  <thead><tr>
+                    <th class="obs-head-label"></th>
+                    ${[0,1,2,3,4].map(n => `<th class="obs-head">${n}</th>`).join("")}
+                  </tr></thead>
+                  <tbody>
+                    ${obsRow("Anxiety")}
+                    ${obsRow("Confidence")}
+                    ${obsRow("Engagement")}
+                  </tbody>
+                </table>
+                <div class="obs-scale">0 = Not present &nbsp;·&nbsp; 1 = Mild &nbsp;·&nbsp; 2 = Moderate &nbsp;·&nbsp; 3 = Marked &nbsp;·&nbsp; 4 = Severe</div>
+              </div>
+            </div>`;
+        }
       });
 
     const html = `<!DOCTYPE html>
@@ -1289,6 +1366,13 @@ export default function RamriInterviewPage() {
     .obs-circle{display:inline-block;width:22px;height:22px;border:1.5px solid #555;border-radius:50%;line-height:22px;text-align:center;font-size:9pt;color:#555;}
     .obs-scale{font-size:8.5pt;color:#888;margin-top:3px;}
     .extra-notes{margin-top:10px;}
+    .transfer-badge{color:#0d9488;border-color:#5eead4;}
+    .transfer-box{border-color:#5eead4;background:#f0fdfa;}
+    .transfer-instruction{font-size:9.5pt;color:#0d5a52;background:#ccfbf1;border:1px solid #99f6e4;border-radius:4px;padding:6px 10px;margin-bottom:10px;}
+    .expected-answer-box{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:6px 12px;margin-bottom:10px;}
+    .expected-answer-val{font-size:13pt;font-weight:bold;color:#0d9488;}
+    .rationale-box{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin-bottom:12px;}
+    .rationale-text{font-size:10pt;font-style:italic;color:#3a2e00;line-height:1.5;}
     @media print{
       body{padding:12mm 15mm;}
       .page-break{page-break-after:always;}
