@@ -519,24 +519,19 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
 
     const systemPrompt = `You are an expert EAL/D (English as an Additional Language or Dialect) assessment specialist creating ready-to-use elicitation content for the ReMynd Academic English Performance Assessment (RAEPA).
 
-Return ONLY a valid JSON object — no preamble, no commentary, no markdown fences. Use this structure:
+Return ONLY a valid JSON object. No preamble, no commentary, no markdown code fences.
 
-{
-  "text": "<the ready-to-use content the examiner reads aloud or presents>",
-  "imagePrompts": null
-}
+Structure when NO visuals needed (passages, word lists, spoken questions):
+{"text":"<examiner content>","imagePrompts":null}
 
-OR, when the elicitation requires the student to look at visual stimuli (pictures, objects, scenes, diagrams):
+Structure when visuals ARE needed (pictures/objects the student looks at):
+{"text":"Look at Picture 1 and Picture 2 below.\n\nHow are these two animals similar? How are they different?","imagePrompts":[{"label":"Picture 1","description":"a domestic cat sitting on a mat, simple cartoon illustration"},{"label":"Picture 2","description":"a domestic dog sitting, simple cartoon illustration"}]}
 
-{
-  "text": "<content referring to images by label, e.g. 'Look at Picture 1 and Picture 2 below. How are these similar? How are they different?'>",
-  "imagePrompts": [
-    { "label": "Picture 1", "description": "<specific image generation prompt — simple child-friendly illustration, white background, no text>" },
-    { "label": "Picture 2", "description": "<specific image generation prompt>" }
-  ]
-}
-
-Use imagePrompts ONLY when the examiner prompt explicitly involves showing something visual. For passages, word lists, instructions, or spoken questions set imagePrompts to null.`;
+CRITICAL RULES:
+1. When images are required, put rich descriptions in "imagePrompts[].description" — NOT inline in "text".
+2. In "text", only refer to images by label ("Picture 1", "Picture 2") — never write "(Picture 1: a cat)" or similar.
+3. imagePrompts descriptions must be detailed enough to generate a clear image (species, colour, setting, style).
+4. Return ONLY the raw JSON object — no wrapping text before or after.`;
 
     const userMessage = `Student profile:
 - Age: ${ageStr}
@@ -571,6 +566,21 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
         }
       }
     } catch { /* fall back to raw text */ }
+
+    // Fallback: detect inline picture descriptions the model left in the text
+    // e.g. "(Picture 1: A cat playing with yarn)" or "[Picture 2: A dog]"
+    if (!imagePrompts) {
+      const inlinePattern = /[\[\(](?:Picture|Image|Stimulus|Photo|Item)\s*(\d+)[:\s-]+([^\]\)]{5,150})[\]\)]/gi;
+      const matches = [...textContent.matchAll(inlinePattern)];
+      if (matches.length > 0) {
+        imagePrompts = matches.map(m => ({
+          label: `Picture ${m[1]}`,
+          description: m[2].trim(),
+        }));
+        // Replace inline descriptions with clean label references
+        textContent = textContent.replace(inlinePattern, (_m, n) => `[Picture ${n} shown below]`);
+      }
+    }
 
     // Generate images in parallel (Gemini vision)
     let images: Array<{ label: string; dataUrl: string }> | undefined = undefined;
