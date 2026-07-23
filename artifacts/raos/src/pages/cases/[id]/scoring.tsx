@@ -748,7 +748,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                       <td className="py-2 pr-4 text-slate-700">{formatDomainLabel(domain)}</td>
                       {respondentTypes.map(type => {
                         const score = toolScores.find(s => s.respondentType === type);
-                        const val = score ? (score.normalizedScores as Record<string, number>)[domain] ?? "—" : "—";
+                        const val = score ? ((score.normalizedScores ?? {}) as Record<string, number>)[domain] ?? "—" : "—";
                         const band = typeof val === "number" ? getBand(val, higherIsBetter) : null;
                         return (
                           <td key={type} className="text-center py-2 px-3">
