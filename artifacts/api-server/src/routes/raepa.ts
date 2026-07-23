@@ -554,6 +554,7 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
     ], 900);
 
     // Parse structured response
+    logger.info({ rawContent }, "raepa generate-elicitation raw AI response");
     let textContent = rawContent;
     let imagePrompts: Array<{ label: string; description: string }> | null = null;
     try {
@@ -565,7 +566,10 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
           imagePrompts = parsed.imagePrompts;
         }
       }
-    } catch { /* fall back to raw text */ }
+    } catch (parseErr) {
+      logger.warn({ parseErr, rawContent }, "raepa JSON parse failed — using raw text");
+    }
+    logger.info({ textContent, imagePrompts }, "raepa parsed result");
 
     // Fallback: detect inline picture descriptions the model left in the text.
     // Handles both bracketed "(Picture 1: A cat)" and bare "Picture 1: A cat" on its own line.
