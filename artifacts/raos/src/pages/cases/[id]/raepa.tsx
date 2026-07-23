@@ -596,7 +596,8 @@ export default function RaepaPage() {
   const [openGuides, setOpenGuides] = useState<Record<string, boolean>>(
     () => Object.fromEntries(DOMAINS.map(d => [d, true]))
   );
-  const [generatedContent, setGeneratedContent] = useState<Record<string, string>>({});
+  type GeneratedElicitation = { text: string; images?: { label: string; dataUrl: string }[] };
+  const [generatedContent, setGeneratedContent] = useState<Record<string, GeneratedElicitation>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
   const [generatedReport, setGeneratedReport] = useState<string>("");
@@ -722,8 +723,8 @@ export default function RaepaPage() {
         body: JSON.stringify({ domain, promptIndex, promptText }),
       });
       if (!r.ok) throw new Error("Failed");
-      const data = await r.json() as { content: string };
-      setGeneratedContent(prev => ({ ...prev, [key]: data.content }));
+      const data = await r.json() as { content: string; images?: { label: string; dataUrl: string }[] };
+      setGeneratedContent(prev => ({ ...prev, [key]: { text: data.content, images: data.images } }));
     } catch {
       toast({ title: "Generation failed", description: "Could not generate content. Try again.", variant: "destructive" });
     } finally {
@@ -1777,7 +1778,21 @@ ${bodyHtml}
                                                 Regenerate
                                               </button>
                                             </div>
-                                            <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">{generated}</p>
+                                            {generated.images && generated.images.length > 0 && (
+                                              <div className="flex flex-wrap gap-3 mb-3">
+                                                {generated.images.map(img => (
+                                                  <div key={img.label} className="flex flex-col items-center gap-1">
+                                                    <img
+                                                      src={img.dataUrl}
+                                                      alt={img.label}
+                                                      className="rounded border border-slate-700 max-h-40 object-contain bg-white"
+                                                    />
+                                                    <span className="text-[10px] text-slate-400">{img.label}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                            <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">{generated.text}</p>
                                           </div>
                                         )}
                                       </li>

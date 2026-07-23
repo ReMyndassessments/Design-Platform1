@@ -8,7 +8,7 @@ import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { canUserAccessCase } from "../lib/permissions.js";
 import multer from "multer";
-import { ai } from "@workspace/integrations-gemini-ai";
+import { ai, generateImage } from "@workspace/integrations-gemini-ai";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
@@ -519,7 +519,24 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
 
     const systemPrompt = `You are an expert EAL/D (English as an Additional Language or Dialect) assessment specialist creating ready-to-use elicitation content for the ReMynd Academic English Performance Assessment (RAEPA).
 
-Generate ONLY the actual content the examiner can immediately read aloud or present to the student. Do NOT include any preamble, instructions to the examiner, or meta-commentary. Format clearly and concisely for direct use in a clinical session.`;
+Return ONLY a valid JSON object — no preamble, no commentary, no markdown fences. Use this structure:
+
+{
+  "text": "<the ready-to-use content the examiner reads aloud or presents>",
+  "imagePrompts": null
+}
+
+OR, when the elicitation requires the student to look at visual stimuli (pictures, objects, scenes, diagrams):
+
+{
+  "text": "<content referring to images by label, e.g. 'Look at Picture 1 and Picture 2 below. How are these similar? How are they different?'>",
+  "imagePrompts": [
+    { "label": "Picture 1", "description": "<specific image generation prompt — simple child-friendly illustration, white background, no text>" },
+    { "label": "Picture 2", "description": "<specific image generation prompt>" }
+  ]
+}
+
+Use imagePrompts ONLY when the examiner prompt explicitly involves showing something visual. For passages, word lists, instructions, or spoken questions set imagePrompts to null.`;
 
     const userMessage = `Student profile:
 - Age: ${ageStr}
@@ -534,14 +551,45 @@ RAEPA domain being assessed: ${domain}
 
 The examiner prompt says: "${promptText}"
 
-Generate the ready-to-use content (passage, question, instructions, vocabulary list, or scenario as appropriate). Where vocabulary lists or suggested questions are available above, use them directly. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute assessment activity.`;
+Generate the ready-to-use content. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute activity. Return ONLY the JSON object.`;
 
-    const content = await callGroq([
+    const rawContent = await callGroq([
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },
-    ], 700);
+    ], 900);
 
-    res.json({ content });
+    // Parse structured response
+    let textContent = rawContent;
+    let imagePrompts: Array<{ label: string; description: string }> | null = null;
+    try {
+      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.text) textContent = parsed.text;
+        if (Array.isArray(parsed.imagePrompts) && parsed.imagePrompts.length > 0) {
+          imagePrompts = parsed.imagePrompts;
+        }
+      }
+    } catch { /* fall back to raw text */ }
+
+    // Generate images in parallel (Gemini vision)
+    let images: Array<{ label: string; dataUrl: string }> | undefined = undefined;
+    if (imagePrompts && imagePrompts.length > 0) {
+      try {
+        images = await Promise.all(
+          imagePrompts.map(async (ip) => {
+            const dataUrl = await generateImage(
+              `Simple, clean educational illustration for a child language assessment. ${ip.description}. White background, no text or letters in the image, clear cartoon style suitable for school-age children.`
+            );
+            return { label: ip.label, dataUrl };
+          })
+        );
+      } catch (imgErr) {
+        logger.warn({ imgErr }, "raepa image generation failed — returning text only");
+      }
+    }
+
+    res.json({ content: textContent, images });
   } catch (err) {
     logger.error({ err }, "raepa generate-elicitation");
     res.status(500).json({ error: "Generation failed" });
