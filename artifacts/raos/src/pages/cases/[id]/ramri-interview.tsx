@@ -1152,12 +1152,12 @@ export default function RamriInterviewPage() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
     if (!win) { alert("Pop-up blocked — please allow pop-ups for this page."); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 400);
+    win.addEventListener("load", () => { win.focus(); win.print(); });
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const printExaminerSheets = () => {
@@ -1385,12 +1385,12 @@ export default function RamriInterviewPage() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
     if (!win) { alert("Pop-up blocked — please allow pop-ups for this page."); return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 400);
+    win.addEventListener("load", () => { win.focus(); win.print(); });
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const generateChoiceSets = async () => {
