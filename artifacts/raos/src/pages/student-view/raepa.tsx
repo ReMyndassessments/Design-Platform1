@@ -184,9 +184,24 @@ export default function RaepaStudentView() {
     const currentQ = questions[questionIndex];
 
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-8 py-12">
-        <div className="w-full max-w-xl text-center">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-8">
+      <div className="min-h-screen bg-white flex flex-col px-8 py-10">
+        <div className="w-full max-w-2xl mx-auto">
+          {/* Passage stays visible for reference */}
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Reading passage</p>
+          {hasImages && (
+            <div className="flex flex-wrap justify-center gap-6 mb-6">
+              {stimulus.images!.map(img => (
+                <div key={img.label} className="flex flex-col items-center gap-2">
+                  <img src={img.dataUrl} alt={img.label} className="max-h-40 max-w-xs object-contain rounded-xl shadow-sm border border-slate-100" />
+                  <span className="text-sm font-medium text-slate-400">{img.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-base text-slate-600 leading-relaxed whitespace-pre-wrap mb-8 pb-8 border-b border-slate-200">{stimulus.text}</p>
+
+          {/* Question */}
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
             Question {questionIndex + 1} of {questions.length}
           </p>
           <p className="text-2xl text-slate-800 font-medium leading-relaxed">{currentQ}</p>
