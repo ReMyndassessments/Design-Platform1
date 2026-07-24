@@ -615,6 +615,7 @@ export default function RaepaPage() {
   const [generatedContent, setGeneratedContent] = useState<Record<string, GeneratedElicitation>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [activeStudentKey, setActiveStudentKey] = useState<string | null>(null);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(-1);
   const [pushingStimulus, setPushingStimulus] = useState(false);
   const [studentShareOpen, setStudentShareOpen] = useState(false);
   const [studentLinkCopied, setStudentLinkCopied] = useState(false);
@@ -825,10 +826,24 @@ export default function RaepaPage() {
       });
       if (!r.ok) throw new Error("Failed");
       setActiveStudentKey(key);
+      setActiveQuestionIndex(-1);
     } catch {
       toast({ title: "Could not push to student view", variant: "destructive" });
     } finally {
       setPushingStimulus(false);
+    }
+  }
+
+  async function advanceToQuestion(index: number) {
+    try {
+      await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/question-index`, {
+        method: "PUT",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIndex: index }),
+      });
+      setActiveQuestionIndex(index);
+    } catch {
+      toast({ title: "Could not advance question", variant: "destructive" });
     }
   }
 
@@ -839,6 +854,7 @@ export default function RaepaPage() {
         headers: authHeader(),
       });
       setActiveStudentKey(null);
+      setActiveQuestionIndex(-1);
     } catch { /* silent */ }
   }
 
@@ -1930,7 +1946,14 @@ ${bodyHtml}
                                               <div className="flex items-center justify-between px-3 py-1.5 bg-teal-500/20 border-b border-teal-500/40">
                                                 <div className="flex items-center gap-1.5">
                                                   <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-                                                  <span className="text-[11px] font-bold text-teal-300 tracking-wide uppercase">Live on student screen</span>
+                                                  <span className="text-[11px] font-bold text-teal-300 tracking-wide uppercase">
+                                                    Live —{" "}
+                                                    {generated?.questions && generated.questions.length > 0
+                                                      ? activeQuestionIndex === -1
+                                                        ? "student reading passage"
+                                                        : `student on Q${activeQuestionIndex + 1} of ${generated.questions.length}`
+                                                      : "on student screen"}
+                                                  </span>
                                                 </div>
                                                 <button
                                                   onClick={clearStudentStimulus}
@@ -1941,8 +1964,8 @@ ${bodyHtml}
                                                 </button>
                                               </div>
                                             )}
-                                            {/* Inactive preview hint — only for domains that support visual stimulus */}
-                                            {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && (
+                                            {/* Inactive preview hint — only for non-reading visual stimulus domains */}
+                                            {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && !(generated?.questions?.length) && (
                                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border-b border-slate-700/40">
                                                 <Eye size={10} className="text-slate-500" />
                                                 <span className="text-[10px] text-slate-500">Not yet shown to student</span>
@@ -1953,7 +1976,8 @@ ${bodyHtml}
                                                 <Sparkles size={10} /> Generated content
                                               </span>
                                               <div className="flex items-center gap-2">
-                                                {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && (
+                                                {/* Non-reading visual domains: single "Show to student" button */}
+                                                {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && !(generated?.questions?.length) && (
                                                   <button
                                                     onClick={() => pushToStudent(genKey, generated!)}
                                                     disabled={pushingStimulus}
@@ -1961,6 +1985,17 @@ ${bodyHtml}
                                                   >
                                                     <Eye size={10} />
                                                     Show to student
+                                                  </button>
+                                                )}
+                                                {/* Reading domains (have questions): "Show passage" when not active */}
+                                                {generated?.questions && generated.questions.length > 0 && activeStudentKey !== genKey && (
+                                                  <button
+                                                    onClick={() => pushToStudent(genKey, generated!)}
+                                                    disabled={pushingStimulus}
+                                                    className="text-xs flex items-center gap-1 px-2 py-0.5 rounded bg-teal-900/60 border border-teal-700/50 text-teal-300 hover:bg-teal-800/60 transition-colors"
+                                                  >
+                                                    <Eye size={10} />
+                                                    Show passage
                                                   </button>
                                                 )}
                                                 <button
@@ -1990,15 +2025,42 @@ ${bodyHtml}
                                             <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed px-3 pb-3">{generated.text}</p>
                                             {generated.questions && generated.questions.length > 0 && (
                                               <div className="px-3 pb-3 border-t border-slate-700/50 pt-2">
-                                                <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Questions (shown one at a time on student device)</p>
-                                                <ol className="space-y-1">
+                                                <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-2">
+                                                  {activeStudentKey === genKey ? "Control student view" : "Questions — you control the pace"}
+                                                </p>
+                                                {/* Examiner question control strip */}
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  <button
+                                                    onClick={() => activeStudentKey === genKey ? advanceToQuestion(-1) : pushToStudent(genKey, generated!)}
+                                                    className={`text-[11px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
+                                                      activeStudentKey === genKey && activeQuestionIndex === -1
+                                                        ? "bg-teal-600 border-teal-500 text-white shadow-sm"
+                                                        : "bg-slate-800 border-slate-600 text-slate-300 hover:border-teal-600 hover:text-teal-300"
+                                                    }`}
+                                                  >
+                                                    📖 Passage
+                                                  </button>
                                                   {generated.questions.map((q, qi) => (
-                                                    <li key={qi} className="text-xs text-slate-300 flex gap-2">
-                                                      <span className="text-indigo-500 shrink-0 font-medium">{qi + 1}.</span>
-                                                      <span>{q}</span>
-                                                    </li>
+                                                    <button
+                                                      key={qi}
+                                                      title={q}
+                                                      onClick={() => activeStudentKey === genKey ? advanceToQuestion(qi) : pushToStudent(genKey, generated!).then(() => advanceToQuestion(qi))}
+                                                      className={`text-[11px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
+                                                        activeStudentKey === genKey && activeQuestionIndex === qi
+                                                          ? "bg-teal-600 border-teal-500 text-white shadow-sm"
+                                                          : "bg-slate-800 border-slate-600 text-slate-300 hover:border-teal-600 hover:text-teal-300"
+                                                      }`}
+                                                    >
+                                                      Q{qi + 1}
+                                                    </button>
                                                   ))}
-                                                </ol>
+                                                </div>
+                                                {/* Question text preview for active question */}
+                                                {activeStudentKey === genKey && activeQuestionIndex >= 0 && (
+                                                  <p className="mt-2 text-[11px] text-slate-400 italic leading-snug">
+                                                    "{generated.questions[activeQuestionIndex]}"
+                                                  </p>
+                                                )}
                                               </div>
                                             )}
                                           </div>

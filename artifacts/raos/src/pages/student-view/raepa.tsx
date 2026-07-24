@@ -8,6 +8,7 @@ type Stimulus = {
   text: string;
   images?: { label: string; dataUrl: string }[];
   questions?: string[];
+  questionIndex?: number; // -1 = passage, 0+ = which question; controlled by examiner
 };
 
 function WaitingScreen() {
@@ -120,8 +121,6 @@ export default function RaepaStudentView() {
   const { caseId } = useParams<{ caseId: string }>();
   const [stimulus, setStimulus] = useState<Stimulus | null>(null);
   const [notFound, setNotFound] = useState(false);
-  // -1 = reading passage phase; 0+ = current question index
-  const [questionIndex, setQuestionIndex] = useState(-1);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,13 +130,7 @@ export default function RaepaStudentView() {
         if (r.status === 404) { if (!cancelled) setNotFound(true); return; }
         if (!r.ok) return;
         const data = await r.json() as { stimulus: Stimulus | null };
-        if (!cancelled) {
-          setStimulus(prev => {
-            // Reset question index whenever the examiner pushes new content
-            if (data.stimulus?.text !== prev?.text) setQuestionIndex(-1);
-            return data.stimulus;
-          });
-        }
+        if (!cancelled) setStimulus(data.stimulus);
       } catch { /* network hiccup — keep polling */ }
     }
     poll();
@@ -157,13 +150,15 @@ export default function RaepaStudentView() {
 
   const hasImages = stimulus.images && stimulus.images.length > 0;
   const hasQuestions = stimulus.questions && stimulus.questions.length > 0;
+  // questionIndex is examiner-controlled via server; -1 = show passage, 0+ = show that question
+  const questionIndex = stimulus.questionIndex ?? -1;
 
-  // ── Reading passage + sequential questions flow ───────────────────────────
+  // ── Reading passage + sequential questions flow (examiner-controlled) ─────
   if (hasQuestions) {
     const questions = stimulus.questions!;
 
     if (questionIndex === -1) {
-      // Phase 1: student reads the passage silently
+      // Passage phase: student reads silently; examiner advances when ready
       return (
         <div className="min-h-screen bg-white flex flex-col items-center px-8 py-12">
           <div className="w-full max-w-2xl">
@@ -178,24 +173,15 @@ export default function RaepaStudentView() {
                 ))}
               </div>
             )}
-            <p className="text-xl text-slate-800 leading-relaxed whitespace-pre-wrap mb-12">{stimulus.text}</p>
-            <div className="flex justify-center">
-              <button
-                onClick={() => setQuestionIndex(0)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-base transition-colors shadow-sm"
-              >
-                I've finished reading
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-              </button>
-            </div>
+            <p className="text-xl text-slate-800 leading-relaxed whitespace-pre-wrap">{stimulus.text}</p>
+            <p className="mt-10 text-sm text-slate-400 text-center">Read carefully — your examiner will ask you questions when you're ready.</p>
           </div>
         </div>
       );
     }
 
-    // Phase 2+: show one question at a time
+    // Question phase: examiner has advanced to a specific question
     const currentQ = questions[questionIndex];
-    const isLastQ = questionIndex === questions.length - 1;
 
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-8 py-12">
@@ -203,23 +189,7 @@ export default function RaepaStudentView() {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-8">
             Question {questionIndex + 1} of {questions.length}
           </p>
-          <p className="text-2xl text-slate-800 font-medium leading-relaxed mb-12">{currentQ}</p>
-          <div className="flex justify-center">
-            {isLastQ ? (
-              <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-sm font-medium">
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-teal-500"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-                Last question — answer when ready
-              </div>
-            ) : (
-              <button
-                onClick={() => setQuestionIndex(i => i + 1)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-base transition-colors"
-              >
-                Next question
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-              </button>
-            )}
-          </div>
+          <p className="text-2xl text-slate-800 font-medium leading-relaxed">{currentQ}</p>
         </div>
       </div>
     );

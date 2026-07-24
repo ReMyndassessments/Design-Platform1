@@ -944,9 +944,27 @@ router.post("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, re
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const { text, images, questions } = req.body as { text: string; images?: { label: string; dataUrl: string }[]; questions?: string[] };
-    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images, questions })}::jsonb WHERE case_id = ${caseId}`);
+    // For reading stimuli start at -1 (passage phase); examiner advances via PUT question-index
+    const questionIndex = questions && questions.length > 0 ? -1 : undefined;
+    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images, questions, questionIndex })}::jsonb WHERE case_id = ${caseId}`);
     res.json({ ok: true });
   } catch (err) { logger.error({ err }, "raepa push-stimulus"); res.status(500).json({ error: "Server error" }); }
+});
+
+// ── Examiner: advance to a specific question index (−1 = passage) ──────────
+router.put("/cases/:caseId/raepa/question-index", authMiddleware, async (req, res) => {
+  const { caseId } = req.params;
+  const user = { id: req.userId, role: req.userRole };
+  try {
+    if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
+    const { questionIndex } = req.body as { questionIndex: number };
+    await db.execute(sql`
+      UPDATE raepa_sessions
+      SET current_stimulus = jsonb_set(current_stimulus, '{questionIndex}', ${questionIndex}::text::jsonb)
+      WHERE case_id = ${caseId}
+    `);
+    res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa question-index"); res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Examiner: clear student stimulus ───────────────────────────────────────
