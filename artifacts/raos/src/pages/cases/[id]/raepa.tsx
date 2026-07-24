@@ -388,6 +388,21 @@ const DOMAIN_GUIDES: Record<string, {
   },
 };
 
+// Domains where generated content can be pushed to the student's screen.
+// Purely auditory/observational domains (Listening, Speaking, etc.) are excluded —
+// showing text to a student being assessed on listening defeats the purpose.
+const VISUAL_STIMULUS_DOMAINS = new Set([
+  "Academic Reading",
+  "Academic Writing",
+  "General Academic Vocabulary",
+  "Subject-Specific Vocabulary",
+  "Comparison and Classification",
+  "Inference and Prediction",
+  "Mathematics Language",
+  "Science Language",
+  "Humanities Language",
+]);
+
 // Which prompt indices have a "Generate" button.
 // Includes items generatable from uploaded work sample analysis (vocabulary, topics, genre).
 const GENERATABLE_PROMPTS: Record<string, number[]> = {
@@ -609,6 +624,17 @@ export default function RaepaPage() {
   const [editableReport, setEditableReport] = useState<string>("");
   const [isEditingReport, setIsEditingReport] = useState(false);
   const [translatingReport, setTranslatingReport] = useState(false);
+
+  // On mount, hydrate activeStudentKey from the server so "Clear stimulus" survives page reloads
+  useEffect(() => {
+    if (!caseId) return;
+    fetch(`${BASE_URL}/api/public/raepa/student/${caseId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { stimulus: { text: string } | null } | null) => {
+        if (data?.stimulus) setActiveStudentKey("__server__");
+      })
+      .catch(() => {/* ignore — non-critical */});
+  }, [caseId]);
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -1334,11 +1360,16 @@ ${bodyHtml}
               <QrCode className="w-3.5 h-3.5" />
               Student view
             </Button>
-            {activeStudentKey && (
-              <Button size="sm" variant="ghost" onClick={clearStudentStimulus} className="text-slate-500 hover:text-red-400 gap-1">
-                <X className="w-3 h-3" /> Clear stimulus
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={clearStudentStimulus}
+              className={`gap-1 transition-colors ${activeStudentKey ? "text-teal-400 hover:text-red-400" : "text-slate-600 hover:text-slate-400"}`}
+              title={activeStudentKey ? "Hide content from student screen" : "No content currently shown to student"}
+            >
+              <X className="w-3 h-3" />
+              {activeStudentKey ? "Hide from student" : "Student screen clear"}
+            </Button>
           </div>
         </div>
 
@@ -1897,8 +1928,8 @@ ${bodyHtml}
                                                 </button>
                                               </div>
                                             )}
-                                            {/* Inactive preview hint */}
-                                            {activeStudentKey !== genKey && (
+                                            {/* Inactive preview hint — only for domains that support visual stimulus */}
+                                            {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && (
                                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 border-b border-slate-700/40">
                                                 <Eye size={10} className="text-slate-500" />
                                                 <span className="text-[10px] text-slate-500">Not yet shown to student</span>
@@ -1909,7 +1940,7 @@ ${bodyHtml}
                                                 <Sparkles size={10} /> Generated content
                                               </span>
                                               <div className="flex items-center gap-2">
-                                                {activeStudentKey !== genKey && (
+                                                {VISUAL_STIMULUS_DOMAINS.has(domain) && activeStudentKey !== genKey && (
                                                   <button
                                                     onClick={() => pushToStudent(genKey, generated!)}
                                                     disabled={pushingStimulus}
