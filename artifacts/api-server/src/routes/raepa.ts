@@ -530,12 +530,11 @@ Structure when visuals ARE needed (pictures/objects the student looks at):
 ASSESSMENT SETTING (apply to ALL content):
 The RAEPA is conducted one-on-one at a table or desk in a quiet room. The student is seated and focused. All tasks must be completable WITHOUT leaving the seat. Never generate instructions that require the student to walk around the room, fetch objects from shelves or other furniture, stand up, or interact with things outside the immediate desk area.
 
-For multi-step verbal instructions (Academic Listening), use only desk-based or in-room-context actions such as:
-- Manipulating small objects already on the table (e.g., pencil, paper, a card)
-- Drawing, circling, or writing on a page
-- Pointing to or describing something in the room visible from their seat
-- Hypothetical/descriptive instructions ("Imagine you are…", "Tell me what you would do if…")
-- Classroom-realistic but physically simple actions (e.g., "Open your book to page 3, find the first heading, and underline it")
+For multi-step verbal instructions (Academic Listening), instructions must describe REAL, OBSERVABLE actions the student physically carries out right now — not imagined, hypothetical, or described actions. The examiner has basic materials at the desk: a pencil, a blank sheet of paper, and 2–3 small cards or objects. Use only these. Good examples:
+- "Pick up your pencil. Write your first name at the top of the paper. Then turn the paper over."
+- "Take the blue card and place it on top of the paper. Then pick up the pencil and tap the card twice."
+- "Draw a circle in the middle of the paper. Write the number 3 inside the circle. Then put your pencil down."
+Never use "imagine", "pretend", "think about", or any frame that removes the need for physical action.
 
 CRITICAL RULES:
 1. When images are required, put rich descriptions in "imagePrompts[].description" — NOT inline in "text".
