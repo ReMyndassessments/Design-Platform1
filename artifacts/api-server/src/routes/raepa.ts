@@ -548,7 +548,13 @@ CRITICAL RULES:
 3. imagePrompts descriptions must be detailed enough to generate a clear image (species, colour, setting, style).
 4. Return ONLY the raw JSON object — no wrapping text before or after.`;
 
-    const userMessage = `Student profile:
+    const userMessage = `${isReadingDomain
+      ? `IMPORTANT: This is a READING PASSAGE task. You MUST use Structure B:
+{"passage":"<reading text only — no questions>","questions":["<question 1>","<question 2>","<question 3>"],"imagePrompts":null}
+The passage and questions MUST be in separate JSON fields. Do NOT combine them into one "text" field.
+
+`
+      : ""}Student profile:
 - Age: ${ageStr}
 - First language (L1): ${l1}
 - Years in English-medium schooling: ${yearsInEnglish}
@@ -562,7 +568,7 @@ RAEPA domain being assessed: ${domain}
 The examiner prompt says: "${promptText}"
 
 Generate the ready-to-use content. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute activity.
-${isReadingDomain ? "Use Structure B (passage + questions array). The passage is for silent reading; questions are asked one at a time after the student finishes." : "Use Structure A (or Structure C if images are needed)."}
+${isReadingDomain ? "Return Structure B JSON (passage + questions array)." : "Return Structure A JSON (or Structure C if images are needed)."}
 Return ONLY the JSON object.`;
 
     const rawContent = await callGroq([
@@ -606,6 +612,26 @@ Return ONLY the JSON object.`;
     } catch (parseErr) {
       logger.warn({ parseErr, rawContent }, "raepa JSON parse failed — using raw text");
     }
+
+    // Final defensive strip: if textContent is still raw JSON (both parse attempts failed),
+    // extract the passage/text field with a regex as last resort.
+    if (textContent.trimStart().startsWith("{")) {
+      const passageMatch = textContent.match(/"passage"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
+      const textMatch    = textContent.match(/"text"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
+      const questionsMatch = textContent.match(/"questions"\s*:\s*\[([\s\S]*?)\]/);
+      if (passageMatch) {
+        textContent = passageMatch[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+        if (!questions && questionsMatch) {
+          try {
+            questions = JSON.parse(`[${questionsMatch[1]}]`) as string[];
+          } catch { /* ignore */ }
+        }
+      } else if (textMatch) {
+        textContent = textMatch[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+      }
+      logger.info({ textContent }, "raepa defensive strip applied");
+    }
+
     logger.info({ textContent, imagePrompts }, "raepa parsed result");
 
     // Fallback: detect inline picture descriptions the model left in the text.

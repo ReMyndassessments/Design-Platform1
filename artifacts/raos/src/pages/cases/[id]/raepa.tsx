@@ -853,7 +853,20 @@ export default function RaepaPage() {
       });
       if (!r.ok) throw new Error("Failed");
       const data = await r.json() as { content: string; questions?: string[]; images?: { label: string; dataUrl: string }[] };
-      setGeneratedContent(prev => ({ ...prev, [key]: { text: data.content, questions: data.questions, images: data.images } }));
+      // Defensive: if the server returned raw JSON as the content string, strip the envelope
+      let content = data.content ?? "";
+      let questions = data.questions;
+      if (content.trimStart().startsWith("{")) {
+        try {
+          const inner = JSON.parse(content) as Record<string, unknown>;
+          if (typeof inner.passage === "string") { content = inner.passage; questions = questions ?? (Array.isArray(inner.questions) ? inner.questions as string[] : undefined); }
+          else if (typeof inner.text === "string") content = inner.text;
+        } catch {
+          const m = content.match(/"(?:passage|text)"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
+          if (m) content = m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
+        }
+      }
+      setGeneratedContent(prev => ({ ...prev, [key]: { text: content, questions, images: data.images } }));
     } catch {
       toast({ title: "Generation failed", description: "Could not generate content. Try again.", variant: "destructive" });
     } finally {
