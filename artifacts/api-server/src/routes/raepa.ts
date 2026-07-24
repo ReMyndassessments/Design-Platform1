@@ -527,6 +527,16 @@ Structure when NO visuals needed (passages, word lists, spoken questions):
 Structure when visuals ARE needed (pictures/objects the student looks at):
 {"text":"Look at Picture 1 and Picture 2 below.\n\nHow are these two animals similar? How are they different?","imagePrompts":[{"label":"Picture 1","description":"a domestic cat sitting on a mat, simple cartoon illustration"},{"label":"Picture 2","description":"a domestic dog sitting, simple cartoon illustration"}]}
 
+ASSESSMENT SETTING (apply to ALL content):
+The RAEPA is conducted one-on-one at a table or desk in a quiet room. The student is seated and focused. All tasks must be completable WITHOUT leaving the seat. Never generate instructions that require the student to walk around the room, fetch objects from shelves or other furniture, stand up, or interact with things outside the immediate desk area.
+
+For multi-step verbal instructions (Academic Listening), use only desk-based or in-room-context actions such as:
+- Manipulating small objects already on the table (e.g., pencil, paper, a card)
+- Drawing, circling, or writing on a page
+- Pointing to or describing something in the room visible from their seat
+- Hypothetical/descriptive instructions ("Imagine you are…", "Tell me what you would do if…")
+- Classroom-realistic but physically simple actions (e.g., "Open your book to page 3, find the first heading, and underline it")
+
 CRITICAL RULES:
 1. When images are required, put rich descriptions in "imagePrompts[].description" — NOT inline in "text".
 2. In "text", only refer to images by label ("Picture 1", "Picture 2") — never write "(Picture 1: a cat)" or similar.
