@@ -611,7 +611,7 @@ export default function RaepaPage() {
   const [openGuides, setOpenGuides] = useState<Record<string, boolean>>(
     () => Object.fromEntries(DOMAINS.map(d => [d, true]))
   );
-  type GeneratedElicitation = { text: string; images?: { label: string; dataUrl: string }[] };
+  type GeneratedElicitation = { text: string; images?: { label: string; dataUrl: string }[]; questions?: string[] };
   const [generatedContent, setGeneratedContent] = useState<Record<string, GeneratedElicitation>>({});
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [activeStudentKey, setActiveStudentKey] = useState<string | null>(null);
@@ -821,7 +821,7 @@ export default function RaepaPage() {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/push-stimulus`, {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-        body: JSON.stringify({ text: content.text, images: content.images }),
+        body: JSON.stringify({ text: content.text, images: content.images, questions: content.questions }),
       });
       if (!r.ok) throw new Error("Failed");
       setActiveStudentKey(key);
@@ -852,8 +852,8 @@ export default function RaepaPage() {
         body: JSON.stringify({ domain, promptIndex, promptText }),
       });
       if (!r.ok) throw new Error("Failed");
-      const data = await r.json() as { content: string; images?: { label: string; dataUrl: string }[] };
-      setGeneratedContent(prev => ({ ...prev, [key]: { text: data.content, images: data.images } }));
+      const data = await r.json() as { content: string; questions?: string[]; images?: { label: string; dataUrl: string }[] };
+      setGeneratedContent(prev => ({ ...prev, [key]: { text: data.content, questions: data.questions, images: data.images } }));
     } catch {
       toast({ title: "Generation failed", description: "Could not generate content. Try again.", variant: "destructive" });
     } finally {
@@ -1975,6 +1975,19 @@ ${bodyHtml}
                                               </div>
                                             )}
                                             <p className="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed px-3 pb-3">{generated.text}</p>
+                                            {generated.questions && generated.questions.length > 0 && (
+                                              <div className="px-3 pb-3 border-t border-slate-700/50 pt-2">
+                                                <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Questions (shown one at a time on student device)</p>
+                                                <ol className="space-y-1">
+                                                  {generated.questions.map((q, qi) => (
+                                                    <li key={qi} className="text-xs text-slate-300 flex gap-2">
+                                                      <span className="text-indigo-500 shrink-0 font-medium">{qi + 1}.</span>
+                                                      <span>{q}</span>
+                                                    </li>
+                                                  ))}
+                                                </ol>
+                                              </div>
+                                            )}
                                           </div>
                                         )}
                                       </li>

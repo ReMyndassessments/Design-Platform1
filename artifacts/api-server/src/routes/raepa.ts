@@ -517,15 +517,21 @@ router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (
 
     const gradeHint = parsedSamples.find(s => s.grade_level)?.grade_level ?? "primary/secondary school";
 
+    const isReadingDomain = ["Academic Reading", "Inference and Prediction"].includes(domain);
+
     const systemPrompt = `You are an expert EAL/D (English as an Additional Language or Dialect) assessment specialist creating ready-to-use elicitation content for the ReMynd Academic English Performance Assessment (RAEPA).
 
-Return ONLY a valid JSON object. No preamble, no commentary, no markdown code fences.
+Return ONLY a valid JSON object. No preamble, no commentary, no markdown code fences. All string values must use \\n for line breaks — never include literal newline characters inside JSON string values.
 
-Structure when NO visuals needed (passages, word lists, spoken questions):
-{"text":"<examiner content>","imagePrompts":null}
+Structure A — standard (spoken questions, word lists, instructions, non-reading tasks):
+{"text":"<content here>","imagePrompts":null}
 
-Structure when visuals ARE needed (pictures/objects the student looks at):
-{"text":"Look at Picture 1 and Picture 2 below.\n\nHow are these two animals similar? How are they different?","imagePrompts":[{"label":"Picture 1","description":"a domestic cat sitting on a mat, simple cartoon illustration"},{"label":"Picture 2","description":"a domestic dog sitting, simple cartoon illustration"}]}
+Structure B — reading passage tasks (ONLY for Academic Reading or Inference and Prediction):
+{"passage":"<the reading text the student reads silently>","questions":["<comprehension question 1>","<comprehension question 2>","<comprehension question 3>"],"imagePrompts":null}
+Use Structure B when the task requires the student to read a passage and then answer comprehension or inference questions. The passage and questions MUST be separate fields — never combine them into a single text string.
+
+Structure C — when visuals ARE needed (pictures/objects the student looks at):
+{"text":"Look at Picture 1 and Picture 2 below.\\n\\nHow are these two animals similar? How are they different?","imagePrompts":[{"label":"Picture 1","description":"a domestic cat sitting on a mat, simple cartoon illustration"},{"label":"Picture 2","description":"a domestic dog sitting, simple cartoon illustration"}]}
 
 ASSESSMENT SETTING (apply to ALL content):
 The RAEPA is conducted one-on-one at a table or desk in a quiet room. The student is seated and focused. All tasks must be completable WITHOUT leaving the seat. Never generate instructions that require the student to walk around the room, fetch objects from shelves or other furniture, stand up, or interact with things outside the immediate desk area.
@@ -555,7 +561,9 @@ RAEPA domain being assessed: ${domain}
 
 The examiner prompt says: "${promptText}"
 
-Generate the ready-to-use content. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute activity. Return ONLY the JSON object.`;
+Generate the ready-to-use content. Calibrate difficulty to the student's age and background. Keep it suitable for a 2–4 minute activity.
+${isReadingDomain ? "Use Structure B (passage + questions array). The passage is for silent reading; questions are asked one at a time after the student finishes." : "Use Structure A (or Structure C if images are needed)."}
+Return ONLY the JSON object.`;
 
     const rawContent = await callGroq([
       { role: "system", content: systemPrompt },
@@ -565,14 +573,34 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
     // Parse structured response
     logger.info({ rawContent }, "raepa generate-elicitation raw AI response");
     let textContent = rawContent;
+    let questions: string[] | undefined = undefined;
     let imagePrompts: Array<{ label: string; description: string }> | null = null;
     try {
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.text) textContent = parsed.text;
-        if (Array.isArray(parsed.imagePrompts) && parsed.imagePrompts.length > 0) {
-          imagePrompts = parsed.imagePrompts;
+        let jsonStr = jsonMatch[0];
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+        } catch {
+          // Groq sometimes emits literal newlines inside JSON string values (invalid JSON).
+          // Sanitize: replace literal newlines within quoted string values, then retry.
+          const sanitized = jsonStr.replace(/"((?:[^"\\]|\\.)*)"/g, (match) =>
+            match.replace(/\n/g, "\\n").replace(/\r/g, "").replace(/\t/g, "\\t")
+          );
+          parsed = JSON.parse(sanitized) as Record<string, unknown>;
+        }
+        // Structure B: reading passage with separate questions array
+        if (typeof parsed.passage === "string") {
+          textContent = parsed.passage;
+          if (Array.isArray(parsed.questions) && (parsed.questions as unknown[]).length > 0) {
+            questions = (parsed.questions as unknown[]).filter(q => typeof q === "string") as string[];
+          }
+        } else if (typeof parsed.text === "string") {
+          textContent = parsed.text;
+        }
+        if (Array.isArray(parsed.imagePrompts) && (parsed.imagePrompts as unknown[]).length > 0) {
+          imagePrompts = parsed.imagePrompts as Array<{ label: string; description: string }>;
         }
       }
     } catch (parseErr) {
@@ -629,7 +657,7 @@ Generate the ready-to-use content. Calibrate difficulty to the student's age and
       }
     }
 
-    res.json({ content: textContent, images });
+    res.json({ content: textContent, questions, images });
   } catch (err) {
     logger.error({ err }, "raepa generate-elicitation");
     res.status(500).json({ error: "Generation failed" });
@@ -889,8 +917,8 @@ router.post("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, re
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
-    const { text, images } = req.body as { text: string; images?: { label: string; dataUrl: string }[] };
-    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images })}::jsonb WHERE case_id = ${caseId}`);
+    const { text, images, questions } = req.body as { text: string; images?: { label: string; dataUrl: string }[]; questions?: string[] };
+    await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images, questions })}::jsonb WHERE case_id = ${caseId}`);
     res.json({ ok: true });
   } catch (err) { logger.error({ err }, "raepa push-stimulus"); res.status(500).json({ error: "Server error" }); }
 });
