@@ -1826,6 +1826,14 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, 
         updated_at = NOW()
       WHERE id = ${report.id}
     `);
+    // When the report is approved, mark the RAMRI assignment as completed so
+    // the case dashboard shows a "Completed" badge and a "View RAMRI" button.
+    if (status === "approved") {
+      const sessionRow = (await db.execute(sql`SELECT assignment_id FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0] as { assignment_id?: string } | undefined;
+      if (sessionRow?.assignment_id) {
+        await db.execute(sql`UPDATE assignments SET status = 'completed', updated_at = NOW() WHERE id = ${sessionRow.assignment_id}`);
+      }
+    }
     const updated = (await db.execute(sql`SELECT * FROM ramri_reports WHERE id = ${report.id} LIMIT 1`)).rows[0];
     return res.json({ report: updated });
   } catch (err) {
