@@ -2773,62 +2773,72 @@ export default function RamriInterviewPage() {
                 </div>
 
                 {/* Parsed preview */}
-                {parsedOfflineData && !offlineImportDone && (
-                  <div className="space-y-3 border-t border-slate-100 pt-3">
-                    <p className="text-xs font-medium text-slate-700">
-                      Found {parsedOfflineData.sheets.length} interview sheet{parsedOfflineData.sheets.length !== 1 ? "s" : ""}
-                      {parsedOfflineData.transferProbes.length > 0 && ` · ${parsedOfflineData.transferProbes.length} transfer probe${parsedOfflineData.transferProbes.length !== 1 ? "s" : ""}`}
-                    </p>
-                    <div className="space-y-1.5">
-                      {parsedOfflineData.sheets.map((sheet, i) => (
-                        <div key={i} className="flex items-start gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
-                          <FileText size={13} className="text-violet-400 shrink-0 mt-0.5" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-slate-700">Set {sheet.setNumber} · Option {sheet.option} — {sheet.domain}</p>
-                            <p className="text-slate-400 truncate">{sheet.extractedProblem || sheet.skill}</p>
-                            <p className="text-slate-400">{sheet.responses.length} response section{sheet.responses.length !== 1 ? "s" : ""} captured</p>
+                {parsedOfflineData && !offlineImportDone && (() => {
+                  const sheets = parsedOfflineData.sheets ?? [];
+                  const probes = parsedOfflineData.transferProbes ?? [];
+                  return (
+                    <div className="space-y-3 border-t border-slate-100 pt-3">
+                      {sheets.length === 0 ? (
+                        <p className="text-xs text-amber-600">The AI could not find any completed interview sheets in this document. Check the file and try again.</p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-medium text-slate-700">
+                            Found {sheets.length} interview sheet{sheets.length !== 1 ? "s" : ""}
+                            {probes.length > 0 && ` · ${probes.length} transfer probe${probes.length !== 1 ? "s" : ""}`}
+                          </p>
+                          <div className="space-y-1.5">
+                            {sheets.map((sheet, i) => (
+                              <div key={i} className="flex items-start gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                                <FileText size={13} className="text-violet-400 shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-slate-700">Set {sheet.setNumber} · Option {sheet.option} — {sheet.domain}</p>
+                                  <p className="text-slate-400 truncate">{sheet.extractedProblem || sheet.skill}</p>
+                                  <p className="text-slate-400">{(sheet.responses ?? []).length} response section{(sheet.responses ?? []).length !== 1 ? "s" : ""} captured</p>
+                                </div>
+                                <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${sheet.answerStatus === "correct" ? "bg-green-100 text-green-700" : sheet.answerStatus === "incorrect" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {sheet.answerStatus?.replace("_", " ")}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                          <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${sheet.answerStatus === "correct" ? "bg-green-100 text-green-700" : sheet.answerStatus === "incorrect" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                            {sheet.answerStatus?.replace("_", " ")}
-                          </span>
-                        </div>
-                      ))}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5"
+                              disabled={confirmingOffline}
+                              onClick={async () => {
+                                if (!parsedOfflineData || !sessionId || !caseId) return;
+                                setConfirmingOffline(true);
+                                try {
+                                  const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/confirm-offline-import`, {
+                                    method: "POST",
+                                    headers: jsonHeaders(),
+                                    body: JSON.stringify(parsedOfflineData),
+                                  });
+                                  if (!r.ok) { const e = await r.json() as { error?: string }; throw new Error(e.error ?? "Import failed"); }
+                                  const d = await r.json() as { created: number; selections: Selection[] };
+                                  setSelections(prev => [...prev, ...d.selections]);
+                                  setOfflineImportDone(true);
+                                  setParsedOfflineData(null);
+                                  toast({ title: `${d.created} sample${d.created !== 1 ? "s" : ""} imported`, description: "The interview form has been populated with the responses." });
+                                } catch (err) {
+                                  toast({ title: "Import failed", description: String(err), variant: "destructive" });
+                                } finally {
+                                  setConfirmingOffline(false);
+                                }
+                              }}
+                            >
+                              {confirmingOffline ? <><Loader2 size={12} className="animate-spin" /> Importing…</> : <><Check size={12} /> Import all responses</>}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-slate-500 text-xs" onClick={() => setParsedOfflineData(null)}>
+                              Discard
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5"
-                        disabled={confirmingOffline}
-                        onClick={async () => {
-                          if (!parsedOfflineData || !sessionId || !caseId) return;
-                          setConfirmingOffline(true);
-                          try {
-                            const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/confirm-offline-import`, {
-                              method: "POST",
-                              headers: jsonHeaders(),
-                              body: JSON.stringify(parsedOfflineData),
-                            });
-                            if (!r.ok) { const e = await r.json() as { error?: string }; throw new Error(e.error ?? "Import failed"); }
-                            const d = await r.json() as { created: number; selections: Selection[] };
-                            setSelections(prev => [...prev, ...d.selections]);
-                            setOfflineImportDone(true);
-                            setParsedOfflineData(null);
-                            toast({ title: `${d.created} sample${d.created !== 1 ? "s" : ""} imported`, description: "The interview form has been populated with the responses." });
-                          } catch (err) {
-                            toast({ title: "Import failed", description: String(err), variant: "destructive" });
-                          } finally {
-                            setConfirmingOffline(false);
-                          }
-                        }}
-                      >
-                        {confirmingOffline ? <><Loader2 size={12} className="animate-spin" /> Importing…</> : <><Check size={12} /> Import all responses</>}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-slate-500 text-xs" onClick={() => setParsedOfflineData(null)}>
-                        Discard
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {offlineImportDone && (
                   <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">

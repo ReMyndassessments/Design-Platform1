@@ -1907,8 +1907,14 @@ ${text.slice(0, 22000)}`;
 
       const raw = await callGroq(prompt, systemPrompt, 4096);
       const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      return res.json({ parsed });
+      const parsed = JSON.parse(clean) as { sheets?: unknown; transferProbes?: unknown };
+      // Always return arrays — AI can return null/undefined for empty sections
+      return res.json({
+        parsed: {
+          sheets: Array.isArray(parsed.sheets) ? parsed.sheets : [],
+          transferProbes: Array.isArray(parsed.transferProbes) ? parsed.transferProbes : [],
+        }
+      });
     } catch (err) {
       logger.error({ err }, "RAMRI offline worksheet parse failed");
       return res.status(500).json({ error: "Failed to parse worksheet. Please check the file and try again." });
