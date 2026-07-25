@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useParams } from "wouter";
-import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square } from "lucide-react";
+import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -495,6 +495,9 @@ export default function RamriInterviewPage() {
   const { toast } = useToast();
   const pendingObsRef = useRef<Record<string, { anxietyRating?: number; confidenceRating?: number; engagementRating?: number; notes?: string }>>({});
   const [activeSelId, setActiveSelId] = useState<string | null>(null);
+  const [editingRespId, setEditingRespId] = useState<string | null>(null);
+  const [editingRespDraft, setEditingRespDraft] = useState<{ directQuote: string; examinerParaphrase: string }>({ directQuote: "", examinerParaphrase: "" });
+  const [savingRespId, setSavingRespId] = useState<string | null>(null);
   const [interviewData, setInterviewData] = useState<Record<string, {
     ownership: Record<string, unknown> | null;
     responses: Array<Record<string, unknown>>;
@@ -1508,6 +1511,26 @@ export default function RamriInterviewPage() {
         const ex = prev[selId] ?? { ownership: null, responses: [], transfer: null, observations: null };
         return { ...prev, [selId]: { ...ex, responses: [...ex.responses, d.response] } };
       });
+    }
+  };
+
+  const updateResponse = async (selId: string, respId: string, directQuote: string, examinerParaphrase: string) => {
+    setSavingRespId(respId);
+    try {
+      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/selections/${selId}/responses/${respId}`, {
+        method: "PATCH", headers: jsonHeaders(),
+        body: JSON.stringify({ directQuote, examinerParaphrase }),
+      });
+      if (r.ok) {
+        const d = await r.json() as { response: Record<string, unknown> };
+        setInterviewData(prev => {
+          const ex = prev[selId] ?? { ownership: null, responses: [], transfer: null, observations: null };
+          return { ...prev, [selId]: { ...ex, responses: ex.responses.map(resp => (resp.id as string) === respId ? d.response : resp) } };
+        });
+        setEditingRespId(null);
+      }
+    } finally {
+      setSavingRespId(null);
     }
   };
 
@@ -2955,13 +2978,37 @@ export default function RamriInterviewPage() {
                               {(csSelData?.responses?.length ?? 0) > 0 && (
                                 <div className="mt-3 space-y-2">
                                   <p className="text-xs text-slate-500 font-medium">Saved responses ({csSelData!.responses.length})</p>
-                                  {(csSelData!.responses as Array<Record<string, unknown>>).map((resp, ri) => (
-                                    <div key={ri} className="p-2 rounded-lg bg-white border border-slate-100 text-xs">
-                                      <p className="text-slate-600 font-medium">Q: {resp.approved_question as string || resp.generated_question as string}</p>
-                                      {resp.direct_quote && <p className="text-violet-700 italic mt-0.5">"{resp.direct_quote as string}"</p>}
-                                      {resp.examiner_paraphrase && <p className="text-slate-500 mt-0.5">Paraphrase: {resp.examiner_paraphrase as string}</p>}
-                                    </div>
-                                  ))}
+                                  {(csSelData!.responses as Array<Record<string, unknown>>).map((resp, ri) => {
+                                    const respId = resp.id as string;
+                                    const isEditing = editingRespId === respId;
+                                    return (
+                                      <div key={ri} className="p-2 rounded-lg bg-white border border-slate-100 text-xs">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <p className="text-slate-600 font-medium">Q: {resp.approved_question as string || resp.generated_question as string}</p>
+                                          {!isEditing && (
+                                            <button onClick={() => { setEditingRespId(respId); setEditingRespDraft({ directQuote: resp.direct_quote as string ?? "", examinerParaphrase: resp.examiner_paraphrase as string ?? "" }); }} className="shrink-0 text-slate-400 hover:text-violet-600 transition-colors" title="Edit response"><Pencil size={11} /></button>
+                                          )}
+                                        </div>
+                                        {isEditing ? (
+                                          <div className="mt-1.5 space-y-1.5">
+                                            <textarea rows={2} className="w-full text-xs rounded border border-violet-200 bg-violet-50 p-1.5 text-violet-800 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400" placeholder='Direct quote…' value={editingRespDraft.directQuote} onChange={e => setEditingRespDraft(d => ({ ...d, directQuote: e.target.value }))} />
+                                            <textarea rows={2} className="w-full text-xs rounded border border-slate-200 bg-slate-50 p-1.5 text-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-slate-400" placeholder='Examiner paraphrase (optional)…' value={editingRespDraft.examinerParaphrase} onChange={e => setEditingRespDraft(d => ({ ...d, examinerParaphrase: e.target.value }))} />
+                                            <div className="flex gap-2 justify-end">
+                                              <button onClick={() => setEditingRespId(null)} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+                                              <button disabled={savingRespId === respId} onClick={() => updateResponse(csSel.id, respId, editingRespDraft.directQuote, editingRespDraft.examinerParaphrase)} className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded hover:bg-violet-700 disabled:opacity-50">
+                                                {savingRespId === respId ? "Saving…" : "Save"}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {resp.direct_quote && <p className="text-violet-700 italic mt-0.5">"{resp.direct_quote as string}"</p>}
+                                            {resp.examiner_paraphrase && <p className="text-slate-500 mt-0.5">Paraphrase: {resp.examiner_paraphrase as string}</p>}
+                                          </>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -3067,13 +3114,37 @@ export default function RamriInterviewPage() {
                             {(selData?.responses?.length ?? 0) > 0 && (
                               <div className="mt-3 space-y-2">
                                 <p className="text-xs text-slate-500 font-medium">Saved responses ({selData!.responses.length})</p>
-                                {(selData!.responses as Array<Record<string, unknown>>).map((resp, ri) => (
-                                  <div key={ri} className="p-2 rounded-lg bg-slate-50 text-xs">
-                                    <p className="text-slate-600 font-medium">Q: {resp.approved_question as string || resp.generated_question as string}</p>
-                                    {resp.direct_quote && <p className="text-violet-700 italic mt-0.5">"{resp.direct_quote as string}"</p>}
-                                    {resp.examiner_paraphrase && <p className="text-slate-500 mt-0.5">Paraphrase: {resp.examiner_paraphrase as string}</p>}
-                                  </div>
-                                ))}
+                                {(selData!.responses as Array<Record<string, unknown>>).map((resp, ri) => {
+                                  const respId = resp.id as string;
+                                  const isEditing = editingRespId === respId;
+                                  return (
+                                    <div key={ri} className="p-2 rounded-lg bg-slate-50 text-xs">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="text-slate-600 font-medium">Q: {resp.approved_question as string || resp.generated_question as string}</p>
+                                        {!isEditing && (
+                                          <button onClick={() => { setEditingRespId(respId); setEditingRespDraft({ directQuote: resp.direct_quote as string ?? "", examinerParaphrase: resp.examiner_paraphrase as string ?? "" }); }} className="shrink-0 text-slate-400 hover:text-violet-600 transition-colors" title="Edit response"><Pencil size={11} /></button>
+                                        )}
+                                      </div>
+                                      {isEditing ? (
+                                        <div className="mt-1.5 space-y-1.5">
+                                          <textarea rows={2} className="w-full text-xs rounded border border-violet-200 bg-violet-50 p-1.5 text-violet-800 resize-none focus:outline-none focus:ring-1 focus:ring-violet-400" placeholder='Direct quote…' value={editingRespDraft.directQuote} onChange={e => setEditingRespDraft(d => ({ ...d, directQuote: e.target.value }))} />
+                                          <textarea rows={2} className="w-full text-xs rounded border border-slate-200 bg-white p-1.5 text-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-slate-400" placeholder='Examiner paraphrase (optional)…' value={editingRespDraft.examinerParaphrase} onChange={e => setEditingRespDraft(d => ({ ...d, examinerParaphrase: e.target.value }))} />
+                                          <div className="flex gap-2 justify-end">
+                                            <button onClick={() => setEditingRespId(null)} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+                                            <button disabled={savingRespId === respId} onClick={() => updateResponse(sel.id, respId, editingRespDraft.directQuote, editingRespDraft.examinerParaphrase)} className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded hover:bg-violet-700 disabled:opacity-50">
+                                              {savingRespId === respId ? "Saving…" : "Save"}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          {resp.direct_quote && <p className="text-violet-700 italic mt-0.5">"{resp.direct_quote as string}"</p>}
+                                          {resp.examiner_paraphrase && <p className="text-slate-500 mt-0.5">Paraphrase: {resp.examiner_paraphrase as string}</p>}
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
