@@ -1662,7 +1662,6 @@ export default function RamriInterviewPage() {
       { key: "assessmentContext", label: "Assessment Context" },
       { key: "participationSummary", label: "Participation & Emotional Presentation" },
       { key: "reasoningProfile", label: "Mathematical Reasoning Profile" },
-      { key: "perDomainFindings", label: "Per-Domain Findings" },
       { key: "performanceVsReasoning", label: "Performance vs. Reasoning" },
       { key: "conditionEffect", label: "Effect of Assessment Conditions" },
       { key: "domainCoverage", label: "Domain Coverage" },
@@ -1679,14 +1678,29 @@ export default function RamriInterviewPage() {
       { key: "limitations", label: "Limitations & Caveats" },
     ];
 
-    /** Convert a narrative string into justified paragraphs with inline sub-headings */
+    /** Flatten any value (object, array, or string) to a plain string — handles old DB records where
+     *  the AI returned an object instead of a string for narrative fields. */
+    const flattenVal = (v: unknown): string => {
+      if (typeof v === "string") return v;
+      if (!v) return "";
+      if (Array.isArray(v)) return (v as unknown[]).map(flattenVal).join("\n\n");
+      if (typeof v === "object") {
+        return Object.entries(v as Record<string, unknown>)
+          .map(([k, val]) => `${k}:\n${flattenVal(val)}`)
+          .join("\n\n");
+      }
+      return String(v);
+    };
+
+    /** Convert a narrative string into justified paragraphs with inline sub-headings.
+     *  Lines ending with ":" become <h3> domain headers; blank lines → paragraph breaks. */
     const renderNarrativeBody = (text: string): string => {
       const lines = text.split(/\n/);
       const parts: string[] = [];
       let buf: string[] = [];
       for (const line of lines) {
         const trimmed = line.trim();
-        // A line like "Domain Name:" or "Domain Name:\n" → sub-heading
+        // A line like "Domain Name:" → sub-heading
         if (/^[A-Z][^:]{2,60}:\s*$/.test(trimmed)) {
           if (buf.length) { parts.push(`<p>${buf.join(" ").trim()}</p>`); buf = []; }
           parts.push(`<h3>${trimmed.replace(/:$/, "")}</h3>`);
@@ -1700,10 +1714,85 @@ export default function RamriInterviewPage() {
       return parts.join("");
     };
 
+    /** Break the reasoningProfile mega-paragraph into per-domain sub-sections.
+     *  Detects sentences that introduce a domain ("Her Conceptual Understanding was rated…")
+     *  and inserts a domain h3 before each one. */
+    const renderReasoningProfile = (text: string): string => {
+      // Insert a newline before each sentence that starts with a domain name
+      const domainPattern = REASONING_DOMAINS
+        .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+      // Match transitions like "Her Strategy Awareness was…" / "Her Strategy Flexibility was…"
+      const broken = text.replace(
+        new RegExp(`([.!?]\\s+)((?:Her|His|The student's?|Their)\\s+(${domainPattern}))`, "g"),
+        (_m, punc: string, rest: string) => `${punc}\n\n${rest}`
+      );
+      return renderNarrativeBody(broken);
+    };
+
+    /** Render perDomainFindings — may be a flattened string or a legacy object.
+     *  Renders each domain as a visually distinct card. */
+    const renderPerDomainFindings = (): string => {
+      const raw = n["perDomainFindings"];
+      if (!raw) return "";
+      // If it's already an object (old DB record), convert to domain cards directly
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        const entries = Object.entries(raw as Record<string, unknown>);
+        const cards = entries.map(([domain, text]) => {
+          const domainRating = ratings.find(r => r.domain === domain);
+          const ratingBadge = domainRating?.rating != null
+            ? `<span class="domain-rating">${domainRating.rating}/4 — ${RATING_LABELS[domainRating.rating] ?? ""}</span>`
+            : "";
+          return `<div class="domain-card"><div class="domain-card-header"><span class="domain-name">${domain}</span>${ratingBadge}</div><div class="domain-card-body"><p>${flattenVal(text)}</p></div></div>`;
+        });
+        return `<section><h2>Per-Domain Findings</h2>${cards.join("")}</section>`;
+      }
+      // String path — use flattenVal then parse into domain cards
+      const str = flattenVal(raw);
+      // Split on "DomainName:\n" patterns that `flattenToString` produces
+      const domainPattern = REASONING_DOMAINS
+        .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("|");
+      const segments: { domain: string; text: string }[] = [];
+      let lastIndex = 0;
+      let lastDomain = "";
+      let match: RegExpExecArray | null;
+      const re = new RegExp(`(${domainPattern}):\\n`, "g");
+      while ((match = re.exec(str)) !== null) {
+        if (lastDomain) {
+          segments.push({ domain: lastDomain, text: str.slice(lastIndex, match.index).trim() });
+        }
+        lastDomain = match[1];
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastDomain) segments.push({ domain: lastDomain, text: str.slice(lastIndex).trim() });
+
+      if (segments.length === 0) {
+        // Fallback: no domain markers found — just render as narrative
+        return `<section><h2>Per-Domain Findings</h2>${renderNarrativeBody(str)}</section>`;
+      }
+      const cards = segments.map(({ domain, text }) => {
+        const domainRating = ratings.find(r => r.domain === domain);
+        const ratingBadge = domainRating?.rating != null
+          ? `<span class="domain-rating">${domainRating.rating}/4 — ${RATING_LABELS[domainRating.rating] ?? ""}</span>`
+          : "";
+        return `<div class="domain-card"><div class="domain-card-header"><span class="domain-name">${domain}</span>${ratingBadge}</div><div class="domain-card-body"><p>${text.replace(/\n\n+/g, "</p><p>").replace(/\n/g, " ")}</p></div></div>`;
+      });
+      return `<section><h2>Per-Domain Findings</h2>${cards.join("")}</section>`;
+    };
+
     const narrativeHtml = narrativeSections
       .filter(({ key }) => n[key])
-      .map(({ key, label }) => `<section><h2>${label}</h2>${renderNarrativeBody(String(n[key]))}</section>`)
+      .map(({ key, label }) => {
+        const text = flattenVal(n[key]);
+        const body = key === "reasoningProfile"
+          ? renderReasoningProfile(text)
+          : renderNarrativeBody(text);
+        return `<section><h2>${label}</h2>${body}</section>`;
+      })
       .join("");
+
+    const perDomainHtml = renderPerDomainFindings();
 
     const listHtml = listSections
       .filter(({ key }) => Array.isArray(n[key]) && (n[key] as string[]).length > 0)
@@ -1744,6 +1833,12 @@ export default function RamriInterviewPage() {
   .legend-item { display: inline-flex; align-items: center; gap: 4px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
   .footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-family: Arial, sans-serif; font-size: 8.5pt; color: #94a3b8; }
+  .domain-card { border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 12px; page-break-inside: avoid; overflow: hidden; }
+  .domain-card-header { background: #f1f5f9; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+  .domain-name { font-family: Arial, sans-serif; font-size: 10pt; font-weight: 700; color: #334155; }
+  .domain-rating { font-family: Arial, sans-serif; font-size: 8.5pt; color: #4f46e5; font-weight: 600; background: #ede9fe; padding: 2px 7px; border-radius: 10px; }
+  .domain-card-body { padding: 8px 12px; }
+  .domain-card-body p { margin-bottom: 5px; font-size: 10.5pt; }
   @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
 </style>
 </head>
@@ -1773,6 +1868,7 @@ export default function RamriInterviewPage() {
 ${chartSvg ? `<div class="chart-section"><h2>Domain Ratings Overview (0 – 4 Scale)</h2>${chartSvg}<div class="rating-legend"><span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>0 No evidence</span><span class="legend-item"><span class="legend-dot" style="background:#f97316"></span>1 Emerging</span><span class="legend-item"><span class="legend-dot" style="background:#eab308"></span>2 Developing</span><span class="legend-item"><span class="legend-dot" style="background:#14b8a6"></span>3 Demonstrated (limited support)</span><span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>4 Demonstrated independently</span></div></div>` : ""}
 
 ${narrativeHtml}
+${perDomainHtml}
 ${listHtml}
 
 <div class="footer">
