@@ -25,8 +25,8 @@ function stripMd(s: string): string {
 // Keys the AI must return as plain strings (not objects)
 const NARRATIVE_STRING_KEYS = new Set([
   "assessmentContext", "participationSummary", "reasoningProfile", "perDomainFindings",
-  "performanceVsReasoning", "conditionEffect", "domainCoverage", "transferableStrategies",
-  "strengthsNarrative",
+  "performanceVsReasoning", "productiveStruggle", "conditionEffect", "domainCoverage",
+  "transferableStrategies", "strengthsNarrative",
 ]);
 // Keys the AI must return as string arrays
 const NARRATIVE_ARRAY_KEYS = new Set([
@@ -1588,7 +1588,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
     const { caseId, sessionId } = req.params;
 
     // Fetch everything needed for a rich, evidence-grounded report
-    const [session, caseRow, selectionsRaw, ratings, responsesRaw, evidenceRows, unusedApprovedRows, docsRows] = await Promise.all([
+    const [session, caseRow, selectionsRaw, ratings, responsesRaw, evidenceRows, unusedApprovedRows, docsRows, behavioralObsRows] = await Promise.all([
       db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`),
       db.execute(sql`SELECT student_name, dob, school, grade, referral_reason, parent_name, assessment_meeting_date FROM cases WHERE id = ${caseId} LIMIT 1`),
       // All selections with full work sample content
@@ -1613,6 +1613,14 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
       db.execute(sql`SELECT domain, skill, answer_status, sample_role, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND sample_role IN ('evidence', 'observation') ORDER BY domain ASC, created_at ASC`),
       db.execute(sql`SELECT domain, skill, difficulty, answer_status, extracted_problem, student_answer, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId} AND approved = true AND sample_role = 'interview' AND id NOT IN (SELECT work_sample_id FROM ramri_sample_selections WHERE session_id = ${sessionId})`),
       db.execute(sql`SELECT id, file_url, file_name, file_type, source_type, math_topic, contributor_notes FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC`),
+      // Behavioral observations per selection (anxiety, confidence, engagement, reassurance, notes)
+      db.execute(sql`
+        SELECT obs.sample_selection_id, obs.anxiety_rating, obs.confidence_rating, obs.engagement_rating,
+               obs.reassurance_required, obs.communication_mode, obs.notes
+        FROM ramri_behavioral_obs obs
+        JOIN ramri_sample_selections sels ON sels.id = obs.sample_selection_id
+        WHERE sels.session_id = ${sessionId}
+      `),
     ]);
 
     // ── Extract text from uploaded documents ──────────────────────────────────
@@ -1647,11 +1655,16 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
     const c = caseRow.rows[0] as { student_name?: string; dob?: string; school?: string; grade?: string; referral_reason?: string; parent_name?: string; assessment_meeting_date?: string } | undefined;
     type SelRow = { sel_id: string; sequence_number: number; selection_latency_label: string | null; selection_behavior: string | null; familiarity_notes: string | null; recognition: boolean | null; remembered_completion: boolean | null; ws_id: string; domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; student_answer: string | null; visible_working: string | null; teacher_comments: string | null; teacher_correction: string | null; examiner_notes: string | null; sample_role: string; estimated_grade: string | null };
     type RespRow = { id: string; sample_selection_id: string; question_type: string | null; generated_question: string | null; approved_question: string | null; direct_quote: string | null; examiner_paraphrase: string | null; examiner_interpretation: string | null; skipped: boolean; not_observed: boolean; sel_seq: number; work_sample_id: string };
+    type BehObsRow = { sample_selection_id: string; anxiety_rating: number | null; confidence_rating: number | null; engagement_rating: number | null; reassurance_required: boolean | null; communication_mode: unknown; notes: string | null };
     const sels = selectionsRaw.rows as SelRow[];
     const ratingList = ratings.rows as Record<string, unknown>[];
     const respList = responsesRaw.rows as RespRow[];
     const evidenceList = evidenceRows.rows as Array<{ domain: string | null; skill: string | null; answer_status: string | null; sample_role: string; examiner_notes: string | null }>;
     const unusedApproved = unusedApprovedRows.rows as Array<{ domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; student_answer: string | null; examiner_notes: string | null }>;
+    const behObsBySelId = new Map<string, BehObsRow>();
+    for (const ob of behavioralObsRows.rows as BehObsRow[]) {
+      behObsBySelId.set(ob.sample_selection_id, ob);
+    }
 
     // ── Age calculation ────────────────────────────────────────────────────────
     let ageAtAssessment = "not recorded";
@@ -1702,6 +1715,21 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
         sel.familiarity_notes ? `Familiarity notes: "${sel.familiarity_notes}"` : null,
         `Selection latency: ${sel.selection_latency_label ?? "not recorded"} | Selection behaviour: ${sel.selection_behavior ?? "not recorded"}`,
         `Recognition: ${sel.recognition === true ? "Yes" : sel.recognition === false ? "No" : "not recorded"} | Remembered completion: ${sel.remembered_completion === true ? "Yes" : sel.remembered_completion === false ? "No" : "not recorded"}`,
+        (() => {
+          const ob = behObsBySelId.get(sel.sel_id);
+          if (!ob) return null;
+          const ratingDesc = (r: number | null, low: string, high: string) =>
+            r !== null ? `${r}/4 (${r <= 1 ? low : r >= 3 ? high : "moderate"})` : "not recorded";
+          const modeArr = Array.isArray(ob.communication_mode) ? ob.communication_mode as string[]
+            : (ob.communication_mode && typeof ob.communication_mode === "object" ? Object.values(ob.communication_mode as Record<string,string>) : []);
+          return [
+            `BEHAVIORAL OBSERVATIONS for this sample:`,
+            `  Anxiety: ${ratingDesc(ob.anxiety_rating, "low", "high")} | Confidence: ${ratingDesc(ob.confidence_rating, "low", "high")} | Engagement: ${ratingDesc(ob.engagement_rating, "low/disengaged", "high/engaged")}`,
+            `  Reassurance required: ${ob.reassurance_required === true ? "Yes" : ob.reassurance_required === false ? "No" : "not recorded"}`,
+            modeArr.length > 0 ? `  Communication mode: ${modeArr.join(", ")}` : null,
+            ob.notes ? `  Observer notes: "${ob.notes}"` : null,
+          ].filter(Boolean).join("\n");
+        })(),
         "",
         "Interview responses:",
         respBlock,
@@ -1804,6 +1832,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   "reasoningProfile": "Substantial paragraph (200+ words) synthesising all domain ratings with specific evidence. Name each rated domain with its score, what evidence supports it, and what that means for mathematical reasoning. Reference specific problems and responses.",
   "perDomainFindings": "Paragraph with a sub-section per assessed domain. For each domain: what skills were demonstrated, what the student said during the interview, what the written work showed, and what the examiner noted. Include specific quotes from the interview responses. Reference answer accuracy.",
   "performanceVsReasoning": "Paragraph comparing what ${c?.student_name?.split(" ")[0] ?? "the student"}'s written answers show versus what their verbal explanations revealed about depth of understanding. Note any gaps between procedural accuracy and conceptual reasoning.",
+  "productiveStruggle": "Clinical paragraph (150+ words) synthesising how ${c?.student_name?.split(" ")[0] ?? "the student"} responded when they encountered difficulty across the session. Draw on: (1) behavioral observations (anxiety, confidence, engagement, reassurance ratings and observer notes per sample), (2) interview responses where the student said 'I don't know', gave no response, or disengaged, (3) the contrast between samples where they persisted versus shut down, (4) any self-correction or help-seeking behaviour observed, and (5) what this pattern suggests for how they are likely to respond to challenge in a classroom context. Name specific samples and quote the student directly where available. Avoid generic statements — every claim must be anchored to a specific observation or response.",
   "conditionEffect": "Paragraph on whether the student-selected, familiar material appeared to reduce anxiety and support engagement compared to a typical standardised testing context",
   "domainCoverage": "Paragraph naming the specific domains represented (${assessedDomains.join(", ") || "none"}) and what was found in each, then noting which domains are absent and clarifying this does not indicate difficulty",
   "transferableStrategies": "Paragraph identifying 2-3 reasoning strengths observed and explaining, with concrete examples, how each is likely to support learning in the unassessed domains when the student encounters them",
