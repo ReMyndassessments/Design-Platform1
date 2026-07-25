@@ -3728,7 +3728,11 @@ ${listHtml}
                     { key: "transferableStrategies", label: "Transferable Reasoning Strategies", rows: 4 },
                     { key: "strengthsNarrative", label: "Strengths Narrative", rows: 5 },
                   ] as const).map(({ key, label, rows }) => {
-                    const value = (editedNarrative[key as string] as string) ?? "";
+                    const raw = editedNarrative[key as string];
+                    const value = typeof raw === "string" ? raw
+                      : raw && typeof raw === "object" && !Array.isArray(raw)
+                        ? Object.entries(raw as Record<string, unknown>).map(([k, v]) => `${k}:\n${String(v ?? "")}`).join("\n\n")
+                        : (raw ?? "") as string;
                     return (
                       <div key={key} className="space-y-1">
                         <Label className="text-xs font-semibold text-slate-700">{label}</Label>

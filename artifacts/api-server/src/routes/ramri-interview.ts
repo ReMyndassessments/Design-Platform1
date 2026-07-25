@@ -22,11 +22,56 @@ function stripMd(s: string): string {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .trim();
 }
+// Keys the AI must return as plain strings (not objects)
+const NARRATIVE_STRING_KEYS = new Set([
+  "assessmentContext", "participationSummary", "reasoningProfile", "perDomainFindings",
+  "performanceVsReasoning", "conditionEffect", "domainCoverage", "transferableStrategies",
+  "strengthsNarrative",
+]);
+// Keys the AI must return as string arrays
+const NARRATIVE_ARRAY_KEYS = new Set([
+  "strengths", "areasForDevelopment", "schoolStrategies", "homeStrategies",
+  "tutorStrategies", "recommendations", "limitations",
+]);
+
+function flattenToString(v: unknown): string {
+  if (typeof v === "string") return stripMd(v);
+  if (Array.isArray(v)) return v.map(flattenToString).join("\n\n");
+  if (v && typeof v === "object") {
+    return Object.entries(v as Record<string, unknown>)
+      .map(([k, val]) => `${k}:\n${flattenToString(val)}`)
+      .join("\n\n");
+  }
+  return String(v ?? "");
+}
+
 function cleanNarrative(v: unknown): unknown {
   if (typeof v === "string") return stripMd(v);
   if (Array.isArray(v)) return v.map(cleanNarrative);
   if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, val]) => [k, cleanNarrative(val)]));
   return v;
+}
+
+/** Enforce correct types on known narrative keys after AI generation */
+function enforceNarrativeShape(obj: unknown): unknown {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
+  const result: Record<string, unknown> = { ...(obj as Record<string, unknown>) };
+  for (const key of NARRATIVE_STRING_KEYS) {
+    if (key in result && typeof result[key] !== "string") {
+      result[key] = flattenToString(result[key]);
+    }
+  }
+  for (const key of NARRATIVE_ARRAY_KEYS) {
+    if (key in result && !Array.isArray(result[key])) {
+      const v = result[key];
+      if (typeof v === "string") {
+        result[key] = v.split(/\n+/).map(s => s.trim()).filter(Boolean);
+      } else if (v && typeof v === "object") {
+        result[key] = Object.values(v as Record<string, unknown>).map(flattenToString);
+      }
+    }
+  }
+  return result;
 }
 
 async function pdfToText(pdfBuffer: Buffer): Promise<string> {
@@ -1791,7 +1836,7 @@ Return ONLY valid JSON (no markdown, no explanation):
       },
     });
     const text = (geminiResponse.text ?? "").replace(/```json\n?|\n?```/g, "").trim();
-    const narrative = cleanNarrative(JSON.parse(text));
+    const narrative = enforceNarrativeShape(cleanNarrative(JSON.parse(text)));
 
     const existingReport = (await db.execute(sql`SELECT id FROM ramri_reports WHERE session_id = ${sessionId} LIMIT 1`)).rows[0] as { id?: string } | undefined;
     let reportId: string;
