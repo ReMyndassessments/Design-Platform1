@@ -13,6 +13,9 @@ import { tmpdir } from "os";
 import { join } from "path";
 import mammoth from "mammoth";
 import { ai } from "@workspace/integrations-gemini-ai";
+import multer from "multer";
+
+const offlineUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
 const execFileAsync = promisify(execFile);
 
@@ -1514,7 +1517,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate the report" });
   try {
     const { caseId, sessionId } = req.params;
-    const [session, selections, ratings, allResponses, evidenceRows, unusedApprovedRows] = await Promise.all([
+    const [session, selections, ratings, allResponses, evidenceRows, unusedApprovedRows, docsRows] = await Promise.all([
       db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`),
       db.execute(sql`SELECT sels.*, ws.extracted_problem, ws.domain, ws.skill, ws.answer_status FROM ramri_sample_selections sels JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id WHERE sels.session_id = ${sessionId} ORDER BY sels.sequence_number ASC`),
       db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${sessionId}`),
@@ -1522,7 +1525,39 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
       db.execute(sql`SELECT domain, skill, answer_status, sample_role, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND sample_role IN ('evidence', 'observation') ORDER BY domain ASC, created_at ASC`),
       // Approved items that were never presented in the interview (approved but not in any selection)
       db.execute(sql`SELECT domain, skill, difficulty, answer_status, extracted_problem, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId} AND approved = true AND sample_role = 'interview' AND id NOT IN (SELECT work_sample_id FROM ramri_sample_selections WHERE session_id = ${sessionId})`),
+      // Uploaded documents — we'll extract text from PDFs/Word docs to include in the report
+      db.execute(sql`SELECT id, file_url, file_name, file_type, source_type, math_topic, contributor_notes FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC`),
     ]);
+
+    // ── Extract text from uploaded documents ──────────────────────────────────
+    const docRows = docsRows.rows as Array<{ id: string; file_url: string | null; file_name: string | null; file_type: string | null; source_type: string | null; math_topic: string | null; contributor_notes: string | null }>;
+    const objectStorage = new ObjectStorageService();
+    const docTexts: string[] = [];
+    for (const doc of docRows) {
+      if (!doc.file_url) continue;
+      try {
+        const signedUrl = await objectStorage.getObjectEntitySignedDownloadURL(doc.file_url);
+        const res2 = await fetch(signedUrl);
+        if (!res2.ok) continue;
+        const arrayBuf = await res2.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        const ft = (doc.file_type ?? "").toLowerCase();
+        const fn = (doc.file_name ?? "").toLowerCase();
+        let text = "";
+        if (ft.includes("pdf") || fn.endsWith(".pdf")) {
+          text = await pdfToText(buf).catch(() => "");
+        } else if (ft.includes("word") || ft.includes("openxmlformats") || fn.endsWith(".docx") || fn.endsWith(".doc")) {
+          const r = await mammoth.extractRawText({ buffer: buf }).catch(() => ({ value: "" }));
+          text = r.value ?? "";
+        }
+        if (text.trim()) {
+          const label = doc.file_name ?? "document";
+          docTexts.push(`--- Uploaded document: ${label} (${doc.source_type ?? "unknown source"}) ---\n${text.slice(0, 8000)}`);
+        }
+      } catch {
+        // Skip documents that cannot be extracted
+      }
+    }
     const s = session.rows[0] as Record<string, unknown>;
     const sels = selections.rows as Record<string, unknown>[];
     const ratingList = ratings.rows as Record<string, unknown>[];
@@ -1580,6 +1615,7 @@ ${respList.filter(r => r.direct_quote).slice(0, 10).map(r => `Q: ${r.approved_qu
 General notes: ${s?.general_notes ?? "None"}
 ${unusedApproved.length > 0 ? `\nApproved samples not reached in interview (written work only — no verbal reasoning captured, but answer patterns are valid evidence of the student's mathematical thinking):\n${unusedApproved.map(u => `- ${u.domain ?? "?"} | ${u.skill ?? "?"} | ${u.difficulty ?? "?"} | ${u.answer_status ?? "?"}: ${(u.extracted_problem ?? "").slice(0, 100)}${u.examiner_notes ? ` [Note: ${u.examiner_notes}]` : ""}`).join("\n")}` : ""}
 ${evidenceDigest ? `\nBackground evidence (items classified as Evidence or Observation — NOT used in interview but preserved from submitted work for contextual reference):\n${evidenceDigest}` : ""}
+${docTexts.length > 0 ? `\n\n=== FULL UPLOADED EXAMINER WORKSHEETS / DOCUMENTS ===\nThe following documents were uploaded as part of this session. Read them carefully — they contain the complete examiner interview notes, student verbal responses, and clinical observations that form the primary evidence base for this report.\n\n${docTexts.join("\n\n")}` : ""}
 
 IMPORTANT rules for this report:
 - RAMRI is a structured qualitative and criterion-referenced reasoning interview, NOT a standardized assessment
@@ -1608,7 +1644,7 @@ Return JSON only (no markdown):
   "limitations": ["This is not a standardized assessment.", "The quality of conclusions depends on the authenticity and context of submitted work.", "Previously completed work may have involved unrecorded assistance.", "Transfer evidence is important when interpreting independent understanding.", "Domains not represented in submitted work cannot be assessed — absence from this report does not indicate difficulty in those areas."],
   "disclaimer": "RAMRI is a structured qualitative and criterion-referenced reasoning interview. Results must not be represented as standardized scores, age equivalents, grade equivalents, or diagnostic conclusions."
 }`;
-    const text = await callGroq(prompt, "You are a professional clinical report writer.", 2500);
+    const text = await callGroq(prompt, "You are a professional clinical report writer.", 4096);
     const clean = text.replace(/```json\n?|\n?```/g, "").trim();
     const narrative = JSON.parse(clean);
 
