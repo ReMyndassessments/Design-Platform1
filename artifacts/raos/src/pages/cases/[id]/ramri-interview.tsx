@@ -1679,9 +1679,30 @@ export default function RamriInterviewPage() {
       { key: "limitations", label: "Limitations & Caveats" },
     ];
 
+    /** Convert a narrative string into justified paragraphs with inline sub-headings */
+    const renderNarrativeBody = (text: string): string => {
+      const lines = text.split(/\n/);
+      const parts: string[] = [];
+      let buf: string[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // A line like "Domain Name:" or "Domain Name:\n" → sub-heading
+        if (/^[A-Z][^:]{2,60}:\s*$/.test(trimmed)) {
+          if (buf.length) { parts.push(`<p>${buf.join(" ").trim()}</p>`); buf = []; }
+          parts.push(`<h3>${trimmed.replace(/:$/, "")}</h3>`);
+        } else if (trimmed === "") {
+          if (buf.length) { parts.push(`<p>${buf.join(" ").trim()}</p>`); buf = []; }
+        } else {
+          buf.push(trimmed);
+        }
+      }
+      if (buf.length) parts.push(`<p>${buf.join(" ").trim()}</p>`);
+      return parts.join("");
+    };
+
     const narrativeHtml = narrativeSections
       .filter(({ key }) => n[key])
-      .map(({ key, label }) => `<section><h2>${label}</h2><p>${String(n[key]).replace(/\n/g, "</p><p>")}</p></section>`)
+      .map(({ key, label }) => `<section><h2>${label}</h2>${renderNarrativeBody(String(n[key]))}</section>`)
       .join("");
 
     const listHtml = listSections
@@ -1713,11 +1734,12 @@ export default function RamriInterviewPage() {
   .disclaimer { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; font-family: Arial, sans-serif; font-size: 9pt; color: #92400e; }
   .chart-section { margin-bottom: 18px; }
   .chart-section h2 { font-family: Arial, sans-serif; font-size: 11pt; font-weight: 700; color: #1e293b; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-  section { margin-bottom: 16px; page-break-inside: avoid; }
-  h2 { font-family: Arial, sans-serif; font-size: 11pt; font-weight: 700; color: #4f46e5; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
-  p { margin-bottom: 8px; }
+  section { margin-bottom: 20px; page-break-inside: avoid; }
+  h2 { font-family: Arial, sans-serif; font-size: 11pt; font-weight: 700; color: #4f46e5; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+  h3 { font-family: Arial, sans-serif; font-size: 10.5pt; font-weight: 700; color: #334155; margin: 12px 0 4px; }
+  p { margin-bottom: 8px; text-align: justify; hyphens: auto; }
   ul { margin-left: 20px; margin-top: 4px; }
-  li { margin-bottom: 4px; }
+  li { margin-bottom: 5px; text-align: justify; hyphens: auto; }
   .rating-legend { font-family: Arial, sans-serif; font-size: 8.5pt; color: #64748b; margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
   .legend-item { display: inline-flex; align-items: center; gap: 4px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
