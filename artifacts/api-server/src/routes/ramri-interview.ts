@@ -1922,6 +1922,89 @@ ${text.slice(0, 22000)}`;
   }
 );
 
+// ── Parse student scratch pad (image/PDF → structured strategy observations) ─────
+router.post(
+  "/cases/:caseId/ramri/sessions/:sessionId/parse-scratch-pad",
+  authMiddleware,
+  offlineUpload.single("file"),
+  async (req, res) => {
+    if (isInvigilator(req)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const file = (req as typeof req & { file?: Express.Multer.File }).file;
+      if (!file) return res.status(400).json({ error: "No file provided" });
+
+      const ft = file.mimetype.toLowerCase();
+      const fn = file.originalname.toLowerCase();
+      const isImage = ft.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|gif)$/.test(fn);
+      const isPdf = ft.includes("pdf") || fn.endsWith(".pdf");
+
+      if (!isImage && !isPdf) {
+        return res.status(400).json({ error: "Please upload an image (JPEG, PNG, WebP) or a scanned PDF of the scratch pad." });
+      }
+
+      let mimeType = "image/jpeg";
+      if (ft.startsWith("image/")) mimeType = ft;
+      else if (fn.endsWith(".png")) mimeType = "image/png";
+      else if (fn.endsWith(".webp")) mimeType = "image/webp";
+      else if (fn.endsWith(".heic") || fn.endsWith(".heif")) mimeType = "image/heic";
+      else if (isPdf) mimeType = "application/pdf";
+
+      const base64 = file.buffer.toString("base64");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: base64 } },
+            { text: `You are an educational psychologist analysing a student's mathematics scratch pad or working paper.
+Examine the image carefully and return ONLY valid JSON in this exact shape (no markdown, no explanation):
+{
+  "summary": "<1-2 sentences describing overall what is visible — how many problems, general approach>",
+  "problems": [
+    {
+      "label": "<e.g. 'Top-left', 'Problem 1', 'First row'>",
+      "workingVisible": "<describe all working/steps/marks visible for this problem>",
+      "strategy": "<primary strategy observed e.g. count-on, standard algorithm, drawing, tally, partitioning, column method, mental>",
+      "answerWritten": "<student's final written answer, or empty string if none>",
+      "correctness": "<correct|incorrect|partially_correct|unclear|unknown>",
+      "errorObserved": "<specific error if visible, else empty string>"
+    }
+  ],
+  "strategies": ["<list of distinct strategies seen across all problems>"],
+  "errorPatterns": ["<list of recurring error types, or empty array>"],
+  "otherObservations": "<any other clinically relevant observations: erasures, hesitation marks, corrections, layout, pencil pressure, etc., or empty string>"
+}
+If the image is unclear or blank, return: { "summary": "Image could not be analysed — please ensure it is clear and well-lit.", "problems": [], "strategies": [], "errorPatterns": [], "otherObservations": "" }` },
+          ],
+        }],
+        config: { maxOutputTokens: 4096 },
+      });
+
+      const raw = (response.text ?? "").replace(/```json\n?|\n?```/g, "").trim();
+      const parsed = JSON.parse(raw) as {
+        summary?: string;
+        problems?: unknown[];
+        strategies?: unknown[];
+        errorPatterns?: unknown[];
+        otherObservations?: string;
+      };
+      return res.json({
+        analysis: {
+          summary: parsed.summary ?? "",
+          problems: Array.isArray(parsed.problems) ? parsed.problems : [],
+          strategies: Array.isArray(parsed.strategies) ? parsed.strategies : [],
+          errorPatterns: Array.isArray(parsed.errorPatterns) ? parsed.errorPatterns : [],
+          otherObservations: parsed.otherObservations ?? "",
+        }
+      });
+    } catch (err) {
+      logger.error({ err }, "RAMRI scratch pad parse failed");
+      return res.status(500).json({ error: "Could not analyse the scratch pad. Please try again." });
+    }
+  }
+);
+
 // ── Confirm offline import — write parsed data into DB as selections + responses ─
 router.post("/cases/:caseId/ramri/sessions/:sessionId/confirm-offline-import", authMiddleware, async (req, res) => {
   if (isInvigilator(req)) return res.status(403).json({ error: "Forbidden" });

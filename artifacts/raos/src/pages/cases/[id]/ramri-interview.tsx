@@ -471,6 +471,14 @@ export default function RamriInterviewPage() {
   const [offlineImportDone, setOfflineImportDone] = useState(false);
   const offlineFileRef = useRef<HTMLInputElement>(null);
 
+  // Scratch pad upload state (Interview phase)
+  type ScratchProblem = { label: string; workingVisible: string; strategy: string; answerWritten: string; correctness: string; errorObserved: string };
+  type ScratchAnalysis = { summary: string; problems: ScratchProblem[]; strategies: string[]; errorPatterns: string[]; otherObservations: string };
+  const [parsingScratch, setParsingScratch] = useState(false);
+  const [scratchPadData, setScratchPadData] = useState<ScratchAnalysis | null>(null);
+  const [scratchExpanded, setScratchExpanded] = useState(true);
+  const scratchFileRef = useRef<HTMLInputElement>(null);
+
   // Sample phase state
   const [editingSampleId, setEditingSampleId] = useState<string | null>(null);
   const [newSampleForm, setNewSampleForm] = useState({ extractedProblem: "", studentAnswer: "", visibleWorking: "yes", teacherCorrection: "", teacherComments: "", domain: "", skill: "", difficulty: "developing", answerStatus: "correct", examinerNotes: "" });
@@ -2844,6 +2852,144 @@ export default function RamriInterviewPage() {
                   <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                     <Check size={13} className="shrink-0" />
                     Offline worksheet imported — responses appear in the interview sections below.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Student Scratch Pad Upload — only for the examiner */}
+            {userRole !== "assessment_invigilator" && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-slate-800 text-sm">Student Scratch Pad</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Upload a photo of the student's working paper — Gemini will identify strategies, errors, and working patterns for your reference.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    disabled={parsingScratch}
+                    onClick={() => scratchFileRef.current?.click()}
+                  >
+                    {parsingScratch ? <><Loader2 size={12} className="animate-spin" /> Analysing…</> : <><Upload size={12} /> {scratchPadData ? "Re-upload" : "Upload Photo"}</>}
+                  </Button>
+                  <input
+                    ref={scratchFileRef}
+                    type="file"
+                    accept="image/*,.pdf,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !sessionId || !caseId) return;
+                      setParsingScratch(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/parse-scratch-pad`, {
+                          method: "POST",
+                          headers: getAuth(),
+                          body: fd,
+                        });
+                        if (!r.ok) { const e = await r.json() as { error?: string }; throw new Error(e.error ?? "Analysis failed"); }
+                        const d = await r.json() as { analysis: ScratchAnalysis };
+                        setScratchPadData(d.analysis);
+                        setScratchExpanded(true);
+                      } catch (err) {
+                        toast({ title: "Could not analyse scratch pad", description: String(err), variant: "destructive" });
+                      } finally {
+                        setParsingScratch(false);
+                        if (scratchFileRef.current) scratchFileRef.current.value = "";
+                      }
+                    }}
+                  />
+                </div>
+
+                {scratchPadData && (
+                  <div className="border border-slate-100 rounded-lg overflow-hidden">
+                    {/* Header */}
+                    <button
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-slate-50 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => setScratchExpanded(v => !v)}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <FileText size={12} className="text-violet-400" />
+                        Scratch Pad Analysis
+                        {scratchPadData.problems.length > 0 && <span className="text-slate-400">· {scratchPadData.problems.length} problem{scratchPadData.problems.length !== 1 ? "s" : ""} detected</span>}
+                      </span>
+                      <span className="text-slate-400">{scratchExpanded ? "▲" : "▼"}</span>
+                    </button>
+
+                    {scratchExpanded && (
+                      <div className="p-3 space-y-3 text-xs">
+                        {/* Summary */}
+                        <p className="text-slate-600 leading-relaxed">{scratchPadData.summary}</p>
+
+                        {/* Strategies + Error Patterns */}
+                        {(scratchPadData.strategies.length > 0 || scratchPadData.errorPatterns.length > 0) && (
+                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            {scratchPadData.strategies.length > 0 && (
+                              <div>
+                                <p className="text-slate-400 uppercase tracking-wide text-[10px] font-semibold mb-1">Strategies observed</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {scratchPadData.strategies.map((s, i) => (
+                                    <span key={i} className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-medium">{s}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {scratchPadData.errorPatterns.length > 0 && (
+                              <div>
+                                <p className="text-slate-400 uppercase tracking-wide text-[10px] font-semibold mb-1">Error patterns</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {scratchPadData.errorPatterns.map((e, i) => (
+                                    <span key={i} className="px-2 py-0.5 bg-red-50 text-red-700 rounded-full font-medium">{e}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Per-problem breakdown */}
+                        {scratchPadData.problems.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-slate-400 uppercase tracking-wide text-[10px] font-semibold">Per-problem observations</p>
+                            {scratchPadData.problems.map((prob, i) => (
+                              <div key={i} className="bg-slate-50 rounded-lg border border-slate-100 px-3 py-2 space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-medium text-slate-700">{prob.label}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    {prob.strategy && <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[10px] font-medium">{prob.strategy}</span>}
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${prob.correctness === "correct" ? "bg-green-100 text-green-700" : prob.correctness === "incorrect" ? "bg-red-100 text-red-700" : prob.correctness === "partially_correct" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+                                      {prob.correctness?.replace("_", " ")}
+                                    </span>
+                                  </div>
+                                </div>
+                                {prob.workingVisible && <p className="text-slate-500 leading-relaxed">{prob.workingVisible}</p>}
+                                {prob.errorObserved && <p className="text-red-600">⚠ {prob.errorObserved}</p>}
+                                {prob.answerWritten && <p className="text-slate-400">Answer written: <span className="font-medium text-slate-600">{prob.answerWritten}</span></p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Other observations */}
+                        {scratchPadData.otherObservations && (
+                          <div>
+                            <p className="text-slate-400 uppercase tracking-wide text-[10px] font-semibold mb-1">Other observations</p>
+                            <p className="text-slate-500 leading-relaxed">{scratchPadData.otherObservations}</p>
+                          </div>
+                        )}
+
+                        <button
+                          className="text-slate-400 hover:text-slate-600 text-[10px] underline"
+                          onClick={() => setScratchPadData(null)}
+                        >
+                          Clear analysis
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
