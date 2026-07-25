@@ -1783,9 +1783,13 @@ export default function RamriInterviewPage() {
     };
 
     const narrativeHtml = narrativeSections
-      .filter(({ key }) => n[key])
       .map(({ key, label }) => {
-        const text = flattenVal(n[key]);
+        const raw = n[key];
+        const text = flattenVal(raw);
+        if (!text.trim()) {
+          // Always include the section heading; mark empty ones so the examiner can fill them in
+          return `<section><h2>${label}</h2><p style="color:#888;font-style:italic;">No narrative recorded for this section.</p></section>`;
+        }
         const body = key === "reasoningProfile"
           ? renderReasoningProfile(text)
           : renderNarrativeBody(text);
