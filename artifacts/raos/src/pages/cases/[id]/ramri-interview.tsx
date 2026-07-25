@@ -453,6 +453,8 @@ export default function RamriInterviewPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMeta, setUploadMeta] = useState({ sourceType: "teacher", mathTopic: "", gradeLevel: "", independenceReported: "unknown", teacherMarked: "unknown", teacherComments: "", contributorNotes: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scoringUploading, setScoringUploading] = useState(false);
+  const scoringFileInputRef = useRef<HTMLInputElement>(null);
 
   // Sample phase state
   const [editingSampleId, setEditingSampleId] = useState<string | null>(null);
@@ -2682,6 +2684,69 @@ export default function RamriInterviewPage() {
               </div>
             )}
 
+            {/* Supplementary documents — attach worksheets without leaving the interview */}
+            {userRole !== "assessment_invigilator" && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-slate-800 text-sm">Supplementary Documents</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Attach completed interview worksheets or other materials — the AI will read these when generating the report.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    disabled={scoringUploading}
+                    onClick={() => scoringFileInputRef.current?.click()}
+                  >
+                    {scoringUploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Attach file</>}
+                  </Button>
+                  <input
+                    ref={scoringFileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !sessionId || !caseId) return;
+                      setScoringUploading(true);
+                      try {
+                        const fileUrl = await uploadFileToStorage(file);
+                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
+                          method: "POST",
+                          headers: jsonHeaders(),
+                          body: JSON.stringify({ fileName: file.name, fileUrl, fileType: file.type, sourceType: "examiner" }),
+                        });
+                        if (r.ok) {
+                          const d = await r.json() as { document: WorkDoc };
+                          setDocs(prev => [...prev, d.document]);
+                          toast({ title: "Document attached", description: `${file.name} will be included in the report.` });
+                        }
+                      } catch {
+                        toast({ title: "Upload failed", description: "Could not attach the file. Please try again.", variant: "destructive" });
+                      } finally {
+                        setScoringUploading(false);
+                        if (scoringFileInputRef.current) scoringFileInputRef.current.value = "";
+                      }
+                    }}
+                  />
+                </div>
+                {docs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {docs.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                        <FileText size={13} className="text-violet-400 shrink-0" />
+                        <span className="flex-1 truncate text-slate-600">{doc.file_name}</span>
+                        <span className="text-slate-400 shrink-0">{doc.source_type}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No documents attached yet.</p>
+                )}
+              </div>
+            )}
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800 space-y-1">
               <p className="font-semibold">Opening Script</p>
               <p className="italic">"Today, we are going to look at some maths you have already done. You will choose which pieces you would like to show me. I am interested in how you were thinking when you did them. You can explain with words, point to the page, draw something, or show me in another way. This is not about doing the same test again."</p>
@@ -3073,6 +3138,74 @@ export default function RamriInterviewPage() {
                 </details>
               );
             })()}
+
+            {/* Supplementary documents — attach worksheets without going back to Upload */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-slate-800 text-sm">Supplementary Documents</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Upload examiner worksheets or other documents here — they will be read by the AI when generating the report.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 shrink-0"
+                  disabled={scoringUploading}
+                  onClick={() => scoringFileInputRef.current?.click()}
+                >
+                  {scoringUploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Attach file</>}
+                </Button>
+                <input
+                  ref={scoringFileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !sessionId || !caseId) return;
+                    setScoringUploading(true);
+                    try {
+                      const fileUrl = await uploadFileToStorage(file);
+                      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
+                        method: "POST",
+                        headers: jsonHeaders(),
+                        body: JSON.stringify({
+                          fileName: file.name,
+                          fileUrl,
+                          fileType: file.type,
+                          sourceType: "examiner",
+                          extractionStatus: "pending",
+                        }),
+                      });
+                      if (r.ok) {
+                        const d = await r.json() as { document: WorkDoc };
+                        setDocs(prev => [...prev, d.document]);
+                        toast({ title: "Document attached", description: `${file.name} will be included in the next report generation.` });
+                      }
+                    } catch {
+                      toast({ title: "Upload failed", description: "Could not attach the file. Please try again.", variant: "destructive" });
+                    } finally {
+                      setScoringUploading(false);
+                      if (scoringFileInputRef.current) scoringFileInputRef.current.value = "";
+                    }
+                  }}
+                />
+              </div>
+              {docs.length > 0 && (
+                <div className="space-y-1.5">
+                  {docs.map(doc => (
+                    <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                      <FileText size={13} className="text-violet-400 shrink-0" />
+                      <span className="flex-1 truncate text-slate-600">{doc.file_name}</span>
+                      <span className="text-slate-400 shrink-0">{doc.source_type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {docs.length === 0 && (
+                <p className="text-xs text-slate-400 italic">No documents attached yet.</p>
+              )}
+            </div>
 
             {/* Report generation */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
