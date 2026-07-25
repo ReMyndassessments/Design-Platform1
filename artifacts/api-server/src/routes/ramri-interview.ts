@@ -1837,6 +1837,184 @@ router.get("/cases/:caseId/ramri/sessions/:sessionId/recordings", authMiddleware
 });
 
 // ── Translate worksheet texts for student sheet printing ──────────────────────
+// ── Parse offline completed worksheet (PDF/Word → structured JSON) ────────────
+router.post(
+  "/cases/:caseId/ramri/sessions/:sessionId/parse-offline-worksheet",
+  authMiddleware,
+  offlineUpload.single("file"),
+  async (req, res) => {
+    if (isInvigilator(req)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const file = (req as typeof req & { file?: Express.Multer.File }).file;
+      if (!file) return res.status(400).json({ error: "No file provided" });
+
+      const ft = file.mimetype.toLowerCase();
+      const fn = file.originalname.toLowerCase();
+      let text = "";
+      if (ft.includes("pdf") || fn.endsWith(".pdf")) {
+        text = await pdfToText(file.buffer);
+      } else if (ft.includes("word") || ft.includes("openxmlformats") || fn.endsWith(".docx") || fn.endsWith(".doc")) {
+        const r = await mammoth.extractRawText({ buffer: file.buffer });
+        text = r.value ?? "";
+      } else {
+        return res.status(400).json({ error: "Only PDF and Word documents are supported" });
+      }
+      if (!text.trim()) return res.status(400).json({ error: "No text could be extracted from the document" });
+
+      const systemPrompt = "You are a specialist in educational assessment data extraction. Parse RAMRI examiner interview worksheets precisely and return valid JSON only.";
+      const prompt = `Parse this completed RAMRI Examiner Interview Worksheet and extract all structured data.
+
+For each "SET N · OPTION X" interview sheet, extract one object:
+{
+  "setNumber": <1|2|3>,
+  "option": "<A|B|C>",
+  "domain": "<math domain e.g. Geometry, Addition Reasoning, Number Sense, Subtraction Reasoning, Time>",
+  "skill": "<specific skill from the CLINICAL FOCUS line>",
+  "extractedProblem": "<the math problem shown to the student>",
+  "studentAnswer": "<student's written answer if visible, else empty string>",
+  "answerStatus": "<correct|incorrect|partially_correct|unclear>",
+  "responses": [
+    { "questionType": "<type>", "directQuote": "<full examiner notes for this section>" }
+  ],
+  "behavioralObs": { "anxietyRating": null, "confidenceRating": null, "engagementRating": null }
+}
+
+Map section headings to questionType values:
+  "UNIVERSAL — OPENING"          → "universal"
+  "CONCEPTUAL — UNDERSTANDING"   → "conceptual"
+  "STRATEGY — METHOD"            → "strategy"
+  "VERIFICATION — CHECKING"      → "verification"
+  "ERROR AWARENESS — REFLECTION" → "error_awareness"
+  "METACOGNITION — THINKING"     → "metacognition"
+
+Include ONLY sections with actual written content. Skip blank sections and sections that say only "No response provided."
+For behavioralObs: use a number 0-4 only if explicitly circled/marked; otherwise keep null.
+
+For each "Transfer Probe Sheet" (SET N · TRANSFER), extract:
+{ "setNumber": <number>, "transferProblem": "<problem text>", "examinerObservations": "<text from EXAMINER OBSERVATIONS & NOTES>" }
+Only include transfer probes that have examinerObservations content.
+
+Return ONLY valid JSON (no markdown, no explanation):
+{ "sheets": [...], "transferProbes": [...] }
+
+WORKSHEET TEXT:
+${text.slice(0, 22000)}`;
+
+      const raw = await callGroq(prompt, systemPrompt, 4096);
+      const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      return res.json({ parsed });
+    } catch (err) {
+      logger.error({ err }, "RAMRI offline worksheet parse failed");
+      return res.status(500).json({ error: "Failed to parse worksheet. Please check the file and try again." });
+    }
+  }
+);
+
+// ── Confirm offline import — write parsed data into DB as selections + responses ─
+router.post("/cases/:caseId/ramri/sessions/:sessionId/confirm-offline-import", authMiddleware, async (req, res) => {
+  if (isInvigilator(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const { caseId, sessionId } = req.params;
+    type OfflineSheet = {
+      setNumber: number; option: string; domain: string; skill: string;
+      extractedProblem: string; studentAnswer: string; answerStatus: string;
+      responses: Array<{ questionType: string; directQuote: string }>;
+      behavioralObs: { anxietyRating: number | null; confidenceRating: number | null; engagementRating: number | null };
+    };
+    type OfflineTransfer = { setNumber: number; transferProblem: string; examinerObservations: string };
+    const { sheets, transferProbes } = req.body as { sheets: OfflineSheet[]; transferProbes: OfflineTransfer[] };
+
+    const seqRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_sample_selections WHERE session_id = ${sessionId}`);
+    let seqBase = Number((seqRes.rows[0] as { cnt: string })?.cnt ?? 0);
+
+    const selBySet: Record<number, string> = {};
+    const createdSelections: unknown[] = [];
+
+    for (const sheet of (sheets ?? [])) {
+      if (!sheet.responses?.length) continue;
+
+      // 1. Create work sample
+      const sampleId = nanoid();
+      const sortRes = await db.execute(sql`SELECT COUNT(*) as cnt FROM ramri_work_samples WHERE session_id = ${sessionId}`);
+      const sortOrder = Number((sortRes.rows[0] as { cnt: string })?.cnt ?? 0);
+      await db.execute(sql`
+        INSERT INTO ramri_work_samples
+          (id, document_id, case_id, session_id, image_url, extracted_problem, student_answer,
+           domain, skill, answer_status, approved, sort_order, sample_role, suggested_for_interview, created_at, updated_at)
+        VALUES
+          (${sampleId}, null, ${caseId}, ${sessionId}, null,
+           ${sheet.extractedProblem || null}, ${sheet.studentAnswer || null},
+           ${sheet.domain || null}, ${sheet.skill || null}, ${sheet.answerStatus || "unclear"},
+           true, ${sortOrder}, 'interview', true, NOW(), NOW())
+      `);
+
+      // 2. Create sample selection (no choice set — offline import)
+      const selId = nanoid();
+      seqBase++;
+      await db.execute(sql`
+        INSERT INTO ramri_sample_selections
+          (id, session_id, choice_set_id, work_sample_id, offered_sample_ids, sequence_number, created_at)
+        VALUES (${selId}, ${sessionId}, null, ${sampleId}, null, ${seqBase}, NOW())
+      `);
+      selBySet[sheet.setNumber] = selId; // last selection in this set wins for transfer linkage
+
+      // 3. Create interview responses
+      for (let i = 0; i < sheet.responses.length; i++) {
+        const resp = sheet.responses[i];
+        if (!resp.directQuote?.trim()) continue;
+        await db.execute(sql`
+          INSERT INTO ramri_interview_responses
+            (id, sample_selection_id, question_type, generated_question, approved_question,
+             response_mode, direct_quote, examiner_paraphrase, skipped, not_observed, sequence_number, created_at)
+          VALUES
+            (${nanoid()}, ${selId}, ${resp.questionType}, null, null,
+             'verbal', ${resp.directQuote}, null, false, false, ${i + 1}, NOW())
+        `);
+      }
+
+      // 4. Behavioral observations (only if any rating is set)
+      const obs = sheet.behavioralObs ?? {};
+      if (obs.anxietyRating != null || obs.confidenceRating != null || obs.engagementRating != null) {
+        await db.execute(sql`
+          INSERT INTO ramri_behavioral_obs
+            (id, sample_selection_id, anxiety_rating, confidence_rating, engagement_rating, reassurance_required, created_at)
+          VALUES (${nanoid()}, ${selId}, ${obs.anxietyRating ?? null}, ${obs.confidenceRating ?? null}, ${obs.engagementRating ?? null}, false, NOW())
+        `);
+      }
+
+      const selRow = (await db.execute(sql`
+        SELECT sels.*, ws.extracted_problem, ws.domain, ws.skill, ws.answer_status
+        FROM ramri_sample_selections sels
+        JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id
+        WHERE sels.id = ${selId} LIMIT 1
+      `)).rows[0];
+      createdSelections.push(selRow);
+    }
+
+    // 5. Transfer prompts — link to last selection in each set
+    for (const tp of (transferProbes ?? [])) {
+      if (!tp.examinerObservations?.trim()) continue;
+      const targetSelId = selBySet[tp.setNumber];
+      if (!targetSelId) continue;
+      await db.execute(sql`
+        INSERT INTO ramri_transfer_prompts
+          (id, sample_selection_id, transfer_level, generated_prompt, approved_prompt,
+           student_response, support_level, transfer_rating, notes)
+        VALUES
+          (${nanoid()}, ${targetSelId}, 'expected',
+           ${tp.transferProblem || null}, ${tp.transferProblem || null},
+           ${tp.examinerObservations}, null, null, ${tp.examinerObservations})
+      `);
+    }
+
+    return res.json({ ok: true, created: createdSelections.length, selections: createdSelections });
+  } catch (err) {
+    logger.error({ err }, "RAMRI offline import confirm failed");
+    return res.status(500).json({ error: "Failed to import worksheet responses" });
+  }
+});
+
 router.post("/cases/:caseId/ramri/translate-worksheet", authMiddleware, async (req, res) => {
   try {
     const { lang, texts } = req.body as { lang: "zh" | "ko"; texts: string[] };

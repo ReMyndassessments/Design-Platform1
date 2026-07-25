@@ -456,6 +456,21 @@ export default function RamriInterviewPage() {
   const [scoringUploading, setScoringUploading] = useState(false);
   const scoringFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Offline worksheet import state (Interview phase)
+  const [parsingOffline, setParsingOffline] = useState(false);
+  const [parsedOfflineData, setParsedOfflineData] = useState<{
+    sheets: Array<{
+      setNumber: number; option: string; domain: string; skill: string;
+      extractedProblem: string; studentAnswer: string; answerStatus: string;
+      responses: Array<{ questionType: string; directQuote: string }>;
+      behavioralObs: { anxietyRating: number | null; confidenceRating: number | null; engagementRating: number | null };
+    }>;
+    transferProbes: Array<{ setNumber: number; transferProblem: string; examinerObservations: string }>;
+  } | null>(null);
+  const [confirmingOffline, setConfirmingOffline] = useState(false);
+  const [offlineImportDone, setOfflineImportDone] = useState(false);
+  const offlineFileRef = useRef<HTMLInputElement>(null);
+
   // Sample phase state
   const [editingSampleId, setEditingSampleId] = useState<string | null>(null);
   const [newSampleForm, setNewSampleForm] = useState({ extractedProblem: "", studentAnswer: "", visibleWorking: "yes", teacherCorrection: "", teacherComments: "", domain: "", skill: "", difficulty: "developing", answerStatus: "correct", examinerNotes: "" });
@@ -2684,65 +2699,119 @@ export default function RamriInterviewPage() {
               </div>
             )}
 
-            {/* Supplementary documents — attach worksheets without leaving the interview */}
+            {/* Import Offline Worksheet — only for the examiner, not the invigilator */}
             {userRole !== "assessment_invigilator" && (
               <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-800 text-sm">Supplementary Documents</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Attach completed interview worksheets or other materials — the AI will read these when generating the report.</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-slate-800 text-sm">Import Offline Worksheet</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Upload a completed hard-copy examiner interview sheet — the AI will read it and populate the interview form automatically.</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 shrink-0"
-                    disabled={scoringUploading}
-                    onClick={() => scoringFileInputRef.current?.click()}
-                  >
-                    {scoringUploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Attach file</>}
-                  </Button>
+                  {!offlineImportDone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 shrink-0"
+                      disabled={parsingOffline || confirmingOffline}
+                      onClick={() => offlineFileRef.current?.click()}
+                    >
+                      {parsingOffline ? <><Loader2 size={12} className="animate-spin" /> Reading…</> : <><Upload size={12} /> Upload PDF</>}
+                    </Button>
+                  )}
                   <input
-                    ref={scoringFileInputRef}
+                    ref={offlineFileRef}
                     type="file"
                     accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file || !sessionId || !caseId) return;
-                      setScoringUploading(true);
+                      setParsingOffline(true);
+                      setParsedOfflineData(null);
                       try {
-                        const fileUrl = await uploadFileToStorage(file);
-                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/parse-offline-worksheet`, {
                           method: "POST",
-                          headers: jsonHeaders(),
-                          body: JSON.stringify({ fileName: file.name, fileUrl, fileType: file.type, sourceType: "examiner" }),
+                          headers: getAuth(),
+                          body: fd,
                         });
-                        if (r.ok) {
-                          const d = await r.json() as { document: WorkDoc };
-                          setDocs(prev => [...prev, d.document]);
-                          toast({ title: "Document attached", description: `${file.name} will be included in the report.` });
-                        }
-                      } catch {
-                        toast({ title: "Upload failed", description: "Could not attach the file. Please try again.", variant: "destructive" });
+                        if (!r.ok) { const e = await r.json() as { error?: string }; throw new Error(e.error ?? "Parse failed"); }
+                        const d = await r.json() as { parsed: typeof parsedOfflineData };
+                        setParsedOfflineData(d.parsed);
+                      } catch (err) {
+                        toast({ title: "Could not read worksheet", description: String(err), variant: "destructive" });
                       } finally {
-                        setScoringUploading(false);
-                        if (scoringFileInputRef.current) scoringFileInputRef.current.value = "";
+                        setParsingOffline(false);
+                        if (offlineFileRef.current) offlineFileRef.current.value = "";
                       }
                     }}
                   />
                 </div>
-                {docs.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {docs.map(doc => (
-                      <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
-                        <FileText size={13} className="text-violet-400 shrink-0" />
-                        <span className="flex-1 truncate text-slate-600">{doc.file_name}</span>
-                        <span className="text-slate-400 shrink-0">{doc.source_type}</span>
-                      </div>
-                    ))}
+
+                {/* Parsed preview */}
+                {parsedOfflineData && !offlineImportDone && (
+                  <div className="space-y-3 border-t border-slate-100 pt-3">
+                    <p className="text-xs font-medium text-slate-700">
+                      Found {parsedOfflineData.sheets.length} interview sheet{parsedOfflineData.sheets.length !== 1 ? "s" : ""}
+                      {parsedOfflineData.transferProbes.length > 0 && ` · ${parsedOfflineData.transferProbes.length} transfer probe${parsedOfflineData.transferProbes.length !== 1 ? "s" : ""}`}
+                    </p>
+                    <div className="space-y-1.5">
+                      {parsedOfflineData.sheets.map((sheet, i) => (
+                        <div key={i} className="flex items-start gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                          <FileText size={13} className="text-violet-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-700">Set {sheet.setNumber} · Option {sheet.option} — {sheet.domain}</p>
+                            <p className="text-slate-400 truncate">{sheet.extractedProblem || sheet.skill}</p>
+                            <p className="text-slate-400">{sheet.responses.length} response section{sheet.responses.length !== 1 ? "s" : ""} captured</p>
+                          </div>
+                          <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${sheet.answerStatus === "correct" ? "bg-green-100 text-green-700" : sheet.answerStatus === "incorrect" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                            {sheet.answerStatus?.replace("_", " ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5"
+                        disabled={confirmingOffline}
+                        onClick={async () => {
+                          if (!parsedOfflineData || !sessionId || !caseId) return;
+                          setConfirmingOffline(true);
+                          try {
+                            const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/confirm-offline-import`, {
+                              method: "POST",
+                              headers: jsonHeaders(),
+                              body: JSON.stringify(parsedOfflineData),
+                            });
+                            if (!r.ok) { const e = await r.json() as { error?: string }; throw new Error(e.error ?? "Import failed"); }
+                            const d = await r.json() as { created: number; selections: Selection[] };
+                            setSelections(prev => [...prev, ...d.selections]);
+                            setOfflineImportDone(true);
+                            setParsedOfflineData(null);
+                            toast({ title: `${d.created} sample${d.created !== 1 ? "s" : ""} imported`, description: "The interview form has been populated with the responses." });
+                          } catch (err) {
+                            toast({ title: "Import failed", description: String(err), variant: "destructive" });
+                          } finally {
+                            setConfirmingOffline(false);
+                          }
+                        }}
+                      >
+                        {confirmingOffline ? <><Loader2 size={12} className="animate-spin" /> Importing…</> : <><Check size={12} /> Import all responses</>}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-slate-500 text-xs" onClick={() => setParsedOfflineData(null)}>
+                        Discard
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">No documents attached yet.</p>
+                )}
+
+                {offlineImportDone && (
+                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <Check size={13} className="shrink-0" />
+                    Offline worksheet imported — responses appear in the interview sections below.
+                  </div>
                 )}
               </div>
             )}
@@ -3139,73 +3208,70 @@ export default function RamriInterviewPage() {
               );
             })()}
 
-            {/* Supplementary documents — attach worksheets without going back to Upload */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-slate-800 text-sm">Supplementary Documents</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Upload examiner worksheets or other documents here — they will be read by the AI when generating the report.</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 shrink-0"
-                  disabled={scoringUploading}
-                  onClick={() => scoringFileInputRef.current?.click()}
-                >
-                  {scoringUploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Attach file</>}
-                </Button>
-                <input
-                  ref={scoringFileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file || !sessionId || !caseId) return;
-                    setScoringUploading(true);
-                    try {
-                      const fileUrl = await uploadFileToStorage(file);
-                      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
-                        method: "POST",
-                        headers: jsonHeaders(),
-                        body: JSON.stringify({
-                          fileName: file.name,
-                          fileUrl,
-                          fileType: file.type,
-                          sourceType: "examiner",
-                          extractionStatus: "pending",
-                        }),
-                      });
-                      if (r.ok) {
-                        const d = await r.json() as { document: WorkDoc };
-                        setDocs(prev => [...prev, d.document]);
-                        toast({ title: "Document attached", description: `${file.name} will be included in the next report generation.` });
-                      }
-                    } catch {
-                      toast({ title: "Upload failed", description: "Could not attach the file. Please try again.", variant: "destructive" });
-                    } finally {
-                      setScoringUploading(false);
-                      if (scoringFileInputRef.current) scoringFileInputRef.current.value = "";
-                    }
-                  }}
-                />
-              </div>
-              {docs.length > 0 && (
-                <div className="space-y-1.5">
-                  {docs.map(doc => (
-                    <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
-                      <FileText size={13} className="text-violet-400 shrink-0" />
-                      <span className="flex-1 truncate text-slate-600">{doc.file_name}</span>
-                      <span className="text-slate-400 shrink-0">{doc.source_type}</span>
+            {/* Examiner documents — only show documents uploaded by the examiner (not teacher/parent photos) */}
+            {(() => {
+              const examinerDocs = docs.filter(d => d.source_type === "examiner");
+              return (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-slate-800 text-sm">Examiner Documents</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">PDFs or documents you attached — included in AI report generation.</p>
                     </div>
-                  ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 shrink-0"
+                      disabled={scoringUploading}
+                      onClick={() => scoringFileInputRef.current?.click()}
+                    >
+                      {scoringUploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Upload size={12} /> Attach file</>}
+                    </Button>
+                    <input
+                      ref={scoringFileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !sessionId || !caseId) return;
+                        setScoringUploading(true);
+                        try {
+                          const fileUrl = await uploadFileToStorage(file);
+                          const r = await fetch(`${BASE_URL}/api/cases/${caseId}/ramri/sessions/${sessionId}/documents`, {
+                            method: "POST",
+                            headers: jsonHeaders(),
+                            body: JSON.stringify({ fileName: file.name, fileUrl, fileType: file.type, sourceType: "examiner", extractionStatus: "pending" }),
+                          });
+                          if (r.ok) {
+                            const d = await r.json() as { document: WorkDoc };
+                            setDocs(prev => [...prev, d.document]);
+                            toast({ title: "Document attached", description: `${file.name} will be included in the next report generation.` });
+                          }
+                        } catch {
+                          toast({ title: "Upload failed", description: "Could not attach the file. Please try again.", variant: "destructive" });
+                        } finally {
+                          setScoringUploading(false);
+                          if (scoringFileInputRef.current) scoringFileInputRef.current.value = "";
+                        }
+                      }}
+                    />
+                  </div>
+                  {examinerDocs.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {examinerDocs.map(doc => (
+                        <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                          <FileText size={13} className="text-violet-400 shrink-0" />
+                          <span className="flex-1 truncate text-slate-600">{doc.file_name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No examiner documents attached yet.</p>
+                  )}
                 </div>
-              )}
-              {docs.length === 0 && (
-                <p className="text-xs text-slate-400 italic">No documents attached yet.</p>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Report generation */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
@@ -3618,10 +3684,19 @@ function InterviewQuestionCard({ question, selId, caseId, sessionId, onSave }: {
     metacognition: "bg-slate-50 text-slate-600 border-slate-100",
   };
 
+  const typeLabels: Record<string, string> = {
+    universal: "Universal — Opening",
+    conceptual: "Conceptual — Understanding",
+    strategy: "Strategy — Method",
+    verification: "Verification — Checking",
+    error_awareness: "Error Awareness — Reflection",
+    metacognition: "Metacognition — Thinking",
+  };
+
   return (
     <div className={`rounded-lg border p-3 text-xs ${typeColors[question.type] ?? "bg-slate-50 border-slate-100"}`}>
       <div className="flex items-start gap-2 mb-2">
-        <Badge variant="outline" className="text-xs shrink-0 capitalize">{question.type.replace("_", " ")}</Badge>
+        <Badge variant="outline" className="text-xs shrink-0">{typeLabels[question.type] ?? question.type.replace("_", " ")}</Badge>
         <p className="font-medium">{question.question}</p>
       </div>
       <p className="text-xs opacity-70 mb-2 italic">{question.purpose}</p>
@@ -3738,15 +3813,18 @@ function BehavioralObsPanel({ selId, existing, onSave, onValuesChange }: {
     });
   };
 
-  const ratingLabel = (v: number | null) => v === null ? "—" : ["None", "Mild", "Noticeable", "Significant", "Severe"][v] ?? String(v);
+  const ratingLabel = (v: number | null) => v === null ? "—" : ["Not present", "Mild", "Moderate", "Marked", "Severe"][v] ?? String(v);
 
   return (
     <div className="border border-slate-100 rounded-lg p-3 space-y-3">
-      <h4 className="text-xs font-semibold text-slate-700">Behavioral Observations</h4>
+      <div>
+        <h4 className="text-xs font-semibold text-slate-700">Behavioural Observations</h4>
+        <p className="text-[10px] text-slate-400 mt-0.5">0 = Not present · 1 = Mild · 2 = Moderate · 3 = Marked · 4 = Severe</p>
+      </div>
       {[
-        { label: "Anxiety (0=none → 4=severe)", val: anxiety, set: (v: number) => { setAnxiety(v); setSaved(false); notify(v, confidence, engagement, notes); } },
-        { label: "Confidence (0=unable → 4=confident)", val: confidence, set: (v: number) => { setConfidence(v); setSaved(false); notify(anxiety, v, engagement, notes); } },
-        { label: "Engagement (0=none → 4=active)", val: engagement, set: (v: number) => { setEngagement(v); setSaved(false); notify(anxiety, confidence, v, notes); } },
+        { label: "Anxiety", val: anxiety, set: (v: number) => { setAnxiety(v); setSaved(false); notify(v, confidence, engagement, notes); } },
+        { label: "Confidence", val: confidence, set: (v: number) => { setConfidence(v); setSaved(false); notify(anxiety, v, engagement, notes); } },
+        { label: "Engagement", val: engagement, set: (v: number) => { setEngagement(v); setSaved(false); notify(anxiety, confidence, v, notes); } },
       ].map(({ label, val, set }) => (
         <div key={label}>
           <p className="text-xs text-slate-500 mb-1">{label} — <strong>{ratingLabel(val)}</strong></p>
@@ -3791,7 +3869,7 @@ function TransferPromptPanel({ selId, sample, existing, generating, onGenerate, 
 
   return (
     <div className="border border-slate-100 rounded-lg p-3 space-y-3">
-      <h4 className="text-xs font-semibold text-slate-700">Transfer Prompt (Optional)</h4>
+      <h4 className="text-xs font-semibold text-slate-700">Transfer — Extension (Optional)</h4>
       <div className="flex gap-2 items-center">
         <select className="border border-slate-200 rounded-md px-2 py-1 text-xs flex-1" value={level} onChange={e => setLevel(e.target.value)}>
           {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
