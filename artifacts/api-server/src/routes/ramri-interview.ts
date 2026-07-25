@@ -13,8 +13,13 @@ import multer from "multer";
 const offlineUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
 async function pdfToText(pdfBuffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default as (buf: Buffer) => Promise<{ text: string }>;
-  const result = await pdfParse(pdfBuffer);
+  // pdf-parse is a CJS module; when loaded via ESM import() its exports land on .default
+  const m = await import("pdf-parse") as unknown as { default?: { PDFParse: unknown }; PDFParse?: unknown };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const PDFParse = ((m.default ?? m) as any).PDFParse as new (opts: { data: Buffer }) => { getText: () => Promise<{ text: string }> };
+  if (typeof PDFParse !== "function") throw new Error("PDFParse unavailable");
+  const parser = new PDFParse({ data: pdfBuffer });
+  const result = await parser.getText();
   return result.text ?? "";
 }
 
