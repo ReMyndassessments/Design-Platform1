@@ -1522,15 +1522,32 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
   if (isInvigilator(req)) return res.status(403).json({ error: "Invigilators cannot generate the report" });
   try {
     const { caseId, sessionId } = req.params;
-    const [session, selections, ratings, allResponses, evidenceRows, unusedApprovedRows, docsRows] = await Promise.all([
+
+    // Fetch everything needed for a rich, evidence-grounded report
+    const [session, caseRow, selectionsRaw, ratings, responsesRaw, evidenceRows, unusedApprovedRows, docsRows] = await Promise.all([
       db.execute(sql`SELECT * FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`),
-      db.execute(sql`SELECT sels.*, ws.extracted_problem, ws.domain, ws.skill, ws.answer_status FROM ramri_sample_selections sels JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id WHERE sels.session_id = ${sessionId} ORDER BY sels.sequence_number ASC`),
+      db.execute(sql`SELECT student_name, dob, school, grade, referral_reason, parent_name, assessment_meeting_date FROM cases WHERE id = ${caseId} LIMIT 1`),
+      // All selections with full work sample content
+      db.execute(sql`
+        SELECT sels.id as sel_id, sels.sequence_number, sels.selection_latency_label, sels.selection_behavior, sels.familiarity_notes, sels.recognition, sels.remembered_completion,
+               ws.id as ws_id, ws.domain, ws.skill, ws.difficulty, ws.answer_status, ws.extracted_problem, ws.student_answer, ws.visible_working,
+               ws.teacher_comments, ws.teacher_correction, ws.examiner_notes, ws.sample_role, ws.estimated_grade
+        FROM ramri_sample_selections sels
+        JOIN ramri_work_samples ws ON ws.id = sels.work_sample_id
+        WHERE sels.session_id = ${sessionId}
+        ORDER BY sels.sequence_number ASC
+      `),
       db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${sessionId}`),
-      db.execute(sql`SELECT ir.* FROM ramri_interview_responses ir JOIN ramri_sample_selections sels ON sels.id = ir.sample_selection_id WHERE sels.session_id = ${sessionId} ORDER BY ir.sequence_number ASC`),
+      // ALL interview responses with their selection link
+      db.execute(sql`
+        SELECT ir.*, sels.sequence_number as sel_seq, sels.work_sample_id
+        FROM ramri_interview_responses ir
+        JOIN ramri_sample_selections sels ON sels.id = ir.sample_selection_id
+        WHERE sels.session_id = ${sessionId}
+        ORDER BY sels.sequence_number ASC, ir.sequence_number ASC
+      `),
       db.execute(sql`SELECT domain, skill, answer_status, sample_role, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND sample_role IN ('evidence', 'observation') ORDER BY domain ASC, created_at ASC`),
-      // Approved items that were never presented in the interview (approved but not in any selection)
-      db.execute(sql`SELECT domain, skill, difficulty, answer_status, extracted_problem, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId} AND approved = true AND sample_role = 'interview' AND id NOT IN (SELECT work_sample_id FROM ramri_sample_selections WHERE session_id = ${sessionId})`),
-      // Uploaded documents — we'll extract text from PDFs/Word docs to include in the report
+      db.execute(sql`SELECT domain, skill, difficulty, answer_status, extracted_problem, student_answer, examiner_notes FROM ramri_work_samples WHERE session_id = ${sessionId} AND case_id = ${caseId} AND approved = true AND sample_role = 'interview' AND id NOT IN (SELECT work_sample_id FROM ramri_sample_selections WHERE session_id = ${sessionId})`),
       db.execute(sql`SELECT id, file_url, file_name, file_type, source_type, math_topic, contributor_notes FROM ramri_work_documents WHERE session_id = ${sessionId} ORDER BY created_at ASC`),
     ]);
 
@@ -1556,21 +1573,78 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
           text = r.value ?? "";
         }
         if (text.trim()) {
-          const label = doc.file_name ?? "document";
-          docTexts.push(`--- Uploaded document: ${label} (${doc.source_type ?? "unknown source"}) ---\n${text.slice(0, 8000)}`);
+          docTexts.push(`--- Document: ${doc.file_name ?? "document"} (${doc.source_type ?? "unknown source"}) ---\n${text.slice(0, 10000)}`);
         }
-      } catch {
-        // Skip documents that cannot be extracted
-      }
+      } catch { /* skip unreadable docs */ }
     }
-    const s = session.rows[0] as Record<string, unknown>;
-    const sels = selections.rows as Record<string, unknown>[];
-    const ratingList = ratings.rows as Record<string, unknown>[];
-    const respList = allResponses.rows as Record<string, unknown>[];
-    const evidenceList = evidenceRows.rows as Array<{ domain: string | null; skill: string | null; answer_status: string | null; sample_role: string; examiner_notes: string | null }>;
-    const unusedApproved = unusedApprovedRows.rows as Array<{ domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; examiner_notes: string | null }>;
 
-    // Build a domain-grouped digest of evidence & observation items
+    // ── Typed row data ─────────────────────────────────────────────────────────
+    const s = session.rows[0] as Record<string, unknown>;
+    const c = caseRow.rows[0] as { student_name?: string; dob?: string; school?: string; grade?: string; referral_reason?: string; parent_name?: string; assessment_meeting_date?: string } | undefined;
+    type SelRow = { sel_id: string; sequence_number: number; selection_latency_label: string | null; selection_behavior: string | null; familiarity_notes: string | null; recognition: boolean | null; remembered_completion: boolean | null; ws_id: string; domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; student_answer: string | null; visible_working: string | null; teacher_comments: string | null; teacher_correction: string | null; examiner_notes: string | null; sample_role: string; estimated_grade: string | null };
+    type RespRow = { id: string; sample_selection_id: string; question_type: string | null; generated_question: string | null; approved_question: string | null; direct_quote: string | null; examiner_paraphrase: string | null; examiner_interpretation: string | null; skipped: boolean; not_observed: boolean; sel_seq: number; work_sample_id: string };
+    const sels = selectionsRaw.rows as SelRow[];
+    const ratingList = ratings.rows as Record<string, unknown>[];
+    const respList = responsesRaw.rows as RespRow[];
+    const evidenceList = evidenceRows.rows as Array<{ domain: string | null; skill: string | null; answer_status: string | null; sample_role: string; examiner_notes: string | null }>;
+    const unusedApproved = unusedApprovedRows.rows as Array<{ domain: string | null; skill: string | null; difficulty: string | null; answer_status: string | null; extracted_problem: string | null; student_answer: string | null; examiner_notes: string | null }>;
+
+    // ── Age calculation ────────────────────────────────────────────────────────
+    let ageAtAssessment = "not recorded";
+    if (c?.dob) {
+      try {
+        const dob = new Date(c.dob);
+        const assessDate = c?.assessment_meeting_date ? new Date(c.assessment_meeting_date) : new Date();
+        let years = assessDate.getFullYear() - dob.getFullYear();
+        const m = assessDate.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && assessDate.getDate() < dob.getDate())) years--;
+        const monthsRemainder = ((assessDate.getMonth() - dob.getMonth()) + 12) % 12;
+        ageAtAssessment = `${years} years ${monthsRemainder} months`;
+      } catch { /* leave as default */ }
+    }
+
+    // ── Build per-sample blocks with all Q&A ──────────────────────────────────
+    const respsBySelId = new Map<string, RespRow[]>();
+    for (const r of respList) {
+      const selId = r.sample_selection_id;
+      if (!respsBySelId.has(selId)) respsBySelId.set(selId, []);
+      respsBySelId.get(selId)!.push(r);
+    }
+
+    const sampleBlocks = sels.map((sel, i) => {
+      const statusLabel = sel.answer_status?.replace("_", " ") ?? "not recorded";
+      const selResps = respsBySelId.get(sel.sel_id) ?? [];
+      const respBlock = selResps.length === 0
+        ? "  (No interview responses recorded for this sample)"
+        : selResps.map(r => {
+            if (r.skipped) return `  [${r.question_type ?? "?"}] — SKIPPED`;
+            if (r.not_observed) return `  [${r.question_type ?? "?"}] — NOT OBSERVED`;
+            const q = r.approved_question ?? r.generated_question ?? "";
+            const lines = [`  [${r.question_type ?? "?"}] Q: "${q}"`];
+            if (r.direct_quote) lines.push(`    Student said: "${r.direct_quote}"`);
+            if (r.examiner_paraphrase) lines.push(`    Examiner paraphrase: "${r.examiner_paraphrase}"`);
+            if (r.examiner_interpretation) lines.push(`    Examiner interpretation: "${r.examiner_interpretation}"`);
+            return lines.join("\n");
+          }).join("\n\n");
+      return [
+        `--- Sample ${i + 1} of ${sels.length} ---`,
+        `Domain: ${sel.domain ?? "?"} | Skill: ${sel.skill ?? "?"} | Difficulty: ${sel.difficulty ?? "?"} | Answer status: ${statusLabel.toUpperCase()} | Est. grade: ${sel.estimated_grade ?? "?"}`,
+        `Problem presented: "${sel.extracted_problem ?? "(not recorded)"}"`,
+        sel.student_answer ? `Student's written answer: "${sel.student_answer}"` : null,
+        sel.visible_working ? `Visible working/strategy: ${sel.visible_working}` : null,
+        sel.teacher_comments ? `Teacher comments: "${sel.teacher_comments}"` : null,
+        sel.teacher_correction ? `Teacher correction: "${sel.teacher_correction}"` : null,
+        sel.examiner_notes ? `Examiner notes: "${sel.examiner_notes}"` : null,
+        sel.familiarity_notes ? `Familiarity notes: "${sel.familiarity_notes}"` : null,
+        `Selection latency: ${sel.selection_latency_label ?? "not recorded"} | Selection behaviour: ${sel.selection_behavior ?? "not recorded"}`,
+        `Recognition: ${sel.recognition === true ? "Yes" : sel.recognition === false ? "No" : "not recorded"} | Remembered completion: ${sel.remembered_completion === true ? "Yes" : sel.remembered_completion === false ? "No" : "not recorded"}`,
+        "",
+        "Interview responses:",
+        respBlock,
+      ].filter(l => l !== null).join("\n");
+    }).join("\n\n");
+
+    // ── Background evidence digest ─────────────────────────────────────────────
     const evidenceByDomain: Record<string, typeof evidenceList> = {};
     for (const e of evidenceList) {
       const d = e.domain ?? "Unclassified";
@@ -1587,71 +1661,118 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, a
         else counts.unclear++;
         if (i.examiner_notes) notes.push(i.examiner_notes);
       }
-      const countStr = [`${counts.correct} correct`, `${counts.incorrect} incorrect`, counts.partial ? `${counts.partial} partial` : null, counts.unclear ? `${counts.unclear} unclear` : null].filter(Boolean).join(", ");
-      const noteSample = notes.slice(0, 2).join("; ");
-      const typeLabel = items.some(i => i.sample_role === "observation") ? "(observations included)" : "";
-      return `${domain} ${typeLabel}[${items.length} items: ${countStr}]${noteSample ? ` — Notes: ${noteSample}` : ""}`;
+      const countStr = [`${counts.correct} correct`, `${counts.incorrect} incorrect`, counts.partial ? `${counts.partial} partial` : null].filter(Boolean).join(", ");
+      return `  ${domain} [${items.length} items: ${countStr}]${notes.length ? " — Notes: " + notes.slice(0, 2).join("; ") : ""}`;
     }).join("\n");
-    
 
-    const ALL_MATH_DOMAINS = [
-      "Number Sense", "Addition Reasoning", "Subtraction Reasoning", "Multiplicative Reasoning",
-      "Division Reasoning", "Fractions", "Decimals", "Percentages", "Ratio and Proportional Reasoning",
-      "Algebraic Reasoning", "Pattern and Relational Reasoning", "Mathematical Problem-Solving",
-      "Measurement", "Geometry", "Spatial Reasoning", "Data Interpretation", "Statistics",
-      "Probability", "Money", "Time",
-    ];
-    const assessedDomains = [...new Set(sels.map(s => s.domain).filter(Boolean))] as string[];
+    const ALL_MATH_DOMAINS = ["Number Sense", "Addition Reasoning", "Subtraction Reasoning", "Multiplicative Reasoning", "Division Reasoning", "Fractions", "Decimals", "Percentages", "Ratio and Proportional Reasoning", "Algebraic Reasoning", "Pattern and Relational Reasoning", "Mathematical Problem-Solving", "Measurement", "Geometry", "Spatial Reasoning", "Data Interpretation", "Statistics", "Probability", "Money", "Time"];
+    const assessedDomains = [...new Set(sels.map(sel => sel.domain).filter(Boolean))] as string[];
     const unassessedDomains = ALL_MATH_DOMAINS.filter(d => !assessedDomains.includes(d));
 
-    const prompt = `You are a clinical educational psychologist writing a professional RAMRI (ReMynd Authentic Mathematical Reasoning Interview) report. Generate structured report sections based on this session data.
+    const prompt = `You are a senior clinical educational psychologist writing a comprehensive, evidence-grounded RAMRI report. Every sentence must be anchored to the specific evidence below. Do not generalise — reference the actual problems, student answers, and interview responses provided.
 
-Session status: ${s?.status}
-Samples discussed: ${sels.length}
-Domains assessed in this session: ${assessedDomains.join(", ") || "None"}
-Domains NOT represented in submitted work: ${unassessedDomains.join(", ") || "None"}
+════════════════════════════════════════════════
+STUDENT PROFILE
+════════════════════════════════════════════════
+Name: ${c?.student_name ?? "Not recorded"}
+Date of birth: ${c?.dob ?? "Not recorded"}
+Age at assessment: ${ageAtAssessment}
+Grade / Year level: ${c?.grade ?? "Not recorded"}
+School: ${c?.school ?? "Not recorded"}
+Parent/Guardian: ${c?.parent_name ?? "Not recorded"}
+Assessment date: ${c?.assessment_meeting_date ?? "Not recorded"}
+Referral reason: ${c?.referral_reason ?? "Not recorded"}
 
-Domain ratings (reasoning process dimensions):
-${ratingList.map(r => `${r.domain}: ${r.rating !== null ? r.rating + "/4" : "not rated"} (${r.evidence_strength ?? "unrated"})`).join("\n")}
+════════════════════════════════════════════════
+DOMAIN RATINGS (scored by examiner, 0–4 scale)
+════════════════════════════════════════════════
+${ratingList.length > 0 ? ratingList.map(r => `${r.domain}: ${r.rating !== null ? r.rating + "/4" : "NOT RATED"} (evidence strength: ${r.evidence_strength ?? "unspecified"})${r.supporting_evidence ? "\n  Evidence: " + r.supporting_evidence : ""}`).join("\n") : "No domain ratings have been recorded yet."}
 
-Sample responses summary:
-${respList.filter(r => r.direct_quote).slice(0, 10).map(r => `Q: ${r.approved_question ?? r.generated_question}\nA: "${r.direct_quote}"`).join("\n\n")}
+════════════════════════════════════════════════
+WORK SAMPLES SELECTED AND DISCUSSED IN INTERVIEW (${sels.length} samples)
+════════════════════════════════════════════════
+${sampleBlocks || "(No samples were selected for interview)"}
 
-General notes: ${s?.general_notes ?? "None"}
-${unusedApproved.length > 0 ? `\nApproved samples not reached in interview (written work only — no verbal reasoning captured, but answer patterns are valid evidence of the student's mathematical thinking):\n${unusedApproved.map(u => `- ${u.domain ?? "?"} | ${u.skill ?? "?"} | ${u.difficulty ?? "?"} | ${u.answer_status ?? "?"}: ${(u.extracted_problem ?? "").slice(0, 100)}${u.examiner_notes ? ` [Note: ${u.examiner_notes}]` : ""}`).join("\n")}` : ""}
-${evidenceDigest ? `\nBackground evidence (items classified as Evidence or Observation — NOT used in interview but preserved from submitted work for contextual reference):\n${evidenceDigest}` : ""}
-${docTexts.length > 0 ? `\n\n=== FULL UPLOADED EXAMINER WORKSHEETS / DOCUMENTS ===\nThe following documents were uploaded as part of this session. Read them carefully — they contain the complete examiner interview notes, student verbal responses, and clinical observations that form the primary evidence base for this report.\n\n${docTexts.join("\n\n")}` : ""}
+════════════════════════════════════════════════
+APPROVED SAMPLES NOT REACHED IN INTERVIEW (${unusedApproved.length} samples)
+Written work evidence only — no verbal reasoning captured, but answer patterns are valid evidence.
+════════════════════════════════════════════════
+${unusedApproved.length > 0 ? unusedApproved.map((u, i) => [
+  `Sample ${i + 1}: ${u.domain ?? "?"} | ${u.skill ?? "?"} | Difficulty: ${u.difficulty ?? "?"} | Status: ${u.answer_status ?? "?"}`,
+  `Problem: "${(u.extracted_problem ?? "").slice(0, 200)}"`,
+  u.student_answer ? `Student answer: "${u.student_answer}"` : null,
+  u.examiner_notes ? `Examiner notes: "${u.examiner_notes}"` : null,
+].filter(Boolean).join("\n")).join("\n\n") : "(None)"}
 
-IMPORTANT rules for this report:
-- RAMRI is a structured qualitative and criterion-referenced reasoning interview, NOT a standardized assessment
-- Do NOT assign standardized scores, percentiles, or age/grade equivalents
-- Do NOT make diagnoses
-- All AI statements must be labelled as requiring human review
-- Distinguish between original work evidence, interview evidence, and transfer evidence
-- Use professional but accessible language
+════════════════════════════════════════════════
+BACKGROUND EVIDENCE (not used in interview — contextual reference)
+════════════════════════════════════════════════
+${evidenceDigest || "(None)"}
 
-For "domainCoverage": Write 2-3 sentences naming which content domains were represented in submitted work and which were not. Note that absence of a domain does not imply difficulty — the student may simply not have encountered that content yet. Be explicit about this distinction.
+════════════════════════════════════════════════
+GENERAL SESSION NOTES
+════════════════════════════════════════════════
+${s?.general_notes ?? "None recorded"}
 
-For "transferableStrategies": Based on the reasoning process dimensions rated above (e.g. Metacognition, Strategy Flexibility, Transfer, Conceptual Understanding), write 2-3 sentences explaining how the reasoning strengths observed across assessed domains are expected to transfer to unassessed domains when the student encounters them. Give one or two concrete examples linking an observed strength to an unassessed domain (e.g. strong multiplicative reasoning as a foundation for algebraic thinking). Frame these as hypotheses requiring ongoing observation, not predictions.
+════════════════════════════════════════════════
+ASSESSED DOMAINS: ${assessedDomains.join(", ") || "None"}
+DOMAINS NOT REPRESENTED IN SUBMITTED WORK: ${unassessedDomains.join(", ") || "None"}
+════════════════════════════════════════════════
+${docTexts.length > 0 ? `\n════════════════════════════════════════════════\nUPLOADED EXAMINER DOCUMENTS\n════════════════════════════════════════════════\n${docTexts.join("\n\n")}` : ""}
 
-Return JSON only (no markdown):
+════════════════════════════════════════════════
+REPORT WRITING RULES
+════════════════════════════════════════════════
+- RAMRI is a criterion-referenced qualitative interview — NOT a standardised assessment
+- Do NOT assign percentiles, age equivalents, grade equivalents, or diagnostic labels
+- Do NOT make psychiatric or psychological diagnoses
+- Every claim must be traceable to specific evidence above — quote directly where possible
+- Use student's first name throughout (${c?.student_name?.split(" ")[0] ?? "the student"})
+- Use professional but parent-readable language (avoid jargon without explanation)
+- schoolStrategies and homeStrategies must be SPECIFIC, PRACTICAL, and ACTIONABLE — not generic advice
+- tutorStrategies must target the specific skills and domains identified in the evidence
+- Each strategy item should name the specific skill or domain it targets
+
+Return ONLY valid JSON (no markdown, no explanation):
 {
-  "assessmentContext": "1-2 sentences on basis and method",
-  "participationSummary": "paragraph on engagement, confidence, anxiety observations",
-  "reasoningProfile": "paragraph synthesizing the domain ratings and evidence",
-  "performanceVsReasoning": "paragraph on relationship between written work and demonstrated reasoning",
-  "conditionEffect": "paragraph on whether familiar/student-selected material appeared to help",
-  "domainCoverage": "paragraph on which domains were and were not represented, and what that means",
-  "transferableStrategies": "paragraph on how observed reasoning strengths are expected to apply to unassessed domains",
-  "strengths": ["strength1", "strength2", "strength3"],
-  "areasForDevelopment": ["area1", "area2"],
-  "recommendations": ["rec1", "rec2", "rec3", "rec4"],
-  "limitations": ["This is not a standardized assessment.", "The quality of conclusions depends on the authenticity and context of submitted work.", "Previously completed work may have involved unrecorded assistance.", "Transfer evidence is important when interpreting independent understanding.", "Domains not represented in submitted work cannot be assessed — absence from this report does not indicate difficulty in those areas."],
-  "disclaimer": "RAMRI is a structured qualitative and criterion-referenced reasoning interview. Results must not be represented as standardized scores, age equivalents, grade equivalents, or diagnostic conclusions."
+  "assessmentContext": "2-3 sentences: what RAMRI is, how this session was conducted, how many samples reviewed",
+  "participationSummary": "Detailed paragraph on ${c?.student_name?.split(" ")[0] ?? "the student"}'s engagement, affect, confidence, anxiety, selection behaviour (latency, hesitation), and any notable observations during the session",
+  "reasoningProfile": "Substantial paragraph (200+ words) synthesising all domain ratings with specific evidence. Name each rated domain with its score, what evidence supports it, and what that means for mathematical reasoning. Reference specific problems and responses.",
+  "perDomainFindings": "Paragraph with a sub-section per assessed domain. For each domain: what skills were demonstrated, what the student said during the interview, what the written work showed, and what the examiner noted. Include specific quotes from the interview responses. Reference answer accuracy.",
+  "performanceVsReasoning": "Paragraph comparing what ${c?.student_name?.split(" ")[0] ?? "the student"}'s written answers show versus what their verbal explanations revealed about depth of understanding. Note any gaps between procedural accuracy and conceptual reasoning.",
+  "conditionEffect": "Paragraph on whether the student-selected, familiar material appeared to reduce anxiety and support engagement compared to a typical standardised testing context",
+  "domainCoverage": "Paragraph naming the specific domains represented (${assessedDomains.join(", ") || "none"}) and what was found in each, then noting which domains are absent and clarifying this does not indicate difficulty",
+  "transferableStrategies": "Paragraph identifying 2-3 reasoning strengths observed and explaining, with concrete examples, how each is likely to support learning in the unassessed domains when the student encounters them",
+  "strengthsNarrative": "A narrative paragraph (150+ words) describing ${c?.student_name?.split(" ")[0] ?? "the student"}'s mathematical strengths with specific examples from the work samples and interview",
+  "strengths": ["Specific strength drawn directly from evidence — name the domain/skill and the evidence", "..."],
+  "areasForDevelopment": ["Specific area with domain/skill and evidence basis", "..."],
+  "schoolStrategies": [
+    "Strategy name: Specific, actionable classroom strategy targeting a named skill/domain observed in this assessment — include HOW to implement it",
+    "..."
+  ],
+  "homeStrategies": [
+    "Strategy name: Specific home activity parents can do targeting a named skill — written for a non-specialist parent, with concrete examples",
+    "..."
+  ],
+  "tutorStrategies": [
+    "Strategy name: Targeted tutor/learning support strategy for a specific skill gap identified in this assessment — include suggested approach and expected progression",
+    "..."
+  ],
+  "recommendations": ["Broader recommendation 1", "Broader recommendation 2", "..."],
+  "limitations": ["This is not a standardised assessment.", "The quality of conclusions depends on the authenticity and context of submitted work.", "Previously completed work may have involved unrecorded assistance.", "Transfer evidence is important when interpreting independent understanding.", "Domains not represented in submitted work cannot be assessed — absence from this report does not indicate difficulty in those areas.", "This report requires human review and approval by a qualified professional before release."],
+  "disclaimer": "RAMRI is a structured qualitative and criterion-referenced reasoning interview. Results must not be represented as standardised scores, age equivalents, grade equivalents, or diagnostic conclusions."
 }`;
-    const text = await callGroq(prompt, "You are a professional clinical report writer.", 4096);
-    const clean = text.replace(/```json\n?|\n?```/g, "").trim();
-    const narrative = JSON.parse(clean);
+
+    const geminiResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        maxOutputTokens: 16384,
+        systemInstruction: "You are a senior clinical educational psychologist with expertise in mathematical reasoning assessment. Write comprehensive, evidence-grounded professional reports. Every statement must reference specific evidence from the provided data. Never use generic filler language.",
+      },
+    });
+    const text = (geminiResponse.text ?? "").replace(/```json\n?|\n?```/g, "").trim();
+    const narrative = JSON.parse(text);
 
     const existingReport = (await db.execute(sql`SELECT id FROM ramri_reports WHERE session_id = ${sessionId} LIMIT 1`)).rows[0] as { id?: string } | undefined;
     let reportId: string;

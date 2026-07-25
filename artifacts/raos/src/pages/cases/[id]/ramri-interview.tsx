@@ -3519,24 +3519,25 @@ export default function RamriInterviewPage() {
                     <span>AI-generated report — human review and approval required before release.</span>
                   </div>
 
-                  {/* Editable narrative sections */}
-                  {(["assessmentContext", "participationSummary", "reasoningProfile", "performanceVsReasoning", "conditionEffect", "domainCoverage", "transferableStrategies"] as const).map(key => {
-                    const labels: Record<string, string> = {
-                      assessmentContext: "Assessment Context",
-                      participationSummary: "Participation & Emotional Presentation",
-                      reasoningProfile: "Mathematical Reasoning Profile",
-                      performanceVsReasoning: "Performance vs. Reasoning",
-                      conditionEffect: "Effect of Assessment Conditions",
-                      domainCoverage: "Domain Coverage",
-                      transferableStrategies: "Transferable Reasoning Strategies",
-                    };
-                    const value = (editedNarrative[key] as string) ?? "";
+                  {/* ── Narrative sections ─────────────────────────────────── */}
+                  {([
+                    { key: "assessmentContext", label: "Assessment Context", rows: 3 },
+                    { key: "participationSummary", label: "Participation & Emotional Presentation", rows: 4 },
+                    { key: "reasoningProfile", label: "Mathematical Reasoning Profile", rows: 6 },
+                    { key: "perDomainFindings", label: "Per-Domain Findings", rows: 8 },
+                    { key: "performanceVsReasoning", label: "Performance vs. Reasoning", rows: 4 },
+                    { key: "conditionEffect", label: "Effect of Assessment Conditions", rows: 3 },
+                    { key: "domainCoverage", label: "Domain Coverage", rows: 4 },
+                    { key: "transferableStrategies", label: "Transferable Reasoning Strategies", rows: 4 },
+                    { key: "strengthsNarrative", label: "Strengths Narrative", rows: 5 },
+                  ] as const).map(({ key, label, rows }) => {
+                    const value = (editedNarrative[key as string] as string) ?? "";
                     return (
                       <div key={key} className="space-y-1">
-                        <Label className="text-xs font-semibold text-slate-700">{labels[key]}</Label>
+                        <Label className="text-xs font-semibold text-slate-700">{label}</Label>
                         <Textarea
                           className="text-xs"
-                          rows={3}
+                          rows={rows}
                           value={value}
                           onChange={e => setEditedNarrative(prev => ({ ...prev, [key]: e.target.value }))}
                         />
@@ -3544,28 +3545,38 @@ export default function RamriInterviewPage() {
                     );
                   })}
 
-                  {/* Lists */}
-                  {(["strengths", "areasForDevelopment", "recommendations", "limitations"] as const).map(key => {
-                    const labels: Record<string, string> = { strengths: "Strengths", areasForDevelopment: "Areas for Development", recommendations: "Recommendations", limitations: "Limitations" };
-                    const items = (editedNarrative[key] as string[]) ?? [];
+                  {/* ── List sections ───────────────────────────────────────── */}
+                  {([
+                    { key: "strengths", label: "Strengths" },
+                    { key: "areasForDevelopment", label: "Areas for Development" },
+                    { key: "schoolStrategies", label: "Strategies for School / Classroom Teachers", color: "violet" },
+                    { key: "homeStrategies", label: "Strategies for Parents / Home Support", color: "emerald" },
+                    { key: "tutorStrategies", label: "Strategies for Tutors / Learning Support", color: "blue" },
+                    { key: "recommendations", label: "Recommendations" },
+                    { key: "limitations", label: "Limitations" },
+                  ] as const).map(({ key, label, color }) => {
+                    const items = (editedNarrative[key as string] as string[]) ?? [];
+                    const accentMap: Record<string, string> = { violet: "bg-violet-50 border-violet-100", emerald: "bg-emerald-50 border-emerald-100", blue: "bg-blue-50 border-blue-100" };
+                    const accent = color ? accentMap[color] ?? "" : "";
                     return (
-                      <div key={key} className="space-y-1">
-                        <Label className="text-xs font-semibold text-slate-700">{labels[key]}</Label>
+                      <div key={key} className={`space-y-2 ${accent ? "rounded-lg border p-3 " + accent : ""}`}>
+                        <Label className="text-xs font-semibold text-slate-700">{label}</Label>
                         {items.map((item, i) => (
-                          <div key={i} className="flex gap-2">
-                            <Input
-                              className="h-7 text-xs flex-1"
+                          <div key={i} className="flex gap-2 items-start">
+                            <Textarea
+                              className="text-xs flex-1 min-h-[2.5rem]"
+                              rows={2}
                               value={item}
                               onChange={e => setEditedNarrative(prev => {
-                                const newItems = [...(prev[key] as string[] ?? [])];
+                                const newItems = [...((prev[key as string] as string[]) ?? [])];
                                 newItems[i] = e.target.value;
                                 return { ...prev, [key]: newItems };
                               })}
                             />
-                            <button onClick={() => setEditedNarrative(prev => ({ ...prev, [key]: (prev[key] as string[]).filter((_, j) => j !== i) }))} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                            <button onClick={() => setEditedNarrative(prev => ({ ...prev, [key]: ((prev[key as string] as string[]) ?? []).filter((_, j) => j !== i) }))} className="text-slate-400 hover:text-red-500 mt-1 shrink-0"><X size={12} /></button>
                           </div>
                         ))}
-                        <Button size="sm" variant="outline" className="text-xs h-6 gap-1" onClick={() => setEditedNarrative(prev => ({ ...prev, [key]: [...(prev[key] as string[] ?? []), ""] }))}>
+                        <Button size="sm" variant="outline" className="text-xs h-6 gap-1" onClick={() => setEditedNarrative(prev => ({ ...prev, [key]: [...((prev[key as string] as string[]) ?? []), ""] }))}>
                           <Plus size={10} /> Add
                         </Button>
                       </div>
