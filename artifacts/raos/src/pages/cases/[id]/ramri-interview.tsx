@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { useParams } from "wouter";
 import { AlertTriangle, Upload, FileText, CheckSquare, LayoutGrid, Users, MessageSquare, BarChart3, FileCheck, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, Wand2, Brain, Eye, EyeOff, RefreshCw, Download, BookOpen, Star, ThumbsUp, ThumbsDown, Minus, Loader2, Bell, Sparkles, Printer, RotateCcw, Mic, MicOff, Square, Pencil } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -439,6 +440,7 @@ export default function RamriInterviewPage() {
   const [invigilatorId, setInvigilatorId] = useState<string | null>(null);
   const [invigilatorName, setInvigilatorName] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
+  const [caseInfo, setCaseInfo] = useState<{ school: string | null; grade: string | null; dob: string | null; assessmentDate: string | null; referralReason: string | null; parentName: string | null } | null>(null);
   const [qrIncludeName, setQrIncludeName] = useState(true);
   const [copiedMsg, setCopiedMsg] = useState<"en" | "zh" | "ko" | null>(null);
   const qrDownloadRef = useRef<HTMLCanvasElement>(null);
@@ -550,6 +552,7 @@ export default function RamriInterviewPage() {
         setInvigilatorId(data.invigilatorId ?? null);
         setInvigilatorName(data.invigilatorName ?? null);
         setStudentName(data.studentName ?? null);
+        if ((data as Record<string, unknown>).caseInfo) setCaseInfo((data as { caseInfo: typeof caseInfo }).caseInfo);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -1619,6 +1622,148 @@ export default function RamriInterviewPage() {
       const d = await r.json() as { ratings: DomainRating[] };
       setRatings(d.ratings);
     }
+  };
+
+  const printReport = () => {
+    const n = editedNarrative;
+    const fmt = (d: string | null | undefined) => {
+      if (!d) return "—";
+      const dt = new Date(d);
+      return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-AU", { day: "2-digit", month: "long", year: "numeric" });
+    };
+
+    // Build SVG bar chart for domain ratings
+    const ratedDomains = REASONING_DOMAINS.map(d => ({ domain: d, rating: localRatings[d]?.rating ?? null })).filter(d => d.rating !== null);
+    const svgW = 480, barH = 22, gap = 10, labelW = 170, maxBarW = svgW - labelW - 50;
+    const svgH = ratedDomains.length * (barH + gap) + 20;
+    const barColor = (r: number) => r === 0 ? "#ef4444" : r === 1 ? "#f97316" : r === 2 ? "#eab308" : r === 3 ? "#14b8a6" : "#22c55e";
+    const shortName: Record<string, string> = {
+      "Conceptual Understanding": "Conceptual Und.", "Strategy Awareness": "Strategy Aware.",
+      "Procedural Reasoning": "Procedural Rsn.", "Mathematical Communication": "Math. Comm.",
+      "Error Awareness": "Error Awareness", "Verification and Reasonableness": "Verification",
+      "Strategy Flexibility": "Strat. Flexibility", "Transfer": "Transfer",
+      "Metacognition": "Metacognition", "Independence": "Independence",
+    };
+    const barsSvg = ratedDomains.map(({ domain, rating }, i) => {
+      const y = i * (barH + gap) + 10;
+      const w = (rating! / 4) * maxBarW;
+      return `<g>
+        <text x="${labelW - 6}" y="${y + barH / 2 + 4}" text-anchor="end" font-size="11" fill="#475569">${shortName[domain] ?? domain}</text>
+        <rect x="${labelW}" y="${y}" width="${maxBarW}" height="${barH}" rx="3" fill="#f1f5f9"/>
+        <rect x="${labelW}" y="${y}" width="${w}" height="${barH}" rx="3" fill="${barColor(rating!)}"/>
+        <text x="${labelW + w + 5}" y="${y + barH / 2 + 4}" font-size="11" font-weight="600" fill="#374151">${rating}</text>
+      </g>`;
+    }).join("");
+    const chartSvg = ratedDomains.length > 0
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">${barsSvg}</svg>`
+      : "";
+
+    const narrativeSections = [
+      { key: "assessmentContext", label: "Assessment Context" },
+      { key: "participationSummary", label: "Participation & Emotional Presentation" },
+      { key: "reasoningProfile", label: "Mathematical Reasoning Profile" },
+      { key: "perDomainFindings", label: "Per-Domain Findings" },
+      { key: "performanceVsReasoning", label: "Performance vs. Reasoning" },
+      { key: "conditionEffect", label: "Effect of Assessment Conditions" },
+      { key: "domainCoverage", label: "Domain Coverage" },
+      { key: "transferableStrategies", label: "Transferable Reasoning Strategies" },
+      { key: "strengthsNarrative", label: "Strengths Narrative" },
+    ];
+    const listSections = [
+      { key: "strengths", label: "Strengths" },
+      { key: "areasForDevelopment", label: "Areas for Development" },
+      { key: "schoolStrategies", label: "Strategies for School / Classroom Teachers" },
+      { key: "homeStrategies", label: "Strategies for Parents / Home Support" },
+      { key: "tutorStrategies", label: "Strategies for Tutors / Learning Support" },
+      { key: "recommendations", label: "Recommendations" },
+      { key: "limitations", label: "Limitations & Caveats" },
+    ];
+
+    const narrativeHtml = narrativeSections
+      .filter(({ key }) => n[key])
+      .map(({ key, label }) => `<section><h2>${label}</h2><p>${String(n[key]).replace(/\n/g, "</p><p>")}</p></section>`)
+      .join("");
+
+    const listHtml = listSections
+      .filter(({ key }) => Array.isArray(n[key]) && (n[key] as string[]).length > 0)
+      .map(({ key, label }) => `<section><h2>${label}</h2><ul>${(n[key] as string[]).map(item => `<li>${item}</li>`).join("")}</ul></section>`)
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>RAMRI Clinical Report — ${studentName ?? "Student"}</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Georgia", serif; font-size: 11pt; line-height: 1.6; color: #1e293b; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; margin-bottom: 18px; }
+  .header .brand { font-family: Arial, sans-serif; }
+  .header .brand .name { font-size: 18pt; font-weight: 800; color: #4f46e5; letter-spacing: -0.5px; }
+  .header .brand .sub { font-size: 9pt; color: #64748b; margin-top: 2px; }
+  .header .report-type { text-align: right; font-family: Arial, sans-serif; }
+  .header .report-type .title { font-size: 13pt; font-weight: 700; color: #1e293b; }
+  .header .report-type .sub { font-size: 9pt; color: #64748b; }
+  .demographics { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; }
+  .demographics h1 { font-family: Arial, sans-serif; font-size: 13pt; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+  .demographics table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt; }
+  .demographics td { padding: 3px 8px 3px 0; color: #475569; }
+  .demographics td:first-child { font-weight: 600; color: #1e293b; width: 36%; }
+  .disclaimer { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; font-family: Arial, sans-serif; font-size: 9pt; color: #92400e; }
+  .chart-section { margin-bottom: 18px; }
+  .chart-section h2 { font-family: Arial, sans-serif; font-size: 11pt; font-weight: 700; color: #1e293b; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+  section { margin-bottom: 16px; page-break-inside: avoid; }
+  h2 { font-family: Arial, sans-serif; font-size: 11pt; font-weight: 700; color: #4f46e5; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+  p { margin-bottom: 8px; }
+  ul { margin-left: 20px; margin-top: 4px; }
+  li { margin-bottom: 4px; }
+  .rating-legend { font-family: Arial, sans-serif; font-size: 8.5pt; color: #64748b; margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-family: Arial, sans-serif; font-size: 8.5pt; color: #94a3b8; }
+  @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <div class="name">ReMynd</div>
+    <div class="sub">Assessment Operating System</div>
+  </div>
+  <div class="report-type">
+    <div class="title">RAMRI Clinical Report</div>
+    <div class="sub">Reasoning About Mathematics Reasoning Interview</div>
+  </div>
+</div>
+
+<div class="demographics">
+  <h1>${studentName ?? "Student"}</h1>
+  <table>
+    <tr><td>Date of Birth</td><td>${fmt(caseInfo?.dob)}</td><td>School</td><td>${caseInfo?.school ?? "—"}</td></tr>
+    <tr><td>Year / Grade</td><td>${caseInfo?.grade ?? "—"}</td><td>Assessment Date</td><td>${fmt(caseInfo?.assessmentDate)}</td></tr>
+    <tr><td>Parent / Guardian</td><td>${caseInfo?.parentName ?? "—"}</td><td>Referral Reason</td><td>${caseInfo?.referralReason ?? "—"}</td></tr>
+  </table>
+</div>
+
+<div class="disclaimer"><strong>RAMRI Disclaimer:</strong> RAMRI is a structured qualitative and criterion-referenced reasoning interview. Results must not be represented as standardised scores, age equivalents, grade equivalents, or diagnostic conclusions. This report is a professional qualitative summary and requires interpretation by a qualified educational or psychological practitioner.</div>
+
+${chartSvg ? `<div class="chart-section"><h2>Domain Ratings Overview (0 – 4 Scale)</h2>${chartSvg}<div class="rating-legend"><span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>0 No evidence</span><span class="legend-item"><span class="legend-dot" style="background:#f97316"></span>1 Emerging</span><span class="legend-item"><span class="legend-dot" style="background:#eab308"></span>2 Developing</span><span class="legend-item"><span class="legend-dot" style="background:#14b8a6"></span>3 Demonstrated (limited support)</span><span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>4 Demonstrated independently</span></div></div>` : ""}
+
+${narrativeHtml}
+${listHtml}
+
+<div class="footer">
+  Report generated ${new Date().toLocaleDateString("en-AU", { day: "2-digit", month: "long", year: "numeric" })} via ReMynd RAOS &nbsp;|&nbsp; Confidential — for professional use only &nbsp;|&nbsp; This report must not be released without qualified practitioner review and approval.
+</div>
+</body>
+</html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => w.print(), 400);
   };
 
   const generateReport = async () => {
@@ -3390,6 +3535,58 @@ export default function RamriInterviewPage() {
               </Button>
             </div>
 
+            {/* Domain ratings chart */}
+            {(() => {
+              const SHORT: Record<string, string> = {
+                "Conceptual Understanding": "Conceptual Und.",
+                "Strategy Awareness": "Strategy Aware.",
+                "Procedural Reasoning": "Procedural Rsn.",
+                "Mathematical Communication": "Math. Comm.",
+                "Error Awareness": "Error Awareness",
+                "Verification and Reasonableness": "Verification",
+                "Strategy Flexibility": "Strat. Flexibility",
+                "Transfer": "Transfer",
+                "Metacognition": "Metacognition",
+                "Independence": "Independence",
+              };
+              const chartData = REASONING_DOMAINS
+                .map(d => ({ name: SHORT[d] ?? d, rating: localRatings[d]?.rating ?? null, full: d }))
+                .filter(d => d.rating !== null);
+              if (chartData.length === 0) return null;
+              const ratingColor = (r: number | null) => {
+                if (r === null) return "#94a3b8";
+                if (r === 0) return "#ef4444";
+                if (r === 1) return "#f97316";
+                if (r === 2) return "#eab308";
+                if (r === 3) return "#14b8a6";
+                return "#22c55e";
+              };
+              return (
+                <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+                  <h3 className="font-semibold text-slate-800 text-sm">Domain Ratings Overview</h3>
+                  <ResponsiveContainer width="100%" height={chartData.length * 40 + 30}>
+                    <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" domain={[0, 4]} ticks={[0, 1, 2, 3, 4]} tickFormatter={v => v === 0 ? "0" : String(v)} tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        formatter={(value: number) => [RATING_LABELS[value] ?? value, "Rating"]}
+                        labelFormatter={(_: unknown, payload: { payload?: { full?: string } }[]) => payload?.[0]?.payload?.full ?? ""}
+                      />
+                      <Bar dataKey="rating" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                        {chartData.map((d, i) => <Cell key={i} fill={ratingColor(d.rating)} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="flex gap-3 flex-wrap text-xs text-slate-500">
+                    {[["#ef4444","0 – No evidence"],["#f97316","1 – Emerging"],["#eab308","2 – Developing"],["#14b8a6","3 – Demonstrated (limited support)"],["#22c55e","4 – Demonstrated independently"]].map(([c,l]) => (
+                      <span key={l} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: c }} />{l}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Background Evidence — items classified as evidence or observation */}
             {(() => {
               const bgItems = samples.filter(s => s.sample_role === "evidence" || s.sample_role === "observation");
@@ -3590,7 +3787,7 @@ export default function RamriInterviewPage() {
                     <Button className="bg-emerald-600 hover:bg-emerald-700 gap-1" onClick={() => saveReport("approved")}>
                       <Check size={14} /> Approve & Release
                     </Button>
-                    <Button variant="outline" className="gap-1" onClick={() => window.print()}>
+                    <Button variant="outline" className="gap-1" onClick={printReport}>
                       <Download size={14} /> Print / PDF
                     </Button>
                   </div>

@@ -12,6 +12,23 @@ import multer from "multer";
 
 const offlineUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
+/** Strip markdown syntax from AI-generated text before persisting to DB */
+function stripMd(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .trim();
+}
+function cleanNarrative(v: unknown): unknown {
+  if (typeof v === "string") return stripMd(v);
+  if (Array.isArray(v)) return v.map(cleanNarrative);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, val]) => [k, cleanNarrative(val)]));
+  return v;
+}
+
 async function pdfToText(pdfBuffer: Buffer): Promise<string> {
   // pdf-parse is a CJS module; when loaded via ESM import() its exports land on .default
   const m = await import("pdf-parse") as unknown as { default?: { PDFParse: unknown }; PDFParse?: unknown };
@@ -152,8 +169,8 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
       const invigilatorName = await getUserName(sess.invigilator_id as string | null);
-      const caseRow = await db.select({ studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
-      const studentName = caseRow[0]?.studentName ?? null;
+      const caseRow = await db.execute(sql`SELECT student_name, dob, school, grade, assessment_meeting_date, referral_reason, parent_name FROM cases WHERE id = ${caseId} LIMIT 1`);
+      const cd = caseRow.rows[0] as { student_name?: string; dob?: string; school?: string; grade?: string; assessment_meeting_date?: string; referral_reason?: string; parent_name?: string } | undefined;
       return res.json({
         session: sess, docs: docs.rows, samples: samples.rows,
         choiceSets: choiceSets.rows, selections: selections.rows,
@@ -161,7 +178,9 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
         assignmentToken: assignment.uniqueToken, uploadsClosed,
         userRole: req.userRole ?? null,
         invigilatorId: sess.invigilator_id ?? null,
-        invigilatorName, studentName,
+        invigilatorName,
+        studentName: cd?.student_name ?? null,
+        caseInfo: { school: cd?.school ?? null, grade: cd?.grade ?? null, dob: cd?.dob ?? null, assessmentDate: cd?.assessment_meeting_date ?? null, referralReason: cd?.referral_reason ?? null, parentName: cd?.parent_name ?? null },
       });
     }
 
@@ -1772,7 +1791,7 @@ Return ONLY valid JSON (no markdown, no explanation):
       },
     });
     const text = (geminiResponse.text ?? "").replace(/```json\n?|\n?```/g, "").trim();
-    const narrative = JSON.parse(text);
+    const narrative = cleanNarrative(JSON.parse(text));
 
     const existingReport = (await db.execute(sql`SELECT id FROM ramri_reports WHERE session_id = ${sessionId} LIMIT 1`)).rows[0] as { id?: string } | undefined;
     let reportId: string;
