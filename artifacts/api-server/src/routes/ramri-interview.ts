@@ -6,31 +6,16 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { writeFile, unlink, mkdir, rmdir } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
 import mammoth from "mammoth";
 import { ai } from "@workspace/integrations-gemini-ai";
 import multer from "multer";
 
 const offlineUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
-const execFileAsync = promisify(execFile);
-
 async function pdfToText(pdfBuffer: Buffer): Promise<string> {
-  const dir = join(tmpdir(), `ramri-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  await mkdir(dir, { recursive: true });
-  const pdfPath = join(dir, "input.pdf");
-  try {
-    await writeFile(pdfPath, pdfBuffer);
-    const { stdout } = await execFileAsync("pdftotext", ["-layout", pdfPath, "-"]);
-    return stdout.trim();
-  } finally {
-    try { await unlink(pdfPath).catch(() => {}); } catch {}
-    try { await rmdir(dir).catch(() => {}); } catch {}
-  }
+  const pdfParse = (await import("pdf-parse")).default as (buf: Buffer) => Promise<{ text: string }>;
+  const result = await pdfParse(pdfBuffer);
+  return result.text ?? "";
 }
 
 async function callDeepSeekText(prompt: string, systemPrompt?: string, maxTokens = 4096): Promise<string> {
