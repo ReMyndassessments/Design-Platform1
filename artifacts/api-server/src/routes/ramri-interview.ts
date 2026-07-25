@@ -1861,11 +1861,23 @@ Return ONLY valid JSON (no markdown, no explanation):
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         maxOutputTokens: 16384,
-        systemInstruction: "You are a senior clinical educational psychologist with expertise in mathematical reasoning assessment. Write comprehensive, evidence-grounded professional reports. Every statement must reference specific evidence from the provided data. Never use generic filler language.",
+        responseMimeType: "application/json",
+        systemInstruction: "You are a senior clinical educational psychologist with expertise in mathematical reasoning assessment. Write comprehensive, evidence-grounded professional reports. Every statement must reference specific evidence from the provided data. Never use generic filler language. Respond ONLY with valid JSON — no markdown fences, no commentary.",
       },
     });
-    const text = (geminiResponse.text ?? "").replace(/```json\n?|\n?```/g, "").trim();
-    const narrative = enforceNarrativeShape(cleanNarrative(JSON.parse(text)));
+    const rawText = (geminiResponse.text ?? "").trim();
+    // Strip markdown fences if present despite responseMimeType
+    const stripped = rawText.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
+    let narrative: ReturnType<typeof enforceNarrativeShape>;
+    try {
+      narrative = enforceNarrativeShape(cleanNarrative(JSON.parse(stripped)));
+    } catch (parseErr) {
+      // Last-resort: extract outermost {...} and retry
+      const start = stripped.indexOf("{");
+      const end = stripped.lastIndexOf("}");
+      if (start === -1 || end === -1) throw parseErr;
+      narrative = enforceNarrativeShape(cleanNarrative(JSON.parse(stripped.slice(start, end + 1))));
+    }
 
     const existingReport = (await db.execute(sql`SELECT id FROM ramri_reports WHERE session_id = ${sessionId} LIMIT 1`)).rows[0] as { id?: string } | undefined;
     let reportId: string;
