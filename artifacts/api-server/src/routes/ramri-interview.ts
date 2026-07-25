@@ -1355,7 +1355,16 @@ IMPORTANT rules:
 - Do not ask the student to redo the problem
 - Focus on understanding REASONING, not just correctness
 - Use "can you show me" language, not "tell me why you were wrong"
-- Include universal opening questions, then conceptual/strategy/verification questions
+- Generate EXACTLY ONE question per type, in the order listed below
+- The output must contain EXACTLY 6 questions — one of each type, no more, no less
+
+Types in order:
+1. universal      — Opening: invite the student to show/explain their thinking (e.g. "Can you show me what you did to solve this?")
+2. conceptual     — Understanding: probe the student's grasp of the key idea or concept in the problem
+3. strategy       — Method: explore HOW the student approached or solved the problem
+4. verification   — Checking: ask how the student checked or would check their answer
+5. error_awareness — Reflection: explore whether the student notices any errors or alternative approaches
+6. metacognition  — Thinking: ask what the student learned or how this connects to other problems
 
 Return JSON only (no markdown):
 {
@@ -1367,10 +1376,16 @@ Return JSON only (no markdown):
     }
   ]
 }
-Generate 6-8 questions.`;
+The array must have exactly 6 items, one per type, in the order: universal, conceptual, strategy, verification, error_awareness, metacognition.`;
     const text = await callGroq(prompt, "You are a skilled educational assessment specialist.", 1500);
     const clean = text.replace(/```json\n?|\n?```/g, "").trim();
-    return res.json(JSON.parse(clean));
+    const parsed = JSON.parse(clean) as { questions: Array<{ type: string; question: string; purpose: string }> };
+    // Enforce exactly one question per type in the correct order — deduplicate defensively
+    const ORDER = ["universal", "conceptual", "strategy", "verification", "error_awareness", "metacognition"];
+    const seen = new Set<string>();
+    const deduped = parsed.questions.filter(q => { if (seen.has(q.type)) return false; seen.add(q.type); return true; });
+    deduped.sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type));
+    return res.json({ questions: deduped });
   } catch (err) {
     logger.error({ err }, "RAMRI generate questions failed");
     return res.status(500).json({ error: "Failed to generate questions" });
