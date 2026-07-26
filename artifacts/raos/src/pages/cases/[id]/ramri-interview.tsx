@@ -1718,15 +1718,47 @@ export default function RamriInterviewPage() {
       return parts.join("");
     };
 
+    /** Auto-break a solid wall of text into readable sub-paragraphs.
+     *  If the text already has blank lines the author's structure is preserved.
+     *  Otherwise we split at sentence boundaries, breaking before common
+     *  transition words/phrases and enforcing a hard 4-sentence cap per paragraph. */
+    const autoBreakParagraphs = (text: string): string => {
+      if (/\n\n/.test(text)) return text; // already structured
+
+      // Split into sentences on ". ", "! ", "? " followed by a capital letter
+      const sentenceRe = /([.!?]["']?)\s+(?=[A-Z"'])/g;
+      const sentences: string[] = [];
+      let last = 0;
+      let sm: RegExpExecArray | null;
+      while ((sm = sentenceRe.exec(text)) !== null) {
+        sentences.push(text.slice(last, sm.index + sm[1].length));
+        last = sm.index + sm[1].length + 1;
+      }
+      if (last < text.length) sentences.push(text.slice(last));
+
+      const BREAK_STARTERS = /^(However|Conversely|In contrast|Furthermore|Additionally|Moreover|Notably|Overall|In summary|This pattern|This suggests|In a classroom|For example|For instance|Despite|Whilst|While|Although|Consequently|As a result|Importantly|Significantly|Interestingly|In terms of|Regarding|With respect to|When faced|When confronted|On tasks|In tasks|For tasks|Across tasks|Across samples|Her ability|His ability|Their ability|She demonstrated|He demonstrated|They demonstrated)/i;
+
+      const groups: string[][] = [[]];
+      sentences.forEach((s, i) => {
+        const trimmed = s.trim();
+        if (!trimmed) return;
+        const currentGroup = groups[groups.length - 1];
+        if (i > 0 && (BREAK_STARTERS.test(trimmed) || currentGroup.length >= 4)) {
+          groups.push([]);
+        }
+        groups[groups.length - 1].push(trimmed);
+      });
+
+      return groups.filter(g => g.length > 0).map(g => g.join(" ")).join("\n\n");
+    };
+
     /** Break the reasoningProfile mega-paragraph into per-domain sub-sections.
      *  Detects sentences that introduce a domain ("Her Conceptual Understanding was rated…")
      *  and inserts a domain h3 before each one. */
     const renderReasoningProfile = (text: string): string => {
-      // Insert a newline before each sentence that starts with a domain name
       const domainPattern = REASONING_DOMAINS
         .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
         .join("|");
-      // Match transitions like "Her Strategy Awareness was…" / "Her Strategy Flexibility was…"
       const broken = text.replace(
         new RegExp(`([.!?]\\s+)((?:Her|His|The student's?|Their)\\s+(${domainPattern}))`, "g"),
         (_m, punc: string, rest: string) => `${punc}\n\n${rest}`
@@ -1795,7 +1827,7 @@ export default function RamriInterviewPage() {
         }
         const body = key === "reasoningProfile"
           ? renderReasoningProfile(text)
-          : renderNarrativeBody(text);
+          : renderNarrativeBody(autoBreakParagraphs(text));
         return `<section><h2>${label}</h2>${body}</section>`;
       })
       .join("");
