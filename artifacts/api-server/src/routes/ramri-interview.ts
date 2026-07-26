@@ -53,6 +53,17 @@ function cleanNarrative(v: unknown): unknown {
 }
 
 /** Enforce correct types on known narrative keys after AI generation */
+/** Merge generated + edited narratives so the frontend always sees every field.
+ *  generated_narrative is the base; edited_narrative fields overlay it.
+ *  This means new AI-generated fields (added after the report was first saved)
+ *  surface automatically without requiring the user to regenerate. */
+function mergeNarrativeForResponse(report: Record<string, unknown>): Record<string, unknown> {
+  const gen = (report.generated_narrative ?? {}) as Record<string, unknown>;
+  const ed = (report.edited_narrative ?? {}) as Record<string, unknown>;
+  const merged = { ...gen, ...ed };
+  return { ...report, edited_narrative: merged };
+}
+
 function enforceNarrativeShape(obj: unknown): unknown {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj;
   const result: Record<string, unknown> = { ...(obj as Record<string, unknown>) };
@@ -211,7 +222,8 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const choiceSets = await db.execute(sql`SELECT cs.*, COALESCE(json_agg(csi ORDER BY csi.display_order) FILTER (WHERE csi.id IS NOT NULL), '[]') AS items FROM ramri_choice_sets cs LEFT JOIN ramri_choice_set_items csi ON csi.choice_set_id = cs.id WHERE cs.session_id = ${existing.id} GROUP BY cs.id ORDER BY cs.display_order ASC`);
       const selections = await db.execute(sql`SELECT * FROM ramri_sample_selections WHERE session_id = ${existing.id} ORDER BY sequence_number ASC`);
       const ratings = await db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${existing.id}`);
-      const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
+      const rawReport = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
+      const report = rawReport ? mergeNarrativeForResponse(rawReport as Record<string, unknown>) : null;
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
       const invigilatorName = await getUserName(sess.invigilator_id as string | null);
       const caseRow = await db.execute(sql`SELECT student_name, dob, school, grade, assessment_meeting_date, referral_reason, parent_name FROM cases WHERE id = ${caseId} LIMIT 1`);
@@ -1888,7 +1900,8 @@ Return ONLY valid JSON (no markdown, no explanation):
       reportId = nanoid();
       await db.execute(sql`INSERT INTO ramri_reports (id, case_id, session_id, generated_narrative, status, created_at, updated_at) VALUES (${reportId}, ${caseId}, ${sessionId}, ${JSON.stringify(narrative)}, 'draft', NOW(), NOW())`);
     }
-    const report = (await db.execute(sql`SELECT * FROM ramri_reports WHERE id = ${reportId} LIMIT 1`)).rows[0];
+    const rawReport2 = (await db.execute(sql`SELECT * FROM ramri_reports WHERE id = ${reportId} LIMIT 1`)).rows[0];
+    const report = mergeNarrativeForResponse(rawReport2 as Record<string, unknown>);
     return res.json({ report });
   } catch (err) {
     logger.error({ err }, "RAMRI report generate failed");
