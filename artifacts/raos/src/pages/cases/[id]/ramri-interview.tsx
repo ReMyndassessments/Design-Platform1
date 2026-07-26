@@ -1718,38 +1718,45 @@ export default function RamriInterviewPage() {
       return parts.join("");
     };
 
-    /** Auto-break a solid wall of text into readable sub-paragraphs.
-     *  If the text already has blank lines the author's structure is preserved.
-     *  Otherwise we split at sentence boundaries, breaking before common
-     *  transition words/phrases and enforcing a hard 4-sentence cap per paragraph. */
+    /** Auto-break a wall of text into readable sub-paragraphs.
+     *  Step 1 — insert \n\n before known transition phrases.
+     *  Step 2 — within each remaining paragraph, hard-break every 4 sentences. */
     const autoBreakParagraphs = (text: string): string => {
       if (/\n\n/.test(text)) return text; // already structured
 
-      // Split into sentences on ". ", "! ", "? " followed by a capital letter
-      const sentenceRe = /([.!?]["']?)\s+(?=[A-Z"'])/g;
-      const sentences: string[] = [];
-      let last = 0;
-      let sm: RegExpExecArray | null;
-      while ((sm = sentenceRe.exec(text)) !== null) {
-        sentences.push(text.slice(last, sm.index + sm[1].length));
-        last = sm.index + sm[1].length + 1;
-      }
-      if (last < text.length) sentences.push(text.slice(last));
+      const transitions = [
+        "However", "Conversely", "In contrast", "Furthermore", "Additionally",
+        "Moreover", "Notably", "Overall", "In summary",
+        "This pattern", "This suggests", "This visual", "This skill", "This approach", "This capacity",
+        "In a classroom", "For example", "For instance",
+        "Despite", "Whilst", "While", "Although", "Consequently", "As a result",
+        "Importantly", "Significantly", "Interestingly",
+        "Firstly", "Secondly", "Thirdly", "Lastly", "Finally",
+        "Domains not", "Domains assessed", "Domains not represented",
+        "In Geometry", "In Addition", "In Number", "In Subtraction",
+        "In Multiplication", "In Division", "In Fractions", "In Measurement",
+        "In Algebra", "In Data", "In Statistics", "In Probability",
+        "In Spatial", "In Pattern", "In Money", "In Time",
+        "Her ability", "His ability", "Their ability",
+        "She demonstrated", "He demonstrated",
+      ].map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
 
-      const BREAK_STARTERS = /^(However|Conversely|In contrast|Furthermore|Additionally|Moreover|Notably|Overall|In summary|This pattern|This suggests|In a classroom|For example|For instance|Despite|Whilst|While|Although|Consequently|As a result|Importantly|Significantly|Interestingly|In terms of|Regarding|With respect to|When faced|When confronted|On tasks|In tasks|For tasks|Across tasks|Across samples|Her ability|His ability|Their ability|She demonstrated|He demonstrated|They demonstrated)/i;
+      // Step 1: insert paragraph breaks before transitions that follow sentence-ending punctuation
+      let result = text.replace(
+        new RegExp(`([.!?]["']?)\\s+(${transitions})`, "g"),
+        "$1\n\n$2"
+      );
 
-      const groups: string[][] = [[]];
-      sentences.forEach((s, i) => {
-        const trimmed = s.trim();
-        if (!trimmed) return;
-        const currentGroup = groups[groups.length - 1];
-        if (i > 0 && (BREAK_STARTERS.test(trimmed) || currentGroup.length >= 4)) {
-          groups.push([]);
-        }
-        groups[groups.length - 1].push(trimmed);
-      });
+      // Step 2: for each paragraph that's still long, hard-break at every 4th sentence boundary
+      result = result.split("\n\n").map(para => {
+        let count = 0;
+        return para.replace(/([.!?]["']?) ([A-Z])/g, (_, punc, cap) => {
+          count++;
+          return count % 4 === 0 ? `${punc}\n\n${cap}` : `${punc} ${cap}`;
+        });
+      }).join("\n\n");
 
-      return groups.filter(g => g.length > 0).map(g => g.join(" ")).join("\n\n");
+      return result;
     };
 
     /** Break the reasoningProfile mega-paragraph into per-domain sub-sections.
