@@ -19,6 +19,37 @@ function jsonHeaders() {
   return { "Content-Type": "application/json", ...getAuth() };
 }
 
+/** Textarea that grows to fit its content — no internal scrollbar, always fully visible. */
+function AutoResizeTextarea({ value, onChange, className, minRows = 3 }: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  className?: string;
+  minRows?: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      rows={minRows}
+      className={[
+        "w-full rounded-md border border-input bg-background px-3 py-2 text-xs",
+        "ring-offset-background placeholder:text-muted-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "resize-y overflow-hidden",
+        className ?? "",
+      ].join(" ")}
+    />
+  );
+}
+
 /** Derive a one-sentence confirmatory hypothesis from written-work classification fields. */
 function buildHypothesis(sample: WorkSample): string {
   const focus: string[] = Array.isArray(sample.reasoning_focus)
@@ -3904,9 +3935,8 @@ ${listHtml}
                     return (
                       <div key={key} className="space-y-1">
                         <Label className="text-xs font-semibold text-slate-700">{label}</Label>
-                        <Textarea
-                          className="text-xs"
-                          rows={rows}
+                        <AutoResizeTextarea
+                          minRows={rows}
                           value={value}
                           onChange={e => setEditedNarrative(prev => ({ ...prev, [key]: e.target.value }))}
                         />
@@ -3932,9 +3962,9 @@ ${listHtml}
                         <Label className="text-xs font-semibold text-slate-700">{label}</Label>
                         {items.map((item, i) => (
                           <div key={i} className="flex gap-2 items-start">
-                            <Textarea
-                              className="text-xs flex-1 min-h-[2.5rem]"
-                              rows={2}
+                            <AutoResizeTextarea
+                              minRows={2}
+                              className="flex-1"
                               value={item}
                               onChange={e => setEditedNarrative(prev => {
                                 const newItems = [...((prev[key as string] as string[]) ?? [])];
