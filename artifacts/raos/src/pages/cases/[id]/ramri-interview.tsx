@@ -574,8 +574,11 @@ export default function RamriInterviewPage() {
           lr[dr.domain] = { rating: dr.rating, evidenceStrength: dr.evidence_strength, supportingEvidence: dr.supporting_evidence };
         }
         setLocalRatings(lr);
-        if (data.report?.edited_narrative) setEditedNarrative(data.report.edited_narrative as Record<string, unknown>);
-        else if (data.report?.generated_narrative) setEditedNarrative(data.report.generated_narrative as Record<string, unknown>);
+        // Merge: generated_narrative is the base (has all current fields), edited_narrative overlays user edits.
+        // This ensures new fields added after a report was first saved still appear.
+        const gen = (data.report?.generated_narrative ?? {}) as Record<string, unknown>;
+        const ed = (data.report?.edited_narrative ?? {}) as Record<string, unknown>;
+        setEditedNarrative({ ...gen, ...ed });
       } catch (e: unknown) {
         setPageError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -1899,8 +1902,10 @@ ${listHtml}
       if (!r.ok) throw new Error(await r.text());
       const d = await r.json() as { report: Report };
       setReport(d.report);
-      const narrative = (d.report.edited_narrative ?? d.report.generated_narrative) as Record<string, unknown>;
-      setEditedNarrative(narrative ?? {});
+      // Same merge logic: generated is the base, edited overlays user edits
+      const gen = (d.report.generated_narrative ?? {}) as Record<string, unknown>;
+      const ed = (d.report.edited_narrative ?? {}) as Record<string, unknown>;
+      setEditedNarrative({ ...gen, ...ed });
     } catch (err) {
       alert("Report generation failed: " + (err instanceof Error ? err.message : String(err)));
     } finally { setGeneratingReport(false); }
