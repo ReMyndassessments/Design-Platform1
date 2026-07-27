@@ -224,6 +224,10 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const ratings = await db.execute(sql`SELECT * FROM ramri_domain_ratings WHERE session_id = ${existing.id}`);
       const rawReport = (await db.execute(sql`SELECT * FROM ramri_reports WHERE session_id = ${existing.id} LIMIT 1`)).rows[0] ?? null;
       const report = rawReport ? mergeNarrativeForResponse(rawReport as Record<string, unknown>) : null;
+      // Self-heal: if the report is approved but the assignment isn't completed yet, fix it now.
+      if ((rawReport as Record<string, unknown> | null)?.status === "approved" && assignment.status !== "completed") {
+        await db.execute(sql`UPDATE assignments SET status = 'completed', updated_at = NOW() WHERE id = ${assignment.id}`);
+      }
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
       const invigilatorName = await getUserName(sess.invigilator_id as string | null);
       const caseRow = await db.execute(sql`SELECT student_name, dob, school, grade, assessment_meeting_date, referral_reason, parent_name FROM cases WHERE id = ${caseId} LIMIT 1`);
