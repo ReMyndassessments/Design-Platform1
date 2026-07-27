@@ -226,7 +226,7 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
       const report = rawReport ? mergeNarrativeForResponse(rawReport as Record<string, unknown>) : null;
       // Self-heal: if the report is approved but the assignment isn't completed yet, fix it now.
       if ((rawReport as Record<string, unknown> | null)?.status === "approved" && assignment.status !== "completed") {
-        await db.execute(sql`UPDATE assignments SET status = 'completed', updated_at = NOW() WHERE id = ${assignment.id}`);
+        await db.execute(sql`UPDATE assignments SET status = 'completed' WHERE id = ${assignment.id}`);
       }
       const uploadsClosed = !!(assignment.metadata as Record<string, unknown> | null)?.ramriUploadsClosed;
       const invigilatorName = await getUserName(sess.invigilator_id as string | null);
@@ -1934,7 +1934,7 @@ router.patch("/cases/:caseId/ramri/sessions/:sessionId/report", authMiddleware, 
     if (status === "approved") {
       const sessionRow = (await db.execute(sql`SELECT assignment_id FROM ramri_sessions WHERE id = ${sessionId} LIMIT 1`)).rows[0] as { assignment_id?: string } | undefined;
       if (sessionRow?.assignment_id) {
-        await db.execute(sql`UPDATE assignments SET status = 'completed', updated_at = NOW() WHERE id = ${sessionRow.assignment_id}`);
+        await db.execute(sql`UPDATE assignments SET status = 'completed' WHERE id = ${sessionRow.assignment_id}`);
       }
     }
     const updated = (await db.execute(sql`SELECT * FROM ramri_reports WHERE id = ${report.id} LIMIT 1`)).rows[0];
