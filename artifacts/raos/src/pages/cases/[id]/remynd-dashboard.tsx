@@ -420,20 +420,21 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
     }
   }
 
-  // Cell width: fixed 38px per respondent column; domain label fixed at 130px
-  const CELL_W = 38;
-  const LABEL_W = 130;
+  // Compact fixed dimensions: narrow cells, tighter header
+  const CELL_W = 34;
+  const LABEL_W = 142;
+  const HEADER_H = 54; // height of rotated-label header row
 
   return (
     <Card>
-      <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
+      <CardHeader className="pb-2 pt-3 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800">Risk Heatmap — Domain × Respondent Matrix</CardTitle>
       </CardHeader>
-      <CardContent className="pt-3 px-4 pb-4">
+      <CardContent className="pt-2 px-4 pb-3">
         {/* Wrapper: scroll on screen if needed, full-width on print */}
         <div className="overflow-x-auto print:overflow-visible">
           <table
-            className="text-xs border-collapse"
+            className="border-collapse"
             style={{ tableLayout: "fixed", width: `${LABEL_W + columns.length * CELL_W}px`, maxWidth: "100%" }}
           >
             <colgroup>
@@ -443,40 +444,40 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
             <thead>
               {/* Row 1: tool group labels (merged cells) */}
               <tr>
-                <th />
+                <th style={{ padding: 0 }} />
                 {toolGroups.map(g => (
                   <th
                     key={g.toolId}
                     colSpan={g.count}
-                    className="text-center pb-1 border-b-2 border-violet-200"
-                    style={{ fontSize: "9px", fontWeight: 700, color: "#6d28d9", letterSpacing: "0.02em" }}
+                    className="text-center border-b-2 border-violet-200"
+                    style={{ fontSize: "8px", fontWeight: 700, color: "#6d28d9", letterSpacing: "0.03em", padding: "0 0 2px" }}
                   >
                     {g.toolId}
                   </th>
                 ))}
               </tr>
-              {/* Row 2: respondent labels — rotated 90° to save horizontal space */}
+              {/* Row 2: respondent labels — rotated to save horizontal space */}
               <tr>
                 <th
-                  className="text-left font-medium text-slate-500 border-b border-slate-200 pb-1"
-                  style={{ fontSize: "10px" }}
+                  className="text-left font-semibold text-slate-500 border-b border-slate-300"
+                  style={{ fontSize: "9px", padding: "0 4px 3px 0", verticalAlign: "bottom" }}
                 >
                   Domain
                 </th>
                 {columns.map(col => (
                   <th
                     key={col.key}
-                    className="border-b border-slate-200 border-l border-slate-100"
-                    style={{ height: "72px", verticalAlign: "bottom", padding: "0 2px 4px" }}
+                    className="border-b border-slate-300 border-l border-slate-100"
+                    style={{ height: `${HEADER_H}px`, verticalAlign: "bottom", padding: "0 2px 3px" }}
                   >
                     <div
                       style={{
                         writingMode: "vertical-rl",
                         transform: "rotate(180deg)",
                         whiteSpace: "nowrap",
-                        fontSize: "8.5px",
-                        fontWeight: 500,
-                        color: "#64748b",
+                        fontSize: "8px",
+                        fontWeight: 600,
+                        color: "#475569",
                         lineHeight: 1,
                       }}
                     >
@@ -487,11 +488,26 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
               </tr>
             </thead>
             <tbody>
-              {allDomains.map(domain => (
-                <tr key={domain} className="border-t border-slate-100">
+              {allDomains.map((domain, i) => (
+                <tr
+                  key={domain}
+                  style={{ borderTop: "1px solid #f1f5f9", backgroundColor: i % 2 === 0 ? "#ffffff" : "#f8fafc" }}
+                >
+                  {/* Domain label: single line, ellipsis on overflow */}
                   <td
-                    className="pr-2 font-medium text-slate-700 leading-tight"
-                    style={{ fontSize: "9.5px", padding: "3px 6px 3px 0" }}
+                    style={{
+                      fontSize: "8.5px",
+                      fontWeight: 500,
+                      color: "#374151",
+                      padding: "2px 6px 2px 0",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: `${LABEL_W}px`,
+                      lineHeight: "14px",
+                      height: "16px",
+                    }}
+                    title={dLabel(domain)}
                   >
                     {dLabel(domain)}
                   </td>
@@ -501,11 +517,8 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                       return (
                         <td
                           key={col.key}
-                          className="text-center text-slate-200 border-l border-slate-50"
-                          style={{ fontSize: "8px", padding: "3px 1px" }}
-                        >
-                          —
-                        </td>
+                          style={{ borderLeft: "1px solid #f1f5f9", padding: "2px 0", height: "16px" }}
+                        />
                       );
                     }
                     const band = getRiskBand(score, col.thresholds);
@@ -513,8 +526,15 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                     return (
                       <td
                         key={col.key}
-                        className={`text-center font-semibold border-l border-white ${m.text}`}
-                        style={{ backgroundColor: m.tailwindBg, fontSize: "8.5px", padding: "3px 1px" }}
+                        className={`text-center font-bold ${m.text}`}
+                        style={{
+                          backgroundColor: m.tailwindBg,
+                          fontSize: "8px",
+                          padding: "2px 0",
+                          height: "16px",
+                          lineHeight: "12px",
+                          borderLeft: "1px solid rgba(255,255,255,0.7)",
+                        }}
                         title={`${dLabel(domain)} · ${col.toolName} · ${col.respondentLabel}: ${score}/100 (${m.label})`}
                       >
                         {score}
@@ -527,23 +547,21 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
           </table>
         </div>
 
-        {/* Legend row */}
-        <div className="flex items-center gap-3 mt-3 flex-wrap">
+        {/* Legend + tool key */}
+        <div className="flex items-center gap-3 mt-2 flex-wrap" style={{ fontSize: "8px", color: "#64748b" }}>
           {RISK_BAND_LEGEND.map(({ band, range }) => (
-            <span key={band} className="flex items-center gap-1" style={{ fontSize: "9px", color: "#64748b" }}>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: RISK_META[band].hex }} />
+            <span key={band} className="flex items-center gap-1">
+              <span className="inline-block rounded-sm" style={{ width: 9, height: 9, backgroundColor: RISK_META[band].hex }} />
               {RISK_META[band].label} ({range})
             </span>
           ))}
-          <span style={{ fontSize: "9px", color: "#94a3b8" }}>— = not assessed</span>
+          <span style={{ color: "#94a3b8" }}>blank = not assessed</span>
         </div>
-
-        {/* Tool key */}
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
           {toolGroups.map(g => (
-            <span key={g.toolId} style={{ fontSize: "8.5px", color: "#94a3b8" }}>
+            <span key={g.toolId} style={{ fontSize: "7.5px", color: "#94a3b8" }}>
               <span style={{ fontWeight: 700, color: "#6d28d9" }}>{g.toolId}</span>
-              {" "}= {g.toolName}
+              {" = "}{g.toolName}
             </span>
           ))}
         </div>
