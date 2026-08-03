@@ -468,7 +468,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                   <th
                     key={col.key}
                     className="border-b border-slate-300 border-l border-slate-100"
-                    style={{ height: `${HEADER_H}px`, width: `${CELL_W}px`, verticalAlign: "bottom", textAlign: "center", padding: "0 0 4px", overflow: "hidden" }}
+                    style={{ height: `${HEADER_H}px`, verticalAlign: "bottom", textAlign: "center", padding: "0 0 4px", overflow: "hidden" }}
                   >
                     <span
                       style={{
