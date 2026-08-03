@@ -326,7 +326,7 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
   );
 }
 
-function ToolComparisonCard({ tool }: { tool: ToolData }) {
+function ToolComparisonCard({ tool, instrumentSummary }: { tool: ToolData; instrumentSummary?: string }) {
   const isSingle = tool.respondents.length === 1;
   const highDiscrepDomains = tool.discrepancies.filter(d => d.isHigh);
 
@@ -368,6 +368,25 @@ function ToolComparisonCard({ tool }: { tool: ToolData }) {
                 {dLabel(d.domain)} ({d.rawSpread.toFixed(1)} raw pts)
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Per-instrument clinical summary — rendered beneath the chart */}
+        {instrumentSummary && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Sparkles size={11} className="text-violet-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Clinical Interpretation
+              </span>
+            </div>
+            <div>
+              {instrumentSummary.trim().split(/\n\n+/).map((para, i) => (
+                <p key={i} className="text-sm text-slate-700 leading-relaxed mb-2 last:mb-0">
+                  {para.trim()}
+                </p>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
@@ -736,13 +755,15 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
   );
 }
 
-/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections. */
-function InsightsSections({ text, onRegenerate, isPending }: { text: string; onRegenerate: () => void; isPending: boolean }) {
-  type Section = { label: string; body: string; isSynthesis: boolean };
-  const sections: Section[] = [];
-  const lines = text.split("\n");
-  let current: Section | null = null;
+// ── Insights helpers ─────────────────────────────────────────────────────────
 
+type InsightSection = { label: string; body: string; isSynthesis: boolean };
+
+/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers → array of sections */
+function parseInsightsSections(text: string): InsightSection[] {
+  const sections: InsightSection[] = [];
+  const lines = text.split("\n");
+  let current: InsightSection | null = null;
   for (const line of lines) {
     const instrMatch = line.match(/^##INSTRUMENT:\s*(.+?)##\s*$/);
     const synthMatch = /^##SYNTHESIS##\s*$/.test(line);
@@ -757,6 +778,26 @@ function InsightsSections({ text, onRegenerate, isPending }: { text: string; onR
     }
   }
   if (current) sections.push(current);
+  return sections;
+}
+
+/** Fuzzy-match: find the instrument section whose label best corresponds to this tool name.
+ *  Normalises both strings to lowercase with punctuation/spaces stripped, then checks containment. */
+function findInstrumentSection(toolName: string, sections: InsightSection[]): InsightSection | null {
+  const norm = (s: string) => s.toLowerCase().replace(/[-\s().,']/g, "");
+  const normTool = norm(toolName);
+  return (
+    sections.find(s => {
+      if (s.isSynthesis) return false;
+      const normLabel = norm(s.label);
+      return normTool.includes(normLabel) || normLabel.includes(normTool);
+    }) ?? null
+  );
+}
+
+/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections. */
+function InsightsSections({ text, onRegenerate, isPending }: { text: string; onRegenerate: () => void; isPending: boolean }) {
+  const sections = parseInsightsSections(text);
 
   // Fallback: if no markers were found, the text is old-format cache — show regenerate button prominently
   if (sections.length === 0) {
@@ -1292,9 +1333,21 @@ export default function RemyndDashboardPage() {
                 </Card>
               ) : (
                 <div className="space-y-4">
-                  {activeTools.map(tool => (
-                    <ToolComparisonCard key={tool.toolId} tool={tool} />
-                  ))}
+                  {(() => {
+                    const insightSections = indexData.cachedInsights
+                      ? parseInsightsSections(indexData.cachedInsights)
+                      : [];
+                    return activeTools.map(tool => {
+                      const matched = findInstrumentSection(tool.toolName, insightSections);
+                      return (
+                        <ToolComparisonCard
+                          key={tool.toolId}
+                          tool={tool}
+                          instrumentSummary={matched?.body?.trim() || undefined}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </section>
