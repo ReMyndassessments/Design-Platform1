@@ -1313,11 +1313,17 @@ For each assessment instrument in the data above, output:
 
 After all instruments, output:
 ##SYNTHESIS##
-<One integrative paragraph synthesizing findings across ALL instruments. Draw on the ReMynd Index cross-tool averages. Identify convergent themes, summarize ${firstName}'s overall functional profile, comment on academic/social/daily functional implications, and close with brief next-step recommendations.>
+<A comprehensive clinical summary of 3–5 paragraphs that synthesizes findings across ALL instruments together. This is the most important section of the report. It must:
+  1. Open by naming all instruments used and framing the overall cross-tool picture — what the assessment battery as a whole is revealing about this student.
+  2. Identify convergent themes: where multiple instruments and multiple informants are pointing to the same area of difficulty, and what that convergence tells us clinically.
+  3. Identify significant divergences: where instruments or informants disagree, and what those discrepancies may indicate (e.g., setting-specific behaviour, rater bias, inconsistent presentation).
+  4. Integrate the ReMynd Index cross-tool averages to name the most impactful domains globally, explaining what these elevations mean in terms of ${firstName}'s daily academic, social, and emotional functioning.
+  5. Close with clear, data-grounded clinical recommendations — next assessment steps, priority support areas, and any diagnostic hypotheses warranted by the profile.
+Each paragraph should be substantive and clinically rich. Do not summarise the instruments again — the synthesis should add interpretive depth that goes beyond what each individual instrument section already stated.>
 
 Rules:
 - Use the exact markers ##INSTRUMENT: ...## and ##SYNTHESIS## — nothing else on those lines
-- Write each section as a single flowing paragraph — no bullet points, no sub-headers within sections
+- Within each section write in flowing paragraphs only — no bullet points, no sub-headers
 - Write in formal, professional psychoeducational language suitable for a school psychological report
 - Use ${firstName}'s first name after the initial introduction in each section
 - Do not invent data not present in the scores
@@ -1330,7 +1336,7 @@ You will output a series of clearly delimited sections using these exact markers
 Each section marker must appear on its own line with no other text. The narrative paragraph follows immediately after each marker. Do not add headers, bullets, or any other formatting. Write each section as a single flowing paragraph.`;
 
   try {
-    const narrative = await callDeepSeek(prompt, 2400, systemMessage);
+    const narrative = await callDeepSeek(prompt, 3600, systemMessage);
     return narrative.trim();
   } catch {
     return `Clinical interpretation narrative could not be generated at this time. Please review the score data above and consult with the assessing psychologist for interpretation.`;
