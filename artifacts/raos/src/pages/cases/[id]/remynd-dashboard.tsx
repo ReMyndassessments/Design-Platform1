@@ -420,26 +420,26 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
     }
   }
 
-  // Compact fixed dimensions: narrow cells, tighter header
-  const CELL_W = 34;
-  const LABEL_W = 142;
-  const HEADER_H = 54; // height of rotated-label header row
+  // Header height for rotated respondent labels
+  const HEADER_H = 54;
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2 pt-3 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800">Risk Heatmap — Domain × Respondent Matrix</CardTitle>
       </CardHeader>
       <CardContent className="pt-2 px-4 pb-3">
-        {/* Wrapper: scroll on screen if needed, full-width on print */}
-        <div className="overflow-x-auto print:overflow-visible">
+        {/* Table is fluid: always fills the card width, no overflow */}
+        <div>
           <table
-            className="border-collapse"
-            style={{ tableLayout: "fixed", width: `${LABEL_W + columns.length * CELL_W}px`, maxWidth: "100%" }}
+            className="border-collapse w-full"
+            style={{ tableLayout: "fixed" }}
           >
             <colgroup>
-              <col style={{ width: `${LABEL_W}px` }} />
-              {columns.map(col => <col key={col.key} style={{ width: `${CELL_W}px` }} />)}
+              {/* Label column: ~22% of available width */}
+              <col style={{ width: "22%" }} />
+              {/* Data columns share remaining 78% equally — no explicit width needed */}
+              {columns.map(col => <col key={col.key} />)}
             </colgroup>
             <thead>
               {/* Row 1: tool group labels (merged cells) */}
