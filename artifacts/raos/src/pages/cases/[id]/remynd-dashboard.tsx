@@ -795,12 +795,24 @@ function findInstrumentSection(toolName: string, sections: InsightSection[]): In
   );
 }
 
-/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections. */
-function InsightsSections({ text, onRegenerate, isPending }: { text: string; onRegenerate: () => void; isPending: boolean }) {
-  const sections = parseInsightsSections(text);
+/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections.
+ *  When `synthesisOnly` is true (used by the bottom card), instrument sections are suppressed —
+ *  they are already shown inline under each chart. Falls back to full text for old-format cache. */
+function InsightsSections({
+  text,
+  onRegenerate,
+  isPending,
+  synthesisOnly = false,
+}: {
+  text: string;
+  onRegenerate: () => void;
+  isPending: boolean;
+  synthesisOnly?: boolean;
+}) {
+  const allSections = parseInsightsSections(text);
 
-  // Fallback: if no markers were found, the text is old-format cache — show regenerate button prominently
-  if (sections.length === 0) {
+  // Old-format (no markers) — show full text with prominent regenerate prompt
+  if (allSections.length === 0) {
     return (
       <div>
         <div className="flex items-center justify-between gap-3 mb-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded no-print">
@@ -818,6 +830,11 @@ function InsightsSections({ text, onRegenerate, isPending }: { text: string; onR
       </div>
     );
   }
+
+  // New-format: when used in the bottom summary card, show only the synthesis section
+  const sections = synthesisOnly ? allSections.filter(s => s.isSynthesis) : allSections;
+
+  if (sections.length === 0) return null;
 
   return (
     <div className="space-y-5">
@@ -868,7 +885,7 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
       <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
           <Sparkles size={14} className="text-violet-500" />
-          Clinical Interpretation
+          Cross-Instrument Clinical Summary
           {insights && (
             <button
               onClick={() => generateMut.mutate()}
@@ -883,7 +900,7 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
       </CardHeader>
       <CardContent className="pt-4 px-5 pb-5">
         {insights ? (
-          <InsightsSections text={insights} onRegenerate={() => generateMut.mutate()} isPending={generateMut.isPending} />
+          <InsightsSections text={insights} onRegenerate={() => generateMut.mutate()} isPending={generateMut.isPending} synthesisOnly />
         ) : (
           <div className="text-center py-6">
             <Brain size={28} className="text-slate-300 mx-auto mb-3" />
