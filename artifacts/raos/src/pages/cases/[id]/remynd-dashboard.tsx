@@ -503,7 +503,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      maxWidth: `${LABEL_W}px`,
+                      maxWidth: "22%",
                       lineHeight: "14px",
                       height: "16px",
                     }}
