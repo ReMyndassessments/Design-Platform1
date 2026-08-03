@@ -375,7 +375,21 @@ function ToolComparisonCard({ tool }: { tool: ToolData }) {
   );
 }
 
-/** True heatmap: rows = domains, columns = each tool × respondent combination */
+/** Short respondent abbreviation for compact column headers */
+function shortRespondent(label: string): string {
+  if (/teacher\s*1/i.test(label)) return "T1";
+  if (/teacher\s*2/i.test(label)) return "T2";
+  if (/teacher\s*3/i.test(label)) return "T3";
+  if (/parent|guardian/i.test(label)) return "Par";
+  if (/self|student/i.test(label)) return "Self";
+  if (/counselor/i.test(label)) return "Csl";
+  if (/boarding/i.test(label)) return "Brd";
+  if (/refer/i.test(label)) return "Ref";
+  return label.slice(0, 4);
+}
+
+/** True heatmap: rows = domains, columns = each tool × respondent combination.
+ *  Redesigned for print / 8.5×11 with rotated column headers and compact fixed-width cells. */
 function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
   // Build column definitions
   const columns = tools.flatMap(tool =>
@@ -395,61 +409,141 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
 
   if (columns.length === 0 || allDomains.length === 0) return null;
 
+  // Build tool groups for the merged header row
+  const toolGroups: { toolId: string; toolName: string; count: number }[] = [];
+  for (const col of columns) {
+    const last = toolGroups[toolGroups.length - 1];
+    if (last && last.toolId === col.toolId) {
+      last.count++;
+    } else {
+      toolGroups.push({ toolId: col.toolId, toolName: col.toolName, count: 1 });
+    }
+  }
+
+  // Cell width: fixed 38px per respondent column; domain label fixed at 130px
+  const CELL_W = 38;
+  const LABEL_W = 130;
+
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800">Risk Heatmap — Domain × Respondent Matrix</CardTitle>
       </CardHeader>
-      <CardContent className="pt-3 px-5 pb-5 overflow-x-auto">
-        <table className="text-xs border-collapse min-w-max w-full">
-          <thead>
-            <tr>
-              <th className="text-left py-2 pr-3 font-medium text-slate-500 sticky left-0 bg-white w-36 min-w-[9rem]">
-                Domain
-              </th>
-              {columns.map(col => (
-                <th key={col.key} className="py-1.5 px-2 text-center font-medium text-slate-500 min-w-[80px]">
-                  <div className="text-[10px] font-semibold text-violet-700 truncate max-w-[80px]">{col.toolName}</div>
-                  <div className="text-[9px] font-normal text-slate-400 truncate max-w-[80px]">{col.respondentLabel}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {allDomains.map(domain => (
-              <tr key={domain} className="border-t border-slate-100">
-                <td className="py-2 pr-3 font-medium text-slate-700 sticky left-0 bg-white text-[11px]">
-                  {dLabel(domain)}
-                </td>
-                {columns.map(col => {
-                  const score = col.normalizedScores?.[domain];
-                  if (score === undefined) {
-                    return (
-                      <td key={col.key} className="py-1.5 px-2 text-center text-[10px] text-slate-300">—</td>
-                    );
-                  }
-                  const band = getRiskBand(score, col.thresholds);
-                  const m = RISK_META[band];
-                  return (
-                    <td
-                      key={col.key}
-                      className={`py-1.5 px-2 text-center font-semibold text-[11px] ${m.text}`}
-                      style={{ backgroundColor: m.tailwindBg }}
-                      title={`${dLabel(domain)} · ${col.toolName} · ${col.respondentLabel}: ${score}/100 (${m.label})`}
-                    >
-                      {score}
-                    </td>
-                  );
-                })}
+      <CardContent className="pt-3 px-4 pb-4">
+        {/* Wrapper: scroll on screen if needed, full-width on print */}
+        <div className="overflow-x-auto print:overflow-visible">
+          <table
+            className="text-xs border-collapse"
+            style={{ tableLayout: "fixed", width: `${LABEL_W + columns.length * CELL_W}px`, maxWidth: "100%" }}
+          >
+            <colgroup>
+              <col style={{ width: `${LABEL_W}px` }} />
+              {columns.map(col => <col key={col.key} style={{ width: `${CELL_W}px` }} />)}
+            </colgroup>
+            <thead>
+              {/* Row 1: tool group labels (merged cells) */}
+              <tr>
+                <th />
+                {toolGroups.map(g => (
+                  <th
+                    key={g.toolId}
+                    colSpan={g.count}
+                    className="text-center pb-1 border-b-2 border-violet-200"
+                    style={{ fontSize: "9px", fontWeight: 700, color: "#6d28d9", letterSpacing: "0.02em" }}
+                  >
+                    {g.toolId}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+              {/* Row 2: respondent labels — rotated 90° to save horizontal space */}
+              <tr>
+                <th
+                  className="text-left font-medium text-slate-500 border-b border-slate-200 pb-1"
+                  style={{ fontSize: "10px" }}
+                >
+                  Domain
+                </th>
+                {columns.map(col => (
+                  <th
+                    key={col.key}
+                    className="border-b border-slate-200 border-l border-slate-100"
+                    style={{ height: "72px", verticalAlign: "bottom", padding: "0 2px 4px" }}
+                  >
+                    <div
+                      style={{
+                        writingMode: "vertical-rl",
+                        transform: "rotate(180deg)",
+                        whiteSpace: "nowrap",
+                        fontSize: "8.5px",
+                        fontWeight: 500,
+                        color: "#64748b",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {shortRespondent(col.respondentLabel)}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allDomains.map(domain => (
+                <tr key={domain} className="border-t border-slate-100">
+                  <td
+                    className="pr-2 font-medium text-slate-700 leading-tight"
+                    style={{ fontSize: "9.5px", padding: "3px 6px 3px 0" }}
+                  >
+                    {dLabel(domain)}
+                  </td>
+                  {columns.map(col => {
+                    const score = col.normalizedScores?.[domain];
+                    if (score === undefined) {
+                      return (
+                        <td
+                          key={col.key}
+                          className="text-center text-slate-200 border-l border-slate-50"
+                          style={{ fontSize: "8px", padding: "3px 1px" }}
+                        >
+                          —
+                        </td>
+                      );
+                    }
+                    const band = getRiskBand(score, col.thresholds);
+                    const m = RISK_META[band];
+                    return (
+                      <td
+                        key={col.key}
+                        className={`text-center font-semibold border-l border-white ${m.text}`}
+                        style={{ backgroundColor: m.tailwindBg, fontSize: "8.5px", padding: "3px 1px" }}
+                        title={`${dLabel(domain)} · ${col.toolName} · ${col.respondentLabel}: ${score}/100 (${m.label})`}
+                      >
+                        {score}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Legend row */}
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           {RISK_BAND_LEGEND.map(({ band, range }) => (
-            <span key={band} className="flex items-center gap-1 text-[10px] text-slate-500">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
-              {RISK_META[band].label} ({range}) · "—" = not assessed by this tool
+            <span key={band} className="flex items-center gap-1" style={{ fontSize: "9px", color: "#64748b" }}>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: RISK_META[band].hex }} />
+              {RISK_META[band].label} ({range})
+            </span>
+          ))}
+          <span style={{ fontSize: "9px", color: "#94a3b8" }}>— = not assessed</span>
+        </div>
+
+        {/* Tool key */}
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
+          {toolGroups.map(g => (
+            <span key={g.toolId} style={{ fontSize: "8.5px", color: "#94a3b8" }}>
+              <span style={{ fontWeight: 700, color: "#6d28d9" }}>{g.toolId}</span>
+              {" "}= {g.toolName}
             </span>
           ))}
         </div>
