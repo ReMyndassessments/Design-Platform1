@@ -4,10 +4,14 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_MODEL = "deepseek-chat";
 
-export async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<string> {
+export async function callDeepSeek(prompt: string, maxTokens = 4096, systemMessage?: string): Promise<string> {
   if (!DEEPSEEK_API_KEY) {
     throw new Error("DEEPSEEK_API_KEY is not configured");
   }
+
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemMessage) messages.push({ role: "system", content: systemMessage });
+  messages.push({ role: "user", content: prompt });
 
   const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
     method: "POST",
@@ -17,7 +21,7 @@ export async function callDeepSeek(prompt: string, maxTokens = 4096): Promise<st
     },
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
-      messages: [{ role: "user", content: prompt }],
+      messages,
       temperature: 0.7,
       max_tokens: maxTokens,
     }),
@@ -1319,8 +1323,14 @@ Rules:
 - Do not invent data not present in the scores
 - Do not include disclaimers about AI limitations`;
 
+  const systemMessage = `You are a clinical report formatter. You MUST follow the output format exactly as instructed — no deviation.
+You will output a series of clearly delimited sections using these exact markers on their own lines:
+  ##INSTRUMENT: <Full Instrument Name>##
+  ##SYNTHESIS##
+Each section marker must appear on its own line with no other text. The narrative paragraph follows immediately after each marker. Do not add headers, bullets, or any other formatting. Write each section as a single flowing paragraph.`;
+
   try {
-    const narrative = await callDeepSeek(prompt, 1800);
+    const narrative = await callDeepSeek(prompt, 2400, systemMessage);
     return narrative.trim();
   } catch {
     return `Clinical interpretation narrative could not be generated at this time. Please review the score data above and consult with the assessing psychologist for interpretation.`;

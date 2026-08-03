@@ -737,7 +737,7 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
 }
 
 /** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections. */
-function InsightsSections({ text }: { text: string }) {
+function InsightsSections({ text, onRegenerate, isPending }: { text: string; onRegenerate: () => void; isPending: boolean }) {
   type Section = { label: string; body: string; isSynthesis: boolean };
   const sections: Section[] = [];
   const lines = text.split("\n");
@@ -758,9 +758,24 @@ function InsightsSections({ text }: { text: string }) {
   }
   if (current) sections.push(current);
 
-  // Fallback: if no markers were found, render plain text
+  // Fallback: if no markers were found, the text is old-format cache — show regenerate button prominently
   if (sections.length === 0) {
-    return <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</p>;
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded no-print">
+          <span className="text-xs text-amber-800">This narrative is in the old format. Click below to regenerate with per-instrument sections.</span>
+          <button
+            onClick={onRegenerate}
+            disabled={isPending}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-semibold rounded"
+          >
+            <RefreshCw size={11} className={isPending ? "animate-spin" : ""} />
+            {isPending ? "Generating…" : "Regenerate Now"}
+          </button>
+        </div>
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</p>
+      </div>
+    );
   }
 
   return (
@@ -815,18 +830,17 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
             <button
               onClick={() => generateMut.mutate()}
               disabled={generateMut.isPending}
-              className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 hover:text-violet-600 transition-colors no-print"
-              title="Regenerate"
+              className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-xs font-semibold rounded no-print"
             >
-              <RefreshCw size={10} />
-              Regenerate
+              <RefreshCw size={11} className={generateMut.isPending ? "animate-spin" : ""} />
+              {generateMut.isPending ? "Generating…" : "Regenerate"}
             </button>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4 px-5 pb-5">
         {insights ? (
-          <InsightsSections text={insights} />
+          <InsightsSections text={insights} onRegenerate={() => generateMut.mutate()} isPending={generateMut.isPending} />
         ) : (
           <div className="text-center py-6">
             <Brain size={28} className="text-slate-300 mx-auto mb-3" />
