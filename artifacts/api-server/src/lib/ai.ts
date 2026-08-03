@@ -1309,7 +1309,7 @@ Structure the output EXACTLY as follows — use these markers verbatim so the re
 
 For each assessment instrument in the data above, output:
 ##INSTRUMENT: <Full Instrument Name>##
-<One paragraph narrative for that instrument. Must name the instrument, state who completed it, describe key domain findings, note respondent agreement or discrepancy, and interpret what the scores suggest about ${firstName}'s functioning.>
+<2–3 paragraphs for that instrument. Paragraph 1: name the instrument, state who completed it, and describe the primary domain findings. Paragraph 2: note respondent agreement or discrepancy and what the differences mean clinically. Paragraph 3 (if warranted): interpret the overall picture for this instrument and what it suggests about ${firstName}'s functioning. Separate paragraphs with a single blank line.>
 
 After all instruments, output:
 ##SYNTHESIS##
@@ -1323,7 +1323,7 @@ Each paragraph should be substantive and clinically rich. Do not summarise the i
 
 Rules:
 - Use the exact markers ##INSTRUMENT: ...## and ##SYNTHESIS## — nothing else on those lines
-- Within each section write in flowing paragraphs only — no bullet points, no sub-headers
+- Within each section write multiple flowing paragraphs separated by blank lines — no bullet points, no sub-headers
 - Write in formal, professional psychoeducational language suitable for a school psychological report
 - Use ${firstName}'s first name after the initial introduction in each section
 - Do not invent data not present in the scores

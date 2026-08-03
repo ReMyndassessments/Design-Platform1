@@ -786,7 +786,9 @@ function InsightsSections({ text, onRegenerate, isPending }: { text: string; onR
             {s.isSynthesis ? "⬡ " : ""}{s.label}
           </div>
           {s.isSynthesis && <div className="border-t border-violet-100 mb-2" />}
-          <p className="text-sm text-slate-700 leading-relaxed">{s.body.trim()}</p>
+          {s.body.trim().split(/\n\n+/).map((para, j) => (
+            <p key={j} className="text-sm text-slate-700 leading-relaxed mb-3 last:mb-0">{para.trim()}</p>
+          ))}
         </div>
       ))}
     </div>
