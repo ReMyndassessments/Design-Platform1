@@ -1288,7 +1288,7 @@ export async function generateRemyndIndexInsights(
         .join("\n")
     : "";
 
-  const prompt = `You are a psychoeducational specialist writing a clinical interpretation narrative for a formal assessment report. You have been provided with data from the ReMynd Assessment Operating System (RAOS) — a suite of proprietary rating scales completed by multiple respondents.
+  const prompt = `You are a psychoeducational specialist writing a clinical interpretation narrative for a formal assessment report. You have been provided with completed data from the ReMynd Assessment Operating System (RAOS) — a suite of proprietary rating scales completed by multiple respondents across multiple instruments.
 
 STUDENT PROFILE:
 - Name: ${studentName}
@@ -1301,14 +1301,24 @@ Risk bands: 0–25 = Low, 26–50 = Mild, 51–65 = Moderate, 66–100 = Elevate
 
 ${scoreSummary}${indexSummary}
 
-Write a professional clinical interpretation narrative (4–6 paragraphs) addressing:
-1. Overall functional profile and primary areas of concern based on the cross-informant and cross-tool ReMynd Index data.
-2. Per-domain interpretation with convergent (agreeing) and divergent (discrepant) respondent findings, noting which informants report elevated concerns and which do not.
-3. Contextual factors that may explain discrepancies (e.g., setting differences, rater perspective, protective factors).
-4. Functional implications for ${firstName}'s academic performance, social engagement, and daily functioning.
-5. Recommended next steps or assessment directions (e.g., further clinical interview, classroom observation, diagnostic formulation).
+Write a professional clinical interpretation narrative structured as follows:
 
-Write in formal, professional psychoeducational language suitable for a school psychological report. Use ${firstName}'s first name after the initial introduction. Do not invent data not present in the scores. Do not include disclaimers about AI limitations. Format as flowing paragraphs — no headers, no bullet points.`;
+PART 1 — PER-INSTRUMENT SUMMARIES:
+Write one dedicated paragraph for each assessment instrument present in the data above. Each paragraph must:
+- Name the instrument and clarify who completed it (e.g., "The ReMynd Attention & Self-Regulation Scale (RASR), completed by three respondents — Teacher 1, Teacher 2, and Parent — …")
+- Describe the key findings for that instrument: which domains are elevated or of concern, where respondents agree, and where they diverge
+- Note any clinically significant discrepancies between informants for that instrument
+- Interpret what those scores suggest about ${firstName}'s functioning in the relevant domain
+
+PART 2 — CROSS-INSTRUMENT SYNTHESIS:
+Write one final integrative paragraph that synthesizes findings across ALL instruments together. This paragraph must:
+- Draw on the ReMynd Index cross-tool averages to identify the most pervasive and consistently elevated areas of concern
+- Note where multiple instruments converge on the same theme (e.g., executive functioning difficulties appearing across RASR and RCEP-Core)
+- Summarize ${firstName}'s overall functional profile as a whole, linking the separate instrument findings into a coherent clinical picture
+- Comment on functional implications for ${firstName}'s academic performance, social engagement, and daily functioning
+- Close with brief recommendations for next steps (e.g., diagnostic formulation, classroom observation, targeted support planning)
+
+Write in formal, professional psychoeducational language suitable for a school psychological report. Use ${firstName}'s first name after the initial introduction. Do not invent data not present in the scores. Do not include disclaimers about AI limitations. Format as flowing paragraphs — no headers, no bullet points within paragraphs. Do not label the paragraphs with "Part 1" or "Part 2" — simply write them in sequence.`;
 
   try {
     const narrative = await callDeepSeek(prompt, 1800);

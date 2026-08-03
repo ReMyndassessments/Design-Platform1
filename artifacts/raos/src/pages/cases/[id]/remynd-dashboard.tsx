@@ -768,7 +768,7 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
       <CardHeader className="pb-2 pt-4 px-5 bg-slate-50 border-b">
         <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
           <Sparkles size={14} className="text-violet-500" />
-          AI Clinical Interpretation
+          Clinical Interpretation
           {insights && (
             <button
               onClick={() => generateMut.mutate()}
@@ -949,7 +949,7 @@ function ConfigurePanel({
 
             {/* Discrepancy and AI Insights */}
             {(["discrepancy", "aiInsights"] as const).map(key => {
-              const labels: Record<string, string> = { discrepancy: "Discrepancy Analysis", aiInsights: "AI Clinical Interpretation" };
+              const labels: Record<string, string> = { discrepancy: "Discrepancy Analysis", aiInsights: "Clinical Interpretation" };
               const visible = !hiddenSet.has(key);
               return (
                 <div key={key} className="flex items-center justify-between gap-3">
