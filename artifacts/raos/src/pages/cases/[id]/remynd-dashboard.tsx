@@ -456,7 +456,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                   </th>
                 ))}
               </tr>
-              {/* Row 2: respondent labels — rotated to save horizontal space */}
+              {/* Row 2: respondent labels — rotated using transform (not writing-mode, which reverses chars in print) */}
               <tr>
                 <th
                   className="text-left font-semibold text-slate-500 border-b border-slate-300"
@@ -468,12 +468,12 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                   <th
                     key={col.key}
                     className="border-b border-slate-300 border-l border-slate-100"
-                    style={{ height: `${HEADER_H}px`, verticalAlign: "bottom", padding: "0 2px 3px" }}
+                    style={{ height: `${HEADER_H}px`, width: `${CELL_W}px`, verticalAlign: "bottom", textAlign: "center", padding: "0 0 4px", overflow: "hidden" }}
                   >
-                    <div
+                    <span
                       style={{
-                        writingMode: "vertical-rl",
-                        transform: "rotate(180deg)",
+                        display: "inline-block",
+                        transform: "rotate(-90deg)",
                         whiteSpace: "nowrap",
                         fontSize: "8px",
                         fontWeight: 600,
@@ -482,7 +482,7 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
                       }}
                     >
                       {shortRespondent(col.respondentLabel)}
-                    </div>
+                    </span>
                   </th>
                 ))}
               </tr>
