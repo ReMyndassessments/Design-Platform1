@@ -736,6 +736,48 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
   );
 }
 
+/** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers and renders labelled sections. */
+function InsightsSections({ text }: { text: string }) {
+  type Section = { label: string; body: string; isSynthesis: boolean };
+  const sections: Section[] = [];
+  const lines = text.split("\n");
+  let current: Section | null = null;
+
+  for (const line of lines) {
+    const instrMatch = line.match(/^##INSTRUMENT:\s*(.+?)##\s*$/);
+    const synthMatch = /^##SYNTHESIS##\s*$/.test(line);
+    if (instrMatch) {
+      if (current) sections.push(current);
+      current = { label: instrMatch[1].trim(), body: "", isSynthesis: false };
+    } else if (synthMatch) {
+      if (current) sections.push(current);
+      current = { label: "Cross-Instrument Clinical Summary", body: "", isSynthesis: true };
+    } else if (current) {
+      current.body += (current.body ? "\n" : "") + line;
+    }
+  }
+  if (current) sections.push(current);
+
+  // Fallback: if no markers were found, render plain text
+  if (sections.length === 0) {
+    return <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {sections.map((s, i) => (
+        <div key={i}>
+          <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${s.isSynthesis ? "text-violet-600" : "text-slate-500"}`}>
+            {s.isSynthesis ? "⬡ " : ""}{s.label}
+          </div>
+          {s.isSynthesis && <div className="border-t border-violet-100 mb-2" />}
+          <p className="text-sm text-slate-700 leading-relaxed">{s.body.trim()}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedInsights: string | null }) {
   const queryClient = useQueryClient();
   const [localInsights, setLocalInsights] = useState<string | null>(null);
@@ -784,7 +826,7 @@ function AIInsightsSection({ caseId, cachedInsights }: { caseId: string; cachedI
       </CardHeader>
       <CardContent className="pt-4 px-5 pb-5">
         {insights ? (
-          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{insights}</p>
+          <InsightsSections text={insights} />
         ) : (
           <div className="text-center py-6">
             <Brain size={28} className="text-slate-300 mx-auto mb-3" />
@@ -1253,7 +1295,7 @@ export default function RemyndDashboardPage() {
 
             {/* Section 3: Discrepancy analysis */}
             {!hiddenSections.has("discrepancy") && activeTools.some(t => t.discrepancies.length > 0) && (
-              <section className="page-break-before">
+              <section>
                 <DiscrepancySection tools={activeTools} />
               </section>
             )}

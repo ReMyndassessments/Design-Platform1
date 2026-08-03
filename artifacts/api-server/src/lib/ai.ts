@@ -1301,24 +1301,23 @@ Risk bands: 0–25 = Low, 26–50 = Mild, 51–65 = Moderate, 66–100 = Elevate
 
 ${scoreSummary}${indexSummary}
 
-Write a professional clinical interpretation narrative structured as follows:
+Structure the output EXACTLY as follows — use these markers verbatim so the report renderer can parse them:
 
-PART 1 — PER-INSTRUMENT SUMMARIES:
-Write one dedicated paragraph for each assessment instrument present in the data above. Each paragraph must:
-- Name the instrument and clarify who completed it (e.g., "The ReMynd Attention & Self-Regulation Scale (RASR), completed by three respondents — Teacher 1, Teacher 2, and Parent — …")
-- Describe the key findings for that instrument: which domains are elevated or of concern, where respondents agree, and where they diverge
-- Note any clinically significant discrepancies between informants for that instrument
-- Interpret what those scores suggest about ${firstName}'s functioning in the relevant domain
+For each assessment instrument in the data above, output:
+##INSTRUMENT: <Full Instrument Name>##
+<One paragraph narrative for that instrument. Must name the instrument, state who completed it, describe key domain findings, note respondent agreement or discrepancy, and interpret what the scores suggest about ${firstName}'s functioning.>
 
-PART 2 — CROSS-INSTRUMENT SYNTHESIS:
-Write one final integrative paragraph that synthesizes findings across ALL instruments together. This paragraph must:
-- Draw on the ReMynd Index cross-tool averages to identify the most pervasive and consistently elevated areas of concern
-- Note where multiple instruments converge on the same theme (e.g., executive functioning difficulties appearing across RASR and RCEP-Core)
-- Summarize ${firstName}'s overall functional profile as a whole, linking the separate instrument findings into a coherent clinical picture
-- Comment on functional implications for ${firstName}'s academic performance, social engagement, and daily functioning
-- Close with brief recommendations for next steps (e.g., diagnostic formulation, classroom observation, targeted support planning)
+After all instruments, output:
+##SYNTHESIS##
+<One integrative paragraph synthesizing findings across ALL instruments. Draw on the ReMynd Index cross-tool averages. Identify convergent themes, summarize ${firstName}'s overall functional profile, comment on academic/social/daily functional implications, and close with brief next-step recommendations.>
 
-Write in formal, professional psychoeducational language suitable for a school psychological report. Use ${firstName}'s first name after the initial introduction. Do not invent data not present in the scores. Do not include disclaimers about AI limitations. Format as flowing paragraphs — no headers, no bullet points within paragraphs. Do not label the paragraphs with "Part 1" or "Part 2" — simply write them in sequence.`;
+Rules:
+- Use the exact markers ##INSTRUMENT: ...## and ##SYNTHESIS## — nothing else on those lines
+- Write each section as a single flowing paragraph — no bullet points, no sub-headers within sections
+- Write in formal, professional psychoeducational language suitable for a school psychological report
+- Use ${firstName}'s first name after the initial introduction in each section
+- Do not invent data not present in the scores
+- Do not include disclaimers about AI limitations`;
 
   try {
     const narrative = await callDeepSeek(prompt, 1800);
