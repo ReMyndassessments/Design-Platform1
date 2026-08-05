@@ -1397,6 +1397,41 @@ router.post("/external/portal/:token/lsc/analyses/:id/followup", async (req, res
   }
 });
 
+// POST /external/portal/:token/lsc/inquiry
+// Body: { name, email, months }  — sends a purchase inquiry to ne_roberts@yahoo.com
+router.post("/external/portal/:token/lsc/inquiry", async (req, res) => {
+  try {
+    const info = await getCaseFromPortalToken(req.params.token);
+    if (!info) return res.status(404).json({ error: "not_found" });
+    const { name, email, months } = req.body as { name?: string; email?: string; months?: number };
+    if (!name?.trim() || !email?.trim() || !months) {
+      return res.status(400).json({ error: "bad_request", message: "Name, email and duration are required." });
+    }
+    const [caseRow] = await db.select({ studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, info.caseId)).limit(1);
+    const studentName = caseRow?.studentName ?? "Unknown student";
+    const { sendEmail } = await import("../lib/outlookEmail.js");
+    await sendEmail({
+      to: "ne_roberts@yahoo.com",
+      subject: `LSC Purchase Inquiry — ${name.trim()} (${studentName})`,
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+          <h2 style="color:#7c3aed;margin-bottom:4px;">Learning Support Coach — Purchase Inquiry</h2>
+          <p style="color:#64748b;font-size:13px;margin-top:0;">Submitted via the ReMynd parent portal</p>
+          <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px;">
+            <tr><td style="padding:8px 0;color:#94a3b8;width:120px;">Name</td><td style="padding:8px 0;font-weight:600;color:#0f172a;">${name.trim()}</td></tr>
+            <tr><td style="padding:8px 0;color:#94a3b8;">Email</td><td style="padding:8px 0;font-weight:600;color:#0f172a;"><a href="mailto:${email.trim()}" style="color:#7c3aed;">${email.trim()}</a></td></tr>
+            <tr><td style="padding:8px 0;color:#94a3b8;">Duration</td><td style="padding:8px 0;font-weight:600;color:#0f172a;">${months} month${months > 1 ? "s" : ""}</td></tr>
+            <tr><td style="padding:8px 0;color:#94a3b8;">Student</td><td style="padding:8px 0;color:#0f172a;">${studentName}</td></tr>
+          </table>
+        </div>`,
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[LSC] inquiry:", err);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
 // POST /external/portal/:token/lsc/analyses/:id/version
 router.post("/external/portal/:token/lsc/analyses/:id/version", async (req, res) => {
   try {

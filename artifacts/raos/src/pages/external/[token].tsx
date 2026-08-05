@@ -829,6 +829,12 @@ function PortalView({
   type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number };
 
   const [lscOpen, setLscOpen] = useState(false);
+  const [lscInquiryOpen, setLscInquiryOpen] = useState(false);
+  const [lscInquiryName, setLscInquiryName] = useState("");
+  const [lscInquiryEmail, setLscInquiryEmail] = useState("");
+  const [lscInquiryMonths, setLscInquiryMonths] = useState(1);
+  const [lscInquirySending, setLscInquirySending] = useState(false);
+  const [lscInquirySent, setLscInquirySent] = useState(false);
   const [lscStatus, setLscStatus] = useState<LscStatus | null>(null);
   const [lscStatusLoading, setLscStatusLoading] = useState(false);
   const lscAckKey = `lsc_ack_${portalToken}`;
@@ -1055,6 +1061,21 @@ function PortalView({
       }
     } catch { /* ignore */ }
     finally { setLscVersionLoading(false); }
+  };
+
+  const handleLscInquirySubmit = async () => {
+    if (!lscInquiryName.trim() || !lscInquiryEmail.trim()) return;
+    setLscInquirySending(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/external/portal/${portalToken}/lsc/inquiry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: lscInquiryName.trim(), email: lscInquiryEmail.trim(), months: lscInquiryMonths }),
+      });
+      if (r.ok) { setLscInquirySent(true); }
+    } catch { /* ignore */ }
+    finally { setLscInquirySending(false); }
   };
 
   const handleLscPrint = () => {
@@ -1883,13 +1904,17 @@ function PortalView({
                               <p className="text-[10px] text-emerald-500">{language === "mandarin" ? "每年（省16%）" : language === "korean" ? "연간 (16% 절약)" : "/ year (save 16%)"}</p>
                             </div>
                           </div>
-                          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                            {language === "mandarin"
-                              ? "如需订阅，请联系您的ReMynd顾问或发送邮件至 ne_roberts@yahoo.com"
-                              : language === "korean"
-                              ? "구독 문의: ne_roberts@yahoo.com 또는 ReMynd 담당자에게 연락해 주세요"
-                              : "To subscribe, contact your ReMynd advisor or email ne_roberts@yahoo.com"}
-                          </p>
+                          <button
+                            onClick={() => { setLscInquirySent(false); setLscInquiryOpen(true); }}
+                            className="w-full rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 px-4 py-3 transition-colors text-center"
+                          >
+                            <p className="text-xs font-semibold text-violet-700">
+                              {language === "mandarin" ? "立即申请订阅 →" : language === "korean" ? "지금 구독 신청하기 →" : "Request access →"}
+                            </p>
+                            <p className="text-[10px] text-violet-500 mt-0.5">
+                              {language === "mandarin" ? "填写表单，我们会与您联系" : language === "korean" ? "양식을 작성하시면 연락드립니다" : "Fill in a short form and we'll be in touch"}
+                            </p>
+                          </button>
                         </div>
                       );
                     }
@@ -2051,10 +2076,13 @@ function PortalView({
                                 </button>
                               )}
                               {!canAnalyze && (
-                                <div className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-center space-y-1">
+                                <button
+                                  onClick={() => { setLscInquirySent(false); setLscInquiryOpen(true); }}
+                                  className="w-full rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 p-3 text-center transition-colors"
+                                >
                                   <p className="text-[10px] text-violet-700 font-semibold">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
-                                  <p className="text-[9px] text-violet-500">{language === "mandarin" ? "联系 ne_roberts@yahoo.com" : language === "korean" ? "ne_roberts@yahoo.com 문의" : "Contact ne_roberts@yahoo.com"}</p>
-                                </div>
+                                  <p className="text-[9px] text-violet-400 mt-0.5">{language === "mandarin" ? "点击申请 →" : language === "korean" ? "신청하기 →" : "Tap to request access →"}</p>
+                                </button>
                               )}
                             </div>
                           </div>
@@ -2066,6 +2094,76 @@ function PortalView({
               </div>
             )}
           </div>
+
+        {/* LSC Inquiry Modal */}
+        {lscInquiryOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0" onClick={() => setLscInquiryOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+              {lscInquirySent ? (
+                <div className="text-center space-y-3 py-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                    <CheckCircle2 size={24} className="text-emerald-600" />
+                  </div>
+                  <p className="text-base font-bold text-slate-900">{language === "mandarin" ? "申请已发送！" : language === "korean" ? "신청이 완료되었습니다!" : "Request sent!"}</p>
+                  <p className="text-xs text-slate-500">{language === "mandarin" ? "我们会尽快与您联系。" : language === "korean" ? "곳 연락드리겠습니다." : "We'll be in touch soon."}</p>
+                  <button onClick={() => setLscInquiryOpen(false)} className="mt-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors">
+                    {language === "mandarin" ? "关闭" : language === "korean" ? "닫기" : "Close"}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-base font-bold text-slate-900">{language === "mandarin" ? "申请学习支持教练™" : language === "korean" ? "학습 지원 코치™ 신청" : "Request Learning Support Coach™"}</p>
+                    <p className="text-xs text-slate-500 mt-1">{language === "mandarin" ? "填写以下信息，我们会尽快联系您。" : language === "korean" ? "아래 정보를 입력하시면 연락드리겠습니다." : "Fill in your details and we'll get back to you."}</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 uppercase tracking-wide mb-1">{language === "mandarin" ? "姓名" : language === "korean" ? "이름" : "Name"}</label>
+                      <input
+                        type="text"
+                        value={lscInquiryName}
+                        onChange={e => setLscInquiryName(e.target.value)}
+                        placeholder={language === "mandarin" ? "您的姓名" : language === "korean" ? "이름 입력" : "Your name"}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 uppercase tracking-wide mb-1">{language === "mandarin" ? "电子邮件" : language === "korean" ? "이메일" : "Email"}</label>
+                      <input
+                        type="email"
+                        value={lscInquiryEmail}
+                        onChange={e => setLscInquiryEmail(e.target.value)}
+                        placeholder={language === "mandarin" ? "您的邮筱地址" : language === "korean" ? "이메일 주소 입력" : "Your email address"}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 uppercase tracking-wide mb-1">{language === "mandarin" ? "订阅时长" : language === "korean" ? "구독 기간" : "Duration"}</label>
+                      <select
+                        value={lscInquiryMonths}
+                        onChange={e => setLscInquiryMonths(Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                          <option key={m} value={m}>{m} {language === "mandarin" ? `个月` : language === "korean" ? `개월` : m === 1 ? "month" : "months"}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLscInquirySubmit}
+                    disabled={lscInquirySending || !lscInquiryName.trim() || !lscInquiryEmail.trim()}
+                    className="w-full py-3 bg-gradient-to-r from-violet-600 to-emerald-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-opacity"
+                  >
+                    {lscInquirySending
+                      ? <><Loader2 size={13} className="animate-spin" />{language === "mandarin" ? "发送中…" : language === "korean" ? "전송 중…" : "Sending…"}</>
+                      : language === "mandarin" ? "发送申请" : language === "korean" ? "신청 보내기" : "Send"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Parental Consent Modal */}
         {showConsentModal && portal.reportAccess && (
