@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio, Mic, MoreHorizontal
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio, Mic, MoreHorizontal, Monitor
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -254,6 +254,25 @@ export default function CaseDetail() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [includeAbo, setIncludeAbo] = useState(false);
   const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
+  const [openingDemoPortal, setOpeningDemoPortal] = useState(false);
+
+  const handleOpenDemoPortal = async () => {
+    setOpeningDemoPortal(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/cases/${caseId}/report-access/portal-preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!r.ok) { toast({ title: "Could not open demo portal", variant: "destructive" }); return; }
+      const { portalUrl } = await r.json() as { portalUrl: string };
+      window.open(portalUrl, "_blank");
+    } catch {
+      toast({ title: "Could not open demo portal", variant: "destructive" });
+    } finally {
+      setOpeningDemoPortal(false);
+    }
+  };
   const [showAllTools, setShowAllTools] = useState(false);
   const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
   const [creatingModeratedMeeting, setCreatingModeratedMeeting] = useState(false);
@@ -1099,6 +1118,13 @@ export default function CaseDetail() {
                 <FileBarChart size={15}/> View Scores
               </Button>
             </Link>
+          )}
+          {role === "admin" && (
+            <Button variant="outline" size="sm" className="bg-white gap-1.5"
+              onClick={handleOpenDemoPortal} disabled={openingDemoPortal}>
+              <Monitor size={15} />
+              {openingDemoPortal ? "Opening…" : "Demo Portal"}
+            </Button>
           )}
           {(role === "admin" || role === "school_clinical_coordinator") && (
             <DropdownMenu>
