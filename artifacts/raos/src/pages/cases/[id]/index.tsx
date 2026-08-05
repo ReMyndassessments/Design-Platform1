@@ -1097,15 +1097,6 @@ export default function CaseDetail() {
               <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
             </Link>
           )}
-          {['scoring', 'report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase ?? '') &&
-            (c.assignments ?? []).filter(a => a.toolId === 'RMRA' || a.toolId === 'RAMRI' || a.toolId === 'RAEPA').map(a => (
-              <Link key={a.id} href={`/cases/${c.id}/${a.toolId === 'RAMRI' ? 'ramri' : a.toolId === 'RAEPA' ? 'raepa' : 'rmra'}/${a.id}`}>
-                <Button variant="outline" className="bg-white gap-2 border-violet-200 text-violet-700 hover:bg-violet-50">
-                  <Brain size={16} className="text-violet-500" /> {a.toolId === 'RAMRI' ? 'Open RAMRI' : a.toolId === 'RAEPA' ? 'Open RAEPA' : 'Generate RMRA Report'}
-                </Button>
-              </Link>
-            ))
-          }
           {(role === "admin" || role === "school_clinical_coordinator") && (
             <>
               <Button variant="outline" className="bg-white gap-2" onClick={handleOpenEdit}>
