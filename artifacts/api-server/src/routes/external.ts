@@ -1284,48 +1284,71 @@ router.post("/external/portal/:token/lsc/analyze", async (req, res) => {
     if (!content?.trim()) return res.status(400).json({ error: "content_required" });
     if (!acknowledged) return res.status(400).json({ error: "acknowledgement_required" });
 
-    const sub = await getLscSub(info.caseId);
-    const status = sub["subscription_status"] as string;
-    const ACTIVE = ["active_monthly", "active_annual", "complimentary", "administrator_override"];
-    const TRIAL = ["trial_available", "trial_active"];
+    // Admin preview tokens (created by "Open Portal Preview") are demo sessions —
+    // skip all subscription checks and counters so the parent's trial is never touched.
+    const [tokenRow] = await db.select({ recipientName: reportTokensTable.recipientName })
+      .from(reportTokensTable).where(eq(reportTokensTable.token, req.params.token)).limit(1);
+    const isAdminDemo = tokenRow?.recipientName === "TEST PREVIEW (admin)";
 
-    if (!TRIAL.includes(status) && !ACTIVE.includes(status)) {
-      return res.status(402).json({ error: "subscription_required", subscriptionStatus: status });
-    }
-    if (ACTIVE.includes(status)) {
-      const [s] = (await db.execute(sql`SELECT monthly_analysis_limit FROM lsc_settings LIMIT 1`)).rows;
-      const limit = ((s as Record<string, unknown> | undefined)?.["monthly_analysis_limit"] as number | undefined) ?? 25;
-      if (((sub["monthly_usage"] as number | undefined) ?? 0) >= limit) {
-        return res.status(402).json({ error: "monthly_limit_reached" });
+    if (!isAdminDemo) {
+      const sub = await getLscSub(info.caseId);
+      const status = sub["subscription_status"] as string;
+      const ACTIVE = ["active_monthly", "active_annual", "complimentary", "administrator_override"];
+      const TRIAL = ["trial_available", "trial_active"];
+
+      if (!TRIAL.includes(status) && !ACTIVE.includes(status)) {
+        return res.status(402).json({ error: "subscription_required", subscriptionStatus: status });
       }
+      if (ACTIVE.includes(status)) {
+        const [s] = (await db.execute(sql`SELECT monthly_analysis_limit FROM lsc_settings LIMIT 1`)).rows;
+        const limit = ((s as Record<string, unknown> | undefined)?.["monthly_analysis_limit"] as number | undefined) ?? 25;
+        if (((sub["monthly_usage"] as number | undefined) ?? 0) >= limit) {
+          return res.status(402).json({ error: "monthly_limit_reached" });
+        }
+      }
+      if (TRIAL.includes(status)) {
+        await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_active', trial_used_at=NOW(), updated_at=NOW() WHERE case_id=${info.caseId}`);
+      }
+
+      let result: { slp: Record<string, string>; guide: Record<string, unknown>; demandProfile: Record<string, string> };
+      try {
+        result = await runLscAnalysis(caseRow as unknown as Record<string, unknown>, content.trim(), role, language);
+      } catch (aiErr) {
+        if (TRIAL.includes(status)) {
+          await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_available', trial_used_at=NULL, updated_at=NOW() WHERE case_id=${info.caseId}`);
+        }
+        console.error("[LSC] AI failed:", aiErr);
+        return res.status(500).json({ error: "ai_failed" });
+      }
+
+      const analysisId = randomUUID();
+      await db.execute(sql`
+        INSERT INTO lsc_analyses (id, case_id, portal_token, user_role, language, lesson_content, status, slp_snapshot, demand_profile, guide, output_versions, follow_up_messages)
+        VALUES (${analysisId}, ${info.caseId}, ${req.params.token}, ${role}, ${language}, ${content.trim().slice(0, 5000)}, 'completed',
+          ${JSON.stringify(result.slp)}, ${JSON.stringify(result.demandProfile)}, ${JSON.stringify(result.guide)}, '{}', '[]')
+      `);
+      if (TRIAL.includes(status)) {
+        await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_used', monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
+      } else {
+        await db.execute(sql`UPDATE lsc_subscriptions SET monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
+      }
+      return res.json({ analysisId, guide: result.guide, demandProfile: result.demandProfile, slp: result.slp });
     }
 
-    if (TRIAL.includes(status)) {
-      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_active', trial_used_at=NOW(), updated_at=NOW() WHERE case_id=${info.caseId}`);
-    }
-
+    // Admin demo path — run analysis, save result, touch nothing on the subscription
     let result: { slp: Record<string, string>; guide: Record<string, unknown>; demandProfile: Record<string, string> };
     try {
       result = await runLscAnalysis(caseRow as unknown as Record<string, unknown>, content.trim(), role, language);
     } catch (aiErr) {
-      if (TRIAL.includes(status)) {
-        await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_available', trial_used_at=NULL, updated_at=NOW() WHERE case_id=${info.caseId}`);
-      }
-      console.error("[LSC] AI failed:", aiErr);
+      console.error("[LSC] AI failed (demo):", aiErr);
       return res.status(500).json({ error: "ai_failed" });
     }
-
     const analysisId = randomUUID();
     await db.execute(sql`
       INSERT INTO lsc_analyses (id, case_id, portal_token, user_role, language, lesson_content, status, slp_snapshot, demand_profile, guide, output_versions, follow_up_messages)
       VALUES (${analysisId}, ${info.caseId}, ${req.params.token}, ${role}, ${language}, ${content.trim().slice(0, 5000)}, 'completed',
         ${JSON.stringify(result.slp)}, ${JSON.stringify(result.demandProfile)}, ${JSON.stringify(result.guide)}, '{}', '[]')
     `);
-    if (TRIAL.includes(status)) {
-      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status='trial_used', monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
-    } else {
-      await db.execute(sql`UPDATE lsc_subscriptions SET monthly_usage=monthly_usage+1, updated_at=NOW() WHERE case_id=${info.caseId}`);
-    }
     return res.json({ analysisId, guide: result.guide, demandProfile: result.demandProfile, slp: result.slp });
   } catch (err) {
     console.error("[LSC] analyze:", err);

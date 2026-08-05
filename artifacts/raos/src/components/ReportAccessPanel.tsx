@@ -117,6 +117,11 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [debriefSkippedTokenIds, setDebriefSkippedTokenIds] = useState<string[]>([]);
   const [lastDebriefSend, setLastDebriefSend] = useState<{ sentAt: Date; count: number; emails: string[] } | null>(null);
 
+  // ── LSC subscription state ─────────────────────────────────────────────────
+  type LscSub = { subscriptionStatus: string; monthlyUsage: number; monthlyAllowance: number; trialUsedAt: string | null };
+  const [lscSub, setLscSub] = useState<LscSub | null>(null);
+  const [lscSaving, setLscSaving] = useState(false);
+
   const [debriefDateDraft, setDebriefDateDraft] = useState("");
   const [debriefTz, setDebriefTz] = useState("Asia/Singapore");
   const [savingDebriefDate, setSavingDebriefDate] = useState(false);
@@ -162,7 +167,33 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
     }
   };
 
-  useEffect(() => { fetchStatus(); }, [caseId]);
+  const fetchLscSub = async () => {
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/lsc/subscription`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (r.ok) setLscSub(await r.json());
+    } catch { /* ignore */ }
+  };
+
+  const updateLscSub = async (subscriptionStatus?: string, resetUsage?: boolean) => {
+    setLscSaving(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/lsc/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        body: JSON.stringify({ subscriptionStatus, resetUsage }),
+      });
+      if (r.ok) {
+        setLscSub(await r.json());
+        toast({ title: "LSC subscription updated" });
+      }
+    } finally {
+      setLscSaving(false);
+    }
+  };
+
+  useEffect(() => { fetchStatus(); fetchLscSub(); }, [caseId]);
 
   useEffect(() => {
     if (!caseId) return;
@@ -1590,6 +1621,78 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* LSC Subscription Management */}
+      {lscSub && (
+        <div className="border-t border-slate-100 pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Learning Support Coach</p>
+              <p className="text-xs text-slate-500 mt-0.5">Manage the parent's LSC subscription for this case.</p>
+            </div>
+            <span className={cn(
+              "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+              lscSub.subscriptionStatus === "trial_available" && "bg-amber-100 text-amber-700",
+              lscSub.subscriptionStatus === "trial_used"      && "bg-red-100 text-red-700",
+              ["active_monthly","active_annual","complimentary","administrator_override"].includes(lscSub.subscriptionStatus) && "bg-emerald-100 text-emerald-700",
+            )}>
+              {lscSub.subscriptionStatus === "trial_available"       ? "Trial available"
+                : lscSub.subscriptionStatus === "trial_used"         ? "Trial used"
+                : lscSub.subscriptionStatus === "active_monthly"     ? "Active — monthly"
+                : lscSub.subscriptionStatus === "active_annual"      ? "Active — annual"
+                : lscSub.subscriptionStatus === "complimentary"      ? "Complimentary"
+                : lscSub.subscriptionStatus === "administrator_override" ? "Admin override"
+                : lscSub.subscriptionStatus}
+            </span>
+          </div>
+
+          {["active_monthly","active_annual","complimentary","administrator_override"].includes(lscSub.subscriptionStatus) && (
+            <p className="text-xs text-slate-500">{lscSub.monthlyUsage} / {lscSub.monthlyAllowance} analyses used this month</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {/* Activate after payment */}
+            {(lscSub.subscriptionStatus === "trial_used" || lscSub.subscriptionStatus === "trial_available") && (<>
+              <Button size="sm" variant="outline" disabled={lscSaving}
+                onClick={() => updateLscSub("active_monthly")}>
+                Activate Monthly
+              </Button>
+              <Button size="sm" variant="outline" disabled={lscSaving}
+                onClick={() => updateLscSub("active_annual")}>
+                Activate Annual
+              </Button>
+              <Button size="sm" variant="outline" disabled={lscSaving}
+                onClick={() => updateLscSub("complimentary")}>
+                Complimentary
+              </Button>
+            </>)}
+
+            {/* Reset monthly usage for active subscribers */}
+            {["active_monthly","active_annual","complimentary","administrator_override"].includes(lscSub.subscriptionStatus) && (
+              <Button size="sm" variant="outline" disabled={lscSaving || lscSub.monthlyUsage === 0}
+                onClick={() => updateLscSub(undefined, true)}>
+                Reset Usage
+              </Button>
+            )}
+
+            {/* Reset trial (e.g. demo went wrong) */}
+            {lscSub.subscriptionStatus === "trial_used" && (
+              <Button size="sm" variant="outline" disabled={lscSaving}
+                onClick={() => updateLscSub("trial_available", true)}>
+                Restore Trial
+              </Button>
+            )}
+
+            {/* Downgrade / revoke */}
+            {["active_monthly","active_annual","complimentary","administrator_override"].includes(lscSub.subscriptionStatus) && (
+              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" disabled={lscSaving}
+                onClick={() => updateLscSub("trial_used")}>
+                Revoke
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

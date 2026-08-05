@@ -805,4 +805,68 @@ router.post("/cases/:caseId/dismiss-recommended-tool", authMiddleware, async (re
   res.json(formatCase(updated[0]));
 });
 
+// ── LSC subscription admin ────────────────────────────────────────────────────
+// GET /cases/:id/lsc/subscription
+router.get("/:id/lsc/subscription", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const { id } = req.params;
+  const r = await db.execute(sql`SELECT * FROM lsc_subscriptions WHERE case_id = ${id} LIMIT 1`);
+  if (!r.rows.length) {
+    res.json({ subscriptionStatus: "trial_available", monthlyUsage: 0, monthlyAllowance: 25, trialUsedAt: null });
+    return;
+  }
+  const row = r.rows[0] as Record<string, unknown>;
+  res.json({
+    subscriptionStatus: row["subscription_status"],
+    monthlyUsage: row["monthly_usage"] ?? 0,
+    monthlyAllowance: row["monthly_allowance"] ?? 25,
+    trialUsedAt: row["trial_used_at"] ?? null,
+  });
+});
+
+// POST /cases/:id/lsc/subscription
+// Body: { subscriptionStatus, resetUsage? }
+router.post("/:id/lsc/subscription", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const { id } = req.params;
+  const { subscriptionStatus, resetUsage } = req.body as { subscriptionStatus?: string; resetUsage?: boolean };
+
+  const VALID = ["trial_available", "trial_used", "active_monthly", "active_annual", "complimentary", "administrator_override"];
+  if (subscriptionStatus && !VALID.includes(subscriptionStatus)) {
+    res.status(400).json({ error: "invalid_status" }); return;
+  }
+
+  // Upsert the subscription row
+  const existing = await db.execute(sql`SELECT id FROM lsc_subscriptions WHERE case_id = ${id} LIMIT 1`);
+  if (existing.rows.length) {
+    if (subscriptionStatus) {
+      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = ${subscriptionStatus}, updated_at = NOW() WHERE case_id = ${id}`);
+    }
+    if (resetUsage) {
+      await db.execute(sql`UPDATE lsc_subscriptions SET monthly_usage = 0, updated_at = NOW() WHERE case_id = ${id}`);
+    }
+    if (subscriptionStatus === "trial_available") {
+      await db.execute(sql`UPDATE lsc_subscriptions SET trial_used_at = NULL, updated_at = NOW() WHERE case_id = ${id}`);
+    }
+  } else {
+    const newId = crypto.randomUUID();
+    const status = subscriptionStatus ?? "trial_available";
+    await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage)
+      VALUES (${newId}, ${id}, ${status}, 25, 0)`);
+  }
+
+  const r = await db.execute(sql`SELECT * FROM lsc_subscriptions WHERE case_id = ${id} LIMIT 1`);
+  const row = r.rows[0] as Record<string, unknown>;
+  res.json({
+    subscriptionStatus: row["subscription_status"],
+    monthlyUsage: row["monthly_usage"] ?? 0,
+    monthlyAllowance: row["monthly_allowance"] ?? 25,
+    trialUsedAt: row["trial_used_at"] ?? null,
+  });
+});
+
 export default router;
