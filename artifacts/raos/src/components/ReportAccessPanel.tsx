@@ -1339,6 +1339,19 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
         </div>
       )}
 
+      {/* Portal preview — always accessible, no phase gate */}
+      <div className="flex">
+        <Button
+          variant="outline"
+          onClick={handleOpenPortal}
+          disabled={isOpeningPortal}
+          className="gap-2 text-purple-700 border-purple-300 hover:bg-purple-50 disabled:opacity-40"
+        >
+          <ExternalLink size={14}/>
+          {isOpeningPortal ? "Opening…" : "Open Portal Preview"}
+        </Button>
+      </div>
+
       {/* Upload form */}
       <div className={cn(
         "space-y-4 border border-dashed rounded-xl p-5",
@@ -1510,15 +1523,6 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             {isUploading ? "Sending…"
               : isDebrief ? "Add Document"
               : "Send Links"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleOpenPortal}
-            disabled={isOpeningPortal}
-            className="gap-2 text-purple-700 border-purple-300 hover:bg-purple-50 disabled:opacity-40"
-          >
-            <ExternalLink size={14}/>
-            {isOpeningPortal ? "Opening…" : "Open Portal Preview"}
           </Button>
           {!isDebrief && (
             <Button
