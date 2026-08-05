@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock,
-  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2, BookOpen,
+  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2, BookOpen, Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1057,6 +1057,78 @@ function PortalView({
     finally { setLscVersionLoading(false); }
   };
 
+  const handleLscPrint = () => {
+    const guide = lscDisplayGuide ?? lscAnalysis?.guide;
+    if (!guide) return;
+    const roleLabel = lscActiveRole.charAt(0).toUpperCase() + lscActiveRole.slice(1);
+    const demandRows = [
+      ["Reading", "reading"], ["Writing", "writing"], ["Maths", "mathematics"],
+      ["Exec Fn", "executiveFunction"], ["Memory", "memory"], ["Attention", "attention"],
+    ] as [string, string][];
+    const levelColor = (raw: string) =>
+      raw.toLowerCase().startsWith("high") ? "#dc2626" :
+      raw.toLowerCase().startsWith("low")  ? "#16a34a" : "#d97706";
+    const levelBg = (raw: string) =>
+      raw.toLowerCase().startsWith("high") ? "#fef2f2" :
+      raw.toLowerCase().startsWith("low")  ? "#f0fdf4" : "#fffbeb";
+    const levelBorder = (raw: string) =>
+      raw.toLowerCase().startsWith("high") ? "#fecaca" :
+      raw.toLowerCase().startsWith("low")  ? "#bbf7d0" : "#fde68a";
+    const demandBadges = demandRows.map(([label, key]) => {
+      const raw = guide.demandProfile?.[key as keyof LscDemandProfile] ?? "";
+      const lvl = raw.toLowerCase().startsWith("high") ? "High" : raw.toLowerCase().startsWith("low") ? "Low" : "Medium";
+      return `<div style="border:1px solid ${levelBorder(raw)};background:${levelBg(raw)};border-radius:8px;padding:6px 8px;text-align:center;">
+        <div style="font-size:10px;color:#64748b;font-weight:500;">${label}</div>
+        <div style="font-size:11px;font-weight:700;color:${levelColor(raw)};">${lvl}</div>
+      </div>`;
+    }).join("");
+    const sections = [
+      { key: "strengths",         label: "✨ Strengths",          color: "#059669" },
+      { key: "overview",          label: "Overview",               color: "#334155" },
+      { key: "challenges",        label: "Likely Challenges",      color: "#ea580c" },
+      { key: "strategies",        label: "Support Strategies",     color: "#2563eb" },
+      { key: "stepByStep",        label: "Step-by-Step Guide",     color: "#7c3aed" },
+      { key: "language",          label: "Language Tips",          color: "#64748b" },
+      { key: "observationPoints", label: "Observation Points",     color: "#0d9488" },
+    ] as { key: keyof LscGuide; label: string; color: string }[];
+    const sectionHtml = sections.map(({ key, label, color }) => {
+      const text = (guide[key] as string) ?? "";
+      if (!text) return "";
+      return `<div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${color};margin-bottom:6px;">${label}</div>
+        <div style="font-size:11px;color:#1e293b;line-height:1.6;white-space:pre-line;">${text}</div>
+      </div>`;
+    }).join("");
+    const safetyHtml = guide.safetyNote
+      ? `<div style="margin-top:16px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:10px;color:#92400e;font-style:italic;">${guide.safetyNote}</div>`
+      : "";
+    const html = `<!DOCTYPE html><html><head><title>LSC Guide – ${portal?.studentName ?? "Student"}</title>
+      <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:24px 32px;color:#1e293b;}
+      @media print{body{padding:12px 16px;}}</style></head><body>
+      <div style="border-bottom:2px solid #10b981;padding-bottom:12px;margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.08em;">ReMynd Learning Support Coach™</div>
+        <div style="font-size:16px;font-weight:800;color:#0f172a;margin-top:2px;">${portal?.studentName ?? "Student"} — ${roleLabel} Guide</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">Demand Profile</div>
+        <div style="font-size:11px;color:#475569;line-height:1.6;margin-bottom:10px;">${guide.demandProfile?.overview ?? ""}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">${demandBadges}</div>
+      </div>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;" />
+      ${sectionHtml}${safetyHtml}
+      <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">
+        Generated by ReMynd Assessment Operating System · remyndassessments.com · All recommendations must be reviewed by an authorized adult before use with the student.
+      </div>
+    </body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  };
+
   // Access code / PIN gate
   const pinKey = portal.reportAccess ? `raos_pin_${portal.reportAccess.tokenId}` : null;
   const [pinVerified, setPinVerified] = useState(() => {
@@ -1826,13 +1898,25 @@ function PortalView({
                     const currentGuide = lscDisplayGuide ?? lscAnalysis?.guide ?? null;
                     return (
                       <div>
-                        {/* Status bar */}
-                        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                         {/* Status bar */}
+                         <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                           <div className="flex-1 flex items-center gap-2">
                           {isTrial
                             ? <><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /><span className="text-[10px] text-amber-700 font-medium">{language === "mandarin" ? "免费试用 · 1次完整分析" : language === "korean" ? "무료 체험 · 1회 전체 분석" : "Free trial · 1 full analysis included"}</span></>
-                            : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
-                          }
-                        </div>
+                               : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
+                             }
+                           </div>
+                           {lscAnalysis && (lscDisplayGuide ?? lscAnalysis.guide) && (
+                             <button
+                               onClick={handleLscPrint}
+                               title={language === "mandarin" ? "打印支持方案" : language === "korean" ? "지원 계획 인쇄" : "Print guide"}
+                               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                             >
+                               <Printer size={11} />
+                               <span>{language === "mandarin" ? "打印" : language === "korean" ? "인쇄" : "Print"}</span>
+                             </button>
+                           )}
+                         </div>
 
                         {!lscAnalysis ? (
                           // INPUT FORM
