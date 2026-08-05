@@ -9,29 +9,63 @@ import { LangProvider } from "@/lib/i18n";
 import { WatchAlongProvider } from "@/hooks/use-watch-along";
 import { WatchAlongBanner } from "@/components/watch-along-banner";
 
+/** Returns true when the error is a Vite/webpack stale-chunk failure
+ *  (browser cached old HTML but chunk hashes changed after a new deploy). */
+function isChunkLoadError(error: Error): boolean {
+  const msg = error.message ?? "";
+  return (
+    msg.includes("dynamically imported module") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("Importing a module script failed") ||
+    /Loading chunk \d+ failed/.test(msg)
+  );
+}
+
 class PageErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { error: Error | null }
+  { error: Error | null; isChunkError: boolean }
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, isChunkError: false };
   }
   static getDerivedStateFromError(error: Error) {
-    return { error };
+    return { error, isChunkError: isChunkLoadError(error) };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[PageErrorBoundary] Render error:", error, info.componentStack);
+    // Auto-reload once for stale-chunk errors so users transparently get fresh assets.
+    if (isChunkLoadError(error)) {
+      const reloaded = sessionStorage.getItem("chunk_reload");
+      if (!reloaded) {
+        sessionStorage.setItem("chunk_reload", "1");
+        window.location.reload();
+      }
+    }
   }
   render() {
     if (this.state.error) {
+      if (this.state.isChunkError) {
+        return (
+          <div className="max-w-2xl mx-auto mt-16 p-6 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+            <h2 className="text-base font-bold mb-2">A new version of the app is available.</h2>
+            <p className="text-sm mb-4">The page needs to reload to pick up the latest update.</p>
+            <button
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded"
+              onClick={() => { sessionStorage.removeItem("chunk_reload"); window.location.reload(); }}
+            >
+              Reload now
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="max-w-2xl mx-auto mt-16 p-6 bg-red-50 border border-red-200 rounded-xl text-red-800">
           <h2 className="text-base font-bold mb-2">Something went wrong loading this page.</h2>
           <p className="text-sm font-mono break-all">{this.state.error.message}</p>
           <button
             className="mt-4 text-sm underline text-red-700"
-            onClick={() => { this.setState({ error: null }); window.history.back(); }}
+            onClick={() => { this.setState({ error: null, isChunkError: false }); window.history.back(); }}
           >
             ← Go back
           </button>
