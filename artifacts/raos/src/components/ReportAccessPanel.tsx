@@ -90,9 +90,20 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [tokens, setTokens] = useState<ReportToken[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [bobbyCredsDraft, setBobbyCredsDraft] = useState(bobbyAiPortalCredentials ?? "");
-  const [editingBobbyCreds, setEditingBobbyCreds] = useState(false);
   const [savingBobbyCreds, setSavingBobbyCreds] = useState(false);
+  const [editingBobbyCreds, setEditingBobbyCreds] = useState(false);
+
+  /** Parse the stored freeform string into structured fields */
+  const parseBobbyCredentials = (raw: string | null) => {
+    if (!raw) return { caseId: "", accessCode: "" };
+    const caseId = raw.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i)?.[1]?.trim() ?? "";
+    const accessCode = raw.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i)?.[1]?.trim() ?? "";
+    return { caseId, accessCode };
+  };
+
+  const parsed = parseBobbyCredentials(bobbyAiPortalCredentials ?? null);
+  const [bobbyCaseId, setBobbyCaseId] = useState(parsed.caseId);
+  const [bobbyAccessCode, setBobbyAccessCode] = useState(parsed.accessCode);
 
   const [debriefUrlDraft, setDebriefUrlDraft] = useState(debriefMeetingUrl ?? "");
   const [editingDebriefUrl, setEditingDebriefUrl] = useState(false);
@@ -884,13 +895,28 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
           Portal URL is fixed: <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline font-medium">bobby-ai.com/intervention</a>. Store per-case login credentials below — they will appear on the portal page and in debrief emails.
         </p>
 
+        {/* Saved state — show Case ID + Access Code as pills, with Edit/Clear */}
         {bobbyAiPortalCredentials && !editingBobbyCreds ? (
-          <div className="rounded-lg bg-purple-100/80 border border-purple-200 px-3 py-2 space-y-2">
+          <div className="rounded-lg bg-purple-100/80 border border-purple-200 px-3 py-2.5 space-y-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">Stored Credentials</p>
-            <pre className="text-xs text-purple-900 whitespace-pre-wrap break-all font-mono">{bobbyCredsDraft || bobbyAiPortalCredentials}</pre>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-0.5">
+                <p className="text-[9px] uppercase tracking-wider text-purple-500 font-semibold">Case ID</p>
+                <p className="font-mono text-xs text-purple-900 font-bold break-all">{parseBobbyCredentials(bobbyAiPortalCredentials).caseId || "—"}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[9px] uppercase tracking-wider text-purple-500 font-semibold">Access Code</p>
+                <p className="font-mono text-xs text-purple-900 font-bold break-all">{parseBobbyCredentials(bobbyAiPortalCredentials).accessCode || "—"}</p>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" className="h-7 text-xs border-purple-300 text-purple-800 hover:bg-purple-100"
-                onClick={() => { setBobbyCredsDraft(bobbyAiPortalCredentials ?? ""); setEditingBobbyCreds(true); }}>
+                onClick={() => {
+                  const p = parseBobbyCredentials(bobbyAiPortalCredentials ?? null);
+                  setBobbyCaseId(p.caseId);
+                  setBobbyAccessCode(p.accessCode);
+                  setEditingBobbyCreds(true);
+                }}>
                 <Pencil size={11} className="mr-1"/> Edit
               </Button>
               <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
@@ -902,7 +928,8 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
                       body: JSON.stringify({ bobbyAiPortalCredentials: null }),
                     });
-                    setBobbyCredsDraft("");
+                    setBobbyCaseId("");
+                    setBobbyAccessCode("");
                     onCaseUpdated?.();
                     toast({ title: "Credentials cleared" });
                   } catch { toast({ title: "Could not clear credentials", variant: "destructive" }); }
@@ -914,28 +941,43 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             </div>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          /* Edit / Add form — two structured fields */
+          <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">
               {editingBobbyCreds ? "Edit Credentials" : "Add Credentials"}
             </p>
-            <textarea
-              rows={3}
-              placeholder={"Username: john.doe@email.com\nPassword: ABC123XY"}
-              value={bobbyCredsDraft}
-              onChange={e => setBobbyCredsDraft(e.target.value)}
-              className="w-full rounded-md border border-purple-200 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono resize-none"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold">Case ID</Label>
+                <Input
+                  value={bobbyCaseId}
+                  onChange={e => setBobbyCaseId(e.target.value)}
+                  placeholder="e.g. CYC-2024-001"
+                  className="h-8 text-xs border-purple-200 focus:ring-purple-400 font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold">Access Code</Label>
+                <Input
+                  value={bobbyAccessCode}
+                  onChange={e => setBobbyAccessCode(e.target.value)}
+                  placeholder="e.g. ABC123XY"
+                  className="h-8 text-xs border-purple-200 focus:ring-purple-400 font-mono"
+                />
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button size="sm"
                 className="h-7 text-xs bg-purple-700 hover:bg-purple-800 text-white"
                 onClick={async () => {
-                  if (!bobbyCredsDraft.trim()) return;
+                  if (!bobbyCaseId.trim() && !bobbyAccessCode.trim()) return;
+                  const formatted = `Case ID: ${bobbyCaseId.trim()}\nAccess Code: ${bobbyAccessCode.trim()}`;
                   setSavingBobbyCreds(true);
                   try {
                     await fetch(`${BASE}/cases/${caseId}`, {
                       method: "PATCH",
                       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
-                      body: JSON.stringify({ bobbyAiPortalCredentials: bobbyCredsDraft.trim() }),
+                      body: JSON.stringify({ bobbyAiPortalCredentials: formatted }),
                     });
                     setEditingBobbyCreds(false);
                     onCaseUpdated?.();
@@ -943,13 +985,18 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   } catch { toast({ title: "Could not save credentials", variant: "destructive" }); }
                   finally { setSavingBobbyCreds(false); }
                 }}
-                disabled={savingBobbyCreds || !bobbyCredsDraft.trim()}>
+                disabled={savingBobbyCreds || (!bobbyCaseId.trim() && !bobbyAccessCode.trim())}>
                 {savingBobbyCreds ? <RefreshCw size={11} className="mr-1 animate-spin"/> : null}
                 Save
               </Button>
               {editingBobbyCreds && (
                 <Button size="sm" variant="ghost" className="h-7 text-xs"
-                  onClick={() => { setEditingBobbyCreds(false); setBobbyCredsDraft(bobbyAiPortalCredentials ?? ""); }}>
+                  onClick={() => {
+                    setEditingBobbyCreds(false);
+                    const p = parseBobbyCredentials(bobbyAiPortalCredentials ?? null);
+                    setBobbyCaseId(p.caseId);
+                    setBobbyAccessCode(p.accessCode);
+                  }}>
                   Cancel
                 </Button>
               )}
