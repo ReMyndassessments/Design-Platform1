@@ -45,6 +45,7 @@ interface Props {
   debriefMeetingUrl?: string;
   debriefMeetingDate?: string;
   bobbyAiPortalCredentials?: string | null;
+  userRole?: string;
   onPhaseAdvanced?: () => void;
   onCaseUpdated?: () => void;
 }
@@ -83,7 +84,7 @@ function getTzAbbr(tz: string, date: Date): string {
   } catch { return tz; }
 }
 
-export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, debriefMeetingDate, bobbyAiPortalCredentials, onPhaseAdvanced, onCaseUpdated }: Props) {
+export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPhase, workingDocUrl, debriefMeetingUrl, debriefMeetingDate, bobbyAiPortalCredentials, userRole, onPhaseAdvanced, onCaseUpdated }: Props) {
   const { toast } = useToast();
 
   const [uploads, setUploads] = useState<ReportUpload[]>([]);
@@ -1624,8 +1625,8 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
         </div>
       )}
 
-      {/* LSC Subscription Management */}
-      {lscSub && (
+      {/* LSC Subscription Management — admin only */}
+      {userRole === "admin" && lscSub && (
         <div className="border-t border-slate-100 pt-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>

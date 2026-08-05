@@ -1467,6 +1467,7 @@ export default function CaseDetail() {
           debriefMeetingUrl={c.debriefMeetingUrl ?? undefined}
           debriefMeetingDate={c.debriefMeetingDate ?? undefined}
           bobbyAiPortalCredentials={c.bobbyAiPortalCredentials ?? null}
+          userRole={role}
           onPhaseAdvanced={() => {
             queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
             queryClient.invalidateQueries({ queryKey: ["/api/cases"] });

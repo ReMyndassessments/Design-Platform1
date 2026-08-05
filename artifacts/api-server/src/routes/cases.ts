@@ -808,7 +808,7 @@ router.post("/cases/:caseId/dismiss-recommended-tool", authMiddleware, async (re
 // ── LSC subscription admin ────────────────────────────────────────────────────
 // GET /cases/:id/lsc/subscription
 router.get("/:id/lsc/subscription", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+  if (req.userRole !== "admin") {
     res.status(403).json({ error: "forbidden" }); return;
   }
   const { id } = req.params;
@@ -829,7 +829,7 @@ router.get("/:id/lsc/subscription", authMiddleware, async (req, res) => {
 // POST /cases/:id/lsc/subscription
 // Body: { subscriptionStatus, resetUsage? }
 router.post("/:id/lsc/subscription", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+  if (req.userRole !== "admin") {
     res.status(403).json({ error: "forbidden" }); return;
   }
   const { id } = req.params;
