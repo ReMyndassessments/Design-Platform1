@@ -1931,7 +1931,7 @@ function PortalView({
                                : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
                              }
                            </div>
-                           {lscAnalysis && (lscDisplayGuide ?? lscAnalysis.guide) && (
+                           {lscAnalysis && (
                              <button
                                onClick={handleLscPrint}
                                title={language === "mandarin" ? "打印支持方案" : language === "korean" ? "지원 계획 인쇄" : "Print guide"}
