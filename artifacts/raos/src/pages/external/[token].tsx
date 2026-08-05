@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2, ChevronDown, FileText, ClipboardList, ShieldCheck, Lock,
-  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2, BookOpen, Printer,
+  ArrowLeft, ChevronRight, ClipboardCheck, Clock, Info, Download, Loader2, BookOpen, Printer, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
