@@ -2078,10 +2078,10 @@ function PortalView({
                               {!canAnalyze && (
                                 <button
                                   onClick={() => { setLscInquirySent(false); setLscInquiryOpen(true); }}
-                                  className="w-full rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 p-3 text-center transition-colors"
+                                  className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 p-4 text-center transition-opacity shadow-md"
                                 >
-                                  <p className="text-[10px] text-violet-700 font-semibold">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
-                                  <p className="text-[9px] text-violet-400 mt-0.5">{language === "mandarin" ? "点击申请 →" : language === "korean" ? "신청하기 →" : "Tap to request access →"}</p>
+                                  <p className="text-sm font-bold text-white">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
+                                  <p className="text-[11px] text-white/80 mt-1">{language === "mandarin" ? "点击申请 →" : language === "korean" ? "신청하기 →" : "Tap to request access →"}</p>
                                 </button>
                               )}
                             </div>
@@ -2098,7 +2098,13 @@ function PortalView({
         {/* LSC Inquiry Modal */}
         {lscInquiryOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0" onClick={() => setLscInquiryOpen(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setLscInquiryOpen(false)}
+                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X size={15} />
+              </button>
               {lscInquirySent ? (
                 <div className="text-center space-y-3 py-4">
                   <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
