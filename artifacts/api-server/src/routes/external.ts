@@ -941,7 +941,10 @@ Return ONLY valid JSON. No markdown code fences. No explanation outside the JSON
 // ── Portal credential login ───────────────────────────────────────────────────
 // POST /api/external/portal-login
 // Body: { caseId: string, password: string }
-// Authenticates using Bobby AI portal credentials (Case ID + Access Code) stored on the case.
+// Two auth paths:
+//   A) Bobby AI credentials — Case ID + Access Code from bobbyAiPortalCredentials field
+//   B) Report access code   — any identifier + the 6-digit code from a sent report token
+// No phase gate: the portal shows phase-appropriate content at any case stage.
 router.post("/external/portal-login", async (req, res) => {
   const { caseId, password } = req.body ?? {};
 
@@ -950,9 +953,10 @@ router.post("/external/portal-login", async (req, res) => {
     return;
   }
 
-  // Look up case by Bobby AI case ID — search both the extracted column (fast path)
-  // and a text match in the credentials field (fallback for cases not yet backfilled).
   const caseId_ = String(caseId).trim();
+  const password_ = String(password).trim();
+
+  // ── Path A: Bobby AI credentials ──────────────────────────────────────────
   const caseRows = await db
     .select()
     .from(casesTable)
@@ -964,52 +968,72 @@ router.post("/external/portal-login", async (req, res) => {
     )
     .limit(5);
 
-  // Among matches, find one where the credentials actually contain this Case ID on a Case ID line
-  const c = caseRows.find(row => {
+  const bobbyCase = caseRows.find(row => {
     const creds = row.bobbyAiPortalCredentials ?? "";
     const idMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
     return idMatch && idMatch[1].trim().toLowerCase() === caseId_.toLowerCase();
   }) ?? caseRows[0];
 
-  if (!c) {
-    res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
-    return;
+  if (bobbyCase) {
+    const creds = bobbyCase.bobbyAiPortalCredentials ?? "";
+    const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
+    const expectedCode = codeMatch ? codeMatch[1].trim() : null;
+
+    if (expectedCode && password_.toLowerCase() === expectedCode.toLowerCase()) {
+      // Credentials match — find or create a report token
+      const tokenRows = await db
+        .select()
+        .from(reportTokensTable)
+        .where(eq(reportTokensTable.caseId, bobbyCase.id))
+        .limit(10);
+
+      let tok = tokenRows.find(t => t.role === "parent") ?? tokenRows.find(t => t.role === "teacher") ?? tokenRows[0];
+
+      if (!tok) {
+        // No token yet — create a preview token so the parent portal opens
+        const newToken = randomUUID();
+        const [inserted] = await db.insert(reportTokensTable).values({
+          id: randomUUID(),
+          caseId: bobbyCase.id,
+          role: "parent",
+          email: "preview@internal",
+          token: newToken,
+          accessCode: password_,
+          recipientName: "Portal Preview",
+          sentAt: new Date(),
+        }).returning();
+        tok = inserted;
+      }
+
+      res.json({ token: tok!.token });
+      return;
+    }
   }
 
-  // Extract the Bobby access code from the stored credentials and compare
-  const credentials = (c.bobbyAiPortalCredentials ?? "");
-  const codeMatch = credentials.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
-  const expectedCode = codeMatch ? codeMatch[1].trim() : null;
-
-  if (!expectedCode || String(password).trim().toLowerCase() !== expectedCode.toLowerCase()) {
-    res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
-    return;
-  }
-
-  // Check the case is in debrief or complete phase
-  if (c.currentPhase !== "debrief" && c.currentPhase !== "complete") {
-    res.status(403).json({ error: "not_ready", message: "Your portal is not yet available. It will be activated after your debrief session." });
-    return;
-  }
-
-  // Find a report token for this case (prefer parent, then teacher, then any)
-  const tokenRows = await db
+  // ── Path B: Report token access code ─────────────────────────────────────
+  // Match by access code (the 6-digit code from the report email).
+  // The "Case ID" field is used as a hint to disambiguate if multiple tokens share a code,
+  // but a single code match is accepted directly since codes are random and case-scoped.
+  const tokensByCode = await db
     .select()
     .from(reportTokensTable)
-    .where(eq(reportTokensTable.caseId, c.id))
-    .limit(10);
+    .where(sql`lower(${reportTokensTable.accessCode}) = lower(${password_})`)
+    .limit(20);
 
-  if (!tokenRows.length) {
-    res.status(403).json({ error: "not_ready", message: "Your portal link is not yet available. Please contact your clinician." });
-    return;
+  if (tokensByCode.length > 0) {
+    // Prefer a token whose caseId matches the input, then fall back to any match
+    const tok =
+      tokensByCode.find(t => t.caseId.toLowerCase() === caseId_.toLowerCase()) ??
+      tokensByCode.find(t => t.caseId.toLowerCase().includes(caseId_.toLowerCase())) ??
+      (tokensByCode.length === 1 ? tokensByCode[0] : null);
+
+    if (tok) {
+      res.json({ token: tok.token });
+      return;
+    }
   }
 
-  const matchedToken =
-    tokenRows.find((t) => t.role === "parent") ??
-    tokenRows.find((t) => t.role === "teacher") ??
-    tokenRows[0];
-
-  res.json({ token: matchedToken!.token });
+  res.status(401).json({ error: "invalid_credentials", message: "Case ID or Password is incorrect." });
 });
 
 // ── RAMRI Contributor Upload (public, no auth) ────────────────────────────────

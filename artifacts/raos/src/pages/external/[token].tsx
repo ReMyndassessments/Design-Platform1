@@ -1467,9 +1467,7 @@ function PortalView({
           const creds = portal.bobbyAiPortalCredentials ?? "";
           const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
           const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
-          const deepLink = caseIdMatch && codeMatch
-            ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdMatch[1].trim())}&code=${encodeURIComponent(codeMatch[1].trim())}`
-            : "https://bobby-ai.com/intervention";
+          const deepLink = "https://remyndassessments.com/my-portal";
           return (
             <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50 shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-4 space-y-3">
@@ -1514,10 +1512,10 @@ function PortalView({
 
                 <p className="text-[10px] text-purple-400 text-center">
                   {language === "mandarin"
-                    ? <>您也可以直接访问 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>
+                    ? <>您也可以直接访问 <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a></>
                     : language === "korean"
-                    ? <>또는 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a>에서 직접 접속할 수도 있습니다</>
-                    : <>You can also access directly at <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>}
+                    ? <>또는 <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a>에서 직접 접속할 수도 있습니다</>
+                    : <>You can also access directly at <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a></>}
                 </p>
               </div>
             </div>
@@ -1525,8 +1523,7 @@ function PortalView({
         })()}
 
         {/* AI Chat Panel */}
-        {portal.reportAccess && (
-          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-sm overflow-hidden">
             {!chatOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-indigo-100/50 transition-colors"
@@ -1684,11 +1681,9 @@ function PortalView({
               </div>
             )}
           </div>
-        )}
 
         {/* Learning Support Coach™ */}
-        {portal.reportAccess && (
-          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
             {!lscOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-emerald-100/50 transition-colors"
@@ -1987,7 +1982,6 @@ function PortalView({
               </div>
             )}
           </div>
-        )}
 
         {/* Parental Consent Modal */}
         {showConsentModal && portal.reportAccess && (
