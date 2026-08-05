@@ -613,7 +613,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
               <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/external/${token.token}`);
+                  navigator.clipboard.writeText("https://remyndassessments.com/my-portal");
                   toast({ title: "Portal link copied", description: `${roleLabel} — ${token.email}` });
                 }}
                 className="text-[10px] text-violet-500 hover:text-violet-700 flex items-center gap-1">
@@ -640,7 +640,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             <p className="text-xs text-slate-500 flex-1 truncate">{token.email}</p>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/external/${token.token}`);
+                navigator.clipboard.writeText("https://remyndassessments.com/my-portal");
                 toast({ title: "Portal link copied", description: `${roleLabel} — ${token.email}` });
               }}
               className="text-[10px] text-violet-500 hover:text-violet-700 flex items-center gap-1">
@@ -917,7 +917,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
           <p className="text-sm font-semibold text-purple-900">Bobby-AI Progress Portal</p>
         </div>
         <p className="text-xs text-purple-700">
-          Portal URL is fixed: <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline font-medium">bobby-ai.com/intervention</a>. Store per-case login credentials below — they will appear on the portal page and in debrief emails.
+          Client portal URL: <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline font-medium">remyndassessments.com/my-portal</a>. Store per-case login credentials below — they will appear on the portal page and in debrief emails.
         </p>
 
         {/* Saved state — show Case ID + Access Code as pills, with Edit/Clear */}
@@ -1062,7 +1062,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   </button>
                   <button
                     title="Copy portal link"
-                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${parentToken.token}`); toast({ title: "Portal link copied", description: parentToken.email }); }}
+                    onClick={() => { navigator.clipboard.writeText("https://remyndassessments.com/my-portal"); toast({ title: "Portal link copied", description: parentToken.email }); }}
                     className="shrink-0 text-slate-300 hover:text-indigo-500 transition-colors"
                   >
                     <Copy size={11}/>
@@ -1107,7 +1107,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
                   </button>
                   <button
                     title="Copy portal link"
-                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/external/${teacherToken.token}`); toast({ title: "Portal link copied", description: teacherToken.email }); }}
+                    onClick={() => { navigator.clipboard.writeText("https://remyndassessments.com/my-portal"); toast({ title: "Portal link copied", description: teacherToken.email }); }}
                     className="shrink-0 text-slate-300 hover:text-indigo-500 transition-colors"
                   >
                     <Copy size={11}/>
