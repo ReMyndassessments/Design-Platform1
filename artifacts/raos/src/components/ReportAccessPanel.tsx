@@ -142,6 +142,7 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
   const [isImporting, setIsImporting] = useState(false);
   const [deletingUploadId, setDeletingUploadId] = useState<string | null>(null);
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
 
   // Edit email state
   const [editingToken, setEditingToken] = useState<string | null>(null);
@@ -421,6 +422,30 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
       await fetchStatus();
     } catch {
       toast({ title: "Failed to reset test preview", variant: "destructive" });
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    setIsOpeningPortal(true);
+    try {
+      const r = await fetch(`${BASE}/cases/${caseId}/report-access/portal-preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast({ title: data.error ?? "Could not open portal preview", variant: "destructive" }); return;
+      }
+      window.open(data.portalUrl, "_blank", "noopener,noreferrer");
+      toast({
+        title: "Portal preview opened",
+        description: `Access code: ${data.accessCode}`,
+      });
+      await fetchStatus();
+    } catch {
+      toast({ title: "Failed to open portal preview", variant: "destructive" });
+    } finally {
+      setIsOpeningPortal(false);
     }
   };
 
@@ -1485,6 +1510,15 @@ export function ReportAccessPanel({ caseId, studentName, parentEmail, currentPha
             {isUploading ? "Sending…"
               : isDebrief ? "Add Document"
               : "Send Links"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleOpenPortal}
+            disabled={isOpeningPortal}
+            className="gap-2 text-purple-700 border-purple-300 hover:bg-purple-50 disabled:opacity-40"
+          >
+            <ExternalLink size={14}/>
+            {isOpeningPortal ? "Opening…" : "Open Portal Preview"}
           </Button>
           {!isDebrief && (
             <Button

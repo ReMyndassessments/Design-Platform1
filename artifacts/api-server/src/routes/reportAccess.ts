@@ -385,6 +385,39 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
   res.json({ success: true, sentTo: adminUser.email });
 });
 
+// ── Admin: instant portal preview — no phase gate, no debrief URL required ────
+// Creates/refreshes a test token and returns the portal URL so the admin can
+// open it directly in a new tab without sending any email.
+router.post("/cases/:id/report-access/portal-preview", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const caseId = req.params.id;
+  const [caseRow] = await db.select({ id: casesTable.id }).from(casesTable).where(eq(casesTable.id, caseId));
+  if (!caseRow) { res.status(404).json({ error: "case_not_found" }); return; }
+
+  // Delete any existing test-preview token so we always get a fresh one
+  await db.delete(reportTokensTable).where(
+    and(eq(reportTokensTable.caseId, caseId), eq(reportTokensTable.recipientName, "TEST PREVIEW (admin)"))
+  );
+
+  const token = randomUUID();
+  const testAccessCode = generateAccessCode();
+  await db.insert(reportTokensTable).values({
+    id: randomUUID(),
+    caseId,
+    role: "parent",
+    email: "preview@internal",
+    token,
+    accessCode: testAccessCode,
+    recipientName: "TEST PREVIEW (admin)",
+    sentAt: new Date(),
+  });
+
+  const base = getBaseUrl(req);
+  res.json({ portalUrl: `${base}/external/${token}`, accessCode: testAccessCode });
+});
+
 // ── Admin: upload report PDF for a case ───────────────────────────────────────
 router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
