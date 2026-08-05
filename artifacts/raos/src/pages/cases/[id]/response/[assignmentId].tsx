@@ -1108,8 +1108,8 @@ export default function ResponseViewer() {
                       {radarData.length >= 3 && (
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Profile Overview</p>
-                          <ResponsiveContainer width="100%" height={280}>
-                            <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <RadarChart data={radarData} outerRadius="62%" margin={{ top: 25, right: 75, bottom: 25, left: 75 }}>
                               <PolarGrid stroke="#e2e8f0" />
                               <PolarAngleAxis
                                 dataKey="domain"
@@ -1147,7 +1147,7 @@ export default function ResponseViewer() {
                             <YAxis
                               type="category"
                               dataKey="short"
-                              width={90}
+                              width={140}
                               tick={{ fontSize: 11, fill: "#475569", fontWeight: 500 }}
                             />
                             <ReTooltip
