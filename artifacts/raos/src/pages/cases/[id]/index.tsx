@@ -25,7 +25,7 @@ import {
   ArrowLeft, CheckCircle2, ChevronRight, ChevronLeft,
   Copy, ExternalLink, QrCode, FileBarChart, Edit, Play, Trash2, Lock, ShieldAlert, Eye,
   Mail, LayoutGrid, Video, CopyCheck, ShieldCheck, RefreshCw,
-  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio, Mic
+  Circle, PackageCheck, Link2, X, FileEdit, Send, Users, Pencil, Check, UserPlus, Brain, FlaskConical, Radio, Mic, MoreHorizontal
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -1076,14 +1076,15 @@ export default function CaseDetail() {
             <p className="text-slate-500 text-sm">ID: {c.id} • Created {formatDate(c.createdAt)}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {watchAlong.isMentor && (
             <Button
               variant={watchAlong.broadcasting ? "default" : "outline"}
+              size="sm"
               className={watchAlong.broadcasting ? "bg-indigo-600 hover:bg-indigo-700 gap-2" : "bg-white gap-2"}
               onClick={() => watchAlong.setBroadcasting(!watchAlong.broadcasting)}
             >
-              <Radio size={16} className={watchAlong.broadcasting ? "animate-pulse" : ""} />
+              <Radio size={15} className={watchAlong.broadcasting ? "animate-pulse" : ""} />
               {watchAlong.broadcasting ? "Watch Along: Live" : "Start Watch Along"}
               {watchAlong.broadcasting && watchAlong.watcherCount > 0 && (
                 <Badge variant="secondary" className="ml-1 bg-white/20 text-white border-0">
@@ -1094,36 +1095,48 @@ export default function CaseDetail() {
           )}
           {c.currentPhase === 'scoring' && (
             <Link href={`/cases/${c.id}/scoring`}>
-              <Button variant="outline" className="bg-white"><FileBarChart size={18} className="mr-2"/> View Scores</Button>
+              <Button variant="outline" size="sm" className="bg-white gap-1.5">
+                <FileBarChart size={15}/> View Scores
+              </Button>
             </Link>
           )}
           {(role === "admin" || role === "school_clinical_coordinator") && (
-            <>
-              <Button variant="outline" className="bg-white gap-2" onClick={handleOpenEdit}>
-                <Edit size={16} /> Edit
-              </Button>
-              <Button variant="outline" className="bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 gap-2" onClick={() => setDeleteCaseOpen(true)}>
-                <Trash2 size={16} /> Delete
-              </Button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-white gap-1.5">
+                  <MoreHorizontal size={15} /> More
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={handleOpenEdit} className="gap-2">
+                  <Edit size={14} /> Edit Case
+                </DropdownMenuItem>
+                {c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
+                  <DropdownMenuItem
+                    onClick={() => setStepBackConfirmOpen(true)}
+                    disabled={stepBackMut.isPending}
+                    className="gap-2"
+                  >
+                    <ChevronLeft size={14} /> Step Back
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => setDeleteCaseOpen(true)}
+                  className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 size={14} /> Delete Case
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          {(role === "admin" || role === "school_clinical_coordinator") && c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
-            <Button
-              variant="outline"
-              className="bg-white gap-1.5"
-              onClick={() => setStepBackConfirmOpen(true)}
-              disabled={stepBackMut.isPending}
-            >
-              <ChevronLeft size={16} /> Step Back
-            </Button>
-          )}
-          <Button 
-            onClick={handleAdvancePhase} 
+          <Button
+            size="sm"
+            onClick={handleAdvancePhase}
             disabled={advancePhaseMut.isPending || !canAdvance}
             title={!canAdvance && c.currentPhase !== "debrief" ? "Your role cannot advance the current phase" : undefined}
             className="shadow-lg shadow-primary/20"
           >
-            {advancePhaseMut.isPending ? "Advancing..." : "Advance Phase"} <ChevronRight size={18} className="ml-1"/>
+            {advancePhaseMut.isPending ? "Advancing..." : "Advance Phase"} <ChevronRight size={16} className="ml-1"/>
           </Button>
         </div>
       </div>
