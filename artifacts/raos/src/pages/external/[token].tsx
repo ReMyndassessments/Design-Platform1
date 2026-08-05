@@ -1885,10 +1885,10 @@ function PortalView({
                           </div>
                           <p className="text-[10px] text-slate-400 text-center leading-relaxed">
                             {language === "mandarin"
-                              ? "如需订阅，请联系您的ReMynd顾问或发送邮件至 support@remynd.com"
+                              ? "如需订阅，请联系您的ReMynd顾问或发送邮件至 ne_roberts@yahoo.com"
                               : language === "korean"
-                              ? "구독 문의: support@remynd.com 또는 ReMynd 담당자에게 연락해 주세요"
-                              : "To subscribe, contact your ReMynd advisor or email support@remynd.com"}
+                              ? "구독 문의: ne_roberts@yahoo.com 또는 ReMynd 담당자에게 연락해 주세요"
+                              : "To subscribe, contact your ReMynd advisor or email ne_roberts@yahoo.com"}
                           </p>
                         </div>
                       );
@@ -2053,7 +2053,7 @@ function PortalView({
                               {!canAnalyze && (
                                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-center space-y-1">
                                   <p className="text-[10px] text-violet-700 font-semibold">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
-                                  <p className="text-[9px] text-violet-500">{language === "mandarin" ? "联系 support@remynd.com" : language === "korean" ? "support@remynd.com 문의" : "Contact support@remynd.com"}</p>
+                                  <p className="text-[9px] text-violet-500">{language === "mandarin" ? "联系 ne_roberts@yahoo.com" : language === "korean" ? "ne_roberts@yahoo.com 문의" : "Contact ne_roberts@yahoo.com"}</p>
                                 </div>
                               )}
                             </div>
