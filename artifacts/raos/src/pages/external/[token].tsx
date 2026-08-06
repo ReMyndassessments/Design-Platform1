@@ -1078,6 +1078,36 @@ function PortalView({
     finally { setLscInquirySending(false); }
   };
 
+  const handleLscCheckout = async (plan: "monthly" | "annual") => {
+    // Open blank tab synchronously BEFORE any await — prevents popup blocker
+    const tab = window.open("", "_blank");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/external/portal/${portalToken}/lsc/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await r.json() as { intent_id?: string; client_secret?: string; env?: string; error?: string };
+      if (r.ok && data.intent_id && data.client_secret) {
+        const params = new URLSearchParams({
+          intent_id: data.intent_id,
+          client_secret: data.client_secret,
+          env: data.env ?? "prod",
+          portal_token: portalToken,
+          plan,
+        });
+        tab!.location.href = `${base}/lsc-checkout?${params.toString()}`;
+      } else {
+        tab?.close();
+        alert(language === "mandarin" ? "无法启动支付，请重试。" : language === "korean" ? "결제를 시작할 수 없습니다. 다시 시도해주세요." : "Could not start checkout. Please try again.");
+      }
+    } catch {
+      tab?.close();
+      alert(language === "mandarin" ? "网络错误，请重试。" : language === "korean" ? "네트워크 오류입니다. 다시 시도해주세요." : "Network error. Please try again.");
+    }
+  };
+
   const handleLscPrint = () => {
     const guide = lscDisplayGuide ?? lscAnalysis?.guide;
     if (!guide) return;
@@ -1904,17 +1934,26 @@ function PortalView({
                               <p className="text-[10px] text-emerald-500">{language === "mandarin" ? "每年（省16%）" : language === "korean" ? "연간 (16% 절약)" : "/ year (save 16%)"}</p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => { setLscInquirySent(false); setLscInquiryOpen(true); }}
-                            className="w-full rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 px-4 py-3 transition-colors text-center"
-                          >
-                            <p className="text-xs font-semibold text-violet-700">
-                              {language === "mandarin" ? "立即申请订阅 →" : language === "korean" ? "지금 구독 신청하기 →" : "Request access →"}
-                            </p>
-                            <p className="text-[10px] text-violet-500 mt-0.5">
-                              {language === "mandarin" ? "填写表单，我们会与您联系" : language === "korean" ? "양식을 작성하시면 연락드립니다" : "Fill in a short form and we'll be in touch"}
-                            </p>
-                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleLscCheckout("monthly")}
+                              className="rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 px-3 py-3 transition-colors text-center"
+                            >
+                              <p className="text-xs font-semibold text-violet-700">
+                                {language === "mandarin" ? "月度订阅" : language === "korean" ? "월간 구독" : "Pay Monthly"}
+                              </p>
+                              <p className="text-[10px] text-violet-500 mt-0.5">¥{lscStatus.monthlyPrice}</p>
+                            </button>
+                            <button
+                              onClick={() => handleLscCheckout("annual")}
+                              className="rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-3 py-3 transition-colors text-center"
+                            >
+                              <p className="text-xs font-semibold text-emerald-700">
+                                {language === "mandarin" ? "年度订阅" : language === "korean" ? "연간 구독" : "Pay Annual"}
+                              </p>
+                              <p className="text-[10px] text-emerald-500 mt-0.5">¥{lscStatus.annualPrice}</p>
+                            </button>
+                          </div>
                         </div>
                       );
                     }
@@ -2076,13 +2115,22 @@ function PortalView({
                                 </button>
                               )}
                               {!canAnalyze && (
-                                <button
-                                  onClick={() => { setLscInquirySent(false); setLscInquiryOpen(true); }}
-                                  className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 p-4 text-center transition-opacity shadow-md"
-                                >
-                                  <p className="text-sm font-bold text-white">{language === "mandarin" ? "订阅以分析更多课程" : language === "korean" ? "더 많은 수업을 분석하려면 구독하세요" : "Subscribe to analyse more lessons"}</p>
-                                  <p className="text-[11px] text-white/80 mt-1">{language === "mandarin" ? "点击申请 →" : language === "korean" ? "신청하기 →" : "Tap to request access →"}</p>
-                                </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    onClick={() => handleLscCheckout("monthly")}
+                                    className="rounded-2xl bg-violet-600 hover:bg-violet-700 p-3.5 text-center transition-colors shadow-md"
+                                  >
+                                    <p className="text-xs font-bold text-white">{language === "mandarin" ? "月度订阅" : language === "korean" ? "월간 구독" : "Pay Monthly"}</p>
+                                    <p className="text-[10px] text-white/75 mt-0.5">¥{lscStatus?.monthlyPrice ?? 388}</p>
+                                  </button>
+                                  <button
+                                    onClick={() => handleLscCheckout("annual")}
+                                    className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 p-3.5 text-center transition-colors shadow-md"
+                                  >
+                                    <p className="text-xs font-bold text-white">{language === "mandarin" ? "年度订阅" : language === "korean" ? "연간 구독" : "Pay Annual"}</p>
+                                    <p className="text-[10px] text-white/75 mt-0.5">¥{lscStatus?.annualPrice ?? 3880}</p>
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>

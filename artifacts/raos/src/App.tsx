@@ -130,6 +130,8 @@ const ApprenticeResourceDetailPage = React.lazy(() => import("@/pages/apprentice
 const ApprenticeToolsLibraryPage = React.lazy(() => import("@/pages/apprentice/tools-library"));
 const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
+const LscCheckoutPage = React.lazy(() => import("@/pages/lsc-checkout"));
+
 const queryClient = new QueryClient();
 
 const PageFallback = () => (
@@ -196,6 +198,7 @@ function Router() {
   return (
     <Suspense fallback={<PageFallback />}>
       <Switch>
+        <Route path="/lsc-checkout" component={LscCheckoutPage} />
         <Route path="/login" component={Login} />
         <Route path="/portal" component={Portal} />
         <Route path="/assessment-preparation" component={AssessmentPreparationPage} />

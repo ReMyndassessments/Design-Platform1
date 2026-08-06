@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Airwallex Setup Reference</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.6; }
+  h1 { color: #1a56db; } h2 { color: #1e429f; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  td { padding: 8px 12px; border: 1px solid #ddd; vertical-align: top; }
+  tr:first-child td { background: #f0f4ff; font-weight: bold; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 32px 0; }
+  strong { color: #111; }
+</style>
+</head>
+<body>
+<h1>Airwallex Integration Reference</h1>
+
+<p>Everything you need to replicate this Airwallex drop-in checkout setup in another project.</p>
+
+<hr>
+
+<h2>1. Airwallex Account Setup</h2>
+
+<p>1. Sign up at [airwallex.com](https://airwallex.com)</p>
+<p>2. In the dashboard go to <strong>API</strong> → generate a <strong>Client ID</strong> and <strong>API Key</strong></p>
+<p>3. Under <strong>Webhooks</strong>, add your endpoint URL: <code>https://yourdomain.com/api/payments/webhook</code></p>
+<p>   - Subscribe to events: <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>payment_intent.cancelled</code></p>
+<p>4. Set environment to <strong>Demo</strong> for testing, <strong>Production</strong> for live</p>
+
+<hr>
+
+<h2>2. Environment Variables</h2>
+
+<pre><code>AIRWALLEX_CLIENT_ID=your_client_id_here
+<p>AIRWALLEX_API_KEY=your_api_key_here</p>
+<p>AIRWALLEX_ENV=prod         # or "demo" for testing</p>
+</code></pre>
+
+<hr>
+
+<h2>3. Backend – <code>airwallex.py</code></h2>
+
+<p>Drop this file into your project. Handles authentication, payment intent creation, and plan/package definitions.</p>
+
+<pre><code>import os, httpx, logging, uuid, time
+<p>from typing import Optional, Dict, Any</p>
+
+<p>logger = logging.getLogger(__name__)</p>
+
+<p>AIRWALLEX_CLIENT_ID = os.environ.get('AIRWALLEX_CLIENT_ID')</p>
+<p>AIRWALLEX_API_KEY   = os.environ.get('AIRWALLEX_API_KEY')</p>
+<p>AIRWALLEX_ENV       = os.environ.get('AIRWALLEX_ENV', 'demo')</p>
+
+<p>BASE_URL = (</p>
+<p>    'https://api.airwallex.com/api/v1'</p>
+<p>    if AIRWALLEX_ENV == 'prod'</p>
+<p>    else 'https://api-demo.airwallex.com/api/v1'</p>
+<p>)</p>
+
+<h1>── Token cache ────────────────────────────────────────────────────────────────</h1>
+
+<p>_access_token = None</p>
+<p>_token_expires_at = 0</p>
+
+<p>async def get_access_token() -> Optional[str]:</p>
+<p>    global _access_token, _token_expires_at, BASE_URL</p>
+<p>    if _access_token and time.time() < _token_expires_at - 60:</p>
+<p>        return _access_token</p>
+
+<p>    if not AIRWALLEX_CLIENT_ID or not AIRWALLEX_API_KEY:</p>
+<p>        logger.error("Airwallex credentials not configured")</p>
+<p>        return None</p>
+
+<p>    # Try prod then demo — whichever responds with 201 wins</p>
+<p>    for url, env_name in [</p>
+<p>        ('https://api.airwallex.com/api/v1',      'production'),</p>
+<p>        ('https://api-demo.airwallex.com/api/v1', 'demo'),</p>
+<p>    ]:</p>
+<p>        async with httpx.AsyncClient() as client:</p>
+<p>            r = await client.post(</p>
+<p>                f"{url}/authentication/login",</p>
+<p>                headers={</p>
+<p>                    'Content-Type': 'application/json',</p>
+<p>                    'x-client-id': AIRWALLEX_CLIENT_ID,</p>
+<p>                    'x-api-key':   AIRWALLEX_API_KEY,</p>
+<p>                }</p>
+<p>            )</p>
+<p>            if r.status_code == 201:</p>
+<p>                _access_token      = r.json().get('token')</p>
+<p>                _token_expires_at  = time.time() + 1800</p>
+<p>                BASE_URL           = url</p>
+<p>                logger.info(f"Airwallex authenticated via {env_name}")</p>
+<p>                return _access_token</p>
+
+<p>    logger.error("Airwallex auth failed on both environments")</p>
+<p>    return None</p>
+
+
+<h1>── Core: create a payment intent ─────────────────────────────────────────────</h1>
+
+<p>async def create_payment_intent(</p>
+<p>    amount:       float,</p>
+<p>    currency:     str,</p>
+<p>    package_name: str,</p>
+<p>    user_id:      Optional[int],   # pass None for guest checkout</p>
+<p>    user_email:   str,</p>
+<p>    return_url:   str,</p>
+<p>    metadata:     Optional[Dict] = None,</p>
+<p>) -> Optional[Dict[str, Any]]:</p>
+<p>    token = await get_access_token()</p>
+<p>    if not token:</p>
+<p>        return None</p>
+
+<p>    request_id       = str(uuid.uuid4())</p>
+<p>    uid_str          = str(user_id) if user_id else 'guest'</p>
+<p>    merchant_order_id = f"yourapp-{uid_str}-{package_name}-{request_id[:8]}"</p>
+
+<p>    payload_meta = {</p>
+<p>        'user_id':      uid_str,</p>
+<p>        'package_name': package_name,</p>
+<p>        'user_email':   user_email,</p>
+<p>    }</p>
+<p>    if metadata:</p>
+<p>        payload_meta.update(metadata)</p>
+
+<p>    async with httpx.AsyncClient() as client:</p>
+<p>        r = await client.post(</p>
+<p>            f"{BASE_URL}/pa/payment_intents/create",</p>
+<p>            headers={</p>
+<p>                'Authorization': f'Bearer {token}',</p>
+<p>                'Content-Type':  'application/json',</p>
+<p>                'x-client-id':   AIRWALLEX_CLIENT_ID,</p>
+<p>            },</p>
+<p>            json={</p>
+<p>                'request_id':       request_id,</p>
+<p>                'amount':           amount,</p>
+<p>                'currency':         currency.upper(),</p>
+<p>                'merchant_order_id': merchant_order_id,</p>
+<p>                'return_url':       return_url,</p>
+<p>                'metadata':         payload_meta,</p>
+<p>            }</p>
+<p>        )</p>
+
+<p>    if r.status_code in (200, 201):</p>
+<p>        data = r.json()</p>
+<p>        return {</p>
+<p>            'id':            data['id'],</p>
+<p>            'client_secret': data['client_secret'],</p>
+<p>            'status':        data.get('status'),</p>
+<p>        }</p>
+
+<p>    logger.error(f"Intent creation failed: {r.status_code} {r.text}")</p>
+<p>    return None</p>
+
+
+<h1>── Helpers ────────────────────────────────────────────────────────────────────</h1>
+
+<p>async def get_payment_intent(payment_intent_id: str) -> Optional[Dict]:</p>
+<p>    token = await get_access_token()</p>
+<p>    if not token:</p>
+<p>        return None</p>
+<p>    async with httpx.AsyncClient() as client:</p>
+<p>        r = await client.get(</p>
+<p>            f"{BASE_URL}/pa/payment_intents/{payment_intent_id}",</p>
+<p>            headers={</p>
+<p>                'Authorization': f'Bearer {token}',</p>
+<p>                'Content-Type':  'application/json',</p>
+<p>                'x-client-id':   AIRWALLEX_CLIENT_ID,</p>
+<p>            }</p>
+<p>        )</p>
+<p>    return r.json() if r.status_code == 200 else None</p>
+
+
+<p>def get_airwallex_env() -> str:</p>
+<p>    return 'prod' if 'api-demo' not in BASE_URL else 'demo'</p>
+
+
+<p>def is_configured() -> bool:</p>
+<p>    return bool(AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY)</p>
+</code></pre>
+
+<hr>
+
+<h2>4. Backend – API Endpoints (FastAPI)</h2>
+
+<h3>4a. Guest checkout (no login required)</h3>
+
+<pre><code>from pydantic import BaseModel
+<p>from fastapi import HTTPException</p>
+
+<p>class GuestCheckoutRequest(BaseModel):</p>
+<p>    plan_id:  str</p>
+<p>    currency: str = "USD"</p>
+
+<p>@app.post("/api/payments/guest-checkout")</p>
+<p>async def guest_checkout(data: GuestCheckoutRequest):</p>
+<p>    if not airwallex.is_configured():</p>
+<p>        raise HTTPException(503, "Payment system not configured")</p>
+
+<p>    # Look up price from your own plan catalog</p>
+<p>    amount = YOUR_PLAN_PRICES[data.plan_id][data.currency.upper()]</p>
+
+<p>    result = await airwallex.create_payment_intent(</p>
+<p>        amount=amount,</p>
+<p>        currency=data.currency,</p>
+<p>        package_name=data.plan_id,</p>
+<p>        user_id=None,                   # guest — no account yet</p>
+<p>        user_email='guest@checkout',    # placeholder; webhook resolves by email</p>
+<p>        return_url='https://yourdomain.com/payment-success',</p>
+<p>        metadata={</p>
+<p>            'plan_id':        data.plan_id,</p>
+<p>            'guest_checkout': 'true',</p>
+<p>        },</p>
+<p>    )</p>
+<p>    if not result:</p>
+<p>        raise HTTPException(500, "Failed to create checkout")</p>
+
+<p>    # Store a pending record (user_id=NULL) — webhook fills it in after payment</p>
+<p>    create_pending_subscription(plan_id=data.plan_id, intent_id=result['id'])</p>
+
+<p>    return {</p>
+<p>        "intent_id":     result['id'],</p>
+<p>        "client_secret": result['client_secret'],</p>
+<p>        "env":           airwallex.get_airwallex_env(),</p>
+<p>    }</p>
+</code></pre>
+
+<h3>4b. Authenticated checkout</h3>
+
+<pre><code>@app.post("/api/payments/create-subscription")
+<p>async def create_subscription(data: SubscriptionRequest, authorization: str = Header(None)):</p>
+<p>    user = get_user_by_session(authorization.replace("Bearer ", ""))</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(401, "Authentication required")</p>
+
+<p>    amount = YOUR_PLAN_PRICES[data.plan_id][data.currency.upper()]</p>
+
+<p>    result = await airwallex.create_payment_intent(</p>
+<p>        amount=amount,</p>
+<p>        currency=data.currency,</p>
+<p>        package_name=data.plan_id,</p>
+<p>        user_id=user['id'],</p>
+<p>        user_email=user['email'],</p>
+<p>        return_url='https://yourdomain.com/payment-success',</p>
+<p>        metadata={'plan_id': data.plan_id},</p>
+<p>    )</p>
+<p>    if not result:</p>
+<p>        raise HTTPException(500, "Failed to create payment")</p>
+
+<p>    create_pending_subscription(</p>
+<p>        user_id=user['id'],</p>
+<p>        plan_id=data.plan_id,</p>
+<p>        intent_id=result['id'],</p>
+<p>    )</p>
+
+<p>    return {</p>
+<p>        "intent_id":     result['id'],</p>
+<p>        "client_secret": result['client_secret'],</p>
+<p>        "env":           airwallex.get_airwallex_env(),</p>
+<p>    }</p>
+</code></pre>
+
+<h3>4c. Webhook</h3>
+
+<pre><code>@app.post("/api/payments/webhook")
+<p>async def payment_webhook(request: Request):</p>
+<p>    body       = await request.json()</p>
+<p>    event_name = body.get('name', '')</p>
+<p>    data       = body.get('data', {})</p>
+
+<p>    if event_name == 'payment_intent.succeeded':</p>
+<p>        intent_id = data.get('id')</p>
+<p>        sub = get_pending_subscription_by_intent(intent_id)</p>
+<p>        if not sub:</p>
+<p>            return {"status": "ok"}</p>
+
+<p>        # Guest checkout: pull real email from Airwallex metadata</p>
+<p>        if not sub.get('user_id'):</p>
+<p>            intent_detail = await airwallex.get_payment_intent(intent_id)</p>
+<p>            meta          = intent_detail.get('metadata', {}) if intent_detail else {}</p>
+<p>            real_email    = meta.get('user_email', '')</p>
+<p>            if real_email and real_email != 'guest@checkout':</p>
+<p>                user = get_or_create_user_by_email(real_email)</p>
+<p>                patch_subscription_user(sub['id'], user['id'])</p>
+<p>                sub['user_id'] = user['id']</p>
+
+<p>        activate_subscription(sub['id'], sub['user_id'])</p>
+
+<p>    elif event_name == 'payment_intent.payment_failed':</p>
+<p>        mark_subscription_failed(data.get('id'))</p>
+
+<p>    return {"status": "ok"}</p>
+</code></pre>
+
+<hr>
+
+<h2>5. Frontend – The Checkout Page</h2>
+
+<strong>Critical lesson:</strong> the Airwallex CDN script sets <code>window.AirwallexComponentsSDK</code>, <strong>not</strong> <code>window.Airwallex</code>. Use <code>AirwallexComponentsSDK</code> everywhere. Also, <code>createElement()</code> is <strong>async</strong> — always <code>await</code> it.
+
+<pre><code><!DOCTYPE html>
+<html>
+<head>
+  <!-- Load the SDK -->
+  <script src="https://static.airwallex.com/components/sdk/v1/index.js"></script>
+</head>
+<body>
+  <div id="airwallex-container"></div>
+
+  <script>
+<p>  (async function () {</p>
+<p>    const params       = new URLSearchParams(window.location.search);</p>
+<p>    const intentId     = params.get('intent_id');</p>
+<p>    const clientSecret = params.get('client_secret');</p>
+<p>    const env          = params.get('env') || 'prod';   // 'prod' or 'demo'</p>
+
+<p>    // 1. Wait for SDK to load (it's a <script> tag — may not be ready instantly)</p>
+<p>    async function waitForSDK(timeoutMs = 15000) {</p>
+<p>      const end = Date.now() + timeoutMs;</p>
+<p>      while (!window.AirwallexComponentsSDK && Date.now() < end) {</p>
+<p>        await new Promise(r => setTimeout(r, 150));</p>
+<p>      }</p>
+<p>      if (!window.AirwallexComponentsSDK) throw new Error('SDK timed out');</p>
+<p>      return window.AirwallexComponentsSDK;</p>
+<p>    }</p>
+
+<p>    const AW = await waitForSDK();</p>
+
+<p>    // 2. Initialise</p>
+<p>    await AW.init({</p>
+<p>      env:    env === 'prod' ? 'prod' : 'demo',</p>
+<p>      origin: window.location.origin,</p>
+<p>    });</p>
+
+<p>    // 3. Create element — NOTE: must be awaited</p>
+<p>    const element = await AW.createElement('dropIn', {</p>
+<p>      intent_id:     intentId,</p>
+<p>      client_secret: clientSecret,</p>
+<p>    });</p>
+
+<p>    // 4. Mount to a DOM element</p>
+<p>    element.mount(document.getElementById('airwallex-container'));</p>
+
+<p>    // 5. Listen for success / error</p>
+<p>    document.getElementById('airwallex-container').addEventListener('onSuccess', () => {</p>
+<p>      window.location.href = '/payment-success';</p>
+<p>    });</p>
+<p>    document.getElementById('airwallex-container').addEventListener('onError', (e) => {</p>
+<p>      console.error('Payment error', e.detail);</p>
+<p>    });</p>
+<p>  })();</p>
+  </script>
+</body>
+</html>
+</code></pre>
+
+<hr>
+
+<h2>6. Frontend – Opening Checkout in a New Tab</h2>
+
+<strong>Problem:</strong> <code>window.open</code> after an <code>await</code> is blocked by popup blockers.  
+<strong>Solution:</strong> open a blank tab *synchronously* inside the click handler, then set its URL after the API responds.
+
+<pre><code>async function startCheckout(planId) {
+<p>  // Open blank tab NOW (synchronous, inside click handler) — popup blocker won't fire</p>
+<p>  const tab = window.open('', '_blank');</p>
+
+<p>  try {</p>
+<p>    const res  = await fetch('/api/payments/guest-checkout', {</p>
+<p>      method:  'POST',</p>
+<p>      headers: { 'Content-Type': 'application/json' },</p>
+<p>      body:    JSON.stringify({ plan_id: planId, currency: 'USD' }),</p>
+<p>    });</p>
+<p>    const data = await res.json();</p>
+
+<p>    if (data.intent_id && data.client_secret) {</p>
+<p>      const url = <code>/checkout?intent_id=${encodeURIComponent(data.intent_id)}</code></p>
+<p>                + <code>&client_secret=${encodeURIComponent(data.client_secret)}</code></p>
+<p>                + <code>&env=${encodeURIComponent(data.env)}</code></p>
+<p>                + <code>&plan=${encodeURIComponent(planId)}</code>;</p>
+<p>      tab.location.href = url;   // navigate the already-open tab</p>
+<p>    } else {</p>
+<p>      tab.close();</p>
+<p>      alert('Could not start checkout. Please try again.');</p>
+<p>    }</p>
+<p>  } catch (e) {</p>
+<p>    tab.close();</p>
+<p>    alert('Network error. Please try again.');</p>
+<p>  }</p>
+<p>}</p>
+</code></pre>
+
+<p>Wire up buttons like:</p>
+<pre><code><button onclick="startCheckout('professional_annual')">Subscribe $36/year</button>
+<button onclick="startCheckout('school_small_annual')">Get Started</button>
+</code></pre>
+
+<hr>
+
+<h2>7. Python Dependencies</h2>
+
+<pre><code>httpx
+<p>fastapi</p>
+<p>pydantic</p>
+<p>uvicorn</p>
+</code></pre>
+
+<hr>
+
+<h2>8. Key Gotchas</h2>
+
+<table border="1" cellpadding="6" style="border-collapse:collapse"><tr><td>Issue</td><td>Fix</td></tr>
+<tr><td>---</td><td>---</td></tr>
+<tr><td>SDK global is wrong</td><td>Use <code>window.AirwallexComponentsSDK</code>, NOT <code>window.Airwallex</code></td></tr>
+<tr><td><code>element.mount is not a function</code></td><td><code>createElement()</code> is async — always <code>await AW.createElement(...)</code></td></tr>
+<tr><td>Popup blocked</td><td>Call <code>window.open('', '_blank')</code> synchronously BEFORE any <code>await</code>, then set <code>.location.href</code> after</td></tr>
+<tr><td>Auth token expires</td><td>Token lasts 30 min — the <code>get_access_token()</code> function re-fetches with 60 s buffer</td></tr>
+<tr><td>Guest checkout user linking</td><td>Store <code>user_id=NULL</code> intent; in webhook, pull email from Airwallex intent metadata and match/create account</td></tr>
+<tr><td>Airwallex HPP (<code>checkout.airwallex.com</code>)</td><td>Spins forever in embedded contexts — use the drop-in SDK instead</td></tr>
+</table>
+<hr>
+
+<h2>9. Webhook Registration</h2>
+
+<p>In your Airwallex dashboard:</p>
+<p>- <strong>URL:</strong> <code>https://yourdomain.com/api/payments/webhook</code></p>
+<p>- <strong>Events to subscribe:</strong> <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>payment_intent.cancelled</code></p>
+<p>- No signature secret needed — Airwallex POSTs JSON; add idempotency by storing processed event IDs in your DB.</p>
+
+</body>
+</html>

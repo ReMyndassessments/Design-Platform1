@@ -3020,6 +3020,19 @@ async function createLscTables() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS lsc_payment_intents (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        portal_token TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'CNY',
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
     logger.info("LSC tables ready");
   } catch (err) {
     logger.error({ err }, "createLscTables failed");

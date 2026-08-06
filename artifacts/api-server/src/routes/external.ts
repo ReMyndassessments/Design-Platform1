@@ -11,6 +11,7 @@ import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
 import { writeAudit } from "../lib/audit.js";
+import * as airwallex from "../lib/airwallex.js";
 
 const storage = new ObjectStorageService();
 
@@ -1456,6 +1457,133 @@ router.post("/external/portal/:token/lsc/analyses/:id/version", async (req, res)
     console.error("[LSC] version:", err);
     return res.status(500).json({ error: "server_error" });
   }
+});
+
+// ── Airwallex LSC checkout ────────────────────────────────────────────────────
+router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
+  const { token } = req.params;
+  const { plan } = req.body as { plan?: string };
+
+  if (!plan || !["monthly", "annual"].includes(plan)) {
+    res.status(400).json({ error: "plan must be 'monthly' or 'annual'" }); return;
+  }
+  if (!airwallex.isConfigured()) {
+    res.status(503).json({ error: "payment_not_configured" }); return;
+  }
+
+  // Resolve portal token → case
+  const portalRows = await db.execute(sql`
+    SELECT case_id FROM portal_tokens WHERE token = ${token} LIMIT 1
+  `);
+  if (!portalRows.rows.length) { res.status(404).json({ error: "invalid_token" }); return; }
+  const caseId = portalRows.rows[0]["case_id"] as string;
+
+  // Get price from lsc_settings
+  const settings = await db.execute(sql`SELECT monthly_price_rmb, annual_price_rmb FROM lsc_settings LIMIT 1`);
+  const s = settings.rows[0] as Record<string, unknown> | undefined;
+  const amount = plan === "monthly"
+    ? (s?.["monthly_price_rmb"] as number ?? 388)
+    : (s?.["annual_price_rmb"] as number ?? 3880);
+
+  const returnUrl = `${process.env.APP_BASE_URL ?? "https://remyndassessments.com"}/lsc-checkout?payment_return=true`;
+
+  const intent = await airwallex.createPaymentIntent({
+    amount,
+    currency: "CNY",
+    plan,
+    caseId,
+    portalToken: token,
+    returnUrl,
+  });
+
+  if (!intent) { res.status(500).json({ error: "checkout_failed" }); return; }
+
+  // Store pending intent for webhook idempotency
+  await db.execute(sql`
+    INSERT INTO lsc_payment_intents (id, case_id, portal_token, plan, amount, currency, status)
+    VALUES (${intent.id}, ${caseId}, ${token}, ${plan}, ${amount}, 'CNY', 'pending')
+    ON CONFLICT (id) DO NOTHING
+  `);
+
+  res.json({
+    intent_id: intent.id,
+    client_secret: intent.clientSecret,
+    env: airwallex.getEnv(),
+  });
+});
+
+// ── Airwallex LSC confirm (called from checkout page on onSuccess) ─────────────
+router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
+  const { token } = req.params;
+  const { intent_id, plan } = req.body as { intent_id?: string; plan?: string };
+
+  if (!intent_id) { res.status(400).json({ error: "intent_id required" }); return; }
+
+  // Look up the stored intent
+  const intentRows = await db.execute(sql`
+    SELECT case_id, plan, status FROM lsc_payment_intents WHERE id = ${intent_id} AND portal_token = ${token} LIMIT 1
+  `);
+  if (!intentRows.rows.length) { res.status(404).json({ error: "not_found" }); return; }
+  const row = intentRows.rows[0] as Record<string, unknown>;
+  if (row["status"] === "succeeded") { res.json({ ok: true, already: true }); return; }
+
+  const caseId = row["case_id"] as string;
+  const resolvedPlan = (row["plan"] as string) ?? plan ?? "monthly";
+  const newStatus = resolvedPlan === "annual" ? "active_annual" : "active_monthly";
+
+  // Upsert subscription
+  const existing = await db.execute(sql`SELECT id FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
+  if (existing.rows.length) {
+    await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = ${newStatus}, updated_at = NOW() WHERE case_id = ${caseId}`);
+  } else {
+    const subId = randomUUID();
+    await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage) VALUES (${subId}, ${caseId}, ${newStatus}, 25, 0)`);
+  }
+
+  // Mark intent as succeeded
+  await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intent_id}`);
+
+  res.json({ ok: true });
+});
+
+// ── Airwallex webhook (no auth — idempotent via lsc_payment_intents) ──────────
+router.post("/external/payments/webhook", async (req, res) => {
+  const body = req.body as { name?: string; data?: Record<string, unknown> };
+  const eventName = body.name ?? "";
+  const data = body.data ?? {};
+
+  if (eventName === "payment_intent.succeeded") {
+    const intentId = (data["id"] ?? data["payment_intent_id"]) as string | undefined;
+    if (!intentId) { res.json({ status: "ok" }); return; }
+
+    const intentRows = await db.execute(sql`
+      SELECT case_id, plan, status FROM lsc_payment_intents WHERE id = ${intentId} LIMIT 1
+    `);
+    if (!intentRows.rows.length) { res.json({ status: "ok" }); return; }
+    const row = intentRows.rows[0] as Record<string, unknown>;
+    if (row["status"] === "succeeded") { res.json({ status: "ok" }); return; } // idempotent
+
+    const caseId = row["case_id"] as string;
+    const plan = row["plan"] as string;
+    const newStatus = plan === "annual" ? "active_annual" : "active_monthly";
+
+    const existing = await db.execute(sql`SELECT id FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
+    if (existing.rows.length) {
+      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = ${newStatus}, updated_at = NOW() WHERE case_id = ${caseId}`);
+    } else {
+      const subId = randomUUID();
+      await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage) VALUES (${subId}, ${caseId}, ${newStatus}, 25, 0)`);
+    }
+    await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intentId}`);
+
+  } else if (eventName === "payment_intent.payment_failed" || eventName === "payment_intent.cancelled") {
+    const intentId = (data["id"] ?? data["payment_intent_id"]) as string | undefined;
+    if (intentId) {
+      await db.execute(sql`UPDATE lsc_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
+    }
+  }
+
+  res.json({ status: "ok" });
 });
 
 export default router;
