@@ -17,6 +17,7 @@ import {
   BookOpen,
   ShieldCheck,
   Mic,
+  Sparkles,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useGetCurrentUser, useLogout, customFetch } from "@workspace/api-client-react";
@@ -185,6 +186,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         ...(user?.role !== "assessment_invigilator" ? [{ href: "/tools", label: "Assessment Tools", icon: Settings }] : []),
         ...(user?.role === "admin" || user?.role === "assessment_invigilator" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
         ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
+        ...(user?.role === "admin" ? [{ href: "/subscriptions", label: "Subscriptions", icon: Sparkles }] : []),
       ];
 
   return (

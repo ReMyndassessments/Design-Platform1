@@ -98,6 +98,7 @@ const AssessmentTools = React.lazy(() => import("@/pages/tools"));
 const FormPreviewPage = React.lazy(() => import("@/pages/tools/[id]/preview"));
 const TeamPage = React.lazy(() => import("@/pages/team"));
 const InquiriesPage = React.lazy(() => import("@/pages/inquiries"));
+const SubscriptionsPage = React.lazy(() => import("@/pages/subscriptions"));
 const PartnerSchoolsPage = React.lazy(() => import("@/pages/partner-schools"));
 const PartnerInquiryPage = React.lazy(() => import("@/pages/partner-inquiry"));
 const AssessmentServicesPage = React.lazy(() => import("@/pages/assessment-services"));
@@ -282,6 +283,9 @@ function Router() {
         </Route>
         <Route path="/inquiries">
           {() => <ProtectedRoute component={InquiriesPage} />}
+        </Route>
+        <Route path="/subscriptions">
+          {() => <ProtectedRoute component={SubscriptionsPage} />}
         </Route>
         <Route path="/partner-schools" component={PartnerSchoolsPage} />
         <Route path="/partner-inquiry" component={PartnerInquiryPage} />
