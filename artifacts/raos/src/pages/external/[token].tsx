@@ -826,9 +826,10 @@ function PortalView({
   type LscDemandProfile = { overview: string; reading: string; writing: string; mathematics: string; executiveFunction: string; memory: string; attention: string };
   type LscGuide = { demandProfile: LscDemandProfile; strengths: string; overview: string; challenges: string; strategies: string; stepByStep: string; language: string; observationPoints: string; safetyNote?: string };
   type LscAnalysisRecord = { id: string; userRole: string; language: string; lessonContent: string; guide: LscGuide; demandProfile: LscDemandProfile; outputVersions: Record<string, LscGuide>; followUpMessages: Array<{ role: string; content: string }>; createdAt: string };
-  type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number };
+  type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number; expiresAt?: string | null };
 
   const [lscOpen, setLscOpen] = useState(false);
+  const [lscMonths, setLscMonths] = useState(3);
   const [lscInquiryOpen, setLscInquiryOpen] = useState(false);
   const [lscInquiryName, setLscInquiryName] = useState("");
   const [lscInquiryEmail, setLscInquiryEmail] = useState("");
@@ -1078,7 +1079,7 @@ function PortalView({
     finally { setLscInquirySending(false); }
   };
 
-  const handleLscCheckout = async (plan: "monthly" | "annual") => {
+  const handleLscCheckout = async (months: number) => {
     // Open blank tab synchronously BEFORE any await — prevents popup blocker
     const tab = window.open("", "_blank");
     try {
@@ -1086,16 +1087,17 @@ function PortalView({
       const r = await fetch(`${base}/api/external/portal/${portalToken}/lsc/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ months }),
       });
-      const data = await r.json() as { intent_id?: string; client_secret?: string; env?: string; error?: string };
+      const data = await r.json() as { intent_id?: string; client_secret?: string; env?: string; months?: number; amount?: number; error?: string };
       if (r.ok && data.intent_id && data.client_secret) {
         const params = new URLSearchParams({
           intent_id: data.intent_id,
           client_secret: data.client_secret,
           env: data.env ?? "prod",
           portal_token: portalToken,
-          plan,
+          months: String(data.months ?? months),
+          amount: String(data.amount ?? ""),
         });
         tab!.location.href = `${base}/lsc-checkout?${params.toString()}`;
       } else {
@@ -1924,36 +1926,32 @@ function PortalView({
                                 : `Up to ${lscStatus.monthlyLimit} assessment-grounded lesson analyses per month`}
                             </p>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-center">
-                            <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                              <p className="text-base font-black text-violet-700">¥{lscStatus.monthlyPrice}</p>
-                              <p className="text-[10px] text-violet-500">{language === "mandarin" ? "每月" : language === "korean" ? "월" : "/ month"}</p>
+                          {/* Month picker */}
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-500">{language === "mandarin" ? "选择月数" : language === "korean" ? "개월 수 선택" : "Months"}</span>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => setLscMonths(m => Math.max(1, m - 1))} className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors">−</button>
+                                <span className="text-sm font-bold text-slate-900 w-6 text-center">{lscMonths}</span>
+                                <button onClick={() => setLscMonths(m => Math.min(12, m + 1))} className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors">+</button>
+                              </div>
                             </div>
-                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                              <p className="text-base font-black text-emerald-700">¥{lscStatus.annualPrice}</p>
-                              <p className="text-[10px] text-emerald-500">{language === "mandarin" ? "每年（省16%）" : language === "korean" ? "연간 (16% 절약)" : "/ year (save 16%)"}</p>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[10px] text-slate-400">¥{lscStatus.monthlyPrice} × {lscMonths}</span>
+                              <span className="text-lg font-black text-violet-700">¥{lscStatus.monthlyPrice * lscMonths}</span>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => handleLscCheckout("monthly")}
-                              className="rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 px-3 py-3 transition-colors text-center"
-                            >
-                              <p className="text-xs font-semibold text-violet-700">
-                                {language === "mandarin" ? "月度订阅" : language === "korean" ? "월간 구독" : "Pay Monthly"}
-                              </p>
-                              <p className="text-[10px] text-violet-500 mt-0.5">¥{lscStatus.monthlyPrice}</p>
-                            </button>
-                            <button
-                              onClick={() => handleLscCheckout("annual")}
-                              className="rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-3 py-3 transition-colors text-center"
-                            >
-                              <p className="text-xs font-semibold text-emerald-700">
-                                {language === "mandarin" ? "年度订阅" : language === "korean" ? "연간 구독" : "Pay Annual"}
-                              </p>
-                              <p className="text-[10px] text-emerald-500 mt-0.5">¥{lscStatus.annualPrice}</p>
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleLscCheckout(lscMonths)}
+                            className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-emerald-600 hover:opacity-90 px-4 py-3 transition-opacity text-center"
+                          >
+                            <p className="text-xs font-semibold text-white">
+                              {language === "mandarin" ? `支付 ¥${lscStatus.monthlyPrice * lscMonths} →` : language === "korean" ? `¥${lscStatus.monthlyPrice * lscMonths} 결제 →` : `Pay ¥${lscStatus.monthlyPrice * lscMonths} →`}
+                            </p>
+                            <p className="text-[10px] text-white/70 mt-0.5">
+                              {language === "mandarin" ? `${lscMonths}个月访问权限` : language === "korean" ? `${lscMonths}개월 이용권` : `${lscMonths}-month access, one-time payment`}
+                            </p>
+                          </button>
                         </div>
                       );
                     }
@@ -1967,7 +1965,9 @@ function PortalView({
                            <div className="flex-1 flex items-center gap-2">
                           {isTrial
                             ? <><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /><span className="text-[10px] text-amber-700 font-medium">{language === "mandarin" ? "免费试用 · 1次完整分析" : language === "korean" ? "무료 체험 · 1회 전체 분석" : "Free trial · 1 full analysis included"}</span></>
-                               : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
+                            : st === "trial_used"
+                            ? <><span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" /><span className="text-[10px] text-slate-500 font-medium">{language === "mandarin" ? "试用已用完 · 订阅以继续" : language === "korean" ? "체험 완료 · 계속하려면 구독하세요" : "Trial complete · subscribe to continue"}</span></>
+                            : <><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-[10px] text-emerald-700 font-medium">{language === "mandarin" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 次已用` : language === "korean" ? `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} 회 사용됨` : `${lscStatus.monthlyUsage} / ${lscStatus.monthlyAllowance} analyses used`}</span></>
                              }
                            </div>
                            {lscAnalysis && (
@@ -2124,20 +2124,22 @@ function PortalView({
                                 </button>
                               )}
                               {!canAnalyze && (
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-2">
+                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 flex items-center justify-between gap-3">
+                                    <span className="text-[10px] text-slate-500 shrink-0">{language === "mandarin" ? "月数" : language === "korean" ? "개월" : "Months"}</span>
+                                    <div className="flex items-center gap-2">
+                                      <button onClick={() => setLscMonths(m => Math.max(1, m - 1))} className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors">−</button>
+                                      <span className="text-sm font-bold text-slate-900 w-5 text-center">{lscMonths}</span>
+                                      <button onClick={() => setLscMonths(m => Math.min(12, m + 1))} className="w-6 h-6 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors">+</button>
+                                    </div>
+                                    <span className="text-sm font-black text-violet-700 shrink-0">¥{(lscStatus?.monthlyPrice ?? 388) * lscMonths}</span>
+                                  </div>
                                   <button
-                                    onClick={() => handleLscCheckout("monthly")}
-                                    className="rounded-2xl bg-violet-600 hover:bg-violet-700 p-3.5 text-center transition-colors shadow-md"
+                                    onClick={() => handleLscCheckout(lscMonths)}
+                                    className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 p-3.5 text-center transition-opacity shadow-md"
                                   >
-                                    <p className="text-xs font-bold text-white">{language === "mandarin" ? "月度订阅" : language === "korean" ? "월간 구독" : "Pay Monthly"}</p>
-                                    <p className="text-[10px] text-white/75 mt-0.5">¥{lscStatus?.monthlyPrice ?? 388}</p>
-                                  </button>
-                                  <button
-                                    onClick={() => handleLscCheckout("annual")}
-                                    className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 p-3.5 text-center transition-colors shadow-md"
-                                  >
-                                    <p className="text-xs font-bold text-white">{language === "mandarin" ? "年度订阅" : language === "korean" ? "연간 구독" : "Pay Annual"}</p>
-                                    <p className="text-[10px] text-white/75 mt-0.5">¥{lscStatus?.annualPrice ?? 3880}</p>
+                                    <p className="text-xs font-bold text-white">{language === "mandarin" ? `支付 ¥${(lscStatus?.monthlyPrice ?? 388) * lscMonths}` : language === "korean" ? `¥${(lscStatus?.monthlyPrice ?? 388) * lscMonths} 결제` : `Pay ¥${(lscStatus?.monthlyPrice ?? 388) * lscMonths}`}</p>
+                                    <p className="text-[10px] text-white/75 mt-0.5">{language === "mandarin" ? `${lscMonths}个月一次性付款` : language === "korean" ? `${lscMonths}개월 일회성 결제` : `${lscMonths}-month access`}</p>
                                   </button>
                                 </div>
                               )}

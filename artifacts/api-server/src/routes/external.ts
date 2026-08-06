@@ -1254,16 +1254,24 @@ router.get("/external/portal/:token/lsc/status", async (req, res) => {
     const [settingsRow] = (await db.execute(sql`SELECT * FROM lsc_settings LIMIT 1`)).rows;
     const s = (settingsRow ?? {}) as Record<string, unknown>;
     const sub = await getLscSub(info.caseId);
+    // If subscription has an expiry date and it's in the past, treat as expired
+    let status = (sub["subscription_status"] as string) ?? "trial_available";
+    const expiresAt = sub["expires_at"] as string | null ?? null;
+    const PAID_STATUSES = ["active_monthly", "active_annual"];
+    if (PAID_STATUSES.includes(status) && expiresAt && new Date(expiresAt) < new Date()) {
+      status = "expired";
+    }
     return res.json({
       productName: s["product_name"] ?? "ReMynd Learning Support Coach",
       productSubtitle: s["product_subtitle"] ?? "Assessment-Based Educational Decision Support",
-      subscriptionStatus: sub["subscription_status"] ?? "trial_available",
+      subscriptionStatus: status,
       monthlyPrice: s["monthly_price_rmb"] ?? 388,
       annualPrice: s["annual_price_rmb"] ?? 3880,
       monthlyLimit: s["monthly_analysis_limit"] ?? 25,
       trialLimit: s["trial_analysis_limit"] ?? 1,
       monthlyUsage: sub["monthly_usage"] ?? 0,
       monthlyAllowance: sub["monthly_allowance"] ?? 25,
+      expiresAt,
     });
   } catch (err) {
     console.error("[LSC] status:", err);
@@ -1462,10 +1470,11 @@ router.post("/external/portal/:token/lsc/analyses/:id/version", async (req, res)
 // ── Airwallex LSC checkout ────────────────────────────────────────────────────
 router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
   const { token } = req.params;
-  const { plan } = req.body as { plan?: string };
+  const { months } = req.body as { months?: number };
 
-  if (!plan || !["monthly", "annual"].includes(plan)) {
-    res.status(400).json({ error: "plan must be 'monthly' or 'annual'" }); return;
+  const numMonths = Number(months);
+  if (!numMonths || numMonths < 1 || numMonths > 12 || !Number.isInteger(numMonths)) {
+    res.status(400).json({ error: "months must be an integer between 1 and 12" }); return;
   }
   if (!airwallex.isConfigured()) {
     res.status(503).json({ error: "payment_not_configured" }); return;
@@ -1477,18 +1486,20 @@ router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
   const caseId = info.caseId;
 
   // Get price from lsc_settings
-  const settings = await db.execute(sql`SELECT monthly_price_rmb, annual_price_rmb FROM lsc_settings LIMIT 1`);
+  const settings = await db.execute(sql`SELECT monthly_price_rmb FROM lsc_settings LIMIT 1`);
   const s = settings.rows[0] as Record<string, unknown> | undefined;
-  const amount = plan === "monthly"
-    ? (s?.["monthly_price_rmb"] as number ?? 388)
-    : (s?.["annual_price_rmb"] as number ?? 3880);
+  const monthlyPrice = s?.["monthly_price_rmb"] as number ?? 388;
+  const amount = monthlyPrice * numMonths;
 
   const returnUrl = `${process.env.APP_BASE_URL ?? "https://remyndassessments.com"}/lsc-checkout?payment_return=true`;
+
+  // plan field stores months as string for the DB
+  const planStr = String(numMonths);
 
   const intent = await airwallex.createPaymentIntent({
     amount,
     currency: "CNY",
-    plan,
+    plan: `${numMonths}mo`,
     caseId,
     portalToken: token,
     returnUrl,
@@ -1499,7 +1510,7 @@ router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
   // Store pending intent for webhook idempotency
   await db.execute(sql`
     INSERT INTO lsc_payment_intents (id, case_id, portal_token, plan, amount, currency, status)
-    VALUES (${intent.id}, ${caseId}, ${token}, ${plan}, ${amount}, 'CNY', 'pending')
+    VALUES (${intent.id}, ${caseId}, ${token}, ${planStr}, ${amount}, 'CNY', 'pending')
     ON CONFLICT (id) DO NOTHING
   `);
 
@@ -1507,6 +1518,8 @@ router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
     intent_id: intent.id,
     client_secret: intent.clientSecret,
     env: airwallex.getEnv(),
+    months: numMonths,
+    amount,
   });
 });
 
@@ -1530,22 +1543,24 @@ router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
   if (row["status"] === "succeeded") { res.json({ ok: true, already: true }); return; }
 
   const caseId = row["case_id"] as string;
-  const resolvedPlan = (row["plan"] as string) ?? plan ?? "monthly";
-  const newStatus = resolvedPlan === "annual" ? "active_annual" : "active_monthly";
+  // plan stores the number of months as a string (e.g. "3")
+  const numMonths = parseInt((row["plan"] as string) ?? "1", 10) || 1;
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + numMonths);
 
   // Upsert subscription
   const existing = await db.execute(sql`SELECT id FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
   if (existing.rows.length) {
-    await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = ${newStatus}, updated_at = NOW() WHERE case_id = ${caseId}`);
+    await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = 'active_monthly', expires_at = ${expiresAt.toISOString()}, updated_at = NOW() WHERE case_id = ${caseId}`);
   } else {
     const subId = randomUUID();
-    await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage) VALUES (${subId}, ${caseId}, ${newStatus}, 25, 0)`);
+    await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage, expires_at) VALUES (${subId}, ${caseId}, 'active_monthly', 25, 0, ${expiresAt.toISOString()})`);
   }
 
   // Mark intent as succeeded
   await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intent_id}`);
 
-  res.json({ ok: true });
+  res.json({ ok: true, expiresAt: expiresAt.toISOString() });
 });
 
 // ── Airwallex webhook (no auth — idempotent via lsc_payment_intents) ──────────
@@ -1566,15 +1581,16 @@ router.post("/external/payments/webhook", async (req, res) => {
     if (row["status"] === "succeeded") { res.json({ status: "ok" }); return; } // idempotent
 
     const caseId = row["case_id"] as string;
-    const plan = row["plan"] as string;
-    const newStatus = plan === "annual" ? "active_annual" : "active_monthly";
+    const numMonths = parseInt((row["plan"] as string) ?? "1", 10) || 1;
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + numMonths);
 
     const existing = await db.execute(sql`SELECT id FROM lsc_subscriptions WHERE case_id = ${caseId} LIMIT 1`);
     if (existing.rows.length) {
-      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = ${newStatus}, updated_at = NOW() WHERE case_id = ${caseId}`);
+      await db.execute(sql`UPDATE lsc_subscriptions SET subscription_status = 'active_monthly', expires_at = ${expiresAt.toISOString()}, updated_at = NOW() WHERE case_id = ${caseId}`);
     } else {
       const subId = randomUUID();
-      await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage) VALUES (${subId}, ${caseId}, ${newStatus}, 25, 0)`);
+      await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage, expires_at) VALUES (${subId}, ${caseId}, 'active_monthly', 25, 0, ${expiresAt.toISOString()})`);
     }
     await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intentId}`);
 

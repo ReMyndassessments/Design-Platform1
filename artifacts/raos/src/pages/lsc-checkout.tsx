@@ -99,10 +99,11 @@ export default function LscCheckoutPage() {
             const base = window.location.pathname.includes("/raos")
               ? "/raos"
               : "";
+            const m = parseInt(new URLSearchParams(window.location.search).get("months") ?? "1", 10) || 1;
             await fetch(`${base}/api/external/portal/${portalToken}/lsc/confirm`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ intent_id: intentId, plan }),
+              body: JSON.stringify({ intent_id: intentId, months: m }),
             });
           } catch { /* webhook covers this as backup */ }
           setStage("success");
@@ -128,8 +129,9 @@ export default function LscCheckoutPage() {
   }, []);
 
   const params = new URLSearchParams(window.location.search);
-  const plan = params.get("plan") ?? "monthly";
-  const planLabel = PLAN_LABELS[plan]?.en ?? "Subscription";
+  const months = parseInt(params.get("months") ?? "1", 10) || 1;
+  const amount = params.get("amount") ?? "";
+  const planLabel = `${months}-month subscription`;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start pt-12 px-4">
@@ -141,7 +143,7 @@ export default function LscCheckoutPage() {
           </div>
           <span className="font-bold text-xl text-slate-900 tracking-tight">ReMynd</span>
         </div>
-        <p className="text-sm text-slate-500">Learning Support Coach™ — {planLabel}</p>
+        <p className="text-sm text-slate-500">Learning Support Coach™ — {planLabel}{amount ? ` · ¥${amount}` : ""}</p>
       </div>
 
       {/* Card */}

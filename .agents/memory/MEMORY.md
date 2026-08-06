@@ -8,3 +8,4 @@
 - [api-server esbuild externals](api-server-esbuild-externals.md) — `@google/genai` must be bundled (not external); use `@google-cloud/*` not `@google/*` in the external list.
 - [Drizzle raw SQL array parameters](drizzle-raw-sql-arrays.md) — ANY(${array}) in db.execute(sql`...`) silently 500s; use attribute WHERE or scalar loops instead.
 - [Scoring config null domains](scoring-config-null-domains.md) — BRIEF-2 scoring_config is {"max":2} with no domains key; use scoringConfig?.domains?.[key] double-chaining; normalizedScores can be DB-null too.
+- [Airwallex LSC integration](airwallex-lsc-integration.md) — 1–12 month upfront model; plan col stores months as string; popup-blocker trick; SDK global is AirwallexComponentsSDK not Airwallex.

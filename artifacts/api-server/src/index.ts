@@ -3033,6 +3033,7 @@ async function createLscTables() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await db.execute(sql`ALTER TABLE lsc_subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`);
     logger.info("LSC tables ready");
   } catch (err) {
     logger.error({ err }, "createLscTables failed");
