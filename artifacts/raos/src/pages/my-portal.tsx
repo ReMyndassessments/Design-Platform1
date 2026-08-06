@@ -1,24 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function MyPortalLogin() {
   const [, navigate] = useLocation();
-  const [caseId, setCaseId] = useState("");
-  const [password, setPassword] = useState("");
+  const params = new URLSearchParams(window.location.search);
+  const prefillCaseId = params.get("caseId") ?? "";
+  const prefillPassword = params.get("password") ?? "";
+
+  const [caseId, setCaseId] = useState(prefillCaseId);
+  const [password, setPassword] = useState(prefillPassword);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function doLogin(id: string, pw: string) {
     setError(null);
     setLoading(true);
     try {
       const res = await fetch(`${apiBase}/api/external/portal-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId: caseId.trim(), password: password.trim() }),
+        body: JSON.stringify({ caseId: id.trim(), password: pw.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -31,6 +34,18 @@ export default function MyPortalLogin() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Auto-login when credentials arrive via URL params (single sign-on from portal)
+  useEffect(() => {
+    if (prefillCaseId && prefillPassword) {
+      doLogin(prefillCaseId, prefillPassword);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await doLogin(caseId, password);
   }
 
   return (

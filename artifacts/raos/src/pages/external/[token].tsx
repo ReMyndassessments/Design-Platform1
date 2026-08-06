@@ -1654,7 +1654,11 @@ function PortalView({
           const creds = portal.bobbyAiPortalCredentials ?? "";
           const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
           const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
-          const deepLink = "https://remyndassessments.com/my-portal";
+          const caseIdVal = caseIdMatch ? caseIdMatch[1].trim() : "";
+          const codeVal = codeMatch ? codeMatch[1].trim() : "";
+          const deepLink = caseIdVal && codeVal
+            ? `https://bobby-ai.com/intervention?caseId=${encodeURIComponent(caseIdVal)}&accessCode=${encodeURIComponent(codeVal)}`
+            : "https://bobby-ai.com/intervention";
           return (
             <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50 shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-4 space-y-3">
@@ -1699,10 +1703,10 @@ function PortalView({
 
                 <p className="text-[10px] text-purple-400 text-center">
                   {language === "mandarin"
-                    ? <>您也可以直接访问 <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a></>
+                    ? <>您也可以直接访问 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>
                     : language === "korean"
-                    ? <>또는 <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a>에서 직접 접속할 수도 있습니다</>
-                    : <>You can also access directly at <a href="https://remyndassessments.com/my-portal" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">remyndassessments.com/my-portal</a></>}
+                    ? <>또는 <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a>에서 직접 접속할 수도 있습니다</>
+                    : <>You can also access directly at <a href="https://bobby-ai.com/intervention" target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-600">bobby-ai.com/intervention</a></>}
                 </p>
               </div>
             </div>
