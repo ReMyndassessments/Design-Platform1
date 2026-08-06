@@ -1472,11 +1472,9 @@ router.post("/external/portal/:token/lsc/checkout", async (req, res) => {
   }
 
   // Resolve portal token → case
-  const portalRows = await db.execute(sql`
-    SELECT case_id FROM portal_tokens WHERE token = ${token} LIMIT 1
-  `);
-  if (!portalRows.rows.length) { res.status(404).json({ error: "invalid_token" }); return; }
-  const caseId = portalRows.rows[0]["case_id"] as string;
+  const info = await getCaseFromPortalToken(token);
+  if (!info) { res.status(404).json({ error: "invalid_token" }); return; }
+  const caseId = info.caseId;
 
   // Get price from lsc_settings
   const settings = await db.execute(sql`SELECT monthly_price_rmb, annual_price_rmb FROM lsc_settings LIMIT 1`);
@@ -1520,8 +1518,12 @@ router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
   if (!intent_id) { res.status(400).json({ error: "intent_id required" }); return; }
 
   // Look up the stored intent
+  // Verify portal token is valid
+  const info = await getCaseFromPortalToken(token);
+  if (!info) { res.status(404).json({ error: "invalid_token" }); return; }
+
   const intentRows = await db.execute(sql`
-    SELECT case_id, plan, status FROM lsc_payment_intents WHERE id = ${intent_id} AND portal_token = ${token} LIMIT 1
+    SELECT case_id, plan, status FROM lsc_payment_intents WHERE id = ${intent_id} AND case_id = ${info.caseId} LIMIT 1
   `);
   if (!intentRows.rows.length) { res.status(404).json({ error: "not_found" }); return; }
   const row = intentRows.rows[0] as Record<string, unknown>;
