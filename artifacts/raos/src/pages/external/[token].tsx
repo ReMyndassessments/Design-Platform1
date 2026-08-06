@@ -1971,14 +1971,23 @@ function PortalView({
                              }
                            </div>
                            {lscAnalysis && (
-                             <button
-                               onClick={handleLscPrint}
-                               title={language === "mandarin" ? "打印支持方案" : language === "korean" ? "지원 계획 인쇄" : "Print guide"}
-                               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors"
-                             >
-                               <Printer size={11} />
-                               <span>{language === "mandarin" ? "打印" : language === "korean" ? "인쇄" : "Print"}</span>
-                             </button>
+                             <div className="flex items-center gap-1">
+                               <button
+                                 onClick={handleLscPrint}
+                                 title={language === "mandarin" ? "打印支持方案" : language === "korean" ? "지원 계획 인쇄" : "Print guide"}
+                                 className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                               >
+                                 <Printer size={11} />
+                                 <span>{language === "mandarin" ? "打印" : language === "korean" ? "인쇄" : "Print"}</span>
+                               </button>
+                               <button
+                                 onClick={() => { setLscAnalysis(null); setLscDisplayGuide(null); setLscContent(""); setLscError(null); setLscFollowUpMessages([]); setLscActiveRole(role); }}
+                                 title={language === "mandarin" ? "清除结果" : language === "korean" ? "결과 지우기" : "Clear results"}
+                                 className="flex items-center justify-center w-6 h-6 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+                               >
+                                 <X size={12} />
+                               </button>
+                             </div>
                            )}
                          </div>
 
