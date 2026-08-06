@@ -1026,10 +1026,26 @@ function PortalView({
 
   const loadLscHistory = async () => {
     if (lscHistoryLoaded) return;
-    // History is fetched but NOT auto-displayed — user must run a fresh analysis.
-    // This prevents the old trial result from re-appearing every time the panel opens.
-    try { /* no-op */ }
-    catch { /* ignore */ }
+    // Fetch history but do NOT auto-display it.
+    // Active subscribers can manually restore a previous analysis via the "View previous" button.
+    try {
+      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses`);
+      if (r.ok) {
+        const data = await r.json() as { analyses: Array<Record<string, unknown>> };
+        const mapped: LscAnalysisRecord[] = (data.analyses ?? []).map(a => ({
+          id: a["id"] as string,
+          userRole: a["user_role"] as string ?? "parent",
+          language: a["language"] as string ?? "english",
+          lessonContent: a["lesson_content"] as string ?? "",
+          guide: (a["guide"] ?? {}) as LscGuide,
+          demandProfile: (a["demand_profile"] ?? {}) as LscDemandProfile,
+          outputVersions: (a["output_versions"] ?? {}) as Record<string, LscGuide>,
+          followUpMessages: (a["follow_up_messages"] ?? []) as Array<{ role: string; content: string }>,
+          createdAt: a["created_at"] as string ?? "",
+        }));
+        if (mapped.length > 0) setLscPreviousAnalyses(mapped);
+      }
+    } catch { /* ignore */ }
     finally { setLscHistoryLoaded(true); }
   };
 
