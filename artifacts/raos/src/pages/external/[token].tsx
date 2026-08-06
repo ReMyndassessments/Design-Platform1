@@ -1086,7 +1086,13 @@ function PortalView({
       setLscAnalysis(newAnalysis);
       setLscDisplayGuide(data.guide);
       setLscFollowUpMessages([]);
-      setLscStatus(null);
+      // Immediately mark trial as used in local state so the payment section
+      // shows without waiting for a server round-trip.
+      setLscStatus(prev =>
+        prev && ["trial_available", "trial_active"].includes(prev.subscriptionStatus)
+          ? { ...prev, subscriptionStatus: "trial_used" }
+          : prev
+      );
       loadLscStatus(true);
     } catch {
       setLscError("failed");
