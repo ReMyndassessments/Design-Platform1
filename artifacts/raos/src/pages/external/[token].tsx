@@ -925,6 +925,7 @@ function PortalView({
   const [lscFollowUpLoading, setLscFollowUpLoading] = useState(false);
   const [lscFollowUpMessages, setLscFollowUpMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [lscHistoryLoaded, setLscHistoryLoaded] = useState(false);
+  const [lscPreviousAnalyses, setLscPreviousAnalyses] = useState<LscAnalysisRecord[]>([]);
   const [lscError, setLscError] = useState<string | null>(null);
 
   // Banner state: shown when language changes while a conversation is in progress
@@ -1995,6 +1996,35 @@ function PortalView({
                             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors"
                           >
                             {language === "mandarin" ? "我明白，继续" : language === "korean" ? "확인했습니다, 계속" : "I understand — continue"}
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    // For active subscribers with no current analysis: offer to restore a previous one
+                    if (!canAnalyze && !lscAnalysis && isActive && lscPreviousAnalyses.length > 0) {
+                      return (
+                        <div className="p-5 space-y-3">
+                          <p className="text-xs text-slate-500 text-center">
+                            {language === "mandarin" ? "您有之前的分析记录" : language === "korean" ? "이전 분석 기록이 있습니다" : "You have a previous analysis on file"}
+                          </p>
+                          <button
+                            onClick={() => {
+                              const prev = lscPreviousAnalyses[0];
+                              setLscAnalysis(prev);
+                              setLscDisplayGuide(prev.guide);
+                              setLscFollowUpMessages(prev.followUpMessages ?? []);
+                              setLscActiveRole(prev.userRole ?? role);
+                            }}
+                            className="w-full py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold transition-colors"
+                          >
+                            {language === "mandarin" ? "查看上次分析" : language === "korean" ? "이전 분석 보기" : "View previous analysis"}
+                          </button>
+                          <button
+                            onClick={() => { setLscAnalysis(null); setLscDisplayGuide(null); setLscContent(""); setLscError(null); }}
+                            className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            {language === "mandarin" ? "开始新分析" : language === "korean" ? "새 분석 시작" : "Start a new analysis instead"}
                           </button>
                         </div>
                       );

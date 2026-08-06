@@ -3040,6 +3040,43 @@ async function createLscTables() {
   }
 }
 
+async function ensureAirwallexWebhook() {
+  try {
+    const { getAccessToken, isConfigured } = await import("./lib/airwallex.js");
+    if (!isConfigured()) return;
+    const token = await getAccessToken();
+    if (!token) return;
+    const clientId = process.env.AIRWALLEX_CLIENT_ID!;
+    const base = process.env.AIRWALLEX_ENV === "demo"
+      ? "https://api-demo.airwallex.com/api/v1"
+      : "https://api.airwallex.com/api/v1";
+    const webhookUrl = "https://remyndassessments.com/api/external/payments/webhook";
+    const listRes = await fetch(`${base}/webhooks`, {
+      headers: { Authorization: `Bearer ${token}`, "x-client-id": clientId },
+    });
+    if (!listRes.ok) { logger.warn({ status: listRes.status }, "Airwallex webhook list failed"); return; }
+    const listData = await listRes.json() as { items?: Array<{ id: string; url: string }> };
+    const items = listData.items ?? [];
+    if (items.find(w => w.url === webhookUrl)) {
+      logger.info("Airwallex webhook already registered");
+      return;
+    }
+    const createRes = await fetch(`${base}/webhooks`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "x-client-id": clientId },
+      body: JSON.stringify({
+        url: webhookUrl,
+        event_types: ["payment_intent.succeeded", "payment_intent.payment_failed", "payment_intent.cancelled"],
+      }),
+    });
+    const created = await createRes.json() as { id?: string };
+    if (createRes.ok) logger.info({ id: created.id }, "Airwallex webhook registered");
+    else logger.warn({ status: createRes.status, body: created }, "Airwallex webhook registration failed");
+  } catch (err) {
+    logger.warn({ err }, "ensureAirwallexWebhook failed (non-fatal)");
+  }
+}
+
 async function backfillBobbyAiCaseIds() {
   try {
     // Extract Case ID from bobby_ai_portal_credentials for any case where bobby_ai_case_id is null.
@@ -3479,6 +3516,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createInterviewRecordingsTable())
   .then(() => backfillBobbyAiCaseIds())
   .then(() => createLscTables())
+  .then(() => ensureAirwallexWebhook())
   .then(() => {
   const server = app.listen(port, (err) => {
     if (err) {
