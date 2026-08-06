@@ -1661,10 +1661,10 @@ function PortalView({
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-indigo-900">
-                    {language === "mandarin" ? "咨询 ReMynd AI" : language === "korean" ? "ReMynd AI에게 질문하기" : "Ask ReMynd AI"}
+                    {language === "mandarin" ? "家长支持" : language === "korean" ? "학부모 지원" : "Parent Support"}
                   </p>
                   <p className="text-[11px] text-indigo-600">
-                    {language === "mandarin" ? "获取针对报告结果的个性化建议" : language === "korean" ? "보고서 결과에 대한 맞춤형 안내 받기" : "Get personalised guidance about the report results"}
+                    {language === "mandarin" ? "关于评估结果的家庭支持与指导" : language === "korean" ? "평가 결과에 관한 가정 지원 및 안내" : "Home support & guidance around the assessment"}
                   </p>
                 </div>
                 <ChevronRight size={16} className="text-indigo-400 shrink-0"/>
@@ -1680,10 +1680,10 @@ function PortalView({
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-bold text-white">
-                      {language === "mandarin" ? "ReMynd AI 助手" : language === "korean" ? "ReMynd AI 어시스턴트" : "ReMynd AI Assistant"}
+                      {language === "mandarin" ? "家长支持" : language === "korean" ? "학부모 지원" : "Parent Support"}
                     </p>
                     <p className="text-[10px] text-indigo-200">
-                      {language === "mandarin" ? `专为 ${portal.studentName} 的评估结果定制` : language === "korean" ? `${portal.studentName}의 결과에 맞춤 설정됨` : `Personalised to ${portal.studentName}'s results`}
+                      {language === "mandarin" ? `基于 ${portal.studentName} 的评估档案` : language === "korean" ? `${portal.studentName}의 평가 프로필 기반` : `Based on ${portal.studentName}'s assessment`}
                     </p>
                   </div>
                   <button onClick={() => setChatOpen(false)} className="text-white/70 hover:text-white transition-colors">
@@ -1772,10 +1772,10 @@ function PortalView({
                       rows={2}
                       placeholder={
                         language === "mandarin"
-                          ? (role === "teacher" ? "询问课堂策略、调整措施…" : "询问如何在家支持您的孩子…")
+                          ? "询问如何在家支持您的孩子…"
                           : language === "korean"
-                          ? (role === "teacher" ? "교실 전략, 지원 방법에 대해 질문하세요…" : "집에서 자녀를 지원하는 방법을 질문하세요…")
-                          : (role === "teacher" ? "Ask about classroom strategies, accommodations…" : "Ask about supporting your child at home…")
+                          ? "집에서 자녀를 지원하는 방법을 질문하세요…"
+                          : "Ask about supporting your child at home…"
                       }
                       value={chatInput}
                       onChange={e => setChatInput(e.target.value)}
