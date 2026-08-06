@@ -1256,15 +1256,15 @@ function PortalView({
         <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
           style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div className="relative z-10 px-5 py-3 flex items-center gap-3">
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+          <a href="https://remyndassessments.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-shrink-0 group">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
               <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
             </div>
             <div className="leading-none">
-              <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
+              <span className="font-display font-bold text-xl tracking-tight leading-none text-white block group-hover:text-slate-200 transition-colors">ReMynd</span>
               <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">{t("portalSubtitle", language)}</span>
             </div>
-          </div>
+          </a>
           <div className="ml-auto flex items-center gap-4">
             {(portal.assignedToName || portal.respondentLabel) && (
               <div className="text-right hidden sm:block">
