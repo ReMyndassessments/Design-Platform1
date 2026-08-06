@@ -1027,6 +1027,9 @@ function PortalView({
   const loadLscHistory = async () => {
     if (lscHistoryLoaded) return;
     try {
+      // Don't auto-restore a prior analysis if the user has dismissed it
+      const wasDismissed = (() => { try { return localStorage.getItem(lscDismissedKey) === "1"; } catch { return false; } })();
+      if (wasDismissed) return;
       const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses`);
       if (r.ok) {
         const data = await r.json() as { analyses: Array<Record<string, unknown>> };
@@ -1939,7 +1942,7 @@ function PortalView({
                       {language === "mandarin" ? `专为 ${portal.studentName} 定制` : language === "korean" ? `${portal.studentName} 맞춤` : `Grounded in ${portal.studentName}'s assessment`}
                     </p>
                   </div>
-                  <button onClick={() => { setLscOpen(false); setLscError(null); setLscDismissed(true); try { localStorage.setItem(lscDismissedKey, "1"); } catch { /* ignore */ } }} className="text-white/70 hover:text-white transition-colors shrink-0">
+                  <button onClick={() => { setLscOpen(false); setLscError(null); setLscAnalysis(null); setLscDisplayGuide(null); setLscFollowUpMessages([]); setLscContent(""); try { localStorage.setItem(lscDismissedKey, "1"); } catch { /* ignore */ } }} className="text-white/70 hover:text-white transition-colors shrink-0">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                   </button>
                 </div>
