@@ -1026,32 +1026,10 @@ function PortalView({
 
   const loadLscHistory = async () => {
     if (lscHistoryLoaded) return;
-    try {
-      // Don't auto-restore a prior analysis if the user has dismissed it
-      const wasDismissed = (() => { try { return localStorage.getItem(lscDismissedKey) === "1"; } catch { return false; } })();
-      if (wasDismissed) return;
-      const r = await fetch(`${apiBase}/api/external/portal/${portalToken}/lsc/analyses`);
-      if (r.ok) {
-        const data = await r.json() as { analyses: Array<Record<string, unknown>> };
-        const mapped: LscAnalysisRecord[] = (data.analyses ?? []).map(a => ({
-          id: a["id"] as string,
-          userRole: a["user_role"] as string ?? "parent",
-          language: a["language"] as string ?? "english",
-          lessonContent: a["lesson_content"] as string ?? "",
-          guide: (a["guide"] ?? {}) as LscGuide,
-          demandProfile: (a["demand_profile"] ?? {}) as LscDemandProfile,
-          outputVersions: (a["output_versions"] ?? {}) as Record<string, LscGuide>,
-          followUpMessages: (a["follow_up_messages"] ?? []) as Array<{ role: string; content: string }>,
-          createdAt: a["created_at"] as string ?? "",
-        }));
-        if (mapped.length > 0) {
-          setLscAnalysis(prev => prev ?? mapped[0]);
-          setLscDisplayGuide(prev => prev ?? mapped[0].guide);
-          setLscFollowUpMessages(prev => prev.length > 0 ? prev : (mapped[0].followUpMessages ?? []));
-          setLscActiveRole(prev => prev ?? mapped[0].userRole ?? role);
-        }
-      }
-    } catch { /* ignore */ }
+    // History is fetched but NOT auto-displayed — user must run a fresh analysis.
+    // This prevents the old trial result from re-appearing every time the panel opens.
+    try { /* no-op */ }
+    catch { /* ignore */ }
     finally { setLscHistoryLoaded(true); }
   };
 
