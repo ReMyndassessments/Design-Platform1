@@ -902,7 +902,9 @@ function PortalView({
   type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number; expiresAt?: string | null; isAdminPreview?: boolean };
 
   const lscDismissedKey = `lsc_dismissed_${portalToken}`;
-  const [lscDismissed, setLscDismissed] = useState(() => { try { return localStorage.getItem(`lsc_dismissed_${portalToken}`) === "1"; } catch { return false; } });
+  // Clear any previously stored dismiss — the dismiss button now only closes the panel for the session, not permanently.
+  try { localStorage.removeItem(lscDismissedKey); } catch { /* ignore */ }
+  const [lscDismissed, setLscDismissed] = useState(false);
   const [lscOpen, setLscOpen] = useState(false);
   const [lscMonths, setLscMonths] = useState(3);
   const [lscInquiryOpen, setLscInquiryOpen] = useState(false);
@@ -1898,7 +1900,7 @@ function PortalView({
           </div>
 
         {/* Learning Support Coach™ — hidden permanently once dismissed */}
-        {!lscDismissed && <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
+        {<div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
             {!lscOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-emerald-100/50 transition-colors"
@@ -1941,7 +1943,7 @@ function PortalView({
                       {language === "mandarin" ? `专为 ${portal.studentName} 定制` : language === "korean" ? `${portal.studentName} 맞춤` : `Grounded in ${portal.studentName}'s assessment`}
                     </p>
                   </div>
-                  <button onClick={() => { setLscOpen(false); setLscError(null); setLscAnalysis(null); setLscDisplayGuide(null); setLscFollowUpMessages([]); setLscContent(""); try { localStorage.setItem(lscDismissedKey, "1"); } catch { /* ignore */ } }} className="text-white/70 hover:text-white transition-colors shrink-0">
+                  <button onClick={() => { setLscOpen(false); setLscError(null); setLscAnalysis(null); setLscDisplayGuide(null); setLscFollowUpMessages([]); setLscContent(""); }} className="text-white/70 hover:text-white transition-colors shrink-0">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                   </button>
                 </div>
