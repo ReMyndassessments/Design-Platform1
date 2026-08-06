@@ -80,6 +80,79 @@ const PHASES = [
   { key: "debrief",        label: "Debrief",    labelZh: "汇报",   labelKo: "결과설명" },
 ];
 
+function renderChatMarkdown(text: string): React.ReactNode {
+  const paragraphs = text.split(/\n{2,}/);
+  const nodes: React.ReactNode[] = [];
+
+  paragraphs.forEach((para, pi) => {
+    const lines = para.split("\n").filter(l => l.trim() !== "");
+    if (!lines.length) return;
+
+    // ### Heading
+    if (/^#{1,3}\s/.test(lines[0])) {
+      nodes.push(
+        <p key={`h${pi}`} className="text-[11px] font-bold text-slate-800 mt-3 mb-0.5 uppercase tracking-wide">
+          {renderInline(lines[0].replace(/^#{1,3}\s/, ""))}
+        </p>
+      );
+      lines.slice(1).forEach((l, li) =>
+        nodes.push(<p key={`h${pi}x${li}`} className="text-xs leading-relaxed text-slate-700">{renderInline(l)}</p>)
+      );
+      return;
+    }
+
+    // Bullet list (- or * or •)
+    if (lines.every(l => /^[\-\*•]\s/.test(l.trim()))) {
+      nodes.push(
+        <ul key={`u${pi}`} className={`list-disc pl-4 space-y-1 ${pi > 0 ? "mt-2" : ""}`}>
+          {lines.map((l, li) => (
+            <li key={li} className="text-xs leading-relaxed text-slate-700">
+              {renderInline(l.replace(/^[\-\*•]\s+/, ""))}
+            </li>
+          ))}
+        </ul>
+      );
+      return;
+    }
+
+    // Numbered list (1. 2. etc.)
+    if (lines.every(l => /^\d+\.\s/.test(l.trim()))) {
+      nodes.push(
+        <ol key={`o${pi}`} className={`list-decimal pl-4 space-y-1.5 ${pi > 0 ? "mt-2" : ""}`}>
+          {lines.map((l, li) => (
+            <li key={li} className="text-xs leading-relaxed text-slate-700">
+              {renderInline(l.replace(/^\d+\.\s+/, ""))}
+            </li>
+          ))}
+        </ol>
+      );
+      return;
+    }
+
+    // Plain paragraph
+    nodes.push(
+      <p key={`p${pi}`} className={`text-xs leading-relaxed text-slate-700 ${pi > 0 ? "mt-2" : ""}`}>
+        {lines.map((l, li) => (
+          <span key={li}>{renderInline(l)}{li < lines.length - 1 && <br />}</span>
+        ))}
+      </p>
+    );
+  });
+
+  return <div className="space-y-0.5">{nodes}</div>;
+}
+
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={i} className="font-semibold text-slate-800">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*"))
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+
 function phaseLabel(phase: typeof PHASES[0], language: string) {
   if (language === "mandarin") return phase.labelZh;
   if (language === "korean")   return phase.labelKo;
@@ -1748,7 +1821,7 @@ function PortalView({
                           ? "bg-indigo-600 text-white rounded-br-sm"
                           : "bg-white border border-indigo-100 text-slate-700 rounded-bl-sm shadow-sm"
                       )}>
-                        {m.content}
+                        {m.role === "ai" ? renderChatMarkdown(m.content) : m.content}
                       </div>
                     </div>
                   ))}
@@ -1794,14 +1867,21 @@ function PortalView({
                       </svg>
                     </button>
                   </div>
-                  {chatMessages.length > 0 && (
+                  <div className="mt-2 flex items-center justify-between">
                     <button
-                      className="mt-2 text-[10px] text-indigo-400 hover:text-indigo-600 underline underline-offset-2 w-full text-center"
+                      className="text-[10px] text-indigo-400 hover:text-indigo-600 underline underline-offset-2"
                       onClick={() => { setChatMessages([]); setPromptsLoaded(false); setSuggestedPrompts([]); loadPrompts(); }}
                     >
                       {language === "mandarin" ? "开始新对话" : language === "korean" ? "새 대화 시작" : "Start new conversation"}
                     </button>
-                  )}
+                    <button
+                      onClick={() => setChatOpen(false)}
+                      title={language === "mandarin" ? "关闭" : language === "korean" ? "닫기" : "Close"}
+                      className="w-6 h-6 flex items-center justify-center rounded-lg text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
