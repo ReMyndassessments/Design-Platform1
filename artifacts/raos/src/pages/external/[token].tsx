@@ -899,7 +899,7 @@ function PortalView({
   type LscDemandProfile = { overview: string; reading: string; writing: string; mathematics: string; executiveFunction: string; memory: string; attention: string };
   type LscGuide = { demandProfile: LscDemandProfile; strengths: string; overview: string; challenges: string; strategies: string; stepByStep: string; language: string; observationPoints: string; safetyNote?: string };
   type LscAnalysisRecord = { id: string; userRole: string; language: string; lessonContent: string; guide: LscGuide; demandProfile: LscDemandProfile; outputVersions: Record<string, LscGuide>; followUpMessages: Array<{ role: string; content: string }>; createdAt: string };
-  type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number; expiresAt?: string | null };
+  type LscStatus = { productName: string; productSubtitle: string; subscriptionStatus: string; monthlyPrice: number; annualPrice: number; monthlyLimit: number; trialLimit: number; monthlyUsage: number; monthlyAllowance: number; expiresAt?: string | null; isAdminPreview?: boolean };
 
   const [lscOpen, setLscOpen] = useState(false);
   const [lscMonths, setLscMonths] = useState(3);
@@ -1955,7 +1955,11 @@ function PortalView({
                     const st = lscStatus.subscriptionStatus;
                     const isActive = ["active_monthly", "active_annual", "complimentary", "administrator_override"].includes(st);
                     const isTrial = ["trial_available", "trial_active"].includes(st);
-                    const canAnalyze = isTrial || isActive;
+                    // In admin preview, once an analysis exists show the payment section so
+                    // admins can see exactly what a parent sees after using their trial.
+                    const canAnalyze = lscStatus.isAdminPreview && lscAnalysis
+                      ? false
+                      : (isTrial || isActive);
 
                     // SAFETY ACKNOWLEDGMENT
                     if (canAnalyze && !lscAcknowledged && !lscAnalysis) {

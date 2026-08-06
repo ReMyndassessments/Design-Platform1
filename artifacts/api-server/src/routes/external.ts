@@ -1291,6 +1291,9 @@ router.get("/external/portal/:token/lsc/status", async (req, res) => {
     if (PAID_STATUSES.includes(status) && expiresAt && new Date(expiresAt) < new Date()) {
       status = "expired";
     }
+    // Flag admin preview tokens so the frontend can show the payment UI in preview mode
+    const [tokRow] = (await db.execute(sql`SELECT recipient_name FROM report_tokens WHERE token=${req.params.token} LIMIT 1`)).rows;
+    const isAdminPreview = (tokRow as Record<string, unknown> | undefined)?.["recipient_name"] === "TEST PREVIEW (admin)";
     return res.json({
       productName: s["product_name"] ?? "ReMynd Learning Support Coach",
       productSubtitle: s["product_subtitle"] ?? "Assessment-Based Educational Decision Support",
@@ -1302,6 +1305,7 @@ router.get("/external/portal/:token/lsc/status", async (req, res) => {
       monthlyUsage: sub["monthly_usage"] ?? 0,
       monthlyAllowance: sub["monthly_allowance"] ?? 25,
       expiresAt,
+      isAdminPreview,
     });
   } catch (err) {
     console.error("[LSC] status:", err);
