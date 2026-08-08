@@ -130,10 +130,10 @@ function AssessmentOverviewDrawer({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-10 pointer-events-none">
+      <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 md:p-10 pointer-events-none">
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col pointer-events-auto" style={{ maxHeight: "90vh" }}>
 
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 flex-shrink-0">
