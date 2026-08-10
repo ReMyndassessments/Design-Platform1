@@ -210,6 +210,9 @@ router.patch("/compliance/policies/:id", async (req, res) => {
       document_owner = COALESCE(${b.document_owner ?? null}, document_owner),
       review_date = COALESCE(${b.review_date ?? null}::date, review_date),
       internal_notes = COALESCE(${b.internal_notes ?? null}, internal_notes),
+      content_en = COALESCE(${b.content_en ?? null}, content_en),
+      content_zh = COALESCE(${b.content_zh ?? null}, content_zh),
+      content_ko = COALESCE(${b.content_ko ?? null}, content_ko),
       updated_at = NOW()
       WHERE id = ${req.params.id}`);
     res.json({ ok: true });
@@ -220,7 +223,7 @@ router.patch("/compliance/policies/:id", async (req, res) => {
 router.get("/compliance/access-review", async (_req, res) => {
   try {
     const users = await db.execute(sql`
-      SELECT u.id, u.name, u.email, u.role, u.school, u.created_at,
+      SELECT u.id, u.name, u.email, u.role, u.school_name AS school, u.created_at,
         (SELECT COUNT(*) FROM assignments a WHERE a.user_id = u.id) AS case_count,
         (SELECT MAX(created_at) FROM assignments a WHERE a.user_id = u.id) AS last_assignment,
         cr.review_label, cr.reviewed_by, cr.reviewed_at, cr.notes AS review_notes

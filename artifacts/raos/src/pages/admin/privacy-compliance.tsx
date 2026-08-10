@@ -8,6 +8,7 @@ import {
   Shield, Database, Building2, Globe, Users, Activity,
   Bot, FileText, AlertTriangle, ChevronDown, ChevronRight,
   CheckCircle2, Clock, XCircle, HelpCircle, Info, Lock,
+  Eye, X, Copy, Check,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -662,10 +663,188 @@ function AiReviewTab() {
 }
 
 // ── Policies Tab ───────────────────────────────────────────────────────────────
+// ── Policy Viewer Modal ───────────────────────────────────────────────────────
+function PolicyViewerModal({ policy, onClose }: { policy: any; onClose: () => void }) {
+  const { t, lang } = useI18n();
+  const c = t.compliance;
+  const [viewLang, setViewLang] = useState<"en" | "zh" | "ko">(lang as "en" | "zh" | "ko");
+  const [copied, setCopied] = useState(false);
+
+  const content: string = policy[`content_${viewLang}`] || policy.content_en || "";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // Render markdown-lite: bold, headings, tables, lists, horizontal rules
+  const renderContent = (md: string) => {
+    const lines = md.split("\n");
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Horizontal rule
+      if (/^---+$/.test(line.trim())) {
+        elements.push(<hr key={i} className="border-slate-200 my-4" />);
+        i++; continue;
+      }
+      // H1
+      if (line.startsWith("# ")) {
+        elements.push(<h1 key={i} className="text-xl font-bold text-slate-900 mb-3 mt-4">{line.slice(2)}</h1>);
+        i++; continue;
+      }
+      // H2
+      if (line.startsWith("## ")) {
+        elements.push(<h2 key={i} className="text-base font-semibold text-slate-800 mb-2 mt-5">{line.slice(3)}</h2>);
+        i++; continue;
+      }
+      // H3
+      if (line.startsWith("### ")) {
+        elements.push(<h3 key={i} className="text-sm font-semibold text-slate-700 mb-1 mt-4">{line.slice(4)}</h3>);
+        i++; continue;
+      }
+      // Table — collect all table lines
+      if (line.startsWith("|")) {
+        const tableLines: string[] = [];
+        while (i < lines.length && lines[i].startsWith("|")) {
+          tableLines.push(lines[i]);
+          i++;
+        }
+        const rows = tableLines.filter(l => !l.match(/^\|[\s\-:|]+\|$/));
+        elements.push(
+          <div key={`table-${i}`} className="overflow-x-auto my-3">
+            <table className="w-full text-xs border-collapse">
+              {rows.map((row, ri) => {
+                const cells = row.split("|").slice(1, -1).map(c => c.trim());
+                return (
+                  <tr key={ri} className={ri === 0 ? "bg-slate-50" : "border-t border-slate-100"}>
+                    {cells.map((cell, ci) => ri === 0
+                      ? <th key={ci} className="px-2 py-1.5 text-left font-semibold text-slate-700 border border-slate-200">{inlineFormat(cell)}</th>
+                      : <td key={ci} className="px-2 py-1.5 text-slate-600 border border-slate-200">{inlineFormat(cell)}</td>
+                    )}
+                  </tr>
+                );
+              })}
+            </table>
+          </div>
+        );
+        continue;
+      }
+      // Bullet list items
+      if (line.startsWith("- ") || line.startsWith("* ")) {
+        elements.push(
+          <li key={i} className="text-sm text-slate-700 ml-4 list-disc mb-0.5">{inlineFormat(line.slice(2))}</li>
+        );
+        i++; continue;
+      }
+      // Numbered list
+      if (/^\d+\.\s/.test(line)) {
+        elements.push(
+          <li key={i} className="text-sm text-slate-700 ml-4 list-decimal mb-0.5">{inlineFormat(line.replace(/^\d+\.\s/, ""))}</li>
+        );
+        i++; continue;
+      }
+      // Checkbox items
+      if (line.startsWith("☐") || line.startsWith("☑")) {
+        elements.push(
+          <p key={i} className="text-sm text-slate-700 mb-1">{inlineFormat(line)}</p>
+        );
+        i++; continue;
+      }
+      // Blank line
+      if (line.trim() === "") {
+        elements.push(<div key={i} className="h-1" />);
+        i++; continue;
+      }
+      // Normal paragraph
+      elements.push(<p key={i} className="text-sm text-slate-700 mb-2 leading-relaxed">{inlineFormat(line)}</p>);
+      i++;
+    }
+    return elements;
+  };
+
+  const inlineFormat = (text: string): React.ReactNode => {
+    // Bold **text**
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((p, i) =>
+      p.startsWith("**") && p.endsWith("**")
+        ? <strong key={i} className="font-semibold text-slate-900">{p.slice(2, -2)}</strong>
+        : p
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">{c.policies.viewerTitle}</p>
+            <p className="text-sm font-semibold text-slate-900 truncate">{policy.policy_name}</p>
+          </div>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            {/* Language switcher */}
+            <span className="text-[10px] text-slate-400">{c.policies.viewerLang}</span>
+            {(["en", "zh", "ko"] as const).map(l => (
+              <button
+                key={l}
+                onClick={() => setViewLang(l)}
+                className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                  viewLang === l ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {l === "en" ? "EN" : l === "zh" ? "中文" : "한국어"}
+              </button>
+            ))}
+            {/* Copy */}
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+            >
+              {copied ? <Check size={10} className="text-green-600" /> : <Copy size={10} />}
+              {copied ? c.policies.copied : c.policies.copyText}
+            </button>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        {/* Status badge */}
+        <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 shrink-0">
+          <Info size={11} className="text-amber-600 shrink-0" />
+          <p className="text-[11px] text-amber-700">{c.policies.warningNote}</p>
+        </div>
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {content ? renderContent(content) : (
+            <p className="text-sm text-slate-400 text-center py-8">No content available</p>
+          )}
+        </div>
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between shrink-0">
+          <p className="text-[10px] text-slate-400">{c.policies.downloadNote}</p>
+          <button
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
+          >
+            {c.policies.closeViewer}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PoliciesTab() {
   const { t } = useI18n();
   const c = t.compliance;
   const qc = useQueryClient();
+  const [viewing, setViewing] = useState<any | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-policies"],
     queryFn: () => customFetch("/api/compliance/policies"),
@@ -685,40 +864,53 @@ function PoliciesTab() {
   const items = data?.items ?? [];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-        <Info size={12} className="text-amber-600 mt-0.5 shrink-0" />
-        <p className="text-xs text-amber-800">{c.policies.warningNote}</p>
-      </div>
-      <div className="space-y-2">
-        {items.map((p: any) => {
-          const status = (p.status ?? "not_started") as PolicyStatus;
-          return (
-            <div key={p.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
-              <FileText size={14} className="text-slate-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-800">{p.policy_name}</p>
-                {p.internal_notes && (
-                  <p className="text-xs text-slate-400 mt-0.5 truncate">{p.internal_notes}</p>
+    <>
+      {viewing && <PolicyViewerModal policy={viewing} onClose={() => setViewing(null)} />}
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <Info size={12} className="text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-800">{c.policies.warningNote}</p>
+        </div>
+        <div className="space-y-2">
+          {items.map((p: any) => {
+            const status = (p.status ?? "not_started") as PolicyStatus;
+            const hasContent = !!(p.content_en || p.content_zh || p.content_ko);
+            return (
+              <div key={p.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                <FileText size={14} className="text-slate-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800">{p.policy_name}</p>
+                  {p.internal_notes && (
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{p.internal_notes}</p>
+                  )}
+                </div>
+                {hasContent && (
+                  <button
+                    onClick={() => setViewing(p)}
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg border border-indigo-200 hover:border-indigo-300 bg-indigo-50 hover:bg-indigo-100 transition-colors shrink-0"
+                  >
+                    <Eye size={11} />
+                    {c.policies.viewPolicy}
+                  </button>
                 )}
+                <select
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white shrink-0"
+                  value={status}
+                  onChange={e => updateMutation.mutate({ id: p.id, body: { status: e.target.value } })}
+                >
+                  {POLICY_STATUSES.map(s => (
+                    <option key={s} value={s}>{c.policies.statuses[s]}</option>
+                  ))}
+                </select>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${POLICY_STATUS_COLORS[status]}`}>
+                  {c.policies.statuses[status]}
+                </span>
               </div>
-              <select
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white shrink-0"
-                value={status}
-                onChange={e => updateMutation.mutate({ id: p.id, body: { status: e.target.value } })}
-              >
-                {POLICY_STATUSES.map(s => (
-                  <option key={s} value={s}>{c.policies.statuses[s]}</option>
-                ))}
-              </select>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${POLICY_STATUS_COLORS[status]}`}>
-                {c.policies.statuses[status]}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
