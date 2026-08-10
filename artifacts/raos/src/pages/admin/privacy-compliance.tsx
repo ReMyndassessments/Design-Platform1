@@ -139,7 +139,7 @@ function OverviewTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-dashboard"],
-    queryFn: () => customFetch("/api/compliance/dashboard").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/dashboard"),
   });
 
   if (isLoading) return <TabLoading msg={c.loading} />;
@@ -183,7 +183,7 @@ function InventoryTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-inventory"],
-    queryFn: () => customFetch("/api/compliance/data-inventory").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/data-inventory"),
   });
 
   const updateMutation = useMutation({
@@ -309,7 +309,7 @@ function VendorsTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-vendors"],
-    queryFn: () => customFetch("/api/compliance/vendors").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/vendors"),
   });
 
   const updateMutation = useMutation({
@@ -407,7 +407,7 @@ function CrossBorderTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-vendors"],
-    queryFn: () => customFetch("/api/compliance/vendors").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/vendors"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
   const xborder = (data?.items ?? []).filter((v: any) => v.leaves_mainland !== false);
@@ -446,7 +446,7 @@ function AccessReviewTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-access"],
-    queryFn: () => customFetch("/api/compliance/access-review").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/access-review"),
   });
 
   const updateMutation = useMutation({
@@ -534,7 +534,7 @@ function SecurityEventsTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-events"],
-    queryFn: () => customFetch("/api/compliance/security-events?limit=50").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/security-events?limit=50"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
   const events = data?.events ?? [];
@@ -587,7 +587,7 @@ function AiReviewTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-ai"],
-    queryFn: () => customFetch("/api/compliance/ai-review").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/ai-review"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
 
@@ -668,7 +668,7 @@ function PoliciesTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-policies"],
-    queryFn: () => customFetch("/api/compliance/policies").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/policies"),
   });
 
   const updateMutation = useMutation({
@@ -728,7 +728,7 @@ function FindingsTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-findings"],
-    queryFn: () => customFetch("/api/compliance/phase1-findings").then(r => r.json()),
+    queryFn: () => customFetch("/api/compliance/phase1-findings"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
 
