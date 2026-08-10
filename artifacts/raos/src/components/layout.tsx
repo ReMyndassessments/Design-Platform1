@@ -187,6 +187,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         ...(user?.role === "admin" || user?.role === "assessment_invigilator" ? [{ href: "/inquiries", label: "Inquiries", icon: Inbox }] : []),
         ...(user?.role === "admin" ? [{ href: "/team", label: "Team", icon: UserCog }] : []),
         ...(user?.role === "admin" ? [{ href: "/subscriptions", label: "Subscriptions", icon: Sparkles }] : []),
+        ...(user?.role === "admin" ? [{ href: "/admin/privacy-compliance", label: "Privacy & Compliance", icon: ShieldCheck }] : []),
       ];
 
   return (

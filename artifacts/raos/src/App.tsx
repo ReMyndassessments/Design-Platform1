@@ -131,6 +131,7 @@ const ApprenticeToolsLibraryPage = React.lazy(() => import("@/pages/apprentice/t
 const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
 const LscCheckoutPage = React.lazy(() => import("@/pages/lsc-checkout"));
+const PrivacyCompliancePage = React.lazy(() => import("@/pages/admin/privacy-compliance"));
 
 const queryClient = new QueryClient();
 
@@ -216,6 +217,9 @@ function Router() {
         <Route path="/rmra/session/:sessionId" component={RmraStandaloneSessionPage} />
         <Route path="/join/:room" component={JoinMeetingPage} />
         <Route path="/meet/:room" component={QuickMeetPage} />
+        <Route path="/admin/privacy-compliance">
+          {() => <ProtectedRoute component={PrivacyCompliancePage} />}
+        </Route>
         <Route path="/" component={LandingPage} />
         <Route path="/dashboard">
           {() => <ProtectedRoute component={Dashboard} />}

@@ -54,7 +54,7 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
   const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
 
   const reportContent = await generateReportWithAI({
-    caseData,
+    caseData: { ...caseData, caseId: req.params.caseId },
     scores,
     intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
     debriefNotes: (caseData as any).debriefNotes ?? null,

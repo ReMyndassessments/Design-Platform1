@@ -60,6 +60,7 @@ export type IntakeAnalysisResult = {
 
 export async function analyzeIntakeWithAI(intake: {
   studentName: string;
+  caseId?: string | null;
   school: string;
   referralReason: string;
   grade?: string | null;
@@ -88,10 +89,9 @@ export async function analyzeIntakeWithAI(intake: {
 Analyze the following intake data for a student and recommend which assessment tools from the provided library should be used.
 
 ═══ STUDENT INFORMATION ═══
-Name: ${intake.studentName}
+Case Reference: ${intake.caseId ? `[${intake.caseId}]` : "[CASE-REDACTED]"}
 School: ${intake.school}
 Grade: ${intake.grade ?? "Not specified"}
-Date of Birth: ${intake.dob ?? "Not recorded"}
 Age: ${intake.age != null ? `${intake.age} years old` : "Unknown"}
 Primary Referral Reason: ${intake.referralReason || "Not specified"}
 
@@ -210,6 +210,7 @@ Example: {"recommended": ["RCS-80", "RASR"], "rationale": "RCS-80 provides compr
 export async function generateReportWithAI(params: {
   caseData: {
     studentName: string;
+    caseId?: string | null;
     dob: string;
     school: string;
     grade?: string | null;
@@ -235,8 +236,8 @@ export async function generateReportWithAI(params: {
   const prompt = `You are a psychoeducational specialist writing a professional assessment report. Generate a comprehensive Educational Profile and Support Plan.
 
 STUDENT INFORMATION:
-Name: ${params.caseData.studentName}
-Date of Birth: ${params.caseData.dob}
+Case Reference: ${params.caseData.caseId ? `[${params.caseData.caseId}]` : "[CASE-REDACTED]"}
+Date of Birth: [REDACTED]
 School: ${params.caseData.school}
 Grade: ${params.caseData.grade ?? "Unknown"}
 Language: ${params.caseData.languagePreference}
@@ -270,13 +271,13 @@ This is a SCREENING report only — NOT a diagnostic report. Use appropriate lan
     const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
     return JSON.parse(cleaned);
   } catch {
-    const name = params.caseData.studentName;
+    const ref = params.caseData.caseId ? `[${params.caseData.caseId}]` : "The student";
     return {
-      backgroundSummary: `${name} was referred for psychoeducational screening at ${params.caseData.school}. The referral concern involves: ${params.caseData.referralReason}. This report summarizes screening findings from multiple informants.`,
+      backgroundSummary: `${ref} was referred for psychoeducational screening at ${params.caseData.school}. The referral concern involves: ${params.caseData.referralReason}. This report summarizes screening findings from multiple informants.`,
       domainAnalysis: `Assessment data was collected from ${params.scores.length} informant(s). Domain scores indicate areas that may benefit from additional support and monitoring. Full interpretation pending manual review.`,
-      strengths: `${name} demonstrates potential strengths that can be leveraged to support learning. Informant reports indicate areas of relative strength across settings.`,
+      strengths: `${ref} demonstrates potential strengths that can be leveraged to support learning. Informant reports indicate areas of relative strength across settings.`,
       areasOfConcern: `Several areas have been flagged for follow-up based on cross-informant data. These areas warrant continued monitoring and targeted support strategies.`,
-      crossSettingComparison: `Data collected from multiple informants provides a cross-setting perspective on ${name}'s functioning. Patterns of consistency and discrepancy across settings have been noted for review.`,
+      crossSettingComparison: `Data collected from multiple informants provides a cross-setting perspective on functioning. Patterns of consistency and discrepancy across settings have been noted for review.`,
       recommendations: `1. Continue monitoring in the identified areas of concern.\n2. Implement evidence-based classroom accommodations.\n3. Schedule a review meeting with parents and school team.\n4. Consider referral for comprehensive evaluation if concerns persist.`,
     };
   }

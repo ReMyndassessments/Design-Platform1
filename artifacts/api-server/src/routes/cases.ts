@@ -765,6 +765,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const analysis = await analyzeIntakeWithAI({
     studentName: c.studentName,
+    caseId: req.params.caseId,
     school: c.school,
     referralReason: c.referralReason,
     grade: c.grade,

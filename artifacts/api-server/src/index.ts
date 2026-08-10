@@ -3040,6 +3040,194 @@ async function createLscTables() {
   }
 }
 
+async function createComplianceTables() {
+  try {
+    // Compliance tables — additive only, no existing tables modified
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS compliance_data_inventory (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        example_fields TEXT,
+        data_subject TEXT,
+        purpose TEXT,
+        source TEXT,
+        system_location TEXT,
+        is_sensitive BOOLEAN NOT NULL DEFAULT false,
+        involves_minor BOOLEAN NOT NULL DEFAULT false,
+        involves_under_14 BOOLEAN NOT NULL DEFAULT false,
+        authorized_roles TEXT,
+        external_recipients TEXT,
+        storage_region TEXT,
+        overseas_access TEXT,
+        retention_practice TEXT,
+        deletion_method TEXT,
+        security_controls TEXT,
+        risk_level TEXT NOT NULL DEFAULT 'unknown',
+        compliance_notes TEXT,
+        review_status TEXT NOT NULL DEFAULT 'pending',
+        last_reviewed_at TIMESTAMPTZ,
+        reviewer TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS compliance_vendors (
+        id TEXT PRIMARY KEY,
+        vendor_name TEXT NOT NULL,
+        service_purpose TEXT,
+        data_categories TEXT,
+        student_info_possible BOOLEAN NOT NULL DEFAULT true,
+        sensitive_info_possible BOOLEAN NOT NULL DEFAULT false,
+        minors_possible BOOLEAN NOT NULL DEFAULT false,
+        hosting_region TEXT,
+        leaves_mainland BOOLEAN,
+        contract_reviewed TEXT NOT NULL DEFAULT 'unknown',
+        training_use TEXT NOT NULL DEFAULT 'unknown',
+        retention_terms_known BOOLEAN NOT NULL DEFAULT false,
+        deletion_capable BOOLEAN NOT NULL DEFAULT false,
+        security_review_status TEXT NOT NULL DEFAULT 'not_started',
+        risk_level TEXT NOT NULL DEFAULT 'unknown',
+        required_followup TEXT,
+        notes TEXT,
+        last_reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS compliance_policy_register (
+        id TEXT PRIMARY KEY,
+        policy_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'not_started',
+        effective_date DATE,
+        version TEXT,
+        document_owner TEXT,
+        review_date DATE,
+        internal_notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS compliance_access_reviews (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL UNIQUE,
+        review_label TEXT,
+        reviewed_by TEXT,
+        reviewed_at TIMESTAMPTZ,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS security_audit_events (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        actor_id TEXT,
+        actor_role TEXT,
+        resource_id TEXT,
+        resource_type TEXT,
+        outcome TEXT,
+        ip_address TEXT,
+        request_id TEXT,
+        vendor_name TEXT,
+        description TEXT
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS sec_audit_events_occurred_idx ON security_audit_events (occurred_at DESC)`);
+
+    // Seed data inventory if empty
+    const invCount = await db.execute(sql`SELECT COUNT(*) FROM compliance_data_inventory`);
+    if (Number((invCount.rows[0] as any).count) === 0) {
+      const { nanoid: nid } = await import("nanoid");
+      const inv = [
+        { cat: "Student identity", subj: "Student", sens: false, minor: true, u14: true, loc: "cases table (PostgreSQL)", purpose: "Case management and assessment", roles: "admin, psychometrician, assessment_invigilator, school_clinical_coordinator", risk: "high", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Parent and guardian information", subj: "Parent/Guardian", sens: false, minor: false, u14: false, loc: "cases, responses tables", purpose: "Consent, intake, communication", roles: "admin, psychometrician", risk: "medium", region: "Replit-hosted (Singapore/US)" },
+        { cat: "School information", subj: "Student/Institution", sens: false, minor: false, u14: false, loc: "cases, users tables", purpose: "Assessment context", roles: "admin, psychometrician, school_clinical_coordinator", risk: "low", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Referral concerns", subj: "Student", sens: true, minor: true, u14: true, loc: "cases, responses tables", purpose: "Assessment planning", roles: "admin, psychometrician", risk: "high", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Teacher questionnaire responses", subj: "Student (rated by teacher)", sens: true, minor: true, u14: true, loc: "responses table", purpose: "Assessment data collection", roles: "admin, psychometrician, assessment_invigilator", risk: "high", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Parent/student questionnaire responses", subj: "Student", sens: true, minor: true, u14: true, loc: "responses table", purpose: "Assessment data collection", roles: "admin, psychometrician", risk: "high", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Psychological assessment scores", subj: "Student", sens: true, minor: true, u14: true, loc: "scores table", purpose: "Clinical interpretation", roles: "admin, psychometrician", risk: "critical", region: "Replit-hosted (Singapore/US)" },
+        { cat: "Assessment reports and recommendations", subj: "Student", sens: true, minor: true, u14: true, loc: "reports table, Google Cloud Storage", purpose: "Reporting and debrief", roles: "admin, psychometrician", risk: "critical", region: "Replit/Google Cloud (possible cross-border)" },
+        { cat: "Audio/video interview recordings", subj: "Student/Clinician", sens: true, minor: true, u14: true, loc: "interview_recordings, object storage", purpose: "RAMRI/RMRA assessment", roles: "admin, psychometrician", risk: "critical", region: "Replit object storage (Singapore/US)" },
+        { cat: "AI-generated analysis", subj: "Student", sens: true, minor: true, u14: true, loc: "cases.intake_analysis, ramri_reports, raepa_reports, lsc_analyses", purpose: "AI-assisted assessment and support", roles: "admin, psychometrician", risk: "high", region: "DeepSeek/Groq/Gemini (cross-border)" },
+        { cat: "User account information", subj: "Staff", sens: false, minor: false, u14: false, loc: "users table", purpose: "Authentication and access control", roles: "admin", risk: "medium", region: "Replit-hosted" },
+        { cat: "Billing records", subj: "Parent/Guardian", sens: false, minor: false, u14: false, loc: "lsc_subscriptions, lsc_payment_intents", purpose: "LSC subscription management", roles: "admin", risk: "medium", region: "Airwallex (China/Hong Kong)" },
+        { cat: "Progress monitoring records", subj: "Student", sens: true, minor: true, u14: true, loc: "Bobby AI external system", purpose: "Intervention progress tracking", roles: "admin, psychometrician", risk: "high", region: "Bobby AI servers (unknown)" },
+        { cat: "Case Portal access logs", subj: "Parent/Guardian", sens: false, minor: false, u14: false, loc: "audit_log table, portal_tokens", purpose: "Secure parent access to assessment portal", roles: "admin", risk: "low", region: "Replit-hosted" },
+      ];
+      for (const item of inv) {
+        await db.execute(sql`INSERT INTO compliance_data_inventory
+          (id, category, data_subject, purpose, system_location, is_sensitive, involves_minor, involves_under_14, authorized_roles, risk_level, storage_region, review_status, compliance_notes)
+          VALUES (${nid()}, ${item.cat}, ${item.subj}, ${item.purpose}, ${item.loc}, ${item.sens}, ${item.minor}, ${item.u14}, ${item.roles}, ${item.risk}, ${item.region}, 'pending', 'System-identified draft — requires human review')`);
+      }
+      logger.info("Compliance data inventory seeded");
+    }
+
+    // Seed vendors if empty
+    const vendorCount = await db.execute(sql`SELECT COUNT(*) FROM compliance_vendors`);
+    if (Number((vendorCount.rows[0] as any).count) === 0) {
+      const { nanoid: nid } = await import("nanoid");
+      const vendors = [
+        { name: "DeepSeek", purpose: "AI text analysis — intake, report generation, LSC", cats: "Student assessment data, referral information, scores", student: true, sens: true, minor: true, region: "Unknown — likely mainland China or overseas", leaves: true, training: "unknown", risk: "critical", followup: "Confirm data retention terms, training-use opt-out, and data processing agreement." },
+        { name: "Groq", purpose: "AI text (RAMRI/RAEPA) and audio transcription (Whisper)", cats: "Session transcripts, audio recordings, assessment observations", student: true, sens: true, minor: true, region: "USA (Groq Cloud)", leaves: true, training: "unknown", risk: "critical", followup: "Confirm training-use prohibition, data retention policy, and DPA. Audio recordings are highest risk." },
+        { name: "Google Gemini (Replit integration)", purpose: "Vision AI for RAMRI work samples and RAEPA", cats: "Work sample images, assessment observations", student: true, sens: true, minor: true, region: "Google Cloud (USA/EU)", leaves: true, training: "unknown", risk: "high", followup: "Confirm Replit integration data processing terms." },
+        { name: "Airwallex", purpose: "LSC subscription payments", cats: "Billing information, payment intent data", student: false, sens: false, minor: false, region: "Hong Kong/Australia", leaves: true, training: "no", risk: "medium", followup: "Review data processing agreement for payment data." },
+        { name: "Replit Object Storage", purpose: "Audio recordings, work samples, report PDFs", cats: "Assessment recordings, report documents, uploaded materials", student: true, sens: true, minor: true, region: "Singapore/USA (Google Cloud)", leaves: true, training: "no", risk: "high", followup: "Confirm data residency SLA and deletion capability." },
+        { name: "Bobby AI", purpose: "Intervention progress monitoring (external)", cats: "Case ID, access credentials, progress data", student: true, sens: true, minor: true, region: "Unknown", leaves: null, training: "unknown", risk: "high", followup: "Obtain data processing agreement and confirm hosting region." },
+        { name: "Nodemailer / SMTP", purpose: "Transactional email notifications", cats: "User email addresses, notification content", student: false, sens: false, minor: false, region: "Depends on SMTP provider configured", leaves: null, training: "no", risk: "low", followup: "Confirm SMTP provider and region." },
+        { name: "Google Docs", purpose: "Report PDF export via Google Docs API", cats: "Report content exported to PDF", student: true, sens: true, minor: true, region: "Google Cloud (USA/EU)", leaves: true, training: "unknown", risk: "high", followup: "Review Google Workspace DPA for this use case." },
+      ];
+      for (const v of vendors) {
+        await db.execute(sql`INSERT INTO compliance_vendors
+          (id, vendor_name, service_purpose, data_categories, student_info_possible, sensitive_info_possible, minors_possible, hosting_region, leaves_mainland, training_use, risk_level, required_followup)
+          VALUES (${nid()}, ${v.name}, ${v.purpose}, ${v.cats}, ${v.student}, ${v.sens}, ${v.minor}, ${v.region}, ${v.leaves}, ${v.training}, ${v.risk}, ${v.followup})`);
+      }
+      logger.info("Compliance vendors seeded");
+    }
+
+    // Seed policy register if empty
+    const polCount = await db.execute(sql`SELECT COUNT(*) FROM compliance_policy_register`);
+    if (Number((polCount.rows[0] as any).count) === 0) {
+      const { nanoid: nid } = await import("nanoid");
+      const policies = [
+        "China Privacy Notice",
+        "Children's Personal Information Protection Policy",
+        "Parent/Guardian Consent",
+        "Sensitive Personal Information Consent",
+        "Recording Consent",
+        "School–ReMynd Data Processing Agreement",
+        "Vendor Data Processing Agreement",
+        "Cross-Border Data Transfer Notice",
+        "Data Retention and Deletion Policy",
+        "Information Security Policy",
+        "Privacy Rights Request Procedure",
+        "Security Incident Response Plan",
+        "AI and Automated Analysis Policy",
+        "Staff Confidentiality Agreement",
+        "Personal Information Protection Impact Assessment",
+        "Annual Minors' Information Compliance Audit",
+      ];
+      for (const name of policies) {
+        await db.execute(sql`INSERT INTO compliance_policy_register (id, policy_name, status, internal_notes)
+          VALUES (${nid()}, ${name}, 'not_started', 'Placeholder — Phase 1. Not approved. Do not publish to users.')`);
+      }
+      logger.info("Compliance policy register seeded");
+    }
+
+    logger.info("Compliance tables ready");
+  } catch (err) {
+    logger.error({ err }, "createComplianceTables failed (non-fatal)");
+  }
+}
+
 async function ensureAirwallexWebhook() {
   try {
     const { getAccessToken, isConfigured } = await import("./lib/airwallex.js");
@@ -3516,6 +3704,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createInterviewRecordingsTable())
   .then(() => backfillBobbyAiCaseIds())
   .then(() => createLscTables())
+  .then(() => createComplianceTables())
   .then(() => ensureAirwallexWebhook())
   .then(() => {
   const server = app.listen(port, (err) => {
