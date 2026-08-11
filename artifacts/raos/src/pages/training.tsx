@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import {
-  CheckCircle2, ChevronDown, ExternalLink, Users, Globe, BookOpen,
-  ArrowRight, Star, Building2, Lightbulb, Search, Heart, Brain, Layers,
+  CheckCircle2, Users, Globe, BookOpen,
+  ArrowRight, Star, Building2, Calendar,
 } from "lucide-react";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -12,9 +12,11 @@ const WORKSHOPS = [
     num: 1,
     title: "Foundations & Philosophy",
     subtitle: "Understanding the Thinking Behind the ReMynd Approach",
+    date: "Wednesday, 16 September 2026",
     question: "How can we understand students more clearly before deciding what happens next?",
     colour: "border-indigo-400",
     badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    dateBg: "bg-indigo-50 text-indigo-700",
     dot: "bg-indigo-500",
     summary: "Explore the changing educational landscape, inequities in access to specialist services, the Tier 2 assessment and intervention gap, the risks of over-pathologizing student difficulties, the distinction between educational assessment and clinical diagnosis, and ReMynd's principle of Understanding Before Labels.",
   },
@@ -22,9 +24,11 @@ const WORKSHOPS = [
     num: 2,
     title: "Understanding the ReMynd Assessment Ecosystem",
     subtitle: "From Concern to Coordinated Support",
+    date: "Wednesday, 30 September 2026",
     question: "How do we create a coordinated pathway from student concern to meaningful educational support?",
     colour: "border-teal-400",
     badge: "bg-teal-50 text-teal-700 border-teal-200",
+    dateBg: "bg-teal-50 text-teal-700",
     dot: "bg-teal-500",
     summary: "Explore how referral, evidence gathering, assessment, professional collaboration, scoring, interpretation, reporting, debriefing, support planning, and progress monitoring can operate as one coordinated student-support journey.",
   },
@@ -32,9 +36,11 @@ const WORKSHOPS = [
     num: 3,
     title: "Thinking Like a ReMynd Clinician",
     subtitle: "From Concern to Educational Understanding",
+    date: "Wednesday, 14 October 2026",
     question: "What do we need to understand before deciding what happens next?",
     colour: "border-violet-400",
     badge: "bg-violet-50 text-violet-700 border-violet-200",
+    dateBg: "bg-violet-50 text-violet-700",
     dot: "bg-violet-500",
     summary: "Learn to separate observation from interpretation, transform concerns into meaningful educational questions, consider multiple possible explanations, identify patterns across evidence sources, reduce confirmation bias, and select appropriate assessment pathways.",
     keyPrinciple: "Curiosity Before Certainty.",
@@ -43,9 +49,11 @@ const WORKSHOPS = [
     num: 4,
     title: "The Comprehensive Educational Profile & Support Plan",
     subtitle: "From Evidence to Educational Action",
+    date: "Wednesday, 28 October 2026",
     question: "What do we now understand about this student that will help us support them more effectively?",
     colour: "border-amber-400",
     badge: "bg-amber-50 text-amber-700 border-amber-200",
+    dateBg: "bg-amber-50 text-amber-700",
     dot: "bg-amber-500",
     summary: "Explore how parent, teacher, student, school, observation, work-sample, and assessment evidence can be integrated into a coherent whole-learner profile and translated into practical classroom accommodations, intervention priorities, teacher recommendations, parent recommendations, individualized support planning, and progress monitoring.",
   },
@@ -149,7 +157,28 @@ function Hero({ onRegister, onBringSeries }: { onRegister: () => void; onBringSe
     <section className="bg-[#0c1a2e] text-white relative overflow-hidden">
       {/* Subtle background texture */}
       <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
-      <div className="relative max-w-5xl mx-auto px-6 py-20 md:py-28 text-center">
+
+      {/* Nav bar */}
+      <nav className="relative border-b border-white/10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
+          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-white font-bold text-base tracking-tight">ReMynd</span>
+            <span className="text-teal-400 text-[10px] font-semibold tracking-widest uppercase">Student Services</span>
+          </div>
+          <div className="ml-auto">
+            <button
+              onClick={onRegister}
+              className="inline-flex items-center gap-1.5 bg-teal-500 hover:bg-teal-400 text-white font-bold px-4 py-2 rounded-lg text-xs tracking-wide transition-colors"
+            >
+              REGISTER FREE <ArrowRight size={12} />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero body */}
+      <div className="relative max-w-5xl mx-auto px-6 py-16 md:py-24 text-center">
         <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 rounded-full px-4 py-1.5 text-teal-300 text-xs font-semibold tracking-wide uppercase mb-8">
           <Star size={11} /> Free Professional Learning Series · September–October 2026
         </div>
@@ -236,8 +265,8 @@ function WorkshopCards() {
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           {WORKSHOPS.map(w => (
-            <div key={w.num} className={`bg-white rounded-2xl border-2 ${w.colour} p-6 shadow-sm hover:shadow-md transition-shadow`}>
-              <div className="flex items-start gap-3 mb-4">
+            <div key={w.num} className={`bg-white rounded-2xl border-2 ${w.colour} p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col`}>
+              <div className="flex items-start gap-3 mb-3">
                 <div className={`w-8 h-8 rounded-full ${w.dot} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
                   {w.num}
                 </div>
@@ -247,7 +276,12 @@ function WorkshopCards() {
                   <p className="text-xs text-slate-500 mt-0.5">{w.subtitle}</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed mb-4">{w.summary}</p>
+              {/* Date badge */}
+              <div className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 mb-4 w-fit ${w.dateBg} border ${w.badge.split(" ").find(c => c.startsWith("border-"))}`}>
+                <Calendar size={11} />
+                <span className="text-xs font-semibold">{w.date}</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed mb-4 flex-1">{w.summary}</p>
               {w.keyPrinciple && (
                 <p className="text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1.5 mb-3 italic">
                   Key Principle: {w.keyPrinciple}
@@ -298,8 +332,11 @@ function ProgramFormat() {
         <div className="text-center mb-12">
           <p className="text-xs font-semibold text-teal-400 uppercase tracking-widest mb-3">Programme Details</p>
           <h2 className="text-2xl md:text-3xl font-bold text-white">September–October 2026</h2>
+          <p className="text-slate-400 text-sm mt-2">Four online workshops, one every two weeks</p>
         </div>
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+
+        {/* Format summary tiles */}
+        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           {[
             { icon: BookOpen, label: "4 Workshops", sub: "Professional Learning" },
             { icon: Globe, label: "Online", sub: "Internationally Accessible" },
@@ -313,6 +350,31 @@ function ProgramFormat() {
             </div>
           ))}
         </div>
+
+        {/* Schedule */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mb-8">
+          <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2">
+            <Calendar size={14} className="text-teal-400" />
+            <p className="text-xs font-bold text-teal-400 uppercase tracking-widest">Workshop Schedule</p>
+          </div>
+          <div className="divide-y divide-white/5">
+            {WORKSHOPS.map((w) => (
+              <div key={w.num} className="flex items-center gap-4 px-5 py-4">
+                <div className={`w-7 h-7 rounded-full ${w.dot} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
+                  {w.num}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm leading-tight">Workshop {w.num} — {w.title}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">{w.subtitle}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-teal-300 text-xs font-semibold whitespace-nowrap">{w.date}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="bg-teal-500/10 border border-teal-500/20 rounded-2xl p-6 text-center">
           <p className="text-teal-300 font-semibold text-base mb-2">
             There is no requirement to purchase ReMynd assessment services in order to participate.
@@ -534,6 +596,9 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
                     <div>
                       <p className="text-sm font-medium text-slate-800">Workshop {w.num} — {w.title}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{w.subtitle}</p>
+                      <p className="text-xs text-teal-600 font-medium mt-1 flex items-center gap-1">
+                        <Calendar size={10} /> {w.date}
+                      </p>
                     </div>
                   </label>
                 ))}
