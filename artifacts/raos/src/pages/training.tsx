@@ -117,13 +117,18 @@ export default function TrainingPage() {
   const bringSeriesRef = useRef<HTMLDivElement>(null);
 
   const [submitted, setSubmitted] = useState(false);
+  const [showBringSeries, setShowBringSeries] = useState(false);
   const [schoolInquirySubmitted, setSchoolInquirySubmitted] = useState(false);
 
   const scrollToRegister = () => {
     registerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const scrollToBringSeries = () => {
-    bringSeriesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setShowBringSeries(true);
+    // Wait a tick for the section to render before scrolling
+    setTimeout(() => {
+      bringSeriesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   return (
@@ -140,12 +145,14 @@ export default function TrainingPage() {
           : <RegistrationForm onSuccess={() => setSubmitted(true)} />
         }
       </div>
-      <div ref={bringSeriesRef} className="scroll-mt-8">
-        {schoolInquirySubmitted
-          ? <SchoolInquirySuccess />
-          : <BringToMySchool onSuccess={() => setSchoolInquirySubmitted(true)} />
-        }
-      </div>
+      {showBringSeries && (
+        <div ref={bringSeriesRef} className="scroll-mt-8">
+          {schoolInquirySubmitted
+            ? <SchoolInquirySuccess />
+            : <BringToMySchool onSuccess={() => setSchoolInquirySubmitted(true)} />
+          }
+        </div>
+      )}
       <Footer onRegister={scrollToRegister} />
     </div>
   );
