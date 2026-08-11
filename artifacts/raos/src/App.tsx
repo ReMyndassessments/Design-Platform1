@@ -132,6 +132,8 @@ const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/c
 
 const LscCheckoutPage = React.lazy(() => import("@/pages/lsc-checkout"));
 const PrivacyCompliancePage = React.lazy(() => import("@/pages/admin/privacy-compliance"));
+const TrainingPage = React.lazy(() => import("@/pages/training"));
+const TrainingRegistrationsPage = React.lazy(() => import("@/pages/admin/training-registrations"));
 
 const queryClient = new QueryClient();
 
@@ -220,6 +222,10 @@ function Router() {
         <Route path="/admin/privacy-compliance">
           {() => <ProtectedRoute component={PrivacyCompliancePage} />}
         </Route>
+        <Route path="/admin/training-registrations">
+          {() => <ProtectedRoute component={TrainingRegistrationsPage} />}
+        </Route>
+        <Route path="/training" component={TrainingPage} />
         <Route path="/" component={LandingPage} />
         <Route path="/dashboard">
           {() => <ProtectedRoute component={Dashboard} />}

@@ -3656,6 +3656,69 @@ async function createRaepaTables() {
   }
 }
 
+async function createTrainingTables() {
+  try {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS training_registrations (
+      id                          TEXT PRIMARY KEY,
+      first_name                  TEXT NOT NULL,
+      last_name                   TEXT NOT NULL,
+      email                       TEXT NOT NULL,
+      job_title                   TEXT,
+      professional_role           TEXT,
+      professional_role_other     TEXT,
+      school_name                 TEXT,
+      city                        TEXT,
+      country                     TEXT,
+      school_type                 TEXT,
+      school_size                 TEXT,
+      workshop_1_selected         BOOLEAN NOT NULL DEFAULT FALSE,
+      workshop_2_selected         BOOLEAN NOT NULL DEFAULT FALSE,
+      workshop_3_selected         BOOLEAN NOT NULL DEFAULT FALSE,
+      workshop_4_selected         BOOLEAN NOT NULL DEFAULT FALSE,
+      full_series_selected        BOOLEAN NOT NULL DEFAULT FALSE,
+      areas_of_interest           JSONB,
+      school_support_challenge    TEXT,
+      interested_future_learning  BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_school_training  BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_assessment_services BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_partner_school   BOOLEAN NOT NULL DEFAULT FALSE,
+      training_only               BOOLEAN NOT NULL DEFAULT FALSE,
+      marketing_consent           BOOLEAN NOT NULL DEFAULT FALSE,
+      marketing_consent_timestamp TIMESTAMPTZ,
+      privacy_consent             BOOLEAN NOT NULL DEFAULT FALSE,
+      privacy_consent_timestamp   TIMESTAMPTZ,
+      registration_source         TEXT,
+      status                      TEXT NOT NULL DEFAULT 'registered',
+      confirmation_email_sent_at  TIMESTAMPTZ,
+      confirmation_email_status   TEXT,
+      admin_notification_sent_at  TIMESTAMPTZ,
+      admin_notification_status   TEXT,
+      internal_notes              TEXT,
+      created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS training_registrations_email_idx ON training_registrations (email)`);
+
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS training_school_inquiries (
+      id                TEXT PRIMARY KEY,
+      contact_name      TEXT NOT NULL,
+      contact_email     TEXT NOT NULL,
+      role              TEXT,
+      school_name       TEXT,
+      country           TEXT,
+      school_size       TEXT,
+      preferred_contact TEXT,
+      message           TEXT,
+      consent           BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+
+    logger.info("Training tables ready");
+  } catch (err) {
+    logger.error({ err }, "createTrainingTables failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -3710,6 +3773,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => backfillBobbyAiCaseIds())
   .then(() => createLscTables())
   .then(() => createComplianceTables())
+  .then(() => createTrainingTables())
   .then(() => ensureAirwallexWebhook())
   .then(() => {
   const server = app.listen(port, (err) => {
