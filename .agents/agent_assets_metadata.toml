@@ -89,3 +89,10 @@ id = "nzaxRvCpyhjszm_X7JGO9"
 uri = "file://attached_assets/invigilator-student-view-reference.md"
 type = "text"
 title = "Invigilator Student View Reference"
+
+[[outputs]]
+id = "gPG674q1ma6_nZOteXy_V"
+uri = "file://attached_assets/training-registration-qr.png"
+type = "image"
+title = "Training Registration QR Code"
+description = "Scans to https://remyndassessments.com/training"
