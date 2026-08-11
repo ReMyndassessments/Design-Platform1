@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
   Users, Globe, Building2, Download, Search, X, CheckCircle2,
-  ChevronDown, Filter, Mail, MailCheck, MailX, ExternalLink, BookOpen,
+  ChevronDown, Filter, Mail, MailCheck, MailX, ExternalLink, BookOpen, Copy, Link,
 } from "lucide-react";
+
+const TRAINING_URL = "https://remyndassessments.com/training";
 import { useI18n } from "../../lib/i18n";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -49,6 +51,14 @@ export default function TrainingRegistrationsPage() {
   const [assessmentFilter, setAssessmentFilter] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("");
   const [selected, setSelected] = useState<Registration | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(TRAINING_URL);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const { data: statsData } = useQuery({
     queryKey: ["training-stats"],
@@ -113,6 +123,65 @@ export default function TrainingRegistrationsPage() {
           >
             <Download size={12} /> Export CSV
           </button>
+        </div>
+      </div>
+
+      {/* Share panel */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Link size={14} className="text-teal-600" />
+          <p className="text-sm font-semibold text-slate-700">Registration Page Link & QR Code</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          {/* URL + copy */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-400 mb-2">Share this link with your network so people can register:</p>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+              <span className="flex-1 text-sm font-mono text-slate-700 truncate">{TRAINING_URL}</span>
+              <button
+                onClick={copyLink}
+                className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex-shrink-0 ${
+                  copied
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-[#0c1a2e] text-white hover:bg-slate-700"
+                }`}
+              >
+                {copied ? <><CheckCircle2 size={11} /> Copied!</> : <><Copy size={11} /> Copy</>}
+              </button>
+            </div>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <a href={TRAINING_URL} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 font-medium"
+              >
+                <ExternalLink size={11} /> Open page
+              </a>
+            </div>
+          </div>
+          {/* QR code */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={() => setShowQr(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-400 text-slate-600 hover:text-slate-800 transition-colors"
+            >
+              {showQr ? "Hide QR Code" : "Show QR Code"}
+            </button>
+            {showQr && (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <img
+                  src="/images/training-qr.png"
+                  alt="QR code for registration page"
+                  className="w-36 h-36 rounded-xl border border-slate-200 shadow-sm"
+                />
+                <a
+                  href="/images/training-qr.png"
+                  download="training-registration-qr.png"
+                  className="text-xs text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                >
+                  <Download size={11} /> Download
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
