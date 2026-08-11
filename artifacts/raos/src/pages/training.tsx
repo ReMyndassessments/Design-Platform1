@@ -168,7 +168,9 @@ function Hero({ onRegister, onBringSeries }: { onRegister: () => void; onBringSe
       {/* Nav bar */}
       <nav className="relative border-b border-white/10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+          <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
+          </div>
           <div className="flex flex-col leading-tight">
             <span className="text-white font-bold text-base tracking-tight">ReMynd</span>
             <span className="text-teal-400 text-[10px] font-semibold tracking-widest uppercase">Student Services</span>
