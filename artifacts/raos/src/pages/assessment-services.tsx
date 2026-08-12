@@ -505,6 +505,70 @@ function ProductCard({
   overviewBtnLabel: string;
   onOpen: (enKey: string, displayTitle: string, price?: string, badge?: string) => void;
 }) {
+  const isFlagship = !!product.badge?.toLowerCase().includes("flagship");
+
+  if (isFlagship) {
+    return (
+      <div
+        className="relative rounded-2xl overflow-hidden flex flex-col shadow-xl"
+        style={{ background: "linear-gradient(145deg,#1e1b4b 0%,#312e81 55%,#1e1b4b 100%)" }}
+      >
+        {/* decorative glow rings */}
+        <div className="absolute top-0 right-0 w-56 h-56 rounded-full bg-indigo-400/10 -translate-y-1/3 translate-x-1/3 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-amber-400/10 -translate-y-1/4 translate-x-1/4 pointer-events-none" />
+
+        <div className="relative p-6 flex flex-col flex-1">
+          {/* badge */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-300 bg-amber-400/20 border border-amber-400/35 px-3 py-1.5 rounded-full">
+              <Star size={9} className="fill-amber-300" />
+              {product.badge}
+            </span>
+          </div>
+
+          <h3 className="font-bold text-white text-base mb-2.5 leading-snug">{product.title}</h3>
+          <p className="text-indigo-200 text-xs leading-relaxed flex-1">{product.desc}</p>
+
+          {product.eduQuestion && (
+            <p className="mt-3 text-[11px] italic text-amber-200/80 leading-snug border-l-2 border-amber-400/40 pl-2.5">
+              {product.eduQuestion}
+            </p>
+          )}
+
+          {/* best-for tags in flagship style */}
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {product.bestFor.map(item => (
+              <span key={item} className="text-[10px] font-medium text-indigo-200 bg-white/10 border border-white/15 px-2 py-0.5 rounded-full">
+                {item}
+              </span>
+            ))}
+          </div>
+
+          {/* overview button */}
+          {ASSESSMENT_OVERVIEWS["en"][product.title] && (
+            <button
+              onClick={() => onOpen(product.title, product.title, product.price, product.badge)}
+              className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 rounded-xl py-2.5 px-3 transition-colors"
+            >
+              <Info size={12} />
+              {overviewBtnLabel}
+            </button>
+          )}
+
+          {/* CTA */}
+          <div className="mt-3">
+            <Link href="/portal?tab=school">
+              <button className="w-full flex items-center justify-center gap-2 text-xs font-bold text-indigo-900 bg-amber-300 hover:bg-amber-200 rounded-xl py-3 px-3 transition-colors shadow-lg shadow-amber-900/20">
+                <Star size={11} className="fill-indigo-900" />
+                Refer a Student <ArrowRight size={11} />
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
       {product.badge && (
