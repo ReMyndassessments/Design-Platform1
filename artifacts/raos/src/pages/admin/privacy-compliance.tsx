@@ -893,6 +893,22 @@ function PoliciesTab() {
                     {c.policies.viewPolicy}
                   </button>
                 )}
+                {/* Public visibility toggle */}
+                <div className="flex items-center gap-1.5 shrink-0" title={p.public_visible ? "Visible to public — click to hide" : "Hidden from public — click to show"}>
+                  <span className={`text-[10px] font-medium ${p.public_visible ? "text-emerald-600" : "text-slate-400"}`}>
+                    {p.public_visible ? "Public" : "Hidden"}
+                  </span>
+                  <button
+                    onClick={() => updateMutation.mutate({ id: p.id, body: { public_visible: !p.public_visible } })}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                      p.public_visible ? "bg-emerald-500" : "bg-slate-200"
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      p.public_visible ? "translate-x-4.5" : "translate-x-0.5"
+                    }`} />
+                  </button>
+                </div>
                 <select
                   className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white shrink-0"
                   value={status}

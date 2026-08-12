@@ -213,6 +213,7 @@ router.patch("/compliance/policies/:id", async (req, res) => {
       content_en = COALESCE(${b.content_en ?? null}, content_en),
       content_zh = COALESCE(${b.content_zh ?? null}, content_zh),
       content_ko = COALESCE(${b.content_ko ?? null}, content_ko),
+      public_visible = CASE WHEN ${b.public_visible ?? null} IS NOT NULL THEN ${b.public_visible ?? null} ELSE public_visible END,
       updated_at = NOW()
       WHERE id = ${req.params.id}`);
     res.json({ ok: true });
