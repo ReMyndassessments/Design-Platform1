@@ -203,21 +203,32 @@ router.get("/compliance/policies", async (_req, res) => {
 router.patch("/compliance/policies/:id", async (req, res) => {
   try {
     const b = req.body;
-    await db.execute(sql`UPDATE compliance_policy_register SET
-      status = COALESCE(${b.status ?? null}, status),
-      effective_date = COALESCE(${b.effective_date ?? null}::date, effective_date),
-      version = COALESCE(${b.version ?? null}, version),
-      document_owner = COALESCE(${b.document_owner ?? null}, document_owner),
-      review_date = COALESCE(${b.review_date ?? null}::date, review_date),
-      internal_notes = COALESCE(${b.internal_notes ?? null}, internal_notes),
-      content_en = COALESCE(${b.content_en ?? null}, content_en),
-      content_zh = COALESCE(${b.content_zh ?? null}, content_zh),
-      content_ko = COALESCE(${b.content_ko ?? null}, content_ko),
-      public_visible = CASE WHEN ${b.public_visible ?? null} IS NOT NULL THEN ${b.public_visible ?? null} ELSE public_visible END,
-      updated_at = NOW()
-      WHERE id = ${req.params.id}`);
+    const { sql: drizzleSql } = await import("drizzle-orm");
+    // Build SET clauses only for fields present in the request body
+    const sets: ReturnType<typeof drizzleSql>[] = [];
+    if (b.status !== undefined)        sets.push(sql`status = ${b.status}`);
+    if (b.version !== undefined)       sets.push(sql`version = ${b.version}`);
+    if (b.document_owner !== undefined) sets.push(sql`document_owner = ${b.document_owner}`);
+    if (b.internal_notes !== undefined) sets.push(sql`internal_notes = ${b.internal_notes}`);
+    if (b.content_en !== undefined)    sets.push(sql`content_en = ${b.content_en}`);
+    if (b.content_zh !== undefined)    sets.push(sql`content_zh = ${b.content_zh}`);
+    if (b.content_ko !== undefined)    sets.push(sql`content_ko = ${b.content_ko}`);
+    if (b.effective_date !== undefined) sets.push(sql`effective_date = ${b.effective_date ?? null}::date`);
+    if (b.review_date !== undefined)   sets.push(sql`review_date = ${b.review_date ?? null}::date`);
+    if (b.public_visible !== undefined) {
+      // Cast explicitly to boolean to avoid parameterized-query type ambiguity
+      const boolVal = b.public_visible === true || b.public_visible === "true";
+      sets.push(sql`public_visible = ${boolVal}::boolean`);
+    }
+    if (sets.length === 0) return res.json({ ok: true });
+    sets.push(sql`updated_at = NOW()`);
+    const setClauses = sql.join(sets, sql`, `);
+    await db.execute(sql`UPDATE compliance_policy_register SET ${setClauses} WHERE id = ${req.params.id}`);
     res.json({ ok: true });
-  } catch { res.status(500).json({ error: "Failed to update policy" }); }
+  } catch (err) {
+    console.error("policy PATCH error:", err);
+    res.status(500).json({ error: "Failed to update policy" });
+  }
 });
 
 // ── Access Review ──────────────────────────────────────────────────────────────

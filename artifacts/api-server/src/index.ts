@@ -3968,8 +3968,6 @@ async function createComplianceTables() {
           WHERE id = ${rowId}`);
       }
     }
-    // Backfill: any row still at the false default should be made visible
-    await db.execute(sql`UPDATE compliance_policy_register SET public_visible = true WHERE public_visible = false`);
     logger.info("Compliance policy content seeded/updated");
 
     logger.info("Compliance tables ready");
