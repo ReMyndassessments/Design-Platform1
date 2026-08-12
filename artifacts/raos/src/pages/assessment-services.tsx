@@ -367,31 +367,31 @@ function AssessmentOverviewDrawer({
               {/* close */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white hover:text-white"
               >
                 <X size={15} />
               </button>
 
               {/* flagship badge */}
               <div className="flex items-center gap-2 mb-4">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-300 bg-amber-400/20 border border-amber-400/30 px-3 py-1.5 rounded-full">
-                  <Star size={9} className="fill-amber-300" />
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-200 bg-amber-500/30 border border-amber-400/60 px-3 py-1.5 rounded-full">
+                  <Star size={9} className="fill-amber-200" />
                   {badge}
                 </span>
               </div>
 
-              <h2 className="text-xl font-bold text-white leading-snug mb-2">{title}</h2>
+              <h2 className="text-xl font-extrabold text-white leading-snug mb-2 drop-shadow-sm">{title}</h2>
 
               {price && (
                 <div className="flex items-center gap-3 mt-3">
-                  <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">{labels.standardPrice}</span>
+                  <div className="bg-white/20 border border-white/30 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">{labels.standardPrice}</span>
                     <span className="text-sm font-bold text-white">{price} RMB</span>
                   </div>
-                  <div className="bg-amber-400/20 border border-amber-400/30 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                    <Sun size={11} className="text-amber-300 flex-shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300/80">{labels.summerRate}</span>
-                    <span className="text-sm font-bold text-amber-200">{summerPx(price)} RMB</span>
+                  <div className="bg-amber-500/40 border border-amber-300/60 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <Sun size={11} className="text-amber-200 flex-shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-200">{labels.summerRate}</span>
+                    <span className="text-sm font-bold text-amber-100">{summerPx(price)} RMB</span>
                   </div>
                 </div>
               )}
