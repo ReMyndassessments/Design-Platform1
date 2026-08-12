@@ -296,14 +296,14 @@ function BestForList({ items }: { items: string[] }) {
   );
 }
 
-function OverviewBtn({ title, enKey, btnLabel, onOpen }: {
-  title: string; enKey: string; btnLabel: string;
-  onOpen: (enKey: string, displayTitle: string) => void;
+function OverviewBtn({ title, enKey, btnLabel, badge, onOpen }: {
+  title: string; enKey: string; btnLabel: string; badge?: string;
+  onOpen: (enKey: string, displayTitle: string, badge?: string) => void;
 }) {
   if (!ASSESSMENT_OVERVIEWS["en"][enKey]) return null;
   return (
     <button
-      onClick={() => onOpen(enKey, title)}
+      onClick={() => onOpen(enKey, title, badge)}
       className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 hover:border-indigo-200 rounded-xl py-2.5 px-3 transition-colors"
     >
       <Info size={12} />
@@ -341,34 +341,81 @@ type DrawerLabels = {
 };
 
 function AssessmentOverviewDrawer({
-  title, overview, price, labels, onClose,
+  title, overview, price, badge, labels, onClose,
 }: {
-  title: string; overview: AssessmentOverview; price?: string;
+  title: string; overview: AssessmentOverview; price?: string; badge?: string;
   labels: DrawerLabels; onClose: () => void;
 }) {
+  const isFlagship = !!badge && badge.toLowerCase().includes("flagship");
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 md:p-10 pointer-events-none">
-        <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col pointer-events-auto" style={{ maxHeight: "90vh" }}>
+        <div
+          className="w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden"
+          style={{ maxHeight: "90vh", background: isFlagship ? "linear-gradient(180deg,#1e1b4b 0%,#ffffff 220px)" : "#ffffff" }}
+        >
 
-          <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 flex-shrink-0">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">{labels.headerLabel}</p>
-              <h2 className="text-base font-bold text-slate-900 leading-snug">{title}</h2>
+          {/* ── Header ── */}
+          {isFlagship ? (
+            <div className="flex-shrink-0 px-7 pt-7 pb-6 relative overflow-hidden">
+              {/* decorative rings */}
+              <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
+              <div className="absolute -top-4 -right-4 w-28 h-28 rounded-full bg-white/5 pointer-events-none" />
+
+              {/* close */}
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
+              >
+                <X size={15} />
+              </button>
+
+              {/* flagship badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-300 bg-amber-400/20 border border-amber-400/30 px-3 py-1.5 rounded-full">
+                  <Star size={9} className="fill-amber-300" />
+                  {badge}
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-white leading-snug mb-2">{title}</h2>
+
               {price && (
-                <p className="text-xs text-slate-400 mt-1">
-                  {labels.standardPrice} {price} RMB &nbsp;·&nbsp; {labels.summerRate} {summerPx(price)} RMB
-                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  <div className="bg-white/10 border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">{labels.standardPrice}</span>
+                    <span className="text-sm font-bold text-white">{price} RMB</span>
+                  </div>
+                  <div className="bg-amber-400/20 border border-amber-400/30 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <Sun size={11} className="text-amber-300 flex-shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300/80">{labels.summerRate}</span>
+                    <span className="text-sm font-bold text-amber-200">{summerPx(price)} RMB</span>
+                  </div>
+                </div>
               )}
             </div>
-            <button onClick={onClose} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500 hover:text-slate-700">
-              <X size={15} />
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1">{labels.headerLabel}</p>
+                <h2 className="text-base font-bold text-slate-900 leading-snug">{title}</h2>
+                {price && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {labels.standardPrice} {price} RMB &nbsp;·&nbsp; {labels.summerRate} {summerPx(price)} RMB
+                  </p>
+                )}
+              </div>
+              <button onClick={onClose} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-500 hover:text-slate-700">
+                <X size={15} />
+              </button>
+            </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
-            <Section icon={Info} color="bg-slate-500" title={labels.sectionAbout}>
+          {/* ── Body ── */}
+          <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-7 bg-white ${isFlagship ? "rounded-t-2xl -mt-2 pt-8" : ""}`}>
+            <Section icon={Info} color={isFlagship ? "bg-indigo-600" : "bg-slate-500"} title={labels.sectionAbout}>
               <p className="text-sm text-slate-600 leading-relaxed">{overview.fullDesc}</p>
             </Section>
             <Section icon={Clock} color="bg-blue-500" title={labels.sectionWhen}>
@@ -429,9 +476,11 @@ function AssessmentOverviewDrawer({
             </Section>
           </div>
 
-          <div className="border-t border-slate-100 px-6 py-4 flex-shrink-0 flex gap-3">
+          {/* ── Footer ── */}
+          <div className={`border-t px-6 py-4 flex-shrink-0 flex gap-3 bg-white ${isFlagship ? "border-indigo-100" : "border-slate-100"}`}>
             <Link href="/portal?tab=school" className="flex-1">
-              <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-3 rounded-xl transition-colors">
+              <button className={`w-full flex items-center justify-center gap-2 font-semibold text-sm px-4 py-3 rounded-xl transition-colors ${isFlagship ? "bg-indigo-900 hover:bg-indigo-800 text-white shadow-lg shadow-indigo-900/20" : "bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+                {isFlagship && <Star size={13} className="fill-amber-300 text-amber-300" />}
                 {labels.referBtn} <ArrowRight size={14} />
               </button>
             </Link>
@@ -454,7 +503,7 @@ function ProductCard({
 }: {
   product: ProductEntry;
   overviewBtnLabel: string;
-  onOpen: (enKey: string, displayTitle: string, price?: string) => void;
+  onOpen: (enKey: string, displayTitle: string, price?: string, badge?: string) => void;
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col">
@@ -478,7 +527,8 @@ function ProductCard({
         title={product.title}
         enKey={product.title}
         btnLabel={overviewBtnLabel}
-        onOpen={(enKey, displayTitle) => onOpen(enKey, displayTitle, product.price)}
+        badge={product.badge}
+        onOpen={(enKey, displayTitle, badge) => onOpen(enKey, displayTitle, product.price, badge)}
       />
       <div className="mt-3">
         {product.cta === "school" && (
@@ -514,12 +564,12 @@ export default function AssessmentServicesPage() {
   const a = t.assessmentServices;
 
   const [activeOverview, setActiveOverview] = useState<{
-    enKey: string; displayTitle: string; price?: string;
+    enKey: string; displayTitle: string; price?: string; badge?: string;
   } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("comprehensive");
 
-  const openOverview = (enKey: string, displayTitle: string, price?: string) =>
-    setActiveOverview({ enKey, displayTitle, price });
+  const openOverview = (enKey: string, displayTitle: string, price?: string, badge?: string) =>
+    setActiveOverview({ enKey, displayTitle, price, badge });
   const closeOverview = () => setActiveOverview(null);
 
   const overviewMap = ASSESSMENT_OVERVIEWS[lang as Lang] ?? ASSESSMENT_OVERVIEWS["en"];
@@ -536,6 +586,7 @@ export default function AssessmentServicesPage() {
           title={activeOverview.displayTitle}
           overview={activeData}
           price={activeOverview.price}
+          badge={activeOverview.badge}
           labels={a.overviewDrawer}
           onClose={closeOverview}
         />
