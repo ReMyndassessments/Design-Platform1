@@ -786,7 +786,7 @@ export default function AssessmentServicesPage() {
           </div>
 
           {/* Category tab nav */}
-          <div className="flex flex-wrap gap-2 mb-10">
+          <div className="flex flex-wrap gap-2 mb-10 justify-center">
             {CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.id;
