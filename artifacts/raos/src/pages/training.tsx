@@ -59,6 +59,65 @@ const WORKSHOPS = [
   },
 ];
 
+const PRODUCTS_BY_MARKET = [
+  {
+    market: "Schools",
+    color: "indigo",
+    items: [
+      "Comprehensive Psychoeducational Profile & Support Plan",
+      "School Wellbeing & Learning Snapshot",
+      "Focused Student Support Assessment",
+      "Learning Support Decision System (SEN)",
+      "Boarding Student Adjustment & Wellbeing",
+    ],
+  },
+  {
+    market: "Parents",
+    color: "teal",
+    items: [
+      "Why Is My Child Struggling?",
+      "Executive Function Coaching Assessment",
+      "Emotional Wellbeing Check",
+      "School Readiness / Transition Assessment",
+    ],
+  },
+  {
+    market: "Universities",
+    color: "violet",
+    items: [
+      "International Student Adjustment Assessment",
+      "Academic Risk Early Warning System",
+    ],
+  },
+  {
+    market: "Corporate",
+    color: "amber",
+    items: [
+      "Employee Wellbeing & Burnout Screen",
+      "Leadership / High-Performer Profiling",
+      "Graduate / Intern Readiness Assessment",
+    ],
+  },
+  {
+    market: "Specialised",
+    color: "rose",
+    items: [
+      "ReMynd Child Development Profile (CDP)",
+      "Hidden Struggler Assessment",
+      "Underachievement Profile",
+      "Digital Distraction & Focus Assessment",
+    ],
+  },
+];
+
+const MARKET_STYLES: Record<string, { badge: string; dot: string; border: string }> = {
+  indigo: { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500", border: "border-indigo-200" },
+  teal:   { badge: "bg-teal-50 text-teal-700 border-teal-200",       dot: "bg-teal-500",   border: "border-teal-200"   },
+  violet: { badge: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500", border: "border-violet-200" },
+  amber:  { badge: "bg-amber-50 text-amber-700 border-amber-200",    dot: "bg-amber-500",  border: "border-amber-200"  },
+  rose:   { badge: "bg-rose-50 text-rose-700 border-rose-200",       dot: "bg-rose-500",   border: "border-rose-200"   },
+};
+
 const WHO_SHOULD_ATTEND = [
   "School Leaders", "Principals", "SENCOs", "Learning Support Coordinators",
   "School Counsellors", "Inclusion Leaders", "Teachers", "Pastoral Leaders",
@@ -139,6 +198,7 @@ export default function TrainingPage() {
       <WhoShouldAttend />
       <ProgramFormat />
       <WhyParticipate />
+      <AssessmentProducts />
       <div ref={registerRef} className="scroll-mt-8">
         {submitted
           ? <SuccessScreen onBack={() => navigate("/")} />
@@ -392,6 +452,46 @@ function ProgramFormat() {
             The series is offered as part of ReMynd Student Services' commitment to strengthening schools' capacity to understand and support students whose needs extend beyond ordinary classroom intervention.
           </p>
         </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Assessment Products ───────────────────────────────────────────────────────
+function AssessmentProducts() {
+  return (
+    <section className="py-20 bg-slate-50">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-3">ReMynd Assessment Services</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Our Assessment Products</h2>
+          <p className="text-slate-500 text-sm mt-2 max-w-2xl mx-auto">
+            ReMynd offers specialised psychoeducational assessment products across schools, families, universities, and organisations.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {PRODUCTS_BY_MARKET.map(group => {
+            const s = MARKET_STYLES[group.color];
+            return (
+              <div key={group.market} className={`bg-white rounded-2xl border ${s.border} p-5 shadow-sm`}>
+                <span className={`inline-block text-[10px] font-bold uppercase tracking-widest border rounded-full px-2.5 py-0.5 mb-4 ${s.badge}`}>
+                  {group.market}
+                </span>
+                <ul className="space-y-2">
+                  {group.items.map(name => (
+                    <li key={name} className="flex items-start gap-2.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0 mt-1.5`} />
+                      <span className="text-sm text-slate-700 leading-snug">{name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-center text-xs text-slate-400 mt-8">
+          Participants in the training series who wish to learn more about ReMynd assessment services are welcome to enquire — there is no obligation to purchase.
+        </p>
       </div>
     </section>
   );
