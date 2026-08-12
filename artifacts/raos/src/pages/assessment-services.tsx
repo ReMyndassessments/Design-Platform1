@@ -383,15 +383,15 @@ function AssessmentOverviewDrawer({
               <h2 className="text-xl font-extrabold text-white leading-snug mb-2 drop-shadow-sm">{title}</h2>
 
               {price && (
-                <div className="flex items-center gap-3 mt-3">
-                  <div className="bg-white/20 border border-white/30 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">{labels.standardPrice}</span>
-                    <span className="text-sm font-bold text-white">{price} RMB</span>
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="bg-white rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-md">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{labels.standardPrice}</span>
+                    <span className="text-sm font-bold text-slate-800">{price} RMB</span>
                   </div>
-                  <div className="bg-amber-500/40 border border-amber-300/60 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                    <Sun size={11} className="text-amber-200 flex-shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-200">{labels.summerRate}</span>
-                    <span className="text-sm font-bold text-amber-100">{summerPx(price)} RMB</span>
+                  <div className="bg-amber-400 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-md shadow-amber-900/20">
+                    <Sun size={11} className="text-amber-800 flex-shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800">{labels.summerRate}</span>
+                    <span className="text-sm font-bold text-amber-900">{summerPx(price)} RMB</span>
                   </div>
                 </div>
               )}
