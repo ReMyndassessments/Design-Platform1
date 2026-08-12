@@ -1032,7 +1032,7 @@ export default function AssessmentServicesPage() {
         <div className="max-w-5xl mx-auto px-6 text-center">
           <p className="text-slate-500 text-xs leading-relaxed max-w-2xl mx-auto">{a.complianceNote}</p>
           <p className="text-slate-700 text-[11px] mt-4">
-            © {new Date().getFullYear()} ReMynd Student Services · Confidential
+            © {new Date().getFullYear()} ReMynd Student Services · Confidential · <a href="/privacy-policy" className="hover:text-slate-500 transition-colors underline underline-offset-2">Privacy Policy</a>
           </p>
         </div>
       </footer>

@@ -102,6 +102,10 @@ export default function LandingPage() {
           <p className="text-[10px] text-slate-700">
             © {new Date().getFullYear()} {l.copyright}
           </p>
+          <span className="text-slate-700 text-[10px]">·</span>
+          <a href="/privacy-policy" className="text-[11px] text-slate-600 hover:text-slate-400 transition-colors">
+            Privacy Policy
+          </a>
         </div>
       </div>
 

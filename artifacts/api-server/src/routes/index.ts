@@ -25,6 +25,7 @@ import apprenticesRouter from "./apprentices";
 import interviewRecordingsRouter from "./interviewRecordings";
 import complianceRouter from "./compliance";
 import trainingRouter from "./training";
+import publicPolicyRouter from "./public-policy";
 import { denyApprentice } from "../middlewares/denyApprentice.js";
 import { apprenticeGuard } from "../middlewares/apprenticeGuard.js";
 
@@ -54,6 +55,7 @@ router.use(apprenticeGuard, rmraRouter);
 router.use(apprenticeGuard, ramriInterviewRouter);
 router.use(apprenticeGuard, raepaRouter);
 router.use(apprenticeGuard, interviewRecordingsRouter);
+router.use(publicPolicyRouter);
 router.use(trainingRouter);
 router.use(complianceRouter);
 

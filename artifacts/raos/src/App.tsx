@@ -132,6 +132,7 @@ const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/c
 
 const LscCheckoutPage = React.lazy(() => import("@/pages/lsc-checkout"));
 const PrivacyCompliancePage = React.lazy(() => import("@/pages/admin/privacy-compliance"));
+const PrivacyPolicyPage = React.lazy(() => import("@/pages/privacy-policy"));
 const TrainingPage = React.lazy(() => import("@/pages/training"));
 const TrainingRegistrationsPage = React.lazy(() => import("@/pages/admin/training-registrations"));
 
@@ -303,6 +304,7 @@ function Router() {
         <Route path="/partner-schools" component={PartnerSchoolsPage} />
         <Route path="/partner-inquiry" component={PartnerInquiryPage} />
         <Route path="/assessment-services" component={AssessmentServicesPage} />
+        <Route path="/privacy-policy" component={PrivacyPolicyPage} />
         <Route path="/apprentice/dashboard">
           {() => <ProtectedRoute component={ApprenticeDashboard} apprenticeOnly />}
         </Route>
