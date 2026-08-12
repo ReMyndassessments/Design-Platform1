@@ -10,3 +10,4 @@
 - [Scoring config null domains](scoring-config-null-domains.md) — BRIEF-2 scoring_config is {"max":2} with no domains key; use scoringConfig?.domains?.[key] double-chaining; normalizedScores can be DB-null too.
 - [Airwallex LSC integration](airwallex-lsc-integration.md) — 1–12 month upfront model; plan col stores months as string; popup-blocker trick; SDK global is AirwallexComponentsSDK not Airwallex.
 - [PIPL Compliance Phase 1](pipl-compliance-phase1.md) — 5 additive compliance tables, admin-only routes/page, AI de-id in 2 DeepSeek functions; Groq audio deferred (critical).
+- [BEHAVOBS Chinese string escaping](behavobs-chinese-escaping.md) — Chinese curly quotes (U+201C/D) inside double-quoted strings become bare ASCII " on write; use escaped \" or remove them from note strings.

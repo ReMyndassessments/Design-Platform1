@@ -639,6 +639,48 @@ Clinical Implications
   return result.trim();
 }
 
+// ── Productive Struggle descriptor mapping ────────────────────────────────────
+const PS_DOMAIN_LABELS: Record<string, string> = {
+  ps_d1:  "Challenge Engagement",
+  ps_d2:  "Frustration Tolerance",
+  ps_d3:  "Productive Persistence",
+  ps_d4:  "Strategy Generation",
+  ps_d5:  "Strategy Flexibility",
+  ps_d6:  "Response to Errors (as a Learner)",
+  ps_d7:  "Metacognitive Awareness",
+  ps_d8:  "Help-Seeking Behaviour",
+  ps_d9:  "Response to Scaffolding",
+  ps_d10: "Recovery & Re-engagement",
+};
+
+function extractPsDomainLevel(value: unknown): { level: string; descriptor: string; isNotObserved: boolean } {
+  if (!value || typeof value !== "string" || value.trim() === "") {
+    return { level: "—", descriptor: "Not recorded", isNotObserved: false };
+  }
+  const v = value.trim();
+  if (v.startsWith("N/O") || v.startsWith("N/O")) {
+    return { level: "N/O", descriptor: "Not Observed / Insufficient Opportunity", isNotObserved: true };
+  }
+  // Extract level number from "1 — Label: ..." or "1 — Label ..."
+  const match = v.match(/^(\d)/);
+  const level = match ? match[1] : "?";
+  // Extract the descriptor label (between "—" and ":" or end)
+  const labelMatch = v.match(/^\d\s*—\s*([^:]+?)(?::|$)/);
+  const descriptor = labelMatch ? labelMatch[1].trim() : v;
+  return { level, descriptor, isNotObserved: false };
+}
+
+function buildPsDomainProfileText(answers: Record<string, unknown>): string {
+  const rows = Object.entries(PS_DOMAIN_LABELS).map(([fieldId, label]) => {
+    const val = answers[fieldId];
+    if (!val && val !== 0) return `  ${label}: Not recorded`;
+    const { level, descriptor, isNotObserved } = extractPsDomainLevel(val);
+    if (isNotObserved) return `  ${label}: N/O — Not Observed / Insufficient Opportunity`;
+    return `  ${label}: Level ${level} — ${descriptor} (full response: "${String(val).trim()}")`;
+  });
+  return rows.join("\n");
+}
+
 export async function generateAboSummary(params: {
   studentName: string;
   school: string;
@@ -649,20 +691,83 @@ export async function generateAboSummary(params: {
   const firstName = studentName.trim().split(/[\s,]/)[0] ?? studentName;
   const formattedAnswers = formatAnswersForPrompt(answers);
 
-  const prompt = `You are a psychoeducational assessment specialist writing a formal clinical behavioral observation narrative for a student's assessment report. You have been given completed Assessment Behavior Observation (ABO) form data recorded by the invigilating psychometrist during the assessment session.
+  // ── Detect Productive Struggle data ──────────────────────────────────────
+  const psFieldIds = Object.keys(PS_DOMAIN_LABELS);
+  const hasPsData = psFieldIds.some(f => answers[f] && answers[f] !== "");
+  const observedDomains = psFieldIds.filter(f => {
+    const v = answers[f];
+    return v && v !== "" && !String(v).startsWith("N/O");
+  });
+  const notObservedCount = psFieldIds.filter(f => {
+    const v = answers[f];
+    return v && String(v).startsWith("N/O");
+  }).length;
+  const evidenceInsufficient = hasPsData && observedDomains.length <= 2;
+  const testsValid = String(answers.q25 ?? "").toLowerCase();
+  const representativeness = String(answers.ps_representativeness ?? "");
+  const weakEvidence = evidenceInsufficient ||
+    testsValid === "no" || testsValid === "not sure" ||
+    representativeness.toLowerCase().startsWith("probably not") ||
+    representativeness.toLowerCase().startsWith("not enough");
+
+  // ── Build Productive Struggle context for the prompt ─────────────────────
+  let psContext = "";
+  if (hasPsData) {
+    const domainProfile = buildPsDomainProfileText(answers);
+    const supportThreshold  = String(answers.ps_support_threshold ?? "Not recorded");
+    const challengeResponse = String(answers.ps_challenge_response ?? "Not recorded");
+    const feedbackResponse  = String(answers.ps_feedback_response ?? "Not recorded");
+    const feedbackNotes     = String(answers.ps_feedback_other_notes ?? "");
+    const pattern           = String(answers.ps_pattern ?? "");
+    const strengths         = String(answers.ps_strengths ?? "");
+    const barriers          = String(answers.ps_barriers ?? "");
+    const whatHelped        = String(answers.ps_what_helped ?? "");
+    const psSummary         = String(answers.ps_summary ?? "");
+    const repRating         = representativeness || "Not recorded";
+    const repNotes          = String(answers.ps_rep_notes ?? "");
+
+    psContext = `
+
+═══════════════════════════════════════════════════════
+SECTION 2 — RESPONSE TO PRODUCTIVE STRUGGLE DATA
+═══════════════════════════════════════════════════════
+Domains rated (N/O = Not Observed / Insufficient Opportunity):
+${domainProfile}
+
+Typical Support Threshold: ${supportThreshold}
+Response to Increasing Challenge: ${challengeResponse}
+Student Response to Feedback: ${feedbackResponse}${feedbackNotes ? `\n  (Additional notes: ${feedbackNotes})` : ""}
+
+Observable Productive Struggle Patterns: ${pattern || "None selected"}
+Productive Struggle Strengths directly observed: ${strengths || "None selected"}
+Factors That Appeared to Interfere: ${barriers || "None selected"}
+What Appeared to Help: ${whatHelped || "None selected"}
+
+Observer's Productive Struggle Summary: ${psSummary || "(Not provided)"}
+Representativeness Rating: ${repRating}${repNotes ? `\n  (Observer explanation: ${repNotes})` : ""}
+
+Observed domains count: ${observedDomains.length} of 10 rated (${notObservedCount} marked N/O)
+Evidence quality: ${evidenceInsufficient ? "LIMITED — exercise interpretive caution" : "Adequate for interpretation"}`;
+  }
+
+  // ── Build behavioral observation section of the prompt ───────────────────
+  const behaviourPrompt = `You are a psychoeducational assessment specialist writing a formal educational observation narrative for a student's assessment report. You have been given completed Assessment Behavior Observation (ABO) form data recorded by the invigilating psychometrist during the assessment session.
 
 STUDENT INFORMATION:
 - Full Name: ${studentName}
 - School: ${school || "Not specified"}
 - Grade: ${grade || "Not specified"}
 
-OBSERVATION FORM DATA:
+SECTION 1 — OBSERVATION FORM DATA:
 ${formattedAnswers}
+${psContext}
 
 ---
-Write a comprehensive, clinically-styled behavioral observation narrative strictly based on the data provided above. Use professional third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Do not invent, infer beyond, or add details not present in the observation data. If data is absent for a particular area, note that it was not formally recorded. Use cohesive prose paragraphs — do not use bullet points within sections.
+WRITING INSTRUCTIONS:
 
-Structure the narrative exactly as follows:
+Use professional third-person prose throughout. Refer to the student by first name ("${firstName}") naturally. Do not invent, infer beyond, or add details not present in the data above. If data is absent for a particular area, note that it was not formally recorded. Write cohesive prose paragraphs — do not use bullet points within sections. All language must be educational and observational, not diagnostic. Do not state diagnoses. Use language such as "appeared to," "during this session," "the student demonstrated," "may warrant further investigation," rather than definitive clinical claims.${weakEvidence && hasPsData ? "\n\nIMPORTANT: The Productive Struggle evidence is limited. You must include an explicit validity caveat before any Productive Struggle interpretation, noting that conclusions should be treated cautiously and supplemented with classroom observation." : ""}${hasPsData && (testsValid === "no" || testsValid === "not sure") ? "\n\nIMPORTANT: Tests were marked as Not Valid or Uncertain. Acknowledge this prominently in Productive Struggle interpretation — strong conclusions are not warranted." : ""}
+
+Structure the report EXACTLY as follows (include all section headings exactly as written):
 
 BEHAVIORAL OBSERVATION SUMMARY
 
@@ -682,9 +787,45 @@ Validity and Clinical Considerations
 
 [Write a paragraph addressing whether the student understood the purpose of the evaluation, their reactions to errors or challenging items, any unusual or atypical behaviors observed, and the examiner's overall judgment of test validity. Include the psychometrist's additional test-specific observations if recorded.]
 
-[Write a brief concluding paragraph summarising the overall behavioural presentation and noting any factors that may have influenced test performance or that should be considered in the interpretation of assessment results.]`;
+[Write a brief concluding paragraph summarising the overall behavioural presentation and noting any factors that may have influenced test performance or that should be considered in the interpretation of assessment results.]${hasPsData ? `
 
-  const result = await callDeepSeek(prompt);
+─────────────────────────────────────────────────────────
+RESPONSE TO PRODUCTIVE STRUGGLE
+─────────────────────────────────────────────────────────
+
+Introduction
+
+[Write one introductory paragraph using approximately this framing: Productive struggle describes how a learner responds when success is not immediate. During assessment, the student's engagement, persistence, emotional response, strategy use, response to error, help-seeking, and use of support were observed. These behaviours provide additional information about how the student approaches challenge and what may help them remain productively engaged in learning. Adapt wording naturally.]
+
+${weakEvidence ? `Interpretive Caution
+
+[Write a paragraph explicitly noting that the assessment session provided limited opportunity to observe the student's sustained response to challenge. State the number of domains observed (${observedDomains.length} of 10). Advise that conclusions should be treated cautiously and supplemented with classroom evidence.]
+
+` : ""}Productive Struggle Profile
+
+[Write a structured prose summary of the domain profile. For each domain that was observed (not N/O and not missing), describe the observed level using the full descriptor. Group related domains where appropriate (e.g., emotional/regulatory: Frustration Tolerance and Recovery; strategic: Strategy Generation and Flexibility). For domains marked N/O, state that there was insufficient opportunity to observe. Do NOT present a single composite score. Present a profile of relative strengths and areas of need.]
+
+Support Threshold
+
+[Write a paragraph prominently describing the typical support threshold recorded (${String(answers.ps_support_threshold ?? "Not recorded")}). Generate a brief evidence-based explanation of what this means in practice — what level of support was typically sufficient to restore engagement, and what was generally unnecessary. If "Not Determined" was selected, state clearly that the assessment session did not provide sufficient evidence to establish a typical support threshold and do not invent one.]
+
+Productive Struggle Interpretation
+
+[Write a concise integrative narrative synthesizing: strengths observed, patterns noted, factors that appeared to interfere, strategy flexibility (distinguishing productive persistence from persistent-but-inflexible behaviour where evidence supports this), help-seeking quality, error response, response to scaffolding, and recovery. Use educational language throughout. Distinguish between: (a) Productive Persistence — student continues, monitors effectiveness, adapts strategy; (b) Persistent but Inflexible — student continues but repeatedly uses an ineffective approach; (c) Premature Disengagement — student withdraws effort before sufficient exploration. Only apply these distinctions where the observation data supports them.]
+
+Educational Implications
+
+[Where directly supported by the observations, generate 3–6 practical educational implications as coherent prose. Draw from the barriers, what helped, help-seeking quality, scaffolding response, and domain profile. Examples of appropriate focus areas: strategy flexibility, frustration tolerance, error recovery, help-seeking quality, scaffold fading. Do NOT recommend removing all challenge. Do NOT interpret frustration as pathology. Recommendations must correspond to the actual observed evidence.]
+
+When ${firstName} Gets Stuck
+
+[Generate a concise, individualized practical support sequence for teachers and parents — 4–6 steps based on the actual profile. The sequence should: allow thinking time; invite the student to explain what they have tried; use a metacognitive question; if needed, provide support at the recorded threshold level; return ownership of thinking to the student quickly; and reinforce strategy use and recovery rather than simply correctness. Adapt each step to the actual profile — do not copy a generic template. Write as a clear, practical sequence a classroom teacher can act on immediately.]
+
+Representativeness
+
+[Note the representativeness rating (${representativeness || "Not recorded"}) and any observer explanation provided. If representativeness is uncertain or low, advise that classroom observation should complement these findings.]` : ""}`;
+
+  const result = await callDeepSeek(behaviourPrompt, 6000);
   return result.trim();
 }
 
