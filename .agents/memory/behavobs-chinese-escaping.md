@@ -4,8 +4,8 @@ description: Lesson from BEHAVOBS upgrade — Unicode curly quotes in Chinese/Ko
 ---
 
 ## Rule
-When writing `noteChinese` / `noteKorean` strings inside double-quoted JS string literals, do **not** use Unicode curly quotes `"…"` (U+201C/U+201D) to quote sub-terms. They are written back as bare ASCII `"` by the Edit tool, which terminates the string literal and breaks the esbuild compile.
+When writing Chinese or Korean strings inside double-quoted JS/TS string literals anywhere in the codebase (including `index.ts` and `i18n.tsx`), do **not** use Unicode curly quotes `"…"` (U+201C/U+201D) to quote sub-terms. They are written back as bare ASCII `"` by the Edit tool, which terminates the string literal and causes parse errors.
 
-**Why:** The Edit tool normalizes or the file system stores them as ASCII `"`, so esbuild sees an unescaped double-quote mid-string → parse error `Expected } but found N`.
+**Why:** The Edit tool normalizes or the file system stores them as ASCII `"`, so the parser sees an unescaped double-quote mid-string → parse error (`Expected } but found N` in esbuild; `Unexpected token, expected ","` in Babel/Vite).
 
-**How to apply:** Use `\"N/O\"` (escaped ASCII quotes), plain text without quotes, or `N/O` without surrounding quotes. This applies to any Chinese/Korean string in `index.ts` that embeds a quoted sub-term.
+**How to apply:** Use `\"term\"` (escaped ASCII quotes), plain text without quotes, or paraphrase to avoid needing inline quotes. Affects any Chinese/Korean string in any `.ts` or `.tsx` file. The Korean section in `i18n.tsx` must also use `\"` escaping for inline quotation marks.
