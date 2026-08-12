@@ -786,7 +786,7 @@ export default function AssessmentServicesPage() {
           </div>
 
           {/* Category tab nav */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-10 scrollbar-hide">
+          <div className="flex flex-wrap gap-2 mb-10">
             {CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.id;
@@ -798,13 +798,13 @@ export default function AssessmentServicesPage() {
                     const el = document.getElementById(`cat-${cat.id}`);
                     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`flex items-center gap-2 flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-full border transition-colors ${
+                  className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
                     isActive
                       ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
                       : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:text-indigo-600"
                   }`}
                 >
-                  <Icon size={12} />
+                  <Icon size={11} />
                   {cat.label}
                 </button>
               );
