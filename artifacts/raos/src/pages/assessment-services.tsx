@@ -759,13 +759,9 @@ export default function AssessmentServicesPage() {
               <Award size={22} className="text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 mb-2">Non-Diagnostic by Design</p>
-              <p className="text-slate-700 text-sm leading-relaxed mb-3">
-                ReMynd is non-diagnostic by design. We do not diagnose or label students. Our assessments are designed to understand educational functioning, strengths, barriers, support needs, and appropriate next steps.
-              </p>
-              <p className="text-slate-500 text-xs leading-relaxed">
-                Where a medical, psychiatric, psychological, or neurodevelopmental evaluation may be necessary, families may be advised to seek assessment from an appropriately licensed professional.
-              </p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 mb-2">{a.nonDiagnosticLabel}</p>
+              <p className="text-slate-700 text-sm leading-relaxed mb-3">{a.nonDiagnosticBody}</p>
+              <p className="text-slate-500 text-xs leading-relaxed">{a.nonDiagnosticSub}</p>
             </div>
           </div>
         </div>

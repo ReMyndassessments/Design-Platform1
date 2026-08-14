@@ -626,6 +626,9 @@ export const translations = {
       ctaParent: "Make a Parent Enquiry",
       ctaPartner: "Explore Partner Schools",
       complianceNote: "ReMynd is non-diagnostic by design. ReMynd assessments are designed to support educational understanding, intervention planning, school decision-making, and practical support. ReMynd does not assign medical, psychiatric, psychological, or neurodevelopmental diagnoses. Where a formal diagnosis or clinical evaluation is required, families may be advised to seek assessment from an appropriately licensed medical, psychological, or allied-health professional.",
+      nonDiagnosticLabel: "Non-Diagnostic by Design",
+      nonDiagnosticBody: "ReMynd is non-diagnostic by design. We do not diagnose or label students. Our assessments are designed to understand educational functioning, strengths, barriers, support needs, and appropriate next steps.",
+      nonDiagnosticSub: "Where a medical, psychiatric, psychological, or neurodevelopmental evaluation may be necessary, families may be advised to seek assessment from an appropriately licensed professional.",
       landingTitle: "Explore Assessment Services",
       landingDesc: "View school-facing assessment options, pricing, and referral pathways.",
       overviewDrawer: {
@@ -1393,6 +1396,9 @@ export const translations = {
       ctaParent: "提交家长咨询",
       ctaPartner: "了解合作学校",
       complianceNote: "ReMynd 是非诊断性设计。ReMynd 评估旨在支持教育理解、干预规划、学校决策和实用支持。ReMynd 不作出医疗、精神、心理或神经发育诊断。如需正式诊断或临床评估，可建议家庭寻求具有适当执照的医疗、心理或专职医疗专业人员的评估。",
+      nonDiagnosticLabel: "非诊断性设计",
+      nonDiagnosticBody: "ReMynd 采用非诊断性设计理念。我们不对学生作出诊断或贴标签。我们的评估旨在了解学生的教育功能、优势、障碍、支持需求及适当的下一步措施。",
+      nonDiagnosticSub: "若可能需要进行医疗、精神科、心理或神经发育评估，可建议家庭向具有适当执照的专业人员寻求评估。",
       landingTitle: "探索评估服务",
       landingDesc: "查看面向学校的评估选项、收费及转介路径。",
       overviewDrawer: {
@@ -2160,6 +2166,9 @@ export const translations = {
       ctaParent: "학부모 문의 제출",
       ctaPartner: "파트너 학교 알아보기",
       complianceNote: "ReMynd는 비진단적 설계입니다. ReMynd 평가는 교육적 이해, 중재 계획, 학교 의사결정 및 실용적인 지원을 위해 설계되었습니다. ReMynd는 의료적, 정신과적, 심리적 또는 신경발달적 진단을 내리지 않습니다. 공식 진단이나 임상 평가가 필요한 경우, 가족에게 적절한 면허를 보유한 의료, 심리 또는 보건 전문가의 평가를 받도록 권고할 수 있습니다.",
+      nonDiagnosticLabel: "비진단적 설계",
+      nonDiagnosticBody: "ReMynd는 비진단적 설계를 원칙으로 합니다. 저희는 학생을 진단하거나 낙인찍지 않습니다. 저희 평가는 학생의 교육적 기능, 강점, 장벽, 지원 필요, 그리고 적절한 다음 단계를 이해하기 위해 설계되었습니다.",
+      nonDiagnosticSub: "의료적, 정신과적, 심리적 또는 신경발달적 평가가 필요한 경우, 가족에게 적절한 면허를 보유한 전문가의 평가를 받도록 권고할 수 있습니다.",
       landingTitle: "평가 서비스 살펴보기",
       landingDesc: "학교 대상 평가 옵션, 요금 및 의뢰 경로를 확인하세요.",
       overviewDrawer: {
