@@ -11,7 +11,7 @@ import {
 import { ASSESSMENT_OVERVIEWS, type AssessmentOverview } from "@/data/assessment-overviews";
 import type { Lang } from "@/lib/i18n";
 
-// ─── Product catalogue (local, English-first) ──────────────────────────────
+// ─── Product catalogue types ──────────────────────────────────────────────
 
 type ProductEntry = {
   title: string;
@@ -27,250 +27,51 @@ type Category = {
   id: string;
   label: string;
   icon: React.ElementType;
-  accentClass: string;   // border/bg accent classes
-  dotClass: string;      // coloured dot
+  accentClass: string;
+  dotClass: string;
   products: ProductEntry[];
 };
 
-const CATEGORIES: Category[] = [
-  {
-    id: "comprehensive",
-    label: "Comprehensive & School Pathways",
-    icon: BarChart3,
-    accentClass: "border-indigo-200 bg-indigo-50",
-    dotClass: "bg-indigo-600",
-    products: [
-      {
-        title: "Comprehensive Psychoeducational Profile & Support Plan",
-        badge: "Flagship Assessment",
-        desc: "ReMynd's most comprehensive educational assessment. Examines academic, behavioural, emotional, executive-functioning, social, and learning factors affecting student performance and wellbeing.",
-        eduQuestion: "Why is this student struggling, and what comprehensive support does this require?",
-        bestFor: ["Multi-domain concerns", "Complex or unclear difficulties", "Significant educational decisions", "Previous inconclusive assessments", "Comprehensive support planning"],
-        price: "16,500",
-        cta: "school",
-      },
-      {
-        title: "School Wellbeing & Learning Snapshot",
-        desc: "Provides a broad initial picture of student wellbeing, resilience, emotional health, school engagement, and learning readiness. Suitable for whole year-group screening or individual review.",
-        eduQuestion: "Is there sufficient concern to warrant additional support or investigation?",
-        bestFor: ["Early identification", "Student reviews", "School transitions", "Tier 1 / MTSS screening", "Emerging concerns"],
-        price: "4,500",
-        cta: "school",
-      },
-      {
-        title: "Focused Student Support Assessment",
-        desc: "A targeted assessment examining behavioural, emotional, executive-functioning, and school-adjustment concerns without automatically requiring a full comprehensive assessment.",
-        eduQuestion: "What focused support does this student need now?",
-        bestFor: ["Teacher concerns", "Behaviour referrals", "Student-support meetings", "Tier 2 decisions", "Defined areas of concern"],
-        price: "6,500",
-        cta: "school",
-      },
-      {
-        title: "Learning Support Decision System",
-        desc: "A specialised learning-support assessment designed to identify learning differences, literacy risks, executive-functioning difficulties, and academic barriers requiring SEN or additional learning-support intervention.",
-        eduQuestion: "Does this student require additional learning support, and what should that support address?",
-        bestFor: ["SEN referrals", "Literacy concerns", "Reading difficulty", "Learning-support decisions", "Intervention planning"],
-        price: "9,000",
-        cta: "school",
-      },
-      {
-        title: "Boarding Student Adjustment & Wellbeing Assessment",
-        desc: "Evaluates emotional wellbeing, resilience, stress, homesickness, social connectedness, adaptation, and functioning within boarding-school life.",
-        bestFor: ["New boarders", "International students", "Welfare reviews", "Adjustment concerns", "Boarding pastoral support"],
-        price: "5,500",
-        cta: "school",
-      },
-    ],
-  },
-  {
-    id: "underachievement",
-    label: "Underachievement, Executive Function & Hidden Difficulty",
-    icon: Brain,
-    accentClass: "border-violet-200 bg-violet-50",
-    dotClass: "bg-violet-600",
-    products: [
-      {
-        title: "Underachievement Profile",
-        badge: "When Ability and Performance Don't Match",
-        desc: "Investigates why capable students may perform below expectations by examining executive functioning, motivation, emotional wellbeing, attention, and academic persistence.",
-        eduQuestion: "Why is this capable student performing below their potential?",
-        bestFor: ["Bright underperformers", "Unexpected grade decline", "Strong verbal ability with weak written output", "Pre-GCSE / IB / A Level review"],
-        price: "7,000",
-        cta: "school",
-      },
-      {
-        title: "Executive Function Coaching Assessment",
-        desc: "A targeted assessment examining planning, organisation, working memory, task initiation, time management, self-monitoring, and emotional self-regulation. Produces practical strategies for student, parent, and teacher.",
-        eduQuestion: "Which executive-function difficulties are interfering with successful independent learning, and what practical support will help?",
-        bestFor: ["Organisation difficulties", "Task initiation", "Working memory concerns", "Time management", "Self-regulation challenges"],
-        price: "4,800",
-        cta: "school",
-      },
-      {
-        title: "Hidden Struggler Assessment",
-        badge: "When a Student Appears Fine — But Isn't",
-        desc: "Designed for students whose difficulties are frequently overlooked because they are academically capable, compliant, high-achieving, or masking significant hidden support needs.",
-        eduQuestion: "Is this student's apparent success concealing significant difficulty, and what support does that require?",
-        bestFor: ["High-achieving students", "Twice-exceptional learners", "Masked attention difficulties", "Internalising difficulties", "Students whose success requires disproportionate effort"],
-        price: "8,000",
-        cta: "school",
-      },
-      {
-        title: "Digital Distraction & Focus Assessment",
-        desc: "Examines attention regulation, executive functioning, focus management, emotional wellbeing, and the impact of digital habits on learning and productivity.",
-        bestFor: ["Screen-use concerns", "Focus difficulties", "Homework struggles", "Productivity concerns", "Task switching / self-management issues"],
-        price: "4,800",
-        cta: "school",
-      },
-    ],
-  },
-  {
-    id: "academic",
-    label: "Academic & Learning Assessments",
-    icon: BookOpen,
-    accentClass: "border-sky-200 bg-sky-50",
-    dotClass: "bg-sky-600",
-    products: [
-      {
-        title: "ReMynd Academic English Performance Assessment",
-        desc: "A curriculum-connected academic-language assessment evaluating whether a student can access, process, express, and demonstrate learning through English across the curriculum. Conversational English is not the same as Academic English.",
-        eduQuestion: "Is an academic-language barrier preventing this student from demonstrating their actual ability?",
-        bestFor: ["EAL / ESL students", "Academic-language concerns", "English-medium international schools", "Distinguishing language-access barriers from broader learning difficulty"],
-        price: "5,800",
-        cta: "school",
-      },
-      {
-        title: "ReMynd Authentic Mathematical Reasoning Interview",
-        desc: "A structured mathematical reasoning interview using authentic student work as the starting point. Explores conceptual understanding, strategy awareness, procedural reasoning, error awareness, mathematical language, and transfer. Provides natural opportunities to observe productive-struggle responses.",
-        eduQuestion: "What does this student actually understand about mathematics, beneath the surface of their formal performance?",
-        bestFor: ["Mathematical reasoning difficulty", "Work-sample analysis", "Learning-support planning", "Mathematics IEP goals", "Assessment anxiety"],
-        price: "8,500",
-        cta: "school",
-      },
-    ],
-  },
-  {
-    id: "parent",
-    label: "Parent Assessment Services",
-    icon: Users,
-    accentClass: "border-teal-200 bg-teal-50",
-    dotClass: "bg-teal-600",
-    products: [
-      {
-        title: "Why Is My Child Struggling?",
-        desc: "A parent-friendly educational assessment designed to identify the most likely factors contributing to a child's academic, behavioural, emotional, organisational, or social difficulties.",
-        eduQuestion: "Something isn't right — what may be happening, and what should we do next?",
-        bestFor: ["General academic concern", "Behavioural change", "Emotional difficulties", "Social challenges", "Parent-initiated assessment"],
-        price: "5,500",
-        cta: "parent",
-      },
-      {
-        title: "Executive Function Coaching Assessment",
-        desc: "Examines planning, organisation, working memory, task initiation, time management, self-monitoring, and emotional self-regulation — producing practical strategies for student, parent, and teacher.",
-        bestFor: ["Organisation difficulties", "Homework management", "Time management", "Self-regulation at home and school"],
-        price: "4,800",
-        cta: "parent",
-      },
-      {
-        title: "Emotional Wellbeing Check",
-        desc: "Screens educationally relevant patterns involving anxiety, mood, stress, self-esteem, emotional regulation, and psychological wellbeing. This is an educational wellbeing assessment and does not diagnose a mental-health condition.",
-        bestFor: ["Anxiety concerns", "Mood changes", "Stress and self-esteem", "Emotional regulation difficulties"],
-        price: "3,800",
-        cta: "parent",
-      },
-      {
-        title: "School Readiness & Transition Assessment",
-        desc: "Evaluates developmental readiness, self-regulation, independence, social skills, emotional preparedness, and transition factors relevant to successful school participation.",
-        bestFor: ["School entry", "Significant school transitions", "Readiness concerns", "Changes in educational environment"],
-        price: "4,500",
-        cta: "parent",
-      },
-    ],
-  },
-  {
-    id: "developmental",
-    label: "Developmental Assessment",
-    icon: Baby,
-    accentClass: "border-emerald-200 bg-emerald-50",
-    dotClass: "bg-emerald-600",
-    products: [
-      {
-        title: "ReMynd Child Development Profile (CDP)",
-        desc: "A whole-child developmental educational profile examining cognition and learning, self-regulation and executive function, social interaction and social awareness, and communication and interaction. Identifies developmental strengths, emerging capabilities, support needs, and functional educational priorities.",
-        eduQuestion: "How is this child developing across the areas most important for learning, independence, communication, and participation?",
-        bestFor: ["Early developmental concerns", "Social communication development", "Self-regulation readiness", "Whole-child educational planning"],
-        cta: "school",
-      },
-    ],
-  },
-  {
-    id: "university",
-    label: "University Student Assessment Services",
-    icon: GraduationCap,
-    accentClass: "border-blue-200 bg-blue-50",
-    dotClass: "bg-blue-700",
-    products: [
-      {
-        title: "International Student Adjustment Assessment",
-        desc: "Designed to understand how students are adapting to the academic, linguistic, social, emotional, cultural, and independent-living demands of university study in a new environment.",
-        bestFor: ["International university students", "Transition difficulties", "Academic adjustment", "Social connectedness concerns", "Wellbeing and support planning"],
-        cta: "enquiry",
-      },
-      {
-        title: "Academic Risk Early Warning System",
-        desc: "Designed to identify patterns that may place a university student at increased risk of academic difficulty before significant failure occurs. Emphasises early identification before crisis.",
-        eduQuestion: "Are there identifiable early-warning patterns that indicate this student may need academic or wellbeing support?",
-        bestFor: ["Early academic concern", "Engagement patterns", "Self-management difficulty", "Wellbeing and functioning", "Proactive support planning"],
-        cta: "enquiry",
-      },
-    ],
-  },
-  {
-    id: "corporate",
-    label: "Corporate & Early-Career Assessment",
-    icon: Briefcase,
-    accentClass: "border-slate-200 bg-slate-50",
-    dotClass: "bg-slate-700",
-    products: [
-      {
-        title: "Employee Wellbeing & Burnout Screen",
-        desc: "A structured workplace screening service designed to identify patterns of wellbeing concern and potential burnout risk and support appropriate organisational response. Uses appropriate adult and workplace language.",
-        bestFor: ["Workplace wellbeing programmes", "Burnout risk identification", "Organisational support planning", "Staff welfare review"],
-        cta: "enquiry",
-      },
-      {
-        title: "Leadership / High-Performer Profiling",
-        desc: "Designed to help understand strengths, performance characteristics, working patterns, and development and support needs among leaders and high-performing professionals.",
-        bestFor: ["Leadership development", "High-performer support", "Strengths-based profiling", "Executive coaching context"],
-        cta: "enquiry",
-      },
-      {
-        title: "Graduate / Intern Readiness Assessment",
-        desc: "Designed to support the transition from education into professional environments by examining readiness factors relevant to early-career functioning.",
-        bestFor: ["Graduate programmes", "Intern onboarding", "Early-career development", "Transition readiness"],
-        cta: "enquiry",
-      },
-    ],
-  },
-];
+// ─── Structural config (locale-agnostic: icon, colour, price, cta) ────────
 
-// ─── PS Domains ────────────────────────────────────────────────────────────
-
-const PS_FLOW = [
-  "Challenge", "Engagement", "Strategy", "Persistence",
-  "Support", "Recovery", "Growth",
-];
-
-const PS_DOMAINS = [
-  "Challenge Engagement", "Frustration Tolerance", "Productive Persistence",
-  "Strategy Generation", "Strategy Flexibility", "Response to Errors",
-  "Metacognitive Awareness", "Help-Seeking", "Response to Scaffolding",
-  "Recovery & Re-engagement",
-];
-
-const SUPPORT_LEVELS = [
-  "Independent", "Minimal Prompt", "Strategic Cue",
-  "Structured Scaffolding", "Direct Support",
+const CATEGORY_CONFIG: Array<{
+  id: string;
+  icon: React.ElementType;
+  accentClass: string;
+  dotClass: string;
+  products: Array<{ price?: string; cta: "school" | "parent" | "enquiry" }>;
+}> = [
+  { id: "comprehensive", icon: BarChart3, accentClass: "border-indigo-200 bg-indigo-50", dotClass: "bg-indigo-600",
+    products: [
+      { price: "16,500", cta: "school" }, { price: "4,500", cta: "school" },
+      { price: "6,500",  cta: "school" }, { price: "9,000", cta: "school" },
+      { price: "5,500",  cta: "school" },
+    ],
+  },
+  { id: "underachievement", icon: Brain, accentClass: "border-violet-200 bg-violet-50", dotClass: "bg-violet-600",
+    products: [
+      { price: "7,000", cta: "school" }, { price: "4,800", cta: "school" },
+      { price: "8,000", cta: "school" }, { price: "4,800", cta: "school" },
+    ],
+  },
+  { id: "academic", icon: BookOpen, accentClass: "border-sky-200 bg-sky-50", dotClass: "bg-sky-600",
+    products: [{ price: "5,800", cta: "school" }, { price: "8,500", cta: "school" }],
+  },
+  { id: "parent", icon: Users, accentClass: "border-teal-200 bg-teal-50", dotClass: "bg-teal-600",
+    products: [
+      { price: "5,500", cta: "parent" }, { price: "4,800", cta: "parent" },
+      { price: "3,800", cta: "parent" }, { price: "4,500", cta: "parent" },
+    ],
+  },
+  { id: "developmental", icon: Baby, accentClass: "border-emerald-200 bg-emerald-50", dotClass: "bg-emerald-600",
+    products: [{ cta: "school" }],
+  },
+  { id: "university", icon: GraduationCap, accentClass: "border-blue-200 bg-blue-50", dotClass: "bg-blue-700",
+    products: [{ cta: "enquiry" }, { cta: "enquiry" }],
+  },
+  { id: "corporate", icon: Briefcase, accentClass: "border-slate-200 bg-slate-50", dotClass: "bg-slate-700",
+    products: [{ cta: "enquiry" }, { cta: "enquiry" }, { cta: "enquiry" }],
+  },
 ];
 
 // ─── Shared helpers ─────────────────────────────────────────────────────────
@@ -499,10 +300,11 @@ function AssessmentOverviewDrawer({
 // ─── Product card ───────────────────────────────────────────────────────────
 
 function ProductCard({
-  product, overviewBtnLabel, onOpen,
+  product, overviewBtnLabel, ctaLabels, onOpen,
 }: {
   product: ProductEntry;
   overviewBtnLabel: string;
+  ctaLabels: { school: string; parent: string; enquiry: string };
   onOpen: (enKey: string, displayTitle: string, price?: string, badge?: string) => void;
 }) {
   const isFlagship = !!product.badge?.toLowerCase().includes("flagship");
@@ -560,7 +362,7 @@ function ProductCard({
             <Link href="/portal?tab=school">
               <button className="w-full flex items-center justify-center gap-2 text-xs font-bold text-indigo-900 bg-amber-300 hover:bg-amber-200 rounded-xl py-3 px-3 transition-colors shadow-lg shadow-amber-900/20">
                 <Star size={11} className="fill-indigo-900" />
-                Refer a Student <ArrowRight size={11} />
+                {ctaLabels.school} <ArrowRight size={11} />
               </button>
             </Link>
           </div>
@@ -598,21 +400,21 @@ function ProductCard({
         {product.cta === "school" && (
           <Link href="/portal?tab=school">
             <button className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl py-2.5 px-3 transition-colors">
-              Refer a Student <ArrowRight size={11} />
+              {ctaLabels.school} <ArrowRight size={11} />
             </button>
           </Link>
         )}
         {product.cta === "parent" && (
           <Link href="/portal?tab=parent">
             <button className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl py-2.5 px-3 transition-colors">
-              Parent Enquiry <ChevronRight size={11} />
+              {ctaLabels.parent} <ChevronRight size={11} />
             </button>
           </Link>
         )}
         {product.cta === "enquiry" && (
           <Link href="/portal?tab=school">
             <button className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl py-2.5 px-3 transition-colors">
-              Make an Enquiry <ChevronRight size={11} />
+              {ctaLabels.enquiry} <ChevronRight size={11} />
             </button>
           </Link>
         )}
@@ -640,6 +442,28 @@ export default function AssessmentServicesPage() {
   const activeData = activeOverview
     ? (overviewMap[activeOverview.enKey] ?? ASSESSMENT_OVERVIEWS["en"][activeOverview.enKey])
     : null;
+
+  const categories: Category[] = (a.catalogue ?? []).map((cat, ci) => {
+    const config = CATEGORY_CONFIG[ci];
+    return {
+      id: cat.id,
+      label: cat.label,
+      icon: config?.icon ?? BarChart3,
+      accentClass: config?.accentClass ?? "",
+      dotClass: config?.dotClass ?? "",
+      products: (cat.products ?? []).map((prod, pi) => ({
+        ...prod,
+        price: config?.products[pi]?.price,
+        cta: config?.products[pi]?.cta ?? "school",
+      })),
+    };
+  });
+
+  const ctaLabels = {
+    school: a.referStudent,
+    parent: a.parentEnquiryBtn ?? "Parent Enquiry",
+    enquiry: a.makeEnquiryBtn ?? "Make an Enquiry",
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -771,7 +595,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Why Schools Use ReMynd Assessments</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.s1Eyebrow}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s1Title}</h2>
             <p className="text-slate-500 text-sm max-w-lg mx-auto">{a.s1Sub}</p>
           </div>
@@ -796,22 +620,22 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">A Key Feature of ReMynd Student Assessment Reporting</p>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">Response to Productive Struggle</h2>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.psEyebrow}</p>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">{a.psTitle}</h2>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto leading-relaxed">
-              Academic performance tells us what a student can demonstrate.<br />
-              ReMynd also wants to understand <em>what happens when learning becomes difficult.</em>
+              {a.psBody1}<br />
+              {a.psBody2Prefix}<em>{a.psBody2Italic}</em>
             </p>
           </div>
 
           {/* Flow diagram */}
           <div className="flex flex-wrap justify-center gap-2 mb-10">
-            {PS_FLOW.map((step, i) => (
+            {(a.psFlow ?? []).map((step, i) => (
               <div key={step} className="flex items-center gap-2">
                 <div className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-sm shadow-indigo-200">
                   {step}
                 </div>
-                {i < PS_FLOW.length - 1 && (
+                {i < (a.psFlow ?? []).length - 1 && (
                   <ArrowRight size={14} className="text-indigo-300 hidden sm:block" />
                 )}
               </div>
@@ -821,9 +645,9 @@ export default function AssessmentServicesPage() {
           <div className="grid md:grid-cols-2 gap-8 mb-10">
             {/* Domains */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Ten Observed Domains</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">{a.psDomainsLabel}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {PS_DOMAINS.map((d) => (
+                {(a.psDomains ?? []).map((d) => (
                   <div key={d} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
                     <span className="text-xs text-slate-600">{d}</span>
@@ -835,25 +659,21 @@ export default function AssessmentServicesPage() {
             {/* Support threshold */}
             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-col justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">Support Threshold</p>
-                <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                  Where sufficient opportunity exists, ReMynd considers the approximate level of adult support required to maintain or restore productive engagement:
-                </p>
+                <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">{a.psSupportLabel}</p>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">{a.psSupportBody}</p>
                 <div className="flex flex-wrap gap-2">
-                  {SUPPORT_LEVELS.map((l, i) => (
+                  {(a.psSupportLevels ?? []).map((l, i, arr) => (
                     <div key={l} className="flex items-center gap-1.5">
                       <span className="text-[11px] font-semibold bg-white border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-full">
-                        {i === 0 ? "Independent" : l}
+                        {l}
                       </span>
-                      {i < SUPPORT_LEVELS.length - 1 && <ChevronRight size={11} className="text-indigo-300" />}
+                      {i < arr.length - 1 && <ChevronRight size={11} className="text-indigo-300" />}
                     </div>
                   ))}
                 </div>
               </div>
               <div className="bg-white border border-indigo-100 rounded-xl px-4 py-3">
-                <p className="text-xs text-slate-500 leading-relaxed italic">
-                  "What happens when this learner gets stuck, and what kind of support helps them re-engage while preserving ownership of the thinking?"
-                </p>
+                <p className="text-xs text-slate-500 leading-relaxed italic">{a.psSupportQuote}</p>
               </div>
             </div>
           </div>
@@ -864,13 +684,11 @@ export default function AssessmentServicesPage() {
             style={{ background: "linear-gradient(145deg, #0d1b2e 0%, #0e2040 100%)" }}
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 mb-4">
-              We Don't Only Ask What the Student Knows
+              {a.psStripEyebrow}
             </p>
-            <p className="text-white font-bold text-base md:text-lg mb-6">
-              We Also Observe What Happens When They Don't Yet Know.
-            </p>
+            <p className="text-white font-bold text-base md:text-lg mb-6">{a.psStripTitle}</p>
             <div className="flex flex-wrap justify-center gap-3">
-              {["Engage", "Persist", "Strategize", "Adapt", "Seek Help", "Recover"].map((step, i, arr) => (
+              {(a.psStripSteps ?? []).map((step, i, arr) => (
                 <div key={step} className="flex items-center gap-2">
                   <span className="text-xs font-bold text-indigo-200 bg-white/10 border border-white/20 px-3 py-1.5 rounded-full">{step}</span>
                   {i < arr.length - 1 && <ArrowRight size={12} className="text-indigo-500" />}
@@ -879,7 +697,7 @@ export default function AssessmentServicesPage() {
             </div>
             <div className="mt-6 inline-flex items-center gap-2 bg-indigo-500/30 border border-indigo-400/40 rounded-full px-4 py-1.5">
               <CheckCircle2 size={12} className="text-indigo-300" />
-              <span className="text-[11px] font-bold text-indigo-200">Included in ReMynd Student Assessment Reporting</span>
+              <span className="text-[11px] font-bold text-indigo-200">{a.psStripBadge}</span>
             </div>
           </div>
         </div>
@@ -889,16 +707,14 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-slate-50" id="assessments">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Assessment Portfolio</p>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">Explore Assessment Pathways</h2>
-            <p className="text-slate-500 text-sm max-w-xl mx-auto">
-              Select an assessment pathway below. Pricing, timeline, and full details are available inside each assessment overview.
-            </p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.catalogEyebrow}</p>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.catalogTitle}</h2>
+            <p className="text-slate-500 text-sm max-w-xl mx-auto">{a.catalogSub}</p>
           </div>
 
           {/* Category tab nav */}
           <div className="flex flex-wrap gap-2 mb-10 justify-center">
-            {CATEGORIES.map(cat => {
+            {categories.map(cat => {
               const Icon = cat.icon;
               const isActive = activeCategory === cat.id;
               return (
@@ -924,24 +740,24 @@ export default function AssessmentServicesPage() {
 
           {/* Categories */}
           <div className="space-y-14">
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <div key={cat.id} id={`cat-${cat.id}`}>
                 <div className="flex items-center gap-3 mb-6">
                   <div className={`w-2.5 h-2.5 rounded-full ${cat.dotClass}`} />
                   <h3 className="text-lg font-extrabold text-slate-900">{cat.label}</h3>
                   <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-xs text-slate-400 font-medium">{cat.products.length} assessment{cat.products.length > 1 ? "s" : ""}</span>
+                  <span className="text-xs text-slate-400 font-medium">{cat.products.length} {cat.products.length === 1 ? (a.assessmentUnit ?? "assessment") : (a.assessmentsUnit ?? "assessments")}</span>
                 </div>
                 {cat.id === "university" && (
                   <div className="flex items-start gap-2 mb-4 bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">
                     <AlertCircle size={13} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-blue-700">University assessment services are available for higher-education institutions and their enrolled students. Contact ReMynd to discuss requirements.</p>
+                    <p className="text-xs text-blue-700">{a.universityNote}</p>
                   </div>
                 )}
                 {cat.id === "corporate" && (
                   <div className="flex items-start gap-2 mb-4 bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5">
                     <AlertCircle size={13} className="text-slate-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-slate-600">Corporate assessments use adult and workplace language. They do not involve educational or clinical diagnosis.</p>
+                    <p className="text-xs text-slate-600">{a.corporateNote}</p>
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -950,6 +766,7 @@ export default function AssessmentServicesPage() {
                       key={product.title}
                       product={product}
                       overviewBtnLabel={a.overviewDrawer.btnLabel}
+                      ctaLabels={ctaLabels}
                       onOpen={openOverview}
                     />
                   ))}
@@ -965,38 +782,26 @@ export default function AssessmentServicesPage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-10 items-start">
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">Not Sure Where to Start?</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">{a.notsureEyebrow}</p>
               <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">
-                You Do Not Need to Know Which Assessment to Choose
+                {a.notsureTitle}
               </h2>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                A parent may simply know: <em>"My child is struggling."</em><br />
-                A teacher may observe: <em>"Something has changed."</em><br />
-                A SENCO may ask: <em>"Does this student require learning support?"</em><br />
-                A school leader may wonder: <em>"Do we have enough evidence to make this decision?"</em>
+                {(a.notsureLines ?? []).map((line, i) => (
+                  <span key={i}>{line.pre} <em>{line.em}</em>{i < (a.notsureLines ?? []).length - 1 ? <br /> : null}</span>
+                ))}
               </p>
-              <p className="text-slate-600 text-sm font-semibold mb-6">
-                That is enough to begin. ReMynd can help determine the appropriate next step.
-              </p>
+              <p className="text-slate-600 text-sm font-semibold mb-6">{a.notsureFoot}</p>
               <Link href="/portal?tab=school">
                 <button className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-colors">
-                  Discuss a Student <ArrowRight size={15} />
+                  {a.notsureBtn} <ArrowRight size={15} />
                 </button>
               </Link>
             </div>
 
             {/* Journey flow */}
             <div className="space-y-2">
-              {[
-                { label: "Concern", desc: "Something isn't right" },
-                { label: "Evidence", desc: "What teachers, parents, and students have observed" },
-                { label: "Educational Question", desc: "What we're trying to understand" },
-                { label: "Appropriate Assessment Pathway", desc: "Selected with you, not by you" },
-                { label: "Understanding", desc: "What the assessment found — in plain language" },
-                { label: "Support", desc: "Practical strategies, priorities, and planning" },
-                { label: "Monitoring", desc: "Ongoing tracking through the ReMynd Case Portal" },
-                { label: "Growth", desc: "Documented progress and adjusted support as needed" },
-              ].map((step, i, arr) => (
+              {(a.journeySteps ?? []).map((step, i, arr) => (
                 <div key={step.label} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold">{i + 1}</div>
@@ -1017,7 +822,7 @@ export default function AssessmentServicesPage() {
       <section className="py-20 bg-slate-50">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">How It Works</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">{a.howItWorksEyebrow}</p>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3">{a.s4Title}</h2>
             <p className="text-slate-500 text-sm">{a.s4Sub}</p>
           </div>
@@ -1047,7 +852,7 @@ export default function AssessmentServicesPage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 md:p-12 shadow-sm">
             <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-4">Partner Schools Programme</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-4">{a.partnerEyebrow}</p>
               <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">{a.s5Title}</h2>
               <p className="text-slate-500 text-sm mb-7">{a.s5Body}</p>
               <p className="text-sm font-semibold text-slate-700 mb-4">{a.s5AccessTitle}</p>
@@ -1072,7 +877,7 @@ export default function AssessmentServicesPage() {
       {/* ── ASSESSMENT SCOPE & PRICING ── */}
       <section className="py-20 bg-slate-50">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-3">Assessment Scope & Pricing</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-3">{a.scopeEyebrow}</p>
           <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4">{a.s6Title}</h2>
           <p className="text-slate-500 text-sm mb-8 max-w-xl mx-auto leading-relaxed">{a.s6Sub}</p>
           <div className="bg-white border border-slate-200 rounded-2xl p-8 text-left mb-6">
@@ -1086,18 +891,16 @@ export default function AssessmentServicesPage() {
               ))}
             </ul>
           </div>
-          <p className="text-slate-500 text-sm leading-relaxed mb-6">
-            Not sure which pathway is appropriate? You do not need to select the assessment yourself. Tell us what you are seeing, and ReMynd can help determine the appropriate next step.
-          </p>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">{a.scopeNotsure}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/portal?tab=school">
               <button className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-colors">
-                Help Me Choose an Assessment <ArrowRight size={14} />
+                {a.scopeHelpBtn} <ArrowRight size={14} />
               </button>
             </Link>
             <Link href="/portal?tab=parent">
               <button className="inline-flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-sm px-6 py-3 rounded-xl transition-colors">
-                Parent Enquiry <ChevronRight size={14} />
+                {a.parentEnquiryBtn} <ChevronRight size={14} />
               </button>
             </Link>
           </div>
@@ -1113,7 +916,7 @@ export default function AssessmentServicesPage() {
         <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-3">{a.ctaTitle}</h2>
           <p className="text-slate-400 text-sm mb-3 max-w-lg mx-auto">{a.ctaDesc}</p>
-          <p className="text-indigo-300 text-xs font-semibold mb-10 tracking-wide">Concern → Understanding → Support</p>
+          <p className="text-indigo-300 text-xs font-semibold mb-10 tracking-wide">{a.ctaTagline}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
             <Link href="/portal?tab=school">
               <button className="inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors">
@@ -1131,9 +934,7 @@ export default function AssessmentServicesPage() {
               </button>
             </Link>
           </div>
-          <p className="mt-14 text-slate-600 text-xs font-medium tracking-wide">
-            Understand First. &nbsp;·&nbsp; See the Whole Learner. &nbsp;·&nbsp; Act on Understanding. &nbsp;·&nbsp; Support Growth.
-          </p>
+          <p className="mt-14 text-slate-600 text-xs font-medium tracking-wide">{a.footerTagline}</p>
           <p className="text-slate-700 text-[11px] mt-1">ReMynd Student Services</p>
         </div>
       </section>
