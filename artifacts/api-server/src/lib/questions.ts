@@ -629,7 +629,10 @@ export const CONSENT_FORM_V2: FormQuestion[] = [
     noteKorean: "ReMynd 학생 서비스는 교육 평가, 상담, 보고서 작성 및 학생 지원 계획 서비스를 제공합니다.\n\n평가를 위해 ReMynd는 학생에 관한 개인정보를 수집하고 처리해야 할 수 있습니다. 여기에는 교육 기록, 평가 응답, 점수, 과제 샘플, 교사 및 부모 설문지, 행동 관찰, 그리고 관련 학습, 발달, 사회적·정서적 또는 건강 관련 정보가 포함될 수 있습니다.\n\n이러한 정보 중 일부는 민감한 개인정보로 분류될 수 있으며, 특히 14세 미만 아동과 관련된 경우에 해당합니다.\n\n동의를 제공하기 전에 ReMynd 개인정보 처리방침을 검토해 주세요. 개인정보 또는 평가 절차에 관한 문의사항은 ReMynd 학생 서비스의 Noel Roberts에게 연락해 주세요 — ne_roberts@yahoo.com",
     type: "section_header",
     domain: "intro",
-    links: [{ text: "ReMynd Privacy Notice", url: "/privacy-policy" }],
+    links: [
+      { text: "ReMynd Privacy Notice", url: "/privacy-policy" },
+      { text: "Children's Personal Information Protection Policy", url: "/privacy/children" },
+    ],
   },
 
   // ── STUDENT INFORMATION ────────────────────────────────────────────────────
@@ -876,7 +879,10 @@ export const CONSENT_FORM_V2: FormQuestion[] = [
     optionsKorean: ["예", "아니오"],
     domain: "consent",
     required: true,
-    links: [{ text: "ReMynd Privacy Notice", url: "/privacy-policy" }],
+    links: [
+      { text: "ReMynd Privacy Notice", url: "/privacy-policy" },
+      { text: "Children's Personal Information Protection Policy", url: "/privacy/children" },
+    ],
   },
 
   // ── ADDITIONAL CONSENTS NOTICE (informational — no input) ─────────────────
