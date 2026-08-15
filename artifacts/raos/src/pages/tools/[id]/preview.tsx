@@ -44,14 +44,36 @@ function useOpts(q: Question, language: string): { display: string; value: strin
   return src.map((v, i) => ({ value: v, display: display[i] ?? v }));
 }
 
+function BulletText({ text, className }: { text: string; className?: string }) {
+  if (!text.includes('•')) {
+    return <p className={cn("whitespace-pre-wrap", className)}>{text}</p>;
+  }
+  const bulletIdx = text.indexOf('•');
+  const intro = text.slice(0, bulletIdx).replace(/\n+$/, '').trim();
+  const items = text.slice(bulletIdx).split('•').map(s => s.replace(/\n/g, ' ').trim()).filter(Boolean);
+  return (
+    <div className="space-y-1.5">
+      {intro && <p className={className}>{intro}</p>}
+      <ul className="space-y-1 pl-1">
+        {items.map((item, i) => (
+          <li key={i} className={cn("flex gap-2", className)}>
+            <span className="mt-0.5 shrink-0">•</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FieldLabel({ label, required, note }: { label: string; required?: boolean; note?: string }) {
   return (
     <div className="mb-2">
-      <p className="text-sm font-medium text-slate-700">
-        {label}
+      <div className="text-sm font-medium text-slate-700">
+        <BulletText text={label} className="text-sm font-medium text-slate-700" />
         {required && <span className="text-red-400 ml-1">*</span>}
-      </p>
-      {note && <p className="text-xs text-slate-500 italic leading-relaxed mt-0.5">{note}</p>}
+      </div>
+      {note && <p className="text-xs text-slate-500 italic leading-relaxed mt-0.5 whitespace-pre-wrap">{note}</p>}
     </div>
   );
 }
