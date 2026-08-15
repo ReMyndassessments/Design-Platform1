@@ -821,6 +821,9 @@ export const CONSENT_FORM_V2: FormQuestion[] = [
     optionsKorean: ["예", "아니오"],
     domain: "consent",
     required: true,
+    links: [
+      { text: "Children's Personal Information Protection Policy", url: "/privacy/children" },
+    ],
     conditionalOn: "student_dob",
     conditionalType: "under_14",
   },
