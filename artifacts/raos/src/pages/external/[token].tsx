@@ -558,7 +558,21 @@ function ConsentItem({ q, language, value, onChange }: { q: Question; language: 
       value === "No" ? "border-red-200 bg-red-50/50" :
       "border-slate-200 bg-slate-50/50"
     )}>
-      <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{label}</p>
+      {label.includes('•') ? (() => {
+        const bulletIdx = label.indexOf('•');
+        const intro = label.slice(0, bulletIdx).replace(/\n+$/, '').trim();
+        const items = label.slice(bulletIdx).split('•').map(s => s.replace(/\n/g, ' ').trim()).filter(Boolean);
+        return (
+          <div className="space-y-2">
+            {intro && <p className="text-sm text-slate-700 leading-relaxed font-medium">{intro}</p>}
+            <ul className="list-disc list-outside pl-5 space-y-1">
+              {items.map((item, i) => (
+                <li key={i} className="text-sm text-slate-700 leading-relaxed">{item}</li>
+              ))}
+            </ul>
+          </div>
+        );
+      })() : <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{label}</p>}
       {q.links && q.links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {q.links.map(link => (
