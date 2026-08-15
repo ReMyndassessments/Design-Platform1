@@ -530,6 +530,7 @@ function SignatureField({ q, language, value, onChange }: { q: Question; languag
 const CONSENT_NO_MESSAGES: Record<string, string> = {
   consent_authority: "This form must be completed by a parent, legal guardian or other person with legal authority to provide consent. Please contact ReMynd at ne_roberts@yahoo.com.",
   consent_authorization: "The assessment cannot proceed without authorization. Please contact ReMynd at ne_roberts@yahoo.com if you have questions.",
+  consent_ai: "AI-assisted documentation is part of the ReMynd assessment process. Please contact ReMynd at ne_roberts@yahoo.com if you have questions about how AI tools are used.",
   consent_sensitive: "This assessment requires certain sensitive personal information. Please contact ReMynd at ne_roberts@yahoo.com to discuss whether a more limited service is possible.",
   consent_under14: "Guardian consent for a child under 14 is required. Please contact ReMynd at ne_roberts@yahoo.com.",
   consent_teachers: "Some assessments may be limited or may be unable to proceed without teacher information. ReMynd will contact you if clarification is required.",
@@ -541,7 +542,7 @@ const CONSENT_NO_MESSAGES: Record<string, string> = {
 // Consent fields whose "No" response blocks final submission.
 const CONSENT_BLOCKING_IDS = new Set([
   "consent_1", "consent_2", "consent_3", "consent_4", // V1 legacy
-  "consent_authority", "consent_authorization", "consent_sensitive",
+  "consent_authority", "consent_authorization", "consent_ai", "consent_sensitive",
   "consent_under14", "consent_privacy_ack", "consent_final",
 ]);
 
@@ -653,7 +654,7 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
 // V2 IDs are the new PIPL-compliant consent fields.
 const CONSENT_IDS = [
   "consent_1", "consent_2", "consent_3", "consent_4",
-  "consent_authority", "consent_authorization", "consent_sensitive", "consent_under14",
+  "consent_authority", "consent_authorization", "consent_ai", "consent_sensitive", "consent_under14",
   "consent_teachers", "consent_school_records", "consent_privacy_ack", "consent_final",
 ];
 

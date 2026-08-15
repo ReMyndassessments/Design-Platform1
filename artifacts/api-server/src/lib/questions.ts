@@ -760,6 +760,16 @@ export const CONSENT_FORM_V2: FormQuestion[] = [
     required: true,
   },
 
+  // ── AI-ASSISTED DOCUMENTATION ────────────────────────────────────────────
+  {
+    id: "consent_ai",
+    text: "I understand and separately consent to ReMynd Student Services using approved, access-controlled artificial intelligence tools to assist qualified professionals in organizing and summarizing assessment information, identifying information for professional review, and preparing clear written documentation for families.\n\nI understand that AI-generated content may contain errors and will not be treated as a final assessment decision. All AI-assisted content will be reviewed, corrected where necessary, and approved by an authorized ReMynd professional before being included in any final report.\n\nReMynd will limit the information provided to these services to what is reasonably necessary, remove or replace direct identifiers whenever practicable, and apply appropriate confidentiality and security safeguards. Identifiable student information will not knowingly be used to train public or general-purpose AI models.\n\nI understand that, despite these safeguards, no electronic processing or transmission method can be guaranteed to be completely risk-free.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+
   // ── SENSITIVE PERSONAL INFORMATION ────────────────────────────────────────
   {
     id: "section_sensitive",
