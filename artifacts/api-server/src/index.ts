@@ -4,7 +4,7 @@ import { setupWatchAlong } from "./lib/watchAlong.js";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import type { ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM } from "./lib/questions.js";
+import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM, CONSENT_FORM_V2 } from "./lib/questions.js";
 import { RPPI_FORM_ITEMS, RPPI_SCORING_CONFIG } from "./lib/rppi.js";
 import { RDA_SCORING_CONFIG } from "./lib/rda.js";
 import { RRFA_SCORING_CONFIG } from "./lib/rrfa.js";
@@ -293,14 +293,16 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
   },
   {
     id: "CONSENT",
-    name: "ReMynd Parental Consent Form",
+    // CONSENT-PIPL-CORE-V1: updated form with separated consent fields, PIPL compliance, and guardian identification.
+    // Previous form (CONSENT_FORM) is preserved for historical submissions via form_items_snapshot on each assignment.
+    name: "ReMynd Student Assessment — Parent/Guardian Consent Form",
     category: "ReMynd Admin Forms",
-    description: "Bilingual parental consent form covering assessment, data privacy, and AI usage",
+    description: "Parent/Guardian Consent Form (CONSENT-PIPL-CORE-V1): separates sensitive-information consent, identifies consenting guardian, and supports PIPL compliance programme.",
     isRemyndOwned: true,
     respondentTypes: ["parent"],
     scoringType: "manual",
     domains: [],
-    formItems: CONSENT_FORM,
+    formItems: CONSENT_FORM_V2,
   },
   {
     id: "INTAKE",

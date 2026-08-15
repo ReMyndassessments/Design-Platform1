@@ -627,7 +627,8 @@ router.post("/external/form/:token/submit", async (req, res) => {
     const consentStudentName = [consentFirstName, consentLastName].filter(Boolean).join(" ") || "Referral Pending";
     const consentDob         = consentAnswers.student_dob   || "TBD";
     const consentGuardian    = consentAnswers.guardian_name  || undefined;
-    const consentEmail       = consentAnswers.student_email  || undefined;
+    // guardian_email is the V2 field; student_email is the V1 field (preserved for historical submissions)
+    const consentEmail       = consentAnswers.guardian_email || consentAnswers.student_email || undefined;
 
     // Create the case
     const caseId = nanoid();

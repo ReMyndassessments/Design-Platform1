@@ -25,9 +25,13 @@ type Question = {
   required?: boolean;
   conditionalOn?: string;
   conditionalValue?: string;
+  /** Special conditional logic type. "under_14" = show only when student_dob is < 14 years ago. */
+  conditionalType?: string;
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
+  /** Clickable links rendered below the label/note. */
+  links?: Array<{ text: string; url: string }>;
 };
 
 type PortalForm = {
@@ -307,9 +311,26 @@ function SectionHeader({ q, language }: { q: Question; language: string }) {
     <div className="pt-6 pb-1">
       <div className="flex items-stretch gap-3">
         <div className="w-1 rounded-full bg-primary flex-shrink-0" />
-        <div>
+        <div className="space-y-1.5">
           <h2 className="text-base font-bold text-slate-900 tracking-tight">{label}</h2>
-          {note && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{note}</p>}
+          {note && (
+            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{note}</p>
+          )}
+          {q.links && q.links.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-0.5">
+              {q.links.map(link => (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                >
+                  {link.text} ↗
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -505,10 +526,30 @@ function SignatureField({ q, language, value, onChange }: { q: Question; languag
   );
 }
 
+// Per-field messages shown when "No" is selected on a consent item.
+const CONSENT_NO_MESSAGES: Record<string, string> = {
+  consent_authority: "This form must be completed by a parent, legal guardian or other person with legal authority to provide consent. Please contact ReMynd at ne_roberts@yahoo.com.",
+  consent_authorization: "The assessment cannot proceed without authorization. Please contact ReMynd at ne_roberts@yahoo.com if you have questions.",
+  consent_sensitive: "This assessment requires certain sensitive personal information. Please contact ReMynd at ne_roberts@yahoo.com to discuss whether a more limited service is possible.",
+  consent_under14: "Guardian consent for a child under 14 is required. Please contact ReMynd at ne_roberts@yahoo.com.",
+  consent_teachers: "Some assessments may be limited or may be unable to proceed without teacher information. ReMynd will contact you if clarification is required.",
+  consent_school_records: "Some assessments may be limited without relevant school records or work samples. ReMynd will contact you if clarification is required.",
+  consent_privacy_ack: "Please review the privacy documents before completing this form. If you have questions, contact ReMynd at ne_roberts@yahoo.com.",
+  consent_final: "Please review the form and your consent selections before submitting. If you have questions, contact ReMynd at ne_roberts@yahoo.com.",
+};
+
+// Consent fields whose "No" response blocks final submission.
+const CONSENT_BLOCKING_IDS = new Set([
+  "consent_1", "consent_2", "consent_3", "consent_4", // V1 legacy
+  "consent_authority", "consent_authorization", "consent_sensitive",
+  "consent_under14", "consent_privacy_ack", "consent_final",
+]);
+
 function ConsentItem({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
   const yesLabel = language === "korean" ? "예" : language === "mandarin" ? "是" : "Yes";
   const noLabel = language === "korean" ? "아니오" : language === "mandarin" ? "否" : "No";
+  const noMsg = CONSENT_NO_MESSAGES[q.id];
   return (
     <div className={cn(
       "rounded-xl border-2 p-4 space-y-3 transition-colors",
@@ -516,7 +557,22 @@ function ConsentItem({ q, language, value, onChange }: { q: Question; language: 
       value === "No" ? "border-red-200 bg-red-50/50" :
       "border-slate-200 bg-slate-50/50"
     )}>
-      <p className="text-sm text-slate-700 leading-relaxed font-medium">{label}</p>
+      <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{label}</p>
+      {q.links && q.links.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {q.links.map(link => (
+            <a
+              key={link.url}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+            >
+              {link.text} ↗
+            </a>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2.5">
         {[{ val: "Yes", label: yesLabel }, { val: "No", label: noLabel }].map(opt => (
           <button
@@ -534,6 +590,11 @@ function ConsentItem({ q, language, value, onChange }: { q: Question; language: 
           </button>
         ))}
       </div>
+      {value === "No" && noMsg && (
+        <p className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2 leading-relaxed border border-red-100">
+          {noMsg}
+        </p>
+      )}
     </div>
   );
 }
@@ -588,14 +649,45 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
 
 // ── Question Dispatcher ───────────────────────────────────────────────────────
 
-const CONSENT_IDS = ["consent_1", "consent_2", "consent_3", "consent_4"];
+// V1 IDs retained so historical snapshots still render with styled buttons.
+// V2 IDs are the new PIPL-compliant consent fields.
+const CONSENT_IDS = [
+  "consent_1", "consent_2", "consent_3", "consent_4",
+  "consent_authority", "consent_authorization", "consent_sensitive", "consent_under14",
+  "consent_teachers", "consent_school_records", "consent_privacy_ack", "consent_final",
+];
+
+/** Returns the student's age in whole years from a date string, or null if invalid. */
+function calcAgeFromDob(dob: string): number | null {
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  return age;
+}
+
+/** Returns true if a question with conditionalType/conditionalOn should be visible given current answers. */
+function isQuestionVisible(q: Question, answers: Record<string, string | string[]>): boolean {
+  if (q.conditionalType === "under_14") {
+    const dob = answers["student_dob"];
+    if (!dob || typeof dob !== "string") return false;
+    const age = calcAgeFromDob(dob);
+    return age !== null && age < 14;
+  }
+  if (q.conditionalOn && !q.conditionalType) {
+    return answers[q.conditionalOn] === q.conditionalValue;
+  }
+  return true;
+}
 
 function QuestionField({ q, language, answers, setAnswer }: {
   q: Question; language: string;
   answers: Record<string, string | string[]>;
   setAnswer: (id: string, val: string | string[]) => void;
 }) {
-  if (q.conditionalOn && answers[q.conditionalOn] !== q.conditionalValue) return null;
+  if (!isQuestionVisible(q, answers)) return null;
 
   const val = answers[q.id];
   const strVal = typeof val === "string" ? val : "";
@@ -632,7 +724,7 @@ function FormIcon({ formType }: { formType: string }) {
 
 function getFormLabel(formType: string) {
   if (formType === "REFERRAL") return "Student Referral";
-  if (formType === "CONSENT")  return "Parental Consent";
+  if (formType === "CONSENT")  return "Parent/Guardian Consent Form";
   if (formType === "INTAKE")   return "Parent Intake";
   return "Assessment Screener";
 }
@@ -2440,8 +2532,7 @@ function FormView({
     if (!form) return [];
     return (form.questions as Question[]).filter(q => {
       if (q.type === "section_header" || !q.required) return false;
-      if (q.conditionalOn && answers[q.conditionalOn] !== q.conditionalValue) return false;
-      return true;
+      return isQuestionVisible(q, answers);
     });
   }, [form, answers]);
 
@@ -2468,6 +2559,17 @@ function FormView({
       setValidationError(`Please complete all required fields — ${missing.length} remaining.`);
       document.getElementById(`q-${missing[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
+    }
+    // For CONSENT forms: block submission when a required consent clause received "No".
+    if (form?.formType === "CONSENT") {
+      const visibleQuestions = (form.questions as Question[]).filter(q => isQuestionVisible(q, answers));
+      const blocked = visibleQuestions.find(q => CONSENT_BLOCKING_IDS.has(q.id) && answers[q.id] === "No");
+      if (blocked) {
+        const msg = CONSENT_NO_MESSAGES[blocked.id] || "Please review your consent selections before submitting.";
+        setValidationError(msg);
+        document.getElementById(`q-${blocked.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
     }
     const serialized: Record<string, string> = {};
     Object.entries(answers).forEach(([k, v]) => { serialized[k] = Array.isArray(v) ? v.join(", ") : v; });

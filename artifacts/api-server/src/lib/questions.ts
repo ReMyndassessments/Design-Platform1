@@ -12,10 +12,14 @@ export interface FormQuestion {
   required?: boolean;
   conditionalOn?: string;
   conditionalValue?: string;
+  /** Special conditional logic type. "under_14" = show only when student_dob < 14 years ago. */
+  conditionalType?: string;
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
   reversed?: boolean;
+  /** Clickable links rendered below the label/note (used on section headers and consent items). */
+  links?: Array<{ text: string; url: string }>;
 }
 
 const LIKERT_OPTIONS = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
@@ -598,6 +602,274 @@ export const CONSENT_FORM: FormQuestion[] = [
     noteKorean: "이 상자에 이름을 기재함으로써, 귀하는 이 동의서의 정보가 사실이고 유효함에 동의하며, 위에 명시된 학생이 평가를 받는 것에 동의합니다.",
     domain: "consent",
     required: true,
+  },
+  {
+    id: "consent_date",
+    text: "Date",
+    textChinese: "日期",
+    textKorean: "날짜",
+    type: "date",
+    domain: "consent",
+    required: true,
+  },
+];
+
+// ─── CONSENT FORM V2 (CONSENT-PIPL-CORE-V1) ────────────────────────────────────
+// Previous version (CONSENT_FORM above) is preserved for historical submissions.
+// New assignments use this version. Existing assignments retain their form_items_snapshot.
+export const CONSENT_FORM_V2: FormQuestion[] = [
+  // ── INTRODUCTORY NOTICE ────────────────────────────────────────────────────
+  {
+    id: "consent_intro",
+    text: "About This Form",
+    note: "ReMynd Student Services provides educational assessment, consultation, reporting and student-support planning services.\n\nThe assessment may require ReMynd to collect and process personal information about the student, including educational records, assessment responses, scores, work samples, teacher and parent questionnaires, behavioral observations, and relevant learning, developmental, social-emotional or health-related information.\n\nSome of this information may be classified as sensitive personal information, particularly when it concerns a child under 14.\n\nPlease review the ReMynd Privacy Notice before providing consent. Questions about privacy, personal information or the assessment process may be directed to Noel Roberts, ReMynd Student Services — ne_roberts@yahoo.com",
+    type: "section_header",
+    domain: "intro",
+    links: [{ text: "ReMynd Privacy Notice", url: "/privacy-policy" }],
+  },
+
+  // ── STUDENT INFORMATION ────────────────────────────────────────────────────
+  {
+    id: "section_student",
+    text: "Student Information",
+    textChinese: "学生信息",
+    textKorean: "학생 정보",
+    type: "section_header",
+    domain: "student",
+  },
+  {
+    id: "student_first_name",
+    text: "First/Given Name of Student",
+    textChinese: "学生名字",
+    textKorean: "학생 이름",
+    type: "text",
+    domain: "student",
+    required: true,
+  },
+  {
+    id: "student_last_name",
+    text: "Last/Family Name of Student",
+    textChinese: "学生姓氏",
+    textKorean: "학생 성",
+    type: "text",
+    domain: "student",
+    required: true,
+  },
+  {
+    id: "student_dob",
+    text: "Student's Date of Birth",
+    textChinese: "学生出生日期",
+    textKorean: "학생 생년월일",
+    type: "date",
+    domain: "student",
+    required: true,
+  },
+  {
+    id: "student_school",
+    text: "Student's School",
+    textChinese: "就读学校",
+    textKorean: "학생 재학 학교",
+    type: "text",
+    domain: "student",
+    required: true,
+  },
+  {
+    id: "student_grade",
+    text: "Student's Current Grade/Year Level",
+    textChinese: "当前年级",
+    textKorean: "현재 학년",
+    type: "text",
+    domain: "student",
+    required: true,
+  },
+
+  // ── PARENT/GUARDIAN INFORMATION ────────────────────────────────────────────
+  {
+    id: "section_guardian",
+    text: "Parent/Guardian Information",
+    textChinese: "家长／监护人信息",
+    textKorean: "부모/보호자 정보",
+    type: "section_header",
+    domain: "guardian",
+  },
+  {
+    id: "guardian_name_input",
+    text: "Name of Parent or Legal Guardian",
+    textChinese: "家长或法定监护人姓名",
+    textKorean: "부모 또는 법정 보호자 이름",
+    type: "text",
+    domain: "guardian",
+    required: true,
+  },
+  {
+    id: "guardian_email",
+    text: "Parent or Legal Guardian Email Address",
+    textChinese: "家长或法定监护人电子邮件地址",
+    textKorean: "부모 또는 법정 보호자 이메일 주소",
+    type: "text",
+    domain: "guardian",
+    required: true,
+  },
+  {
+    id: "guardian_relationship",
+    text: "Relationship to the Student",
+    textChinese: "与学生的关系",
+    textKorean: "학생과의 관계",
+    type: "select",
+    domain: "guardian",
+    required: true,
+    options: ["Mother", "Father", "Legal guardian", "Other person with legal authority to provide consent"],
+    optionsChinese: ["母亲", "父亲", "法定监护人", "其他具有法律授权提供同意的人士"],
+    optionsKorean: ["어머니", "아버지", "법정 보호자", "동의를 제공할 법적 권한이 있는 기타 인물"],
+  },
+  {
+    id: "guardian_relationship_other",
+    text: "Please describe your relationship or authority to provide consent.",
+    textChinese: "请描述您与学生的关系或您提供同意的法律授权。",
+    textKorean: "학생과의 관계 또는 동의를 제공할 법적 권한을 설명해 주세요.",
+    type: "text",
+    domain: "guardian",
+    required: true,
+    conditionalOn: "guardian_relationship",
+    conditionalValue: "Other person with legal authority to provide consent",
+  },
+
+  // ── ASSESSMENT AUTHORIZATION ───────────────────────────────────────────────
+  {
+    id: "section_authorization",
+    text: "Assessment Authorization",
+    textChinese: "评估授权",
+    textKorean: "평가 승인",
+    type: "section_header",
+    domain: "consent",
+  },
+  {
+    id: "consent_authority",
+    text: "I confirm that I am the student's parent or legal guardian, or that I otherwise have the legal authority to authorize the student's participation and provide consent for the processing of the student's personal information.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+  {
+    id: "consent_authorization",
+    text: "I authorize the above-named student to participate in the ReMynd educational assessment described to me. I understand the purpose and general process of the assessment and have had an opportunity to ask questions. I understand that ReMynd's educational assessment does not, by itself, constitute a medical or psychiatric diagnosis or a formal determination of statutory special-education eligibility.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+
+  // ── SENSITIVE PERSONAL INFORMATION ────────────────────────────────────────
+  {
+    id: "section_sensitive",
+    text: "Sensitive Personal Information",
+    textChinese: "敏感个人信息",
+    textKorean: "민감한 개인정보",
+    type: "section_header",
+    domain: "consent",
+  },
+  {
+    id: "consent_sensitive",
+    text: "I separately consent to ReMynd collecting and processing sensitive personal information that is reasonably necessary to conduct the authorized assessment.\n\nDepending on the assessment, this may include: educational and school information; assessment responses and scores; student work samples; teacher, parent and student questionnaires; behavioral and assessment-session observations; learning and developmental information; social-emotional or wellbeing information; relevant disability-related or health-related information provided to ReMynd; and the personal information of a child under 14.\n\nI understand that this information will be used to conduct the assessment, interpret the findings, prepare the assessment report, develop educational recommendations, complete professional quality review, and provide the agreed debrief and support planning.\n\nReMynd will limit access to authorized personnel and apply appropriate confidentiality and security protections.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+  {
+    id: "consent_under14",
+    text: "I understand that the personal information of a child under 14 is treated as sensitive personal information under China's Personal Information Protection Law. As the child's parent or legal guardian, I consent to ReMynd processing the child's personal information for the assessment and support purposes described in this form and in ReMynd's Children's Personal Information Protection Policy.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+    conditionalOn: "student_dob",
+    conditionalType: "under_14",
+  },
+
+  // ── TEACHER AND SCHOOL INFORMATION ────────────────────────────────────────
+  {
+    id: "section_teacher",
+    text: "Teacher and School Information",
+    textChinese: "教师与学校信息",
+    textKorean: "교사 및 학교 정보",
+    type: "section_header",
+    domain: "consent",
+  },
+  {
+    id: "consent_teachers",
+    text: "I authorize ReMynd to invite the student's relevant teachers or school professionals to complete questionnaires, rating scales, interviews or observational forms needed for the assessment. I understand that ReMynd will request only information reasonably relevant to the assessment.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+  {
+    id: "consent_school_records",
+    text: "I authorize the student's school or the school professionals identified for this assessment to provide ReMynd with relevant educational records, previous reports, intervention information, work samples and other materials reasonably necessary for the assessment. This authorization does not provide ReMynd with unrestricted access to the student's complete school record.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+
+  // ── PRIVACY ACKNOWLEDGEMENT ────────────────────────────────────────────────
+  {
+    id: "section_privacy",
+    text: "Privacy Acknowledgement",
+    textChinese: "隐私声明确认",
+    textKorean: "개인정보 고지 확인",
+    type: "section_header",
+    domain: "consent",
+  },
+  {
+    id: "consent_privacy_ack",
+    text: "I confirm that I have been given access to the ReMynd Privacy Notice and, where applicable, the Children's Personal Information Protection Policy.\n\nI understand that these documents explain: what personal information ReMynd collects; why the information is needed; how the information may be used; who may receive or access the information; where the information is stored; how long it may be retained; how ReMynd protects the information; how I may request access, correction, withdrawal of consent or deletion where applicable; and how I may submit a privacy question or complaint.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+    links: [{ text: "ReMynd Privacy Notice", url: "/privacy-policy" }],
+  },
+
+  // ── ADDITIONAL CONSENTS NOTICE (informational — no input) ─────────────────
+  {
+    id: "consent_additional_notice",
+    text: "Additional Consents",
+    note: "Recording an assessment session, sending personal information to an external AI provider, processing information outside mainland China, or releasing the completed report to a school or another recipient are not authorized by this core form.\n\nWhere applicable, ReMynd will request separate consent before undertaking those activities.",
+    type: "section_header",
+    domain: "consent",
+  },
+
+  // ── CONFIRMATION AND SIGNATURE ─────────────────────────────────────────────
+  {
+    id: "section_confirmation",
+    text: "Confirmation and Signature",
+    textChinese: "确认与签名",
+    textKorean: "확인 및 서명",
+    type: "section_header",
+    domain: "consent",
+  },
+  {
+    id: "consent_final",
+    text: "I confirm that:\n\n• I have read and understood this form.\n• I have had an opportunity to ask questions.\n• I understand the purpose and general process of the assessment.\n• The information I have provided is accurate to the best of my knowledge.\n• I understand that I may contact ReMynd to withdraw consent.\n• Withdrawal will not invalidate processing lawfully completed before the withdrawal.\n• Withdrawing consent for necessary processing may mean that the assessment cannot continue.\n• I voluntarily authorize the assessment and the processing activities to which I have agreed above.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    domain: "consent",
+    required: true,
+  },
+  {
+    id: "guardian_name",
+    text: "Parent or Legal Guardian Signature",
+    textChinese: "家长或法定监护人签名",
+    textKorean: "부모 또는 법정 보호자 서명",
+    type: "signature",
+    domain: "consent",
+    required: true,
+    note: "By writing your name in this box, you confirm your identity as the parent or legal guardian and attest to the truthfulness and validity of the information provided in this consent form.",
+    noteChinese: "在此框中填写您的姓名，即表示您确认自己作为家长或法定监护人的身份，并证明本同意书中提供的信息是真实和有效的。",
+    noteKorean: "이 상자에 이름을 기재함으로써, 귀하는 부모 또는 법정 보호자로서의 신원을 확인하고 이 동의서에 제공된 정보의 진실성과 유효성을 증명합니다.",
   },
   {
     id: "consent_date",
