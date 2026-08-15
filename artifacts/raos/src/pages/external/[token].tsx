@@ -546,6 +546,28 @@ const CONSENT_BLOCKING_IDS = new Set([
   "consent_under14", "consent_privacy_ack", "consent_final",
 ]);
 
+function ConsentLabel({ text }: { text: string }) {
+  if (!text.includes('•')) {
+    return <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{text}</p>;
+  }
+  const bulletIdx = text.indexOf('•');
+  const intro = text.slice(0, bulletIdx).replace(/\n+$/, '').trim();
+  const items = text.slice(bulletIdx).split('•').map(s => s.replace(/\n/g, ' ').trim()).filter(Boolean);
+  return (
+    <div className="space-y-2">
+      {intro && <p className="text-sm text-slate-700 leading-relaxed font-medium">{intro}</p>}
+      <ul className="space-y-1 pl-1">
+        {items.map((item, i) => (
+          <li key={i} className="flex gap-2 text-sm text-slate-700 leading-relaxed">
+            <span className="mt-0.5 shrink-0">•</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ConsentItem({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label } = useText(q, language);
   const yesLabel = language === "korean" ? "예" : language === "mandarin" ? "是" : "Yes";
@@ -558,21 +580,7 @@ function ConsentItem({ q, language, value, onChange }: { q: Question; language: 
       value === "No" ? "border-red-200 bg-red-50/50" :
       "border-slate-200 bg-slate-50/50"
     )}>
-      {label.includes('•') ? (() => {
-        const bulletIdx = label.indexOf('•');
-        const intro = label.slice(0, bulletIdx).replace(/\n+$/, '').trim();
-        const items = label.slice(bulletIdx).split('•').map(s => s.replace(/\n/g, ' ').trim()).filter(Boolean);
-        return (
-          <div className="space-y-2">
-            {intro && <p className="text-sm text-slate-700 leading-relaxed font-medium">{intro}</p>}
-            <ul className="list-disc list-outside pl-5 space-y-1">
-              {items.map((item, i) => (
-                <li key={i} className="text-sm text-slate-700 leading-relaxed">{item}</li>
-              ))}
-            </ul>
-          </div>
-        );
-      })() : <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{label}</p>}
+      <ConsentLabel text={label} />
       {q.links && q.links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {q.links.map(link => (
