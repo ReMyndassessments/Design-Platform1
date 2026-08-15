@@ -22,6 +22,7 @@ type Question = {
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
+  links?: Array<{ text: string; url: string }>;
   rows?: Question[];
 };
 
@@ -78,12 +79,27 @@ function FieldLabel({ label, required, note }: { label: string; required?: boole
   );
 }
 
+function QuestionLinks({ q }: { q: Question }) {
+  if (!q.links || q.links.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2 mb-2">
+      {q.links.map(link => (
+        <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">
+          {link.text} ↗
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function RadioField({ q, language, value, onChange }: { q: Question; language: string; value: string; onChange: (v: string) => void }) {
   const { label, note } = useText(q, language);
   const opts = useOpts(q, language);
   return (
     <div>
       <FieldLabel label={label} required={q.required} note={note} />
+      <QuestionLinks q={q} />
       <div className="flex flex-wrap gap-2">
         {opts.map(({ value: v, display }) => (
           <button key={v} type="button" onClick={() => onChange(v)}
@@ -385,7 +401,17 @@ function PreviewQuestion({
       <div className="pt-6 pb-2">
         <div className="h-px bg-slate-200 mb-5" />
         <h2 className="text-base font-bold text-slate-800">{label}</h2>
-        {note && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{note}</p>}
+        {note && <p className="text-xs text-slate-500 mt-1 leading-relaxed whitespace-pre-wrap">{note}</p>}
+        {q.links && q.links.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-1.5">
+            {q.links.map(link => (
+              <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">
+                {link.text} ↗
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
