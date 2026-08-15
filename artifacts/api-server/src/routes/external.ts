@@ -43,6 +43,9 @@ type StoredFormItem = {
   note?: string;
   noteChinese?: string;
   noteKorean?: string;
+  links?: Array<{ text: string; url: string }>;
+  conditionalOn?: string;
+  conditionalType?: string;
 };
 
 async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
@@ -68,6 +71,9 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
       note: item.note,
       noteChinese: item.noteChinese,
       noteKorean: item.noteKorean,
+      links: item.links,
+      conditionalOn: item.conditionalOn,
+      conditionalType: item.conditionalType,
     }));
   }
 
@@ -521,6 +527,9 @@ router.get("/external/form/:token", async (req, res) => {
         note: item.note,
         noteChinese: item.noteChinese,
         noteKorean: item.noteKorean,
+        links: item.links,
+        conditionalOn: item.conditionalOn,
+        conditionalType: item.conditionalType,
       }));
     } catch {
       questions = await resolveQuestions(toolId);

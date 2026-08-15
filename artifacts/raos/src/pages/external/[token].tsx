@@ -296,11 +296,11 @@ function useOption(opts: string[], optsCn: string[] | undefined, language: strin
 function FieldLabel({ label, required, note }: { label: string; required?: boolean; note?: string }) {
   return (
     <div className="mb-2.5">
-      <p className="text-[15px] font-semibold text-slate-800 leading-snug">
+      <p className="text-[15px] font-semibold text-slate-800 leading-snug whitespace-pre-wrap">
         {label}
         {required && <span className="text-red-500 ml-1 font-normal">*</span>}
       </p>
-      {note && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{note}</p>}
+      {note && <p className="text-xs text-slate-500 mt-1 leading-relaxed whitespace-pre-wrap">{note}</p>}
     </div>
   );
 }
