@@ -1617,6 +1617,33 @@ router.post("/external/payments/webhook", async (req, res) => {
     const intentId = (data["id"] ?? data["payment_intent_id"]) as string | undefined;
     if (!intentId) { res.json({ status: "ok" }); return; }
 
+    // Check workshop payment intents first
+    const workshopIntentRows = await db.execute(sql`SELECT * FROM workshop_payment_intents WHERE id = ${intentId} LIMIT 1`);
+    if (workshopIntentRows.rows.length > 0) {
+      const wi = workshopIntentRows.rows[0] as Record<string, unknown>;
+      if (wi["status"] !== "succeeded") {
+        await db.execute(sql`UPDATE workshop_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intentId}`);
+        await db.execute(sql`UPDATE workshop_registrations SET payment_status = 'paid', status = 'registered', updated_at = NOW() WHERE id = ${wi["registration_id"]}`);
+        // Send confirmation async
+        (async () => {
+          try {
+            const regRes = await db.execute(sql`SELECT wr.*, w.title, w.subtitle, w.session_dates, w.timezone, w.delivery_method, w.venue_info, w.contact_email, w.is_free FROM workshop_registrations wr JOIN workshops w ON w.id = wr.workshop_id WHERE wr.id = ${wi["registration_id"]}`);
+            if (regRes.rows.length) {
+              const reg = regRes.rows[0] as any;
+              const workshop = { title: reg.title, subtitle: reg.subtitle, session_dates: reg.session_dates, timezone: reg.timezone, delivery_method: reg.delivery_method, venue_info: reg.venue_info, contact_email: reg.contact_email, is_free: false };
+              const { sendEmail } = await import("../lib/outlookEmail.js");
+              const sessions = Array.isArray(reg.session_dates) ? reg.session_dates : [];
+              const dateStr = sessions.map((s: any) => `${s.date}${s.start_time ? ` ${s.start_time}–${s.end_time ?? ''}` : ''}`).join('; ') || 'Dates TBC';
+              const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff"><div style="background:#0f172a;padding:28px 32px;border-radius:12px 12px 0 0"><p style="margin:0 0 6px;font-size:11px;letter-spacing:.1em;color:#94a3b8;text-transform:uppercase;font-weight:600">ReMynd Student Services</p><h1 style="margin:0;color:#fff;font-size:20px;font-weight:700">Registration Confirmed — ${workshop.title}</h1></div><div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px"><p style="margin:0 0 16px;color:#0f172a;font-size:15px">Dear ${reg.first_name},</p><p style="margin:0 0 16px;color:#334155;font-size:14px;line-height:1.7">Your payment has been confirmed. You are registered for <strong>${workshop.title}</strong>.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:20px 0"><p style="margin:0 0 4px;font-size:14px;color:#0f172a"><strong>Date:</strong> ${dateStr}</p></div>${workshop.contact_email ? `<p style="margin:16px 0;color:#334155;font-size:14px">Questions? <a href="mailto:${workshop.contact_email}" style="color:#0ea5e9">${workshop.contact_email}</a></p>` : ''}</div></div>`;
+              await sendEmail({ to: reg.email, subject: `Registration Confirmed — ${workshop.title}`, html });
+              await db.execute(sql`UPDATE workshop_registrations SET confirmation_email_status = 'sent', confirmation_email_sent_at = NOW() WHERE id = ${wi["registration_id"]}`);
+            }
+          } catch {}
+        })();
+      }
+      res.json({ status: "ok" }); return;
+    }
+
     const intentRows = await db.execute(sql`
       SELECT case_id, plan, status FROM lsc_payment_intents WHERE id = ${intentId} LIMIT 1
     `);

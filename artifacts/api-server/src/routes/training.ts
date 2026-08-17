@@ -460,4 +460,353 @@ router.get("/training/registrations/export/csv", authMiddleware, requireAdmin, a
   }
 });
 
+// ============================================================
+//  WORKSHOP BUILDER
+// ============================================================
+
+function makeSlug(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 80);
+}
+
+async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+  let slug = baseSlug;
+  let counter = 0;
+  while (true) {
+    const existing = excludeId
+      ? await db.execute(sql`SELECT id FROM workshops WHERE slug = ${slug} AND id != ${excludeId}`)
+      : await db.execute(sql`SELECT id FROM workshops WHERE slug = ${slug}`);
+    if (existing.rows.length === 0) return slug;
+    counter++;
+    slug = `${baseSlug}-${counter}`;
+  }
+}
+
+async function sendWorkshopConfirmation(reg: { id: string; first_name: string; last_name: string; email: string }, workshop: any): Promise<void> {
+  const sessions: any[] = Array.isArray(workshop.session_dates) ? workshop.session_dates : [];
+  const dateStr = sessions.length
+    ? sessions.map((s: any) => `${s.date}${s.start_time ? ` ${s.start_time}–${s.end_time ?? ''}` : ''}`).join('; ')
+    : 'Dates to be confirmed';
+
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
+  <div style="background:#0f172a;padding:28px 32px;border-radius:12px 12px 0 0">
+    <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:0.1em;color:#94a3b8;text-transform:uppercase;font-weight:600">ReMynd Student Services</p>
+    <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700">You're Registered — ${workshop.title}</h1>
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:32px">
+    <p style="margin:0 0 16px 0;color:#0f172a;font-size:15px">Dear ${reg.first_name},</p>
+    <p style="margin:0 0 16px 0;color:#334155;font-size:14px;line-height:1.7">Thank you for registering for <strong>${workshop.title}</strong>${workshop.subtitle ? ` — ${workshop.subtitle}` : ''}.</p>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:20px 0">
+      ${dateStr ? `<p style="margin:0 0 4px 0;font-size:14px;color:#0f172a"><strong>Date:</strong> ${dateStr}</p>` : ''}
+      ${workshop.timezone ? `<p style="margin:0 0 4px 0;font-size:14px;color:#0f172a"><strong>Time zone:</strong> ${workshop.timezone}</p>` : ''}
+      ${workshop.delivery_method ? `<p style="margin:0 0 4px 0;font-size:14px;color:#0f172a"><strong>Delivery:</strong> ${workshop.delivery_method}</p>` : ''}
+      ${workshop.venue_info ? `<p style="margin:0;font-size:14px;color:#0f172a"><strong>Venue:</strong> ${workshop.venue_info}</p>` : ''}
+    </div>
+    ${workshop.contact_email ? `<p style="margin:16px 0;color:#334155;font-size:14px">Questions? <a href="mailto:${workshop.contact_email}" style="color:#0ea5e9">${workshop.contact_email}</a></p>` : ''}
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0">
+    <p style="margin:0;font-size:12px;color:#94a3b8;font-style:italic;text-align:center">ReMynd Student Services — <a href="https://remyndassessments.com" style="color:#0ea5e9;text-decoration:none">remyndassessments.com</a></p>
+  </div>
+</div>`;
+
+  await sendEmail({ to: reg.email, subject: `You're Registered — ${workshop.title}`, html });
+}
+
+// ── PUBLIC: Workshop image proxy ──────────────────────────────────────────────
+router.get("/training/workshops/public/:slug/image", async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT image_object_id FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);
+    if (!result.rows.length || !(result.rows[0] as any).image_object_id) return res.status(404).end();
+    const objectId = (result.rows[0] as any).image_object_id;
+    const { ObjectStorageService } = await import("../lib/objectStorage.js");
+    const service = new ObjectStorageService();
+    const file = await service.getObjectEntityFile(objectId);
+    const upstream = await service.downloadObject(file);
+    const ct = upstream.headers.get('content-type') ?? 'image/jpeg';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    res.end(buf);
+  } catch { res.status(404).end(); }
+});
+
+// ── PUBLIC: Workshop page data ────────────────────────────────────────────────
+router.get("/training/workshops/public/:slug", async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);
+    if (!result.rows.length) return res.status(404).json({ error: "Workshop not found" });
+    const workshop = result.rows[0] as any;
+    const countRes = await db.execute(sql`SELECT COUNT(*)::int AS total FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND status != 'cancelled'`);
+    workshop.registration_count = (countRes.rows[0] as any).total;
+    return res.json({ workshop });
+  } catch (err) {
+    logger.error({ err }, "Failed to get public workshop");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── PUBLIC: Register ──────────────────────────────────────────────────────────
+router.post("/training/workshops/public/:slug/register", async (req, res) => {
+  try {
+    const { first_name, last_name, email, professional_role, school_name, country, phone, privacy_consent } = req.body;
+    if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
+    if (!privacy_consent) return res.status(400).json({ error: "Privacy consent is required" });
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email.trim())) return res.status(400).json({ error: "Invalid email address" });
+
+    const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
+    if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not open for registration" });
+    const workshop = workshopRes.rows[0] as any;
+
+    if (workshop.registration_closes_at && new Date(workshop.registration_closes_at) < new Date()) {
+      return res.status(400).json({ error: "Registration has closed" });
+    }
+    if (workshop.max_participants) {
+      const cnt = await db.execute(sql`SELECT COUNT(*)::int AS total FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND status != 'cancelled'`);
+      if ((cnt.rows[0] as any).total >= workshop.max_participants) return res.status(400).json({ error: "This workshop is full" });
+    }
+    const normalEmail = email.trim().toLowerCase();
+    const dup = await db.execute(sql`SELECT id FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND email = ${normalEmail}`);
+    if (dup.rows.length) return res.status(409).json({ error: "You are already registered for this workshop", id: (dup.rows[0] as any).id });
+
+    const regId = nanoid();
+    const paymentStatus = workshop.is_free ? 'free' : 'pending';
+    const regStatus = workshop.is_free ? 'registered' : 'pending_payment';
+
+    await db.execute(sql`INSERT INTO workshop_registrations
+      (id, workshop_id, first_name, last_name, email, professional_role, school_name, country, phone,
+       privacy_consent, privacy_consent_timestamp, payment_status, status, created_at, updated_at)
+      VALUES (${regId}, ${workshop.id}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail},
+        ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${country?.trim() ?? null},
+        ${phone?.trim() ?? null}, TRUE, NOW(), ${paymentStatus}, ${regStatus}, NOW(), NOW())`);
+
+    if (workshop.is_free) {
+      (async () => {
+        try {
+          const reg = { id: regId, first_name: first_name.trim(), last_name: last_name.trim(), email: normalEmail };
+          await sendWorkshopConfirmation(reg, workshop);
+          await db.execute(sql`UPDATE workshop_registrations SET confirmation_email_status = 'sent', confirmation_email_sent_at = NOW() WHERE id = ${regId}`);
+        } catch (err) {
+          logger.error({ err, regId }, "Workshop confirmation email failed");
+          await db.execute(sql`UPDATE workshop_registrations SET confirmation_email_status = 'failed' WHERE id = ${regId}`).catch(() => {});
+        }
+      })();
+      return res.status(201).json({ ok: true, id: regId, requiresPayment: false });
+    }
+    return res.status(201).json({ ok: true, id: regId, requiresPayment: true, workshopId: workshop.id });
+  } catch (err) {
+    logger.error({ err }, "Workshop registration failed");
+    return res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+// ── PUBLIC: Create Airwallex payment intent ───────────────────────────────────
+router.post("/training/workshops/public/:slug/payment/create", async (req, res) => {
+  try {
+    const { registration_id, return_url } = req.body;
+    if (!registration_id) return res.status(400).json({ error: "registration_id required" });
+    const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug}`);
+    if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not found" });
+    const workshop = workshopRes.rows[0] as any;
+    const regRes = await db.execute(sql`SELECT * FROM workshop_registrations WHERE id = ${registration_id} AND workshop_id = ${workshop.id}`);
+    if (!regRes.rows.length) return res.status(404).json({ error: "Registration not found" });
+    const reg = regRes.rows[0] as any;
+    if (reg.payment_status === 'paid') return res.json({ alreadyPaid: true });
+
+    const { createPaymentIntent, isConfigured, getEnv } = await import("../lib/airwallex.js");
+    if (!isConfigured()) return res.status(503).json({ error: "Payment not configured" });
+    const amountCents = Math.round((workshop.price ?? 0) * 100);
+    const origin = req.headers.origin ?? 'https://remyndassessments.com';
+    const intent = await createPaymentIntent({
+      amount: amountCents,
+      currency: workshop.currency ?? 'USD',
+      plan: `workshop-${workshop.id}`,
+      caseId: registration_id,
+      portalToken: registration_id,
+      returnUrl: return_url ?? `${origin}/training/${workshop.slug}?payment=complete`,
+    });
+    if (!intent) return res.status(502).json({ error: "Payment intent creation failed" });
+    await db.execute(sql`INSERT INTO workshop_payment_intents (id, workshop_id, registration_id, amount, currency, status)
+      VALUES (${intent.id}, ${workshop.id}, ${registration_id}, ${amountCents}, ${workshop.currency ?? 'USD'}, 'pending')`);
+    await db.execute(sql`UPDATE workshop_registrations SET payment_intent_id = ${intent.id} WHERE id = ${registration_id}`);
+    return res.json({ intentId: intent.id, clientSecret: intent.clientSecret, env: getEnv() });
+  } catch (err) {
+    logger.error({ err }, "Workshop payment intent failed");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── ADMIN: List workshops ─────────────────────────────────────────────────────
+router.get("/training/workshops", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT w.*,
+        (SELECT COUNT(*)::int FROM workshop_registrations r WHERE r.workshop_id = w.id AND r.status != 'cancelled') AS registration_count
+      FROM workshops w ORDER BY w.created_at DESC`);
+    return res.json({ workshops: result.rows });
+  } catch (err) {
+    logger.error({ err }, "Failed to list workshops");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── ADMIN: Create workshop ────────────────────────────────────────────────────
+router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { title, subtitle, description, additional_info, image_object_id, image_alt,
+      session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
+      registration_opens_at, registration_closes_at, max_participants,
+      is_free, price, currency, contact_email, status } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    const baseSlug = makeSlug(title.trim());
+    const slug = await ensureUniqueSlug(baseSlug);
+    const id = nanoid();
+    await db.execute(sql`INSERT INTO workshops (
+      id, slug, title, subtitle, description, additional_info, image_object_id, image_alt,
+      session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
+      registration_opens_at, registration_closes_at, max_participants,
+      is_free, price, currency, contact_email, status, created_at, updated_at
+    ) VALUES (
+      ${id}, ${slug}, ${title.trim()}, ${subtitle?.trim() ?? null}, ${description?.trim() ?? null},
+      ${additional_info ?? null}, ${image_object_id ?? null}, ${image_alt?.trim() ?? null},
+      ${JSON.stringify(session_dates ?? [])}::jsonb, ${timezone ?? 'Asia/Hong_Kong'},
+      ${delivery_method ?? 'online'}, ${venue_info?.trim() ?? null}, ${facilitator_name?.trim() ?? null},
+      ${pl_hours ?? null},
+      ${registration_opens_at ?? null}::timestamptz, ${registration_closes_at ?? null}::timestamptz,
+      ${max_participants ?? null}, ${is_free !== false}, ${price ?? null}, ${currency ?? 'USD'},
+      ${contact_email?.trim() ?? null}, ${status ?? 'draft'}, NOW(), NOW())`);
+    const created = await db.execute(sql`SELECT * FROM workshops WHERE id = ${id}`);
+    return res.status(201).json({ workshop: created.rows[0] });
+  } catch (err) {
+    logger.error({ err }, "Failed to create workshop");
+    return res.status(500).json({ error: "Failed to create workshop" });
+  }
+});
+
+// ── ADMIN: Get single workshop ────────────────────────────────────────────────
+router.get("/training/workshops/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM workshops WHERE id = ${req.params.id}`);
+    if (!result.rows.length) return res.status(404).json({ error: "Not found" });
+    return res.json({ workshop: result.rows[0] });
+  } catch (err) { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: Update workshop ────────────────────────────────────────────────────
+router.put("/training/workshops/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { title, subtitle, description, additional_info, image_object_id, image_alt,
+      session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
+      registration_opens_at, registration_closes_at, max_participants,
+      is_free, price, currency, contact_email, status } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    const baseSlug = makeSlug(title.trim());
+    const slug = await ensureUniqueSlug(baseSlug, req.params.id);
+    await db.execute(sql`UPDATE workshops SET
+      title = ${title.trim()}, slug = ${slug},
+      subtitle = ${subtitle?.trim() ?? null}, description = ${description?.trim() ?? null},
+      additional_info = ${additional_info ?? null}, image_object_id = ${image_object_id ?? null},
+      image_alt = ${image_alt?.trim() ?? null},
+      session_dates = ${JSON.stringify(session_dates ?? [])}::jsonb,
+      timezone = ${timezone ?? 'Asia/Hong_Kong'}, delivery_method = ${delivery_method ?? 'online'},
+      venue_info = ${venue_info?.trim() ?? null}, facilitator_name = ${facilitator_name?.trim() ?? null},
+      pl_hours = ${pl_hours ?? null},
+      registration_opens_at = ${registration_opens_at ?? null}::timestamptz,
+      registration_closes_at = ${registration_closes_at ?? null}::timestamptz,
+      max_participants = ${max_participants ?? null}, is_free = ${is_free !== false},
+      price = ${price ?? null}, currency = ${currency ?? 'USD'},
+      contact_email = ${contact_email?.trim() ?? null}, status = ${status ?? 'draft'},
+      updated_at = NOW()
+      WHERE id = ${req.params.id}`);
+    const updated = await db.execute(sql`SELECT * FROM workshops WHERE id = ${req.params.id}`);
+    return res.json({ workshop: updated.rows[0] });
+  } catch (err) {
+    logger.error({ err }, "Failed to update workshop");
+    return res.status(500).json({ error: "Failed to update workshop" });
+  }
+});
+
+// ── ADMIN: Publish / Unpublish ────────────────────────────────────────────────
+router.post("/training/workshops/:id/publish", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    await db.execute(sql`UPDATE workshops SET status = 'published', updated_at = NOW() WHERE id = ${req.params.id}`);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+router.post("/training/workshops/:id/unpublish", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    await db.execute(sql`UPDATE workshops SET status = 'draft', updated_at = NOW() WHERE id = ${req.params.id}`);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: Duplicate ──────────────────────────────────────────────────────────
+router.post("/training/workshops/:id/duplicate", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM workshops WHERE id = ${req.params.id}`);
+    if (!result.rows.length) return res.status(404).json({ error: "Not found" });
+    const src = result.rows[0] as any;
+    const newId = nanoid();
+    const slug = await ensureUniqueSlug(makeSlug(`${src.title} copy`));
+    await db.execute(sql`INSERT INTO workshops (
+      id, slug, title, subtitle, description, additional_info, image_object_id, image_alt,
+      session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
+      registration_opens_at, registration_closes_at, max_participants,
+      is_free, price, currency, contact_email, status, created_at, updated_at
+    ) VALUES (
+      ${newId}, ${slug}, ${src.title + ' (Copy)'}, ${src.subtitle}, ${src.description},
+      ${src.additional_info}, ${src.image_object_id}, ${src.image_alt},
+      ${JSON.stringify(src.session_dates ?? [])}::jsonb, ${src.timezone}, ${src.delivery_method},
+      ${src.venue_info}, ${src.facilitator_name}, ${src.pl_hours},
+      ${null}::timestamptz, ${null}::timestamptz, ${src.max_participants},
+      ${src.is_free}, ${src.price}, ${src.currency}, ${src.contact_email}, 'draft', NOW(), NOW())`);
+    const created = await db.execute(sql`SELECT * FROM workshops WHERE id = ${newId}`);
+    return res.status(201).json({ workshop: created.rows[0] });
+  } catch (err) {
+    logger.error({ err }, "Failed to duplicate workshop");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── ADMIN: Delete workshop ────────────────────────────────────────────────────
+router.delete("/training/workshops/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    await db.execute(sql`DELETE FROM workshops WHERE id = ${req.params.id}`);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: List workshop registrations ────────────────────────────────────────
+router.get("/training/workshops/:id/registrations", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM workshop_registrations WHERE workshop_id = ${req.params.id} ORDER BY created_at DESC`);
+    return res.json({ registrations: result.rows });
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: Update workshop registration status ────────────────────────────────
+router.patch("/training/workshops/:id/registrations/:regId/status", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { status, internal_notes } = req.body;
+    await db.execute(sql`UPDATE workshop_registrations SET
+      status = COALESCE(${status ?? null}, status),
+      internal_notes = COALESCE(${internal_notes ?? null}, internal_notes),
+      updated_at = NOW()
+      WHERE id = ${req.params.regId} AND workshop_id = ${req.params.id}`);
+    return res.json({ ok: true });
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: Export workshop registrations CSV ──────────────────────────────────
+router.get("/training/workshops/:id/registrations/export/csv", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM workshop_registrations WHERE workshop_id = ${req.params.id} ORDER BY created_at DESC`);
+    const rows = result.rows as any[];
+    const cols = ["id", "first_name", "last_name", "email", "professional_role", "school_name", "country", "phone", "payment_status", "status", "confirmation_email_status", "internal_notes", "created_at"];
+    const escape = (v: any) => { if (v == null) return ""; const s = typeof v === "object" ? JSON.stringify(v) : String(v); return `"${s.replace(/"/g, '""')}"`; };
+    const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="workshop-${req.params.id}-registrations-${Date.now()}.csv"`);
+    return res.send(csv);
+  } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
 export default router;

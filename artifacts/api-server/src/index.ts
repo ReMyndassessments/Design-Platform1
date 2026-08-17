@@ -4464,6 +4464,74 @@ async function createTrainingTables() {
   }
 }
 
+async function createWorkshopTables() {
+  try {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS workshops (
+      id TEXT PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      subtitle TEXT,
+      description TEXT,
+      additional_info TEXT,
+      image_object_id TEXT,
+      image_alt TEXT,
+      session_dates JSONB NOT NULL DEFAULT '[]'::jsonb,
+      timezone TEXT NOT NULL DEFAULT 'Asia/Hong_Kong',
+      delivery_method TEXT NOT NULL DEFAULT 'online',
+      venue_info TEXT,
+      facilitator_name TEXT,
+      pl_hours NUMERIC(4,1),
+      registration_opens_at TIMESTAMPTZ,
+      registration_closes_at TIMESTAMPTZ,
+      max_participants INTEGER,
+      is_free BOOLEAN NOT NULL DEFAULT TRUE,
+      price NUMERIC(10,2),
+      currency TEXT NOT NULL DEFAULT 'USD',
+      contact_email TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS workshop_registrations (
+      id TEXT PRIMARY KEY,
+      workshop_id TEXT NOT NULL,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      professional_role TEXT,
+      school_name TEXT,
+      country TEXT,
+      phone TEXT,
+      privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+      privacy_consent_timestamp TIMESTAMPTZ,
+      payment_status TEXT NOT NULL DEFAULT 'free',
+      payment_intent_id TEXT,
+      status TEXT NOT NULL DEFAULT 'registered',
+      confirmation_email_status TEXT,
+      confirmation_email_sent_at TIMESTAMPTZ,
+      internal_notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS workshop_payment_intents (
+      id TEXT PRIMARY KEY,
+      workshop_id TEXT NOT NULL,
+      registration_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+
+    logger.info("Workshop tables ready");
+  } catch (err) {
+    logger.error({ err }, "createWorkshopTables failed");
+  }
+}
+
 async function purgeInvalidScores() {
   try {
     const result = await db.execute(sql`
@@ -4519,6 +4587,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createLscTables())
   .then(() => createComplianceTables())
   .then(() => createTrainingTables())
+  .then(() => createWorkshopTables())
   .then(() => ensureAirwallexWebhook())
   .then(() => {
   const server = app.listen(port, (err) => {
