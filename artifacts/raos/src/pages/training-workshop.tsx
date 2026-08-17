@@ -267,17 +267,21 @@ export default function WorkshopPublicPage() {
       </nav>
 
       {/* Hero */}
-      <div className="relative bg-[#0c1a2e] overflow-hidden">
-        {imageUrl && (
+      {/* Flyer image — shown prominently when present */}
+      {imageUrl && (
+        <div className="w-full bg-[#0c1a2e]">
           <img
             src={imageUrl}
             alt={workshop.image_alt ?? workshop.title}
-            className="absolute inset-0 w-full h-full object-cover opacity-35"
+            className="w-full max-h-[520px] object-contain object-top"
           />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1a2e]/60 to-[#0c1a2e]" />
-        <div className="relative z-10 max-w-5xl mx-auto px-6 py-16 md:py-20">
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
+        </div>
+      )}
+
+      {/* Title bar */}
+      <div className="bg-[#0c1a2e]">
+        <div className="max-w-5xl mx-auto px-6 py-8 md:py-10">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             {workshop.status === "published" && (
               <span className="text-[10px] font-bold uppercase tracking-widest bg-teal-500 text-white px-2.5 py-1 rounded-full">Open for Registration</span>
             )}
