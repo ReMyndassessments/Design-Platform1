@@ -102,6 +102,7 @@ export default function WorkshopPublicPage() {
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [otherWorkshops, setOtherWorkshops] = useState<Workshop[]>([]);
 
   const [step, setStep] = useState<RegStep>("form");
   const [regId, setRegId] = useState("");
@@ -124,6 +125,11 @@ export default function WorkshopPublicPage() {
       .then(d => setWorkshop(d.workshop))
       .catch(() => setLoadError("Workshop not found or not available."))
       .finally(() => setLoading(false));
+    // Fetch other published workshops for the "More Workshops" section
+    fetch(`${base}/api/training/workshops/public/list`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setOtherWorkshops((d.workshops ?? []).filter((w: Workshop) => w.slug !== slug)))
+      .catch(() => {});
   }, [slug]);
 
   // After step becomes "payment", init Airwallex
@@ -258,7 +264,7 @@ export default function WorkshopPublicPage() {
       <nav className="bg-[#0c1a2e] px-6 py-3.5 flex items-center gap-3">
         <a href="/training" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src="/images/logo-icon.png" alt="ReMynd" className="w-6 h-6 object-contain" />
           </div>
           <span className="font-bold text-white text-sm tracking-tight">ReMynd</span>
         </a>
@@ -508,8 +514,48 @@ export default function WorkshopPublicPage() {
         </div>
       </div>
 
+      {/* More Workshops */}
+      {otherWorkshops.length > 0 && (
+        <div className="max-w-5xl mx-auto px-4 md:px-6 pb-12">
+          <h2 className="text-xl font-bold text-slate-900 mb-5">More Workshops</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {otherWorkshops.map(w => {
+              const wImageUrl = w.image_object_id
+                ? `${getBaseUrl()}/api/training/workshops/public/${w.slug}/image`
+                : null;
+              const wPrice = w.is_free ? "Free" : `${CURRENCIES[w.currency] ?? ""}${w.price} ${w.currency}`;
+              return (
+                <a
+                  key={w.id}
+                  href={`/training/${w.slug}`}
+                  className="block bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
+                >
+                  {wImageUrl ? (
+                    <img src={wImageUrl} alt={w.title} className="w-full h-36 object-cover object-top group-hover:opacity-90 transition-opacity" />
+                  ) : (
+                    <div className="w-full h-36 bg-gradient-to-br from-[#0c1a2e] to-teal-900 flex items-center justify-center">
+                      <Calendar size={32} className="text-white/30" />
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <p className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 group-hover:text-teal-700 transition-colors">{w.title}</p>
+                    {w.subtitle && <p className="text-xs text-slate-500 mt-1 line-clamp-1">{w.subtitle}</p>}
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs font-semibold text-teal-600">{wPrice}</span>
+                      {w.status === "published" && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">Open</span>
+                      )}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <footer className="bg-[#0c1a2e] mt-16 px-6 py-8 text-center">
+      <footer className="bg-[#0c1a2e] mt-4 px-6 py-8 text-center">
         <p className="text-slate-400 text-xs">
           © {new Date().getFullYear()} ReMynd Student Services · <a href="/privacy" className="hover:text-slate-300 underline">Privacy Policy</a>
         </p>

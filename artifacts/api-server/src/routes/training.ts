@@ -529,6 +529,19 @@ router.get("/training/workshops/public/:slug/image", async (req, res) => {
 });
 
 // ── PUBLIC: Workshop page data ────────────────────────────────────────────────
+// ── PUBLIC: List all published workshops ─────────────────────────────────────
+router.get("/training/workshops/public/list", async (req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT id, slug, title, subtitle, image_object_id, is_free, price, currency, status,
+             session_dates, timezone, delivery_method
+      FROM workshops WHERE status IN ('published', 'full') ORDER BY created_at DESC`);
+    return res.json({ workshops: result.rows });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
 router.get("/training/workshops/public/:slug", async (req, res) => {
   try {
     const result = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);
