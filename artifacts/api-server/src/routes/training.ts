@@ -649,6 +649,9 @@ router.get("/training/workshops", authMiddleware, requireAdmin, async (req, res)
 });
 
 // ── ADMIN: Create workshop ────────────────────────────────────────────────────
+// Coerce empty strings to null (for optional timestamp/numeric fields)
+function orNull(v: any): any { return (v === "" || v === undefined) ? null : v; }
+
 router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { title, subtitle, description, additional_info, image_object_id, image_alt,
@@ -665,14 +668,14 @@ router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res
       registration_opens_at, registration_closes_at, max_participants,
       is_free, price, currency, contact_email, status, created_at, updated_at
     ) VALUES (
-      ${id}, ${slug}, ${title.trim()}, ${subtitle?.trim() ?? null}, ${description?.trim() ?? null},
-      ${additional_info ?? null}, ${image_object_id ?? null}, ${image_alt?.trim() ?? null},
+      ${id}, ${slug}, ${title.trim()}, ${orNull(subtitle?.trim())}, ${orNull(description?.trim())},
+      ${orNull(additional_info)}, ${orNull(image_object_id)}, ${orNull(image_alt?.trim())},
       ${JSON.stringify(session_dates ?? [])}::jsonb, ${timezone ?? 'Asia/Hong_Kong'},
-      ${delivery_method ?? 'online'}, ${venue_info?.trim() ?? null}, ${facilitator_name?.trim() ?? null},
-      ${pl_hours ?? null},
-      ${registration_opens_at ?? null}::timestamptz, ${registration_closes_at ?? null}::timestamptz,
-      ${max_participants ?? null}, ${is_free !== false}, ${price ?? null}, ${currency ?? 'USD'},
-      ${contact_email?.trim() ?? null}, ${status ?? 'draft'}, NOW(), NOW())`);
+      ${delivery_method ?? 'online'}, ${orNull(venue_info?.trim())}, ${orNull(facilitator_name?.trim())},
+      ${orNull(pl_hours)},
+      ${orNull(registration_opens_at)}::timestamptz, ${orNull(registration_closes_at)}::timestamptz,
+      ${orNull(max_participants)}, ${is_free !== false}, ${orNull(price)}, ${currency ?? 'USD'},
+      ${orNull(contact_email?.trim())}, ${status ?? 'draft'}, NOW(), NOW())`);
     const created = await db.execute(sql`SELECT * FROM workshops WHERE id = ${id}`);
     return res.status(201).json({ workshop: created.rows[0] });
   } catch (err) {
@@ -702,18 +705,18 @@ router.put("/training/workshops/:id", authMiddleware, requireAdmin, async (req, 
     const slug = await ensureUniqueSlug(baseSlug, req.params.id);
     await db.execute(sql`UPDATE workshops SET
       title = ${title.trim()}, slug = ${slug},
-      subtitle = ${subtitle?.trim() ?? null}, description = ${description?.trim() ?? null},
-      additional_info = ${additional_info ?? null}, image_object_id = ${image_object_id ?? null},
-      image_alt = ${image_alt?.trim() ?? null},
+      subtitle = ${orNull(subtitle?.trim())}, description = ${orNull(description?.trim())},
+      additional_info = ${orNull(additional_info)}, image_object_id = ${orNull(image_object_id)},
+      image_alt = ${orNull(image_alt?.trim())},
       session_dates = ${JSON.stringify(session_dates ?? [])}::jsonb,
       timezone = ${timezone ?? 'Asia/Hong_Kong'}, delivery_method = ${delivery_method ?? 'online'},
-      venue_info = ${venue_info?.trim() ?? null}, facilitator_name = ${facilitator_name?.trim() ?? null},
-      pl_hours = ${pl_hours ?? null},
-      registration_opens_at = ${registration_opens_at ?? null}::timestamptz,
-      registration_closes_at = ${registration_closes_at ?? null}::timestamptz,
-      max_participants = ${max_participants ?? null}, is_free = ${is_free !== false},
-      price = ${price ?? null}, currency = ${currency ?? 'USD'},
-      contact_email = ${contact_email?.trim() ?? null}, status = ${status ?? 'draft'},
+      venue_info = ${orNull(venue_info?.trim())}, facilitator_name = ${orNull(facilitator_name?.trim())},
+      pl_hours = ${orNull(pl_hours)},
+      registration_opens_at = ${orNull(registration_opens_at)}::timestamptz,
+      registration_closes_at = ${orNull(registration_closes_at)}::timestamptz,
+      max_participants = ${orNull(max_participants)}, is_free = ${is_free !== false},
+      price = ${orNull(price)}, currency = ${currency ?? 'USD'},
+      contact_email = ${orNull(contact_email?.trim())}, status = ${status ?? 'draft'},
       updated_at = NOW()
       WHERE id = ${req.params.id}`);
     const updated = await db.execute(sql`SELECT * FROM workshops WHERE id = ${req.params.id}`);
