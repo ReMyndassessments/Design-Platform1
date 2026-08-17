@@ -7,7 +7,8 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import type { Request, Response, NextFunction } from "express";
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if ((req as any).user?.role !== "admin") {
+  const role = (req as any).user?.role;
+  if (role !== "admin" && role !== "school_clinical_coordinator") {
     return res.status(403).json({ error: "Forbidden" });
   }
   return next();
