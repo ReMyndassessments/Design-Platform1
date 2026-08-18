@@ -74,6 +74,27 @@ type PortalData = {
   bobbyAiPortalCredentials?: string | null;
 };
 
+// ── Debrief date parser ───────────────────────────────────────────────────────
+// Parses the stored display string ("Monday, 17 August 2026 at 01:00 pm GMT+8")
+// or falls back to direct Date parsing for ISO strings.
+function parseDebriefDate(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  // Try direct parse first (handles ISO strings)
+  const direct = new Date(s);
+  if (!isNaN(direct.getTime())) return direct;
+  try {
+    // Strip weekday, replace " at ", normalise GMT offset (+8 → +0800)
+    const cleaned = s
+      .replace(/^[A-Za-z]+,\s*/, "")
+      .replace(" at ", " ")
+      .replace(/GMT([+-])(\d{1,2})(?::(\d{2}))?$/, (_m, sign: string, h: string, m = "00") =>
+        `${sign}${h.padStart(2, "0")}${m}`
+      );
+    const d = new Date(cleaned);
+    return isNaN(d.getTime()) ? null : d;
+  } catch { return null; }
+}
+
 // ── Phase config ──────────────────────────────────────────────────────────────
 
 const PHASES = [
@@ -1742,8 +1763,12 @@ function PortalView({
           </div>
         )}
 
-        {/* Debrief Meeting Card */}
-        {portal.debriefMeetingUrl && (
+        {/* Debrief Meeting Card — hidden once meeting time is >4 hours past */}
+        {portal.debriefMeetingUrl && (() => {
+          const d = parseDebriefDate(portal.debriefMeetingDate);
+          if (d && d.getTime() < Date.now() - 4 * 60 * 60 * 1000) return null;
+          return true;
+        })() && (
           <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
