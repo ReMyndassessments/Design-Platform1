@@ -11,116 +11,159 @@ const WORKSHOPS = [
   {
     num: 1,
     title: "Foundations & Philosophy",
-    subtitle: "Understanding the Thinking Behind the ReMynd Approach",
+    subtitle: "When a Student Is Struggling, What Are We Actually Seeing?",
     date: "Wednesday, 16 September 2026",
-    question: "How can we understand students more clearly before deciding what happens next?",
+    question: "If we can see that a student is struggling, do we actually understand what is getting in the way?",
     colour: "border-indigo-400",
     badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
     dateBg: "bg-indigo-50 text-indigo-700",
     dot: "bg-indigo-500",
-    summary: "Explore the changing educational landscape, inequities in access to specialist services, the Tier 2 assessment and intervention gap, the risks of over-pathologizing student difficulties, the distinction between educational assessment and clinical diagnosis, and ReMynd's principle of Understanding Before Labels.",
+    description: `Every educator recognizes the student who is struggling. The greater challenge is understanding why.
+
+A student may fail to complete work because the task is too difficult, because they cannot organize how to begin, because academic language is creating a barrier, because they are overwhelmed by mistakes, or because several factors are interacting at once.
+
+This foundational workshop explores the difference between what we observe and what we assume, the growing complexity of today's learner profiles, and the often-overlooked Tier 2 assessment and intervention gap between ordinary classroom support and formal specialist diagnosis.
+
+Participants will examine why the same visible difficulty can have very different underlying explanations, why well-intentioned interventions sometimes fail, and how schools can develop deeper educational understanding without prematurely medicalizing or labeling students.
+
+The workshop introduces a central principle that will run through the entire series: Understand first. Support purposefully. Monitor response. Refer when appropriate.`,
+    explore: [
+      "Observation versus interpretation",
+      "The jagged learner profile",
+      "Why the same behaviour can have multiple explanations",
+      "Tier 1, Tier 2, and Tier 3 support",
+      "The Tier 2 understanding gap",
+      "Why premature assumptions can lead to ineffective intervention",
+      "Educational assessment versus clinical diagnosis",
+      "Non-diagnostic educational understanding",
+      "How geography and access to specialist resources affect student support",
+      "Why stronger Tier 2 systems matter",
+    ],
   },
   {
     num: 2,
-    title: "Understanding the ReMynd Assessment Ecosystem",
-    subtitle: "From Concern to Coordinated Support",
+    title: "From Concern to Understanding",
+    subtitle: "How Do We Build a Reliable Picture of a Student?",
     date: "Wednesday, 30 September 2026",
-    question: "How do we create a coordinated pathway from student concern to meaningful educational support?",
+    question: "Before deciding what a student needs, have we gathered enough evidence to understand what is actually happening?",
     colour: "border-teal-400",
     badge: "bg-teal-50 text-teal-700 border-teal-200",
     dateBg: "bg-teal-50 text-teal-700",
     dot: "bg-teal-500",
-    summary: "Explore how referral, evidence gathering, assessment, professional collaboration, scoring, interpretation, reporting, debriefing, support planning, and progress monitoring can operate as one coordinated student-support journey.",
+    description: `When a student struggles, different adults may see very different versions of the same learner.
+
+A parent may describe significant difficulty at home. One teacher may report no concern. Another teacher may see difficulty only during independent work. The student may describe an entirely different experience.
+
+These differences are not necessarily contradictions. They may be some of the most valuable evidence available.
+
+This workshop explores how educators can move from isolated observations toward a more reliable understanding of a student by bringing together student voice, parent perspectives, teacher observations, authentic work, school history, structured assessment, and direct observation.
+
+Participants will learn why no single score, questionnaire, classroom observation, or adult perspective should automatically define a student's needs.
+
+The workshop also introduces Response to Productive Struggle as an important observational lens: what happens when a learner becomes uncertain, makes an error, needs to change strategy, asks for help, or encounters genuine challenge.`,
+    explore: [
+      "How observations become educational understanding",
+      "Observation → Pattern → Educational Question",
+      "Why multiple perspectives matter",
+      "Parent, teacher, and student evidence",
+      "Authentic work samples",
+      "Cross-informant discrepancies",
+      "Why disagreement can be useful evidence",
+      "Context-dependent functioning",
+      "Triangulation",
+      "Response to Productive Struggle",
+      "Appropriate adult support and the Support Threshold",
+      "How structured assessment can contribute when the picture remains unclear",
+    ],
   },
   {
     num: 3,
-    title: "Thinking Like a ReMynd Clinician",
-    subtitle: "From Concern to Educational Understanding",
+    title: "Thinking Like an Educational Problem-Solver",
+    subtitle: "Moving Beyond Symptoms, Assumptions & Single Explanations",
     date: "Wednesday, 14 October 2026",
-    question: "What do we need to understand before deciding what happens next?",
+    question: "If our intervention is not working, should we intensify the intervention—or reconsider our understanding of the problem?",
     colour: "border-violet-400",
     badge: "bg-violet-50 text-violet-700 border-violet-200",
     dateBg: "bg-violet-50 text-violet-700",
     dot: "bg-violet-500",
-    summary: "Learn to separate observation from interpretation, transform concerns into meaningful educational questions, consider multiple possible explanations, identify patterns across evidence sources, reduce confirmation bias, and select appropriate assessment pathways.",
+    description: `Three students may display exactly the same behaviour — for three completely different reasons.
+
+A student who does not begin work may not understand the task. Another may understand the task but struggle to organize how to start. A third may know exactly what to do but be afraid of making a mistake.
+
+The visible behaviour is the same. The appropriate intervention is not.
+
+This workshop develops the reasoning skills educators need when a student's difficulty does not have an obvious explanation.
+
+Participants will learn to distinguish observation from interpretation, generate multiple possible explanations, look for patterns across settings and tasks, notice contradictions in the evidence, and consider how context changes student performance.
+
+The workshop also explores the importance of strengths, productive persistence, strategic help-seeking, and what happens after a learner makes an error or becomes stuck.
+
+The goal is not to teach educators to diagnose students. It is to help them become more disciplined and curious educational problem-solvers.`,
+    explore: [
+      "Observation versus interpretation",
+      "Symptoms versus explanations",
+      "Multiple educational hypotheses",
+      "Confirmation bias",
+      "Context-dependent performance",
+      "The jagged learner profile",
+      "Strengths as evidence",
+      "Productive versus unproductive persistence",
+      "Strategic help-seeking",
+      "Error response",
+      "Response to challenge",
+      "Testing assumptions through intervention",
+      "Using student response as new evidence",
+      "Knowing when more structured assessment may be necessary",
+    ],
     keyPrinciple: "Curiosity Before Certainty.",
   },
   {
     num: 4,
-    title: "The Comprehensive Educational Profile & Support Plan",
-    subtitle: "From Evidence to Educational Action",
+    title: "When We Need a Deeper Understanding",
+    subtitle: "From Complex Student Concern to a Comprehensive Educational Profile & Support Plan",
     date: "Wednesday, 28 October 2026",
-    question: "What do we now understand about this student that will help us support them more effectively?",
+    question: "When the student's needs are complex, how do we turn fragmented information into an actionable understanding of the whole learner?",
     colour: "border-amber-400",
     badge: "bg-amber-50 text-amber-700 border-amber-200",
     dateBg: "bg-amber-50 text-amber-700",
     dot: "bg-amber-500",
-    summary: "Explore how parent, teacher, student, school, observation, work-sample, and assessment evidence can be integrated into a coherent whole-learner profile and translated into practical classroom accommodations, intervention priorities, teacher recommendations, parent recommendations, individualized support planning, and progress monitoring.",
-  },
-];
+    description: `Sometimes a student's difficulties cannot be adequately understood through one classroom observation, one intervention, or one assessment domain.
 
-const PRODUCTS_BY_MARKET = [
-  {
-    market: "Schools",
-    color: "indigo",
-    items: [
-      "Comprehensive Psychoeducational Profile & Support Plan",
-      "School Wellbeing & Learning Snapshot",
-      "Focused Student Support Assessment",
-      "Learning Support Decision System (SEN)",
-      "Boarding Student Adjustment & Wellbeing",
-    ],
-  },
-  {
-    market: "Parents",
-    color: "teal",
-    items: [
-      "Why Is My Child Struggling?",
-      "Executive Function Coaching Assessment",
-      "Emotional Wellbeing Check",
-      "School Readiness / Transition Assessment",
-    ],
-  },
-  {
-    market: "Universities",
-    color: "violet",
-    items: [
-      "International Student Adjustment Assessment",
-      "Academic Risk Early Warning System",
-    ],
-  },
-  {
-    market: "Corporate",
-    color: "amber",
-    items: [
-      "Employee Wellbeing & Burnout Screen",
-      "Leadership / High-Performer Profiling",
-      "Graduate / Intern Readiness Assessment",
-    ],
-  },
-  {
-    market: "Specialised",
-    color: "rose",
-    items: [
-      "ReMynd Child Development Profile (CDP)",
-      "Hidden Struggler Assessment",
-      "Underachievement Profile",
-      "Digital Distraction & Focus Assessment",
+Academic performance may interact with executive functioning, attention, emotional wellbeing, language, social functioning, confidence, and previous educational experience.
+
+In these more complex cases, the challenge is not simply gathering more information. It is integrating the information already available into one coherent understanding of the learner.
+
+This workshop explores when a student concern may require deeper multi-domain investigation and how multiple evidence sources can be integrated into a meaningful educational profile.
+
+Participants will examine how assessment findings can be translated into educational implications, intervention priorities, classroom accommodations, teacher strategies, parent recommendations, and progress-monitoring plans.
+
+The ReMynd Comprehensive Psychoeducational Profile & Support Plan is used within the workshop as a practical example of a non-diagnostic, whole-learner assessment approach.
+
+The emphasis is not on selling the assessment service. It is on answering a more important educational question: What do we now understand about this learner that should change what we do next?`,
+    explore: [
+      "When focused intervention may no longer be sufficient",
+      "Complexity versus severity",
+      "Multi-domain student concerns",
+      "Fragmented information versus integrated understanding",
+      "Strengths and barriers",
+      "Patterns and discrepancies",
+      "Response to Productive Struggle as part of the learner profile",
+      "Educational implications",
+      "Accommodation versus intervention",
+      "Prioritizing support needs",
+      "Teacher recommendations",
+      "Parent recommendations",
+      "Student understanding",
+      "Progress monitoring",
+      "The role of the debrief",
+      "Why assessment should lead to action rather than simply a report",
     ],
   },
 ];
-
-const MARKET_STYLES: Record<string, { badge: string; dot: string; border: string }> = {
-  indigo: { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500", border: "border-indigo-200" },
-  teal:   { badge: "bg-teal-50 text-teal-700 border-teal-200",       dot: "bg-teal-500",   border: "border-teal-200"   },
-  violet: { badge: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500", border: "border-violet-200" },
-  amber:  { badge: "bg-amber-50 text-amber-700 border-amber-200",    dot: "bg-amber-500",  border: "border-amber-200"  },
-  rose:   { badge: "bg-rose-50 text-rose-700 border-rose-200",       dot: "bg-rose-500",   border: "border-rose-200"   },
-};
 
 const WHO_SHOULD_ATTEND = [
-  "School Leaders", "Principals", "SENCOs", "Learning Support Coordinators",
-  "School Counsellors", "Inclusion Leaders", "Teachers", "Pastoral Leaders",
+  "School Leaders", "Principals / Heads of School", "SENCOs", "Learning Support Coordinators",
+  "School Counsellors", "Inclusion Leaders", "Teachers", "Pastoral / Wellbeing Leaders",
   "Student Support Professionals",
 ];
 
@@ -195,10 +238,11 @@ export default function TrainingPage() {
       <Hero onRegister={scrollToRegister} onBringSeries={scrollToBringSeries} />
       <AboutSeries />
       <WorkshopCards />
+       <SeriesLearningCallouts />
       <WhoShouldAttend />
       <ProgramFormat />
       <WhyParticipate />
-      <AssessmentProducts />
+       <ReMyndInPractice />
       <div ref={registerRef} className="scroll-mt-8">
         {submitted
           ? <SuccessScreen onBack={() => navigate("/")} />
@@ -290,32 +334,57 @@ function AboutSeries() {
       <div className="max-w-4xl mx-auto px-6">
         <div className="text-center mb-12">
           <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-3">About the Series</p>
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-900">A Different Conversation About Educational Assessment</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Four Workshops. One Educational Question.</h2>
         </div>
         <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed space-y-5 text-[15px]">
           <p>
-            The ReMynd Assessment System Training Series is a complimentary four-part professional learning programme designed to help school teams strengthen the space between ordinary classroom intervention and formal specialist referral.
+            <strong className="text-slate-800">When a Student Is Struggling, Do We Really Understand Why?</strong> is a free four-part professional learning series designed for school leaders, SENCOs, learning-support teams, counsellors, teachers, and other professionals involved in student support.
+          </p>
+          <p>
+            The series explores one of the most difficult questions schools face: how to move from noticing that a student is struggling to understanding what may actually be interfering with learning, participation, wellbeing, or performance.
           </p>
           <div className="bg-slate-50 border-l-4 border-teal-400 rounded-r-xl p-5 not-prose grid md:grid-cols-2 gap-4">
             <div className="text-center p-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Rather than beginning with</p>
-              <p className="text-slate-700 font-medium italic text-base">"What is wrong with this student?"</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Schools are often very good at noticing</p>
+              <p className="text-slate-700 font-medium italic text-base">"This student is struggling."</p>
             </div>
             <div className="text-center p-4 bg-teal-50 rounded-xl">
-              <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-2">ReMynd begins with</p>
-              <p className="text-teal-800 font-semibold italic text-base">"How does this student learn, and what support will help them succeed?"</p>
+              <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-2">The harder educational question is</p>
+              <p className="text-teal-800 font-semibold italic text-base">"What may actually be getting in the way?"</p>
             </div>
           </div>
           <p>
-            The series introduces the philosophy, reasoning, and support framework behind the ReMynd Assessment System and shows how schools can move more systematically from:
+            Across four connected workshops, participants examine observation, evidence, Tier 2 support, educational reasoning, productive struggle, multi-informant understanding, comprehensive assessment, and the translation of findings into practical intervention.
           </p>
-          <div className="not-prose flex flex-wrap items-center justify-center gap-1.5 py-2">
-            {["Concern", "Evidence", "Understanding", "Educational Implications", "Support", "Monitoring", "Growth"].map((s, i, arr) => (
-              <div key={s} className="flex items-center gap-1.5">
-                <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold px-3 py-1 rounded-full text-xs">{s}</span>
-                {i < arr.length - 1 && <ArrowRight size={12} className="text-slate-400" />}
-              </div>
-            ))}
+          <p>
+            ReMynd's assessment approach is used throughout the series as a practical example of how these principles can be applied, but the professional learning is designed to provide educators with ideas and frameworks they can use within their own schools regardless of whether they use ReMynd services.
+          </p>
+          <div className="not-prose mt-8 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-6">
+            <h3 className="text-center text-lg font-bold text-slate-900 mb-6">How the Workshops Connect</h3>
+            <div className="space-y-3">
+              {[
+                ["Workshop 1 — Foundations & Philosophy", "We see the struggle. But do we understand it?"],
+                ["Workshop 2 — From Concern to Understanding", "How do we build a reliable picture of the learner?"],
+                ["Workshop 3 — Thinking Like an Educational Problem-Solver", "How do we reason when the explanation is not obvious?"],
+                ["Workshop 4 — When We Need a Deeper Understanding", "How do we integrate complex evidence into practical support?"],
+              ].map(([title, question], i, arr) => (
+                <div key={title}>
+                  <div className="bg-white rounded-xl border border-indigo-100 px-4 py-3">
+                    <p className="text-sm font-bold text-indigo-800">{title}</p>
+                    <p className="text-sm text-slate-600 italic mt-1">{question}</p>
+                  </div>
+                  {i < arr.length - 1 && <div className="text-center text-indigo-400 font-bold py-1">↓</div>}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-6">
+              {["Concern", "Evidence", "Understanding", "Educational Action", "Support", "Monitoring", "Growth"].map((s, i, arr) => (
+                <div key={s} className="flex items-center gap-1.5">
+                  <span className="bg-white border border-indigo-200 text-indigo-700 font-semibold px-3 py-1 rounded-full text-xs">{s}</span>
+                  {i < arr.length - 1 && <ArrowRight size={12} className="text-slate-400" />}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -350,18 +419,63 @@ function WorkshopCards() {
                 <Calendar size={11} />
                 <span className="text-xs font-semibold">{w.date}</span>
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed mb-4 flex-1">{w.summary}</p>
+              <div className="text-sm text-slate-600 leading-relaxed mb-4 flex-1 space-y-3">
+                {w.description.split("\n\n").map((paragraph, i) => <p key={i}>{paragraph}</p>)}
+              </div>
               {w.keyPrinciple && (
                 <p className="text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1.5 mb-3 italic">
                   Key Principle: {w.keyPrinciple}
                 </p>
               )}
+              <details className="mb-3 group">
+                <summary className="cursor-pointer list-none text-xs font-bold text-teal-700 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 flex items-center justify-between">
+                  <span>Participants Will Explore</span>
+                  <span className="text-teal-500 group-open:rotate-180 transition-transform">⌄</span>
+                </summary>
+                <ul className="mt-2 space-y-1.5 px-3">
+                  {w.explore.map(item => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed">
+                      <span className={`w-1.5 h-1.5 rounded-full ${w.dot} flex-shrink-0 mt-1.5`} />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
               <div className="bg-slate-50 rounded-xl px-4 py-3">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Central Question</p>
                 <p className="text-sm text-slate-700 font-medium italic leading-relaxed">{w.question}</p>
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Series-wide professional learning concepts ─────────────────────────────────
+function SeriesLearningCallouts() {
+  return (
+    <section className="py-20 bg-white">
+      <div className="max-w-4xl mx-auto px-6 grid md:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-7">
+          <p className="text-xs font-semibold text-teal-700 uppercase tracking-widest mb-3">A Question We Will Return to Throughout the Series</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-3">What happens when the learner gets stuck?</h2>
+          <p className="text-sm text-slate-700 leading-relaxed mb-4">
+            Across the workshops, participants will explore how students respond when success is not immediate — including persistence, strategy use, error response, help-seeking, frustration, scaffolding, and recovery.
+          </p>
+          <p className="text-sm font-semibold text-teal-900 leading-relaxed">
+            Sometimes what a learner does after they become stuck tells us more than whether their first answer was correct.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-7">
+          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-widest mb-3">Non-Diagnostic by Design</p>
+          <p className="text-sm text-slate-700 leading-relaxed mb-4">
+            ReMynd does not diagnose or label students. Our approach focuses on educational functioning, strengths, barriers, support needs, and appropriate next steps.
+          </p>
+          <p className="text-sm text-slate-700 leading-relaxed">
+            Where evidence suggests that formal clinical, medical, psychological, or other specialist diagnostic evaluation may be appropriate, families may be advised to seek an appropriately licensed professional.
+          </p>
         </div>
       </div>
     </section>
@@ -457,41 +571,29 @@ function ProgramFormat() {
   );
 }
 
-// ── Assessment Products ───────────────────────────────────────────────────────
-function AssessmentProducts() {
+// ── ReMynd as a practical example ─────────────────────────────────────────────
+function ReMyndInPractice() {
   return (
     <section className="py-20 bg-slate-50">
-      <div className="max-w-5xl mx-auto px-6">
+      <div className="max-w-4xl mx-auto px-6">
         <div className="text-center mb-12">
-          <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-3">ReMynd Assessment Services</p>
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Our Assessment Products</h2>
+          <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-3">A Practical Example</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Educational Understanding That Leads to Action</h2>
           <p className="text-slate-500 text-sm mt-2 max-w-2xl mx-auto">
-            ReMynd offers specialised psychoeducational assessment products across schools, families, universities, and organisations.
+            ReMynd's assessment approach is included throughout the series as one example of how schools can coordinate evidence and translate it into useful next steps.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {PRODUCTS_BY_MARKET.map(group => {
-            const s = MARKET_STYLES[group.color];
-            return (
-              <div key={group.market} className={`bg-white rounded-2xl border ${s.border} p-5 shadow-sm`}>
-                <span className={`inline-block text-[10px] font-bold uppercase tracking-widest border rounded-full px-2.5 py-0.5 mb-4 ${s.badge}`}>
-                  {group.market}
-                </span>
-                <ul className="space-y-2">
-                  {group.items.map(name => (
-                    <li key={name} className="flex items-start gap-2.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0 mt-1.5`} />
-                      <span className="text-sm text-slate-700 leading-snug">{name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-4 text-sm text-slate-700 leading-relaxed">
+          <p>
+            In Workshop 4, the ReMynd Comprehensive Psychoeducational Profile &amp; Support Plan is used as a practical example of a non-diagnostic, whole-learner approach.
+          </p>
+          <p>
+            The focus is on bringing together strengths, barriers, patterns, and multiple perspectives so that a school can identify educational implications, prioritize support, and monitor whether the plan is helping.
+          </p>
+          <p className="font-semibold text-slate-800">
+            The professional learning is designed to be useful whether or not a school uses ReMynd services.
+          </p>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-8">
-          Participants in the training series who wish to learn more about ReMynd assessment services are welcome to enquire — there is no obligation to purchase.
-        </p>
       </div>
     </section>
   );
