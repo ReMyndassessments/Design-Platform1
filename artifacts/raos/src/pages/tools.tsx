@@ -1430,13 +1430,8 @@ function ToolInfoModal({ tool, isAdmin, onClose }: { tool: any; isAdmin: boolean
 
   const handlePrint = () => {
     const previewUrl = `/tools/${encodeURIComponent(tool.id)}/preview?print=1`;
-    const printWindow = window.open(previewUrl, "_blank");
-    if (!printWindow) {
-      onClose();
-      setLocation(previewUrl);
-      return;
-    }
-    printWindow.opener = null;
+    onClose();
+    setLocation(previewUrl);
   };
 
   if (editing) return <EditToolModal tool={tool} onClose={() => { setEditing(false); onClose(); }} />;

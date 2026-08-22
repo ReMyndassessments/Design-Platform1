@@ -89,12 +89,12 @@ router.get("/assessment-tools/:id/form-preview", authMiddleware, async (req, res
       ...(item.rows ? { rows: item.rows.map(mapItem) } : {}),
     });
     const questions = (tool.formItems as StoredItem[]).map(mapItem);
-    res.json({ toolId: id, questions });
+    res.json({ toolId: id, toolName: tool.name, questions });
     return;
   }
 
   const questions = SAMPLE_QUESTIONS[id] ?? SAMPLE_QUESTIONS["default"];
-  res.json({ toolId: id, questions });
+  res.json({ toolId: id, toolName: tool?.name ?? id, questions });
 });
 
 router.patch("/assessment-tools/:id", authMiddleware, async (req, res) => {

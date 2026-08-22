@@ -217,6 +217,48 @@
     margin-bottom: 1rem !important;
     border-bottom: 2px solid #0f172a !important;
   }
+  .form-print-brand {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0 0 0.75rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  .form-print-brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .form-print-brand-logo {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+  }
+  .form-print-brand-name {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .form-print-brand-subtitle,
+  .form-print-brand-type,
+  .form-print-id {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
+  .form-print-brand-type {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .form-print-id {
+    margin-top: 0.3rem;
+  }
   .form-preview-questions {
     padding-left: 0 !important;
     padding-right: 0 !important;

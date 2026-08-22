@@ -448,7 +448,7 @@ async function fetchFormPreview(toolId: string) {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Failed to load form preview");
-  return res.json() as Promise<{ toolId: string; questions: Question[] }>;
+  return res.json() as Promise<{ toolId: string; toolName?: string; questions: Question[] }>;
 }
 
 export default function FormPreviewPage() {
@@ -683,8 +683,20 @@ export default function FormPreviewPage() {
               </div>
             )}
 
+            <div className="print-only form-print-brand">
+              <div className="form-print-brand-mark">
+                <img src="/images/remynd-logo.png" alt="ReMynd" className="form-print-brand-logo" />
+                <div>
+                  <p className="form-print-brand-name">ReMynd</p>
+                  <p className="form-print-brand-subtitle">Assessment Operating System</p>
+                </div>
+              </div>
+              <span className="form-print-brand-type">Assessment Form</span>
+            </div>
+
             <div className="form-preview-title bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
-              <h1 className="text-xl font-bold text-slate-900">{id}</h1>
+              <h1 className="text-xl font-bold text-slate-900">{data?.toolName ?? id}</h1>
+              <p className="print-only form-print-id">Form ID: {id}</p>
               <div className="flex gap-4 mt-2 text-sm text-slate-500">
                 <span>{totalFields} fields</span>
                 <span>·</span>
