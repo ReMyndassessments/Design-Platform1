@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Eye, Languages, Pencil, Save, X, Plus, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Eye, Languages, Pencil, Save, X, Plus, Trash2, GripVertical, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -473,6 +473,14 @@ export default function FormPreviewPage() {
     enabled: !!id,
   });
 
+  const printRequested = new URLSearchParams(window.location.search).get("print") === "1";
+
+  useEffect(() => {
+    if (!printRequested || !data || editMode) return;
+    const timer = window.setTimeout(() => window.print(), 350);
+    return () => window.clearTimeout(timer);
+  }, [data, editMode, printRequested]);
+
   const enterEditMode = () => {
     setEditedQuestions(data?.questions ? JSON.parse(JSON.stringify(data.questions)) : []);
     setEditMode(true);
@@ -575,7 +583,7 @@ export default function FormPreviewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between">
+      <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="sm" onClick={() => { if (editMode) cancelEdit(); setLocation("/tools"); }} className="gap-1.5">
             <ArrowLeft size={16} /> Back to Tools
@@ -616,6 +624,11 @@ export default function FormPreviewPage() {
               {data && (
                 <Button size="sm" onClick={enterEditMode} variant="outline" className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5">
                   <Pencil size={14} /> Edit Form
+                </Button>
+              )}
+              {data && (
+                <Button size="sm" onClick={() => window.print()} variant="outline" className="gap-1.5">
+                  <Printer size={14} /> Print Form
                 </Button>
               )}
             </>
@@ -664,13 +677,13 @@ export default function FormPreviewPage() {
                 <span>Edit mode — click any field to edit it. Drag arrows to reorder. Press <strong>Save Changes</strong> when done.</span>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-center gap-2 text-sm text-amber-800">
+              <div className="no-print bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-center gap-2 text-sm text-amber-800">
                 <Eye size={15} />
                 <span>Preview mode — responses cannot be submitted here. Share a tokenized link to collect responses.</span>
               </div>
             )}
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+            <div className="form-preview-title bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
               <h1 className="text-xl font-bold text-slate-900">{id}</h1>
               <div className="flex gap-4 mt-2 text-sm text-slate-500">
                 <span>{totalFields} fields</span>
@@ -703,7 +716,7 @@ export default function FormPreviewPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 pb-4">
+              <div className="form-preview-questions bg-white rounded-xl border border-slate-200 shadow-sm px-6 pb-4">
                 {(() => {
                   let counter = 0;
                   return visibleQuestions.map(q => {

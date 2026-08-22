@@ -205,6 +205,33 @@
   /* Bobby Agent content: always show during print even if collapsed */
   .bobby-content { display: block !important; }
 
+  /* Form preview: print the complete form, not the app chrome */
+  .form-preview-title,
+  .form-preview-questions {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .form-preview-title {
+    padding: 0 0 1rem !important;
+    margin-bottom: 1rem !important;
+    border-bottom: 2px solid #0f172a !important;
+  }
+  .form-preview-questions {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .form-preview-questions > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .form-preview-questions button {
+    color: #334155 !important;
+    background: white !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
   /* Remove bottom padding added for mobile scroll */
   .pb-20 { padding-bottom: 0 !important; }
 

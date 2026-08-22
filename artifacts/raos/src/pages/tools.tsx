@@ -31,6 +31,7 @@ import {
   Loader2,
   List,
   Minus,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type AssessmentProduct, ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET, MARKET_LABELS } from "@/lib/products";
@@ -1427,6 +1428,17 @@ function ToolInfoModal({ tool, isAdmin, onClose }: { tool: any; isAdmin: boolean
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const handlePrint = () => {
+    const previewUrl = `/tools/${encodeURIComponent(tool.id)}/preview?print=1`;
+    const printWindow = window.open(previewUrl, "_blank");
+    if (!printWindow) {
+      onClose();
+      setLocation(previewUrl);
+      return;
+    }
+    printWindow.opener = null;
+  };
+
   if (editing) return <EditToolModal tool={tool} onClose={() => { setEditing(false); onClose(); }} />;
   if (deleting) return <DeleteConfirmDialog tool={tool} onClose={() => { setDeleting(false); onClose(); }} />;
 
@@ -1515,12 +1527,21 @@ function ToolInfoModal({ tool, isAdmin, onClose }: { tool: any; isAdmin: boolean
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-2">
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
           <Button
             className="flex-1 gap-1.5"
             onClick={() => { onClose(); setLocation(`/tools/${encodeURIComponent(tool.id)}/preview`); }}
           >
             <Eye size={14} /> View Form
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handlePrint}
+            title="Print a hard copy of this form"
+          >
+            <Printer size={13} /> Print Form
           </Button>
           {isAdmin && (
             <>
