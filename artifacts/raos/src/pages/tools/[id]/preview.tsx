@@ -441,6 +441,214 @@ function PreviewQuestion({
   );
 }
 
+function PrintablePrompt({
+  label,
+  note,
+  required,
+  itemNumber,
+}: {
+  label: string;
+  note?: string;
+  required?: boolean;
+  itemNumber?: number;
+}) {
+  return (
+    <div className="form-print-prompt-row">
+      {itemNumber !== undefined && <span className="form-print-number">{itemNumber}.</span>}
+      <div className="form-print-prompt">
+        {label.includes("•") ? (
+          <BulletText text={label} className="form-print-label" />
+        ) : (
+          <p className="form-print-label">
+            {label}
+            {required && <span className="form-print-required" aria-label="required"> *</span>}
+          </p>
+        )}
+        {label.includes("•") && required && <span className="form-print-required" aria-label="required">*</span>}
+        {note && <p className="form-print-note">{note}</p>}
+      </div>
+    </div>
+  );
+}
+
+function PrintableOptions({
+  q,
+  language,
+  mark = "radio",
+}: {
+  q: Question;
+  language: string;
+  mark?: "radio" | "checkbox";
+}) {
+  const options = useOpts(q, language);
+  return (
+    <div className="form-print-options">
+      {options.map(({ value, display }, index) => (
+        <span className="form-print-option" key={`${value}-${index}`}>
+          <span className={cn("form-print-mark", mark === "checkbox" && "form-print-mark-checkbox")} aria-hidden="true" />
+          <span>{display}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PrintableFrequencyGrid({ q, language }: { q: Question; language: string }) {
+  const options = useOpts(q, language);
+  const rows = q.rows ?? [];
+
+  return (
+    <div className="form-print-grid-wrap">
+      <table className="form-print-grid">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            {options.map(({ value, display }, index) => (
+              <th scope="col" key={`${value}-${index}`}>{display}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => {
+            const label = language === "korean"
+              ? (row.textKorean ?? row.text)
+              : language === "mandarin"
+                ? (row.textChinese ?? row.text)
+                : row.text;
+            return (
+              <tr key={`${row.id}-${index}`}>
+                <th scope="row">{label}</th>
+                {options.map(({ value }, optionIndex) => (
+                  <td key={`${value}-${optionIndex}`}><span className="form-print-grid-mark" aria-hidden="true" /></td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PrintableQuestion({
+  q,
+  language,
+  itemNumber,
+}: {
+  q: Question;
+  language: string;
+  itemNumber?: number;
+}) {
+  const type = normalizeType(q.type);
+  const { label, note } = useText(q, language);
+
+  if (type === "section_header") {
+    return (
+      <section className="form-print-section">
+        <div className="form-print-section-rule" />
+        <h2>{label}</h2>
+        {note && <p className="form-print-section-note">{note}</p>}
+        <QuestionLinks q={q} />
+      </section>
+    );
+  }
+
+  return (
+    <div className="form-print-question">
+      <PrintablePrompt label={label} note={note} required={q.required} itemNumber={itemNumber} />
+      <QuestionLinks q={q} />
+      {type === "radio_group" && <PrintableOptions q={q} language={language} />}
+      {type === "checkbox_group" && <PrintableOptions q={q} language={language} mark="checkbox" />}
+      {type === "checkbox" && (
+        <div className="form-print-single-option">
+          <span className="form-print-mark form-print-mark-checkbox" aria-hidden="true" />
+          <span>Mark if applicable</span>
+        </div>
+      )}
+      {(type === "likert" || type === "scale" || type === "select") && (
+        <PrintableOptions q={q} language={language} />
+      )}
+      {(type === "text" || type === "number") && <div className="form-print-answer-line" />}
+      {type === "date" && (
+        <div className="form-print-date-line">
+          <span>MM</span><i /> <span>DD</span><i /> <span>YYYY</span><i className="form-print-date-wide" />
+        </div>
+      )}
+      {type === "textarea" && (
+        <div className="form-print-writing-area" aria-hidden="true">
+          {[0, 1, 2, 3].map(line => <span key={line} />)}
+        </div>
+      )}
+      {type === "frequency_grid" && <PrintableFrequencyGrid q={q} language={language} />}
+      {type === "signature" && (
+        <div className="form-print-signature-line">
+          <span />
+          <small>Signature</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrintableForm({
+  id,
+  toolName,
+  questions,
+  language,
+  totalFields,
+  totalRequired,
+}: {
+  id: string;
+  toolName: string;
+  questions: Question[];
+  language: string;
+  totalFields: number;
+  totalRequired: number;
+}) {
+  const visibleQuestions = questions.filter(q => !q.conditionalOn);
+  let counter = 0;
+
+  return (
+    <article className="print-only form-print-document">
+      <header className="form-print-brand">
+        <div className="form-print-brand-mark">
+          <img src="/images/remynd-logo.png" alt="ReMynd" className="form-print-brand-logo" />
+          <div>
+            <p className="form-print-brand-name">ReMynd</p>
+            <p className="form-print-brand-subtitle">Assessment Operating System</p>
+          </div>
+        </div>
+        <span className="form-print-brand-type">Assessment Form</span>
+      </header>
+
+      <div className="form-print-title">
+        <h1>{toolName}</h1>
+        <p className="form-print-id">Form ID: {id}</p>
+        <div className="form-print-summary">
+          <span>{totalFields} fields</span>
+          <span>{totalRequired} required</span>
+          <span>{visibleQuestions.filter(q => normalizeType(q.type) === "section_header").length} sections</span>
+        </div>
+      </div>
+
+      <div className="form-print-content">
+        {visibleQuestions.map(q => {
+          const type = normalizeType(q.type);
+          if (type !== "section_header") counter++;
+          return (
+            <PrintableQuestion
+              key={q.id}
+              q={q}
+              language={language}
+              itemNumber={type !== "section_header" ? counter : undefined}
+            />
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
 async function fetchFormPreview(toolId: string) {
   const token = localStorage.getItem("raos_token");
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -582,7 +790,7 @@ export default function FormPreviewPage() {
   const totalFields   = visibleQuestions.filter(q => normalizeType(q.type) !== "section_header").length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="form-preview-page min-h-screen bg-slate-50">
       <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="sm" onClick={() => { if (editMode) cancelEdit(); setLocation("/tools"); }} className="gap-1.5">
@@ -671,6 +879,17 @@ export default function FormPreviewPage() {
 
         {(data || editMode) && (
           <>
+            {!editMode && data && (
+              <PrintableForm
+                id={id!}
+                toolName={data.toolName ?? id!}
+                questions={data.questions}
+                language={language}
+                totalFields={totalFields}
+                totalRequired={totalRequired}
+              />
+            )}
+
             {editMode ? (
               <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 mb-6 flex items-center gap-2 text-sm text-primary">
                 <Pencil size={15} />
@@ -683,20 +902,8 @@ export default function FormPreviewPage() {
               </div>
             )}
 
-            <div className="print-only form-print-brand">
-              <div className="form-print-brand-mark">
-                <img src="/images/remynd-logo.png" alt="ReMynd" className="form-print-brand-logo" />
-                <div>
-                  <p className="form-print-brand-name">ReMynd</p>
-                  <p className="form-print-brand-subtitle">Assessment Operating System</p>
-                </div>
-              </div>
-              <span className="form-print-brand-type">Assessment Form</span>
-            </div>
-
-            <div className="form-preview-title bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+            <div className="no-print form-preview-title bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
               <h1 className="text-xl font-bold text-slate-900">{data?.toolName ?? id}</h1>
-              <p className="print-only form-print-id">Form ID: {id}</p>
               <div className="flex gap-4 mt-2 text-sm text-slate-500">
                 <span>{totalFields} fields</span>
                 <span>·</span>
@@ -728,7 +935,7 @@ export default function FormPreviewPage() {
                 </div>
               </div>
             ) : (
-              <div className="form-preview-questions bg-white rounded-xl border border-slate-200 shadow-sm px-6 pb-4">
+              <div className="no-print form-preview-questions bg-white rounded-xl border border-slate-200 shadow-sm px-6 pb-4">
                 {(() => {
                   let counter = 0;
                   return visibleQuestions.map(q => {

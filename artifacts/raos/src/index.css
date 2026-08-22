@@ -149,6 +149,11 @@
 .print-only { display: none; }
 
 @media print {
+  @page {
+    size: letter;
+    margin: 0.55in 0.62in 0.65in;
+  }
+
   /* Hide non-content chrome */
   .no-print { display: none !important; }
 
@@ -160,7 +165,7 @@
   .flex.min-h-screen { display: block !important; }
   main {
     width: 100% !important;
-    padding: 1.5rem 2rem !important;
+    padding: 0 !important;
     overflow: visible !important;
   }
   main > div {
@@ -205,26 +210,33 @@
   /* Bobby Agent content: always show during print even if collapsed */
   .bobby-content { display: block !important; }
 
-  /* Form preview: print the complete form, not the app chrome */
-  .form-preview-title,
-  .form-preview-questions {
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
+  /* Assessment forms: a paper document, not a web-page screenshot */
+  .form-preview-page {
+    min-height: 0 !important;
+    background: white !important;
   }
-  .form-preview-title {
-    padding: 0 0 1rem !important;
-    margin-bottom: 1rem !important;
-    border-bottom: 2px solid #0f172a !important;
+  .form-preview-page > div {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .form-print-document {
+    display: block !important;
+    max-width: 7.26in;
+    margin: 0 auto;
+    color: #172033;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.42;
   }
   .form-print-brand {
     display: flex !important;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0 0 0.75rem;
-    margin-bottom: 1.25rem;
-    border-bottom: 1px solid #cbd5e1;
+    padding: 0 0 0.58rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 1.5pt solid #20354f;
   }
   .form-print-brand-mark {
     display: flex;
@@ -232,14 +244,14 @@
     gap: 0.6rem;
   }
   .form-print-brand-logo {
-    width: 2rem;
-    height: 2rem;
+    width: 1.8rem;
+    height: 1.8rem;
     object-fit: contain;
   }
   .form-print-brand-name {
     margin: 0;
     color: #0f172a;
-    font-size: 1rem;
+    font-size: 11pt;
     font-weight: 700;
     line-height: 1.1;
   }
@@ -248,7 +260,7 @@
   .form-print-id {
     margin: 0;
     color: #64748b;
-    font-size: 0.7rem;
+    font-size: 7.5pt;
     line-height: 1.3;
   }
   .form-print-brand-type {
@@ -257,21 +269,222 @@
     font-weight: 600;
   }
   .form-print-id {
-    margin-top: 0.3rem;
+    margin-top: 0.18rem;
   }
-  .form-preview-questions {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+  .form-print-title {
+    margin: 0 0 0.95rem;
+    padding: 0 0 0.78rem;
+    border-bottom: 0.75pt solid #b8c3d0;
   }
-  .form-preview-questions > div {
+  .form-print-title h1 {
+    margin: 0;
+    color: #18263b;
+    font-size: 16pt;
+    font-weight: 700;
+    line-height: 1.16;
+    letter-spacing: -0.015em;
+  }
+  .form-print-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin-top: 0.52rem;
+    color: #5e6c7e;
+    font-size: 8pt;
+  }
+  .form-print-summary span + span::before {
+    content: "•";
+    margin: 0 0.48rem;
+    color: #9aa7b8;
+  }
+  .form-print-content {
+    padding: 0;
+  }
+  .form-print-section {
+    margin: 1rem 0 0.62rem;
+    padding-top: 0.58rem;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .form-print-section-rule {
+    height: 2pt;
+    margin: 0 0 0.44rem;
+    background: #20354f;
+  }
+  .form-print-section h2 {
+    margin: 0;
+    color: #20354f;
+    font-size: 11.5pt;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .form-print-section-note {
+    margin: 0.28rem 0 0;
+    color: #536277;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+  .form-print-question {
+    margin: 0 0 0.78rem;
+    padding: 0 0 0.7rem;
+    border-bottom: 0.5pt solid #d7dee7;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .form-preview-questions button {
-    color: #334155 !important;
-    background: white !important;
-    border-color: #cbd5e1 !important;
-    box-shadow: none !important;
+  .form-print-prompt-row {
+    display: grid;
+    grid-template-columns: 1.45rem minmax(0, 1fr);
+    gap: 0.25rem;
+    align-items: start;
+  }
+  .form-print-number {
+    padding-top: 0.04rem;
+    color: #6c7a8e;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+  .form-print-prompt {
+    min-width: 0;
+  }
+  .form-print-label {
+    margin: 0;
+    color: #1d2a3b;
+    font-size: 10pt;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .form-print-label ul {
+    margin: 0.34rem 0 0;
+    padding-left: 0.1rem;
+    font-weight: 400;
+  }
+  .form-print-required {
+    color: #b42318;
+    font-weight: 700;
+  }
+  .form-print-note {
+    margin: 0.16rem 0 0;
+    color: #64748b;
+    font-size: 8pt;
+    font-style: italic;
+    line-height: 1.35;
+    white-space: pre-wrap;
+  }
+  .form-print-question a {
+    color: #20354f !important;
+    font-size: 8pt !important;
+  }
+  .form-print-options,
+  .form-print-single-option {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.38rem 1rem;
+    margin: 0.46rem 0 0 1.7rem;
+  }
+  .form-print-option,
+  .form-print-single-option {
+    align-items: center;
+    color: #2b394c;
+    font-size: 9pt;
+    line-height: 1.25;
+  }
+  .form-print-option {
+    display: inline-flex;
+    gap: 0.34rem;
+  }
+  .form-print-single-option {
+    display: inline-flex;
+  }
+  .form-print-mark,
+  .form-print-grid-mark {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    flex: 0 0 auto;
+    border: 1pt solid #59677a;
+    border-radius: 50%;
+    background: white;
+  }
+  .form-print-mark-checkbox {
+    border-radius: 1.5pt;
+  }
+  .form-print-answer-line {
+    min-height: 1.25rem;
+    margin: 0.46rem 0 0 1.7rem;
+    border-bottom: 0.8pt solid #59677a;
+  }
+  .form-print-date-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.2rem;
+    max-width: 3.5in;
+    margin: 0.5rem 0 0 1.7rem;
+    color: #6a778a;
+    font-size: 8pt;
+  }
+  .form-print-date-line i {
+    display: block;
+    width: 0.48in;
+    border-bottom: 0.8pt solid #59677a;
+  }
+  .form-print-date-line .form-print-date-wide {
+    width: 0.82in;
+  }
+  .form-print-writing-area {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0.52rem 0 0 1.7rem;
+  }
+  .form-print-writing-area span {
+    display: block;
+    height: 0.92rem;
+    border-bottom: 0.65pt solid #a7b1bf;
+  }
+  .form-print-signature-line {
+    position: relative;
+    margin: 0.7rem 0 0 1.7rem;
+    padding-bottom: 0.24rem;
+    border-bottom: 0.85pt solid #3f4f63;
+  }
+  .form-print-signature-line small {
+    position: absolute;
+    left: 0;
+    bottom: -1.08rem;
+    color: #6a778a;
+    font-size: 7.5pt;
+  }
+  .form-print-grid-wrap {
+    margin: 0.52rem 0 0 1.7rem;
+    overflow: visible;
+  }
+  .form-print-grid {
+    width: 100%;
+    border-collapse: collapse;
+    color: #2b394c;
+    font-size: 8pt;
+  }
+  .form-print-grid th,
+  .form-print-grid td {
+    padding: 0.33rem 0.3rem;
+    border: 0.55pt solid #b8c3d0;
+    text-align: center;
+    vertical-align: middle;
+  }
+  .form-print-grid thead th {
+    background: #e9eef4 !important;
+    color: #20354f;
+    font-weight: 700;
+  }
+  .form-print-grid tbody th {
+    width: 42%;
+    text-align: left;
+    font-weight: 500;
+  }
+  .form-print-grid-mark {
+    width: 0.58rem;
+    height: 0.58rem;
   }
 
   /* Remove bottom padding added for mobile scroll */
