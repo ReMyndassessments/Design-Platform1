@@ -105,7 +105,7 @@ const STATUS_COLORS: Record<string, string> = {
   no_show: "bg-slate-100 text-slate-500",
   cancelled: "bg-red-100 text-red-600",
 };
-const WS_LABELS = ["Foundations & Philosophy", "Assessment Ecosystem", "Thinking Like a Clinician", "Profile & Support Plan"];
+const WS_LABELS = ["Why Is This Student Struggling?", "Assessment Ecosystem", "Thinking Like a Clinician", "Profile & Support Plan"];
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function TrainingRegistrationsPage() {

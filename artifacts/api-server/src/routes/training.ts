@@ -26,7 +26,7 @@ function makeEmailRow(label: string, value: string | null | undefined) {
 
 function workshopList(reg: any): string {
   const ws = [];
-  if (reg.workshop_1_selected) ws.push("Workshop 1 — Foundations & Philosophy");
+  if (reg.workshop_1_selected) ws.push("Workshop 1 — Why Is This Student Struggling?");
   if (reg.workshop_2_selected) ws.push("Workshop 2 — Understanding the ReMynd Assessment Ecosystem");
   if (reg.workshop_3_selected) ws.push("Workshop 3 — Thinking Like a ReMynd Clinician");
   if (reg.workshop_4_selected) ws.push("Workshop 4 — The Comprehensive Educational Profile & Support Plan");

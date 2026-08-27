@@ -10,8 +10,8 @@ import {
 const WORKSHOPS = [
   {
     num: 1,
-    title: "Foundations & Philosophy",
-    subtitle: "When a Student Is Struggling, What Are We Actually Seeing?",
+    title: "Why Is This Student Struggling?",
+    subtitle: "What We See Is Not Always What It Means",
     date: "Wednesday, 16 September 2026",
     question: "If we can see that a student is struggling, do we actually understand what is getting in the way?",
     colour: "border-indigo-400",
@@ -363,7 +363,7 @@ function AboutSeries() {
             <h3 className="text-center text-lg font-bold text-slate-900 mb-6">How the Workshops Connect</h3>
             <div className="space-y-3">
               {[
-                ["Workshop 1 — Foundations & Philosophy", "We see the struggle. But do we understand it?"],
+                ["Workshop 1 — Why Is This Student Struggling?", "What We See Is Not Always What It Means"],
                 ["Workshop 2 — From Concern to Understanding", "How do we build a reliable picture of the learner?"],
                 ["Workshop 3 — Thinking Like an Educational Problem-Solver", "How do we reason when the explanation is not obvious?"],
                 ["Workshop 4 — When We Need a Deeper Understanding", "How do we integrate complex evidence into practical support?"],
