@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   CheckCircle2, Users, Globe, BookOpen,
-  ArrowRight, Star, Building2, Calendar,
+  ArrowRight, Star, Building2, Calendar, Clock,
 } from "lucide-react";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -13,6 +13,7 @@ const WORKSHOPS = [
     title: "Why Is This Student Struggling?",
     subtitle: "What We See Is Not Always What It Means",
     date: "Wednesday, 16 September 2026",
+    time: "7:00 pm",
     question: "If we can see that a student is struggling, do we actually understand what is getting in the way?",
     colour: "border-indigo-400",
     badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -45,6 +46,7 @@ The workshop introduces a central principle that will run through the entire ser
     title: "From Concern to Understanding",
     subtitle: "How Do We Build a Reliable Picture of a Student?",
     date: "Wednesday, 30 September 2026",
+    time: "7:00 pm",
     question: "Before deciding what a student needs, have we gathered enough evidence to understand what is actually happening?",
     colour: "border-teal-400",
     badge: "bg-teal-50 text-teal-700 border-teal-200",
@@ -81,6 +83,7 @@ The workshop also introduces Response to Productive Struggle as an important obs
     title: "Thinking Like an Educational Problem-Solver",
     subtitle: "Moving Beyond Symptoms, Assumptions & Single Explanations",
     date: "Wednesday, 14 October 2026",
+    time: "7:00 pm",
     question: "If our intervention is not working, should we intensify the intervention—or reconsider our understanding of the problem?",
     colour: "border-violet-400",
     badge: "bg-violet-50 text-violet-700 border-violet-200",
@@ -122,6 +125,7 @@ The goal is not to teach educators to diagnose students. It is to help them beco
     title: "When We Need a Deeper Understanding",
     subtitle: "From Complex Student Concern to a Comprehensive Educational Profile & Support Plan",
     date: "Wednesday, 28 October 2026",
+    time: "7:00 pm",
     question: "When the student's needs are complex, how do we turn fragmented information into an actionable understanding of the whole learner?",
     colour: "border-amber-400",
     badge: "bg-amber-50 text-amber-700 border-amber-200",
@@ -417,7 +421,7 @@ function WorkshopCards() {
               {/* Date badge */}
               <div className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 mb-4 w-fit ${w.dateBg} border ${w.badge.split(" ").find(c => c.startsWith("border-"))}`}>
                 <Calendar size={11} />
-                <span className="text-xs font-semibold">{w.date}</span>
+                <span className="text-xs font-semibold">{w.date} · {w.time}</span>
               </div>
               <div className="text-sm text-slate-600 leading-relaxed mb-4 flex-1 space-y-3">
                 {w.description.split("\n\n").map((paragraph, i) => <p key={i}>{paragraph}</p>)}
@@ -552,6 +556,7 @@ function ProgramFormat() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-teal-300 text-xs font-semibold whitespace-nowrap">{w.date}</p>
+                  <p className="text-slate-400 text-xs mt-0.5 flex items-center justify-end gap-1"><Clock size={10} /> {w.time}</p>
                 </div>
               </div>
             ))}
@@ -808,7 +813,7 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
                       <p className="text-sm font-medium text-slate-800">Workshop {w.num} — {w.title}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{w.subtitle}</p>
                       <p className="text-xs text-teal-600 font-medium mt-1 flex items-center gap-1">
-                        <Calendar size={10} /> {w.date}
+                        <Calendar size={10} /> {w.date} <span className="text-slate-300">·</span> <Clock size={10} /> {w.time}
                       </p>
                     </div>
                   </label>
