@@ -671,8 +671,8 @@ export default function Portal() {
 
       {/* ── Light content area ── */}
       <div className="bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-2xl mx-auto px-6 py-12 pb-20">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-20">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 lg:p-10">
             {view === "success" ? (
               <SuccessPanel tab={tab} onReset={() => { setView("info"); }} />
             ) : view === "form" ? (
