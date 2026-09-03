@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useI18n, LanguageSwitcherLight } from "@/lib/i18n";
+import { translations, useI18n, LanguageSwitcherLight } from "@/lib/i18n";
 import {
   Eye, Users, Award, Lightbulb, GitBranch, TrendingUp,
   ArrowRight, ChevronRight, CheckCircle2, X, Clock,
@@ -15,6 +15,8 @@ import type { Lang } from "@/lib/i18n";
 
 type ProductEntry = {
   title: string;
+  enKey: string;
+  isFlagship?: boolean;
   badge?: string;
   desc: string;
   eduQuestion?: string;
@@ -137,13 +139,12 @@ type DrawerLabels = {
 };
 
 function AssessmentOverviewDrawer({
-  title, overview, price, badge, labels, onClose,
+  title, overview, price, badge, isFlagship, labels, onClose,
 }: {
   title: string; overview: AssessmentOverview; price?: string; badge?: string;
+  isFlagship?: boolean;
   labels: DrawerLabels; onClose: () => void;
 }) {
-  const isFlagship = !!badge && badge.toLowerCase().includes("flagship");
-
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm" onClick={onClose} />
@@ -295,9 +296,9 @@ function ProductCard({
   product: ProductEntry;
   overviewBtnLabel: string;
   ctaLabels: { school: string; parent: string; enquiry: string };
-  onOpen: (enKey: string, displayTitle: string, price?: string, badge?: string) => void;
+  onOpen: (enKey: string, displayTitle: string, price?: string, badge?: string, isFlagship?: boolean) => void;
 }) {
-  const isFlagship = !!product.badge?.toLowerCase().includes("flagship");
+  const isFlagship = product.isFlagship === true;
 
   if (isFlagship) {
     return (
@@ -337,9 +338,9 @@ function ProductCard({
           </div>
 
           {/* overview button */}
-          {ASSESSMENT_OVERVIEWS["en"][product.title] && (
+          {ASSESSMENT_OVERVIEWS["en"][product.enKey] && (
             <button
-              onClick={() => onOpen(product.title, product.title, product.price, product.badge)}
+              onClick={() => onOpen(product.enKey, product.title, product.price, product.badge, product.isFlagship)}
               className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 rounded-xl py-2.5 px-3 transition-colors"
             >
               <Info size={12} />
@@ -381,10 +382,10 @@ function ProductCard({
       <BestForList items={product.bestFor} />
       <OverviewBtn
         title={product.title}
-        enKey={product.title}
+        enKey={product.enKey}
         btnLabel={overviewBtnLabel}
         badge={product.badge}
-        onOpen={(enKey, displayTitle, badge) => onOpen(enKey, displayTitle, product.price, badge)}
+        onOpen={(enKey, displayTitle, badge) => onOpen(enKey, displayTitle, product.price, badge, product.isFlagship)}
       />
       <div className="mt-3">
         {product.cta === "school" && (
@@ -420,12 +421,12 @@ export default function AssessmentServicesPage() {
   const a = t.assessmentServices;
 
   const [activeOverview, setActiveOverview] = useState<{
-    enKey: string; displayTitle: string; price?: string; badge?: string;
+    enKey: string; displayTitle: string; price?: string; badge?: string; isFlagship?: boolean;
   } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("comprehensive");
 
-  const openOverview = (enKey: string, displayTitle: string, price?: string, badge?: string) =>
-    setActiveOverview({ enKey, displayTitle, price, badge });
+  const openOverview = (enKey: string, displayTitle: string, price?: string, badge?: string, isFlagship?: boolean) =>
+    setActiveOverview({ enKey, displayTitle, price, badge, isFlagship });
   const closeOverview = () => setActiveOverview(null);
 
   const overviewMap = ASSESSMENT_OVERVIEWS[lang as Lang] ?? ASSESSMENT_OVERVIEWS["en"];
@@ -435,6 +436,7 @@ export default function AssessmentServicesPage() {
 
   const categories: Category[] = (a.catalogue ?? []).map((cat, ci) => {
     const config = CATEGORY_CONFIG[ci];
+    const englishCategory = translations.en.assessmentServices.catalogue[ci];
     return {
       id: cat.id,
       label: cat.label,
@@ -443,6 +445,8 @@ export default function AssessmentServicesPage() {
       dotClass: config?.dotClass ?? "",
       products: (cat.products ?? []).map((prod, pi) => ({
         ...prod,
+        enKey: englishCategory?.products[pi]?.title ?? prod.title,
+        isFlagship: cat.id === "comprehensive" && pi === 0,
         price: config?.products[pi]?.price,
         cta: config?.products[pi]?.cta ?? "school",
       })),
@@ -465,6 +469,7 @@ export default function AssessmentServicesPage() {
           overview={activeData}
           price={activeOverview.price}
           badge={activeOverview.badge}
+          isFlagship={activeOverview.isFlagship}
           labels={a.overviewDrawer}
           onClose={closeOverview}
         />
