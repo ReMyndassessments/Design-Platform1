@@ -54,6 +54,31 @@ export async function getAccessToken(): Promise<string | null> {
         console.info(`[Airwallex] authenticated via ${envName}`);
         return _token;
       }
+      const contentType = r.headers.get("content-type") ?? "";
+      const responseText = await r.text();
+      let providerCode: string | undefined;
+      let providerMessage: string | undefined;
+      if (contentType.includes("application/json")) {
+        try {
+          const response = JSON.parse(responseText) as {
+            code?: string;
+            error_code?: string;
+            message?: string;
+            error?: string;
+          };
+          providerCode = response.code ?? response.error_code;
+          providerMessage = response.message ?? response.error;
+        } catch {
+          // Keep malformed provider responses out of application logs.
+        }
+      }
+      console.error("[Airwallex] authentication rejected", {
+        env: envName,
+        status: r.status,
+        contentType,
+        providerCode,
+        providerMessage,
+      });
     } catch (err) {
       console.error(`[Airwallex] auth attempt failed (${envName}):`, err);
     }

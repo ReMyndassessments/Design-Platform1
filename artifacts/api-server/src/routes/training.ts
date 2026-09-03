@@ -577,8 +577,24 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
       if ((cnt.rows[0] as any).total >= workshop.max_participants) return res.status(400).json({ error: "This workshop is full" });
     }
     const normalEmail = email.trim().toLowerCase();
-    const dup = await db.execute(sql`SELECT id FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND email = ${normalEmail}`);
-    if (dup.rows.length) return res.status(409).json({ error: "You are already registered for this workshop", id: (dup.rows[0] as any).id });
+    const dup = await db.execute(sql`
+      SELECT id, payment_status, status, payment_intent_id
+      FROM workshop_registrations
+      WHERE workshop_id = ${workshop.id} AND email = ${normalEmail}
+    `);
+    if (dup.rows.length) {
+      const existing = dup.rows[0] as any;
+      if (!workshop.is_free && existing.payment_status === "pending" && !existing.payment_intent_id) {
+        return res.json({
+          ok: true,
+          id: existing.id,
+          requiresPayment: true,
+          workshopId: workshop.id,
+          resumed: true,
+        });
+      }
+      return res.status(409).json({ error: "You are already registered for this workshop", id: existing.id });
+    }
 
     const regId = nanoid();
     const paymentStatus = workshop.is_free ? 'free' : 'pending';
@@ -626,10 +642,15 @@ router.post("/training/workshops/public/:slug/payment/create", async (req, res) 
 
     const { createPaymentIntent, isConfigured, getEnv } = await import("../lib/airwallex.js");
     if (!isConfigured()) return res.status(503).json({ error: "Payment not configured" });
-    const amountCents = Math.round((workshop.price ?? 0) * 100);
+    const amount = Number(workshop.price ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      logger.error({ workshopId: workshop.id, price: workshop.price }, "Workshop has invalid payment amount");
+      return res.status(500).json({ error: "Workshop payment amount is invalid" });
+    }
+    const amountCents = Math.round(amount * 100);
     const origin = req.headers.origin ?? 'https://remyndassessments.com';
     const intent = await createPaymentIntent({
-      amount: amountCents,
+      amount,
       currency: workshop.currency ?? 'USD',
       plan: `workshop-${workshop.id}`,
       caseId: registration_id,
