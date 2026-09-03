@@ -5,7 +5,7 @@ import {
   Eye, Users, Award, Lightbulb, GitBranch, TrendingUp,
   ArrowRight, ChevronRight, CheckCircle2, X, Clock,
   UserCheck, Target, Zap, DollarSign, Package, Info,
-  Sun, Building2, Star, Sparkles, BookOpen, Brain,
+  Building2, Star, BookOpen, Brain,
   BarChart3, AlertCircle, GraduationCap, Briefcase, Baby,
 } from "lucide-react";
 import { ASSESSMENT_OVERVIEWS, type AssessmentOverview } from "@/data/assessment-overviews";
@@ -129,16 +129,11 @@ function Section({ icon: Icon, color, title, children }: {
   );
 }
 
-function summerPx(priceStr: string): string {
-  const n = parseInt(priceStr.replace(/,/g, ""), 10);
-  return Math.round(n * 0.8).toLocaleString();
-}
-
 type DrawerLabels = {
   headerLabel: string; sectionAbout: string; sectionWhen: string;
   sectionInitiatedBy: string; sectionProfile: string; sectionBenefits: string;
   sectionDeliverables: string; sectionTimeline: string; sectionCost: string;
-  standardPrice: string; summerRate: string; referBtn: string; parentBtn: string;
+  standardPrice: string; referBtn: string; parentBtn: string;
 };
 
 function AssessmentOverviewDrawer({
@@ -189,11 +184,6 @@ function AssessmentOverviewDrawer({
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{labels.standardPrice}</span>
                     <span className="text-sm font-bold text-slate-800">{price} RMB</span>
                   </div>
-                  <div className="bg-amber-400 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-md shadow-amber-900/20">
-                    <Sun size={11} className="text-amber-800 flex-shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800">{labels.summerRate}</span>
-                    <span className="text-sm font-bold text-amber-900">{summerPx(price)} RMB</span>
-                  </div>
                 </div>
               )}
             </div>
@@ -204,7 +194,7 @@ function AssessmentOverviewDrawer({
                 <h2 className="text-base font-bold text-slate-900 leading-snug">{title}</h2>
                 {price && (
                   <p className="text-xs text-slate-400 mt-1">
-                    {labels.standardPrice} {price} RMB &nbsp;·&nbsp; {labels.summerRate} {summerPx(price)} RMB
+                    {labels.standardPrice} {price} RMB
                   </p>
                 )}
               </div>
@@ -537,40 +527,6 @@ export default function AssessmentServicesPage() {
                 {a.heroParentBtn} <ChevronRight size={16} />
               </button>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SUMMER CALLOUT ── */}
-      <section className="relative overflow-hidden bg-slate-800 py-10">
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
-        />
-        <div className="relative z-10 max-w-5xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
-            <div className="w-12 h-12 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center flex-shrink-0">
-              <Sun size={22} className="text-amber-400" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300">{a.summerBadge}</span>
-              </div>
-              <h2 className="text-xl md:text-2xl font-extrabold text-white mb-1">{a.summerHeadline}</h2>
-              <p className="text-slate-400 text-sm">{a.summerDesc}</p>
-              <p className="text-amber-300/80 text-xs font-semibold mt-1">{a.summerEnds}</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
-              <Link href="/portal?tab=school">
-                <button className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-sm px-6 py-3 rounded-xl transition-colors">
-                  <Sparkles size={14} /> {a.summerBookBtn}
-                </button>
-              </Link>
-              <Link href="/portal?tab=parent">
-                <button className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-slate-300 font-semibold text-sm px-5 py-3 rounded-xl transition-colors">
-                  {a.summerParentBtn} <ChevronRight size={14} />
-                </button>
-              </Link>
-            </div>
           </div>
         </div>
       </section>
