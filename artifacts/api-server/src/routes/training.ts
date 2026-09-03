@@ -547,7 +547,13 @@ router.get("/training/workshops/public/:slug", async (req, res) => {
     const result = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);
     if (!result.rows.length) return res.status(404).json({ error: "Workshop not found" });
     const workshop = result.rows[0] as any;
-    const countRes = await db.execute(sql`SELECT COUNT(*)::int AS total FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND status != 'cancelled'`);
+    const countRes = await db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM workshop_registrations
+      WHERE workshop_id = ${workshop.id}
+        AND status != 'cancelled'
+        AND (${workshop.is_free} OR payment_status = 'paid')
+    `);
     workshop.registration_count = (countRes.rows[0] as any).total;
     return res.json({ workshop });
   } catch (err) {
@@ -573,7 +579,13 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
       return res.status(400).json({ error: "Registration has closed" });
     }
     if (workshop.max_participants) {
-      const cnt = await db.execute(sql`SELECT COUNT(*)::int AS total FROM workshop_registrations WHERE workshop_id = ${workshop.id} AND status != 'cancelled'`);
+      const cnt = await db.execute(sql`
+        SELECT COUNT(*)::int AS total
+        FROM workshop_registrations
+        WHERE workshop_id = ${workshop.id}
+          AND status != 'cancelled'
+          AND (${workshop.is_free} OR payment_status = 'paid')
+      `);
       if ((cnt.rows[0] as any).total >= workshop.max_participants) return res.status(400).json({ error: "This workshop is full" });
     }
     const normalEmail = email.trim().toLowerCase();
@@ -584,7 +596,7 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     `);
     if (dup.rows.length) {
       const existing = dup.rows[0] as any;
-      if (!workshop.is_free && existing.payment_status === "pending" && !existing.payment_intent_id) {
+      if (!workshop.is_free && existing.payment_status === "pending" && existing.status !== "cancelled") {
         return res.json({
           ok: true,
           id: existing.id,
@@ -673,7 +685,11 @@ router.get("/training/workshops", authMiddleware, requireAdmin, async (req, res)
   try {
     const result = await db.execute(sql`
       SELECT w.*,
-        (SELECT COUNT(*)::int FROM workshop_registrations r WHERE r.workshop_id = w.id AND r.status != 'cancelled') AS registration_count
+        (SELECT COUNT(*)::int
+         FROM workshop_registrations r
+         WHERE r.workshop_id = w.id
+           AND r.status != 'cancelled'
+           AND (w.is_free = TRUE OR r.payment_status = 'paid')) AS registration_count
       FROM workshops w ORDER BY w.created_at DESC`);
     return res.json({ workshops: result.rows });
   } catch (err) {
@@ -817,6 +833,32 @@ router.get("/training/workshops/:id/registrations", authMiddleware, requireAdmin
     const result = await db.execute(sql`SELECT * FROM workshop_registrations WHERE workshop_id = ${req.params.id} ORDER BY created_at DESC`);
     return res.json({ registrations: result.rows });
   } catch { return res.status(500).json({ error: "Failed" }); }
+});
+
+// ── ADMIN: Delete an unpaid workshop registration ──────────────────────────────
+router.delete("/training/workshops/:id/registrations/:regId", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const existing = await db.execute(sql`
+      SELECT payment_status
+      FROM workshop_registrations
+      WHERE id = ${req.params.regId} AND workshop_id = ${req.params.id}
+      LIMIT 1
+    `);
+    if (!existing.rows.length) return res.status(404).json({ error: "Registration not found" });
+    if ((existing.rows[0] as any).payment_status === "paid") {
+      return res.status(409).json({ error: "Paid registrations cannot be deleted" });
+    }
+
+    await db.execute(sql`DELETE FROM workshop_payment_intents WHERE registration_id = ${req.params.regId}`);
+    await db.execute(sql`
+      DELETE FROM workshop_registrations
+      WHERE id = ${req.params.regId} AND workshop_id = ${req.params.id}
+    `);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to delete workshop registration");
+    return res.status(500).json({ error: "Failed to delete registration" });
+  }
 });
 
 // ── ADMIN: Update workshop registration status ────────────────────────────────

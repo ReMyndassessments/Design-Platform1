@@ -665,6 +665,12 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workshop-registrations", w.id] }),
   });
+  const deleteMutation = useMutation({
+    mutationFn: (regId: string) =>
+      customFetch(`/api/training/workshops/${w.id}/registrations/${regId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workshop-registrations", w.id] }),
+    onError: (error: Error) => window.alert(error.message || "Unable to delete registration"),
+  });
 
   const REG_STATUSES = ["registered", "confirmed", "attended", "no_show", "pending_payment", "cancelled"];
   const PAY_COLORS: Record<string, string> = {
@@ -783,6 +789,7 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
                   <th className={thCls}>Payment</th>
                   <th className={thCls}>Status</th>
                   <th className={thCls}>Registered</th>
+                  <th className={thCls}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -811,6 +818,24 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
                     </td>
                     <td className={tdCls}>
                       <p className="text-xs text-slate-500 whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</p>
+                    </td>
+                    <td className={tdCls}>
+                      {r.payment_status !== "paid" && (
+                        <button
+                          type="button"
+                          title="Delete unpaid or test registration"
+                          aria-label={`Delete ${r.first_name} ${r.last_name}`}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete the unpaid registration for ${r.first_name} ${r.last_name}? This cannot be undone.`)) {
+                              deleteMutation.mutate(r.id);
+                            }
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
