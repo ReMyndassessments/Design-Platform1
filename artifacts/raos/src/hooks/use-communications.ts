@@ -144,6 +144,30 @@ export function useCancelCampaign() {
   });
 }
 
+export function useDeleteCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customFetch(`/api/communications/campaigns/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["communications-campaigns"] }),
+  });
+}
+
+export function useArchiveCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customFetch(`/api/communications/campaigns/${id}/archive`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["communications-campaigns"] }),
+  });
+}
+
+export function useClearTestCampaigns() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => customFetch("/api/communications/campaigns/test-drafts", { method: "DELETE" }) as Promise<{ deleted: number }>,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["communications-campaigns"] }),
+  });
+}
+
 export function useRetryCampaign() {
   const qc = useQueryClient();
   return useMutation({

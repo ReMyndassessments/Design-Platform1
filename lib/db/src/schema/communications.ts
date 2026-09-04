@@ -42,6 +42,7 @@ export const communicationCampaignsTable = pgTable("communication_campaigns", {
   status: text("status").notNull().default("draft"),
   scheduledAt: timestamp("scheduled_at"),
   sentAt: timestamp("sent_at"),
+  archivedAt: timestamp("archived_at"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
