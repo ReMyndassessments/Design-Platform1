@@ -4590,6 +4590,37 @@ async function createWorkshopTables() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS workshop_manual_sales_inquiries (
+      id TEXT PRIMARY KEY,
+      workshop_id TEXT NOT NULL,
+      workshop_title TEXT NOT NULL,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      job_title TEXT,
+      professional_role TEXT,
+      school_name TEXT,
+      city TEXT,
+      country TEXT,
+      message TEXT,
+      verification_code_hash TEXT NOT NULL,
+      verification_expires_at TIMESTAMPTZ NOT NULL,
+      verification_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      verification_attempts INTEGER NOT NULL DEFAULT 0,
+      request_ip TEXT,
+      verified_at TIMESTAMPTZ,
+      submitted_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS workshop_manual_sales_inquiries_email_idx
+      ON workshop_manual_sales_inquiries (workshop_id, email)`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS request_ip TEXT`);
 
     logger.info("Workshop tables ready");
   } catch (err) {

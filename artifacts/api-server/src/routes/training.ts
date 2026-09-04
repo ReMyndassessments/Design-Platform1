@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { sql, SQL } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import crypto from "crypto";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 import type { Request, Response, NextFunction } from "express";
@@ -22,6 +23,20 @@ const router = Router();
 function makeEmailRow(label: string, value: string | null | undefined) {
   if (!value) return "";
   return `<tr><td style="padding:5px 12px;font-weight:600;color:#475569;white-space:nowrap;vertical-align:top;font-size:13px">${label}</td><td style="padding:5px 12px;color:#0f172a;font-size:13px">${value}</td></tr>`;
+}
+
+function escapeHtml(value: string | null | undefined): string {
+  return (value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  }[char]!));
+}
+
+function workshopManualSalesMode(): boolean {
+  return process.env.WORKSHOP_MANUAL_SALES_MODE === "true";
+}
+
+function shouldSendManualSalesEmails(): boolean {
+  return process.env.NODE_ENV === "production" && process.env.WORKSHOP_MANUAL_SALES_EMAIL_ENABLED !== "false";
 }
 
 function workshopList(reg: any): string {
@@ -562,6 +577,7 @@ router.get("/training/workshops/public/:slug", async (req, res) => {
     const result = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);
     if (!result.rows.length) return res.status(404).json({ error: "Workshop not found" });
     const workshop = result.rows[0] as any;
+    workshop.manual_sales_mode = !workshop.is_free && workshopManualSalesMode();
     const countRes = await db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM workshop_registrations
@@ -574,6 +590,109 @@ router.get("/training/workshops/public/:slug", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to get public workshop");
     return res.status(500).json({ error: "Failed" });
+  }
+});
+
+async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
+  if (!shouldSendManualSalesEmails()) {
+    logger.info({ inquiryId: inquiry.id }, "Manual workshop-sales email suppressed outside production");
+    return;
+  }
+  const name = escapeHtml(`${inquiry.first_name} ${inquiry.last_name}`);
+  const workshopTitle = escapeHtml(inquiry.workshop_title);
+  const rows = [
+    makeEmailRow("Workshop", workshopTitle),
+    makeEmailRow("Name", name),
+    makeEmailRow("Email", escapeHtml(inquiry.email)),
+    makeEmailRow("Phone", escapeHtml(inquiry.phone)),
+    makeEmailRow("Job title", escapeHtml(inquiry.job_title)),
+    makeEmailRow("Professional role", escapeHtml(inquiry.professional_role)),
+    makeEmailRow("School / organisation", escapeHtml(inquiry.school_name)),
+    makeEmailRow("Location", escapeHtml([inquiry.city, inquiry.country].filter(Boolean).join(", "))),
+    makeEmailRow("Message", escapeHtml(inquiry.message)),
+  ].join("");
+  await sendEmail({
+    to: "ne_roberts@yahoo.com",
+    subject: `Workshop sales inquiry — ${inquiry.workshop_title} — ${inquiry.first_name} ${inquiry.last_name}`,
+    html: `<div style="font-family:sans-serif;max-width:600px"><div style="background:#0c1a2e;padding:24px;color:#fff"><h1 style="margin:0;font-size:18px">New ReMynd Workshop Sales Inquiry</h1></div><div style="padding:24px;border:1px solid #e2e8f0"><table style="width:100%;border-collapse:collapse">${rows}</table></div></div>`,
+  });
+  await sendEmail({
+    to: inquiry.email,
+    subject: `We received your workshop inquiry — ${inquiry.workshop_title}`,
+    html: `<div style="font-family:sans-serif;max-width:600px"><div style="background:#0c1a2e;padding:24px;color:#fff"><p style="margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase">ReMynd Student Services</p><h1 style="margin:6px 0 0;font-size:20px">Your inquiry has been received</h1></div><div style="padding:28px;border:1px solid #e2e8f0"><p>Dear ${escapeHtml(inquiry.first_name)},</p><p>Thank you for your interest in <strong>${workshopTitle}</strong>. A ReMynd team member will review your inquiry and contact you about registration and payment options.</p><p>This inquiry is not a workshop registration or payment confirmation. Access is not activated until arrangements have been confirmed by ReMynd.</p></div></div>`,
+  });
+}
+
+router.post("/training/workshops/public/:slug/manual-sales/request-verification", async (req, res) => {
+  try {
+    if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
+    const { first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message, privacy_consent } = req.body;
+    if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
+    if (privacy_consent !== true) return res.status(400).json({ error: "Privacy consent is required" });
+    if ([first_name, last_name, phone, job_title, professional_role, school_name, city, country].some(value => typeof value === "string" && value.length > 200)
+      || (typeof message === "string" && message.length > 5000)) {
+      return res.status(400).json({ error: "One or more fields are too long" });
+    }
+    const normalEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalEmail)) return res.status(400).json({ error: "Invalid email address" });
+    const requestIp = req.ip || req.socket.remoteAddress || "unknown";
+    const recentIpRequests = await db.execute(sql`SELECT COUNT(*)::int AS total
+      FROM workshop_manual_sales_inquiries
+      WHERE request_ip = ${requestIp} AND verification_sent_at > NOW() - INTERVAL '15 minutes'`);
+    if (Number((recentIpRequests.rows[0] as any)?.total ?? 0) >= 10) {
+      return res.status(429).json({ error: "Too many verification requests. Please try again later." });
+    }
+    const workshopRes = await db.execute(sql`SELECT id, title, is_free, status FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
+    if (!workshopRes.rows.length || (workshopRes.rows[0] as any).is_free) return res.status(404).json({ error: "Workshop not available for manual sales" });
+    const workshop = workshopRes.rows[0] as any;
+    const existing = await db.execute(sql`SELECT * FROM workshop_manual_sales_inquiries WHERE workshop_id = ${workshop.id} AND email = ${normalEmail} AND submitted_at IS NULL ORDER BY created_at DESC LIMIT 1`);
+    const previous = existing.rows[0] as any;
+    if (previous?.verification_sent_at && Date.now() - new Date(previous.verification_sent_at).getTime() < 60_000) {
+      return res.status(429).json({ error: "Please wait before requesting another verification code" });
+    }
+    const id = previous?.id ?? `wms_${nanoid()}`;
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const hash = crypto.createHash("sha256").update(`${id}:${code}`).digest("hex");
+    await db.execute(sql`INSERT INTO workshop_manual_sales_inquiries
+      (id, workshop_id, workshop_title, first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message, verification_code_hash, verification_expires_at, verification_sent_at, verification_attempts, request_ip, updated_at)
+      VALUES (${id}, ${workshop.id}, ${workshop.title}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail}, ${phone?.trim() ?? null}, ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${message?.trim() ?? null}, ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
+      ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message, verification_code_hash = EXCLUDED.verification_code_hash, verification_expires_at = EXCLUDED.verification_expires_at, verification_sent_at = NOW(), verification_attempts = 0, request_ip = EXCLUDED.request_ip, updated_at = NOW()`);
+    if (shouldSendManualSalesEmails()) {
+      await sendEmail({ to: normalEmail, subject: `Your ReMynd verification code — ${workshop.title}`, html: `<p>Your ReMynd workshop inquiry verification code is <strong style="font-size:22px;letter-spacing:3px">${code}</strong>.</p><p>It expires in 15 minutes. Do not share this code.</p>` });
+    } else {
+      logger.info({ inquiryId: id }, "Manual workshop verification email suppressed outside production");
+    }
+    return res.status(201).json({ ok: true, inquiryId: id });
+  } catch (err) {
+    logger.error({ err }, "Workshop manual-sales verification request failed");
+    return res.status(500).json({ error: "Unable to send verification code" });
+  }
+});
+
+router.post("/training/workshops/public/:slug/manual-sales/submit", async (req, res) => {
+  try {
+    if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
+    const { inquiry_id, verification_code } = req.body;
+    if (!inquiry_id || !/^\d{6}$/.test(verification_code ?? "")) return res.status(400).json({ error: "A valid verification code is required" });
+    const result = await db.execute(sql`SELECT i.* FROM workshop_manual_sales_inquiries i JOIN workshops w ON w.id = i.workshop_id WHERE i.id = ${inquiry_id} AND w.slug = ${req.params.slug} AND w.is_free = FALSE`);
+    if (!result.rows.length) return res.status(404).json({ error: "Inquiry not found" });
+    const inquiry = result.rows[0] as any;
+    if (inquiry.submitted_at) return res.json({ ok: true, alreadySubmitted: true });
+    if (new Date(inquiry.verification_expires_at) < new Date()) return res.status(400).json({ error: "Verification code has expired. Request a new code." });
+    if (Number(inquiry.verification_attempts ?? 0) >= 5) return res.status(429).json({ error: "Too many incorrect attempts. Request a new code." });
+    const hash = crypto.createHash("sha256").update(`${inquiry.id}:${verification_code}`).digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(inquiry.verification_code_hash))) {
+      await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET verification_attempts = verification_attempts + 1, updated_at = NOW() WHERE id = ${inquiry.id}`);
+      return res.status(400).json({ error: "Incorrect verification code" });
+    }
+    await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET verified_at = NOW(), submitted_at = NOW(), updated_at = NOW() WHERE id = ${inquiry.id}`);
+    inquiry.verified_at = new Date();
+    inquiry.submitted_at = new Date();
+    sendWorkshopManualSalesEmails(inquiry).catch(err => logger.error({ err, inquiryId: inquiry.id }, "Workshop manual-sales emails failed"));
+    return res.status(201).json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Workshop manual-sales submission failed");
+    return res.status(500).json({ error: "Unable to submit inquiry" });
   }
 });
 
@@ -595,6 +714,12 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
     if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not open for registration" });
     const workshop = workshopRes.rows[0] as any;
+    if (!workshop.is_free && workshopManualSalesMode()) {
+      return res.status(403).json({
+        error: "Workshop registration and payment are currently arranged directly with ReMynd",
+        manualSalesMode: true,
+      });
+    }
     const requiresExtendedProfile = workshop.slug === "from-inquiry-to-self-authorship";
     if (requiresExtendedProfile && (!job_title?.trim() || !professional_role?.trim()
       || !school_name?.trim() || !city?.trim() || !country?.trim())) {
@@ -686,6 +811,9 @@ router.post("/training/workshops/public/:slug/payment/create", async (req, res) 
     const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug}`);
     if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not found" });
     const workshop = workshopRes.rows[0] as any;
+    if (!workshop.is_free && workshopManualSalesMode()) {
+      return res.status(403).json({ error: "Workshop payments are being arranged directly with ReMynd" });
+    }
     const regRes = await db.execute(sql`SELECT * FROM workshop_registrations WHERE id = ${registration_id} AND workshop_id = ${workshop.id}`);
     if (!regRes.rows.length) return res.status(404).json({ error: "Registration not found" });
     const reg = regRes.rows[0] as any;
@@ -733,6 +861,44 @@ router.get("/training/workshops", authMiddleware, requireAdmin, async (req, res)
     return res.json({ workshops: result.rows });
   } catch (err) {
     logger.error({ err }, "Failed to list workshops");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+// ── ADMIN: Manual workshop-sales inquiries ─────────────────────────────────────
+router.get("/training/workshops/manual-sales-inquiries", authMiddleware, requireAdmin, async (_req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT id, 'workshop_sales' AS "inquiryType", status,
+      first_name || ' ' || last_name AS "contactName", email AS "contactEmail", phone AS "contactPhone",
+      school_name AS organisation, professional_role AS role,
+      COALESCE(message, '') AS message, workshop_title AS "workshopTitle",
+      created_at AS "createdAt"
+      FROM workshop_manual_sales_inquiries WHERE submitted_at IS NOT NULL ORDER BY created_at DESC`);
+    return res.json({ inquiries: result.rows });
+  } catch (err) {
+    logger.error({ err }, "Failed to list manual workshop-sales inquiries");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+router.patch("/training/workshops/manual-sales-inquiries/:id/status", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["new", "contacted", "converted", "closed"].includes(status)) return res.status(400).json({ error: "Invalid status" });
+    await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET status = ${status}, updated_at = NOW() WHERE id = ${req.params.id} AND submitted_at IS NOT NULL`);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to update manual workshop-sales inquiry");
+    return res.status(500).json({ error: "Failed" });
+  }
+});
+
+router.delete("/training/workshops/manual-sales-inquiries/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    await db.execute(sql`DELETE FROM workshop_manual_sales_inquiries WHERE id = ${req.params.id} AND submitted_at IS NOT NULL`);
+    return res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to delete manual workshop-sales inquiry");
     return res.status(500).json({ error: "Failed" });
   }
 });

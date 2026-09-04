@@ -1,7 +1,8 @@
 /**
  * Public workshop page — /training/:slug
  * No authentication required.
- * Handles free registration (immediate) and paid (Airwallex dropIn embedded inline).
+ * Handles free registration (immediate), paid Airwallex checkout, and the
+ * server-controlled workshop manual-sales inquiry flow.
  *
  * Airwallex gotchas (from lsc-checkout.tsx):
  * - SDK global is window.AirwallexComponentsSDK
@@ -38,10 +39,10 @@ type Workshop = {
   registration_opens_at?: string; registration_closes_at?: string;
   max_participants?: number; is_free: boolean;
   price?: number; currency: string; contact_email?: string;
-  status: string; registration_count: number;
+  status: string; registration_count: number; manual_sales_mode?: boolean;
 };
 
-type RegStep = "form" | "payment" | "success" | "error" | "duplicate";
+type RegStep = "form" | "payment" | "verify" | "inquiry-success" | "success" | "error" | "duplicate";
 
 function getBaseUrl() {
   const prefix = window.location.pathname.startsWith("/raos") ? "/raos" : "";
@@ -127,6 +128,8 @@ export default function WorkshopPublicPage() {
   const [regId, setRegId] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [regError, setRegError] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [manualInquiryId, setManualInquiryId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const paymentContainerRef = useRef<HTMLDivElement>(null);
@@ -140,6 +143,7 @@ export default function WorkshopPublicPage() {
     interested_future_learning: false, interested_school_training: false,
     interested_assessment_services: false, interested_partner_school: false,
     training_only: false, marketing_consent: false, privacy_consent: false,
+    manual_sales_message: "",
   });
 
   const toggleInterestArea = (area: string) => {
@@ -228,6 +232,18 @@ export default function WorkshopPublicPage() {
     setSubmitting(true);
     try {
       const base = getBaseUrl();
+      if (!workshop.is_free && workshop.manual_sales_mode) {
+        const vr = await fetch(`${base}/api/training/workshops/public/${slug}/manual-sales/request-verification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, message: form.manual_sales_message }),
+        });
+        const vdata = await vr.json();
+        if (!vr.ok) throw new Error(vdata.error ?? "Unable to send verification code");
+        setManualInquiryId(vdata.inquiryId);
+        setStep("verify");
+        return;
+      }
       const res = await fetch(`${base}/api/training/workshops/public/${slug}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -256,6 +272,26 @@ export default function WorkshopPublicPage() {
       }
     } catch (err) {
       setRegError(err instanceof Error ? err.message : "Registration failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleManualSalesVerification(e: React.FormEvent) {
+    e.preventDefault();
+    setRegError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/training/workshops/public/${slug}/manual-sales/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inquiry_id: manualInquiryId, verification_code: verificationCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Unable to submit inquiry");
+      setStep("inquiry-success");
+    } catch (err) {
+      setRegError(err instanceof Error ? err.message : "Unable to submit inquiry. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -291,6 +327,7 @@ export default function WorkshopPublicPage() {
   const priceStr = workshop.is_free
     ? "Free"
     : `${CURRENCIES[workshop.currency] ?? ""}${workshop.price} ${workshop.currency}`;
+  const manualSalesMode = !workshop.is_free && !!workshop.manual_sales_mode;
 
   return (
     <div className="min-h-screen bg-[#fdf8f0]">
@@ -400,7 +437,7 @@ export default function WorkshopPublicPage() {
                   </h3>
                   {canRegister && (
                     <p className="text-slate-400 text-xs mt-1">
-                      {workshop.is_free ? "Free admission — reserve your spot" : `${priceStr} per person`}
+                      {workshop.is_free ? "Free admission — reserve your spot" : manualSalesMode ? "Request registration and payment arrangements directly from ReMynd" : `${priceStr} per person`}
                     </p>
                   )}
                 </div>
@@ -527,6 +564,14 @@ export default function WorkshopPublicPage() {
                         className="w-full resize-y border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                     </div>}
 
+                    {manualSalesMode && <div className="border-t border-slate-100 pt-5">
+                      <label className="block text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-2">Inquiry details</label>
+                      <p className="text-xs text-slate-500 mb-2">Tell us about any registration, invoicing, or workshop requirements. We will confirm arrangements before your place is registered.</p>
+                      <textarea rows={3} value={form.manual_sales_message}
+                        onChange={e => setForm(f => ({ ...f, manual_sales_message: e.target.value }))}
+                        className="w-full resize-y border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                    </div>}
+
                     {usesExpandedRegistration && <fieldset className="border-t border-slate-100 pt-5">
                       <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Future Interest</legend>
                       <div className="space-y-2.5">
@@ -574,7 +619,7 @@ export default function WorkshopPublicPage() {
                     )}
                     <button type="submit" disabled={submitting}
                       className="w-full mt-1 bg-[#0c1a2e] hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl py-3 transition-colors flex items-center justify-center gap-2">
-                      {submitting ? <><Loader2 size={14} className="animate-spin" /> Registering…</> : workshop.is_free ? "Register — Free" : `Register & Pay ${priceStr}`}
+                      {submitting ? <><Loader2 size={14} className="animate-spin" /> {manualSalesMode ? "Sending code…" : "Registering…"}</> : workshop.is_free ? "Register — Free" : manualSalesMode ? "Request Registration & Payment Details" : `Register & Pay ${priceStr}`}
                     </button>
                   </form>
                 )}
@@ -597,6 +642,40 @@ export default function WorkshopPublicPage() {
                   <p className="text-[10px] text-slate-400 text-center mt-3">Payments processed securely by Airwallex</p>
                 </div>
               </>
+            )}
+
+            {step === "verify" && (
+              <form onSubmit={handleManualSalesVerification} className="max-w-lg mx-auto px-5 py-8 space-y-5">
+                <div className="text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-teal-100 flex items-center justify-center"><Mail size={22} className="text-teal-700" /></div>
+                  <h3 className="font-bold text-slate-900 text-lg">Verify your email</h3>
+                  <p className="text-sm text-slate-500 mt-2">We sent a six-digit verification code to <strong>{form.email}</strong>. Enter it to submit your ReMynd workshop inquiry.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Verification code *</label>
+                  <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verificationCode}
+                    onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ""))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-3 text-center text-lg tracking-[0.4em] focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                </div>
+                {regError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-2"><AlertCircle size={12} /> {regError}</p>}
+                <button type="submit" disabled={submitting || verificationCode.length !== 6}
+                  className="w-full bg-[#0c1a2e] hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl py-3 transition-colors flex items-center justify-center gap-2">
+                  {submitting ? <><Loader2 size={14} className="animate-spin" /> Submitting…</> : "Verify & Submit Inquiry"}
+                </button>
+                <button type="button" onClick={() => { setStep("form"); setVerificationCode(""); setRegError(""); }} className="w-full text-sm text-teal-600 underline">Use a different email or resend code</button>
+              </form>
+            )}
+
+            {step === "inquiry-success" && (
+              <div className="p-8 flex flex-col items-center gap-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center"><Check size={28} className="text-teal-700" strokeWidth={2.5} /></div>
+                <div>
+                  <p className="font-bold text-slate-900 text-lg">Your inquiry has been received</p>
+                  <p className="text-sm text-slate-500 mt-1">A ReMynd team member will contact <strong>{form.email}</strong> about registration and payment arrangements.</p>
+                  <p className="text-xs text-slate-400 mt-3">This is not a registration or payment confirmation. Workshop access is not activated until ReMynd confirms arrangements.</p>
+                </div>
+                <a href="/training" className="text-sm text-teal-600 hover:text-teal-700 font-medium underline mt-2">← Back to Training</a>
+              </div>
             )}
 
             {step === "success" && (

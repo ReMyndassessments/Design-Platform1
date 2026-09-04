@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 interface Inquiry {
   id: string;
-  inquiryType: "school" | "parent" | "partner_school";
+  inquiryType: "school" | "parent" | "partner_school" | "workshop_sales";
   status: "new" | "contacted" | "converted" | "closed";
   contactName: string;
   contactEmail: string;
@@ -49,6 +49,7 @@ interface Inquiry {
   howHeard: string | null;
   timeline: string | null;
   createdAt: string;
+  workshopTitle?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -140,35 +141,46 @@ export default function InquiriesPage() {
     queryKey: ["inquiries"],
     queryFn: () => customFetch<Inquiry[]>("/api/portal/inquiries"),
   });
+  const { data: workshopSalesResponse } = useQuery<{ inquiries: Inquiry[] }>({
+    queryKey: ["workshop-sales-inquiries"],
+    queryFn: () => customFetch<{ inquiries: Inquiry[] }>("/api/training/workshops/manual-sales-inquiries"),
+  });
+  const allInquiries = [...inquiries, ...(workshopSalesResponse?.inquiries ?? [])].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      customFetch(`/api/portal/inquiries/${id}/status`, {
+      customFetch(id.startsWith("wms_") ? `/api/training/workshops/manual-sales-inquiries/${id}/status` : `/api/portal/inquiries/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["inquiries"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inquiries"] });
+      qc.invalidateQueries({ queryKey: ["workshop-sales-inquiries"] });
+    },
   });
 
   const deleteInquiry = useMutation({
     mutationFn: (id: string) =>
-      customFetch(`/api/portal/inquiries/${id}`, { method: "DELETE" }),
+      customFetch(id.startsWith("wms_") ? `/api/training/workshops/manual-sales-inquiries/${id}` : `/api/portal/inquiries/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
+      qc.invalidateQueries({ queryKey: ["workshop-sales-inquiries"] });
       if (expanded === deleteTarget?.id) setExpanded(null);
       setDeleteTarget(null);
     },
   });
 
-  const filtered = filter === "all" ? inquiries : inquiries.filter((i) => i.status === filter);
+  const filtered = filter === "all" ? allInquiries : allInquiries.filter((i) => i.status === filter);
 
   const counts = {
-    all: inquiries.length,
-    new: inquiries.filter((i) => i.status === "new").length,
-    contacted: inquiries.filter((i) => i.status === "contacted").length,
-    converted: inquiries.filter((i) => i.status === "converted").length,
-    closed: inquiries.filter((i) => i.status === "closed").length,
+    all: allInquiries.length,
+    new: allInquiries.filter((i) => i.status === "new").length,
+    contacted: allInquiries.filter((i) => i.status === "contacted").length,
+    converted: allInquiries.filter((i) => i.status === "converted").length,
+    closed: allInquiries.filter((i) => i.status === "closed").length,
   };
 
   if (isLoading)
@@ -190,7 +202,7 @@ export default function InquiriesPage() {
         <div>
           <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
           <p className="text-slate-500 mt-1">
-            School and parent inquiries submitted via the portal
+              Portal inquiries and verified workshop sales inquiries
           </p>
         </div>
         <Button
@@ -418,6 +430,8 @@ export default function InquiriesPage() {
                           ? "bg-indigo-100"
                           : inq.inquiryType === "partner_school"
                           ? "bg-purple-100"
+                          : inq.inquiryType === "workshop_sales"
+                          ? "bg-amber-100"
                           : "bg-teal-100"
                       }`}
                     >
@@ -425,7 +439,9 @@ export default function InquiriesPage() {
                         <School size={18} className="text-indigo-600" />
                       ) : inq.inquiryType === "partner_school" ? (
                         <Building2 size={18} className="text-purple-600" />
-                      ) : (
+                        ) : inq.inquiryType === "workshop_sales" ? (
+                          <Calendar size={18} className="text-amber-600" />
+                        ) : (
                         <User size={18} className="text-teal-600" />
                       )}
                     </div>
@@ -442,11 +458,11 @@ export default function InquiriesPage() {
                             ? "bg-purple-100 text-purple-700"
                             : "text-slate-400"
                         }`}>
-                          {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType}
+                          {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType === "workshop_sales" ? "Workshop Sales" : inq.inquiryType}
                         </span>
                       </div>
                       <p className="text-sm text-slate-500 truncate">
-                        {inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
+                        {inq.workshopTitle ? `${inq.workshopTitle} · ` : inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
                       </p>
                     </div>
                   </div>
