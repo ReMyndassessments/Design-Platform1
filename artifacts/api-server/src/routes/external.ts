@@ -46,8 +46,8 @@ async function notifyAdminsOfAirwallexFailure(
   if (!inserted.rows.length) return;
 
   try {
-    const admins = await getAdminEmails();
-    if (!admins.length) throw new Error("No administrator notification email is configured");
+    const recipient = process.env.AIRWALLEX_FAILURE_NOTIFY_EMAIL?.trim();
+    if (!recipient) throw new Error("AIRWALLEX_FAILURE_NOTIFY_EMAIL is not configured");
     const { sendEmail } = await import("../lib/outlookEmail.js");
     const paymentIntentId = data["payment_intent_id"] ?? data["payment_intent"] ?? "Not provided";
     const attemptId = data["id"] ?? "Not provided";
@@ -78,11 +78,11 @@ async function notifyAdminsOfAirwallexFailure(
           </details>
         </div>
       </div>`;
-    await Promise.all(admins.map(to => sendEmail({
-      to,
+    await sendEmail({
+      to: recipient,
       subject: `[Action required] Airwallex payment failure: ${eventName}`,
       html,
-    })));
+    });
   } catch (error) {
     await db.execute(sql`DELETE FROM airwallex_webhook_notifications WHERE event_id = ${eventId}`);
     throw error;
