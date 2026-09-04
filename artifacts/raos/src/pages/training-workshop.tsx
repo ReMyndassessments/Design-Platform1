@@ -68,6 +68,25 @@ const TIMEZONES = [
   "America/New_York","America/Los_Angeles","Pacific/Auckland",
 ];
 const CURRENCIES: Record<string, string> = { USD: "$", HKD: "HK$", SGD: "S$", AUD: "A$", CNY: "¥", JPY: "¥", KRW: "₩", GBP: "£", EUR: "€" };
+const PROFESSIONAL_ROLES = [
+  "Principal / Head of School", "Senior School Leader", "SENCO / Inclusion Leader",
+  "Learning Support Coordinator", "School Counsellor", "School Psychologist",
+  "Student Support Professional", "Teacher", "Pastoral / Wellbeing Leader",
+  "School Administrator", "Education Consultant", "Other",
+];
+const SCHOOL_TYPES = [
+  "International School", "Private / Independent School", "Public / Government School",
+  "Bilingual School", "Early Years / Kindergarten", "Learning Centre",
+  "University / Higher Education", "Other",
+];
+const SCHOOL_SIZES = ["Under 250", "250–499", "500–999", "1,000–1,999", "2,000+", "Not sure / Prefer not to say"];
+const INTEREST_AREAS = [
+  "Learning Difficulties", "Literacy / Reading", "Mathematics",
+  "Academic English / Multilingual Learners", "Executive Function", "Attention",
+  "Behaviour", "Social-Emotional Needs", "Mental Health & Wellbeing",
+  "Neurodiversity", "School Readiness", "Assessment & Referral",
+  "Tier 2 Intervention", "Parent Support", "Teacher Support / Differentiation", "Other",
+];
 
 function formatSessions(sessions: SessionDate[], timezone: string): string {
   if (!sessions.length) return "";
@@ -114,9 +133,23 @@ export default function WorkshopPublicPage() {
 
   const [form, setForm] = useState({
     first_name: "", last_name: "", email: "",
-    professional_role: "", school_name: "", country: "", phone: "",
-    privacy_consent: false,
+    job_title: "", professional_role: "", professional_role_other: "",
+    school_name: "", city: "", country: "", phone: "",
+    school_type: "", school_size: "", areas_of_interest: [] as string[],
+    school_support_challenge: "",
+    interested_future_learning: false, interested_school_training: false,
+    interested_assessment_services: false, interested_partner_school: false,
+    training_only: false, marketing_consent: false, privacy_consent: false,
   });
+
+  const toggleInterestArea = (area: string) => {
+    setForm(f => ({
+      ...f,
+      areas_of_interest: f.areas_of_interest.includes(area)
+        ? f.areas_of_interest.filter(item => item !== area)
+        : [...f.areas_of_interest, area],
+    }));
+  };
 
   useEffect(() => {
     const base = getBaseUrl();
@@ -249,6 +282,7 @@ export default function WorkshopPublicPage() {
   const isFull = workshop.status === "full";
   const regClosed = !!(workshop.registration_closes_at && new Date(workshop.registration_closes_at) < new Date());
   const canRegister = !isClosed && !regClosed && !(isFull && workshop.max_participants && workshop.registration_count >= workshop.max_participants);
+  const usesExpandedRegistration = workshop.slug === "from-inquiry-to-self-authorship";
 
   const imageUrl = workshop.image_object_id
     ? `${getBaseUrl()}/api/training/workshops/public/${slug}/image`
@@ -384,7 +418,9 @@ export default function WorkshopPublicPage() {
                     )}
                   </div>
                 ) : (
-                  <form onSubmit={handleRegister} className="px-5 py-4 space-y-3">
+                  <form onSubmit={handleRegister} className="px-5 py-5 space-y-5">
+                    <div>
+                      <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Personal Information</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">First Name *</label>
@@ -398,35 +434,131 @@ export default function WorkshopPublicPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Email *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Professional Email Address *</label>
                       <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                     </div>
+                    {usesExpandedRegistration && <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Job Title / Role *</label>
+                      <input required value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                    </div>}
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Professional Role</label>
-                      <select value={form.professional_role} onChange={e => setForm(f => ({ ...f, professional_role: e.target.value }))}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-                        <option value="">Select role…</option>
-                        {["Teacher / Educator","School Psychologist / Educational Therapist","School Counsellor","School Administrator / Principal","University / College Staff","Researcher / Academic","Parent / Guardian","Other"].map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">School / Organisation</label>
-                      <input value={form.school_name} onChange={e => setForm(f => ({ ...f, school_name: e.target.value }))}
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">School / Organisation{usesExpandedRegistration ? " *" : ""}</label>
+                      <input required={usesExpandedRegistration} value={form.school_name} onChange={e => setForm(f => ({ ...f, school_name: e.target.value }))}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Country</label>
-                        <input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                      {usesExpandedRegistration && <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">City *</label>
+                        <input required value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
                           className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
-                      </div>
+                      </div>}
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Phone</label>
-                        <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Country / Region{usesExpandedRegistration ? " *" : ""}</label>
+                        <input required={usesExpandedRegistration} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
                           className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Phone</label>
+                      <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                    </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-5 space-y-3">
+                      <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest">Professional Role</p>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Your Primary Role{usesExpandedRegistration ? " *" : ""}</label>
+                      <select value={form.professional_role} onChange={e => setForm(f => ({ ...f, professional_role: e.target.value }))}
+                        required={usesExpandedRegistration} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                        <option value="">Select role…</option>
+                        {PROFESSIONAL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      {form.professional_role === "Other" && (
+                        <input required aria-label="Specify professional role" placeholder="Please specify your role"
+                          value={form.professional_role_other}
+                          onChange={e => setForm(f => ({ ...f, professional_role_other: e.target.value }))}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                      )}
+                    </div>
+
+                    {usesExpandedRegistration && <div className="border-t border-slate-100 pt-5 space-y-3">
+                      <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest">School Information</p>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">School Type</label>
+                        <select value={form.school_type} onChange={e => setForm(f => ({ ...f, school_type: e.target.value }))}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                          <option value="">Select school type…</option>
+                          {SCHOOL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Approximate Number of Students</label>
+                        <select value={form.school_size} onChange={e => setForm(f => ({ ...f, school_size: e.target.value }))}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400">
+                          <option value="">Select…</option>
+                          {SCHOOL_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
+                        </select>
+                      </div>
+                    </div>}
+
+                    {usesExpandedRegistration && <fieldset className="border-t border-slate-100 pt-5">
+                      <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Areas of Interest</legend>
+                      <div className="grid grid-cols-1 gap-2">
+                        {INTEREST_AREAS.map(area => (
+                          <label key={area} className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer">
+                            <input type="checkbox" checked={form.areas_of_interest.includes(area)}
+                              onChange={() => toggleInterestArea(area)}
+                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" />
+                            <span>{area}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>}
+
+                    {usesExpandedRegistration && <div className="border-t border-slate-100 pt-5">
+                      <label className="block text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-2">School Needs</label>
+                      <p className="text-xs text-slate-500 leading-relaxed mb-2">
+                        What is one of the biggest challenges your school currently faces in supporting students who require more than ordinary classroom intervention? <span className="text-slate-400">(Optional)</span>
+                      </p>
+                      <textarea rows={4} value={form.school_support_challenge}
+                        onChange={e => setForm(f => ({ ...f, school_support_challenge: e.target.value }))}
+                        className="w-full resize-y border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                    </div>}
+
+                    {usesExpandedRegistration && <fieldset className="border-t border-slate-100 pt-5">
+                      <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Future Interest</legend>
+                      <div className="space-y-2.5">
+                        {[
+                          ["interested_future_learning", "Future free ReMynd professional learning events"],
+                          ["interested_school_training", "Dedicated professional learning for my school"],
+                          ["interested_assessment_services", "Information about ReMynd educational assessment services"],
+                          ["interested_partner_school", "Information about becoming a ReMynd Partner School"],
+                          ["training_only", "I am only registering for this workshop at this time"],
+                        ].map(([field, label]) => (
+                          <label key={field} className="flex items-start gap-2.5 text-xs text-slate-600 cursor-pointer">
+                            <input type="checkbox"
+                              checked={form[field as keyof typeof form] as boolean}
+                              onChange={e => setForm(f => ({ ...f, [field]: e.target.checked }))}
+                              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400" />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>}
+
+                    <div className="border-t border-slate-100 pt-5 space-y-4">
+                      <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest">Consent</p>
+                      {usesExpandedRegistration && <label className="flex items-start gap-2.5 cursor-pointer bg-slate-50 border border-slate-100 rounded-xl p-3">
+                        <input type="checkbox" checked={form.marketing_consent}
+                          onChange={e => setForm(f => ({ ...f, marketing_consent: e.target.checked }))}
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 flex-shrink-0" />
+                        <span className="text-xs text-slate-600 leading-relaxed">
+                          Yes, I would like to receive occasional emails from ReMynd Student Services about future professional learning opportunities, educational resources, assessment services, and relevant programmes.
+                          <span className="block text-[10px] text-slate-400 mt-1">You can unsubscribe at any time.</span>
+                        </span>
+                      </label>}
                     <label className="flex items-start gap-2.5 cursor-pointer group mt-1">
                       <input type="checkbox" required checked={form.privacy_consent} onChange={e => setForm(f => ({ ...f, privacy_consent: e.target.checked }))}
                         className="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-400 cursor-pointer flex-shrink-0" />
@@ -434,6 +566,7 @@ export default function WorkshopPublicPage() {
                         I agree to the <a href="/privacy" target="_blank" className="text-teal-600 underline">Privacy Policy</a> and consent to my information being used for workshop administration purposes.*
                       </span>
                     </label>
+                    </div>
                     {regError && (
                       <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-2">
                         <AlertCircle size={12} /> {regError}

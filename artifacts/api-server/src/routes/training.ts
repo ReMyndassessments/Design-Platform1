@@ -565,7 +565,13 @@ router.get("/training/workshops/public/:slug", async (req, res) => {
 // ── PUBLIC: Register ──────────────────────────────────────────────────────────
 router.post("/training/workshops/public/:slug/register", async (req, res) => {
   try {
-    const { first_name, last_name, email, professional_role, school_name, country, phone, privacy_consent } = req.body;
+    const {
+      first_name, last_name, email, job_title, professional_role, professional_role_other,
+      school_name, city, country, phone, school_type, school_size, areas_of_interest,
+      school_support_challenge, interested_future_learning, interested_school_training,
+      interested_assessment_services, interested_partner_school, training_only,
+      marketing_consent, privacy_consent,
+    } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (!privacy_consent) return res.status(400).json({ error: "Privacy consent is required" });
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -574,6 +580,14 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
     if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not open for registration" });
     const workshop = workshopRes.rows[0] as any;
+    const requiresExtendedProfile = workshop.slug === "from-inquiry-to-self-authorship";
+    if (requiresExtendedProfile && (!job_title?.trim() || !professional_role?.trim()
+      || !school_name?.trim() || !city?.trim() || !country?.trim())) {
+      return res.status(400).json({ error: "Please complete all required personal and professional information" });
+    }
+    if (requiresExtendedProfile && professional_role === "Other" && !professional_role_other?.trim()) {
+      return res.status(400).json({ error: "Please specify your professional role" });
+    }
 
     if (workshop.registration_closes_at && new Date(workshop.registration_closes_at) < new Date()) {
       return res.status(400).json({ error: "Registration has closed" });
@@ -613,11 +627,21 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     const regStatus = workshop.is_free ? 'registered' : 'pending_payment';
 
     await db.execute(sql`INSERT INTO workshop_registrations
-      (id, workshop_id, first_name, last_name, email, professional_role, school_name, country, phone,
+      (id, workshop_id, first_name, last_name, email, job_title, professional_role, professional_role_other,
+       school_name, city, country, phone, school_type, school_size, areas_of_interest, school_support_challenge,
+       interested_future_learning, interested_school_training, interested_assessment_services,
+       interested_partner_school, training_only, marketing_consent, marketing_consent_timestamp,
        privacy_consent, privacy_consent_timestamp, payment_status, status, created_at, updated_at)
       VALUES (${regId}, ${workshop.id}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail},
-        ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${country?.trim() ?? null},
-        ${phone?.trim() ?? null}, TRUE, NOW(), ${paymentStatus}, ${regStatus}, NOW(), NOW())`);
+        ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${professional_role_other?.trim() ?? null},
+        ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${phone?.trim() ?? null},
+        ${school_type?.trim() ?? null}, ${school_size?.trim() ?? null},
+        ${JSON.stringify(Array.isArray(areas_of_interest) ? areas_of_interest : [])}::jsonb,
+        ${school_support_challenge?.trim() ?? null},
+        ${!!interested_future_learning}, ${!!interested_school_training},
+        ${!!interested_assessment_services}, ${!!interested_partner_school}, ${!!training_only},
+        ${!!marketing_consent}, ${marketing_consent ? sql`NOW()` : null},
+        TRUE, NOW(), ${paymentStatus}, ${regStatus}, NOW(), NOW())`);
 
     if (workshop.is_free) {
       (async () => {
@@ -879,7 +903,16 @@ router.get("/training/workshops/:id/registrations/export/csv", authMiddleware, r
   try {
     const result = await db.execute(sql`SELECT * FROM workshop_registrations WHERE workshop_id = ${req.params.id} ORDER BY created_at DESC`);
     const rows = result.rows as any[];
-    const cols = ["id", "first_name", "last_name", "email", "professional_role", "school_name", "country", "phone", "payment_status", "status", "confirmation_email_status", "internal_notes", "created_at"];
+    const cols = [
+      "id", "first_name", "last_name", "email", "job_title", "professional_role",
+      "professional_role_other", "school_name", "city", "country", "phone", "school_type",
+      "school_size", "areas_of_interest", "school_support_challenge",
+      "interested_future_learning", "interested_school_training",
+      "interested_assessment_services", "interested_partner_school", "training_only",
+      "marketing_consent", "marketing_consent_timestamp", "privacy_consent",
+      "privacy_consent_timestamp", "payment_status", "status",
+      "confirmation_email_status", "internal_notes", "created_at",
+    ];
     const escape = (v: any) => { if (v == null) return ""; const s = typeof v === "object" ? JSON.stringify(v) : String(v); return `"${s.replace(/"/g, '""')}"`; };
     const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
     res.setHeader("Content-Type", "text/csv");

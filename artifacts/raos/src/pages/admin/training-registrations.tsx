@@ -35,7 +35,13 @@ type Workshop = {
 type WorkshopReg = {
   id: string; workshop_id: string;
   first_name: string; last_name: string; email: string;
-  professional_role?: string; school_name?: string; country?: string; phone?: string;
+  job_title?: string; professional_role?: string; professional_role_other?: string;
+  school_name?: string; city?: string; country?: string; phone?: string;
+  school_type?: string; school_size?: string; areas_of_interest?: string[];
+  school_support_challenge?: string;
+  interested_future_learning?: boolean; interested_school_training?: boolean;
+  interested_assessment_services?: boolean; interested_partner_school?: boolean;
+  training_only?: boolean; marketing_consent?: boolean;
   payment_status: string; payment_intent_id?: string;
   status: string; confirmation_email_status?: string;
   internal_notes?: string; created_at: string;
@@ -798,12 +804,39 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
                     <td className={tdCls}>
                       <p className="font-medium text-slate-900 text-sm">{r.first_name} {r.last_name}</p>
                       <p className="text-xs text-slate-400">{r.email}</p>
+                      <details className="mt-2 min-w-[240px]">
+                        <summary className="text-[11px] font-semibold text-teal-600 cursor-pointer hover:text-teal-700">
+                          View registration details
+                        </summary>
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 space-y-1.5 shadow-sm">
+                          <p><strong>Job title:</strong> {r.job_title ?? "—"}</p>
+                          <p><strong>Primary role:</strong> {r.professional_role ?? "—"}{r.professional_role_other ? ` — ${r.professional_role_other}` : ""}</p>
+                          <p><strong>School:</strong> {r.school_name ?? "—"}</p>
+                          <p><strong>Location:</strong> {[r.city, r.country].filter(Boolean).join(", ") || "—"}</p>
+                          <p><strong>Phone:</strong> {r.phone ?? "—"}</p>
+                          <p><strong>School type:</strong> {r.school_type ?? "—"}</p>
+                          <p><strong>School size:</strong> {r.school_size ?? "—"}</p>
+                          <p><strong>Areas of interest:</strong> {r.areas_of_interest?.join(", ") || "—"}</p>
+                          <p><strong>School challenge:</strong> {r.school_support_challenge ?? "—"}</p>
+                          <p><strong>Future interest:</strong> {[
+                            r.interested_future_learning && "Future learning events",
+                            r.interested_school_training && "School training",
+                            r.interested_assessment_services && "Assessment services",
+                            r.interested_partner_school && "Partner School",
+                            r.training_only && "This workshop only",
+                          ].filter(Boolean).join(", ") || "—"}</p>
+                          <p><strong>Marketing consent:</strong> {r.marketing_consent ? "Yes" : "No"}</p>
+                        </div>
+                      </details>
                     </td>
                     <td className={tdCls}>
                       <p className="text-sm text-slate-700 truncate max-w-[160px]">{r.school_name ?? "—"}</p>
-                      <p className="text-xs text-slate-400">{r.professional_role ?? "—"}</p>
+                      <p className="text-xs text-slate-400">{r.job_title ?? r.professional_role ?? "—"}</p>
                     </td>
-                    <td className={tdCls}><p className="text-sm text-slate-600">{r.country ?? "—"}</p></td>
+                    <td className={tdCls}>
+                      <p className="text-sm text-slate-600">{r.country ?? "—"}</p>
+                      {r.city && <p className="text-xs text-slate-400">{r.city}</p>}
+                    </td>
                     <td className={tdCls}>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PAY_COLORS[r.payment_status] ?? "bg-slate-100 text-slate-500"}`}>
                         {r.payment_status}
