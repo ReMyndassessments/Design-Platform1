@@ -51,6 +51,14 @@ function escapeEmailHtml(value: unknown): string {
     .replaceAll("'", "&#039;");
 }
 
+function airwallexReferenceId(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as Record<string, unknown>)["id"] === "string") {
+    return (value as Record<string, unknown>)["id"] as string;
+  }
+  return undefined;
+}
+
 async function notifyAdminsOfAirwallexFailure(
   eventName: string,
   eventId: string,
@@ -68,7 +76,7 @@ async function notifyAdminsOfAirwallexFailure(
     const recipient = process.env.AIRWALLEX_FAILURE_NOTIFY_EMAIL?.trim();
     if (!recipient) throw new Error("AIRWALLEX_FAILURE_NOTIFY_EMAIL is not configured");
     const { sendEmail } = await import("../lib/outlookEmail.js");
-    const paymentIntentId = data["payment_intent_id"] ?? data["payment_intent"] ?? "Not provided";
+    const paymentIntentId = airwallexReferenceId(data["payment_intent_id"] ?? data["payment_intent"]);
     const attemptId = data["id"] ?? "Not provided";
     const amount = data["amount"] ?? data["amount_requested"] ?? "Not provided";
     const currency = data["currency"] ?? "Not provided";
@@ -76,6 +84,30 @@ async function notifyAdminsOfAirwallexFailure(
     const failureMessage = data["failure_message"] ?? data["error_message"] ?? data["message"] ?? "Not provided";
     const occurredAt = data["created_at"] ?? data["updated_at"] ?? new Date().toISOString();
     const details = escapeEmailHtml(JSON.stringify(data, null, 2));
+    const subscriberResult = paymentIntentId
+      ? await db.execute(sql`
+          SELECT c.parent_name, c.parent_email, c.parent_phone,
+                 pi.plan, pi.amount, pi.currency
+          FROM lsc_payment_intents pi
+          JOIN cases c ON c.id = pi.case_id
+          WHERE pi.id = ${paymentIntentId}
+          LIMIT 1
+        `)
+      : { rows: [] };
+    const subscriber = subscriberResult.rows[0] as Record<string, unknown> | undefined;
+    const plan = String(subscriber?.["plan"] ?? "");
+    const attemptedPurchase = subscriber
+      ? `Learning Support Companion subscription (${escapeEmailHtml(plan)} month${plan === "1" ? "" : "s"})`
+      : "Learning Support Companion subscription";
+    const contactRows = subscriber ? `
+            <tr><td style="padding:7px;font-weight:700">Name</td><td style="padding:7px">${escapeEmailHtml(subscriber["parent_name"] ?? "Not provided")}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Email</td><td style="padding:7px">${escapeEmailHtml(subscriber["parent_email"] ?? "Not provided")}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Phone</td><td style="padding:7px">${escapeEmailHtml(subscriber["parent_phone"] ?? "Not provided")}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Tried to purchase</td><td style="padding:7px">${attemptedPurchase}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Purchase amount</td><td style="padding:7px">${escapeEmailHtml(subscriber["amount"])} ${escapeEmailHtml(subscriber["currency"])}</td></tr>
+    ` : `
+            <tr><td style="padding:7px;font-weight:700">Tried to purchase</td><td style="padding:7px">${attemptedPurchase}</td></tr>
+    `;
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;color:#0f172a">
         <div style="background:#0f2747;padding:24px 28px;border-bottom:4px solid #d7aa3d">
@@ -84,8 +116,9 @@ async function notifyAdminsOfAirwallexFailure(
         <div style="padding:28px;border:1px solid #e2e8f0;border-top:0">
           <p style="margin-top:0">Airwallex reported a failed subscription payment attempt.</p>
           <table style="border-collapse:collapse;width:100%;font-size:14px">
+            ${contactRows}
             <tr><td style="padding:7px;font-weight:700">Event</td><td style="padding:7px">${escapeEmailHtml(eventName)}</td></tr>
-            <tr><td style="padding:7px;font-weight:700">Payment intent</td><td style="padding:7px">${escapeEmailHtml(paymentIntentId)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Payment intent</td><td style="padding:7px">${escapeEmailHtml(paymentIntentId ?? "Not provided")}</td></tr>
             <tr><td style="padding:7px;font-weight:700">Payment attempt</td><td style="padding:7px">${escapeEmailHtml(attemptId)}</td></tr>
             <tr><td style="padding:7px;font-weight:700">Amount</td><td style="padding:7px">${escapeEmailHtml(amount)} ${escapeEmailHtml(currency)}</td></tr>
             <tr><td style="padding:7px;font-weight:700">Failure code</td><td style="padding:7px">${escapeEmailHtml(failureCode)}</td></tr>
@@ -1717,7 +1750,7 @@ router.post("/external/payments/webhook", async (req, res) => {
     const eventId = body.id ?? `${eventName}:${String(eventData["id"] ?? eventData["payment_intent_id"] ?? "unknown")}:${String(eventData["updated_at"] ?? eventData["created_at"] ?? "unknown")}`;
     try {
       await notifyAdminsOfAirwallexFailure(eventName, eventId, eventData);
-      const intentId = (eventData["payment_intent_id"] ?? eventData["payment_intent"]) as string | undefined;
+      const intentId = airwallexReferenceId(eventData["payment_intent_id"] ?? eventData["payment_intent"]);
       if (intentId) {
         await db.execute(sql`UPDATE lsc_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
       }
