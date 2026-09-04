@@ -344,11 +344,11 @@ export default function WorkshopPublicPage() {
       </div>
 
       {/* Main content */}
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: info + description */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-10 flex flex-col gap-6">
+        {/* Workshop information */}
+        <div className="contents">
           {/* Key details */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-4 py-2 divide-y divide-slate-100">
+          <div className="order-1 bg-white rounded-2xl border border-slate-200 shadow-sm px-4 py-2 divide-y divide-slate-100">
             {dateStr && <InfoChip icon={Calendar} label="Date(s)" value={dateStr} />}
             {workshop.timezone && <InfoChip icon={Clock} label="Time Zone" value={workshop.timezone} />}
             <InfoChip icon={workshop.delivery_method === "in_person" ? MapPin : workshop.delivery_method === "hybrid" ? Globe : Monitor} label="Delivery"
@@ -363,7 +363,7 @@ export default function WorkshopPublicPage() {
 
           {/* Description */}
           {workshop.description && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
+            <div className="order-2 bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
               <h2 className="text-base font-bold text-slate-800 mb-3">About This Workshop</h2>
               <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{workshop.description}</p>
             </div>
@@ -371,7 +371,7 @@ export default function WorkshopPublicPage() {
 
           {/* Additional info (markdown) */}
           {workshop.additional_info && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
+            <div className="order-4 bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5">
               <div
                 className="text-sm text-slate-700 leading-relaxed"
                 style={{ lineHeight: "1.75" }}
@@ -382,16 +382,16 @@ export default function WorkshopPublicPage() {
 
           {/* Contact */}
           {workshop.contact_email && (
-            <p className="text-sm text-slate-500 flex items-center gap-1.5">
+            <p className="order-5 text-sm text-slate-500 flex items-center gap-1.5">
               <Mail size={13} />
               Questions? <a href={`mailto:${workshop.contact_email}`} className="text-teal-600 hover:text-teal-700 underline">{workshop.contact_email}</a>
             </p>
           )}
         </div>
 
-        {/* Right: registration card */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg sticky top-6 overflow-hidden">
+        {/* Full-width registration section */}
+        <div className="order-3">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
             {step === "form" && (
               <>
                 <div className="bg-[#0c1a2e] px-5 py-4">
@@ -418,7 +418,7 @@ export default function WorkshopPublicPage() {
                     )}
                   </div>
                 ) : (
-                  <form onSubmit={handleRegister} className="px-5 py-5 space-y-5">
+                  <form onSubmit={handleRegister} className="max-w-4xl mx-auto px-5 md:px-8 py-6 md:py-8 space-y-5">
                     <div>
                       <p className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Personal Information</p>
                     <div className="grid grid-cols-2 gap-2">
