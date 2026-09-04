@@ -432,28 +432,43 @@ router.get("/training/registrations/export/csv", authMiddleware, requireAdmin, a
   try {
     const result = await db.execute(sql`SELECT * FROM training_registrations ORDER BY created_at DESC`);
     const rows = result.rows as any[];
-    const cols = [
-      "id", "first_name", "last_name", "email", "job_title", "professional_role",
-      "professional_role_other", "school_name", "city", "country", "school_type", "school_size",
-      "workshop_1_selected", "workshop_2_selected", "workshop_3_selected", "workshop_4_selected",
-      "full_series_selected", "areas_of_interest", "school_support_challenge",
-      "interested_future_learning", "interested_school_training", "interested_assessment_services",
-      "interested_partner_school", "training_only",
-      "marketing_consent", "marketing_consent_timestamp",
-      "privacy_consent", "privacy_consent_timestamp",
-      "registration_source", "status",
-      "confirmation_email_status", "admin_notification_status",
-      "created_at", "updated_at",
+    const columns: Array<[string, (row: any) => unknown]> = [
+      ["First Name", r => r.first_name], ["Last Name", r => r.last_name],
+      ["Email", r => r.email], ["Job Title", r => r.job_title],
+      ["Professional Role", r => r.professional_role],
+      ["Other Role", r => r.professional_role_other],
+      ["School / Organisation", r => r.school_name], ["City", r => r.city],
+      ["Country / Region", r => r.country], ["School Type", r => r.school_type],
+      ["Approximate Student Count", r => r.school_size],
+      ["Workshop 1", r => r.workshop_1_selected ? "Yes" : "No"],
+      ["Workshop 2", r => r.workshop_2_selected ? "Yes" : "No"],
+      ["Workshop 3", r => r.workshop_3_selected ? "Yes" : "No"],
+      ["Workshop 4", r => r.workshop_4_selected ? "Yes" : "No"],
+      ["Full Series", r => r.full_series_selected ? "Yes" : "No"],
+      ["Areas of Interest", r => Array.isArray(r.areas_of_interest) ? r.areas_of_interest.join("; ") : ""],
+      ["School Support Challenge", r => r.school_support_challenge],
+      ["Future Learning Interest", r => r.interested_future_learning ? "Yes" : "No"],
+      ["School Training Interest", r => r.interested_school_training ? "Yes" : "No"],
+      ["Assessment Services Interest", r => r.interested_assessment_services ? "Yes" : "No"],
+      ["Partner School Interest", r => r.interested_partner_school ? "Yes" : "No"],
+      ["Training Only", r => r.training_only ? "Yes" : "No"],
+      ["Marketing Consent", r => r.marketing_consent ? "Yes" : "No"],
+      ["Registration Status", r => r.status],
+      ["Confirmation Email", r => r.confirmation_email_status],
+      ["Registered At", r => r.created_at],
     ];
     const escape = (v: any) => {
       if (v === null || v === undefined) return "";
-      const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+      const s = String(v);
       return `"${s.replace(/"/g, '""')}"`;
     };
-    const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="training-registrations-${Date.now()}.csv"`);
-    return res.send(csv);
+    const csv = [
+      columns.map(([label]) => escape(label)).join(","),
+      ...rows.map(row => columns.map(([, value]) => escape(value(row))).join(",")),
+    ].join("\r\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="series-registrations-${Date.now()}.csv"`);
+    return res.send(`\uFEFF${csv}`);
   } catch (err) {
     logger.error({ err }, "Failed to export training registrations");
     return res.status(500).json({ error: "Failed" });
@@ -901,24 +916,53 @@ router.patch("/training/workshops/:id/registrations/:regId/status", authMiddlewa
 // ── ADMIN: Export workshop registrations CSV ──────────────────────────────────
 router.get("/training/workshops/:id/registrations/export/csv", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const result = await db.execute(sql`SELECT * FROM workshop_registrations WHERE workshop_id = ${req.params.id} ORDER BY created_at DESC`);
+    const workshopResult = await db.execute(sql`SELECT title, slug, is_free FROM workshops WHERE id = ${req.params.id}`);
+    if (!workshopResult.rows.length) return res.status(404).json({ error: "Workshop not found" });
+    const workshop = workshopResult.rows[0] as any;
+    const result = await db.execute(sql`
+      SELECT *
+      FROM workshop_registrations
+      WHERE workshop_id = ${req.params.id}
+        AND status != 'cancelled'
+        AND (${workshop.is_free} OR payment_status = 'paid')
+      ORDER BY created_at DESC
+    `);
     const rows = result.rows as any[];
-    const cols = [
-      "id", "first_name", "last_name", "email", "job_title", "professional_role",
-      "professional_role_other", "school_name", "city", "country", "phone", "school_type",
-      "school_size", "areas_of_interest", "school_support_challenge",
-      "interested_future_learning", "interested_school_training",
-      "interested_assessment_services", "interested_partner_school", "training_only",
-      "marketing_consent", "marketing_consent_timestamp", "privacy_consent",
-      "privacy_consent_timestamp", "payment_status", "status",
-      "confirmation_email_status", "internal_notes", "created_at",
+    const columns: Array<[string, (row: any) => unknown]> = [
+      ["First Name", r => r.first_name], ["Last Name", r => r.last_name],
+      ["Email", r => r.email], ["Phone", r => r.phone],
+      ["Job Title", r => r.job_title], ["Professional Role", r => r.professional_role],
+      ["Other Role", r => r.professional_role_other],
+      ["School / Organisation", r => r.school_name], ["City", r => r.city],
+      ["Country / Region", r => r.country], ["School Type", r => r.school_type],
+      ["Approximate Student Count", r => r.school_size],
+      ["Areas of Interest", r => Array.isArray(r.areas_of_interest) ? r.areas_of_interest.join("; ") : ""],
+      ["School Support Challenge", r => r.school_support_challenge],
+      ["Future Learning Interest", r => r.interested_future_learning ? "Yes" : "No"],
+      ["School Training Interest", r => r.interested_school_training ? "Yes" : "No"],
+      ["Assessment Services Interest", r => r.interested_assessment_services ? "Yes" : "No"],
+      ["Partner School Interest", r => r.interested_partner_school ? "Yes" : "No"],
+      ["Training Only", r => r.training_only ? "Yes" : "No"],
+      ["Marketing Consent", r => r.marketing_consent ? "Yes" : "No"],
+      ["Payment Status", r => r.payment_status], ["Registration Status", r => r.status],
+      ["Confirmation Email", r => r.confirmation_email_status],
+      ["Internal Notes", r => r.internal_notes], ["Registered At", r => r.created_at],
     ];
-    const escape = (v: any) => { if (v == null) return ""; const s = typeof v === "object" ? JSON.stringify(v) : String(v); return `"${s.replace(/"/g, '""')}"`; };
-    const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="workshop-${req.params.id}-registrations-${Date.now()}.csv"`);
-    return res.send(csv);
-  } catch { return res.status(500).json({ error: "Failed" }); }
+    const escape = (v: any) => {
+      if (v === null || v === undefined) return "";
+      return `"${String(v).replace(/"/g, '""')}"`;
+    };
+    const csv = [
+      columns.map(([label]) => escape(label)).join(","),
+      ...rows.map(row => columns.map(([, value]) => escape(value(row))).join(",")),
+    ].join("\r\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${workshop.slug}-attendees-${Date.now()}.csv"`);
+    return res.send(`\uFEFF${csv}`);
+  } catch (err) {
+    logger.error({ err, workshopId: req.params.id }, "Failed to export workshop attendees");
+    return res.status(500).json({ error: "Failed to export workshop attendees" });
+  }
 });
 
 export default router;

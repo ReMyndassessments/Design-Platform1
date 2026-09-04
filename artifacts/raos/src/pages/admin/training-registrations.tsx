@@ -313,7 +313,7 @@ export default function TrainingRegistrationsPage() {
               </a>
               <button onClick={handleExport}
                 className="flex items-center gap-1.5 text-xs bg-[#0c1a2e] text-white rounded-xl px-4 py-2 hover:bg-slate-800 transition-colors font-semibold">
-                <Download size={12} /> Export CSV
+                <Download size={12} /> Export Series Registrations
               </button>
             </div>
           </div>
@@ -771,7 +771,7 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
               }
             }}
               className="flex items-center gap-1.5 text-xs bg-[#0c1a2e] text-white rounded-xl px-3 py-2 hover:bg-slate-800 transition-colors font-semibold">
-              <Download size={12} /> Export CSV
+              <Download size={12} /> Export Attendees
             </button>
           </div>
         </div>
