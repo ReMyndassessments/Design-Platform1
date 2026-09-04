@@ -348,6 +348,12 @@ export default function CommunicationsComposePage() {
               Save as Template
             </button>
             <button
+              onClick={() => document.getElementById("email-preview")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <Eye size={16} /> Preview Email
+            </button>
+            <button
               onClick={() => setTestModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
             >
@@ -493,7 +499,7 @@ export default function CommunicationsComposePage() {
             </div>
           </div>
           
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+          <div id="email-preview" className="bg-slate-50 border border-slate-200 rounded-xl p-6 scroll-mt-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-semibold text-slate-900">Email Preview</h3>
               <div className="flex bg-slate-200 p-1 rounded-lg">
@@ -548,7 +554,7 @@ export default function CommunicationsComposePage() {
                     disabled={audiencePreview.isPending}
                     className="text-xs font-semibold text-indigo-600 flex items-center gap-1 hover:text-indigo-700"
                   >
-                    <Eye size={12} /> Preview
+                    <Eye size={12} /> Preview Audience
                   </button>
                 </div>
                 <div className="space-y-2">
