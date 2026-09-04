@@ -38,6 +38,8 @@ INQUIRY_NOTIFY_EMAIL = "ne_roberts@yahoo.com,noelroberts43@gmail.com"
 GMAIL_USER = "noelroberts43@gmail.com"
 TRAINING_ADMIN_NOTIFICATION_EMAIL = "ne_roberts@yahoo.com"
 AIRWALLEX_FAILURE_NOTIFY_EMAIL = "ne_roberts@yahoo.com"
+AIRWALLEX_ALIPAY_QR_PATH = "/objects/uploads/32abdd34-b0cf-4965-9d9f-8f7651756fa9"
+AIRWALLEX_WECHAT_QR_PATH = "/objects/uploads/9648f5f2-438f-422b-b010-8c9f5146aed9"
 
 [[ports]]
 localPort = 8080
