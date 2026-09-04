@@ -3784,6 +3784,26 @@ async function createLscTables() {
         notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS qr_payment_confirmations (
+        id TEXT PRIMARY KEY,
+        source_type TEXT NOT NULL CHECK (source_type IN ('lsc', 'workshop')),
+        source_id TEXT NOT NULL,
+        payment_id TEXT NOT NULL UNIQUE,
+        token_hash TEXT NOT NULL UNIQUE,
+        payment_method TEXT,
+        payment_reference TEXT,
+        receipt_object_path TEXT,
+        status TEXT NOT NULL DEFAULT 'awaiting_submission'
+          CHECK (status IN ('awaiting_submission', 'pending_verification', 'approved', 'rejected')),
+        submitted_at TIMESTAMPTZ,
+        reviewed_at TIMESTAMPTZ,
+        reviewed_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS qr_payment_confirmations_pending_idx ON qr_payment_confirmations (status, submitted_at)`);
     await db.execute(sql`ALTER TABLE lsc_subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`);
     logger.info("LSC tables ready");
   } catch (err) {

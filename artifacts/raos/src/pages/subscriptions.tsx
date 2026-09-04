@@ -4,7 +4,7 @@ import { useGetCurrentUser, customFetch } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sparkles, RefreshCw, ChevronRight, Search } from "lucide-react";
+import { Sparkles, RefreshCw, ChevronRight, Search, QrCode, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
@@ -287,6 +287,57 @@ export default function SubscriptionsPage() {
           Showing {filtered.length} of {eligibleCases.length} eligible cases
         </p>
       )}
+      <QrPaymentReviewPanel />
     </div>
+  );
+}
+
+type QrConfirmation = {
+  id: string; source_type: "lsc" | "workshop"; payment_id: string;
+  payment_method: "wechat_pay" | "alipay"; payment_reference: string;
+  receipt_object_path: string | null; status: string; submitted_at: string | null;
+};
+
+function QrPaymentReviewPanel() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data, isLoading } = useQuery<{ confirmations: QrConfirmation[] }>({
+    queryKey: ["qr-payment-confirmations"],
+    queryFn: () => customFetch("/api/admin/qr-payment-confirmations"),
+  });
+  const review = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approve" | "reject" }) => customFetch(`/api/admin/qr-payment-confirmations/${id}/review`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision }),
+    }),
+    onSuccess: (_, values) => {
+      qc.invalidateQueries({ queryKey: ["qr-payment-confirmations"] });
+      qc.invalidateQueries({ queryKey: ["/api/cases"] });
+      toast({ title: values.decision === "approve" ? "Payment approved and access activated" : "Payment confirmation rejected" });
+    },
+    onError: () => toast({ title: "Unable to review confirmation", variant: "destructive" }),
+  });
+  const confirmations = data?.confirmations ?? [];
+  return (
+    <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center"><QrCode size={16} className="text-amber-700" /></div>
+        <div><h2 className="font-semibold text-slate-900">QR payment confirmations</h2><p className="text-xs text-slate-500">Only approval activates a subscription or workshop registration.</p></div>
+      </div>
+      {isLoading ? <p className="p-5 text-sm text-slate-400">Loading confirmations…</p> : confirmations.length === 0 ? (
+        <p className="p-5 text-sm text-slate-400">No pending QR payment confirmations.</p>
+      ) : <div className="divide-y divide-slate-100">
+        {confirmations.map(item => <div key={item.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-800">{item.source_type === "lsc" ? "Learning Support Companion" : "Workshop registration"} · {item.payment_method === "wechat_pay" ? "WeChat Pay" : "Alipay"}</p>
+            <p className="text-xs text-slate-500 mt-1 break-all">Reference: {item.payment_reference} · Payment ID: {item.payment_id}</p>
+            {item.receipt_object_path && <p className="text-xs text-slate-400 mt-1">Private receipt uploaded</p>}
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={review.isPending} onClick={() => review.mutate({ id: item.id, decision: "approve" })} className="gap-1 bg-emerald-600 hover:bg-emerald-700"><Check size={14} /> Approve</Button>
+            <Button size="sm" variant="outline" disabled={review.isPending} onClick={() => review.mutate({ id: item.id, decision: "reject" })} className="gap-1 text-red-600"><X size={14} /> Reject</Button>
+          </div>
+        </div>)}
+      </div>}
+    </section>
   );
 }

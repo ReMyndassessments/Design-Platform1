@@ -131,6 +131,7 @@ const ApprenticeToolsLibraryPage = React.lazy(() => import("@/pages/apprentice/t
 const ApprenticeCompetenciesPage = React.lazy(() => import("@/pages/apprentice/competencies"));
 
 const LscCheckoutPage = React.lazy(() => import("@/pages/lsc-checkout"));
+const QrPaymentPage = React.lazy(() => import("@/pages/qr-payment"));
 const PrivacyCompliancePage = React.lazy(() => import("@/pages/admin/privacy-compliance"));
 const PrivacyPolicyPage = React.lazy(() => import("@/pages/privacy-policy"));
 const TrainingPage = React.lazy(() => import("@/pages/training"));
@@ -214,6 +215,7 @@ function Router() {
     <Suspense fallback={<PageFallback />}>
       <Switch>
         <Route path="/lsc-checkout" component={LscCheckoutPage} />
+        <Route path="/qr-payment/:token" component={QrPaymentPage} />
         <Route path="/login" component={Login} />
         <Route path="/portal" component={Portal} />
         <Route path="/assessment-preparation" component={AssessmentPreparationPage} />

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
@@ -12,6 +12,7 @@ import { buildTeacherEmail } from "../lib/emailTemplates.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
 import { writeAudit } from "../lib/audit.js";
 import * as airwallex from "../lib/airwallex.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const storage = new ObjectStorageService();
 
@@ -57,6 +58,60 @@ function airwallexReferenceId(value: unknown): string | undefined {
     return (value as Record<string, unknown>)["id"] as string;
   }
   return undefined;
+}
+
+const QR_PAYMENT_METHODS = new Set(["wechat_pay", "alipay"]);
+const QR_FAILURE_EVENTS = new Set([...AIRWALLEX_PAYMENT_FAILURE_EVENTS, "payment_intent.payment_failed", "payment_intent.cancelled"]);
+const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+function publicQrPath(value: string | undefined): string | null {
+  const path = value?.trim();
+  // QR artwork is an approved, public asset. Do not expose filesystem paths.
+  return path && (path.startsWith("/") || path.startsWith("https://")) ? path : null;
+}
+
+function qrChoices() {
+  return {
+    wechatPayQr: publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH),
+    alipayQr: publicQrPath(process.env.AIRWALLEX_ALIPAY_QR_PATH),
+  };
+}
+
+async function createQrAlternativeForFailedPayment(
+  req: import("express").Request,
+  paymentId: string,
+): Promise<void> {
+  const lsc = await db.execute(sql`SELECT pi.id, c.parent_email AS email FROM lsc_payment_intents pi JOIN cases c ON c.id = pi.case_id WHERE pi.id = ${paymentId} LIMIT 1`);
+  const workshop = lsc.rows.length ? { rows: [] } : await db.execute(sql`SELECT wpi.id, wr.email FROM workshop_payment_intents wpi JOIN workshop_registrations wr ON wr.id = wpi.registration_id WHERE wpi.id = ${paymentId} LIMIT 1`);
+  const row = (lsc.rows[0] ?? workshop.rows[0]) as Record<string, unknown> | undefined;
+  if (!row) return;
+  const sourceType = lsc.rows.length ? "lsc" : "workshop";
+  const sourceId = String(row["id"]);
+  const rawToken = randomBytes(32).toString("base64url");
+  const created = await db.execute(sql`
+    INSERT INTO qr_payment_confirmations (id, source_type, source_id, payment_id, token_hash)
+    VALUES (${randomUUID()}, ${sourceType}, ${sourceId}, ${paymentId}, ${tokenHash(rawToken)})
+    ON CONFLICT (payment_id) DO NOTHING
+    RETURNING id
+  `);
+  if (!created.rows.length) return;
+
+  const { wechatPayQr, alipayQr } = qrChoices();
+  const email = String(row["email"] ?? "").trim();
+  if (!email || (!wechatPayQr && !alipayQr)) return;
+  const proto = (req.headers["x-forwarded-proto"] as string | undefined) ?? "https";
+  const confirmationUrl = `${proto}://${req.get("host")}/qr-payment/${rawToken}`;
+  const choices = [
+    wechatPayQr && `<p><strong>WeChat Pay</strong><br><img src="${escapeEmailHtml(wechatPayQr)}" alt="WeChat Pay QR code" width="220"></p>`,
+    alipayQr && `<p><strong>Alipay</strong><br><img src="${escapeEmailHtml(alipayQr)}" alt="Alipay QR code" width="220"></p>`,
+  ].filter(Boolean).join("");
+  try {
+    const { sendEmail } = await import("../lib/outlookEmail.js");
+    await sendEmail({ to: email, subject: "Alternative payment options", html: `<div style="font-family:Arial,sans-serif;max-width:600px"><p>Your card payment was unsuccessful. You may pay using one of the approved QR codes below.</p>${choices}<p>After paying, submit your payment reference (and optionally a receipt) here:</p><p><a href="${escapeEmailHtml(confirmationUrl)}">I've Paid — submit payment confirmation</a></p><p>Your payment remains pending until manually verified.</p></div>` });
+  } catch (error) {
+    // The pending record is intentionally retained: never resend a new capability token.
+    console.error("[QR payment] unable to send payer alternative-payment email", error);
+  }
 }
 
 async function notifyAdminsOfAirwallexFailure(
@@ -1733,6 +1788,97 @@ router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
   res.json({ ok: true, expiresAt: expiresAt.toISOString() });
 });
 
+// ── QR alternative-payment confirmation (capability-token public flow) ─────────
+router.get("/external/qr-payment/:token", async (req, res) => {
+  const rows = await db.execute(sql`SELECT status FROM qr_payment_confirmations WHERE token_hash = ${tokenHash(req.params.token)} LIMIT 1`);
+  const confirmation = rows.rows[0] as Record<string, unknown> | undefined;
+  if (!confirmation) { res.status(404).json({ error: "not_found" }); return; }
+  res.json({ status: confirmation["status"], ...qrChoices() });
+});
+
+router.post("/external/qr-payment/:token/receipt-upload-url", async (req, res) => {
+  const rows = await db.execute(sql`SELECT status FROM qr_payment_confirmations WHERE token_hash = ${tokenHash(req.params.token)} LIMIT 1`);
+  const confirmation = rows.rows[0] as Record<string, unknown> | undefined;
+  if (!confirmation || confirmation["status"] !== "awaiting_submission") { res.status(404).json({ error: "not_available" }); return; }
+  const { name, size, contentType } = req.body as { name?: unknown; size?: unknown; contentType?: unknown };
+  if (typeof name !== "string" || typeof size !== "number" || size < 1 || size > 10 * 1024 * 1024 ||
+    typeof contentType !== "string" || !["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+    res.status(400).json({ error: "invalid_receipt", message: "Receipt must be a PNG, JPEG, or WebP image under 10 MB." }); return;
+  }
+  try {
+    const uploadURL = await storage.getObjectEntityUploadURL();
+    res.json({ uploadURL, objectPath: storage.normalizeObjectEntityPath(uploadURL) });
+  } catch {
+    res.status(500).json({ error: "upload_unavailable" });
+  }
+});
+
+router.post("/external/qr-payment/:token", async (req, res) => {
+  const { paymentMethod, paymentReference, receiptObjectPath } = req.body as { paymentMethod?: unknown; paymentReference?: unknown; receiptObjectPath?: unknown };
+  if (typeof paymentMethod !== "string" || !QR_PAYMENT_METHODS.has(paymentMethod) ||
+    typeof paymentReference !== "string" || !paymentReference.trim() || paymentReference.trim().length > 200 ||
+    (receiptObjectPath !== undefined && (typeof receiptObjectPath !== "string" || !receiptObjectPath.startsWith("/objects/")))) {
+    res.status(400).json({ error: "invalid_submission" }); return;
+  }
+  const updated = await db.execute(sql`
+    UPDATE qr_payment_confirmations
+    SET payment_method = ${paymentMethod}, payment_reference = ${paymentReference.trim()},
+        receipt_object_path = ${receiptObjectPath ?? null}, status = 'pending_verification',
+        submitted_at = NOW(), updated_at = NOW()
+    WHERE token_hash = ${tokenHash(req.params.token)} AND status = 'awaiting_submission'
+    RETURNING id
+  `);
+  if (!updated.rows.length) { res.status(409).json({ error: "already_submitted_or_invalid" }); return; }
+  res.json({ ok: true, status: "pending_verification" });
+});
+
+// Admin review is deliberately separate from the public capability flow. A QR
+// submission never changes the underlying subscription or registration itself.
+router.get("/admin/qr-payment-confirmations", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }
+  const status = typeof req.query.status === "string" ? req.query.status : "pending_verification";
+  const rows = await db.execute(sql`
+    SELECT id, source_type, source_id, payment_id, payment_method, payment_reference,
+           receipt_object_path, status, submitted_at, reviewed_at, reviewed_by, created_at
+    FROM qr_payment_confirmations WHERE status = ${status} ORDER BY submitted_at ASC NULLS LAST
+  `);
+  res.json({ confirmations: rows.rows });
+});
+
+router.post("/admin/qr-payment-confirmations/:id/review", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin") { res.status(403).json({ error: "forbidden" }); return; }
+  const { decision } = req.body as { decision?: unknown };
+  if (decision !== "approve" && decision !== "reject") { res.status(400).json({ error: "invalid_decision" }); return; }
+  const status = decision === "approve" ? "approved" : "rejected";
+  const claimed = await db.execute(sql`
+    UPDATE qr_payment_confirmations SET status = ${status}, reviewed_at = NOW(),
+      reviewed_by = ${req.userId ?? null}, updated_at = NOW()
+    WHERE id = ${req.params.id} AND status = 'pending_verification'
+    RETURNING source_type, source_id, payment_id
+  `);
+  const confirmation = claimed.rows[0] as Record<string, unknown> | undefined;
+  if (!confirmation) { res.status(409).json({ error: "already_reviewed_or_not_pending" }); return; }
+  if (decision === "approve") {
+    if (confirmation["source_type"] === "lsc") {
+      const intents = await db.execute(sql`SELECT case_id, plan FROM lsc_payment_intents WHERE id = ${confirmation["payment_id"]} LIMIT 1`);
+      const intent = intents.rows[0] as Record<string, unknown> | undefined;
+      if (!intent) { res.status(409).json({ error: "payment_source_missing" }); return; }
+      const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + (parseInt(String(intent["plan"]), 10) || 1));
+      await db.execute(sql`INSERT INTO lsc_subscriptions (id, case_id, subscription_status, monthly_allowance, monthly_usage, expires_at)
+        VALUES (${randomUUID()}, ${intent["case_id"]}, 'active_monthly', 25, 0, ${expiresAt.toISOString()})
+        ON CONFLICT (case_id) DO UPDATE SET subscription_status = 'active_monthly', expires_at = EXCLUDED.expires_at, updated_at = NOW()`);
+      await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${confirmation["payment_id"]}`);
+    } else {
+      const intents = await db.execute(sql`SELECT registration_id FROM workshop_payment_intents WHERE id = ${confirmation["payment_id"]} LIMIT 1`);
+      const intent = intents.rows[0] as Record<string, unknown> | undefined;
+      if (!intent) { res.status(409).json({ error: "payment_source_missing" }); return; }
+      await db.execute(sql`UPDATE workshop_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${confirmation["payment_id"]}`);
+      await db.execute(sql`UPDATE workshop_registrations SET payment_status = 'paid', status = 'registered', updated_at = NOW() WHERE id = ${intent["registration_id"]}`);
+    }
+  }
+  res.json({ ok: true, status });
+});
+
 // ── Airwallex webhook (no auth — idempotent via lsc_payment_intents) ──────────
 router.post("/external/payments/webhook", async (req, res) => {
   if (!hasValidAirwallexSignature(req)) {
@@ -1746,13 +1892,19 @@ router.post("/external/payments/webhook", async (req, res) => {
     ? data["object"] as Record<string, unknown>
     : data;
 
-  if (AIRWALLEX_PAYMENT_FAILURE_EVENTS.has(eventName)) {
+  if (QR_FAILURE_EVENTS.has(eventName)) {
     const eventId = body.id ?? `${eventName}:${String(eventData["id"] ?? eventData["payment_intent_id"] ?? "unknown")}:${String(eventData["updated_at"] ?? eventData["created_at"] ?? "unknown")}`;
     try {
-      await notifyAdminsOfAirwallexFailure(eventName, eventId, eventData);
-      const intentId = airwallexReferenceId(eventData["payment_intent_id"] ?? eventData["payment_intent"]);
+      // Failure notification is best-effort; it must not prevent the payer from
+      // receiving their secure alternative-payment route.
+      if (process.env.AIRWALLEX_FAILURE_NOTIFY_EMAIL?.trim()) {
+        await notifyAdminsOfAirwallexFailure(eventName, eventId, eventData);
+      }
+      const intentId = airwallexReferenceId(eventData["payment_intent_id"] ?? eventData["payment_intent"] ?? eventData["id"]);
       if (intentId) {
         await db.execute(sql`UPDATE lsc_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
+        await db.execute(sql`UPDATE workshop_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
+        await createQrAlternativeForFailedPayment(req, intentId);
       }
       res.json({ status: "ok" });
     } catch (error) {

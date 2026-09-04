@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -49,7 +50,12 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
   }
 });
 
-router.get("/storage/objects/*path", async (req: Request, res: Response) => {
+// Object entities include payer receipts and are never public assets.
+router.get("/storage/objects/*path", authMiddleware, async (req: Request, res: Response) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
