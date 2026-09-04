@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
@@ -22,6 +22,25 @@ const AIRWALLEX_PAYMENT_FAILURE_EVENTS = new Set([
   "payment_attempt.failed_to_process",
   "payment_attempt.capture_failed",
 ]);
+
+function hasValidAirwallexSignature(req: Parameters<Parameters<typeof router.post>[1]>[0]): boolean {
+  const secret = process.env.AIRWALLEX_WEBHOOK_SECRET;
+  const timestamp = req.get("x-timestamp");
+  const signature = req.get("x-signature");
+  const rawBody = (req as typeof req & { rawBody?: Buffer }).rawBody;
+  if (!secret || !timestamp || !signature || !rawBody) return false;
+
+  const timestampMs = Number(timestamp);
+  if (!Number.isFinite(timestampMs) || Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) return false;
+
+  const expected = createHmac("sha256", secret)
+    .update(timestamp)
+    .update(rawBody)
+    .digest("hex");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const actualBuffer = Buffer.from(signature.toLowerCase(), "utf8");
+  return expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
+}
 
 function escapeEmailHtml(value: unknown): string {
   return String(value ?? "")
@@ -1683,6 +1702,10 @@ router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
 
 // ── Airwallex webhook (no auth — idempotent via lsc_payment_intents) ──────────
 router.post("/external/payments/webhook", async (req, res) => {
+  if (!hasValidAirwallexSignature(req)) {
+    res.status(401).json({ status: "invalid_signature" });
+    return;
+  }
   const body = req.body as { id?: string; name?: string; data?: Record<string, unknown> };
   const eventName = body.name ?? "";
   const data = body.data ?? {};
