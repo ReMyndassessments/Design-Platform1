@@ -3777,6 +3777,13 @@ async function createLscTables() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS airwallex_webhook_notifications (
+        event_id TEXT PRIMARY KEY,
+        event_name TEXT NOT NULL,
+        notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
     await db.execute(sql`ALTER TABLE lsc_subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`);
     logger.info("LSC tables ready");
   } catch (err) {
@@ -4004,7 +4011,16 @@ async function ensureAirwallexWebhook() {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "x-client-id": clientId },
       body: JSON.stringify({
         url: webhookUrl,
-        event_types: ["payment_intent.succeeded", "payment_intent.payment_failed", "payment_intent.cancelled"],
+        event_types: [
+          "payment_intent.succeeded",
+          "payment_intent.payment_failed",
+          "payment_intent.cancelled",
+          "payment_attempt.authentication_failed",
+          "payment_attempt.authorization_failed",
+          "payment_attempt.risk_declined",
+          "payment_attempt.failed_to_process",
+          "payment_attempt.capture_failed",
+        ],
       }),
     });
     const created = await createRes.json() as { id?: string };

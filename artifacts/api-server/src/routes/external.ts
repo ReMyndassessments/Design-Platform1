@@ -15,6 +15,80 @@ import * as airwallex from "../lib/airwallex.js";
 
 const storage = new ObjectStorageService();
 
+const AIRWALLEX_PAYMENT_FAILURE_EVENTS = new Set([
+  "payment_attempt.authentication_failed",
+  "payment_attempt.authorization_failed",
+  "payment_attempt.risk_declined",
+  "payment_attempt.failed_to_process",
+  "payment_attempt.capture_failed",
+]);
+
+function escapeEmailHtml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function notifyAdminsOfAirwallexFailure(
+  eventName: string,
+  eventId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const inserted = await db.execute(sql`
+    INSERT INTO airwallex_webhook_notifications (event_id, event_name)
+    VALUES (${eventId}, ${eventName})
+    ON CONFLICT (event_id) DO NOTHING
+    RETURNING event_id
+  `);
+  if (!inserted.rows.length) return;
+
+  try {
+    const admins = await getAdminEmails();
+    if (!admins.length) throw new Error("No administrator notification email is configured");
+    const { sendEmail } = await import("../lib/outlookEmail.js");
+    const paymentIntentId = data["payment_intent_id"] ?? data["payment_intent"] ?? "Not provided";
+    const attemptId = data["id"] ?? "Not provided";
+    const amount = data["amount"] ?? data["amount_requested"] ?? "Not provided";
+    const currency = data["currency"] ?? "Not provided";
+    const failureCode = data["failure_code"] ?? data["error_code"] ?? data["code"] ?? "Not provided";
+    const failureMessage = data["failure_message"] ?? data["error_message"] ?? data["message"] ?? "Not provided";
+    const occurredAt = data["created_at"] ?? data["updated_at"] ?? new Date().toISOString();
+    const details = escapeEmailHtml(JSON.stringify(data, null, 2));
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;color:#0f172a">
+        <div style="background:#0f2747;padding:24px 28px;border-bottom:4px solid #d7aa3d">
+          <p style="margin:0;color:#fff;font-size:20px;font-weight:700">Airwallex payment failure</p>
+        </div>
+        <div style="padding:28px;border:1px solid #e2e8f0;border-top:0">
+          <p style="margin-top:0">Airwallex reported a failed subscription payment attempt.</p>
+          <table style="border-collapse:collapse;width:100%;font-size:14px">
+            <tr><td style="padding:7px;font-weight:700">Event</td><td style="padding:7px">${escapeEmailHtml(eventName)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Payment intent</td><td style="padding:7px">${escapeEmailHtml(paymentIntentId)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Payment attempt</td><td style="padding:7px">${escapeEmailHtml(attemptId)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Amount</td><td style="padding:7px">${escapeEmailHtml(amount)} ${escapeEmailHtml(currency)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Failure code</td><td style="padding:7px">${escapeEmailHtml(failureCode)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Reason</td><td style="padding:7px">${escapeEmailHtml(failureMessage)}</td></tr>
+            <tr><td style="padding:7px;font-weight:700">Occurred</td><td style="padding:7px">${escapeEmailHtml(occurredAt)}</td></tr>
+          </table>
+          <details style="margin-top:20px"><summary>Technical event details</summary>
+            <pre style="white-space:pre-wrap;background:#f8fafc;padding:14px;border-radius:6px;font-size:11px">${details}</pre>
+          </details>
+        </div>
+      </div>`;
+    await Promise.all(admins.map(to => sendEmail({
+      to,
+      subject: `[Action required] Airwallex payment failure: ${eventName}`,
+      html,
+    })));
+  } catch (error) {
+    await db.execute(sql`DELETE FROM airwallex_webhook_notifications WHERE event_id = ${eventId}`);
+    throw error;
+  }
+}
+
 function resolveReportRole(respondentType: string | null): "parent" | "teacher" | null {
   if (!respondentType) return null;
   if (respondentType === "parent") return "parent";
@@ -1609,12 +1683,31 @@ router.post("/external/portal/:token/lsc/confirm", async (req, res) => {
 
 // ── Airwallex webhook (no auth — idempotent via lsc_payment_intents) ──────────
 router.post("/external/payments/webhook", async (req, res) => {
-  const body = req.body as { name?: string; data?: Record<string, unknown> };
+  const body = req.body as { id?: string; name?: string; data?: Record<string, unknown> };
   const eventName = body.name ?? "";
   const data = body.data ?? {};
+  const eventData = data["object"] && typeof data["object"] === "object"
+    ? data["object"] as Record<string, unknown>
+    : data;
+
+  if (AIRWALLEX_PAYMENT_FAILURE_EVENTS.has(eventName)) {
+    const eventId = body.id ?? `${eventName}:${String(eventData["id"] ?? eventData["payment_intent_id"] ?? "unknown")}:${String(eventData["updated_at"] ?? eventData["created_at"] ?? "unknown")}`;
+    try {
+      await notifyAdminsOfAirwallexFailure(eventName, eventId, eventData);
+      const intentId = (eventData["payment_intent_id"] ?? eventData["payment_intent"]) as string | undefined;
+      if (intentId) {
+        await db.execute(sql`UPDATE lsc_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
+      }
+      res.json({ status: "ok" });
+    } catch (error) {
+      console.error("[Airwallex] failed to deliver payment failure notification", error);
+      res.status(500).json({ status: "notification_failed" });
+    }
+    return;
+  }
 
   if (eventName === "payment_intent.succeeded") {
-    const intentId = (data["id"] ?? data["payment_intent_id"]) as string | undefined;
+    const intentId = (eventData["id"] ?? eventData["payment_intent_id"]) as string | undefined;
     if (!intentId) { res.json({ status: "ok" }); return; }
 
     // Check workshop payment intents first
@@ -1666,7 +1759,7 @@ router.post("/external/payments/webhook", async (req, res) => {
     await db.execute(sql`UPDATE lsc_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE id = ${intentId}`);
 
   } else if (eventName === "payment_intent.payment_failed" || eventName === "payment_intent.cancelled") {
-    const intentId = (data["id"] ?? data["payment_intent_id"]) as string | undefined;
+    const intentId = (eventData["id"] ?? eventData["payment_intent_id"]) as string | undefined;
     if (intentId) {
       await db.execute(sql`UPDATE lsc_payment_intents SET status = 'failed', updated_at = NOW() WHERE id = ${intentId} AND status = 'pending'`);
     }
