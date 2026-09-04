@@ -25,15 +25,14 @@ export default function QrPaymentPage() {
     e.preventDefault(); setSaving(true); setError("");
     try {
       let receiptObjectPath: string | undefined;
-      if (receipt) {
-        if (!["image/jpeg", "image/png", "image/webp"].includes(receipt.type) || receipt.size > 10 * 1024 * 1024) throw new Error("Use a PNG, JPEG, or WebP receipt under 10 MB.");
-        const upload = await fetch(`${BASE}/api/external/qr-payment/${encodeURIComponent(token)}/receipt-upload-url`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: receipt.name, size: receipt.size, contentType: receipt.type }) });
-        if (!upload.ok) throw new Error("Unable to prepare receipt upload.");
-        const { uploadURL, objectPath } = await upload.json();
-        const put = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": receipt.type }, body: receipt });
-        if (!put.ok) throw new Error("Receipt upload failed.");
-        receiptObjectPath = objectPath;
-      }
+      if (!receipt) throw new Error("Upload a screenshot of your payment receipt before submitting.");
+      if (!["image/jpeg", "image/png", "image/webp"].includes(receipt.type) || receipt.size > 10 * 1024 * 1024) throw new Error("Use a PNG, JPEG, or WebP receipt under 10 MB.");
+      const upload = await fetch(`${BASE}/api/external/qr-payment/${encodeURIComponent(token)}/receipt-upload-url`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: receipt.name, size: receipt.size, contentType: receipt.type }) });
+      if (!upload.ok) throw new Error("Unable to prepare receipt upload.");
+      const { uploadURL, objectPath } = await upload.json();
+      const put = await fetch(uploadURL, { method: "PUT", headers: { "Content-Type": receipt.type }, body: receipt });
+      if (!put.ok) throw new Error("Receipt upload failed.");
+      receiptObjectPath = objectPath;
       const response = await fetch(`${BASE}/api/external/qr-payment/${encodeURIComponent(token)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentMethod: method, paymentReference: reference, receiptObjectPath }) });
       if (!response.ok) throw new Error("This confirmation could not be submitted.");
       setDone(true);
@@ -46,7 +45,7 @@ export default function QrPaymentPage() {
       <p className="text-sm text-slate-600">Pay using an approved option, then provide the transaction reference below. Submission does not activate access.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{details.wechatPayQr && <label className="border rounded-xl p-3 cursor-pointer"><input type="radio" name="method" value="wechat_pay" checked={method === "wechat_pay"} onChange={e => setMethod(e.target.value)} /> <span className="ml-2 font-medium">WeChat Pay</span><img className="mt-3 w-full max-h-52 object-contain" src={details.wechatPayQr} /></label>}{details.alipayQr && <label className="border rounded-xl p-3 cursor-pointer"><input type="radio" name="method" value="alipay" checked={method === "alipay"} onChange={e => setMethod(e.target.value)} /> <span className="ml-2 font-medium">Alipay</span><img className="mt-3 w-full max-h-52 object-contain" src={details.alipayQr} /></label>}</div>
       <label className="block text-sm font-medium text-slate-700">Payment reference<input required maxLength={200} value={reference} onChange={e => setReference(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-      <label className="block text-sm font-medium text-slate-700">Receipt image <span className="font-normal text-slate-400">(optional)</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setReceipt(e.target.files?.[0] ?? null)} className="mt-1 block text-sm" /></label>
+      <label className="block text-sm font-medium text-slate-700">Payment receipt screenshot <span className="text-red-500">*</span><input required type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setReceipt(e.target.files?.[0] ?? null)} className="mt-1 block text-sm" /><span className="mt-1 block text-xs font-normal text-slate-500">Upload a PNG, JPEG, or WebP screenshot of the completed payment.</span></label>
       <button disabled={saving} className="w-full rounded-lg bg-violet-700 py-2.5 font-semibold text-white disabled:opacity-50">{saving ? "Submitting…" : "I've Paid — submit for verification"}</button>
     </form>}
   </div></main>;

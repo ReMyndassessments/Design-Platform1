@@ -1817,13 +1817,18 @@ router.post("/external/qr-payment/:token", async (req, res) => {
   const { paymentMethod, paymentReference, receiptObjectPath } = req.body as { paymentMethod?: unknown; paymentReference?: unknown; receiptObjectPath?: unknown };
   if (typeof paymentMethod !== "string" || !QR_PAYMENT_METHODS.has(paymentMethod) ||
     typeof paymentReference !== "string" || !paymentReference.trim() || paymentReference.trim().length > 200 ||
-    (receiptObjectPath !== undefined && (typeof receiptObjectPath !== "string" || !receiptObjectPath.startsWith("/objects/")))) {
+    typeof receiptObjectPath !== "string" || !receiptObjectPath.startsWith("/objects/")) {
     res.status(400).json({ error: "invalid_submission" }); return;
+  }
+  try {
+    await storage.getObjectEntityFile(receiptObjectPath);
+  } catch {
+    res.status(400).json({ error: "receipt_not_found", message: "A valid payment receipt screenshot is required." }); return;
   }
   const updated = await db.execute(sql`
     UPDATE qr_payment_confirmations
     SET payment_method = ${paymentMethod}, payment_reference = ${paymentReference.trim()},
-        receipt_object_path = ${receiptObjectPath ?? null}, status = 'pending_verification',
+        receipt_object_path = ${receiptObjectPath}, status = 'pending_verification',
         submitted_at = NOW(), updated_at = NOW()
     WHERE token_hash = ${tokenHash(req.params.token)} AND status = 'awaiting_submission'
     RETURNING id
