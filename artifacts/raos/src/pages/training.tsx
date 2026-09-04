@@ -247,7 +247,7 @@ export default function TrainingPage() {
       <ProgramFormat />
       <WhyParticipate />
        <ReMyndInPractice />
-      <div ref={registerRef} className="scroll-mt-8">
+      <div id="registration" ref={registerRef} className="scroll-mt-8">
         {submitted
           ? <SuccessScreen onBack={() => navigate("/")} />
           : <RegistrationForm onSuccess={() => setSubmitted(true)} />
@@ -710,20 +710,20 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <section className="py-20 bg-slate-50">
-      <div className="max-w-2xl mx-auto px-6">
+      <div className="max-w-5xl mx-auto px-4 md:px-6">
         <div className="text-center mb-10">
           <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest mb-3">Registration</p>
           <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Register Free</h2>
           <p className="text-slate-500 text-sm">Please complete the short form below to reserve your place. Participation is complimentary.</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-10">
           <form onSubmit={handleSubmit} className="space-y-8">
 
             {/* Personal Information */}
-            <fieldset>
-              <legend className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Personal Information</legend>
-              <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <fieldset className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <legend className="md:col-span-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Personal Information</legend>
+              <div className="md:col-span-2 grid sm:grid-cols-2 gap-4">
                 <FormField label="First Name" required>
                   <input className={inputCls} value={form.first_name} onChange={e => set("first_name", e.target.value)} required />
                 </FormField>
@@ -731,16 +731,16 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
                   <input className={inputCls} value={form.last_name} onChange={e => set("last_name", e.target.value)} required />
                 </FormField>
               </div>
-              <FormField label="Professional Email Address" required className="mb-4">
+              <FormField label="Professional Email Address" required className="md:col-span-2">
                 <input type="email" className={inputCls} value={form.email} onChange={e => set("email", e.target.value)} required />
               </FormField>
-              <FormField label="Job Title / Role" required className="mb-4">
+              <FormField label="Job Title / Role" required>
                 <input className={inputCls} value={form.job_title} onChange={e => set("job_title", e.target.value)} required />
               </FormField>
-              <FormField label="School / Organisation" required className="mb-4">
+              <FormField label="School / Organisation" required>
                 <input className={inputCls} value={form.school_name} onChange={e => set("school_name", e.target.value)} required />
               </FormField>
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="md:col-span-2 grid sm:grid-cols-2 gap-4">
                 <FormField label="City" required>
                   <input className={inputCls} value={form.city} onChange={e => set("city", e.target.value)} required />
                 </FormField>
@@ -771,9 +771,9 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
             <hr className="border-slate-100" />
 
             {/* School Information */}
-            <fieldset>
-              <legend className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">School Information</legend>
-              <FormField label="School Type" className="mb-4">
+            <fieldset className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <legend className="md:col-span-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">School Information</legend>
+              <FormField label="School Type">
                 <select className={inputCls} value={form.school_type} onChange={e => set("school_type", e.target.value)}>
                   <option value="">Select school type…</option>
                   {SCHOOL_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
