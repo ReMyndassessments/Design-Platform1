@@ -148,3 +148,56 @@ export function sanitizeEmailHtml(input: unknown): string {
 export function renderEmail(html: string, recipientName?: string | null): string {
   return html.replace(/\{\{\s*(first_name|name)\s*\}\}/gi, recipientName || "there");
 }
+
+export type CommunicationBrandSettings = {
+  fromName?: string;
+  fromEmail?: string;
+  footer?: string;
+};
+
+/**
+ * Applies the shared ReMynd presentation at delivery time so saved content stays
+ * reusable while Gmail tests, operational mail, and provider campaigns match.
+ */
+export function renderBrandedEmail(contentHtml: string, settings: CommunicationBrandSettings = {}): string {
+  const content = sanitizeEmailHtml(contentHtml);
+  const customFooter = typeof settings.footer === "string"
+    ? sanitizeEmailHtml(settings.footer)
+    : "";
+  const footer = customFooter || `
+    <p style="margin:0 0 8px;font-size:12px;color:#64748b;">ReMynd Student Services</p>
+    <p style="margin:0;font-size:12px;color:#94a3b8;">
+      Assessment · Consultation · Student Support<br>
+      <a href="https://remyndassessments.com" style="color:#9a7a18;text-decoration:none;">remyndassessments.com</a>
+    </p>`;
+
+  return `<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f3f5f7;font-family:Arial,Helvetica,sans-serif;color:#243247;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f7;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #dfe4ea;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#0c1a2e;padding:28px 34px 24px;border-bottom:5px solid #c7a54b;">
+              <p style="margin:0;color:#ffffff;font-size:25px;line-height:1.1;font-weight:700;letter-spacing:-0.3px;">ReMynd</p>
+              <p style="margin:7px 0 0;color:#d9e0e8;font-size:11px;line-height:1.4;letter-spacing:1.5px;text-transform:uppercase;">Student Services</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:34px 36px 30px;background:#ffffff;">
+              ${content}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:21px 36px 24px;background:#f8f9fa;border-top:1px solid #e5e9ee;">
+              ${footer}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}

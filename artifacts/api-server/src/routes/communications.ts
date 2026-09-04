@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
-import { createEmailOctopusCampaign, getCommunicationsMailer, getEmailOctopusCampaignReport, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
+import { createEmailOctopusCampaign, getCommunicationsMailer, getEmailOctopusCampaignReport, renderBrandedEmail, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
 import { isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
@@ -145,6 +145,10 @@ async function snapshot(campaign: any) {
     await db.execute(sql`INSERT INTO communication_recipients (id,campaign_id,email,name,source_type,source_id,status,unsubscribe_token) VALUES (${nanoid()},${campaign.id},${c.email},${c.name},${c.sourceType},${c.sourceId},'queued',${nanoid(32)}) ON CONFLICT (campaign_id,email) DO NOTHING`);
   }
 }
+async function getBrandSettings(): Promise<CommunicationBrandSettings> {
+  const brand = await db.execute(sql`SELECT settings FROM communication_brand_settings WHERE id='default'`);
+  return ((brand.rows[0] as any)?.settings ?? {}) as CommunicationBrandSettings;
+}
 async function deliver(campaignId: string, retry = false) {
   await runWithCampaignLock<any>({
     claim: async () => {
@@ -157,10 +161,8 @@ async function deliver(campaignId: string, retry = false) {
       if (campaign.provider === "emailoctopus") {
         const rows = recipients.rows as any[];
         if (!rows.length) { await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=COALESCE(sent_at,NOW()) WHERE id=${campaignId}`); return; }
-        const brand = await db.execute(sql`SELECT settings FROM communication_brand_settings WHERE id='default'`);
-        const settings: any = (brand.rows[0] as any)?.settings ?? {};
-        const footer = typeof settings.footer === "string" ? settings.footer.replace(/[<>&]/g, "") : "";
-        const brandedHtml = `${campaign.html}${footer ? `<hr><p style="font-size:12px;color:#64748b">${footer}</p>` : ""}`;
+        const settings = await getBrandSettings();
+        const brandedHtml = renderBrandedEmail(campaign.html, settings);
         const text = String(brandedHtml).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       const providerId = campaign.provider_campaign_id || await createEmailOctopusCampaign({
         name: campaign.name, subject: campaign.subject, html: brandedHtml, text,
@@ -176,12 +178,13 @@ async function deliver(campaignId: string, retry = false) {
       await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=${campaignId}`);
         return;
       }
-      await sendGmailGroup({
+       const settings = await getBrandSettings();
+       await sendGmailGroup({
         kind: campaign.kind,
         recipients: recipients.rows as any[],
         subject: campaign.subject,
         mailer: getCommunicationsMailer(campaign.provider as CommunicationsProvider),
-        renderHtml: recipient => renderEmail(campaign.html, recipient.name),
+         renderHtml: recipient => renderBrandedEmail(renderEmail(campaign.html, recipient.name), settings),
         markSent: async (recipient, messageId) => {
           await db.execute(sql`UPDATE communication_recipients SET status = 'sent', attempts = attempts + 1, provider_message_id = ${messageId ?? null}, sent_at = NOW(), error = NULL WHERE id = ${recipient.id}`);
         },
@@ -245,7 +248,7 @@ router.post("/communications/campaigns", async (req, res): Promise<void> => {
 router.post("/communications/campaigns/:id/send-test", async (req, res): Promise<void> => {
   const email = String(req.body?.email || "").trim().toLowerCase(); if (!isValidCommunicationEmail(email)) { res.status(400).json({ error: "A valid test email is required" }); return; }
   const r = await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`); if (!r.rows.length) { res.status(404).json({ error: "Not found" }); return; }
-  const c: any = r.rows[0]; try { await sendGmailTest({ email, subject: c.subject, html: renderEmail(c.html, req.body?.name), mailer: getCommunicationsMailer("gmail") }); res.json({ ok: true, provider: "gmail" }); } catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Test send failed" }); }
+  const c: any = r.rows[0]; try { const settings = await getBrandSettings(); await sendGmailTest({ email, subject: c.subject, html: renderBrandedEmail(renderEmail(c.html, req.body?.name), settings), mailer: getCommunicationsMailer("gmail") }); res.json({ ok: true, provider: "gmail" }); } catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Test send failed" }); }
 });
 router.post("/communications/campaigns/:id/send", async (req, res) => {
   try { await deliver(req.params.id); await writeAudit({ eventType: "communications.campaign.sent", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: req.params.id } }); res.json({ ok: true }); }
@@ -263,7 +266,7 @@ router.get("/communications/campaigns/:id/summary", async (req, res) => { const 
 router.post("/communications/campaigns/:id/sync-results", async(req,res): Promise<void>=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}try{const result=await reconcileEmailOctopusCampaign(c.rows[0]);res.json({ok:true,...result});}catch(err){req.log.error({err,campaignId:req.params.id},"EmailOctopus report sync failed");res.status(409).json({error:err instanceof Error?err.message:"Report sync failed"});}});
 router.get("/communications/campaigns/:id", async(req,res)=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}const history=await db.execute(sql`SELECT id,source_type,source_id,status,attempts,provider_message_id,error,sent_at,delivered_at,bounced_at,complained_at,unsubscribed_at,created_at FROM communication_recipients WHERE campaign_id=${req.params.id} ORDER BY created_at`);const summary=await db.execute(sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status IN ('pending','queued'))::int AS queued, COUNT(*) FILTER (WHERE status='sent')::int AS sent, COUNT(*) FILTER (WHERE status='delivered')::int AS delivered, COUNT(*) FILTER (WHERE status='bounced')::int AS bounced, COUNT(*) FILTER (WHERE status='complained')::int AS complained, COUNT(*) FILTER (WHERE status='unsubscribed')::int AS unsubscribed, COUNT(*) FILTER (WHERE status='failed')::int AS failed FROM communication_recipients WHERE campaign_id=${req.params.id}`);res.json({campaign:c.rows[0],summary:summary.rows[0],history:history.rows});});
 router.post("/communications/campaigns/:id/cancel", async(req,res)=>{const r=await db.execute(sql`UPDATE communication_campaigns SET status='cancelled',updated_at=NOW() WHERE id=${req.params.id} AND status='scheduled' RETURNING id`);if(!r.rows.length){res.status(409).json({error:"Only scheduled campaigns can be cancelled"});return;}res.json({ok:true});});
-router.post("/communications/direct-send", async(req,res): Promise<void>=>{const {email,subject,html,sourceType,sourceId,name}=req.body??{};const to=String(email??"").trim().toLowerCase();if(!validEmail.test(to)||typeof subject!=="string"||!subject.trim()||typeof html!=="string"||!html.trim()||typeof sourceType!=="string"||!sourceType.trim()||typeof sourceId!=="string"||!sourceId.trim()){res.status(400).json({error:"email, subject, html, sourceType and sourceId are required"});return;}const campaignId=nanoid(),recipientId=nanoid();await db.execute(sql`INSERT INTO communication_campaigns(id,name,subject,html,kind,provider,audience,status,created_by) VALUES(${campaignId},'Direct operational email',${subject.trim()},${sanitizeEmailHtml(html)},'operational','gmail','{}'::jsonb,'sending',${req.userId!})`);await db.execute(sql`INSERT INTO communication_recipients(id,campaign_id,email,name,source_type,source_id,status) VALUES(${recipientId},${campaignId},${to},${typeof name==="string"?name:null},${sourceType},${sourceId},'pending')`);try{const sent=await getCommunicationsMailer("gmail").send({to,subject:subject.trim(),html:sanitizeEmailHtml(html)});await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=1,provider_message_id=${sent.id??null},sent_at=NOW() WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='sent',sent_at=NOW(),updated_at=NOW() WHERE id=${campaignId}`);await writeAudit({eventType:"communications.direct.sent",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId,sourceType,sourceId}});res.status(201).json({id:campaignId,status:"sent"});}catch(err){await db.execute(sql`UPDATE communication_recipients SET status='failed',attempts=1,error=${err instanceof Error?err.message:"Delivery failed"} WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='failed',updated_at=NOW() WHERE id=${campaignId}`);res.status(409).json({error:err instanceof Error?err.message:"Delivery failed",id:campaignId});}});
+router.post("/communications/direct-send", async(req,res): Promise<void>=>{const {email,subject,html,sourceType,sourceId,name}=req.body??{};const to=String(email??"").trim().toLowerCase();if(!validEmail.test(to)||typeof subject!=="string"||!subject.trim()||typeof html!=="string"||!html.trim()||typeof sourceType!=="string"||!sourceType.trim()||typeof sourceId!=="string"||!sourceId.trim()){res.status(400).json({error:"email, subject, html, sourceType and sourceId are required"});return;}const campaignId=nanoid(),recipientId=nanoid();await db.execute(sql`INSERT INTO communication_campaigns(id,name,subject,html,kind,provider,audience,status,created_by) VALUES(${campaignId},'Direct operational email',${subject.trim()},${sanitizeEmailHtml(html)},'operational','gmail','{}'::jsonb,'sending',${req.userId!})`);await db.execute(sql`INSERT INTO communication_recipients(id,campaign_id,email,name,source_type,source_id,status) VALUES(${recipientId},${campaignId},${to},${typeof name==="string"?name:null},${sourceType},${sourceId},'pending')`);try{const settings=await getBrandSettings();const sent=await getCommunicationsMailer("gmail").send({to,subject:subject.trim(),html:renderBrandedEmail(renderEmail(html,typeof name==="string"?name:null),settings)});await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=1,provider_message_id=${sent.id??null},sent_at=NOW() WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='sent',sent_at=NOW(),updated_at=NOW() WHERE id=${campaignId}`);await writeAudit({eventType:"communications.direct.sent",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId,sourceType,sourceId}});res.status(201).json({id:campaignId,status:"sent"});}catch(err){await db.execute(sql`UPDATE communication_recipients SET status='failed',attempts=1,error=${err instanceof Error?err.message:"Delivery failed"} WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='failed',updated_at=NOW() WHERE id=${campaignId}`);res.status(409).json({error:err instanceof Error?err.message:"Delivery failed",id:campaignId});}});
 router.get("/communications/templates", async (_req,res) => { const r=await db.execute(sql`SELECT id,name,subject,created_at,updated_at FROM communication_templates ORDER BY updated_at DESC`); res.json({templates:r.rows}); });
 router.post("/communications/templates", async (req,res): Promise<void> => { if(!req.body?.name?.trim()||!req.body?.subject?.trim()) { res.status(400).json({error:"Name and subject are required"}); return; } const id=nanoid(); await db.execute(sql`INSERT INTO communication_templates (id,name,subject,html,created_by) VALUES (${id},${req.body.name.trim()},${req.body.subject.trim()},${sanitizeEmailHtml(req.body.html)},${req.userId!})`); res.status(201).json({id}); });
 router.get("/communications/templates/:id", async(req,res)=>{const r=await db.execute(sql`SELECT * FROM communication_templates WHERE id=${req.params.id}`);if(!r.rows.length){res.status(404).json({error:"Not found"});return;}res.json({template:r.rows[0]});});
