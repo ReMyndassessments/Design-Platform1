@@ -1112,6 +1112,14 @@ export default function CaseDetail() {
               )}
             </Button>
           )}
+          {currentUser?.role === "admin" && c.parentEmail && (
+            <Link href={`/communications/compose?email=${encodeURIComponent(c.parentEmail)}&name=${encodeURIComponent(c.parentName || "")}&sourceType=case&sourceId=${c.id}`}>
+              <Button variant="outline" size="sm" className="gap-2 bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:text-slate-900">
+                <Mail size={15} />
+                Message Parent
+              </Button>
+            </Link>
+          )}
           {c.currentPhase === 'scoring' && (
             <Link href={`/cases/${c.id}/scoring`}>
               <Button variant="outline" size="sm" className="bg-white gap-1.5">

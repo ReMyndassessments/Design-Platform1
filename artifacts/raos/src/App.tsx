@@ -136,6 +136,8 @@ const PrivacyPolicyPage = React.lazy(() => import("@/pages/privacy-policy"));
 const TrainingPage = React.lazy(() => import("@/pages/training"));
 const TrainingRegistrationsPage = React.lazy(() => import("@/pages/admin/training-registrations"));
 const WorkshopPublicPage = React.lazy(() => import("@/pages/training-workshop"));
+const CommunicationsPage = React.lazy(() => import("@/pages/communications/index"));
+const CommunicationsComposePage = React.lazy(() => import("@/pages/communications/compose"));
 
 const queryClient = new QueryClient();
 
@@ -145,7 +147,7 @@ const PageFallback = () => (
   </div>
 );
 
-function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApprentice = false }: { component: React.ComponentType; apprenticeOnly?: boolean; allowApprentice?: boolean }) {
+function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApprentice = false, adminOnly = false }: { component: React.ComponentType; apprenticeOnly?: boolean; allowApprentice?: boolean; adminOnly?: boolean }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useGetCurrentUser({
     query: {
@@ -166,6 +168,10 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
       return;
     }
     if (!isLoading && user) {
+      if (adminOnly && user.role !== "admin") {
+        navigate("/dashboard");
+        return;
+      }
       if (isShared) return;
       if (isApprentice && !apprenticeOnly) {
         navigate("/apprentice/dashboard");
@@ -175,13 +181,17 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
     }
     // navigate is stable in wouter; intentionally excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user, isApprentice, apprenticeOnly, isShared]);
+  }, [isLoading, user, isApprentice, apprenticeOnly, isShared, adminOnly]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   }
 
   if (!user) {
+    return null;
+  }
+
+  if (adminOnly && user.role !== "admin") {
     return null;
   }
 
@@ -229,6 +239,15 @@ function Router() {
         </Route>
         <Route path="/training/:slug" component={WorkshopPublicPage} />
         <Route path="/training" component={TrainingPage} />
+        <Route path="/communications">
+          {() => <ProtectedRoute component={CommunicationsPage} adminOnly />}
+        </Route>
+        <Route path="/communications/compose">
+          {() => <ProtectedRoute component={CommunicationsComposePage} adminOnly />}
+        </Route>
+        <Route path="/communications/compose/:id">
+          {() => <ProtectedRoute component={CommunicationsComposePage} adminOnly />}
+        </Route>
         <Route path="/" component={LandingPage} />
         <Route path="/dashboard">
           {() => <ProtectedRoute component={Dashboard} />}

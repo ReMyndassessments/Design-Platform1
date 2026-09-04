@@ -13,3 +13,4 @@ export * from "./auditLog";
 export * from "./rmra";
 export * from "./clinicalApprentice";
 export * from "./interviewRecordings";
+export * from "./communications";

@@ -9,6 +9,7 @@ import {
   ChevronRight, RefreshCw, MoreHorizontal,
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
+import { Link as WouterLink } from "wouter";
 
 const TRAINING_URL = "https://remyndassessments.com/training";
 
@@ -165,7 +166,7 @@ export default function TrainingRegistrationsPage() {
     queryFn: () => customFetch("/api/training/registrations/stats"),
     enabled: mainView === "series",
   });
-  const stats = statsData?.stats ?? {};
+  const stats = (statsData as any)?.stats ?? {};
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -180,7 +181,7 @@ export default function TrainingRegistrationsPage() {
     queryFn: () => customFetch(`/api/training/registrations?${params.toString()}`),
     enabled: mainView === "series",
   });
-  const registrations: Registration[] = listData?.registrations ?? [];
+  const registrations: Registration[] = (listData as any)?.registrations ?? [];
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status, internal_notes }: { id: string; status?: string; internal_notes?: string }) =>
@@ -311,6 +312,10 @@ export default function TrainingRegistrationsPage() {
                 className="flex items-center gap-1.5 text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 hover:text-slate-900 hover:border-slate-400 transition-colors">
                 <ExternalLink size={12} /> View Public Page
               </a>
+              <WouterLink href="/communications/compose?source=training"
+                className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-xl px-4 py-2 hover:bg-slate-200 transition-colors font-semibold">
+                <Mail size={12} /> Message Registrants
+              </WouterLink>
               <button onClick={handleExport}
                 className="flex items-center gap-1.5 text-xs bg-[#0c1a2e] text-white rounded-xl px-4 py-2 hover:bg-slate-800 transition-colors font-semibold">
                 <Download size={12} /> Export Series Registrations
@@ -447,7 +452,7 @@ function WorkshopsSection() {
     queryKey: ["admin-workshops"],
     queryFn: () => customFetch("/api/training/workshops"),
   });
-  const workshops: Workshop[] = data?.workshops ?? [];
+  const workshops: Workshop[] = (data as any)?.workshops ?? [];
   const selectedWorkshop = workshops.find(w => w.id === selectedId) ?? null;
 
   const publishMutation = useMutation({
@@ -688,7 +693,7 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
     queryKey: ["workshop-registrations", w.id],
     queryFn: () => customFetch(`/api/training/workshops/${w.id}/registrations`),
   });
-  const regs: WorkshopReg[] = data?.registrations ?? [];
+  const regs: WorkshopReg[] = (data as any)?.registrations ?? [];
   const workshopUrl = getWorkshopPublicUrl(w.slug);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(workshopUrl)}&size=300x300`;
   const [copied, setCopied] = useState(false);
@@ -760,6 +765,10 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
               className="flex items-center gap-1.5 text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 hover:border-slate-400 transition-colors">
               {copied ? <><Check size={12} className="text-emerald-500" /> Copied!</> : <><Copy size={12} /> Copy Link</>}
             </button>
+            <WouterLink href={`/communications/compose?source=workshops&workshopId=${w.id}`}
+              className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl px-3 py-2 hover:bg-indigo-100 transition-colors font-semibold">
+              <Mail size={12} /> Message Cohort
+            </WouterLink>
             <button type="button" onClick={async () => {
               try {
                 await downloadAuthenticatedCsv(
@@ -893,22 +902,28 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
                       <p className="text-xs text-slate-500 whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</p>
                     </td>
                     <td className={tdCls}>
-                      {r.payment_status !== "paid" && (
-                        <button
-                          type="button"
-                          title="Delete unpaid or test registration"
-                          aria-label={`Delete ${r.first_name} ${r.last_name}`}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          onClick={e => {
-                            e.stopPropagation();
-                            if (window.confirm(`Delete the unpaid registration for ${r.first_name} ${r.last_name}? This cannot be undone.`)) {
-                              deleteMutation.mutate(r.id);
-                            }
-                          }}
+                      <div className="flex items-center gap-2">
+                        <WouterLink href={`/communications/compose?email=${encodeURIComponent(r.email)}&name=${encodeURIComponent(r.first_name + " " + r.last_name)}&sourceType=workshop&sourceId=${r.id}`}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          title="Message Registrant"
                         >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                          <Mail size={14} />
+                        </WouterLink>
+                        {r.payment_status !== "paid" && (
+                          <button
+                            title="Delete registration"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete the unpaid registration for ${r.first_name} ${r.last_name}? This cannot be undone.`)) {
+                                deleteMutation.mutate(r.id);
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -991,7 +1006,7 @@ function WorkshopBuilder({ workshop, onClose, onSaved }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
-      });
+      }) as any;
       await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
       setField("image_object_id", objectPath);
     } catch {
@@ -1291,6 +1306,10 @@ function RegistrantDetail({ reg, onClose, onStatusChange }: {
             <p className="font-bold text-slate-900">{reg.first_name} {reg.last_name}</p>
           </div>
           <div className="flex items-center gap-3">
+            <WouterLink href={`/communications/compose?email=${encodeURIComponent(reg.email)}&name=${encodeURIComponent(reg.first_name + " " + reg.last_name)}&sourceType=training&sourceId=${reg.id}`}
+              className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-xl px-3 py-1.5 hover:bg-slate-200 transition-colors font-semibold">
+              <Mail size={12} /> Message
+            </WouterLink>
             <select className={`text-xs px-2 py-1 rounded-lg border border-slate-200 ${STATUS_COLORS[reg.status] ?? ""}`}
               value={reg.status} onChange={e => onStatusChange(reg.id, e.target.value)}>
               {STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
