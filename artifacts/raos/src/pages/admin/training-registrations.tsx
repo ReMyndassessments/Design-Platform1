@@ -17,6 +17,30 @@ function getWorkshopPublicUrl(slug: string): string {
   return `${window.location.origin}${prefix}/training/${slug}`;
 }
 
+async function downloadAuthenticatedCsv(url: string, fallbackFilename: string) {
+  const token = localStorage.getItem("raos_token");
+  if (!token) throw new Error("Your session has expired. Please sign in again.");
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.message ?? data?.error ?? "CSV export failed.");
+  }
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = disposition.match(/filename="?([^"]+)"?/i)?.[1] ?? fallbackFilename;
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 // ── Workshop types ────────────────────────────────────────────────────────────
 type SessionDate = { date: string; start_time: string; end_time: string };
 type Workshop = {
@@ -171,8 +195,15 @@ export default function TrainingRegistrationsPage() {
     },
   });
 
-  const handleExport = () => {
-    window.open(`/api/training/registrations/export/csv?${params.toString()}`, "_blank");
+  const handleExport = async () => {
+    try {
+      await downloadAuthenticatedCsv(
+        `/api/training/registrations/export/csv?${params.toString()}`,
+        "training-registrations.csv",
+      );
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "CSV export failed.");
+    }
   };
 
   const clearFilters = () => {
@@ -729,10 +760,19 @@ function WorkshopDetail({ workshop: w, onBack, onEdit, onPublish, onUnpublish, o
               className="flex items-center gap-1.5 text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 hover:border-slate-400 transition-colors">
               {copied ? <><Check size={12} className="text-emerald-500" /> Copied!</> : <><Copy size={12} /> Copy Link</>}
             </button>
-            <a href={`/api/training/workshops/${w.id}/registrations/export/csv`}
+            <button type="button" onClick={async () => {
+              try {
+                await downloadAuthenticatedCsv(
+                  `/api/training/workshops/${w.id}/registrations/export/csv`,
+                  `workshop-${w.id}-registrations.csv`,
+                );
+              } catch (err) {
+                window.alert(err instanceof Error ? err.message : "CSV export failed.");
+              }
+            }}
               className="flex items-center gap-1.5 text-xs bg-[#0c1a2e] text-white rounded-xl px-3 py-2 hover:bg-slate-800 transition-colors font-semibold">
               <Download size={12} /> Export CSV
-            </a>
+            </button>
           </div>
         </div>
 
