@@ -5,16 +5,17 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
 import { createEmailOctopusCampaign, getCommunicationsMailer, getEmailOctopusCampaignReport, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
+import { isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
 const objectStorage = new ObjectStorageService();
+const validEmail = { test: isValidCommunicationEmail };
 function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.userRole !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
   next();
 }
-const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* Additive and repeatable for installations which predate this module. */
 const ready = (async () => {
@@ -60,11 +61,11 @@ router.post("/communications/audience-preview", async (req, res): Promise<void> 
     (audience.sources !== undefined && (!Array.isArray(audience.sources) || audience.sources.some((x: unknown) => typeof x !== "string")))) {
     res.status(400).json({ error: "Invalid audience or kind" }); return;
   }
-  const rows = await resolveContacts(audience, kind);
+  const resolution = await resolveContacts(audience, kind);
   // Preview is admin-only and deliberately shows one address per row, never a
   // recipient-to-recipient disclosure. Counts match the send-time resolution.
-  res.json({ counts: { included: rows.length, excluded: 0, invalid: 0, duplicate: 0, suppressed: 0, noConsent: 0 },
-    recipients: rows.map(c => ({ email: c.email, name: c.name, sourceType: c.sourceType, sourceId: c.sourceId, included: true, reason: "eligible" })) });
+  res.json({ counts: resolution.counts,
+    recipients: resolution.recipients.map(c => ({ email: c.email, name: c.name, sourceType: c.sourceType, sourceId: c.sourceId, included: true, reason: "eligible" })) });
 });
 router.get("/communications/contract", (_req, res) => {
   res.json({ base: "/api/communications", endpoints: {
@@ -74,10 +75,9 @@ router.get("/communications/contract", (_req, res) => {
   } });
 });
 
-type Contact = { email: string; name: string | null; sourceType: string; sourceId: string; consent: boolean };
-async function resolveContacts(audience: any, kind: string): Promise<Contact[]> {
+async function resolveContacts(audience: any, kind: string) {
   const sources: string[] = Array.isArray(audience?.sources) ? audience.sources : ["training"];
-  const found: Contact[] = [];
+  const found: SourceContact[] = [];
   // Source records remain authoritative; this creates only a send-time snapshot.
   if (sources.includes("training")) {
     const r = await db.execute(sql`SELECT id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent FROM training_registrations WHERE status != 'cancelled'`);
@@ -135,38 +135,33 @@ async function resolveContacts(audience: any, kind: string): Promise<Contact[]> 
   const selectedFound = selected.length ? found.filter(c => !sourceIds[c.sourceType]?.length || sourceIds[c.sourceType].includes(c.sourceId)) : found;
   const suppressed = await db.execute(sql`SELECT email, kind FROM communication_suppressions`);
   const block = new Map((suppressed.rows as any[]).map(x => [String(x.email).toLowerCase(), x.kind]));
-  const unique = new Map<string, Contact>();
-  for (const contact of selectedFound) {
-    const email = String(contact.email || "").trim().toLowerCase();
-    const suppression = block.get(email);
-    if (!validEmail.test(email) || suppression === "hard" || (kind === "promotional" && (!contact.consent || !!suppression))) continue;
-    if (!unique.has(email)) unique.set(email, { ...contact, email });
-  }
-  return [...unique.values()];
+  return resolveEligibleContacts(selectedFound, kind === "operational" ? "operational" : "promotional", block);
 }
 
 async function snapshot(campaign: any) {
   const existing = await db.execute(sql`SELECT COUNT(*)::int AS count FROM communication_recipients WHERE campaign_id = ${campaign.id}`);
   if (Number((existing.rows[0] as any).count)) return;
-  for (const c of await resolveContacts(campaign.audience, campaign.kind)) {
+  for (const c of (await resolveContacts(campaign.audience, campaign.kind)).recipients) {
     await db.execute(sql`INSERT INTO communication_recipients (id,campaign_id,email,name,source_type,source_id,status,unsubscribe_token) VALUES (${nanoid()},${campaign.id},${c.email},${c.name},${c.sourceType},${c.sourceId},'queued',${nanoid(32)}) ON CONFLICT (campaign_id,email) DO NOTHING`);
   }
 }
 async function deliver(campaignId: string, retry = false) {
-  const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed') RETURNING *`);
-  if (!lock.rows.length) return;
-  const campaign: any = lock.rows[0];
-  await snapshot(campaign);
-  const recipients = await db.execute(sql`SELECT * FROM communication_recipients WHERE campaign_id = ${campaignId} AND status IN ('pending','queued'${retry ? sql`, 'failed'` : sql``})`);
-  if (campaign.provider === "emailoctopus") {
-    const rows = recipients.rows as any[];
-    if (!rows.length) { await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=COALESCE(sent_at,NOW()) WHERE id=${campaignId}`); return; }
-    const brand = await db.execute(sql`SELECT settings FROM communication_brand_settings WHERE id='default'`);
-    const settings: any = (brand.rows[0] as any)?.settings ?? {};
-    const footer = typeof settings.footer === "string" ? settings.footer.replace(/[<>&]/g, "") : "";
-    const brandedHtml = `${campaign.html}${footer ? `<hr><p style="font-size:12px;color:#64748b">${footer}</p>` : ""}`;
-    const text = String(brandedHtml).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    try {
+  await runWithCampaignLock<any>({
+    claim: async () => {
+      const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed') RETURNING *`);
+      return (lock.rows[0] as any) ?? null;
+    },
+    deliver: async (campaign) => {
+      await snapshot(campaign);
+      const recipients = await db.execute(sql`SELECT * FROM communication_recipients WHERE campaign_id = ${campaignId} AND status IN ('pending','queued'${retry ? sql`, 'failed'` : sql``})`);
+      if (campaign.provider === "emailoctopus") {
+        const rows = recipients.rows as any[];
+        if (!rows.length) { await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=COALESCE(sent_at,NOW()) WHERE id=${campaignId}`); return; }
+        const brand = await db.execute(sql`SELECT settings FROM communication_brand_settings WHERE id='default'`);
+        const settings: any = (brand.rows[0] as any)?.settings ?? {};
+        const footer = typeof settings.footer === "string" ? settings.footer.replace(/[<>&]/g, "") : "";
+        const brandedHtml = `${campaign.html}${footer ? `<hr><p style="font-size:12px;color:#64748b">${footer}</p>` : ""}`;
+        const text = String(brandedHtml).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       const providerId = campaign.provider_campaign_id || await createEmailOctopusCampaign({
         name: campaign.name, subject: campaign.subject, html: brandedHtml, text,
         fromName: typeof settings.fromName === "string" ? settings.fromName : undefined,
@@ -179,30 +174,29 @@ async function deliver(campaignId: string, retry = false) {
       await sendEmailOctopusCampaign(providerId);
       await db.execute(sql`UPDATE communication_recipients SET status='sent', attempts=attempts+1, provider_message_id=${providerId}, sent_at=NOW(), error=NULL WHERE campaign_id=${campaignId} AND status IN ('pending','queued','failed')`);
       await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=${campaignId}`);
-    } catch (err) {
+        return;
+      }
+      await sendGmailGroup({
+        kind: campaign.kind,
+        recipients: recipients.rows as any[],
+        subject: campaign.subject,
+        mailer: getCommunicationsMailer(campaign.provider as CommunicationsProvider),
+        renderHtml: recipient => renderEmail(campaign.html, recipient.name),
+        markSent: async (recipient, messageId) => {
+          await db.execute(sql`UPDATE communication_recipients SET status = 'sent', attempts = attempts + 1, provider_message_id = ${messageId ?? null}, sent_at = NOW(), error = NULL WHERE id = ${recipient.id}`);
+        },
+        markFailed: async (recipient, error) => {
+          await db.execute(sql`UPDATE communication_recipients SET status = 'failed', attempts = attempts + 1, error = ${error.message.slice(0, 1000)} WHERE id = ${recipient.id}`);
+        },
+      });
+      const totals = await db.execute(sql`SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM communication_recipients WHERE campaign_id = ${campaignId}`);
+      const failed = Number((totals.rows[0] as any).failed);
+      await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
+    },
+    markFailed: async () => {
       await db.execute(sql`UPDATE communication_campaigns SET status='failed', updated_at=NOW() WHERE id=${campaignId}`);
-      throw err;
-    }
-    return;
-  }
-  if (campaign.kind !== "operational" || (recipients.rows as any[]).length > 50) {
-    await db.execute(sql`UPDATE communication_campaigns SET status='failed', updated_at=NOW() WHERE id=${campaignId}`);
-    throw new Error(campaign.kind !== "operational" ? "Gmail campaigns are limited to operational communication; use EmailOctopus for promotional cohorts" : "Gmail operational campaigns are limited to 50 recipients; use EmailOctopus for bulk cohorts");
-  }
-  const mailer = getCommunicationsMailer(campaign.provider as CommunicationsProvider);
-  for (const recipient of recipients.rows as any[]) {
-    try {
-      const unsubscribe = campaign.kind === "promotional" && recipient.unsubscribe_token
-        ? `<p style="font-size:12px;color:#64748b"><a href="${process.env.RAOS_PUBLIC_URL || "https://remyndassessments.com"}/api/communications/unsubscribe/${recipient.unsubscribe_token}">Unsubscribe from promotional emails</a></p>` : "";
-      const result = await mailer.send({ to: recipient.email, subject: campaign.subject, html: `${renderEmail(campaign.html, recipient.name)}${unsubscribe}` });
-      await db.execute(sql`UPDATE communication_recipients SET status = 'sent', attempts = attempts + 1, provider_message_id = ${result.id ?? null}, sent_at = NOW(), error = NULL WHERE id = ${recipient.id}`);
-    } catch (err) {
-      await db.execute(sql`UPDATE communication_recipients SET status = 'failed', attempts = attempts + 1, error = ${err instanceof Error ? err.message.slice(0, 1000) : "Delivery failed"} WHERE id = ${recipient.id}`);
-    }
-  }
-  const totals = await db.execute(sql`SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM communication_recipients WHERE campaign_id = ${campaignId}`);
-  const failed = Number((totals.rows[0] as any).failed);
-  await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
+    },
+  });
 }
 
 const reportStatus: Record<EmailOctopusReportType, string> = {
@@ -249,9 +243,9 @@ router.post("/communications/campaigns", async (req, res): Promise<void> => {
   await writeAudit({ eventType: "communications.campaign.created", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: id } }); res.status(201).json({ id });
 });
 router.post("/communications/campaigns/:id/send-test", async (req, res): Promise<void> => {
-  const email = String(req.body?.email || "").trim().toLowerCase(); if (!validEmail.test(email)) { res.status(400).json({ error: "A valid test email is required" }); return; }
+  const email = String(req.body?.email || "").trim().toLowerCase(); if (!isValidCommunicationEmail(email)) { res.status(400).json({ error: "A valid test email is required" }); return; }
   const r = await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`); if (!r.rows.length) { res.status(404).json({ error: "Not found" }); return; }
-  const c: any = r.rows[0]; try { await getCommunicationsMailer("gmail").send({ to: email, subject: `[TEST] ${c.subject}`, html: renderEmail(c.html, req.body?.name) }); res.json({ ok: true, provider: "gmail" }); } catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Test send failed" }); }
+  const c: any = r.rows[0]; try { await sendGmailTest({ email, subject: c.subject, html: renderEmail(c.html, req.body?.name), mailer: getCommunicationsMailer("gmail") }); res.json({ ok: true, provider: "gmail" }); } catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Test send failed" }); }
 });
 router.post("/communications/campaigns/:id/send", async (req, res) => {
   try { await deliver(req.params.id); await writeAudit({ eventType: "communications.campaign.sent", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: req.params.id } }); res.json({ ok: true }); }
