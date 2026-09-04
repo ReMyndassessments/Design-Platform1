@@ -78,9 +78,33 @@ async function resolveContacts(audience: any, kind: string): Promise<Contact[]> 
     const r = await db.execute(sql`SELECT id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent FROM training_registrations WHERE status != 'cancelled'`);
     found.push(...(r.rows as any[]).map(x => ({ email: x.email, name: x.name, sourceType: "training", sourceId: x.id, consent: !!x.marketing_consent })));
   }
+  if (sources.includes("training_series") && Array.isArray(audience?.seriesCohorts) && audience.seriesCohorts.length) {
+    const r = await db.execute(sql`
+      SELECT id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent,
+        workshop_1_selected, workshop_2_selected, workshop_3_selected, workshop_4_selected,
+        full_series_selected
+      FROM training_registrations
+      WHERE status != 'cancelled'
+    `);
+    const selectedCohorts = new Set(audience.seriesCohorts.map(String));
+    const matches = (r.rows as any[]).filter(x =>
+      (selectedCohorts.has("full_series") && x.full_series_selected) ||
+      ([1, 2, 3, 4] as const).some(n =>
+        selectedCohorts.has(`workshop_${n}`) &&
+        (x[`workshop_${n}_selected`] || x.full_series_selected)
+      )
+    );
+    found.push(...matches.map(x => ({ email: x.email, name: x.name, sourceType: "training_series", sourceId: x.id, consent: !!x.marketing_consent })));
+  }
   if (sources.includes("workshops") && Array.isArray(audience?.workshopIds) && audience.workshopIds.length) {
-    const r = await db.execute(sql`SELECT id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent FROM workshop_registrations WHERE workshop_id = ANY(${audience.workshopIds}::text[]) AND status != 'cancelled'`);
-    found.push(...(r.rows as any[]).map(x => ({ email: x.email, name: x.name, sourceType: "workshop", sourceId: x.id, consent: !!x.marketing_consent })));
+    const r = await db.execute(sql`
+      SELECT id, workshop_id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent
+      FROM workshop_registrations
+      WHERE status != 'cancelled'
+    `);
+    const selectedWorkshopIds = new Set(audience.workshopIds.map(String));
+    const matches = (r.rows as any[]).filter(x => selectedWorkshopIds.has(String(x.workshop_id)));
+    found.push(...matches.map(x => ({ email: x.email, name: x.name, sourceType: "workshop", sourceId: x.id, consent: !!x.marketing_consent })));
   }
   if (sources.includes("cases")) {
     const r = await db.execute(sql`SELECT id, parent_email AS email, parent_name AS name, consent_obtained FROM cases WHERE parent_email IS NOT NULL`);
@@ -97,6 +121,7 @@ async function resolveContacts(audience: any, kind: string): Promise<Contact[]> 
   const sourceIds: Record<string, string[]> = {
     ...(audience?.sourceIds && typeof audience.sourceIds === "object" ? audience.sourceIds : {}),
     training: Array.isArray(audience?.registrationIds) ? audience.registrationIds : (audience?.sourceIds?.training ?? []),
+    training_series: audience?.sourceIds?.training_series ?? [],
     case: Array.isArray(audience?.caseIds) ? audience.caseIds : (audience?.sourceIds?.case ?? []),
     user: Array.isArray(audience?.userIds) ? audience.userIds : (audience?.sourceIds?.user ?? []),
     inquiry: Array.isArray(audience?.inquiryIds) ? audience.inquiryIds : (audience?.sourceIds?.inquiry ?? []),

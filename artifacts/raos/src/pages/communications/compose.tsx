@@ -54,6 +54,7 @@ export default function CommunicationsComposePage() {
   const [kind, setKind] = useState<"operational" | "promotional">("operational");
   const [audienceSources, setAudienceSources] = useState<string[]>([]);
   const [workshopIds, setWorkshopIds] = useState<string[]>([]);
+  const [seriesCohorts, setSeriesCohorts] = useState<string[]>([]);
   
   // Contextual Direct Send
   const [isDirectSend, setIsDirectSend] = useState(false);
@@ -138,6 +139,7 @@ export default function CommunicationsComposePage() {
       
       if (draft.audience?.sources) setAudienceSources(draft.audience.sources);
       if (draft.audience?.workshopIds) setWorkshopIds(draft.audience.workshopIds);
+      if (draft.audience?.seriesCohorts) setSeriesCohorts(draft.audience.seriesCohorts);
     }
   }, [draftId, draftData]);
 
@@ -182,9 +184,16 @@ export default function CommunicationsComposePage() {
     );
   };
 
+  const handleSeriesCohortToggle = (cohortId: string) => {
+    setSeriesCohorts(prev =>
+      prev.includes(cohortId) ? prev.filter(id => id !== cohortId) : [...prev, cohortId]
+    );
+  };
+
   const getAudienceObject = () => ({
     sources: audienceSources,
     ...(audienceSources.includes("workshops") ? { workshopIds } : {}),
+    ...(audienceSources.includes("training_series") ? { seriesCohorts } : {}),
     structured: mode === "structured" ? { previewText, greeting, heading, bodyText, ctaText, ctaUrl } : undefined
   });
 
@@ -544,8 +553,9 @@ export default function CommunicationsComposePage() {
                 </div>
                 <div className="space-y-2">
                   {[
-                    { id: "training", label: "Training Registrations" },
-                    { id: "workshops", label: "Workshop Cohorts" },
+                    { id: "training", label: "All Training Series Registrants" },
+                    { id: "training_series", label: "Training Series Cohorts" },
+                    { id: "workshops", label: "Standalone Workshop Registrations" },
                     { id: "cases", label: "Case Parents" },
                     { id: "users", label: "System Users" },
                     { id: "inquiries", label: "Inquiries" }
@@ -561,10 +571,40 @@ export default function CommunicationsComposePage() {
                     </label>
                   ))}
                 </div>
+
+                {audienceSources.includes("training_series") && (
+                  <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      September–October 2026 Series
+                    </label>
+                    <div className="space-y-1.5">
+                      {[
+                        { id: "full_series", label: "Full Series Registrants Only" },
+                        { id: "workshop_1", label: "Workshop 1 Attendees" },
+                        { id: "workshop_2", label: "Workshop 2 Attendees" },
+                        { id: "workshop_3", label: "Workshop 3 Attendees" },
+                        { id: "workshop_4", label: "Workshop 4 Attendees" },
+                      ].map(cohort => (
+                        <label key={cohort.id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={seriesCohorts.includes(cohort.id)}
+                            onChange={() => handleSeriesCohortToggle(cohort.id)}
+                            className="rounded border-slate-300"
+                          />
+                          {cohort.label}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      Each workshop attendee list also includes people registered for the full series.
+                    </p>
+                  </div>
+                )}
                 
                 {audienceSources.includes("workshops") && workshopsData?.workshops && (
                   <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">Select Workshops</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">Select Standalone Workshops</label>
                     <div className="max-h-40 overflow-y-auto space-y-1 pr-2">
                       {workshopsData.workshops.map((w: any) => (
                         <label key={w.id} className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
