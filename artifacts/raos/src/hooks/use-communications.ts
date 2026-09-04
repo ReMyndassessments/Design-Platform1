@@ -18,7 +18,7 @@ export function useCampaigns() {
 export function useCampaignDetail(id: string) {
   return useQuery({
     queryKey: ["communications-campaign", id],
-    queryFn: () => customFetch(`/api/communications/campaigns/${id}`) as Promise<{ campaign: any; history: any[] }>,
+    queryFn: () => customFetch(`/api/communications/campaigns/${id}`) as Promise<{ campaign: any; summary: any; history: any[] }>,
     enabled: !!id,
   });
 }
@@ -150,6 +150,18 @@ export function useRetryCampaign() {
     mutationFn: (id: string) => customFetch(`/api/communications/campaigns/${id}/retry-failed`, { method: "POST" }),
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ["communications-campaigns"] });
+      qc.invalidateQueries({ queryKey: ["communications-campaign-summary", id] });
+    },
+  });
+}
+
+export function useSyncCampaignResults() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customFetch(`/api/communications/campaigns/${id}/sync-results`, { method: "POST" }),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["communications-campaigns"] });
+      qc.invalidateQueries({ queryKey: ["communications-campaign", id] });
       qc.invalidateQueries({ queryKey: ["communications-campaign-summary", id] });
     },
   });

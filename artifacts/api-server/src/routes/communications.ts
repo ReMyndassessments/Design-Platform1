@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
-import { createEmailOctopusCampaign, getCommunicationsMailer, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationsProvider } from "../lib/communications.js";
+import { createEmailOctopusCampaign, getCommunicationsMailer, getEmailOctopusCampaignReport, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
 
@@ -28,6 +28,11 @@ const ready = (async () => {
   await db.execute(sql`ALTER TABLE communication_campaigns ADD COLUMN IF NOT EXISTS provider_campaign_id text`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_recipients (id text PRIMARY KEY, campaign_id text NOT NULL REFERENCES communication_campaigns(id) ON DELETE CASCADE, email text NOT NULL, name text, source_type text NOT NULL, source_id text NOT NULL, status text NOT NULL DEFAULT 'pending', attempts integer NOT NULL DEFAULT 0, provider_message_id text, error text, sent_at timestamptz, created_at timestamptz NOT NULL DEFAULT NOW(), UNIQUE(campaign_id, email))`);
   await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS unsubscribe_token text UNIQUE`);
+  await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS delivered_at timestamptz`);
+  await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS bounced_at timestamptz`);
+  await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS complained_at timestamptz`);
+  await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_delivery_events (id text PRIMARY KEY, event_key text NOT NULL UNIQUE, campaign_id text NOT NULL REFERENCES communication_campaigns(id) ON DELETE CASCADE, recipient_id text NOT NULL REFERENCES communication_recipients(id) ON DELETE CASCADE, provider text NOT NULL, event_type text NOT NULL, occurred_at timestamptz, payload jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_suppressions (email text PRIMARY KEY, kind text NOT NULL DEFAULT 'unsubscribe', reason text, created_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS communication_campaign_due_idx ON communication_campaigns(status, scheduled_at)`);
 })();
@@ -45,7 +50,7 @@ router.get("/communications/provider-status", (_req, res) => {
   res.json({
     providers: {
       gmail: { configured: Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD), capabilities: ["individual_send", "test_send", "scheduled_send"] },
-      emailoctopus: { configured: Boolean(process.env.EMAILOCTOPUS_API_KEY && process.env.EMAILOCTOPUS_DEFAULT_LIST_ID), capabilities: ["list_contact_sync", "campaign_create", "campaign_send"] },
+      emailoctopus: { configured: Boolean(process.env.EMAILOCTOPUS_API_KEY && process.env.EMAILOCTOPUS_DEFAULT_LIST_ID), capabilities: ["list_contact_sync", "campaign_create", "campaign_send", "campaign_report_sync"] },
     },
   });
 });
@@ -63,7 +68,7 @@ router.post("/communications/audience-preview", async (req, res): Promise<void> 
 });
 router.get("/communications/contract", (_req, res) => {
   res.json({ base: "/api/communications", endpoints: {
-    campaigns: "GET/POST /campaigns; POST /campaigns/:id/send|send-test|schedule|retry-failed; GET /campaigns/:id/summary",
+    campaigns: "GET/POST /campaigns; POST /campaigns/:id/send|send-test|schedule|retry-failed|sync-results; GET /campaigns/:id/summary",
     content: "GET/POST /templates; GET/POST/PUT /drafts; GET/PUT /brand",
     compliance: "POST /suppressions", assets: "GET /assets; POST /assets/request-upload; POST /assets", providers: "GET /provider-status",
   } });
@@ -144,7 +149,7 @@ async function snapshot(campaign: any) {
   const existing = await db.execute(sql`SELECT COUNT(*)::int AS count FROM communication_recipients WHERE campaign_id = ${campaign.id}`);
   if (Number((existing.rows[0] as any).count)) return;
   for (const c of await resolveContacts(campaign.audience, campaign.kind)) {
-    await db.execute(sql`INSERT INTO communication_recipients (id,campaign_id,email,name,source_type,source_id,unsubscribe_token) VALUES (${nanoid()},${campaign.id},${c.email},${c.name},${c.sourceType},${c.sourceId},${nanoid(32)}) ON CONFLICT (campaign_id,email) DO NOTHING`);
+    await db.execute(sql`INSERT INTO communication_recipients (id,campaign_id,email,name,source_type,source_id,status,unsubscribe_token) VALUES (${nanoid()},${campaign.id},${c.email},${c.name},${c.sourceType},${c.sourceId},'queued',${nanoid(32)}) ON CONFLICT (campaign_id,email) DO NOTHING`);
   }
 }
 async function deliver(campaignId: string, retry = false) {
@@ -152,7 +157,7 @@ async function deliver(campaignId: string, retry = false) {
   if (!lock.rows.length) return;
   const campaign: any = lock.rows[0];
   await snapshot(campaign);
-  const recipients = await db.execute(sql`SELECT * FROM communication_recipients WHERE campaign_id = ${campaignId} AND status IN ('pending'${retry ? sql`, 'failed'` : sql``})`);
+  const recipients = await db.execute(sql`SELECT * FROM communication_recipients WHERE campaign_id = ${campaignId} AND status IN ('pending','queued'${retry ? sql`, 'failed'` : sql``})`);
   if (campaign.provider === "emailoctopus") {
     const rows = recipients.rows as any[];
     if (!rows.length) { await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=COALESCE(sent_at,NOW()) WHERE id=${campaignId}`); return; }
@@ -172,7 +177,7 @@ async function deliver(campaignId: string, retry = false) {
       // the poller invokes this documented send action only at the requested time.
       await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${providerId}, status='ready', updated_at=NOW() WHERE id=${campaignId}`);
       await sendEmailOctopusCampaign(providerId);
-      await db.execute(sql`UPDATE communication_recipients SET status='sent', attempts=attempts+1, provider_message_id=${providerId}, sent_at=NOW(), error=NULL WHERE campaign_id=${campaignId} AND status IN ('pending','failed')`);
+      await db.execute(sql`UPDATE communication_recipients SET status='sent', attempts=attempts+1, provider_message_id=${providerId}, sent_at=NOW(), error=NULL WHERE campaign_id=${campaignId} AND status IN ('pending','queued','failed')`);
       await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=${campaignId}`);
     } catch (err) {
       await db.execute(sql`UPDATE communication_campaigns SET status='failed', updated_at=NOW() WHERE id=${campaignId}`);
@@ -200,8 +205,41 @@ async function deliver(campaignId: string, retry = false) {
   await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
 }
 
+const reportStatus: Record<EmailOctopusReportType, string> = {
+  sent: "delivered", bounced: "bounced", complained: "complained", unsubscribed: "unsubscribed",
+};
+const reportRank: Record<string, number> = {
+  pending: 0, queued: 0, sent: 1, delivered: 2, bounced: 3, complained: 4, unsubscribed: 5,
+};
+async function reconcileEmailOctopusCampaign(campaign: any) {
+  if (campaign.provider !== "emailoctopus" || !campaign.provider_campaign_id) return { processed: 0 };
+  let processed = 0;
+  for (const report of ["sent", "bounced", "complained", "unsubscribed"] as EmailOctopusReportType[]) {
+    for (const event of await getEmailOctopusCampaignReport(campaign.provider_campaign_id, report)) {
+      if (!event.email) continue;
+      const found = await db.execute(sql`SELECT id,status,email FROM communication_recipients WHERE campaign_id=${campaign.id} AND lower(email)=${event.email} LIMIT 1`);
+      if (!found.rows.length) continue;
+      const recipient: any = found.rows[0];
+      const status = reportStatus[report];
+      const eventKey = `${campaign.provider_campaign_id}:${report}:${event.contactId || event.email}`;
+      const inserted = await db.execute(sql`INSERT INTO communication_delivery_events(id,event_key,campaign_id,recipient_id,provider,event_type,occurred_at,payload) VALUES(${nanoid()},${eventKey},${campaign.id},${recipient.id},'emailoctopus',${status},${event.occurredAt},${JSON.stringify({ bounceType: event.bounceType })}::jsonb) ON CONFLICT(event_key) DO NOTHING RETURNING id`);
+      if (inserted.rows.length) processed++;
+      if ((reportRank[status] ?? 0) >= (reportRank[recipient.status] ?? 0)) {
+        const reason = report === "bounced" ? `${event.bounceType || "unknown"} bounce reported by EmailOctopus` : report === "complained" ? "spam complaint reported by EmailOctopus" : null;
+        await db.execute(sql`UPDATE communication_recipients SET status=${status}, error=COALESCE(${reason},error), delivered_at=CASE WHEN ${report}='sent' THEN COALESCE(delivered_at,${event.occurredAt},NOW()) ELSE delivered_at END, bounced_at=CASE WHEN ${report}='bounced' THEN COALESCE(bounced_at,${event.occurredAt},NOW()) ELSE bounced_at END, complained_at=CASE WHEN ${report}='complained' THEN COALESCE(complained_at,${event.occurredAt},NOW()) ELSE complained_at END, unsubscribed_at=CASE WHEN ${report}='unsubscribed' THEN COALESCE(unsubscribed_at,${event.occurredAt},NOW()) ELSE unsubscribed_at END WHERE id=${recipient.id}`);
+      }
+      if (report === "unsubscribed" || report === "complained" || (report === "bounced" && event.bounceType === "hard")) {
+        const kind = report === "bounced" ? "hard" : "unsubscribe";
+        const suppressionReason = report === "unsubscribed" ? "EmailOctopus unsubscribe report" : report === "complained" ? "EmailOctopus complaint report" : "EmailOctopus hard bounce report";
+        await db.execute(sql`INSERT INTO communication_suppressions(email,kind,reason) VALUES(${event.email},${kind},${suppressionReason}) ON CONFLICT(email) DO UPDATE SET kind=EXCLUDED.kind,reason=EXCLUDED.reason`);
+      }
+    }
+  }
+  return { processed };
+}
+
 router.get("/communications/campaigns", async (_req, res) => {
-  const r = await db.execute(sql`SELECT c.*, COUNT(r.id)::int AS recipient_count, COUNT(r.id) FILTER (WHERE r.status = 'sent')::int AS sent_count, COUNT(r.id) FILTER (WHERE r.status = 'failed')::int AS failed_count FROM communication_campaigns c LEFT JOIN communication_recipients r ON r.campaign_id=c.id GROUP BY c.id ORDER BY c.created_at DESC`);
+  const r = await db.execute(sql`SELECT c.*, COUNT(r.id)::int AS recipient_count, COUNT(r.id) FILTER (WHERE r.status IN ('pending','queued'))::int AS queued_count, COUNT(r.id) FILTER (WHERE r.status = 'sent')::int AS sent_count, COUNT(r.id) FILTER (WHERE r.status = 'delivered')::int AS delivered_count, COUNT(r.id) FILTER (WHERE r.status = 'bounced')::int AS bounced_count, COUNT(r.id) FILTER (WHERE r.status = 'complained')::int AS complained_count, COUNT(r.id) FILTER (WHERE r.status = 'unsubscribed')::int AS unsubscribed_count, COUNT(r.id) FILTER (WHERE r.status = 'failed')::int AS failed_count FROM communication_campaigns c LEFT JOIN communication_recipients r ON r.campaign_id=c.id GROUP BY c.id ORDER BY c.created_at DESC`);
   res.json({ campaigns: r.rows }); // No address-level data is ever returned.
 });
 router.post("/communications/campaigns", async (req, res): Promise<void> => {
@@ -227,8 +265,9 @@ router.post("/communications/campaigns/:id/schedule", async (req, res): Promise<
   const date = new Date(req.body?.scheduledAt); if (Number.isNaN(date.valueOf()) || date <= new Date()) { res.status(400).json({ error: "scheduledAt must be in the future" }); return; }
   await db.execute(sql`UPDATE communication_campaigns SET status='scheduled', scheduled_at=${date.toISOString()}, updated_at=NOW() WHERE id=${req.params.id}`); res.json({ ok: true });
 });
-router.get("/communications/campaigns/:id/summary", async (req, res) => { const r = await db.execute(sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='sent')::int AS sent, COUNT(*) FILTER (WHERE status='failed')::int AS failed, COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM communication_recipients WHERE campaign_id=${req.params.id}`); res.json({ summary: r.rows[0] }); });
-router.get("/communications/campaigns/:id", async(req,res)=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}const history=await db.execute(sql`SELECT id,source_type,source_id,status,attempts,provider_message_id,error,sent_at,created_at FROM communication_recipients WHERE campaign_id=${req.params.id} ORDER BY created_at`);res.json({campaign:c.rows[0],history:history.rows});});
+router.get("/communications/campaigns/:id/summary", async (req, res) => { const r = await db.execute(sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status IN ('pending','queued'))::int AS queued, COUNT(*) FILTER (WHERE status='sent')::int AS sent, COUNT(*) FILTER (WHERE status='delivered')::int AS delivered, COUNT(*) FILTER (WHERE status='bounced')::int AS bounced, COUNT(*) FILTER (WHERE status='complained')::int AS complained, COUNT(*) FILTER (WHERE status='unsubscribed')::int AS unsubscribed, COUNT(*) FILTER (WHERE status='failed')::int AS failed FROM communication_recipients WHERE campaign_id=${req.params.id}`); res.json({ summary: r.rows[0] }); });
+router.post("/communications/campaigns/:id/sync-results", async(req,res): Promise<void>=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}try{const result=await reconcileEmailOctopusCampaign(c.rows[0]);res.json({ok:true,...result});}catch(err){req.log.error({err,campaignId:req.params.id},"EmailOctopus report sync failed");res.status(409).json({error:err instanceof Error?err.message:"Report sync failed"});}});
+router.get("/communications/campaigns/:id", async(req,res)=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}const history=await db.execute(sql`SELECT id,source_type,source_id,status,attempts,provider_message_id,error,sent_at,delivered_at,bounced_at,complained_at,unsubscribed_at,created_at FROM communication_recipients WHERE campaign_id=${req.params.id} ORDER BY created_at`);const summary=await db.execute(sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status IN ('pending','queued'))::int AS queued, COUNT(*) FILTER (WHERE status='sent')::int AS sent, COUNT(*) FILTER (WHERE status='delivered')::int AS delivered, COUNT(*) FILTER (WHERE status='bounced')::int AS bounced, COUNT(*) FILTER (WHERE status='complained')::int AS complained, COUNT(*) FILTER (WHERE status='unsubscribed')::int AS unsubscribed, COUNT(*) FILTER (WHERE status='failed')::int AS failed FROM communication_recipients WHERE campaign_id=${req.params.id}`);res.json({campaign:c.rows[0],summary:summary.rows[0],history:history.rows});});
 router.post("/communications/campaigns/:id/cancel", async(req,res)=>{const r=await db.execute(sql`UPDATE communication_campaigns SET status='cancelled',updated_at=NOW() WHERE id=${req.params.id} AND status='scheduled' RETURNING id`);if(!r.rows.length){res.status(409).json({error:"Only scheduled campaigns can be cancelled"});return;}res.json({ok:true});});
 router.post("/communications/direct-send", async(req,res): Promise<void>=>{const {email,subject,html,sourceType,sourceId,name}=req.body??{};const to=String(email??"").trim().toLowerCase();if(!validEmail.test(to)||typeof subject!=="string"||!subject.trim()||typeof html!=="string"||!html.trim()||typeof sourceType!=="string"||!sourceType.trim()||typeof sourceId!=="string"||!sourceId.trim()){res.status(400).json({error:"email, subject, html, sourceType and sourceId are required"});return;}const campaignId=nanoid(),recipientId=nanoid();await db.execute(sql`INSERT INTO communication_campaigns(id,name,subject,html,kind,provider,audience,status,created_by) VALUES(${campaignId},'Direct operational email',${subject.trim()},${sanitizeEmailHtml(html)},'operational','gmail','{}'::jsonb,'sending',${req.userId!})`);await db.execute(sql`INSERT INTO communication_recipients(id,campaign_id,email,name,source_type,source_id,status) VALUES(${recipientId},${campaignId},${to},${typeof name==="string"?name:null},${sourceType},${sourceId},'pending')`);try{const sent=await getCommunicationsMailer("gmail").send({to,subject:subject.trim(),html:sanitizeEmailHtml(html)});await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=1,provider_message_id=${sent.id??null},sent_at=NOW() WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='sent',sent_at=NOW(),updated_at=NOW() WHERE id=${campaignId}`);await writeAudit({eventType:"communications.direct.sent",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId,sourceType,sourceId}});res.status(201).json({id:campaignId,status:"sent"});}catch(err){await db.execute(sql`UPDATE communication_recipients SET status='failed',attempts=1,error=${err instanceof Error?err.message:"Delivery failed"} WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='failed',updated_at=NOW() WHERE id=${campaignId}`);res.status(409).json({error:err instanceof Error?err.message:"Delivery failed",id:campaignId});}});
 router.get("/communications/templates", async (_req,res) => { const r=await db.execute(sql`SELECT id,name,subject,created_at,updated_at FROM communication_templates ORDER BY updated_at DESC`); res.json({templates:r.rows}); });
@@ -253,4 +292,5 @@ router.post("/communications/assets", async(req,res): Promise<void> => {const {o
 router.get("/communications/assets", async(_req,res)=>{const r=await db.execute(sql`SELECT id,object_path,name,size,content_type,alt_text,created_at FROM communication_assets ORDER BY created_at DESC`);res.json({assets:(r.rows as any[]).map(x=>({...x,serving_url:`/api/storage${x.object_path}`}))});});
 
 setInterval(() => { void (async () => { try { await ensureReady(); const due=await db.execute(sql`SELECT id FROM communication_campaigns WHERE status='scheduled' AND scheduled_at <= NOW()`); for(const c of due.rows as any[]) await deliver(c.id); } catch(err) { logger.error({err},"Communications schedule poll failed"); } })(); }, 60_000).unref();
+setInterval(() => { void (async () => { try { await ensureReady(); const campaigns=await db.execute(sql`SELECT * FROM communication_campaigns WHERE provider='emailoctopus' AND provider_campaign_id IS NOT NULL AND sent_at > NOW() - INTERVAL '30 days'`); for(const campaign of campaigns.rows as any[]) await reconcileEmailOctopusCampaign(campaign); } catch(err) { logger.error({err},"EmailOctopus report reconciliation failed"); } })(); }, 15 * 60_000).unref();
 export default router;

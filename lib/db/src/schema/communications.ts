@@ -60,6 +60,22 @@ export const communicationRecipientsTable = pgTable("communication_recipients", 
   unsubscribeToken: text("unsubscribe_token").unique(),
   error: text("error"),
   sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  bouncedAt: timestamp("bounced_at"),
+  complainedAt: timestamp("complained_at"),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const communicationDeliveryEventsTable = pgTable("communication_delivery_events", {
+  id: text("id").primaryKey(),
+  eventKey: text("event_key").notNull().unique(),
+  campaignId: text("campaign_id").notNull(),
+  recipientId: text("recipient_id").notNull(),
+  provider: text("provider").notNull(),
+  eventType: text("event_type").notNull(),
+  occurredAt: timestamp("occurred_at"),
+  payload: jsonb("payload").notNull().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -16,6 +16,14 @@ export interface EmailOctopusCampaignInput {
   fromName?: string; fromEmail?: string;
 }
 
+export type EmailOctopusReportType = "sent" | "bounced" | "complained" | "unsubscribed";
+export interface EmailOctopusReportEntry {
+  contactId: string | null;
+  email: string | null;
+  occurredAt: string | null;
+  bounceType: "hard" | "soft" | null;
+}
+
 function gmailMailer(): CommunicationsMailer {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -49,6 +57,39 @@ async function emailOctopusRequest(path: string, body: Record<string, unknown>) 
   const payload: any = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload?.error?.message || payload?.message || `EmailOctopus request failed (${response.status})`);
   return payload;
+}
+
+async function emailOctopusGet(urlOrPath: string) {
+  const { apiKey } = emailOctopusConfig();
+  const url = new URL(urlOrPath, "https://emailoctopus.com");
+  if (url.origin !== "https://emailoctopus.com" || !url.pathname.startsWith("/api/1.6/")) {
+    throw new Error("EmailOctopus returned an invalid pagination URL");
+  }
+  url.searchParams.set("api_key", apiKey);
+  const response = await fetch(url);
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error?.message || payload?.message || `EmailOctopus request failed (${response.status})`);
+  return payload;
+}
+
+export async function getEmailOctopusCampaignReport(id: string, report: EmailOctopusReportType): Promise<EmailOctopusReportEntry[]> {
+  let next: string | null = `/api/1.6/campaigns/${encodeURIComponent(id)}/reports/${report}?limit=100`;
+  const entries: EmailOctopusReportEntry[] = [];
+  while (next) {
+    const payload = await emailOctopusGet(next);
+    for (const item of Array.isArray(payload?.data) ? payload.data : []) {
+      const contact = item?.contact ?? item;
+      const rawBounceType = String(item?.type ?? item?.bounce_type ?? "").toLowerCase();
+      entries.push({
+        contactId: typeof contact?.id === "string" ? contact.id : null,
+        email: typeof contact?.email_address === "string" ? contact.email_address.trim().toLowerCase() : null,
+        occurredAt: typeof item?.occurred_at === "string" ? item.occurred_at : null,
+        bounceType: rawBounceType === "hard" || rawBounceType === "soft" ? rawBounceType : null,
+      });
+    }
+    next = typeof payload?.paging?.next === "string" && payload.paging.next ? payload.paging.next : null;
+  }
+  return entries;
 }
 
 export async function createEmailOctopusCampaign(input: EmailOctopusCampaignInput): Promise<string> {
