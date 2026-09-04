@@ -22,6 +22,14 @@ export default function CommunicationsComposePage() {
     queryKey: ["admin-workshops"],
     queryFn: () => customFetch("/api/training/workshops") as Promise<{ workshops: any[] }>,
   });
+  const { data: casesData } = useQuery({
+    queryKey: ["communications-case-options"],
+    queryFn: () => customFetch("/api/cases") as Promise<any[]>,
+  });
+  const { data: inquiriesData } = useQuery({
+    queryKey: ["communications-inquiry-options"],
+    queryFn: () => customFetch("/api/portal/inquiries") as Promise<any[]>,
+  });
   
   const createCampaign = useCreateCampaign();
   const sendCampaign = useSendCampaign();
@@ -55,6 +63,8 @@ export default function CommunicationsComposePage() {
   const [audienceSources, setAudienceSources] = useState<string[]>([]);
   const [workshopIds, setWorkshopIds] = useState<string[]>([]);
   const [seriesCohorts, setSeriesCohorts] = useState<string[]>([]);
+  const [caseIds, setCaseIds] = useState<string[]>([]);
+  const [inquiryIds, setInquiryIds] = useState<string[]>([]);
   
   // Contextual Direct Send
   const [isDirectSend, setIsDirectSend] = useState(false);
@@ -140,6 +150,8 @@ export default function CommunicationsComposePage() {
       if (draft.audience?.sources) setAudienceSources(draft.audience.sources);
       if (draft.audience?.workshopIds) setWorkshopIds(draft.audience.workshopIds);
       if (draft.audience?.seriesCohorts) setSeriesCohorts(draft.audience.seriesCohorts);
+      if (draft.audience?.caseIds) setCaseIds(draft.audience.caseIds);
+      if (draft.audience?.inquiryIds) setInquiryIds(draft.audience.inquiryIds);
     }
   }, [draftId, draftData]);
 
@@ -190,10 +202,16 @@ export default function CommunicationsComposePage() {
     );
   };
 
+  const toggleSelectedId = (id: string, selected: string[], setSelected: (ids: string[]) => void) => {
+    setSelected(selected.includes(id) ? selected.filter(value => value !== id) : [...selected, id]);
+  };
+
   const getAudienceObject = () => ({
     sources: audienceSources,
     ...(audienceSources.includes("workshops") ? { workshopIds } : {}),
     ...(audienceSources.includes("training_series") ? { seriesCohorts } : {}),
+    ...(audienceSources.includes("cases") ? { caseIds } : {}),
+    ...(audienceSources.includes("inquiries") ? { inquiryIds } : {}),
     structured: mode === "structured" ? { previewText, greeting, heading, bodyText, ctaText, ctaUrl } : undefined
   });
 
@@ -624,6 +642,64 @@ export default function CommunicationsComposePage() {
                         </label>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {audienceSources.includes("cases") && (
+                  <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">Select Cases</label>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
+                      {(casesData ?? []).filter((c: any) => c.parentEmail).map((c: any) => (
+                        <label key={c.id} className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={caseIds.includes(c.id)}
+                            onChange={() => toggleSelectedId(c.id, caseIds, setCaseIds)}
+                            className="rounded border-slate-300 mt-0.5"
+                          />
+                          <span>
+                            <strong>{c.studentName}</strong>
+                            <br />
+                            <span className="text-slate-500">{c.parentName || "Parent/Guardian"} · {c.parentEmail}</span>
+                          </span>
+                        </label>
+                      ))}
+                      {(casesData ?? []).filter((c: any) => c.parentEmail).length === 0 && (
+                        <p className="text-xs text-slate-500">No cases currently have a parent email address.</p>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      Select specific cases. Leave all case boxes blank to include every case with a parent email.
+                    </p>
+                  </div>
+                )}
+
+                {audienceSources.includes("inquiries") && (
+                  <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">Select Inquiries</label>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-2">
+                      {(inquiriesData ?? []).filter((i: any) => i.contactEmail).map((i: any) => (
+                        <label key={i.id} className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={inquiryIds.includes(i.id)}
+                            onChange={() => toggleSelectedId(i.id, inquiryIds, setInquiryIds)}
+                            className="rounded border-slate-300 mt-0.5"
+                          />
+                          <span>
+                            <strong>{i.contactName}</strong>
+                            <br />
+                            <span className="text-slate-500">{i.inquiryType?.replaceAll("_", " ")} · {i.contactEmail}</span>
+                          </span>
+                        </label>
+                      ))}
+                      {(inquiriesData ?? []).filter((i: any) => i.contactEmail).length === 0 && (
+                        <p className="text-xs text-slate-500">No inquiry email addresses are available.</p>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-2">
+                      Pulled from public School, Parent, and Partner School inquiry submissions. Leave all boxes blank to include every inquiry.
+                    </p>
                   </div>
                 )}
                 
