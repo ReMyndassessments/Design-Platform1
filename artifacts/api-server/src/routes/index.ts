@@ -58,7 +58,7 @@ router.use(apprenticeGuard, raepaRouter);
 router.use(apprenticeGuard, interviewRecordingsRouter);
 router.use(publicPolicyRouter);
 router.use(trainingRouter);
-router.use(complianceRouter);
 router.use(communicationsRouter);
+router.use(complianceRouter);
 
 export default router;
