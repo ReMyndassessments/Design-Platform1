@@ -629,8 +629,7 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
       inquiry.training_only && "Workshop registration only",
     ].filter(Boolean).join(", ")),
     makeEmailRow("Marketing consent", inquiry.marketing_consent ? "Yes" : "No"),
-    makeEmailRow("Payment choice", inquiry.payment_method === "wechat_pay" ? "WeChat Pay" : inquiry.payment_method === "alipay" ? "Alipay" : "Other payment options"),
-    makeEmailRow("Other options requested", Array.isArray(inquiry.other_payment_options) ? inquiry.other_payment_options.map((value: string) => escapeHtml(value.replaceAll("_", " "))).join(", ") : ""),
+    makeEmailRow("Payment choice", inquiry.payment_method === "wechat_pay" ? "WeChat Pay" : inquiry.payment_method === "alipay" ? "Alipay" : "Credit Card"),
     makeEmailRow("Payment reference", escapeHtml(inquiry.payment_reference)),
     makeEmailRow("Receipt screenshot", inquiry.receipt_object_path ? "Uploaded — pending administrator verification" : ""),
     makeEmailRow("Message", escapeHtml(inquiry.message)),
@@ -647,13 +646,35 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
   });
 }
 
+router.get("/training/workshops/public/:slug/manual-sales/payment-qr/:method", async (req, res) => {
+  if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
+  const configuredPath = req.params.method === "wechat_pay"
+    ? publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH)
+    : req.params.method === "alipay"
+      ? publicQrPath(process.env.AIRWALLEX_ALIPAY_QR_PATH)
+      : null;
+  if (!configuredPath || configuredPath.startsWith("https://")) return res.status(404).json({ error: "QR code not available" });
+  try {
+    const objectFile = await storage.getObjectEntityFile(configuredPath);
+    const response = await storage.downloadObject(objectFile);
+    res.status(response.status);
+    res.setHeader("Content-Type", response.headers.get("content-type") ?? "image/png");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    if (!response.body) return res.end();
+    Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+  } catch {
+    return res.status(404).json({ error: "QR code not available" });
+  }
+});
+
 router.get("/training/workshops/public/:slug/manual-sales/payment-options", async (req, res) => {
   if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
   const workshop = await db.execute(sql`SELECT id FROM workshops WHERE slug = ${req.params.slug} AND is_free = FALSE AND status IN ('published', 'full') LIMIT 1`);
   if (!workshop.rows.length) return res.status(404).json({ error: "Workshop not available" });
+  const base = `/api/training/workshops/public/${encodeURIComponent(req.params.slug)}/manual-sales/payment-qr`;
   return res.json({
-    wechatPayQr: publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH),
-    alipayQr: publicQrPath(process.env.AIRWALLEX_ALIPAY_QR_PATH),
+    wechatPayQr: publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH) ? `${base}/wechat_pay` : null,
+    alipayQr: publicQrPath(process.env.AIRWALLEX_ALIPAY_QR_PATH) ? `${base}/alipay` : null,
   });
 });
 
@@ -666,14 +687,13 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
       training_only, marketing_consent, privacy_consent, payment_method, other_payment_options, payment_reference } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (privacy_consent !== true) return res.status(400).json({ error: "Privacy consent is required" });
-    if (!["wechat_pay", "alipay", "other"].includes(payment_method)) return res.status(400).json({ error: "Select a payment option" });
+    if (!["wechat_pay", "alipay", "credit_card"].includes(payment_method)) return res.status(400).json({ error: "Select a payment option" });
     const requestedOptions = Array.isArray(other_payment_options)
       ? other_payment_options.filter((value: unknown): value is string => typeof value === "string" && ["credit_card", "bank_transfer", "invoice", "other"].includes(value))
       : [];
     const interestAreas = Array.isArray(areas_of_interest)
       ? areas_of_interest.filter((value: unknown): value is string => typeof value === "string").slice(0, 30)
       : [];
-    if (payment_method === "other" && requestedOptions.length === 0) return res.status(400).json({ error: "Select at least one other payment option" });
     if (typeof payment_reference === "string" && payment_reference.length > 200) return res.status(400).json({ error: "Payment reference is too long" });
     if ([first_name, last_name, phone, job_title, professional_role, school_name, city, country].some(value => typeof value === "string" && value.length > 200)
       || (typeof message === "string" && message.length > 5000)) {
@@ -710,7 +730,7 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
        ${school_type?.trim() ?? null}, ${school_size?.trim() ?? null}, ${JSON.stringify(interestAreas)}::jsonb, ${school_support_challenge?.trim() ?? null},
        ${!!interested_future_learning}, ${!!interested_school_training}, ${!!interested_assessment_services}, ${!!interested_partner_school},
        ${!!training_only}, ${!!marketing_consent}, TRUE,
-       ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "other" ? "follow_up_required" : "awaiting_receipt"},
+       ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "credit_card" ? "follow_up_required" : "awaiting_receipt"},
        ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
       ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message,
        school_type = EXCLUDED.school_type, school_size = EXCLUDED.school_size, areas_of_interest = EXCLUDED.areas_of_interest,
@@ -782,11 +802,11 @@ router.post("/training/workshops/public/:slug/manual-sales/submit", async (req, 
     await db.execute(sql`UPDATE workshop_manual_sales_inquiries
       SET verified_at = NOW(), submitted_at = NOW(),
           receipt_object_path = ${receipt_object_path ?? null},
-          payment_status = ${inquiry.payment_method === "other" ? "follow_up_required" : "pending_verification"},
+          payment_status = ${inquiry.payment_method === "credit_card" ? "follow_up_required" : "pending_verification"},
           updated_at = NOW()
       WHERE id = ${inquiry.id}`);
     inquiry.receipt_object_path = receipt_object_path ?? null;
-    inquiry.payment_status = inquiry.payment_method === "other" ? "follow_up_required" : "pending_verification";
+    inquiry.payment_status = inquiry.payment_method === "credit_card" ? "follow_up_required" : "pending_verification";
     inquiry.verified_at = new Date();
     inquiry.submitted_at = new Date();
     sendWorkshopManualSalesEmails(inquiry).catch(err => logger.error({ err, inquiryId: inquiry.id }, "Workshop manual-sales emails failed"));

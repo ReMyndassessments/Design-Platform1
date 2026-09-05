@@ -158,15 +158,6 @@ export default function WorkshopPublicPage() {
     }));
   };
 
-  const toggleOtherPaymentOption = (option: string) => {
-    setForm(f => ({
-      ...f,
-      other_payment_options: f.other_payment_options.includes(option)
-        ? f.other_payment_options.filter(value => value !== option)
-        : [...f.other_payment_options, option],
-    }));
-  };
-
   useEffect(() => {
     const base = getBaseUrl();
     fetch(`${base}/api/training/workshops/public/${slug}`)
@@ -598,18 +589,18 @@ export default function WorkshopPublicPage() {
 
                     {manualSalesMode && <fieldset className="border-t border-slate-100 pt-5 space-y-4">
                       <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Payment preference *</legend>
-                      <p className="text-xs text-slate-500">Choose how you would like to pay. QR payments require a screenshot of the completed payment. Other options will be arranged with you separately.</p>
+                      <p className="text-xs text-slate-500">Choose how you would like to pay. QR payments require a screenshot of the completed payment. For credit cards, ReMynd will send you a secure payment link separately.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {[
                           ["wechat_pay", "WeChat Pay", qrOptions.wechatPayQr],
                           ["alipay", "Alipay", qrOptions.alipayQr],
-                          ["other", "Other options", null],
+                          ["credit_card", "Credit Card", null],
                         ].map(([value, label, qr]) => (
                           <label key={value} className={`rounded-xl border p-3 cursor-pointer transition-colors ${form.payment_method === value ? "border-teal-500 bg-teal-50" : "border-slate-200 bg-white"}`}>
                             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                               <input type="radio" name="payment_method" required value={value ?? ""} checked={form.payment_method === value}
                                 onChange={() => {
-                                  setForm(f => ({ ...f, payment_method: value ?? "", other_payment_options: value === "other" ? f.other_payment_options : [] }));
+                                  setForm(f => ({ ...f, payment_method: value ?? "", other_payment_options: [] }));
                                   setPaymentReceipt(null);
                                 }} />
                               {label}
@@ -635,24 +626,9 @@ export default function WorkshopPublicPage() {
                           </div>
                         </div>
                       )}
-                      {form.payment_method === "other" && (
+                      {form.payment_method === "credit_card" && (
                         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-xs font-semibold text-slate-700 mb-3">Which options would you like us to offer? Select at least one.</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {[
-                              ["credit_card", "Credit card"],
-                              ["bank_transfer", "Bank transfer"],
-                              ["invoice", "Invoice"],
-                              ["other", "Another option"],
-                            ].map(([value, label]) => (
-                              <label key={value} className="flex items-center gap-2 text-xs text-slate-700">
-                                <input type="checkbox" checked={form.other_payment_options.includes(value)}
-                                  onChange={() => toggleOtherPaymentOption(value)} />
-                                {label}
-                              </label>
-                            ))}
-                          </div>
-                          <p className="mt-3 text-xs text-slate-500">ReMynd will contact you separately with the appropriate payment link or instructions.</p>
+                          <p className="text-xs text-slate-600">ReMynd will contact you separately with a secure credit-card payment link. Your place will not be registered until payment is confirmed.</p>
                         </div>
                       )}
                     </fieldset>}
@@ -712,7 +688,7 @@ export default function WorkshopPublicPage() {
                     )}
                     <button type="submit" disabled={submitting}
                       className="w-full mt-1 bg-[#0c1a2e] hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl py-3 transition-colors flex items-center justify-center gap-2">
-                      {submitting ? <><Loader2 size={14} className="animate-spin" /> {manualSalesMode ? "Sending code…" : "Registering…"}</> : workshop.is_free ? "Register — Free" : manualSalesMode ? (form.payment_method === "other" ? "Request Registration & Payment Link" : "Submit Payment & Registration Request") : `Register & Pay ${priceStr}`}
+                      {submitting ? <><Loader2 size={14} className="animate-spin" /> {manualSalesMode ? "Sending code…" : "Registering…"}</> : workshop.is_free ? "Register — Free" : manualSalesMode ? (form.payment_method === "credit_card" ? "Request Registration & Credit Card Link" : "Submit Payment & Registration Request") : `Register & Pay ${priceStr}`}
                     </button>
                   </form>
                 )}

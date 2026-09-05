@@ -50,7 +50,7 @@ interface Inquiry {
   timeline: string | null;
   createdAt: string;
   workshopTitle?: string;
-  paymentMethod?: "wechat_pay" | "alipay" | "other";
+  paymentMethod?: "wechat_pay" | "alipay" | "credit_card";
   otherPaymentOptions?: string[];
   paymentReference?: string | null;
   paymentStatus?: string;
@@ -621,9 +621,8 @@ export default function InquiriesPage() {
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                             <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Payment preference</h4>
                             <p className="text-sm font-semibold text-slate-800">
-                              {inq.paymentMethod === "wechat_pay" ? "WeChat Pay" : inq.paymentMethod === "alipay" ? "Alipay" : "Other payment options"}
+                              {inq.paymentMethod === "wechat_pay" ? "WeChat Pay" : inq.paymentMethod === "alipay" ? "Alipay" : "Credit Card"}
                             </p>
-                            {!!inq.otherPaymentOptions?.length && <p className="mt-1 text-sm text-slate-600">Requested: {inq.otherPaymentOptions.map(value => value.replaceAll("_", " ")).join(", ")}</p>}
                             {inq.paymentReference && <p className="mt-1 text-sm text-slate-600">Reference: {inq.paymentReference}</p>}
                             <p className="mt-1 text-xs text-slate-500">
                               {inq.receiptUploaded ? "Receipt screenshot uploaded — payment requires administrator verification." : "No immediate payment receipt; contact the registrant with payment instructions."}
