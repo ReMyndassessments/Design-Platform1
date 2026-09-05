@@ -355,8 +355,7 @@ export default function WorkshopPublicPage() {
   const isFull = workshop.status === "full";
   const regClosed = !!(workshop.registration_closes_at && new Date(workshop.registration_closes_at) < new Date());
   const canRegister = !isClosed && !regClosed && !(isFull && workshop.max_participants && workshop.registration_count >= workshop.max_participants);
-  const usesExpandedRegistration = workshop.slug === "from-inquiry-to-self-authorship"
-    || (!workshop.is_free && !!workshop.manual_sales_mode);
+  const usesExpandedRegistration = true;
 
   const imageUrl = workshop.image_object_id
     ? `${getBaseUrl()}/api/training/workshops/public/${slug}/image`
