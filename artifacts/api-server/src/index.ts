@@ -4601,9 +4601,20 @@ async function createWorkshopTables() {
       job_title TEXT,
       professional_role TEXT,
       school_name TEXT,
+      school_type TEXT,
+      school_size TEXT,
+      areas_of_interest JSONB NOT NULL DEFAULT '[]'::jsonb,
+      school_support_challenge TEXT,
       city TEXT,
       country TEXT,
       message TEXT,
+      interested_future_learning BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_school_training BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_assessment_services BOOLEAN NOT NULL DEFAULT FALSE,
+      interested_partner_school BOOLEAN NOT NULL DEFAULT FALSE,
+      training_only BOOLEAN NOT NULL DEFAULT FALSE,
+      marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+      privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
       payment_method TEXT,
       other_payment_options JSONB NOT NULL DEFAULT '[]'::jsonb,
       payment_reference TEXT,
@@ -4626,6 +4637,28 @@ async function createWorkshopTables() {
       ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS request_ip TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS school_type TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS school_size TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS areas_of_interest JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS school_support_challenge TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS interested_future_learning BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS interested_school_training BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS interested_assessment_services BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS interested_partner_school BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS training_only BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS privacy_consent BOOLEAN NOT NULL DEFAULT FALSE`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS payment_method TEXT`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries

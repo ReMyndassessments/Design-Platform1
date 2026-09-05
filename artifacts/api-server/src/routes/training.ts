@@ -616,7 +616,19 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
     makeEmailRow("Job title", escapeHtml(inquiry.job_title)),
     makeEmailRow("Professional role", escapeHtml(inquiry.professional_role)),
     makeEmailRow("School / organisation", escapeHtml(inquiry.school_name)),
+    makeEmailRow("School type", escapeHtml(inquiry.school_type)),
+    makeEmailRow("Approximate students", escapeHtml(inquiry.school_size)),
+    makeEmailRow("Areas of interest", Array.isArray(inquiry.areas_of_interest) ? inquiry.areas_of_interest.map((value: string) => escapeHtml(value)).join(", ") : ""),
+    makeEmailRow("School support challenge", escapeHtml(inquiry.school_support_challenge)),
     makeEmailRow("Location", escapeHtml([inquiry.city, inquiry.country].filter(Boolean).join(", "))),
+    makeEmailRow("Future interests", [
+      inquiry.interested_future_learning && "Future free professional learning",
+      inquiry.interested_school_training && "Dedicated school professional learning",
+      inquiry.interested_assessment_services && "Educational assessment services",
+      inquiry.interested_partner_school && "ReMynd Partner School",
+      inquiry.training_only && "Workshop registration only",
+    ].filter(Boolean).join(", ")),
+    makeEmailRow("Marketing consent", inquiry.marketing_consent ? "Yes" : "No"),
     makeEmailRow("Payment choice", inquiry.payment_method === "wechat_pay" ? "WeChat Pay" : inquiry.payment_method === "alipay" ? "Alipay" : "Other payment options"),
     makeEmailRow("Other options requested", Array.isArray(inquiry.other_payment_options) ? inquiry.other_payment_options.map((value: string) => escapeHtml(value.replaceAll("_", " "))).join(", ") : ""),
     makeEmailRow("Payment reference", escapeHtml(inquiry.payment_reference)),
@@ -648,13 +660,18 @@ router.get("/training/workshops/public/:slug/manual-sales/payment-options", asyn
 router.post("/training/workshops/public/:slug/manual-sales/request-verification", async (req, res) => {
   try {
     if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
-    const { first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message,
-      privacy_consent, payment_method, other_payment_options, payment_reference } = req.body;
+    const { first_name, last_name, email, phone, job_title, professional_role, school_name, school_type, school_size,
+      areas_of_interest, school_support_challenge, city, country, message,
+      interested_future_learning, interested_school_training, interested_assessment_services, interested_partner_school,
+      training_only, marketing_consent, privacy_consent, payment_method, other_payment_options, payment_reference } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (privacy_consent !== true) return res.status(400).json({ error: "Privacy consent is required" });
     if (!["wechat_pay", "alipay", "other"].includes(payment_method)) return res.status(400).json({ error: "Select a payment option" });
     const requestedOptions = Array.isArray(other_payment_options)
       ? other_payment_options.filter((value: unknown): value is string => typeof value === "string" && ["credit_card", "bank_transfer", "invoice", "other"].includes(value))
+      : [];
+    const interestAreas = Array.isArray(areas_of_interest)
+      ? areas_of_interest.filter((value: unknown): value is string => typeof value === "string").slice(0, 30)
       : [];
     if (payment_method === "other" && requestedOptions.length === 0) return res.status(400).json({ error: "Select at least one other payment option" });
     if (typeof payment_reference === "string" && payment_reference.length > 200) return res.status(400).json({ error: "Payment reference is too long" });
@@ -684,12 +701,23 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
     const hash = crypto.createHash("sha256").update(`${id}:${code}`).digest("hex");
     await db.execute(sql`INSERT INTO workshop_manual_sales_inquiries
       (id, workshop_id, workshop_title, first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message,
+       school_type, school_size, areas_of_interest, school_support_challenge,
+       interested_future_learning, interested_school_training, interested_assessment_services, interested_partner_school,
+       training_only, marketing_consent, privacy_consent,
        payment_method, other_payment_options, payment_reference, payment_status,
        verification_code_hash, verification_expires_at, verification_sent_at, verification_attempts, request_ip, updated_at)
       VALUES (${id}, ${workshop.id}, ${workshop.title}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail}, ${phone?.trim() ?? null}, ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${message?.trim() ?? null},
+       ${school_type?.trim() ?? null}, ${school_size?.trim() ?? null}, ${JSON.stringify(interestAreas)}::jsonb, ${school_support_challenge?.trim() ?? null},
+       ${!!interested_future_learning}, ${!!interested_school_training}, ${!!interested_assessment_services}, ${!!interested_partner_school},
+       ${!!training_only}, ${!!marketing_consent}, TRUE,
        ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "other" ? "follow_up_required" : "awaiting_receipt"},
        ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
       ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message,
+       school_type = EXCLUDED.school_type, school_size = EXCLUDED.school_size, areas_of_interest = EXCLUDED.areas_of_interest,
+       school_support_challenge = EXCLUDED.school_support_challenge,
+       interested_future_learning = EXCLUDED.interested_future_learning, interested_school_training = EXCLUDED.interested_school_training,
+       interested_assessment_services = EXCLUDED.interested_assessment_services, interested_partner_school = EXCLUDED.interested_partner_school,
+       training_only = EXCLUDED.training_only, marketing_consent = EXCLUDED.marketing_consent, privacy_consent = TRUE,
        payment_method = EXCLUDED.payment_method, other_payment_options = EXCLUDED.other_payment_options, payment_reference = EXCLUDED.payment_reference,
        payment_status = EXCLUDED.payment_status, receipt_object_path = NULL,
        verification_code_hash = EXCLUDED.verification_code_hash, verification_expires_at = EXCLUDED.verification_expires_at, verification_sent_at = NOW(), verification_attempts = 0, request_ip = EXCLUDED.request_ip, updated_at = NOW()`);
@@ -945,6 +973,13 @@ router.get("/training/workshops/manual-sales-inquiries", authMiddleware, require
       first_name || ' ' || last_name AS "contactName", email AS "contactEmail", phone AS "contactPhone",
       school_name AS organisation, professional_role AS role,
       COALESCE(message, '') AS message, workshop_title AS "workshopTitle",
+      school_type AS "schoolType", school_size AS "schoolSize",
+      areas_of_interest AS "areasOfInterest", school_support_challenge AS "schoolSupportChallenge",
+      interested_future_learning AS "interestedFutureLearning",
+      interested_school_training AS "interestedSchoolTraining",
+      interested_assessment_services AS "interestedAssessmentServices",
+      interested_partner_school AS "interestedPartnerSchool",
+      training_only AS "trainingOnly", marketing_consent AS "marketingConsent",
       payment_method AS "paymentMethod", other_payment_options AS "otherPaymentOptions",
       payment_reference AS "paymentReference", payment_status AS "paymentStatus",
       (receipt_object_path IS NOT NULL) AS "receiptUploaded",
