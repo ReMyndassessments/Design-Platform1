@@ -131,6 +131,8 @@ export default function WorkshopPublicPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [manualInquiryId, setManualInquiryId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [qrOptions, setQrOptions] = useState<{ wechatPayQr: string | null; alipayQr: string | null }>({ wechatPayQr: null, alipayQr: null });
+  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
 
   const paymentContainerRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +146,7 @@ export default function WorkshopPublicPage() {
     interested_assessment_services: false, interested_partner_school: false,
     training_only: false, marketing_consent: false, privacy_consent: false,
     manual_sales_message: "",
+    payment_method: "", other_payment_options: [] as string[], payment_reference: "",
   });
 
   const toggleInterestArea = (area: string) => {
@@ -152,6 +155,15 @@ export default function WorkshopPublicPage() {
       areas_of_interest: f.areas_of_interest.includes(area)
         ? f.areas_of_interest.filter(item => item !== area)
         : [...f.areas_of_interest, area],
+    }));
+  };
+
+  const toggleOtherPaymentOption = (option: string) => {
+    setForm(f => ({
+      ...f,
+      other_payment_options: f.other_payment_options.includes(option)
+        ? f.other_payment_options.filter(value => value !== option)
+        : [...f.other_payment_options, option],
     }));
   };
 
@@ -168,6 +180,14 @@ export default function WorkshopPublicPage() {
       .then(d => setOtherWorkshops((d.workshops ?? []).filter((w: Workshop) => w.slug !== slug)))
       .catch(() => {});
   }, [slug]);
+
+  useEffect(() => {
+    if (!workshop?.manual_sales_mode) return;
+    fetch(`${getBaseUrl()}/api/training/workshops/public/${slug}/manual-sales/payment-options`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(setQrOptions)
+      .catch(() => setRegError("Payment QR codes are temporarily unavailable. Please choose other payment options."));
+  }, [slug, workshop?.manual_sales_mode]);
 
   // After step becomes "payment", init Airwallex
   const paymentData = useRef<{ intentId: string; clientSecret: string; env: string } | null>(null);
@@ -282,10 +302,27 @@ export default function WorkshopPublicPage() {
     setRegError("");
     setSubmitting(true);
     try {
+      let receiptObjectPath: string | undefined;
+      if (form.payment_method === "wechat_pay" || form.payment_method === "alipay") {
+        if (!paymentReceipt) throw new Error("Upload your payment receipt screenshot before submitting.");
+        if (!["image/jpeg", "image/png", "image/webp"].includes(paymentReceipt.type) || paymentReceipt.size > 10 * 1024 * 1024) {
+          throw new Error("Use a PNG, JPEG, or WebP receipt under 10 MB.");
+        }
+        const upload = await fetch(`${getBaseUrl()}/api/training/workshops/public/${slug}/manual-sales/${manualInquiryId}/receipt-upload-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ size: paymentReceipt.size, contentType: paymentReceipt.type }),
+        });
+        const uploadData = await upload.json();
+        if (!upload.ok) throw new Error(uploadData.error ?? "Unable to prepare receipt upload.");
+        const put = await fetch(uploadData.uploadURL, { method: "PUT", headers: { "Content-Type": paymentReceipt.type }, body: paymentReceipt });
+        if (!put.ok) throw new Error("Receipt upload failed. Please try again.");
+        receiptObjectPath = uploadData.objectPath;
+      }
       const res = await fetch(`${getBaseUrl()}/api/training/workshops/public/${slug}/manual-sales/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inquiry_id: manualInquiryId, verification_code: verificationCode }),
+        body: JSON.stringify({ inquiry_id: manualInquiryId, verification_code: verificationCode, receipt_object_path: receiptObjectPath }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Unable to submit inquiry");
@@ -559,6 +596,67 @@ export default function WorkshopPublicPage() {
                         className="w-full resize-y border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                     </div>}
 
+                    {manualSalesMode && <fieldset className="border-t border-slate-100 pt-5 space-y-4">
+                      <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Payment preference *</legend>
+                      <p className="text-xs text-slate-500">Choose how you would like to pay. QR payments require a screenshot of the completed payment. Other options will be arranged with you separately.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          ["wechat_pay", "WeChat Pay", qrOptions.wechatPayQr],
+                          ["alipay", "Alipay", qrOptions.alipayQr],
+                          ["other", "Other options", null],
+                        ].map(([value, label, qr]) => (
+                          <label key={value} className={`rounded-xl border p-3 cursor-pointer transition-colors ${form.payment_method === value ? "border-teal-500 bg-teal-50" : "border-slate-200 bg-white"}`}>
+                            <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                              <input type="radio" name="payment_method" required value={value ?? ""} checked={form.payment_method === value}
+                                onChange={() => {
+                                  setForm(f => ({ ...f, payment_method: value ?? "", other_payment_options: value === "other" ? f.other_payment_options : [] }));
+                                  setPaymentReceipt(null);
+                                }} />
+                              {label}
+                            </span>
+                            {qr && form.payment_method === value && <img src={qr} alt={`${label} payment QR code`} className="mt-3 mx-auto w-full max-w-48 max-h-48 object-contain rounded-lg bg-white" />}
+                          </label>
+                        ))}
+                      </div>
+                      {(form.payment_method === "wechat_pay" || form.payment_method === "alipay") && (
+                        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-xs text-amber-900">Scan the QR code, complete the payment, then upload a screenshot of the confirmation. Your place is confirmed only after administrator verification.</p>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1">Payment reference <span className="font-normal normal-case text-slate-400">(optional)</span></label>
+                            <input maxLength={200} value={form.payment_reference} onChange={e => setForm(f => ({ ...f, payment_reference: e.target.value }))}
+                              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wide mb-1">Payment confirmation screenshot *</label>
+                            <input required type="file" accept="image/png,image/jpeg,image/webp"
+                              onChange={e => setPaymentReceipt(e.target.files?.[0] ?? null)}
+                              className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-teal-700" />
+                            <p className="mt-1 text-[10px] text-slate-500">PNG, JPEG, or WebP; maximum 10 MB.</p>
+                          </div>
+                        </div>
+                      )}
+                      {form.payment_method === "other" && (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-xs font-semibold text-slate-700 mb-3">Which options would you like us to offer? Select at least one.</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {[
+                              ["credit_card", "Credit card"],
+                              ["bank_transfer", "Bank transfer"],
+                              ["invoice", "Invoice"],
+                              ["other", "Another option"],
+                            ].map(([value, label]) => (
+                              <label key={value} className="flex items-center gap-2 text-xs text-slate-700">
+                                <input type="checkbox" checked={form.other_payment_options.includes(value)}
+                                  onChange={() => toggleOtherPaymentOption(value)} />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                          <p className="mt-3 text-xs text-slate-500">ReMynd will contact you separately with the appropriate payment link or instructions.</p>
+                        </div>
+                      )}
+                    </fieldset>}
+
                     {manualSalesMode && <div className="border-t border-slate-100 pt-5">
                       <label className="block text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-2">Inquiry details</label>
                       <p className="text-xs text-slate-500 mb-2">Tell us about any registration, invoicing, or workshop requirements. We will confirm arrangements before your place is registered.</p>
@@ -614,7 +712,7 @@ export default function WorkshopPublicPage() {
                     )}
                     <button type="submit" disabled={submitting}
                       className="w-full mt-1 bg-[#0c1a2e] hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl py-3 transition-colors flex items-center justify-center gap-2">
-                      {submitting ? <><Loader2 size={14} className="animate-spin" /> {manualSalesMode ? "Sending code…" : "Registering…"}</> : workshop.is_free ? "Register — Free" : manualSalesMode ? "Request Registration & Payment Details" : `Register & Pay ${priceStr}`}
+                      {submitting ? <><Loader2 size={14} className="animate-spin" /> {manualSalesMode ? "Sending code…" : "Registering…"}</> : workshop.is_free ? "Register — Free" : manualSalesMode ? (form.payment_method === "other" ? "Request Registration & Payment Link" : "Submit Payment & Registration Request") : `Register & Pay ${priceStr}`}
                     </button>
                   </form>
                 )}

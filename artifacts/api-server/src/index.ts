@@ -4604,6 +4604,11 @@ async function createWorkshopTables() {
       city TEXT,
       country TEXT,
       message TEXT,
+      payment_method TEXT,
+      other_payment_options JSONB NOT NULL DEFAULT '[]'::jsonb,
+      payment_reference TEXT,
+      receipt_object_path TEXT,
+      payment_status TEXT NOT NULL DEFAULT 'follow_up_required',
       verification_code_hash TEXT NOT NULL,
       verification_expires_at TIMESTAMPTZ NOT NULL,
       verification_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -4621,6 +4626,16 @@ async function createWorkshopTables() {
       ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS request_ip TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS payment_method TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS other_payment_options JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS payment_reference TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS receipt_object_path TEXT`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+      ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'follow_up_required'`);
 
     logger.info("Workshop tables ready");
   } catch (err) {

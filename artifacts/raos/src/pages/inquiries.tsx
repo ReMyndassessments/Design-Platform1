@@ -50,6 +50,11 @@ interface Inquiry {
   timeline: string | null;
   createdAt: string;
   workshopTitle?: string;
+  paymentMethod?: "wechat_pay" | "alipay" | "other";
+  otherPaymentOptions?: string[];
+  paymentReference?: string | null;
+  paymentStatus?: string;
+  receiptUploaded?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -585,6 +590,25 @@ export default function InquiriesPage() {
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Message / Reason</h4>
                         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{inq.message}</div>
                       </div>
+                      {inq.inquiryType === "workshop_sales" && (
+                        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Payment preference</h4>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {inq.paymentMethod === "wechat_pay" ? "WeChat Pay" : inq.paymentMethod === "alipay" ? "Alipay" : "Other payment options"}
+                          </p>
+                          {!!inq.otherPaymentOptions?.length && <p className="mt-1 text-sm text-slate-600">Requested: {inq.otherPaymentOptions.map(value => value.replaceAll("_", " ")).join(", ")}</p>}
+                          {inq.paymentReference && <p className="mt-1 text-sm text-slate-600">Reference: {inq.paymentReference}</p>}
+                          <p className="mt-1 text-xs text-slate-500">
+                            {inq.receiptUploaded ? "Receipt screenshot uploaded — payment requires administrator verification." : "No immediate payment receipt; contact the registrant with payment instructions."}
+                          </p>
+                          {inq.receiptUploaded && (
+                            <a href={`/api/training/workshops/manual-sales-inquiries/${inq.id}/receipt`} target="_blank" rel="noreferrer"
+                              className="mt-3 inline-block text-sm font-semibold text-teal-700 underline">
+                              View receipt screenshot
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                 </CardContent>

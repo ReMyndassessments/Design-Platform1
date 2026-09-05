@@ -5,7 +5,9 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendEmail } from "../lib/outlookEmail.js";
+import { ObjectStorageService } from "../lib/objectStorage.js";
 import type { Request, Response, NextFunction } from "express";
+import { Readable } from "stream";
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if ((req as any).userRole !== "admin") {
@@ -17,6 +19,7 @@ import { getAdminEmails } from "../lib/adminEmails.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
+const storage = new ObjectStorageService();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,11 @@ function workshopManualSalesMode(): boolean {
 
 function shouldSendManualSalesEmails(): boolean {
   return process.env.NODE_ENV === "production" && process.env.WORKSHOP_MANUAL_SALES_EMAIL_ENABLED !== "false";
+}
+
+function publicQrPath(value: string | undefined): string | null {
+  const path = value?.trim();
+  return path && (path.startsWith("/") || path.startsWith("https://")) ? path : null;
 }
 
 function workshopList(reg: any): string {
@@ -609,6 +617,10 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
     makeEmailRow("Professional role", escapeHtml(inquiry.professional_role)),
     makeEmailRow("School / organisation", escapeHtml(inquiry.school_name)),
     makeEmailRow("Location", escapeHtml([inquiry.city, inquiry.country].filter(Boolean).join(", "))),
+    makeEmailRow("Payment choice", inquiry.payment_method === "wechat_pay" ? "WeChat Pay" : inquiry.payment_method === "alipay" ? "Alipay" : "Other payment options"),
+    makeEmailRow("Other options requested", Array.isArray(inquiry.other_payment_options) ? inquiry.other_payment_options.map((value: string) => escapeHtml(value.replaceAll("_", " "))).join(", ") : ""),
+    makeEmailRow("Payment reference", escapeHtml(inquiry.payment_reference)),
+    makeEmailRow("Receipt screenshot", inquiry.receipt_object_path ? "Uploaded — pending administrator verification" : ""),
     makeEmailRow("Message", escapeHtml(inquiry.message)),
   ].join("");
   await sendEmail({
@@ -623,12 +635,29 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
   });
 }
 
+router.get("/training/workshops/public/:slug/manual-sales/payment-options", async (req, res) => {
+  if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
+  const workshop = await db.execute(sql`SELECT id FROM workshops WHERE slug = ${req.params.slug} AND is_free = FALSE AND status IN ('published', 'full') LIMIT 1`);
+  if (!workshop.rows.length) return res.status(404).json({ error: "Workshop not available" });
+  return res.json({
+    wechatPayQr: publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH),
+    alipayQr: publicQrPath(process.env.AIRWALLEX_ALIPAY_QR_PATH),
+  });
+});
+
 router.post("/training/workshops/public/:slug/manual-sales/request-verification", async (req, res) => {
   try {
     if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
-    const { first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message, privacy_consent } = req.body;
+    const { first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message,
+      privacy_consent, payment_method, other_payment_options, payment_reference } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (privacy_consent !== true) return res.status(400).json({ error: "Privacy consent is required" });
+    if (!["wechat_pay", "alipay", "other"].includes(payment_method)) return res.status(400).json({ error: "Select a payment option" });
+    const requestedOptions = Array.isArray(other_payment_options)
+      ? other_payment_options.filter((value: unknown): value is string => typeof value === "string" && ["credit_card", "bank_transfer", "invoice", "other"].includes(value))
+      : [];
+    if (payment_method === "other" && requestedOptions.length === 0) return res.status(400).json({ error: "Select at least one other payment option" });
+    if (typeof payment_reference === "string" && payment_reference.length > 200) return res.status(400).json({ error: "Payment reference is too long" });
     if ([first_name, last_name, phone, job_title, professional_role, school_name, city, country].some(value => typeof value === "string" && value.length > 200)
       || (typeof message === "string" && message.length > 5000)) {
       return res.status(400).json({ error: "One or more fields are too long" });
@@ -654,9 +683,16 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
     const code = crypto.randomInt(100000, 1000000).toString();
     const hash = crypto.createHash("sha256").update(`${id}:${code}`).digest("hex");
     await db.execute(sql`INSERT INTO workshop_manual_sales_inquiries
-      (id, workshop_id, workshop_title, first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message, verification_code_hash, verification_expires_at, verification_sent_at, verification_attempts, request_ip, updated_at)
-      VALUES (${id}, ${workshop.id}, ${workshop.title}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail}, ${phone?.trim() ?? null}, ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${message?.trim() ?? null}, ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
-      ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message, verification_code_hash = EXCLUDED.verification_code_hash, verification_expires_at = EXCLUDED.verification_expires_at, verification_sent_at = NOW(), verification_attempts = 0, request_ip = EXCLUDED.request_ip, updated_at = NOW()`);
+      (id, workshop_id, workshop_title, first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message,
+       payment_method, other_payment_options, payment_reference, payment_status,
+       verification_code_hash, verification_expires_at, verification_sent_at, verification_attempts, request_ip, updated_at)
+      VALUES (${id}, ${workshop.id}, ${workshop.title}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail}, ${phone?.trim() ?? null}, ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${message?.trim() ?? null},
+       ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "other" ? "follow_up_required" : "awaiting_receipt"},
+       ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
+      ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message,
+       payment_method = EXCLUDED.payment_method, other_payment_options = EXCLUDED.other_payment_options, payment_reference = EXCLUDED.payment_reference,
+       payment_status = EXCLUDED.payment_status, receipt_object_path = NULL,
+       verification_code_hash = EXCLUDED.verification_code_hash, verification_expires_at = EXCLUDED.verification_expires_at, verification_sent_at = NOW(), verification_attempts = 0, request_ip = EXCLUDED.request_ip, updated_at = NOW()`);
     if (shouldSendManualSalesEmails()) {
       await sendEmail({ to: normalEmail, subject: `Your ReMynd verification code — ${workshop.title}`, html: `<p>Your ReMynd workshop inquiry verification code is <strong style="font-size:22px;letter-spacing:3px">${code}</strong>.</p><p>It expires in 15 minutes. Do not share this code.</p>` });
     } else {
@@ -669,10 +705,30 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
   }
 });
 
+router.post("/training/workshops/public/:slug/manual-sales/:inquiryId/receipt-upload-url", async (req, res) => {
+  if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
+  const result = await db.execute(sql`SELECT i.payment_method, i.submitted_at
+    FROM workshop_manual_sales_inquiries i JOIN workshops w ON w.id = i.workshop_id
+    WHERE i.id = ${req.params.inquiryId} AND w.slug = ${req.params.slug} LIMIT 1`);
+  const inquiry = result.rows[0] as any;
+  if (!inquiry || inquiry.submitted_at || !["wechat_pay", "alipay"].includes(inquiry.payment_method)) return res.status(404).json({ error: "Upload not available" });
+  const { size, contentType } = req.body as { size?: unknown; contentType?: unknown };
+  if (typeof size !== "number" || size < 1 || size > 10 * 1024 * 1024 ||
+      typeof contentType !== "string" || !["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+    return res.status(400).json({ error: "Receipt must be a PNG, JPEG, or WebP image under 10 MB." });
+  }
+  try {
+    const uploadURL = await storage.getObjectEntityUploadURL();
+    return res.json({ uploadURL, objectPath: storage.normalizeObjectEntityPath(uploadURL) });
+  } catch {
+    return res.status(500).json({ error: "Unable to prepare receipt upload" });
+  }
+});
+
 router.post("/training/workshops/public/:slug/manual-sales/submit", async (req, res) => {
   try {
     if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
-    const { inquiry_id, verification_code } = req.body;
+    const { inquiry_id, verification_code, receipt_object_path } = req.body;
     if (!inquiry_id || !/^\d{6}$/.test(verification_code ?? "")) return res.status(400).json({ error: "A valid verification code is required" });
     const result = await db.execute(sql`SELECT i.* FROM workshop_manual_sales_inquiries i JOIN workshops w ON w.id = i.workshop_id WHERE i.id = ${inquiry_id} AND w.slug = ${req.params.slug} AND w.is_free = FALSE`);
     if (!result.rows.length) return res.status(404).json({ error: "Inquiry not found" });
@@ -680,12 +736,29 @@ router.post("/training/workshops/public/:slug/manual-sales/submit", async (req, 
     if (inquiry.submitted_at) return res.json({ ok: true, alreadySubmitted: true });
     if (new Date(inquiry.verification_expires_at) < new Date()) return res.status(400).json({ error: "Verification code has expired. Request a new code." });
     if (Number(inquiry.verification_attempts ?? 0) >= 5) return res.status(429).json({ error: "Too many incorrect attempts. Request a new code." });
+    if (["wechat_pay", "alipay"].includes(inquiry.payment_method)) {
+      if (typeof receipt_object_path !== "string" || !receipt_object_path.startsWith("/objects/")) {
+        return res.status(400).json({ error: "Upload your payment receipt screenshot before submitting" });
+      }
+      try {
+        await storage.getObjectEntityFile(receipt_object_path);
+      } catch {
+        return res.status(400).json({ error: "The payment receipt screenshot could not be verified" });
+      }
+    }
     const hash = crypto.createHash("sha256").update(`${inquiry.id}:${verification_code}`).digest("hex");
     if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(inquiry.verification_code_hash))) {
       await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET verification_attempts = verification_attempts + 1, updated_at = NOW() WHERE id = ${inquiry.id}`);
       return res.status(400).json({ error: "Incorrect verification code" });
     }
-    await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET verified_at = NOW(), submitted_at = NOW(), updated_at = NOW() WHERE id = ${inquiry.id}`);
+    await db.execute(sql`UPDATE workshop_manual_sales_inquiries
+      SET verified_at = NOW(), submitted_at = NOW(),
+          receipt_object_path = ${receipt_object_path ?? null},
+          payment_status = ${inquiry.payment_method === "other" ? "follow_up_required" : "pending_verification"},
+          updated_at = NOW()
+      WHERE id = ${inquiry.id}`);
+    inquiry.receipt_object_path = receipt_object_path ?? null;
+    inquiry.payment_status = inquiry.payment_method === "other" ? "follow_up_required" : "pending_verification";
     inquiry.verified_at = new Date();
     inquiry.submitted_at = new Date();
     sendWorkshopManualSalesEmails(inquiry).catch(err => logger.error({ err, inquiryId: inquiry.id }, "Workshop manual-sales emails failed"));
@@ -872,6 +945,9 @@ router.get("/training/workshops/manual-sales-inquiries", authMiddleware, require
       first_name || ' ' || last_name AS "contactName", email AS "contactEmail", phone AS "contactPhone",
       school_name AS organisation, professional_role AS role,
       COALESCE(message, '') AS message, workshop_title AS "workshopTitle",
+      payment_method AS "paymentMethod", other_payment_options AS "otherPaymentOptions",
+      payment_reference AS "paymentReference", payment_status AS "paymentStatus",
+      (receipt_object_path IS NOT NULL) AS "receiptUploaded",
       created_at AS "createdAt"
       FROM workshop_manual_sales_inquiries WHERE submitted_at IS NOT NULL ORDER BY created_at DESC`);
     return res.json({ inquiries: result.rows });
@@ -890,6 +966,24 @@ router.patch("/training/workshops/manual-sales-inquiries/:id/status", authMiddle
   } catch (err) {
     logger.error({ err }, "Failed to update manual workshop-sales inquiry");
     return res.status(500).json({ error: "Failed" });
+  }
+});
+
+router.get("/training/workshops/manual-sales-inquiries/:id/receipt", authMiddleware, requireAdmin, async (req, res) => {
+  const result = await db.execute(sql`SELECT receipt_object_path FROM workshop_manual_sales_inquiries
+    WHERE id = ${req.params.id} AND submitted_at IS NOT NULL LIMIT 1`);
+  const objectPath = (result.rows[0] as any)?.receipt_object_path;
+  if (!objectPath) return res.status(404).json({ error: "Receipt not found" });
+  try {
+    const objectFile = await storage.getObjectEntityFile(objectPath);
+    const response = await storage.downloadObject(objectFile);
+    res.status(response.status);
+    res.setHeader("Content-Type", response.headers.get("content-type") ?? "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="workshop-payment-receipt"`);
+    if (!response.body) return res.end();
+    Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+  } catch {
+    return res.status(404).json({ error: "Receipt not found" });
   }
 });
 
