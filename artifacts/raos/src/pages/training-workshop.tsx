@@ -136,7 +136,7 @@ export default function WorkshopPublicPage() {
 
   const [form, setForm] = useState({
     first_name: "", last_name: "", email: "",
-    job_title: "", professional_role: "", professional_role_other: "",
+    professional_role: "", professional_role_other: "",
     school_name: "", city: "", country: "", phone: "",
     school_type: "", school_size: "", areas_of_interest: [] as string[],
     school_support_challenge: "",
@@ -471,15 +471,10 @@ export default function WorkshopPublicPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Professional Email Address *</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Email Address *</label>
                       <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
                     </div>
-                    {usesExpandedRegistration && <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Job Title / Role *</label>
-                      <input required value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
-                    </div>}
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">School / Organisation{usesExpandedRegistration ? " *" : ""}</label>
                       <input required={usesExpandedRegistration} value={form.school_name} onChange={e => setForm(f => ({ ...f, school_name: e.target.value }))}

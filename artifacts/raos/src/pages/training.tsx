@@ -630,7 +630,7 @@ function WhyParticipate() {
 // ── Registration Form ─────────────────────────────────────────────────────────
 function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
-    first_name: "", last_name: "", email: "", job_title: "",
+    first_name: "", last_name: "", email: "",
     professional_role: "", professional_role_other: "",
     school_name: "", city: "", country: "",
     school_type: "", school_size: "",
@@ -672,7 +672,7 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
       const source = getSourceFromUrl();
       const body = {
         first_name: form.first_name, last_name: form.last_name,
-        email: form.email, job_title: form.job_title,
+        email: form.email,
         professional_role: form.professional_role,
         professional_role_other: form.professional_role === "Other" ? form.professional_role_other : undefined,
         school_name: form.school_name, city: form.city, country: form.country,
@@ -731,13 +731,10 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
                   <input className={inputCls} value={form.last_name} onChange={e => set("last_name", e.target.value)} required />
                 </FormField>
               </div>
-              <FormField label="Professional Email Address" required className="md:col-span-2">
+              <FormField label="Email Address" required className="md:col-span-2">
                 <input type="email" className={inputCls} value={form.email} onChange={e => set("email", e.target.value)} required />
               </FormField>
-              <FormField label="Job Title / Role" required>
-                <input className={inputCls} value={form.job_title} onChange={e => set("job_title", e.target.value)} required />
-              </FormField>
-              <FormField label="School / Organisation" required>
+              <FormField label="School / Organisation" required className="md:col-span-2">
                 <input className={inputCls} value={form.school_name} onChange={e => set("school_name", e.target.value)} required />
               </FormField>
               <div className="md:col-span-2 grid sm:grid-cols-2 gap-4">

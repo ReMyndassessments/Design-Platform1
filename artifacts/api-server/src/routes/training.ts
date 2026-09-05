@@ -721,7 +721,7 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
       });
     }
     const requiresExtendedProfile = workshop.slug === "from-inquiry-to-self-authorship";
-    if (requiresExtendedProfile && (!job_title?.trim() || !professional_role?.trim()
+    if (requiresExtendedProfile && (!professional_role?.trim()
       || !school_name?.trim() || !city?.trim() || !country?.trim())) {
       return res.status(400).json({ error: "Please complete all required personal and professional information" });
     }
