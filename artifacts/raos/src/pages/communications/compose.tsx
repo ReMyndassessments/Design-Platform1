@@ -65,6 +65,7 @@ export default function CommunicationsComposePage() {
   const [seriesCohorts, setSeriesCohorts] = useState<string[]>([]);
   const [caseIds, setCaseIds] = useState<string[]>([]);
   const [inquiryIds, setInquiryIds] = useState<string[]>([]);
+  const [manualRecipients, setManualRecipients] = useState("");
   
   // Contextual Direct Send
   const [isDirectSend, setIsDirectSend] = useState(false);
@@ -152,6 +153,7 @@ export default function CommunicationsComposePage() {
       if (draft.audience?.seriesCohorts) setSeriesCohorts(draft.audience.seriesCohorts);
       if (draft.audience?.caseIds) setCaseIds(draft.audience.caseIds);
       if (draft.audience?.inquiryIds) setInquiryIds(draft.audience.inquiryIds);
+      if (draft.audience?.manualRecipients) setManualRecipients(draft.audience.manualRecipients.join("\n"));
     }
   }, [draftId, draftData]);
 
@@ -208,6 +210,9 @@ export default function CommunicationsComposePage() {
 
   const getAudienceObject = () => ({
     sources: audienceSources,
+    ...(kind === "operational" ? {
+      manualRecipients: manualRecipients.split(/[\n,;]+/).map(email => email.trim()).filter(Boolean)
+    } : {}),
     ...(audienceSources.includes("workshops") ? { workshopIds } : {}),
     ...(audienceSources.includes("training_series") ? { seriesCohorts } : {}),
     ...(audienceSources.includes("cases") ? { caseIds } : {}),
@@ -268,8 +273,9 @@ export default function CommunicationsComposePage() {
       return;
     }
 
-    if (!name || audienceSources.length === 0) {
-      return alert("Name and at least one audience source are required for group campaigns.");
+    const hasManualRecipients = kind === "operational" && manualRecipients.split(/[\n,;]+/).some(email => email.trim());
+    if (!name || (audienceSources.length === 0 && !hasManualRecipients)) {
+      return alert("Name and at least one audience source or email recipient are required.");
     }
     
     createCampaign.mutate(
@@ -595,6 +601,24 @@ export default function CommunicationsComposePage() {
                     </label>
                   ))}
                 </div>
+
+                {kind === "operational" && (
+                  <div className="mt-4">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Individual email recipients
+                    </label>
+                    <textarea
+                      value={manualRecipients}
+                      onChange={e => setManualRecipients(e.target.value)}
+                      rows={4}
+                      placeholder={"person@example.com\nanother@example.com"}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Enter one address per line, or separate addresses with commas. These recipients are included only in this operational email.
+                    </p>
+                  </div>
+                )}
 
                 {audienceSources.includes("training_series") && (
                   <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">

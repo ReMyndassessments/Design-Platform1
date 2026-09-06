@@ -98,6 +98,13 @@ router.get("/communications/contract", (_req, res) => {
 async function resolveContacts(audience: any, kind: string) {
   const sources: string[] = Array.isArray(audience?.sources) ? audience.sources : ["training"];
   const found: SourceContact[] = [];
+  if (kind === "operational" && Array.isArray(audience?.manualRecipients)) {
+    for (const value of audience.manualRecipients.slice(0, 50)) {
+      if (typeof value !== "string") continue;
+      const email = value.trim().toLowerCase();
+      found.push({ email, name: null, sourceType: "manual", sourceId: email, consent: false });
+    }
+  }
   // Source records remain authoritative; this creates only a send-time snapshot.
   if (sources.includes("training")) {
     const r = await db.execute(sql`SELECT id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent FROM training_registrations WHERE status != 'cancelled'`);

@@ -7,4 +7,4 @@ Use Gmail for direct, individual, case-related, staff, test, and small operation
 
 **Why:** Case-service consent is not promotional consent. Bulk-provider synchronization must never leak confidential assessment or case information, and existing provider contacts must not be silently changed or resubscribed.
 
-**How to apply:** Keep communications changes additive and preserve authoritative source records. Reference source type and source ID instead of duplicating contacts. Synchronize only minimum campaign data to EmailOctopus, honor local suppressions, use Gmail for all test sends, and never modify or auto-resubscribe an existing EmailOctopus contact.
+**How to apply:** Keep communications changes additive and preserve authoritative source records. Operational Gmail messages may include manually entered external addresses and remain capped at 50; never offer manual recipients for promotional sends. Reference source type and source ID when one exists. Synchronize only minimum campaign data to EmailOctopus, honor local suppressions, use Gmail for all test sends, and never modify or auto-resubscribe an existing EmailOctopus contact.
