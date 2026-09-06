@@ -311,7 +311,7 @@ export default function CommunicationsComposePage() {
     
     // For test sends, we create a Campaign prefixed with [TEST] so it is obvious in history.
     createCampaign.mutate(
-      { name: `[TEST] ${name || "Untitled"}`, subject, html: generatedHtml, kind, provider, audience: getAudienceObject() },
+      { name: `[TEST] ${name || "Untitled"}`, subject, html: generatedHtml, kind, provider, audience: getAudienceObject(), isTest: true },
       {
         onSuccess: (res: any) => {
           sendTest.mutate({ id: res.id, email: testEmail }, {
