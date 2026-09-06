@@ -5,7 +5,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateCampaign, useCreateDraft, useUpdateDraft, useScheduleCampaign, 
   useSendCampaign, useSendTestCampaign, useProviderStatus, useDraft, 
-  useTemplates, useCreateTemplate, useAssets, useDirectSend, useAudiencePreview 
+  useTemplates, useCreateTemplate, useAssets, useDirectSend, useAudiencePreview, useCampaigns
 } from "@/hooks/use-communications";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -18,6 +18,7 @@ export default function CommunicationsComposePage() {
   const { data: statusData } = useProviderStatus();
   const { data: templatesData } = useTemplates();
   const { data: assetsData } = useAssets();
+  const { data: campaignsData } = useCampaigns();
   const { data: workshopsData } = useQuery({
     queryKey: ["admin-workshops"],
     queryFn: () => customFetch("/api/training/workshops") as Promise<{ workshops: any[] }>,
@@ -66,6 +67,18 @@ export default function CommunicationsComposePage() {
   const [caseIds, setCaseIds] = useState<string[]>([]);
   const [inquiryIds, setInquiryIds] = useState<string[]>([]);
   const [manualRecipients, setManualRecipients] = useState("");
+  const existingCampaignNames = useMemo(
+    () => Array.from(new Set(
+      (campaignsData?.campaigns ?? [])
+        .map((campaign: any) => String(campaign.name || "").trim())
+        .filter((campaignName: string) =>
+          campaignName &&
+          campaignName !== "Direct operational email" &&
+          !campaignName.startsWith("[TEST]")
+        )
+    )).sort((a, b) => a.localeCompare(b)),
+    [campaignsData?.campaigns]
+  );
   
   // Contextual Direct Send
   const [isDirectSend, setIsDirectSend] = useState(false);
@@ -395,13 +408,25 @@ export default function CommunicationsComposePage() {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Internal Campaign Name
                 </label>
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={e => setName(e.target.value)}
+                <select
+                  value={existingCampaignNames.includes(name) ? name : "__new__"}
+                  onChange={e => setName(e.target.value === "__new__" ? "" : e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400"
-                  placeholder="e.g. Workshop Fall 2026 Reminder"
-                />
+                >
+                  <option value="__new__">Create a new campaign name...</option>
+                  {existingCampaignNames.map(campaignName => (
+                    <option key={campaignName} value={campaignName}>{campaignName}</option>
+                  ))}
+                </select>
+                {!existingCampaignNames.includes(name) && (
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400"
+                    placeholder="Enter a new internal campaign name"
+                  />
+                )}
               </div>
             )}
             <div>
