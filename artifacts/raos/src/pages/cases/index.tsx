@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListCases, useGetCurrentUser, useRestorePromotionalDemoCase } from "@workspace/api-client-react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,18 +17,46 @@ export default function CasesList() {
   const canCreateCase = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator";
   const isAdmin = currentUser?.role === "admin";
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const restoreDemo = useRestorePromotionalDemoCase();
 
-  const handleGenerateDemo = () => {
-    restoreDemo.mutate(undefined, {
-      onSuccess: (data) => setLocation(`/cases/${data.id}?tour=true`),
-      onError: () => toast({
-        title: "Demo case unavailable",
-        description: "The promotional demo case could not be restored. Please try again.",
+  const handleGenerateDemo = async () => {
+    const portalWindow = window.open("", "_blank");
+    if (!portalWindow) {
+      toast({
+        title: "Pop-up blocked",
+        description: "Allow pop-ups for RAOS, then open the Portal Demo again.",
         variant: "destructive",
-      }),
-    });
+      });
+      return;
+    }
+    portalWindow.opener = null;
+    portalWindow.document.title = "Opening ReMynd Portal Demo";
+    portalWindow.document.body.innerHTML = "<p style='font-family:system-ui;padding:32px;color:#334155'>Preparing the portal demo…</p>";
+
+    try {
+      const data = await restoreDemo.mutateAsync();
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${base}/api/cases/${data.id}/report-access/portal-preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      const preview = await response.json() as { portalUrl?: string; accessCode?: string; error?: string };
+      if (!response.ok || !preview.portalUrl) {
+        throw new Error(preview.error || "Could not open portal preview");
+      }
+      portalWindow.location.href = preview.portalUrl;
+      toast({
+        title: "Portal demo opened",
+        description: preview.accessCode ? `Access code: ${preview.accessCode}` : undefined,
+      });
+    } catch {
+      portalWindow.close();
+      toast({
+        title: "Demo case unavailable",
+        description: "The family-facing portal preview could not be opened. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredCases = cases?.filter(c => 
@@ -75,7 +103,7 @@ export default function CasesList() {
                 ) : (
                   <Play size={18} className="mr-2 text-primary fill-primary/20" />
                 )}
-                Guided Demo
+                Portal Demo
               </Button>
             )}
             <Link href="/cases/new">

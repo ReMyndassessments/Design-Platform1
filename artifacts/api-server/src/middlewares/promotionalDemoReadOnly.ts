@@ -15,6 +15,17 @@ export function promotionalDemoReadOnly(req: Request, res: Response, next: NextF
     return;
   }
 
+  // The administrator portal preview is the one intentional mutation allowed
+  // for this case. Its route refreshes a single TEST PREVIEW token and performs
+  // its own role check before returning the family-facing portal URL.
+  const isPortalPreview =
+    req.method === "POST" &&
+    req.path === `/cases/${PROMOTIONAL_DEMO_CASE_ID}/report-access/portal-preview`;
+  if (isPortalPreview) {
+    next();
+    return;
+  }
+
   const pathTargetsDemo = decodeURIComponent(req.path).split("/").includes(PROMOTIONAL_DEMO_CASE_ID);
   const bodyTargetsDemo = req.body?.caseId === PROMOTIONAL_DEMO_CASE_ID;
 

@@ -7,4 +7,4 @@ The public promotional demo must remain self-contained, read-only, and entirely 
 
 **Why:** Public prospects should see a stable, credible walkthrough without consuming AI, changing records, sending communications, or mistaking promotional examples for real clinical output.
 
-**How to apply:** Keep one consistent fictional identity across every perspective. Parent consent must gate teacher/report access in the story. The fixed internal demo case must stay immutable through a centralized server guard; administrators may restore it only through the dedicated idempotent reset action.
+**How to apply:** Keep one consistent fictional identity across every perspective. Parent consent must gate teacher/report access in the story. The fixed internal demo case stays immutable through a centralized server guard, except that administrators may restore it and refresh the single test-preview token used by the family-facing Open Portal Preview flow.
