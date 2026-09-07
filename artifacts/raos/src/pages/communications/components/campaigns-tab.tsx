@@ -102,8 +102,8 @@ export function CampaignsTab() {
                   disabled={retryMutation.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
                 >
-                  <RefreshCw size={14} className={retryMutation.isPending ? "animate-spin" : ""} />
-                  Retry Failed
+                  <RefreshCw size={14} className={retryMutation.isPending && retryMutation.variables === c.id ? "animate-spin" : ""} />
+                  {retryMutation.isPending && retryMutation.variables === c.id ? "Preparing..." : "Retry Failed"}
                 </button>
               )}
               {c.status === "ready" && c.provider === "emailoctopus" && (
