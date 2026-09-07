@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f3f5f7;font-family:Arial,Helvetica,sans-serif;color:#243247;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f7;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #dfe4ea;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#0c1a2e;padding:28px 34px 24px;border-bottom:5px solid #c7a54b;">
+              <p style="margin:0;color:#ffffff;font-size:25px;line-height:1.1;font-weight:700;letter-spacing:-0.3px;">ReMynd</p>
+              <p style="margin:7px 0 0;color:#d9e0e8;font-size:11px;line-height:1.4;letter-spacing:1.5px;text-transform:uppercase;">Student Services</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:34px 36px 30px;background:#ffffff;">
+              
+      <div data-structured="true" style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        
+        
+        <p style="color: #334155; font-size: 16px; margin-bottom: 20px;">Dear Colleagues,</p>
+        <div style="font-size: 15px;">
+          <p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">As we begin the 2026–2027 school year, ReMynd Student Services would like to invite you and your colleagues to join us for a complimentary four-part online professional learning series for schools:</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">When a Student Is Struggling, Do We Really Understand Why?</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Every school has students who struggle—but what we see on the surface is not always what it means.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">A student may appear inattentive, unmotivated, anxious, disengaged, oppositional, or simply “behind.” But before deciding what to do, we need to ask a more fundamental question:<br>Do we really understand why this student is struggling?</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">This four-part series will help educators move beyond the presenting concern and develop a more systematic way of gathering evidence, understanding the whole learner, and making better-informed educational support decisions.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">The 4-Part Series</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Workshop 1 — Why Is This Student Struggling?<br>What We See Is Not Always What It Means<br>Wednesday, September 16, 2026 | 7:00 PM</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Workshop 2 — From Concern to Understanding<br>How do we build a reliable picture of the learner?<br>Wednesday, September 30, 2026 | 7:00 PM</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Workshop 3 — Thinking Like an Educational Problem-Solver<br>How do we reason when the explanation is not obvious?<br>Wednesday, October 14, 2026 | 7:00 PM</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Workshop 4 — When We Need a Deeper Understanding<br>How do we integrate complex evidence into practical support?<br>Wednesday, October 28, 2026 | 7:00 PM</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Together, the workshops follow a connected professional-learning journey:</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Concern → Evidence → Understanding → Educational Action → Support → Monitoring → Growth</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Join an International Community of Educators</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Registrations are already coming in from educators and student-support professionals representing schools and educational institutions across China, the Philippines, India, Ghana, Thailand and Vietnam including:</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Guangzhou Grace Academy • YCIS • YCIS Chongqing • QSI Dongguan • North Sichuan Medical College • Shenzhen American International School • University of the Immaculate Conception • BIBA • Boahenkorkor Presby ‘B’ Junior High School • KC High • Malvern College Chengdu</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">We especially encourage school teams to participate. When teachers, counsellors, SENCOs, learning-support professionals, pastoral/wellbeing staff, and school leaders attend together, the series can help establish a shared language for discussing struggling learners and deciding what should happen next.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">The series is Non-Diagnostic by Design. Our purpose is not to teach educators to diagnose or label students. It is to help schools become better at understanding before concluding and supporting before labeling.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Complimentary Registration</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">There is no cost to participate, and there is no requirement to purchase ReMynd assessment services.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">You are also very welcome to forward this invitation to colleagues within your school or elsewhere in your professional network. We would like this learning opportunity to reach as many educators and student-support professionals as possible.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">We look forward to welcoming you and your colleagues.<br>Understand First. See the Whole Learner. Act on Understanding. Support Growth.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Warm regards,</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Noel Roberts<br>Founder<br>ReMynd Student Services</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;">Please also help us share this upcoming workshop (flyer below), with your colleagues and in your academic social circles.</p><p style="margin-bottom: 1em; color: #334155; line-height: 1.6;"><br><img src="https://remyndassessments.com/api/communications/assets/public/kdBkXYynk9ZH_lgyaoIPq" style="max-width: 100%; border-radius: 8px;" /></p>
+        </div>
+        
+          <div style="margin-top: 32px; margin-bottom: 32px;">
+            <a href="https://remyndassessments.com/training" style="background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">
+              Register here:
+            </a>
+          </div>
+        
+      </div>
+    
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:21px 36px 24px;background:#f8f9fa;border-top:1px solid #e5e9ee;">
+              <p style="margin:0 0 8px;font-size:12px;color:#64748b;">ReMynd Student Services</p>
+              <p style="margin:0 0 10px;font-size:12px;color:#94a3b8;">Assessment · Consultation · Student Support<br><a href="https://remyndassessments.com" style="color:#9a7a18;text-decoration:none;">remyndassessments.com</a></p>
+              <p style="margin:0 0 8px;font-size:11px;color:#94a3b8;">{{SenderInfo}}</p>
+              <p style="margin:0;font-size:11px;color:#94a3b8;"><a href="{{UnsubscribeURL}}">Unsubscribe</a> · <a href="{{RewardsURL}}">Powered by EmailOctopus</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

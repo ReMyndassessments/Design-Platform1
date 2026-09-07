@@ -29,66 +29,77 @@ id = "QBw29TkpUw8clGmW-oSVn"
 uri = "file://INVIGILATOR_TRAINING_MANUAL.md"
 type = "text"
 title = "Invigilator Training Manual — RAOS"
+logical_id = "e761de63-f8c8-4c27-8483-358ea579e744"
 
 [[outputs]]
 id = "CwfJvv1qSC-y9ajbqM8yz"
 uri = "file://PSYCHOMETRICIAN_TRAINING_MANUAL.md"
 type = "text"
 title = "Psychometrician Training Manual — RAOS"
+logical_id = "6caef458-6791-4473-8962-658e6c2dccd3"
 
 [[outputs]]
 id = "L1xeEEswtQ4rK8zCOxxUu"
 uri = "file://ADMIN_TRAINING_MANUAL.md"
 type = "text"
 title = "Administrator Training Manual — RAOS"
+logical_id = "de17d9ad-0e1f-405a-b579-828203fdf0e7"
 
 [[outputs]]
 id = "IADbVHGaatp2j16WpKlFs"
 uri = "file://TRAINING_MANUAL.md"
 type = "text"
 title = "RAOS Training Manual — All Roles"
+logical_id = "c00c34f2-186e-4ddc-8883-5515237aca79"
 
 [[outputs]]
 id = "c5rgPEFr_p0pi88d_tKZv"
 uri = "file://RAOS_Invigilator_Manual_Revised.docx"
 type = "word_document"
 title = "RAOS Invigilator Training Manual (Revised)"
+logical_id = "2a94d64f-ad20-44dd-95c1-abe3cbeda704"
 
 [[outputs]]
 id = "JRFE4UxYoKB4mZgfZxnH0"
 uri = "file://RAOS_Psychometrician_Manual_Revised.docx"
 type = "word_document"
 title = "RAOS Psychometrician Training Manual (Revised)"
+logical_id = "b6d9ddfd-a452-48b0-8ec1-0a4228c40c67"
 
 [[outputs]]
 id = "KUBTL4bfz1f9ZdeXB969X"
 uri = "file://attached_assets/RAOS_Invigilator_Manual_Revised.md"
 type = "text"
 title = "RAOS Invigilator Manual — Revised"
+logical_id = "d77ccf4f-74f3-4abb-8fb1-3fb44b540c32"
 
 [[outputs]]
 id = "28JbNgqWI0nZ_UvzFK0Vb"
 uri = "file://attached_assets/reMynd_ppt_background.png"
 type = "image"
 title = "ReMynd PowerPoint Background"
+logical_id = "a7889583-8b1d-424b-8b98-36fc0cb1270f"
 
 [[outputs]]
 id = "6GuPHfcGxYCtwtliltq6d"
 uri = "file://attached_assets/reMynd_ppt_background_v2.png"
 type = "image"
 title = "ReMynd PowerPoint Background with Logo"
+logical_id = "1f94546b-a42f-43d8-b209-8958f43b7c3c"
 
 [[outputs]]
 id = "RkUQ0PKwin0zv4SleNgzp"
 uri = "file://attached_assets/reMynd_ppt_final.png"
 type = "image"
 title = "ReMynd PowerPoint Background"
+logical_id = "8a16adf7-78d7-4f2b-82a5-15010c0f992b"
 
 [[outputs]]
 id = "nzaxRvCpyhjszm_X7JGO9"
 uri = "file://attached_assets/invigilator-student-view-reference.md"
 type = "text"
 title = "Invigilator Student View Reference"
+logical_id = "4fe834d7-151b-45eb-8cfb-5d317a996720"
 
 [[outputs]]
 id = "gPG674q1ma6_nZOteXy_V"
@@ -96,3 +107,18 @@ uri = "file://attached_assets/training-registration-qr.png"
 type = "image"
 title = "Training Registration QR Code"
 description = "Scans to https://remyndassessments.com/training"
+logical_id = "444313f2-a941-4456-88dd-cd07da9347c6"
+
+[[outputs]]
+id = "NS46IIdyPa5eZ6j3DgDJo"
+uri = "file://exports/emailoctopus-campaign-html.txt"
+type = "text"
+title = "EmailOctopus campaign HTML"
+description = "Complete RAOS campaign HTML with the required EmailOctopus sender and unsubscribe tags."
+logical_id = "293e5882-bff2-417c-b3ac-84972763cd42"
+content_hash = "sha256:18617ff991606ba51d8e4e3524392c21d9b0ec5c16db68f532e8293221a83a84"
+size = 7776
+mtime_ms = 1788770382590
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:1be43a0b-8939-44de-a9dd-79eb973f7e86/293e5882-bff2-417c-b3ac-84972763cd42/d611285e-ea15-411c-b1d9-62fe4bda81f8"
+storage_version_token = "1788770385156945"
+content_type = "text/plain"
