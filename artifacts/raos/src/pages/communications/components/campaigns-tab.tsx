@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useCampaigns, useRetryCampaign, useCancelCampaign, useCampaignDetail, useSyncCampaignResults, useDeleteCampaign, useArchiveCampaign, useClearTestCampaigns } from "@/hooks/use-communications";
-import { Mail, Calendar, Clock, RefreshCw, Send, XCircle, Eye, Trash2, Archive } from "lucide-react";
+import { useCampaigns, useRetryCampaign, useCancelCampaign, useCampaignDetail, useSyncCampaignResults, useDeleteCampaign, useArchiveCampaign, useClearTestCampaigns, useConfirmEmailOctopusSent } from "@/hooks/use-communications";
+import { Mail, Calendar, Clock, RefreshCw, Send, XCircle, Eye, Trash2, Archive, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +12,7 @@ export function CampaignsTab() {
   const deleteMutation = useDeleteCampaign();
   const archiveMutation = useArchiveCampaign();
   const clearTestsMutation = useClearTestCampaigns();
+  const confirmEmailOctopusSent = useConfirmEmailOctopusSent();
 
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -63,6 +64,7 @@ export function CampaignsTab() {
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                   c.status === "sent" ? "bg-emerald-100 text-emerald-700" :
                   c.status === "scheduled" ? "bg-blue-100 text-blue-700" :
+                   c.status === "ready" ? "bg-violet-100 text-violet-700" :
                   c.status === "failed" ? "bg-red-100 text-red-700" :
                   c.status === "sending" ? "bg-amber-100 text-amber-700" :
                   c.status === "cancelled" ? "bg-slate-100 text-slate-500 line-through" :
@@ -103,6 +105,29 @@ export function CampaignsTab() {
                   <RefreshCw size={14} className={retryMutation.isPending ? "animate-spin" : ""} />
                   Retry Failed
                 </button>
+              )}
+              {c.status === "ready" && c.provider === "emailoctopus" && (
+                <>
+                  <a
+                    href="https://emailoctopus.com/campaigns"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors"
+                  >
+                    <ExternalLink size={14} /> Open EmailOctopus
+                  </a>
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Confirm only after you have sent this campaign to the prepared list in EmailOctopus. Mark all 510 recipients as sent in RAOS?")) {
+                        confirmEmailOctopusSent.mutate(c.id);
+                      }
+                    }}
+                    disabled={confirmEmailOctopusSent.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={14} /> Confirm Sent
+                  </button>
+                </>
               )}
               {c.status === "scheduled" && (
                 <button 
@@ -188,6 +213,11 @@ export function CampaignsTab() {
               </p>
             </div>
           </div>
+          {c.status === "ready" && c.provider === "emailoctopus" && (
+            <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-xs leading-relaxed text-violet-900">
+              <strong>Audience ready in EmailOctopus.</strong> Create the broadcast using the newest timestamped “RAOS Campaign” list, send it from EmailOctopus, then return here and click <strong>Confirm Sent</strong>.
+            </div>
+          )}
         </div>
       ))}
       {detailId && <CampaignDetailModal id={detailId} onClose={() => setDetailId(null)} />}
@@ -221,7 +251,7 @@ function CampaignDetailModal({ id, onClose }: { id: string; onClose: () => void 
                   {data.campaign.sent_at && <span><strong>Sent:</strong> {format(new Date(data.campaign.sent_at), "MMM d, yyyy h:mm a")}</span>}
                    {(data.campaign.is_test || data.campaign.name?.startsWith("[TEST]")) && <span className="font-bold text-violet-700">TEST EMAIL</span>}
                 </div>
-                {data.campaign.provider === "emailoctopus" && data.campaign.provider_campaign_id && (
+                {data.campaign.provider === "emailoctopus" && data.campaign.status === "sent" && data.campaign.provider_campaign_id && !data.campaign.provider_campaign_id.startsWith("list:") && (
                   <button onClick={() => syncMutation.mutate(id)} disabled={syncMutation.isPending} className="mt-4 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-md hover:bg-indigo-50 disabled:opacity-50">
                     <RefreshCw size={13} className={syncMutation.isPending ? "animate-spin" : ""} />
                     {syncMutation.isPending ? "Syncing results..." : "Sync provider results"}

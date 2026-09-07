@@ -307,7 +307,9 @@ export default function CommunicationsComposePage() {
           if (action === "send") {
             sendCampaign.mutate(res.id, {
               onSuccess: () => {
-                alert("Campaign is sending!");
+                alert(provider === "emailoctopus"
+                  ? "The verified audience is being prepared in EmailOctopus. When it shows Ready, open EmailOctopus to send the broadcast."
+                  : "Campaign is sending!");
                 setLocation("/communications");
               }
             });

@@ -92,13 +92,13 @@ export async function getEmailOctopusCampaignReport(id: string, report: EmailOct
   return entries;
 }
 
-export async function createEmailOctopusCampaign(input: EmailOctopusCampaignInput): Promise<string> {
+export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInput): Promise<string> {
   emailOctopusConfig();
   // EmailOctopus campaigns send to their entire bound list. Use a dedicated
   // campaign list so the provider audience exactly matches RAOS's consent,
   // suppression, deduplication, and prior-send filtering snapshot.
   const targetList = await emailOctopusRequest("/lists", {
-    name: `RAOS Campaign - ${input.name}`.slice(0, 200),
+    name: `RAOS Campaign - ${input.name.slice(0, 145)} - ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
   });
   const listId = String(targetList?.id || "");
   if (!listId) throw new Error("EmailOctopus did not return a campaign audience list ID");
@@ -126,17 +126,7 @@ export async function createEmailOctopusCampaign(input: EmailOctopusCampaignInpu
   await Promise.all(
     Array.from({ length: Math.min(3, input.recipients.length) }, () => addContact()),
   );
-  const fromEmail = input.fromEmail || process.env.EMAILOCTOPUS_FROM_EMAIL || process.env.GMAIL_USER;
-  if (!fromEmail) throw new Error("EmailOctopus requires EMAILOCTOPUS_FROM_EMAIL (or GMAIL_USER) as a verified sender");
-  const campaign = await emailOctopusRequest("/campaigns", {
-    list_id: listId, name: input.name, subject: input.subject, from_name: input.fromName || "ReMynd Student Services",
-    from_email: fromEmail, content_html: input.html, content_text: input.text,
-  });
-  if (!campaign?.id) throw new Error("EmailOctopus did not return a campaign ID");
-  return campaign.id;
-}
-export async function sendEmailOctopusCampaign(id: string): Promise<void> {
-  await emailOctopusRequest(`/campaigns/${encodeURIComponent(id)}/send`, {});
+  return listId;
 }
 
 function emailOctopusMailer(): CommunicationsMailer {

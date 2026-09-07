@@ -179,6 +179,18 @@ export function useRetryCampaign() {
   });
 }
 
+export function useConfirmEmailOctopusSent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customFetch(`/api/communications/campaigns/${id}/confirm-emailoctopus-sent`, { method: "POST" }),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["communications-campaigns"] });
+      qc.invalidateQueries({ queryKey: ["communications-campaign", id] });
+      qc.invalidateQueries({ queryKey: ["communications-campaign-summary", id] });
+    },
+  });
+}
+
 export function useSyncCampaignResults() {
   const qc = useQueryClient();
   return useMutation({

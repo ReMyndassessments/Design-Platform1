@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
-import { createEmailOctopusCampaign, getCommunicationsMailer, getEmailOctopusCampaignReport, renderBrandedEmail, renderEmail, sanitizeEmailHtml, sendEmailOctopusCampaign, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
+import { prepareEmailOctopusAudience, getCommunicationsMailer, getEmailOctopusCampaignReport, renderBrandedEmail, renderEmail, sanitizeEmailHtml, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
 import { isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
@@ -228,18 +228,19 @@ async function deliver(campaignId: string, retry = false) {
         const settings = await getBrandSettings();
         const brandedHtml = renderBrandedEmail(campaign.html, settings);
         const text = String(brandedHtml).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const providerId = campaign.provider_campaign_id || await createEmailOctopusCampaign({
+      const existingListId = typeof campaign.provider_campaign_id === "string" && campaign.provider_campaign_id.startsWith("list:")
+        ? campaign.provider_campaign_id.slice(5)
+        : null;
+      const listId = existingListId || await prepareEmailOctopusAudience({
         name: campaign.name, subject: campaign.subject, html: brandedHtml, text,
         fromName: typeof settings.fromName === "string" ? settings.fromName : undefined,
         fromEmail: typeof settings.fromEmail === "string" ? settings.fromEmail : undefined,
         recipients: rows.map(row => ({ to: row.email, subject: campaign.subject, html: brandedHtml, name: row.name })),
       });
-      // API 1.6 documents POST /campaigns/{id}/send. Scheduling remains RAOS-owned:
-      // the poller invokes this documented send action only at the requested time.
-      await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${providerId}, status='ready', updated_at=NOW() WHERE id=${campaignId}`);
-      await sendEmailOctopusCampaign(providerId);
-      await db.execute(sql`UPDATE communication_recipients SET status='sent', attempts=attempts+1, provider_message_id=${providerId}, sent_at=NOW(), error=NULL WHERE campaign_id=${campaignId} AND status IN ('pending','queued','failed')`);
-      await db.execute(sql`UPDATE communication_campaigns SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=${campaignId}`);
+      // EmailOctopus's documented API can prepare lists and contacts, but does
+      // not create or dispatch broadcast campaigns. Keep recipients queued
+      // until an administrator sends to this list in EmailOctopus and confirms.
+      await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${`list:${listId}`}, status='ready', updated_at=NOW() WHERE id=${campaignId}`);
         return;
       }
        const settings = await getBrandSettings();
@@ -343,6 +344,28 @@ router.post("/communications/campaigns/:id/send", async (req, res) => {
 router.post("/communications/campaigns/:id/retry-failed", async (req, res) => {
   try { await deliver(req.params.id, true); res.json({ ok: true }); }
   catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Retry failed" }); }
+});
+router.post("/communications/campaigns/:id/confirm-emailoctopus-sent", async (req, res): Promise<void> => {
+  const campaignId = req.params.id;
+  const result = await db.execute(sql`UPDATE communication_campaigns
+    SET status='sent', sent_at=NOW(), updated_at=NOW()
+    WHERE id=${campaignId} AND provider='emailoctopus' AND status='ready'
+      AND provider_campaign_id LIKE 'list:%'
+    RETURNING id`);
+  if (!result.rows.length) {
+    res.status(409).json({ error: "Only a prepared EmailOctopus audience can be confirmed as sent" });
+    return;
+  }
+  await db.execute(sql`UPDATE communication_recipients
+    SET status='sent', attempts=attempts+1, sent_at=NOW(), error=NULL
+    WHERE campaign_id=${campaignId} AND status IN ('pending','queued','failed')`);
+  await writeAudit({
+    eventType: "communications.campaign.external_sent_confirmed",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    metadata: { campaignId },
+  });
+  res.json({ ok: true });
 });
 router.post("/communications/campaigns/:id/schedule", async (req, res): Promise<void> => {
   const date = new Date(req.body?.scheduledAt); if (Number.isNaN(date.valueOf()) || date <= new Date()) { res.status(400).json({ error: "scheduledAt must be in the future" }); return; }
