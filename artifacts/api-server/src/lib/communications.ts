@@ -93,7 +93,15 @@ export async function getEmailOctopusCampaignReport(id: string, report: EmailOct
 }
 
 export async function createEmailOctopusCampaign(input: EmailOctopusCampaignInput): Promise<string> {
-  const { listId } = emailOctopusConfig();
+  emailOctopusConfig();
+  // EmailOctopus campaigns send to their entire bound list. Use a dedicated
+  // campaign list so the provider audience exactly matches RAOS's consent,
+  // suppression, deduplication, and prior-send filtering snapshot.
+  const targetList = await emailOctopusRequest("/lists", {
+    name: `RAOS Campaign - ${input.name}`.slice(0, 200),
+  });
+  const listId = String(targetList?.id || "");
+  if (!listId) throw new Error("EmailOctopus did not return a campaign audience list ID");
   // API 1.6 supports list contact creation and list-bound campaigns. This is
   // intentionally called only after RAOS has applied its consent/suppression filter.
   for (const recipient of input.recipients) {

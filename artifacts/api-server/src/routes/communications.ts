@@ -82,11 +82,17 @@ router.post("/communications/audience-preview", async (req, res): Promise<void> 
     (audience.sources !== undefined && (!Array.isArray(audience.sources) || audience.sources.some((x: unknown) => typeof x !== "string")))) {
     res.status(400).json({ error: "Invalid audience or kind" }); return;
   }
+  if (kind === "promotional" && Array.isArray(audience.manualRecipients) && audience.manualRecipients.length && audience.marketingConsentOverride !== true) {
+    res.status(400).json({ error: "Administrator confirmation of prior marketing consent is required for pasted promotional lists" }); return;
+  }
   const resolution = await resolveContacts(audience, kind);
   // Preview is admin-only and deliberately shows one address per row, never a
   // recipient-to-recipient disclosure. Counts match the send-time resolution.
   res.json({ counts: resolution.counts,
-    recipients: resolution.recipients.map(c => ({ email: c.email, name: c.name, sourceType: c.sourceType, sourceId: c.sourceId, included: true, reason: "eligible" })) });
+    recipients: [
+      ...resolution.recipients.map(c => ({ email: c.email, name: c.name, sourceType: c.sourceType, sourceId: c.sourceId, included: true, reason: "eligible" })),
+      ...resolution.alreadySentRecipients.map(c => ({ email: c.email, name: c.name, sourceType: c.sourceType, sourceId: c.sourceId, included: false, reason: "already sent" })),
+    ] });
 });
 router.get("/communications/contract", (_req, res) => {
   res.json({ base: "/api/communications", endpoints: {
@@ -100,10 +106,17 @@ async function resolveContacts(audience: any, kind: string) {
   const sources: string[] = Array.isArray(audience?.sources) ? audience.sources : ["training"];
   const found: SourceContact[] = [];
   if (kind === "operational" && Array.isArray(audience?.manualRecipients)) {
-    for (const value of audience.manualRecipients.slice(0, 50)) {
+    for (const value of audience.manualRecipients) {
       if (typeof value !== "string") continue;
       const email = value.trim().toLowerCase();
       found.push({ email, name: null, sourceType: "manual", sourceId: email, consent: false });
+    }
+  }
+  if (kind === "promotional" && audience?.marketingConsentOverride === true && Array.isArray(audience?.manualRecipients)) {
+    for (const value of audience.manualRecipients.slice(0, 10_000)) {
+      if (typeof value !== "string") continue;
+      const email = value.trim().toLowerCase();
+      found.push({ email, name: null, sourceType: "consented_marketing_list", sourceId: email, consent: true });
     }
   }
   // Source records remain authoritative; this creates only a send-time snapshot.
@@ -163,7 +176,30 @@ async function resolveContacts(audience: any, kind: string) {
   const selectedFound = selected.length ? found.filter(c => !sourceIds[c.sourceType]?.length || sourceIds[c.sourceType].includes(c.sourceId)) : found;
   const suppressed = await db.execute(sql`SELECT email, kind FROM communication_suppressions`);
   const block = new Map((suppressed.rows as any[]).map(x => [String(x.email).toLowerCase(), x.kind]));
-  return resolveEligibleContacts(selectedFound, kind === "operational" ? "operational" : "promotional", block);
+  const resolution = resolveEligibleContacts(selectedFound, kind === "operational" ? "operational" : "promotional", block);
+  const alreadySentRecipients: typeof resolution.recipients = [];
+  if (kind === "promotional" && typeof audience?.priorCampaignName === "string" && audience.priorCampaignName.trim()) {
+    const prior = await db.execute(sql`
+      SELECT DISTINCT lower(r.email) AS email
+      FROM communication_recipients r
+      JOIN communication_campaigns c ON c.id = r.campaign_id
+      WHERE lower(trim(c.name)) = lower(trim(${audience.priorCampaignName}))
+        AND r.status IN ('sent','delivered')
+    `);
+    const sentEmails = new Set((prior.rows as any[]).map(row => String(row.email)));
+    const remaining = resolution.recipients.filter(recipient => {
+      if (!sentEmails.has(recipient.email)) return true;
+      alreadySentRecipients.push(recipient);
+      return false;
+    });
+    resolution.recipients = remaining;
+    resolution.counts.included = remaining.length;
+    (resolution.counts as any).alreadySent = alreadySentRecipients.length;
+    resolution.counts.excluded += alreadySentRecipients.length;
+  } else {
+    (resolution.counts as any).alreadySent = 0;
+  }
+  return { ...resolution, alreadySentRecipients };
 }
 
 async function snapshot(campaign: any) {
@@ -279,8 +315,9 @@ router.delete("/communications/campaigns/test-drafts", async (req, res) => {
 router.post("/communications/campaigns", async (req, res): Promise<void> => {
   const { name, subject, html, kind = "promotional", provider = "gmail", audience = {}, isTest = false } = req.body;
   if (!name?.trim() || !subject?.trim() || !html?.trim() || !["promotional", "operational"].includes(kind) || !["gmail", "emailoctopus"].includes(provider) || (provider === "gmail" && kind !== "operational") || (provider === "emailoctopus" && kind !== "promotional")) { res.status(400).json({ error: "Gmail is for small operational campaigns; EmailOctopus is for promotional bulk campaigns" }); return; }
+  if (kind === "promotional" && Array.isArray(audience?.manualRecipients) && audience.manualRecipients.length && audience.marketingConsentOverride !== true) { res.status(400).json({ error: "Administrator confirmation of prior marketing consent is required for pasted promotional lists" }); return; }
   const id = nanoid(); await db.execute(sql`INSERT INTO communication_campaigns (id,name,subject,html,kind,provider,audience,is_test,created_by) VALUES (${id},${name.trim()},${subject.trim()},${sanitizeEmailHtml(html)},${kind},${provider},${JSON.stringify(audience)}::jsonb,${Boolean(isTest)},${req.userId!})`);
-  await writeAudit({ eventType: "communications.campaign.created", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: id } }); res.status(201).json({ id });
+  await writeAudit({ eventType: "communications.campaign.created", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: id, marketingConsentOverride: audience?.marketingConsentOverride === true, manualRecipientCount: Array.isArray(audience?.manualRecipients) ? audience.manualRecipients.length : 0 } }); res.status(201).json({ id });
 });
 router.post("/communications/campaigns/:id/send-test", async (req, res): Promise<void> => {
   const email = String(req.body?.email || "").trim().toLowerCase(); if (!isValidCommunicationEmail(email)) { res.status(400).json({ error: "A valid test email is required" }); return; }

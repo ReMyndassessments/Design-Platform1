@@ -67,6 +67,7 @@ export default function CommunicationsComposePage() {
   const [caseIds, setCaseIds] = useState<string[]>([]);
   const [inquiryIds, setInquiryIds] = useState<string[]>([]);
   const [manualRecipients, setManualRecipients] = useState("");
+  const [marketingConsentConfirmed, setMarketingConsentConfirmed] = useState(false);
   const existingCampaignNames = useMemo(
     () => Array.from(new Set(
       (campaignsData?.campaigns ?? [])
@@ -167,6 +168,7 @@ export default function CommunicationsComposePage() {
       if (draft.audience?.caseIds) setCaseIds(draft.audience.caseIds);
       if (draft.audience?.inquiryIds) setInquiryIds(draft.audience.inquiryIds);
       if (draft.audience?.manualRecipients) setManualRecipients(draft.audience.manualRecipients.join("\n"));
+      setMarketingConsentConfirmed(draft.audience?.marketingConsentOverride === true);
     }
   }, [draftId, draftData]);
 
@@ -223,8 +225,10 @@ export default function CommunicationsComposePage() {
 
   const getAudienceObject = () => ({
     sources: audienceSources,
-    ...(kind === "operational" ? {
-      manualRecipients: manualRecipients.split(/[\n,;]+/).map(email => email.trim()).filter(Boolean)
+    manualRecipients: manualRecipients.split(/[\n,;]+/).map(email => email.trim()).filter(Boolean),
+    ...(kind === "promotional" ? {
+      marketingConsentOverride: marketingConsentConfirmed,
+      priorCampaignName: name.trim(),
     } : {}),
     ...(audienceSources.includes("workshops") ? { workshopIds } : {}),
     ...(audienceSources.includes("training_series") ? { seriesCohorts } : {}),
@@ -259,7 +263,9 @@ export default function CommunicationsComposePage() {
   };
 
   const handlePreviewAudience = () => {
-    if (audienceSources.length === 0) return alert("Select at least one audience source.");
+    const hasManualRecipients = manualRecipients.split(/[\n,;]+/).some(email => email.trim());
+    if (audienceSources.length === 0 && !hasManualRecipients) return alert("Select an audience source or enter email addresses.");
+    if (kind === "promotional" && hasManualRecipients && !marketingConsentConfirmed) return alert("Confirm that these recipients previously consented to marketing email.");
     audiencePreview.mutate({ audience: getAudienceObject(), kind }, {
       onSuccess: (res: any) => {
         setPreviewData(res);
@@ -286,9 +292,12 @@ export default function CommunicationsComposePage() {
       return;
     }
 
-    const hasManualRecipients = kind === "operational" && manualRecipients.split(/[\n,;]+/).some(email => email.trim());
+    const hasManualRecipients = manualRecipients.split(/[\n,;]+/).some(email => email.trim());
     if (!name || (audienceSources.length === 0 && !hasManualRecipients)) {
       return alert("Name and at least one audience source or email recipient are required.");
+    }
+    if (kind === "promotional" && hasManualRecipients && !marketingConsentConfirmed) {
+      return alert("Confirm that these recipients previously consented to marketing email.");
     }
     
     createCampaign.mutate(
@@ -627,10 +636,10 @@ export default function CommunicationsComposePage() {
                   ))}
                 </div>
 
-                {kind === "operational" && (
+                {(kind === "operational" || kind === "promotional") && (
                   <div className="mt-4">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Individual email recipients
+                      {kind === "promotional" ? "Consented marketing email list" : "Individual email recipients"}
                     </label>
                     <textarea
                       value={manualRecipients}
@@ -640,8 +649,23 @@ export default function CommunicationsComposePage() {
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400"
                     />
                     <p className="text-[10px] text-slate-500 mt-1">
-                      Enter one address per line, or separate addresses with commas. These recipients are included only in this operational email.
+                      {kind === "promotional"
+                        ? "Paste one address per line, or separate addresses with commas. Preview excludes suppressed, duplicate, invalid, and previously sent addresses."
+                        : "Enter one address per line, or separate addresses with commas. These recipients are included only in this operational email."}
                     </p>
+                    {kind === "promotional" && (
+                      <label className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={marketingConsentConfirmed}
+                          onChange={event => setMarketingConsentConfirmed(event.target.checked)}
+                          className="mt-0.5 rounded border-amber-400"
+                        />
+                        <span>
+                          <strong>Administrator consent override:</strong> I confirm these addresses are from an existing marketing list whose recipients previously consented to promotional email.
+                        </span>
+                      </label>
+                    )}
                   </div>
                 )}
 
@@ -796,7 +820,7 @@ export default function CommunicationsComposePage() {
           <div className="flex-1 overflow-hidden flex flex-col pt-4">
             {previewData && (
               <>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6 shrink-0">
+                <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 mb-6 shrink-0">
                   <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
                     <p className="text-[10px] uppercase font-bold text-emerald-600">Included</p>
                     <p className="text-xl font-bold text-emerald-900">{previewData.counts.included}</p>
@@ -820,6 +844,10 @@ export default function CommunicationsComposePage() {
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <p className="text-[10px] uppercase font-bold text-slate-500">No Consent</p>
                     <p className="text-xl font-bold text-slate-900">{previewData.counts.noConsent}</p>
+                  </div>
+                  <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <p className="text-[10px] uppercase font-bold text-amber-700">Already Sent</p>
+                    <p className="text-xl font-bold text-amber-900">{previewData.counts.alreadySent ?? 0}</p>
                   </div>
                 </div>
                 
