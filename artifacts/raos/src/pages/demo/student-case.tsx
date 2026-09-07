@@ -6,15 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Brain, ShieldCheck, FileText, UserCircle, BookOpen, 
   ChevronRight, CheckCircle2, Lock, Eye, Mail, 
-  Calendar, MessageSquare, GraduationCap, Play
+  Calendar, MessageSquare, GraduationCap, Play, KeyRound, Users
 } from "lucide-react";
 import { GuidedTour, TourStep } from "@/components/guided-tour";
 
+type DemoRole = "parent" | "teacher";
+
 export default function DemoStudentCase() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [tourVisible, setTourVisible] = useState(true);
+  const [tourVisible, setTourVisible] = useState(false);
+  const [demoRole, setDemoRole] = useState<DemoRole | null>(null);
 
-  const steps: TourStep[] = [
+  const parentSteps: TourStep[] = [
     {
       target: "#demo-welcome",
       title: "Welcome to the Portal",
@@ -42,6 +45,90 @@ export default function DemoStudentCase() {
     }
   ];
 
+  const teacherSteps: TourStep[] = [
+    {
+      target: "#demo-welcome",
+      title: "Teacher Post-Debrief Portal",
+      content: "This is the teacher view after the parent has granted access. It turns reviewed assessment findings into practical classroom support without exposing parent-only controls."
+    },
+    {
+      target: "#demo-teacher",
+      title: "Learning Support in Practice",
+      content: "Teachers can review approved strategies and accommodations, then use Ask ReMynd to help differentiate a lesson or assignment using the reviewed case summary."
+    }
+  ];
+
+  const steps = demoRole === "teacher" ? teacherSteps : parentSteps;
+
+  const enterDemo = (role: DemoRole) => {
+    setDemoRole(role);
+    setActiveTab(role === "teacher" ? "teacher" : "overview");
+    setTourVisible(true);
+  };
+
+  if (!demoRole) {
+    return (
+      <div className="min-h-[100dvh] bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 px-4 py-10 flex items-center justify-center">
+        <div className="w-full max-w-4xl">
+          <div className="text-center text-white mb-8">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 mb-5">
+              <KeyRound className="text-cyan-300" size={30} />
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold !text-white">Student Case Portal</h1>
+            <p className="text-slate-300 mt-3">Post-debrief portal demonstration for families and teachers</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {["Forms & Progress Tracking", "Report Download", "Ask ReMynd", "Intervention Tracker", "Learning Support Coach™"].map(feature => (
+                <span key={feature} className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <Card className="border border-cyan-400/20 bg-slate-900/90 text-white shadow-2xl overflow-hidden">
+            <div className="p-6 sm:p-8 border-b border-white/10">
+              <div className="flex items-start gap-4">
+                <div className="rounded-xl bg-cyan-400/10 p-3"><Users className="text-cyan-300" /></div>
+                <div>
+                  <h2 className="text-xl font-semibold !text-white">Choose a demo account</h2>
+                  <p className="text-sm text-slate-400 mt-1">Both accounts use fictional data for Avery Morgan. No email, report, or AI request will be sent.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4 p-6 sm:p-8">
+              <button
+                type="button"
+                onClick={() => enterDemo("parent")}
+                className="text-left rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-cyan-400/50 hover:bg-cyan-400/10 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-300"
+              >
+                <UserCircle className="text-cyan-300 mb-5" size={30} />
+                <h3 className="text-xl font-semibold !text-white">Parent / Guardian Demo</h3>
+                <p className="text-sm text-slate-300 mt-2">Review the completed case, download-ready report area, consent controls, progress history, and family support guidance.</p>
+                <div className="mt-5 text-xs text-slate-400 font-mono">Case ID: DEMO-AVERY · Access: PARENT-DEMO</div>
+                <div className="mt-5 inline-flex items-center text-cyan-300 font-semibold">Sign in as parent <ChevronRight size={17} className="ml-1" /></div>
+              </button>
+              <button
+                type="button"
+                onClick={() => enterDemo("teacher")}
+                className="text-left rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-indigo-400/50 hover:bg-indigo-400/10 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              >
+                <GraduationCap className="text-indigo-300 mb-5" size={30} />
+                <h3 className="text-xl font-semibold !text-white">Teacher Demo</h3>
+                <p className="text-sm text-slate-300 mt-2">See parent-approved report access, classroom strategies, accommodations, Ask ReMynd, and differentiated learning support.</p>
+                <div className="mt-5 text-xs text-slate-400 font-mono">Case ID: DEMO-AVERY · Access: TEACHER-DEMO</div>
+                <div className="mt-5 inline-flex items-center text-indigo-300 font-semibold">Sign in as teacher <ChevronRight size={17} className="ml-1" /></div>
+              </button>
+            </div>
+            <div className="px-6 sm:px-8 pb-7 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+              <span>Read-only promotional environment</span>
+              <Link href="/inquiries"><span className="text-cyan-300 hover:text-cyan-200">Book a live demonstration</span></Link>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col font-sans">
       {/* Top Banner */}
@@ -59,6 +146,13 @@ export default function DemoStudentCase() {
           </Badge>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+          <Button
+            variant="ghost"
+            className="text-slate-300 hover:text-white hover:bg-white/10 px-2 sm:px-4"
+            onClick={() => { setDemoRole(null); setTourVisible(false); }}
+          >
+            Switch account
+          </Button>
           <Button
             variant="ghost"
             className="text-slate-300 hover:text-white hover:bg-white/10 px-2 sm:px-4"
@@ -80,8 +174,8 @@ export default function DemoStudentCase() {
         {/* Left Sidebar */}
         <div className="w-full lg:w-64 shrink-0 space-y-2" id="demo-welcome">
           <div className="mb-8 px-3">
-            <h2 className="text-2xl font-display font-bold text-slate-900">Student Portal</h2>
-            <p className="text-sm text-slate-500 mt-1">Viewing: Avery Morgan</p>
+            <h2 className="text-2xl font-display font-bold text-slate-900">{demoRole === "teacher" ? "Teacher Portal" : "Family Portal"}</h2>
+            <p className="text-sm text-slate-500 mt-1">Post-debrief case: Avery Morgan</p>
           </div>
 
           {[
@@ -90,7 +184,7 @@ export default function DemoStudentCase() {
             { id: "observations", icon: MessageSquare, label: "School Observations", tourId: "demo-observations" },
             { id: "report", icon: Lock, label: "Consents & Report", tourId: "demo-consent" },
             { id: "teacher", icon: GraduationCap, label: "Teacher Preview", tourId: "demo-teacher" },
-          ].map(tab => (
+          ].filter(tab => demoRole === "parent" || tab.id === "teacher").map(tab => (
             <button
               key={tab.id}
               id={tab.tourId}
@@ -116,7 +210,7 @@ export default function DemoStudentCase() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">Welcome back, Jordan</h1>
-                    <p className="text-slate-600 text-lg">Avery's assessment is currently in the <span className="font-semibold text-slate-900">Report Drafting</span> phase.</p>
+                    <p className="text-slate-600 text-lg">Avery's assessment and debrief are <span className="font-semibold text-slate-900">complete</span>. Ongoing family and school support is now active.</p>
                   </div>
                   <div className="h-16 w-16 bg-teal-50 rounded-full flex items-center justify-center border-4 border-teal-100 shrink-0 hidden sm:flex">
                     <UserCircle size={32} className="text-teal-600" />
@@ -407,6 +501,10 @@ export default function DemoStudentCase() {
         isActive={tourVisible} 
         onDismiss={() => setTourVisible(false)} 
         onStepChange={(idx) => {
+          if (demoRole === "teacher") {
+            setActiveTab("teacher");
+            return;
+          }
           if (idx === 0) setActiveTab("overview");
           if (idx === 1) setActiveTab("forms");
           if (idx === 2) setActiveTab("observations");
