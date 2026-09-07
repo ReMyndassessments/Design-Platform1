@@ -1,0 +1,46 @@
+That is a sensible adjustment and directly addresses the only recurring payment-method problem visible in the data.
+
+Your new payment structure is:
+
+* **WeChat Pay:** direct QR code
+* **Alipay:** direct QR code
+* **Credit/debit cards:** Airwallex
+* **Airwallex-hosted WeChat Pay and Alipay:** no longer used
+
+This should eliminate the expired Airwallex WeChat sessions. More importantly, the data shows that every submitted Visa payment succeeded, so Airwallex appears reliable for card payments.
+
+There are still several safeguards I recommend:
+
+1. **Collect contact information before displaying any QR code or opening Airwallex.**
+   Capture the purchaser’s verified email, name, selected product, amount and school or organisation.
+
+2. **Give each purchase a unique payment reference.**
+   Ask customers to include or submit this reference after paying by QR code—for example, `WS-PETE-0907`.
+
+3. **Add an “I have paid” confirmation form beneath each QR code.**
+   Collect:
+
+   * Payment method
+   * Amount paid
+   * Payment date and approximate time
+   * Payer’s WeChat or Alipay name
+   * Transaction/reference number
+   * Screenshot of the payment confirmation
+   * Verified email address
+
+4. **Do not grant access solely because the customer clicks “I have paid.”**
+   Set the registration to `Payment verification pending` until you or an administrator verifies receipt.
+
+5. **Create Airwallex card intents only after the customer selects “Credit or debit card.”**
+   This will dramatically reduce the large number of unused `CREATED` records.
+
+6. **Reuse the same Airwallex intent during card retries.**
+   Page refreshes and repeated clicks should not create additional payment intents.
+
+A clean status sequence for RAOS would be:
+
+`Payment option selected → Payment initiated → Verification pending → Paid → Access granted`
+
+For cards, Airwallex can move the registration automatically to `Paid`. For WeChat Pay and Alipay QR payments, it should remain `Verification pending` until confirmed.
+
+The key remaining weakness is reconciliation: standalone QR-code payments may not automatically tell RAOS which customer or workshop the money belongs to. The unique reference, confirmation form and screenshot upload will solve most of that problem.
