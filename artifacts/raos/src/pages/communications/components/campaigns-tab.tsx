@@ -143,17 +143,22 @@ export function CampaignsTab() {
                   Cancel
                 </button>
               )}
-              {(c.is_test || c.name?.startsWith("[TEST]") || ((c.status === "draft" || c.status === "cancelled") && Number(c.recipient_count || 0) === 0)) ? (
+              {(c.is_test || c.name?.startsWith("[TEST]") || ((c.status === "draft" || c.status === "cancelled") && Number(c.recipient_count || 0) === 0) || (c.status === "failed" && Number(c.sent_count || 0) === 0 && Number(c.delivered_count || 0) === 0)) ? (
                 <button
                   onClick={() => {
-                    if (window.confirm(c.is_test || c.name?.startsWith("[TEST]") ? "Permanently delete this test email and its recipient history?" : "Permanently delete this unsent campaign record?")) {
+                    const message = c.is_test || c.name?.startsWith("[TEST]")
+                      ? "Permanently delete this test email and its recipient history?"
+                      : c.status === "failed"
+                        ? `Permanently delete this failed attempt and all ${Number(c.recipient_count || 0)} queued recipient records? No emails were sent by this attempt.`
+                        : "Permanently delete this unsent campaign record?";
+                    if (window.confirm(message)) {
                       deleteMutation.mutate(c.id);
                     }
                   }}
                   disabled={deleteMutation.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
                 >
-                   <Trash2 size={14} /> {c.is_test || c.name?.startsWith("[TEST]") ? "Delete Test" : "Delete"}
+                   <Trash2 size={14} /> {c.is_test || c.name?.startsWith("[TEST]") ? "Delete Test" : c.status === "failed" ? "Delete Failed Attempt" : "Delete"}
                 </button>
               ) : c.status !== "scheduled" && (
                 <button

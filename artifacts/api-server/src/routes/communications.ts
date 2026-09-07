@@ -375,7 +375,40 @@ router.get("/communications/campaigns/:id/summary", async (req, res) => { const 
 router.post("/communications/campaigns/:id/sync-results", async(req,res): Promise<void>=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}try{const result=await reconcileEmailOctopusCampaign(c.rows[0]);res.json({ok:true,...result});}catch(err){req.log.error({err,campaignId:req.params.id},"EmailOctopus report sync failed");res.status(409).json({error:err instanceof Error?err.message:"Report sync failed"});}});
 router.get("/communications/campaigns/:id", async(req,res)=>{const c=await db.execute(sql`SELECT * FROM communication_campaigns WHERE id=${req.params.id}`);if(!c.rows.length){res.status(404).json({error:"Not found"});return;}const history=await db.execute(sql`SELECT id,email,name,source_type,source_id,status,attempts,provider_message_id,error,sent_at,delivered_at,bounced_at,complained_at,unsubscribed_at,created_at FROM communication_recipients WHERE campaign_id=${req.params.id} ORDER BY created_at`);const summary=await db.execute(sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status IN ('pending','queued'))::int AS queued, COUNT(*) FILTER (WHERE status='sent')::int AS sent, COUNT(*) FILTER (WHERE status='delivered')::int AS delivered, COUNT(*) FILTER (WHERE status='bounced')::int AS bounced, COUNT(*) FILTER (WHERE status='complained')::int AS complained, COUNT(*) FILTER (WHERE status='unsubscribed')::int AS unsubscribed, COUNT(*) FILTER (WHERE status='failed')::int AS failed FROM communication_recipients WHERE campaign_id=${req.params.id}`);res.json({campaign:c.rows[0],summary:summary.rows[0],history:history.rows});});
 router.post("/communications/campaigns/:id/cancel", async(req,res)=>{const r=await db.execute(sql`UPDATE communication_campaigns SET status='cancelled',updated_at=NOW() WHERE id=${req.params.id} AND status='scheduled' RETURNING id`);if(!r.rows.length){res.status(409).json({error:"Only scheduled campaigns can be cancelled"});return;}res.json({ok:true});});
-router.delete("/communications/campaigns/:id", async(req,res): Promise<void>=>{const r=await db.execute(sql`DELETE FROM communication_campaigns WHERE id=${req.params.id} RETURNING id,is_test,status`);if(!r.rows.length){res.status(404).json({error:"Campaign not found"});return;}await writeAudit({eventType:"communications.campaign.deleted",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId:req.params.id,isTest:(r.rows[0] as any).is_test,status:(r.rows[0] as any).status}});res.json({ok:true});});
+router.delete("/communications/campaigns/:id", async (req, res): Promise<void> => {
+  const r = await db.execute(sql`
+    DELETE FROM communication_campaigns c
+    WHERE c.id=${req.params.id}
+      AND (
+        c.is_test=true
+        OR c.name LIKE '[TEST]%'
+        OR (
+          c.status IN ('draft','cancelled','failed')
+          AND NOT EXISTS (
+            SELECT 1 FROM communication_recipients r
+            WHERE r.campaign_id=c.id AND r.status IN ('sent','delivered')
+          )
+        )
+      )
+    RETURNING c.id,c.is_test,c.status
+  `);
+  if (!r.rows.length) {
+    const exists = await db.execute(sql`SELECT id FROM communication_campaigns WHERE id=${req.params.id}`);
+    res.status(exists.rows.length ? 409 : 404).json({
+      error: exists.rows.length
+        ? "Only failed or unsent campaigns with no sent recipients can be permanently deleted"
+        : "Campaign not found",
+    });
+    return;
+  }
+  await writeAudit({
+    eventType: "communications.campaign.deleted",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    metadata: { campaignId: req.params.id, isTest: (r.rows[0] as any).is_test, status: (r.rows[0] as any).status },
+  });
+  res.json({ ok: true });
+});
 router.post("/communications/campaigns/:id/archive", async(req,res): Promise<void>=>{const r=await db.execute(sql`UPDATE communication_campaigns SET archived_at=NOW(),updated_at=NOW() WHERE id=${req.params.id} AND archived_at IS NULL RETURNING id`);if(!r.rows.length){res.status(404).json({error:"Campaign not found"});return;}await writeAudit({eventType:"communications.campaign.archived",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId:req.params.id}});res.json({ok:true});});
 router.post("/communications/direct-send", async(req,res): Promise<void>=>{const {email,subject,html,sourceType,sourceId,name}=req.body??{};const to=String(email??"").trim().toLowerCase();if(!validEmail.test(to)||typeof subject!=="string"||!subject.trim()||typeof html!=="string"||!html.trim()||typeof sourceType!=="string"||!sourceType.trim()||typeof sourceId!=="string"||!sourceId.trim()){res.status(400).json({error:"email, subject, html, sourceType and sourceId are required"});return;}const campaignId=nanoid(),recipientId=nanoid();await db.execute(sql`INSERT INTO communication_campaigns(id,name,subject,html,kind,provider,audience,status,created_by) VALUES(${campaignId},'Direct operational email',${subject.trim()},${sanitizeEmailHtml(html)},'operational','gmail','{}'::jsonb,'sending',${req.userId!})`);await db.execute(sql`INSERT INTO communication_recipients(id,campaign_id,email,name,source_type,source_id,status) VALUES(${recipientId},${campaignId},${to},${typeof name==="string"?name:null},${sourceType},${sourceId},'pending')`);try{const settings=await getBrandSettings();const sent=await getCommunicationsMailer("gmail").send({to,subject:subject.trim(),html:renderBrandedEmail(renderEmail(html,typeof name==="string"?name:null),settings)});await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=1,provider_message_id=${sent.id??null},sent_at=NOW() WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='sent',sent_at=NOW(),updated_at=NOW() WHERE id=${campaignId}`);await writeAudit({eventType:"communications.direct.sent",actorId:req.userId,actorRole:req.userRole,metadata:{campaignId,sourceType,sourceId}});res.status(201).json({id:campaignId,status:"sent"});}catch(err){await db.execute(sql`UPDATE communication_recipients SET status='failed',attempts=1,error=${err instanceof Error?err.message:"Delivery failed"} WHERE id=${recipientId}`);await db.execute(sql`UPDATE communication_campaigns SET status='failed',updated_at=NOW() WHERE id=${campaignId}`);res.status(409).json({error:err instanceof Error?err.message:"Delivery failed",id:campaignId});}});
 router.get("/communications/templates", async (_req,res) => { const r=await db.execute(sql`SELECT id,name,subject,created_at,updated_at FROM communication_templates ORDER BY updated_at DESC`); res.json({templates:r.rows}); });
