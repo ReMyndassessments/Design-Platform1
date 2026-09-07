@@ -104,18 +104,28 @@ export async function createEmailOctopusCampaign(input: EmailOctopusCampaignInpu
   if (!listId) throw new Error("EmailOctopus did not return a campaign audience list ID");
   // API 1.6 supports list contact creation and list-bound campaigns. This is
   // intentionally called only after RAOS has applied its consent/suppression filter.
-  for (const recipient of input.recipients) {
-    try {
-      await emailOctopusRequest(`/lists/${encodeURIComponent(listId)}/contacts`, {
-        email_address: recipient.to, fields: recipient.name ? { FirstName: recipient.name } : {}, status: "SUBSCRIBED",
-      });
-    } catch (error) {
-      // API 1.6 returns a validation/conflict response for an existing contact.
-      // Do not issue an update: that could overwrite fields or re-subscribe a
-      // provider-unsubscribed person. Other provider errors remain fatal.
-      if (!/already|exist|duplicate/i.test(error instanceof Error ? error.message : "")) throw error;
+  // A campaign can contain hundreds of contacts. Sequential requests exceed
+  // the deployment request timeout, while unbounded concurrency risks provider
+  // rate limits. Three workers keep the import comfortably bounded.
+  let nextRecipientIndex = 0;
+  const addContact = async () => {
+    while (nextRecipientIndex < input.recipients.length) {
+      const recipient = input.recipients[nextRecipientIndex++];
+      try {
+        await emailOctopusRequest(`/lists/${encodeURIComponent(listId)}/contacts`, {
+          email_address: recipient.to, fields: recipient.name ? { FirstName: recipient.name } : {}, status: "SUBSCRIBED",
+        });
+      } catch (error) {
+        // API 1.6 returns a validation/conflict response for an existing contact.
+        // Do not issue an update: that could overwrite fields or re-subscribe a
+        // provider-unsubscribed person. Other provider errors remain fatal.
+        if (!/already|exist|duplicate/i.test(error instanceof Error ? error.message : "")) throw error;
+      }
     }
-  }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(3, input.recipients.length) }, () => addContact()),
+  );
   const fromEmail = input.fromEmail || process.env.EMAILOCTOPUS_FROM_EMAIL || process.env.GMAIL_USER;
   if (!fromEmail) throw new Error("EmailOctopus requires EMAILOCTOPUS_FROM_EMAIL (or GMAIL_USER) as a verified sender");
   const campaign = await emailOctopusRequest("/campaigns", {
