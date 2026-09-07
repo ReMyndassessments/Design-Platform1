@@ -36,6 +36,7 @@ import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-pa
 import { AiNotetaker, type Recording as InterviewRecording } from "@/components/AiNotetaker";
 import { InvigilatorNotetakerPanel } from "@/components/InvigilatorNotetakerPanel";
 import { useWatchAlong } from "@/hooks/use-watch-along";
+import { GuidedTour } from "@/components/guided-tour";
 
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
@@ -153,6 +154,33 @@ export default function CaseDetail() {
   const deleteAssignmentMut = useDeleteAssignment();
 
   const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const queryParams = new URLSearchParams(window.location.search);
+  const [tourVisible, setTourVisible] = useState(queryParams.get("tour") === "true");
+
+  const internalTourSteps = [
+    {
+      target: "#tour-header",
+      title: "Clinical Dashboard",
+      content: "Welcome to the ReMynd staff interface. This dashboard centralizes all assessment data, communications, and forms, giving clinical teams high information density at a glance."
+    },
+    {
+      target: "#tour-ai-synthesis",
+      title: "AI Intake Synthesis",
+      content: "ReMynd uses AI to read lengthy referral forms and generate concise recommendations. This removes administrative burden while keeping the human expert firmly in the driver's seat."
+    },
+    {
+      target: "#tour-assignments",
+      title: "Smart Assignments",
+      content: "Build and dispatch specialized assessment packages to parents, teachers, students, and examiners, then track completion from the case workspace."
+    },
+    {
+      target: "#tour-report-access",
+      title: "Drafting & Privacy Controls",
+      content: "Final reports require a dual-approval process (Psychologist & Admin). Once approved, families retain control over who gets to view the report via their own portal."
+    }
+  ];
+
   const stepBackMut = useMutation({
     mutationFn: async () => {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/step-back`, {
@@ -1082,7 +1110,7 @@ export default function CaseDetail() {
               <ArrowLeft size={20} />
             </Button>
           </Link>
-          <div>
+          <div id="tour-header">
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold font-display text-slate-900">{c.studentName}</h1>
               <Badge variant={c.caseStatus === 'active' ? 'success' : 'secondary'} className="capitalize">{c.caseStatus}</Badge>
@@ -1492,24 +1520,26 @@ export default function CaseDetail() {
 
       {/* Report Access Panel — visible to admin from scoring phase onwards */}
       {(role === "admin" || role === "school_clinical_coordinator") && ['scoring', 'report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase) && (
-        <ReportAccessPanel
-          caseId={c.id}
-          studentName={c.studentName ?? undefined}
-          parentEmail={c.parentEmail ?? undefined}
-          currentPhase={c.currentPhase}
-          workingDocUrl={c.workingDocUrl ?? undefined}
-          debriefMeetingUrl={c.debriefMeetingUrl ?? undefined}
-          debriefMeetingDate={c.debriefMeetingDate ?? undefined}
-          bobbyAiPortalCredentials={c.bobbyAiPortalCredentials ?? null}
-          userRole={role}
-          onPhaseAdvanced={() => {
-            queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-            queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
-          }}
-          onCaseUpdated={() => {
-            queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-          }}
-        />
+        <div id="tour-report-access">
+          <ReportAccessPanel
+            caseId={c.id}
+            studentName={c.studentName ?? undefined}
+            parentEmail={c.parentEmail ?? undefined}
+            currentPhase={c.currentPhase}
+            workingDocUrl={c.workingDocUrl ?? undefined}
+            debriefMeetingUrl={c.debriefMeetingUrl ?? undefined}
+            debriefMeetingDate={c.debriefMeetingDate ?? undefined}
+            bobbyAiPortalCredentials={c.bobbyAiPortalCredentials ?? null}
+            userRole={role}
+            onPhaseAdvanced={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+              queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
+            }}
+            onCaseUpdated={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+            }}
+          />
+        </div>
       )}
 
       {/* Invigilator full-width panel — assessment phase only */}
@@ -1849,7 +1879,7 @@ export default function CaseDetail() {
           const INTAKE_TOOL_IDS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"]];
           const intakeFormsComplete = INTAKE_TOOL_IDS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
           return (
-            <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100">
+            <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100" id="tour-ai-synthesis">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-lg flex items-center text-blue-900 gap-2">
@@ -2319,7 +2349,7 @@ export default function CaseDetail() {
 
         {/* Assignments — hidden from report stage onwards */}
         {!hideAssignments && (
-          <Card className="border-none shadow-md">
+          <Card className="border-none shadow-md" id="tour-assignments">
             <CardHeader className="flex flex-row justify-between items-center border-b bg-slate-50/50 pb-4">
               <CardTitle className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold shrink-0">3</span>
@@ -3398,6 +3428,7 @@ export default function CaseDetail() {
           />
         )}
       </Dialog>
+      <GuidedTour steps={internalTourSteps} isActive={tourVisible} onDismiss={() => setTourVisible(false)} />
     </div>
   );
 }

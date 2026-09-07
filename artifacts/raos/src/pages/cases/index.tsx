@@ -1,19 +1,35 @@
 import { useState } from "react";
-import { useListCases, useGetCurrentUser } from "@workspace/api-client-react";
-import { Link } from "wouter";
+import { useListCases, useGetCurrentUser, useRestorePromotionalDemoCase } from "@workspace/api-client-react";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
-import { Plus, Search, Filter, Package } from "lucide-react";
+import { Plus, Search, Filter, Package, Play } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CasesList() {
   const [searchTerm, setSearchTerm] = useState("");
   const { data: cases, isLoading } = useListCases();
   const { data: currentUser } = useGetCurrentUser();
-  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator";
+  const canCreateCase = currentUser?.role === "admin" || currentUser?.role === "school_clinical_coordinator";
+  const isAdmin = currentUser?.role === "admin";
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const restoreDemo = useRestorePromotionalDemoCase();
+
+  const handleGenerateDemo = () => {
+    restoreDemo.mutate(undefined, {
+      onSuccess: (data) => setLocation(`/cases/${data.id}?tour=true`),
+      onError: () => toast({
+        title: "Demo case unavailable",
+        description: "The promotional demo case could not be restored. Please try again.",
+        variant: "destructive",
+      }),
+    });
+  };
 
   const filteredCases = cases?.filter(c => 
     c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -45,12 +61,29 @@ export default function CasesList() {
           <h1 className="text-3xl font-bold font-display text-slate-900">Cases</h1>
           <p className="text-slate-500 mt-1">Manage and track all assessment cases</p>
         </div>
-        {isAdmin && (
-          <Link href="/cases/new">
-            <Button className="shrink-0 shadow-lg shadow-primary/25">
-              <Plus size={18} className="mr-2" /> New Case
-            </Button>
-          </Link>
+        {canCreateCase && (
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="shrink-0 bg-white"
+                onClick={handleGenerateDemo}
+                disabled={restoreDemo.isPending}
+              >
+                {restoreDemo.isPending ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2" />
+                ) : (
+                  <Play size={18} className="mr-2 text-primary fill-primary/20" />
+                )}
+                Guided Demo
+              </Button>
+            )}
+            <Link href="/cases/new">
+              <Button className="shrink-0 shadow-lg shadow-primary/25">
+                <Plus size={18} className="mr-2" /> New Case
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 

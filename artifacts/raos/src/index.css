@@ -145,6 +145,17 @@
   @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
 }
 
+/* ── Guided Tour ─────────────────────────────────────────────────────────── */
+[data-tour-highlight="true"] {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 4px;
+  border-radius: inherit;
+  position: relative;
+  z-index: 50;
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  transition: all 0.3s ease;
+}
+
 /* ── Print / PDF styles ──────────────────────────────────────────────────── */
 .print-only { display: none; }
 

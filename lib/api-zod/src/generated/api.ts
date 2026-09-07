@@ -86,6 +86,49 @@ export const CreateCaseBody = zod.object({
 });
 
 /**
+ * Admin-only. Atomically creates or resets the single fictional test-mode promotional case. It does not create recipients, send messages, or invoke AI.
+ * @summary Restore the fixed synthetic promotional walkthrough case
+ */
+export const restorePromotionalDemoCaseResponseProgressPercentageMin = 0;
+export const restorePromotionalDemoCaseResponseProgressPercentageMax = 100;
+
+export const RestorePromotionalDemoCaseResponse = zod.object({
+  id: zod.string(),
+  studentName: zod.string(),
+  dob: zod.string(),
+  school: zod.string(),
+  grade: zod.string().optional(),
+  languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
+  referralReason: zod.string().optional(),
+  caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+  caseMode: zod.enum(["live", "test"]).optional(),
+  currentPhase: zod.enum([
+    "pre_commitment",
+    "intake",
+    "setup",
+    "forms",
+    "assessment",
+    "scoring",
+    "report",
+    "debrief",
+    "complete",
+  ]),
+  progressPercentage: zod
+    .number()
+    .min(restorePromotionalDemoCaseResponseProgressPercentageMin)
+    .max(restorePromotionalDemoCaseResponseProgressPercentageMax),
+  riskLevel: zod.enum(["low", "moderate", "high"]).nullish(),
+  assignedLeadId: zod.string().nullish(),
+  assignedPsychId: zod.string().nullish(),
+  parentName: zod.string().nullish(),
+  parentEmail: zod.string().nullish(),
+  parentPhone: zod.string().nullish(),
+  consentObtained: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
  * @summary Get case details
  */
 export const GetCaseParams = zod.object({

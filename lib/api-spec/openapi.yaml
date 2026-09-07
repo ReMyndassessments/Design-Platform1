@@ -84,6 +84,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/Case"
 
+  /cases/promotional-demo:
+    post:
+      operationId: restorePromotionalDemoCase
+      tags: [cases]
+      summary: Restore the fixed synthetic promotional walkthrough case
+      description: Admin-only. Atomically creates or resets the single fictional test-mode promotional case. It does not create recipients, send messages, or invoke AI.
+      responses:
+        "200":
+          description: Promotional demo case restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "403":
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /cases/{caseId}:
     get:
       operationId: getCase

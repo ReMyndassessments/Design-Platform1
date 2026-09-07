@@ -322,6 +322,88 @@ export const useCreateCase = <
 };
 
 /**
+ * Admin-only. Atomically creates or resets the single fictional test-mode promotional case. It does not create recipients, send messages, or invoke AI.
+ * @summary Restore the fixed synthetic promotional walkthrough case
+ */
+export const getRestorePromotionalDemoCaseUrl = () => {
+  return `/api/cases/promotional-demo`;
+};
+
+export const restorePromotionalDemoCase = async (
+  options?: RequestInit,
+): Promise<Case> => {
+  return customFetch<Case>(getRestorePromotionalDemoCaseUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestorePromotionalDemoCaseMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restorePromotionalDemoCase>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restorePromotionalDemoCase>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["restorePromotionalDemoCase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restorePromotionalDemoCase>>,
+    void
+  > = () => {
+    return restorePromotionalDemoCase(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestorePromotionalDemoCaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restorePromotionalDemoCase>>
+>;
+
+export type RestorePromotionalDemoCaseMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Restore the fixed synthetic promotional walkthrough case
+ */
+export const useRestorePromotionalDemoCase = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restorePromotionalDemoCase>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restorePromotionalDemoCase>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRestorePromotionalDemoCaseMutationOptions(options));
+};
+
+/**
  * @summary Get case details
  */
 export const getGetCaseUrl = (caseId: string) => {

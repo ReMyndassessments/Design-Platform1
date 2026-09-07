@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
@@ -102,6 +103,72 @@ function buildAssessmentInviteEmail(lang: "en" | "zh" | "ko", studentName: strin
 }
 
 const router = Router();
+
+const promotionalDemoCase = {
+  id: PROMOTIONAL_DEMO_CASE_ID,
+  studentName: "Avery Morgan (Fictional Demo)",
+  dob: "2012-04-18",
+  school: "Northstar Demonstration Academy",
+  grade: "Year 7",
+  languagePreference: "english" as const,
+  referralReason: "Fictional walkthrough referral: uneven classroom engagement, organisation, and reading fluency.",
+  parentName: "Jordan Morgan (Fictional)",
+  parentEmail: "jordan.morgan@example.test",
+  parentPhone: "+1 555 010 0247",
+  caseStatus: "active" as const,
+  caseMode: "test" as const,
+  currentPhase: "debrief" as const,
+  progressPercentage: 100,
+  riskLevel: "low" as const,
+  assignedLeadId: null,
+  assignedPsychId: null,
+  consentObtained: true,
+  workingDocUrl: null,
+  adminApprovedReport: true,
+  psychApprovedReport: true,
+  customMeetingUrl: null,
+  moderatorMeetingUrl: null,
+  assessmentMeetingDate: "Demo schedule — 14 May 2025, 10:00",
+  debriefMeetingUrl: null,
+  debriefMeetingDate: "Demo schedule — 21 May 2025, 15:30",
+  bobbyAiPortalCredentials: null,
+  bobbyAiCaseId: null,
+  productIds: [] as string[],
+  parentInterviewNotes: "SYNTHETIC DEMO ONLY — Jordan describes Avery as imaginative and verbally engaged at home. The family notices that multi-step homework can take longer than expected, especially when reading-heavy. They value practical school strategies and a collaborative feedback meeting.",
+  debriefNotes: "SYNTHETIC DEMO ONLY — Walkthrough debrief: share strengths first (curiosity, oral reasoning, persistence with support), then discuss the fictional pattern of reading-efficiency and executive-function demands. Agree on a six-week classroom support trial, a home planning routine, and a review date. This is not a clinical conclusion or a real student plan.",
+  intakeData: {
+    demoNotice: "Entirely fictional promotional walkthrough data. Do not use for clinical decisions.",
+    referral: {
+      submittedBy: "Priya Shah (Fictional), Learning Support Coordinator",
+      referralDate: "2025-04-28",
+      concerns: ["Reading fluency varies with task length", "Written work may be incomplete without a planning scaffold", "Attention can drift during lengthy independent tasks"],
+      strengths: ["Curious questions", "Strong verbal contributions", "Positive peer relationships", "Responds well to visual routines"],
+      schoolContext: "Fictional Year 7 classroom; no real school, child, family, or contact is represented.",
+    },
+    developmentalAndFamilyContext: {
+      parentPerspective: "Fictional family report notes enjoyment of design projects, science podcasts, and collaborative activities.",
+      supportsAlreadyTried: ["Chunked instructions", "Weekly planner check-in", "Preferential seating during independent reading"],
+      wellbeing: "No acute wellbeing or safeguarding concern reported in this synthetic scenario.",
+    },
+    intakeSummary: {
+      goals: ["Clarify learning profile", "Identify immediately usable classroom supports", "Plan a strengths-based debrief"],
+      preferredCommunication: "Plain-language written summary followed by a collaborative meeting",
+    },
+  },
+  intakeAnalysis: {
+    source: "Curated promotional demo content — no AI was invoked.",
+    summary: "Fictional walkthrough profile showing how referral context, intake themes, and a debrief plan can be held in one RAOS case.",
+    strengths: ["Verbal reasoning and curiosity", "Peer collaboration", "Persistence when tasks are structured"],
+    focusAreas: ["Reading efficiency for long passages", "Task initiation and sequencing", "Independent work stamina"],
+    suggestedDiscussionPoints: [
+      "Use a visible start–plan–check routine for multi-step work.",
+      "Offer short reading segments and confirm the task goal before independent work.",
+      "Review the support trial with family and school after six weeks.",
+    ],
+    disclaimer: "Demonstration content only; it is not assessment, diagnosis, or advice for a real person.",
+  },
+};
+const { id: _promotionalDemoCaseId, ...promotionalDemoCaseValues } = promotionalDemoCase;
 
 const PHASE_PROGRESS: Record<string, number> = {
   pre_commitment: 5,
@@ -291,6 +358,45 @@ router.post("/cases", authMiddleware, async (req, res) => {
   }
 
   res.status(201).json(formatCase(newCase[0]));
+});
+
+// Admin-only, idempotent promotional case setup. This intentionally creates no
+// assignments, invites, portal recipients, messages, or AI work.
+router.post("/cases/promotional-demo", authMiddleware, async (req, res) => {
+  if (req.userRole !== "admin" || req.actualUserRole === "clinical_apprentice") {
+    res.status(403).json({ error: "forbidden", message: "Only administrators can restore the promotional demo case" });
+    return;
+  }
+
+  const demoCase = await db.transaction(async (tx) => {
+    const now = new Date();
+    // A prior walkthrough may have added disposable form data. Clear only
+    // records tied to this fixed demo ID before restoring the case itself.
+    const demoAssignments = await tx.select({ id: assignmentsTable.id })
+      .from(assignmentsTable)
+      .where(eq(assignmentsTable.caseId, PROMOTIONAL_DEMO_CASE_ID));
+    if (demoAssignments.length > 0) {
+      await tx.delete(responsesTable)
+        .where(inArray(responsesTable.assignmentId, demoAssignments.map(a => a.id)));
+    }
+    await tx.delete(assignmentsTable)
+      .where(eq(assignmentsTable.caseId, PROMOTIONAL_DEMO_CASE_ID));
+    await tx.delete(scoresTable)
+      .where(eq(scoresTable.caseId, PROMOTIONAL_DEMO_CASE_ID));
+    await tx.delete(referralInvitesTable)
+      .where(eq(referralInvitesTable.resultingCaseId, PROMOTIONAL_DEMO_CASE_ID));
+
+    const rows = await tx.insert(casesTable)
+      .values({ ...promotionalDemoCase, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: casesTable.id,
+        set: { ...promotionalDemoCaseValues, updatedAt: now },
+      })
+      .returning();
+    return rows[0];
+  });
+
+  res.json(formatCase(demoCase));
 });
 
 router.get("/cases/:caseId", authMiddleware, async (req, res) => {
@@ -609,6 +715,11 @@ router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
     return;
   }
   const isInvigilator = req.userRole === "assessment_invigilator";
+  if (rows[0].id === PROMOTIONAL_DEMO_CASE_ID &&
+      (req.userRole !== "admin" || req.actualUserRole === "clinical_apprentice")) {
+    res.status(403).json({ error: "forbidden", message: "Only administrators can delete the promotional demo case" });
+    return;
+  }
   const isDemoCase = rows[0].caseMode === "test" || rows[0].studentName === "Demo Student";
   if (!isAdminLike(req.userRole) && !(isInvigilator && isDemoCase)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can delete live cases" });

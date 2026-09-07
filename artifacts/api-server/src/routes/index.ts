@@ -29,9 +29,11 @@ import publicPolicyRouter from "./public-policy";
 import communicationsRouter from "./communications";
 import { denyApprentice } from "../middlewares/denyApprentice.js";
 import { apprenticeGuard } from "../middlewares/apprenticeGuard.js";
+import { promotionalDemoReadOnly } from "../middlewares/promotionalDemoReadOnly.js";
 
 const router: IRouter = Router();
 
+router.use(promotionalDemoReadOnly);
 router.use(healthRouter);
 router.use(usersRouter);
 router.use(apprenticesRouter);
