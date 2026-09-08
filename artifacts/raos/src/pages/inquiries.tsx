@@ -164,15 +164,30 @@ export default function InquiriesPage() {
   );
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    mutationFn: ({ id, status, paymentConfirmed }: { id: string; status: string; paymentConfirmed?: boolean }) =>
       customFetch(id.startsWith("wms_") ? `/api/training/workshops/manual-sales-inquiries/${id}/status` : `/api/portal/inquiries/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(paymentConfirmed ? { paymentConfirmed: true } : {}) }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
       qc.invalidateQueries({ queryKey: ["workshop-sales-inquiries"] });
+      if (variables.id.startsWith("wms_") && variables.status === "converted") {
+        qc.invalidateQueries({ queryKey: ["workshop-registrations"] });
+        qc.invalidateQueries({ queryKey: ["workshops"] });
+        toast({
+          title: "Paid attendee added",
+          description: "The attendee is now registered and included in the workshop roster.",
+        });
+      }
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Could not update inquiry",
+        description: err?.message ?? "Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -487,6 +502,14 @@ export default function InquiriesPage() {
                     <Select
                       value={inq.status}
                       onValueChange={(val) => {
+                        if (inq.inquiryType === "workshop_sales" && val === "converted") {
+                          const confirmed = window.confirm(
+                            "Confirm that this workshop payment has been received. This will add the person to the paid attendee roster and send their registration confirmation."
+                          );
+                          if (!confirmed) return;
+                          updateStatus.mutate({ id: inq.id, status: val, paymentConfirmed: true });
+                          return;
+                        }
                         updateStatus.mutate({ id: inq.id, status: val });
                       }}
                     >

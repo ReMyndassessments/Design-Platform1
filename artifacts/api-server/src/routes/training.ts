@@ -1014,10 +1014,86 @@ router.get("/training/workshops/manual-sales-inquiries", authMiddleware, require
 
 router.patch("/training/workshops/manual-sales-inquiries/:id/status", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, paymentConfirmed } = req.body;
     if (!["new", "contacted", "converted", "closed"].includes(status)) return res.status(400).json({ error: "Invalid status" });
-    await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET status = ${status}, updated_at = NOW() WHERE id = ${req.params.id} AND submitted_at IS NOT NULL`);
-    return res.json({ ok: true });
+    if (status !== "converted") {
+      await db.execute(sql`UPDATE workshop_manual_sales_inquiries SET status = ${status}, updated_at = NOW() WHERE id = ${req.params.id} AND submitted_at IS NOT NULL`);
+      return res.json({ ok: true });
+    }
+    if (paymentConfirmed !== true) {
+      return res.status(400).json({ error: "Confirm that payment was received before adding this person to the attendee roster" });
+    }
+
+    const inquiryResult = await db.execute(sql`
+      SELECT i.*, w.title, w.session_dates, w.timezone, w.contact_email
+      FROM workshop_manual_sales_inquiries i
+      JOIN workshops w ON w.id = i.workshop_id
+      WHERE i.id = ${req.params.id} AND i.submitted_at IS NOT NULL
+      LIMIT 1
+    `);
+    if (!inquiryResult.rows.length) return res.status(404).json({ error: "Workshop inquiry not found" });
+    const inquiry = inquiryResult.rows[0] as any;
+
+    const existingResult = await db.execute(sql`
+      SELECT id, confirmation_email_status
+      FROM workshop_registrations
+      WHERE workshop_id = ${inquiry.workshop_id} AND lower(email) = lower(${inquiry.email})
+      LIMIT 1
+    `);
+    const existing = existingResult.rows[0] as any;
+    const registrationId = existing?.id ?? nanoid();
+
+    if (existing) {
+      await db.execute(sql`
+        UPDATE workshop_registrations
+        SET payment_status = 'paid', status = 'registered', updated_at = NOW()
+        WHERE id = ${registrationId}
+      `);
+    } else {
+      await db.execute(sql`INSERT INTO workshop_registrations
+        (id, workshop_id, first_name, last_name, email, job_title, professional_role,
+         school_name, city, country, phone, school_type, school_size, areas_of_interest,
+         school_support_challenge, interested_future_learning, interested_school_training,
+         interested_assessment_services, interested_partner_school, training_only,
+         marketing_consent, marketing_consent_timestamp, privacy_consent,
+         privacy_consent_timestamp, payment_status, status, created_at, updated_at)
+        VALUES (${registrationId}, ${inquiry.workshop_id}, ${inquiry.first_name}, ${inquiry.last_name},
+          ${inquiry.email}, ${inquiry.job_title}, ${inquiry.professional_role}, ${inquiry.school_name},
+          ${inquiry.city}, ${inquiry.country}, ${inquiry.phone}, ${inquiry.school_type},
+          ${inquiry.school_size}, ${JSON.stringify(inquiry.areas_of_interest ?? [])}::jsonb,
+          ${inquiry.school_support_challenge}, ${!!inquiry.interested_future_learning},
+          ${!!inquiry.interested_school_training}, ${!!inquiry.interested_assessment_services},
+          ${!!inquiry.interested_partner_school}, ${!!inquiry.training_only},
+          ${!!inquiry.marketing_consent}, ${inquiry.marketing_consent ? sql`NOW()` : null},
+          TRUE, COALESCE(${inquiry.verified_at}, NOW()), 'paid', 'registered', NOW(), NOW())`);
+    }
+
+    await db.execute(sql`
+      UPDATE workshop_manual_sales_inquiries
+      SET status = 'converted', payment_status = 'paid', updated_at = NOW()
+      WHERE id = ${inquiry.id}
+    `);
+
+    if (!existing || existing.confirmation_email_status !== "sent") {
+      try {
+        await sendWorkshopConfirmation(
+          { id: registrationId, first_name: inquiry.first_name, last_name: inquiry.last_name, email: inquiry.email },
+          inquiry,
+        );
+        await db.execute(sql`
+          UPDATE workshop_registrations
+          SET confirmation_email_status = 'sent', confirmation_email_sent_at = NOW()
+          WHERE id = ${registrationId}
+        `);
+      } catch (emailError) {
+        logger.error({ err: emailError, registrationId }, "Converted workshop attendee confirmation email failed");
+        await db.execute(sql`
+          UPDATE workshop_registrations SET confirmation_email_status = 'failed' WHERE id = ${registrationId}
+        `).catch(() => {});
+      }
+    }
+
+    return res.json({ ok: true, registrationId, attendeeCreated: !existing });
   } catch (err) {
     logger.error({ err }, "Failed to update manual workshop-sales inquiry");
     return res.status(500).json({ error: "Failed" });
