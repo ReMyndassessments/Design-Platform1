@@ -931,11 +931,20 @@ router.post("/external/form/:token/submit", async (req, res) => {
 async function getCaseFromPortalToken(token: string): Promise<{ caseId: string; role: string } | null> {
   const [assignment] = await db.select({ caseId: assignmentsTable.caseId, respondentType: assignmentsTable.respondentType })
     .from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, token)).limit(1);
-  if (assignment) return { caseId: assignment.caseId, role: assignment.respondentType ?? "parent" };
-  const [tok] = await db.select({ caseId: reportTokensTable.caseId, role: reportTokensTable.role })
-    .from(reportTokensTable).where(eq(reportTokensTable.token, token)).limit(1);
-  if (tok) return { caseId: tok.caseId, role: tok.role };
-  return null;
+  const tokenMatch = assignment
+    ? { caseId: assignment.caseId, role: assignment.respondentType ?? "parent" }
+    : await (async () => {
+        const [tok] = await db.select({ caseId: reportTokensTable.caseId, role: reportTokensTable.role })
+          .from(reportTokensTable).where(eq(reportTokensTable.token, token)).limit(1);
+        return tok ? { caseId: tok.caseId, role: tok.role } : null;
+      })();
+  if (!tokenMatch) return null;
+
+  const [casePhase] = await db.select({ currentPhase: casesTable.currentPhase })
+    .from(casesTable).where(eq(casesTable.id, tokenMatch.caseId)).limit(1);
+  if (casePhase?.currentPhase !== "complete") return null;
+
+  return tokenMatch;
 }
 
 async function callDeepSeekChat(systemPrompt: string, messages: Array<{ role: string; content: string }>, maxTokens = 1200): Promise<string> {

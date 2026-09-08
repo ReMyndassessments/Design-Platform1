@@ -1003,6 +1003,7 @@ function PortalView({
   const allDone = pendingCount === 0;
   const ADMIN_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
   const adminFormsAllDone = portal.forms.filter(f => ADMIN_TOOL_IDS.has(f.toolId)).every(f => f.status === "completed");
+  const postDebriefFeaturesAvailable = portal.currentPhase === "complete";
 
   // Report download state
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -1873,7 +1874,7 @@ function PortalView({
         })()}
 
         {/* AI Chat Panel */}
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-sm overflow-hidden">
+        {postDebriefFeaturesAvailable && (<div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 shadow-sm overflow-hidden">
             {!chatOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-indigo-100/50 transition-colors"
@@ -2037,10 +2038,10 @@ function PortalView({
                 </div>
               </div>
             )}
-          </div>
+          </div>)}
 
         {/* Learning Support Coach™ — hidden permanently once dismissed */}
-        {<div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
+        {postDebriefFeaturesAvailable && <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm overflow-hidden">
             {!lscOpen ? (
               <button
                 className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-emerald-100/50 transition-colors"
@@ -2420,7 +2421,7 @@ function PortalView({
           </div>}
 
         {/* LSC Inquiry Modal */}
-        {lscInquiryOpen && (
+        {postDebriefFeaturesAvailable && lscInquiryOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0" onClick={() => setLscInquiryOpen(false)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
               <button
