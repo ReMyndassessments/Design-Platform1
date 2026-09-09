@@ -4726,11 +4726,16 @@ Suitable for primary and secondary teachers, teaching assistants, pastoral and w
         1.5,
         '2027-01-06T10:00:00Z'::timestamptz,
         FALSE,
-        79,
+        49,
         'USD',
         'published'
       )
       ON CONFLICT (slug) DO NOTHING
+    `);
+    await db.execute(sql`
+      UPDATE workshops
+      SET price = 49, updated_at = NOW()
+      WHERE slug = 'nice-try' AND price = 79
     `);
 
     logger.info("Workshop tables ready");
