@@ -276,13 +276,15 @@ function Hero({ onRegister, onBringSeries }: { onRegister: () => void; onBringSe
       {/* Nav bar */}
       <nav className="relative border-b border-white/10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-white font-bold text-base tracking-tight">ReMynd</span>
-            <span className="text-teal-400 text-[10px] font-semibold tracking-widest uppercase">Student Services</span>
-          </div>
+          <a href="https://remyndassessments.com" className="flex items-center gap-3" aria-label="ReMynd Student Services home">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src="/images/remynd-logo-new.png" alt="" className="w-10 h-10 object-cover" />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-white font-bold text-base tracking-tight">ReMynd</span>
+              <span className="text-teal-400 text-[10px] font-semibold tracking-widest uppercase">Student Services</span>
+            </div>
+          </a>
           <div className="ml-auto">
             <button
               onClick={onRegister}
@@ -1063,8 +1065,8 @@ function Footer({ onRegister }: { onRegister: () => void }) {
     <footer className="bg-slate-900 text-white py-12">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+          <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/images/remynd-logo-new.png" alt="" className="w-9 h-9 object-cover" />
           </div>
           <span className="font-bold text-base tracking-tight">ReMynd Student Services</span>
         </div>
@@ -1074,7 +1076,7 @@ function Footer({ onRegister }: { onRegister: () => void }) {
         </button>
         <p className="text-xs text-slate-500">
           © {new Date().getFullYear()} ReMynd Student Services. All rights reserved. ·{" "}
-          <a href="/" className="hover:text-slate-300 underline underline-offset-2">remyndassessments.com</a>
+          <a href="https://remyndassessments.com" className="hover:text-slate-300 underline underline-offset-2">remyndassessments.com</a>
         </p>
       </div>
     </footer>
