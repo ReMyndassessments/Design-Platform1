@@ -14,7 +14,7 @@ import { useParams } from "wouter";
 import {
   Calendar, Clock, MapPin, Monitor, Award, DollarSign,
   Users, Mail, Phone, User, Building2, Globe, Check,
-  ChevronRight, AlertCircle, Loader2, Wifi,
+  ChevronRight, ArrowLeft, AlertCircle, Loader2, Wifi,
 } from "lucide-react";
 
 declare global {
@@ -374,15 +374,23 @@ export default function WorkshopPublicPage() {
   return (
     <div className="min-h-screen bg-[#fdf8f0]">
       {/* Nav */}
-      <nav className="bg-[#0c1a2e] px-6 py-3.5 flex items-center gap-3">
+      <nav className="bg-[#0c1a2e] px-4 sm:px-6 py-3.5 flex items-center gap-3">
         <a href="/training" className="flex items-center gap-2.5 group" aria-label="ReMynd Training and Workshops">
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <img src="/images/remynd-logo.png" alt="" className="w-7 h-7 object-contain" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+            <img src="/images/remynd-logo-new.png" alt="" className="w-10 h-10 object-cover" />
           </div>
           <span className="font-bold text-white text-base tracking-tight">ReMynd</span>
         </a>
         <ChevronRight size={14} className="text-slate-500" />
-        <span className="text-slate-400 text-sm truncate">Training & Workshops</span>
+        <span className="hidden sm:block text-slate-400 text-sm truncate">Training & Workshops</span>
+        <a
+          href="/training"
+          className="ml-auto inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-white/20"
+        >
+          <ArrowLeft size={15} />
+          <span className="hidden sm:inline">Back to all workshops</span>
+          <span className="sm:hidden">Back</span>
+        </a>
       </nav>
 
       {/* Hero */}
