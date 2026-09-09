@@ -4670,6 +4670,69 @@ async function createWorkshopTables() {
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'follow_up_required'`);
 
+    await db.execute(sql`
+      INSERT INTO workshops (
+        id, slug, title, subtitle, description, additional_info, image_alt,
+        session_dates, timezone, delivery_method, pl_hours, registration_closes_at,
+        is_free, price, currency, status
+      ) VALUES (
+        'workshop-nice-try-2027',
+        'nice-try',
+        'Nice Try!',
+        'Turning Classroom Mischief into Moments of Meaning',
+        ${`Students regularly experiment with clever, frustrating, funny—and occasionally audacious—ways to avoid work, test limits, gain attention, save face, influence peers, or negotiate classroom expectations.
+
+Nice Try! is a practical, engaging professional-learning workshop that helps teachers respond effectively to everyday avoidance, deflection, negotiation, boundary-testing, and creative reinterpretations of classroom expectations.
+
+Participants learn to manage behaviour without being drawn into unnecessary arguments, public contests, prolonged negotiations, or counterproductive power struggles. These moments are reframed as developmental crossroads: opportunities to help students examine decisions, understand impact, accept responsibility, and develop more mature ways of exercising agency.
+
+The goal is not simply to catch the student or win the exchange. It is to stop what is not working, understand what the student may be trying to accomplish, preserve the relationship and learning environment, and help the student author a better next move.`},
+        ${`## The C.A.T.C.H. Response Framework
+
+**C — Contain the Moment**
+Protect safety, dignity, instruction, and classroom momentum.
+
+**A — Acknowledge Without Surrendering**
+Recognise the student's perspective without abandoning the expectation.
+
+**T — Track the Strategy**
+Consider what the behaviour may be helping the student obtain, avoid, protect, or communicate.
+
+**C — Create the Crossroads**
+Help the student recognise that this is a decision point, not merely an occasion on which they have been caught.
+
+**H — Hand Authorship Back**
+Return appropriate responsibility and help the student identify a more constructive next move.
+
+## What Participants Will Learn
+
+- Recognise common forms of avoidance, deflection, negotiation, and boundary-testing.
+- Preserve classroom momentum while addressing disruptive behaviour.
+- Distinguish deliberate avoidance from confusion, anxiety, missing skills, or legitimate need.
+- Maintain clear expectations without publicly humiliating students.
+- Use concise language that preserves both authority and connection.
+- Turn selected incidents into lessons about judgment, integrity, responsibility, influence, and repair.
+- Return responsibility to students in developmentally appropriate ways.
+
+## Workshop Experience
+
+The session combines humour and recognisable classroom stories, practical teacher language, scenario-based discussion, response rehearsal, and immediate classroom application.
+
+Suitable for primary and secondary teachers, teaching assistants, pastoral and wellbeing staff, counsellors, learning-support teams, school leaders, and behaviour or student-support teams.`},
+        'Nice Try! professional learning workshop for teachers',
+        '[{"date":"2027-01-06","start_time":"19:00","end_time":"20:30"}]'::jsonb,
+        'Asia/Hong_Kong',
+        'online',
+        1.5,
+        '2027-01-06T10:00:00Z'::timestamptz,
+        FALSE,
+        79,
+        'USD',
+        'published'
+      )
+      ON CONFLICT (slug) DO NOTHING
+    `);
+
     logger.info("Workshop tables ready");
   } catch (err) {
     logger.error({ err }, "createWorkshopTables failed");

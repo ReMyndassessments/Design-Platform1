@@ -350,7 +350,9 @@ export default function WorkshopPublicPage() {
 
   const imageUrl = workshop.image_object_id
     ? `${getBaseUrl()}/api/training/workshops/public/${slug}/image`
-    : null;
+    : slug === "nice-try"
+      ? `${getBaseUrl()}/images/nice-try-workshop.png`
+      : null;
 
   const priceStr = workshop.is_free
     ? "Free"
@@ -374,11 +376,11 @@ export default function WorkshopPublicPage() {
       {/* Hero */}
       {/* Flyer image — shown prominently when present */}
       {imageUrl && (
-        <div className="w-full bg-[#0c1a2e]">
+        <div className={`w-full bg-[#0c1a2e] ${slug === "nice-try" ? "px-4 py-6 md:py-10" : ""}`}>
           <img
             src={imageUrl}
             alt={workshop.image_alt ?? workshop.title}
-            className="w-full max-h-[520px] object-contain object-top"
+            className={`w-full object-contain object-top ${slug === "nice-try" ? "max-w-3xl max-h-[780px] mx-auto rounded-2xl shadow-2xl shadow-black/30" : "max-h-[520px]"}`}
           />
         </div>
       )}
