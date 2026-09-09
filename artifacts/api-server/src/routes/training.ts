@@ -549,6 +549,23 @@ async function sendWorkshopConfirmation(reg: { id: string; first_name: string; l
 }
 
 // ── PUBLIC: Workshop image proxy ──────────────────────────────────────────────
+router.get("/training/workshops/:id/admin-image", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT image_object_id FROM workshops WHERE id = ${req.params.id}`);
+    if (!result.rows.length || !(result.rows[0] as any).image_object_id) return res.status(404).end();
+    const objectId = (result.rows[0] as any).image_object_id;
+    const { ObjectStorageService } = await import("../lib/objectStorage.js");
+    const service = new ObjectStorageService();
+    const file = await service.getObjectEntityFile(objectId);
+    const upstream = await service.downloadObject(file);
+    res.setHeader("Content-Type", upstream.headers.get("content-type") ?? "image/jpeg");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.end(Buffer.from(await upstream.arrayBuffer()));
+  } catch {
+    res.status(404).end();
+  }
+});
+
 router.get("/training/workshops/public/:slug/image", async (req, res) => {
   try {
     const result = await db.execute(sql`SELECT image_object_id FROM workshops WHERE slug = ${req.params.slug} AND status != 'draft'`);

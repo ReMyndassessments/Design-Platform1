@@ -575,8 +575,8 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
     return parts.join(" ");
   }).join(" · ");
 
-  const imageUrl = w.image_object_id && w.status !== "draft"
-    ? `/api/training/workshops/public/${w.slug}/image`
+  const imageUrl = w.image_object_id
+    ? `/api/training/workshops/${w.id}/admin-image`
     : w.slug === "nice-try"
       ? "/images/nice-try-workshop.png"
       : null;
