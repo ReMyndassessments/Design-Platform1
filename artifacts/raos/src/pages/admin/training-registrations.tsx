@@ -585,8 +585,8 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col sm:flex-row hover:border-slate-300 transition-colors">
       {/* Thumbnail */}
       {imageUrl ? (
-        <div className="sm:w-36 h-32 sm:h-auto bg-slate-100 flex-shrink-0 overflow-hidden">
-          <img src={imageUrl} alt={w.image_alt ?? w.title} className="w-full h-full object-cover" />
+        <div className="sm:w-36 h-32 sm:h-auto bg-slate-100 flex-shrink-0 overflow-hidden p-1.5">
+          <img src={imageUrl} alt={w.image_alt ?? w.title} className="w-full h-full object-contain rounded-lg" />
         </div>
       ) : (
         <div className="sm:w-36 h-32 sm:h-auto bg-gradient-to-br from-slate-100 to-slate-200 flex-shrink-0 flex items-center justify-center">
