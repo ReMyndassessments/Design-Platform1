@@ -601,6 +601,36 @@ router.get("/training/workshops/public/:slug", async (req, res) => {
   }
 });
 
+let usdCnyRateCache: { rate: number; date: string; cachedAt: number } | null = null;
+const USD_CNY_RATE_CACHE_MS = 24 * 60 * 60 * 1000;
+
+router.get("/training/exchange-rate/usd-cny", async (_req, res) => {
+  try {
+    if (usdCnyRateCache && Date.now() - usdCnyRateCache.cachedAt < USD_CNY_RATE_CACHE_MS) {
+      return res.json({ rate: usdCnyRateCache.rate, date: usdCnyRateCache.date });
+    }
+
+    const response = await fetch("https://api.frankfurter.app/latest?from=USD&to=CNY", {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error(`Exchange-rate provider returned ${response.status}`);
+
+    const data = await response.json() as { date?: string; rates?: { CNY?: number } };
+    const rate = data.rates?.CNY;
+    if (!rate || !Number.isFinite(rate) || !data.date) throw new Error("Exchange-rate provider returned invalid data");
+
+    usdCnyRateCache = { rate, date: data.date, cachedAt: Date.now() };
+    return res.json({ rate, date: data.date });
+  } catch (err) {
+    logger.warn({ err }, "Failed to fetch USD-CNY exchange rate");
+    if (usdCnyRateCache) {
+      return res.json({ rate: usdCnyRateCache.rate, date: usdCnyRateCache.date });
+    }
+    return res.status(503).json({ error: "Exchange rate temporarily unavailable" });
+  }
+});
+
 async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
   if (!shouldSendManualSalesEmails()) {
     logger.info({ inquiryId: inquiry.id }, "Manual workshop-sales email suppressed outside production");

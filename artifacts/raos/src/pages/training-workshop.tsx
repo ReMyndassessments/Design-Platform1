@@ -132,6 +132,7 @@ export default function WorkshopPublicPage() {
   const [manualInquiryId, setManualInquiryId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [qrOptions, setQrOptions] = useState<{ wechatPayQr: string | null; alipayQr: string | null }>({ wechatPayQr: null, alipayQr: null });
+  const [usdCnyRate, setUsdCnyRate] = useState<{ rate: number; date: string } | null>(null);
   const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
 
   const paymentContainerRef = useRef<HTMLDivElement>(null);
@@ -179,6 +180,14 @@ export default function WorkshopPublicPage() {
       .then(setQrOptions)
       .catch(() => setRegError("Payment QR codes are temporarily unavailable. Please choose other payment options."));
   }, [slug, workshop?.manual_sales_mode]);
+
+  useEffect(() => {
+    if (!workshop || workshop.is_free || workshop.currency !== "USD") return;
+    fetch(`${getBaseUrl()}/api/training/exchange-rate/usd-cny`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setUsdCnyRate(data))
+      .catch(() => setUsdCnyRate(null));
+  }, [workshop]);
 
   // After step becomes "payment", init Airwallex
   const paymentData = useRef<{ intentId: string; clientSecret: string; env: string } | null>(null);
@@ -357,17 +366,20 @@ export default function WorkshopPublicPage() {
   const priceStr = workshop.is_free
     ? "Free"
     : `${CURRENCIES[workshop.currency] ?? ""}${workshop.price} ${workshop.currency}`;
+  const rmbEstimate = usdCnyRate && workshop.currency === "USD"
+    ? Math.round(Number(workshop.price) * usdCnyRate.rate)
+    : null;
   const manualSalesMode = !workshop.is_free && !!workshop.manual_sales_mode;
 
   return (
     <div className="min-h-screen bg-[#fdf8f0]">
       {/* Nav */}
       <nav className="bg-[#0c1a2e] px-6 py-3.5 flex items-center gap-3">
-        <a href="/training" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center">
-            <img src="/images/logo-icon.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+        <a href="/training" className="flex items-center gap-2.5 group" aria-label="ReMynd Training and Workshops">
+          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm">
+            <img src="/images/remynd-logo.png" alt="" className="w-7 h-7 object-contain" />
           </div>
-          <span className="font-bold text-white text-sm tracking-tight">ReMynd</span>
+          <span className="font-bold text-white text-base tracking-tight">ReMynd</span>
         </a>
         <ChevronRight size={14} className="text-slate-500" />
         <span className="text-slate-400 text-sm truncate">Training & Workshops</span>
@@ -592,6 +604,16 @@ export default function WorkshopPublicPage() {
                     {manualSalesMode && <fieldset className="border-t border-slate-100 pt-5 space-y-4">
                       <legend className="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-3">Payment preference *</legend>
                       <p className="text-xs text-slate-500">Choose how you would like to pay. QR payments require a screenshot of the completed payment. For credit cards, ReMynd will send you a secure payment link separately.</p>
+                      {rmbEstimate !== null && usdCnyRate && (
+                        <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3">
+                          <p className="text-sm font-semibold text-teal-900">
+                            {priceStr} is approximately ¥{rmbEstimate.toLocaleString("en-US")} RMB
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-teal-800">
+                            Based on the latest daily reference rate of 1 USD = {usdCnyRate.rate.toFixed(4)} RMB ({usdCnyRate.date}). Your payment provider may use a slightly different rate.
+                          </p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {[
                           ["wechat_pay", "WeChat Pay", qrOptions.wechatPayQr],
