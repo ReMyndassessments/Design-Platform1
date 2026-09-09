@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
@@ -559,6 +559,9 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
 }) {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(
+    w.slug === "nice-try" ? "/images/nice-try-workshop.png" : null,
+  );
   const workshopUrl = getWorkshopPublicUrl(w.slug);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(workshopUrl)}&size=300x300`;
 
@@ -575,11 +578,39 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
     return parts.join(" ");
   }).join(" · ");
 
-  const imageUrl = w.image_object_id
-    ? `/api/training/workshops/${w.id}/admin-image`
-    : w.slug === "nice-try"
-      ? "/images/nice-try-workshop.png"
-      : null;
+  useEffect(() => {
+    if (!w.image_object_id) {
+      setImageUrl(w.slug === "nice-try" ? "/images/nice-try-workshop.png" : null);
+      return;
+    }
+
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    const token = localStorage.getItem("raos_token");
+
+    fetch(`/api/training/workshops/${w.id}/admin-image`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    })
+      .then(response => {
+        if (!response.ok) throw new Error("Workshop image could not be loaded");
+        return response.blob();
+      })
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setImageUrl(w.slug === "nice-try" ? "/images/nice-try-workshop.png" : null);
+        }
+      });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [w.id, w.image_object_id, w.slug]);
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col sm:flex-row hover:border-slate-300 transition-colors">
