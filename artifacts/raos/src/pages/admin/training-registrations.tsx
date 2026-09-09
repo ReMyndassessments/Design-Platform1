@@ -577,7 +577,9 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
 
   const imageUrl = w.image_object_id && w.status !== "draft"
     ? `/api/training/workshops/public/${w.slug}/image`
-    : null;
+    : w.slug === "nice-try"
+      ? "/images/nice-try-workshop.png"
+      : null;
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col sm:flex-row hover:border-slate-300 transition-colors">
