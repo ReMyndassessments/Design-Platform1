@@ -51,7 +51,7 @@ const DOMAINS = [
   "Inference and Prediction","Justification and Evidence",
   "Evaluation and Hypothesizing","Mathematics Language",
   "Science Language","Humanities Language",
-  "Academic Independence","Response to Scaffolding",
+  "Academic Independence","Academic Language Structures","Response to Scaffolding",
 ];
 
 const LANGUAGE_FUNCTIONS = [
@@ -236,6 +236,7 @@ Analyse this work sample and return a JSON object with these fields:
   "subject_vocabulary": ["list of subject-specific vocabulary words found"],
   "command_words": ["verbs that tell the student what to do (e.g. describe, explain, compare)"],
   "language_functions_required": ["list from: identify, recall, describe, sequence, classify, compare, summarize, explain, infer, predict, justify, evaluate, hypothesize, argue, support with evidence"],
+  "academic_language_structures": ["structures required or demonstrated, selected where relevant from: passive constructions, nominalization, complex noun phrases, embedded clauses, relative clauses, causal constructions, conditional language, comparison/contrast structures, temporal/sequential structures, evidential language, modality, hedging, academic connectors, cohesion, pronoun/reference chains, agentless constructions, information density, abstraction, discipline-specific register, academic command verbs"],
   "potential_barriers": ["list of specific language barriers that might prevent an EAL student from succeeding"],
   "sentence_complexity": "low/medium/high",
   "text_complexity_notes": "brief note on text complexity",
@@ -769,6 +770,7 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
     const allBarriers = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.potential_barriers ?? []))];
     const allCommandWords = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.command_words ?? []))];
     const allFnsRequired = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.language_functions_required ?? []))];
+    const allStructures = [...new Set(parsedSamples.flatMap((s: any) => s.analysis.academic_language_structures ?? []))];
     const subjectsObserved = [...new Set(parsedSamples.map((s: any) => s.subject || s.analysis.subject).filter(Boolean))];
 
     const workSampleBlock = parsedSamples.length > 0
@@ -783,6 +785,7 @@ router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, 
             (a.academic_vocabulary?.length) ? `  Academic vocabulary: ${a.academic_vocabulary.slice(0, 10).join(", ")}` : null,
             (a.subject_vocabulary?.length) ? `  Subject vocabulary: ${a.subject_vocabulary.slice(0, 10).join(", ")}` : null,
             (a.command_words?.length) ? `  Command words: ${a.command_words.join(", ")}` : null,
+            (a.academic_language_structures?.length) ? `  Academic language structures: ${a.academic_language_structures.slice(0, 10).join(", ")}` : null,
             (a.potential_barriers?.length) ? `  Language barriers identified: ${a.potential_barriers.slice(0, 4).join("; ")}` : null,
           ].filter(Boolean);
           return lines.join("\n");
@@ -799,6 +802,7 @@ Format the report using EXACTLY these section headings (each on its own line, wr
 **Key Findings from Work Sample Analysis**
 **Domain Performance Profile**
 **Language Function Profile**
+**Academic Language Structures Profile**
 **Subject-Specific Strategies**
 **Classroom Teacher Recommendations**
 **Home Support Strategies**
@@ -830,6 +834,7 @@ Across all work samples:
 - Subject-specific vocabulary identified: ${allSubjectVocab.length > 0 ? allSubjectVocab.slice(0, 20).join(", ") : "None extracted"}
 - Command words present in tasks: ${allCommandWords.length > 0 ? allCommandWords.join(", ") : "None extracted"}
 - Language functions required by tasks: ${allFnsRequired.length > 0 ? allFnsRequired.join(", ") : "None extracted"}
+- Academic language structures required or demonstrated: ${allStructures.length > 0 ? allStructures.join(", ") : "None extracted"}
 - Language barriers identified: ${allBarriers.length > 0 ? allBarriers.join("; ") : "None noted"}
 
 ═══════════════════════════════════════════

@@ -26,7 +26,7 @@ const DOMAINS = [
   "Inference and Prediction","Justification and Evidence",
   "Evaluation and Hypothesizing","Mathematics Language",
   "Science Language","Humanities Language",
-  "Academic Independence","Response to Scaffolding",
+  "Academic Independence","Academic Language Structures","Response to Scaffolding",
 ];
 
 const MODULES = [
@@ -34,7 +34,7 @@ const MODULES = [
   { id: "academic_listening",   name: "Module 2: Academic Listening",  domains: ["Academic Listening","Understanding of Classroom Directions"] },
   { id: "academic_speaking",    name: "Module 3: Academic Speaking",    domains: ["Academic Speaking","Explanation and Elaboration","Sequencing and Organization"] },
   { id: "academic_reading",     name: "Module 4: Academic Reading",     domains: ["Academic Reading","Inference and Prediction","General Academic Vocabulary"] },
-  { id: "academic_writing",     name: "Module 5: Academic Writing",     domains: ["Academic Writing","Comparison and Classification","Justification and Evidence"] },
+  { id: "academic_writing",     name: "Module 5: Academic Writing",     domains: ["Academic Writing","Comparison and Classification","Justification and Evidence","Academic Language Structures"] },
   { id: "mathematics_language", name: "Module 6: Mathematics Language", domains: ["Mathematics Language"] },
   { id: "science_language",     name: "Module 7: Science Language",     domains: ["Science Language","Cause-and-Effect Reasoning"] },
   { id: "humanities_language",  name: "Module 8: Humanities Language",  domains: ["Humanities Language","Evaluation and Hypothesizing"] },
@@ -371,6 +371,21 @@ const DOMAIN_GUIDES: Record<string, {
       4: "Highly self-directed; monitors own progress, applies strategies independently, and persists through difficulty.",
     },
   },
+  "Academic Language Structures": {
+    description: "Ability to interpret and use grammatical and discourse structures as tools for constructing academic meaning, assessed in authentic context rather than as isolated grammar knowledge.",
+    prompts: [
+      "Use a short, age-appropriate passage from a current subject. Ask the student to explain who or what is acting, what happened, and which information the sentence foregrounds.",
+      "Select one meaningful structure from the material—such as passive voice, nominalization, a complex noun phrase, causal or conditional language, cohesion, evidential language, modality, or hedging—and explore how it contributes to meaning.",
+      "Briefly model or clarify the structure, then present a comparable new sentence or task to check whether the student can transfer the supported understanding.",
+    ],
+    descriptors: {
+      0: "Does not yet demonstrate understanding or use of the assessed academic structure, even with intensive mediation.",
+      1: "Recognises limited meaning with substantial prompting or modeling but cannot yet apply the structure.",
+      2: "Interprets or uses some assessed structures in familiar contexts with clarification or structured support.",
+      3: "Interprets and uses relevant academic structures functionally in meaningful subject contexts, with occasional support for dense or unfamiliar language.",
+      4: "Independently interprets and flexibly uses developmentally appropriate academic structures across contexts and transfers learning to comparable tasks.",
+    },
+  },
   "Response to Scaffolding": {
     description: "How effectively the student benefits from and builds on scaffolds, prompts, and support.",
     prompts: [
@@ -401,6 +416,7 @@ const VISUAL_STIMULUS_DOMAINS = new Set([
   "Mathematics Language",
   "Science Language",
   "Humanities Language",
+  "Academic Language Structures",
 ]);
 
 // Which prompt indices have a "Generate" button.
@@ -425,6 +441,7 @@ const GENERATABLE_PROMPTS: Record<string, number[]> = {
   "Science Language":                      [1, 2],   // process explanation + vocab probe from science samples
   "Humanities Language":                   [0, 2],   // event explanation + vocab probe from humanities samples
   "Academic Independence":                 [0],      // independence task from work sample subject
+  "Academic Language Structures":          [0, 2],   // contextual structure probe + transfer task
   "Response to Scaffolding":               [0],      // scaffold from work sample genre/content
 };
 
@@ -506,6 +523,10 @@ const DOMAIN_OBSERVATIONS: Record<string, string[]> = {
     "In class, observe whether the student begins tasks independently or waits for adult direction.",
     "Note persistence through challenging work — does the student apply strategies before seeking help?",
     "Observe self-monitoring — does the student check their work and self-correct errors?",
+  ],
+  "Academic Language Structures": [
+    "Observe whether dense sentence structures, reference chains, nominalization, passive constructions, or academic connectors affect access to classroom texts and instructions.",
+    "Compare independent performance with performance after meaning-focused clarification or modeling, and note whether the student transfers the structure to a new context.",
   ],
   "Response to Scaffolding": [
     "Note how quickly the student independently internalises scaffolds over repeated exposures in class.",
