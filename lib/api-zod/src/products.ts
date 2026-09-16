@@ -52,6 +52,12 @@ export const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
     market: "schools",
     toolIds: ["REFERRAL-BOARDING", "BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "GAD-7"],
   },
+  {
+    id: "raepa",
+    name: "ReMynd Academic English Performance Assessment (RAEPA)",
+    market: "schools",
+    toolIds: ["RAEPA"],
+  },
   // ── Parents ───────────────────────────────────────────────────────────
   {
     id: "why-struggling",
@@ -143,6 +149,7 @@ export const ALL_PRODUCTS_BY_MARKET: { market: string; items: { id: string; name
     { id: "focused-support",    name: "Focused Student Support Assessment" },
     { id: "sen-learning-support", name: "Learning Support Decision System (SEN)" },
     { id: "boarding-wellbeing", name: "Boarding Student Adjustment & Wellbeing" },
+    { id: "raepa",               name: "ReMynd Academic English Performance Assessment (RAEPA)" },
   ]},
   { market: "Parents", items: [
     { id: "why-struggling",     name: "Why Is My Child Struggling?" },
