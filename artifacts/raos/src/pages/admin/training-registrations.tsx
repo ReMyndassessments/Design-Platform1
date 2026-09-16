@@ -196,6 +196,19 @@ export default function TrainingRegistrationsPage() {
     },
   });
 
+  const detailsMutation = useMutation({
+    mutationFn: ({ id, details }: { id: string; details: Partial<Registration> }) =>
+      customFetch(`/api/training/registrations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(details),
+      }),
+    onSuccess: (data: any) => {
+      setSelected(data.registration);
+      qc.invalidateQueries({ queryKey: ["training-registrations"] });
+    },
+  });
+
   const handleExport = async () => {
     try {
       await downloadAuthenticatedCsv(
@@ -432,7 +445,8 @@ export default function TrainingRegistrationsPage() {
 
           {selected && (
             <RegistrantDetail reg={selected} onClose={() => setSelected(null)}
-              onStatusChange={(id, status) => statusMutation.mutate({ id, status })} />
+              onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+              onSave={(id, details) => detailsMutation.mutateAsync({ id, details })} />
           )}
         </>
       )}
@@ -1326,10 +1340,58 @@ function FormSection({ title, children }: { title: string; children: React.React
 }
 
 // ── Detail Modal (existing series registrations) ───────────────────────────────
-function RegistrantDetail({ reg, onClose, onStatusChange }: {
+function RegistrantDetail({ reg, onClose, onStatusChange, onSave }: {
   reg: Registration; onClose: () => void; onStatusChange: (id: string, status: string) => void;
+  onSave: (id: string, details: Partial<Registration>) => Promise<unknown>;
 }) {
   const interests = Array.isArray(reg.areas_of_interest) ? reg.areas_of_interest : [];
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [editForm, setEditForm] = useState({
+    first_name: reg.first_name ?? "",
+    last_name: reg.last_name ?? "",
+    email: reg.email ?? "",
+    job_title: reg.job_title ?? "",
+    professional_role: reg.professional_role ?? "",
+    professional_role_other: reg.professional_role_other ?? "",
+    school_name: reg.school_name ?? "",
+    city: reg.city ?? "",
+    country: reg.country ?? "",
+    school_type: reg.school_type ?? "",
+    school_size: reg.school_size ?? "",
+  });
+  const editInputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-400";
+  const editLabelCls = "block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1";
+  const setEditField = (key: keyof typeof editForm, value: string) =>
+    setEditForm(current => ({ ...current, [key]: value }));
+  const cancelEdit = () => {
+    setEditForm({
+      first_name: reg.first_name ?? "", last_name: reg.last_name ?? "", email: reg.email ?? "",
+      job_title: reg.job_title ?? "", professional_role: reg.professional_role ?? "",
+      professional_role_other: reg.professional_role_other ?? "", school_name: reg.school_name ?? "",
+      city: reg.city ?? "", country: reg.country ?? "", school_type: reg.school_type ?? "",
+      school_size: reg.school_size ?? "",
+    });
+    setSaveError("");
+    setEditing(false);
+  };
+  const saveDetails = async () => {
+    if (!editForm.first_name.trim() || !editForm.last_name.trim() || !editForm.email.trim()) {
+      setSaveError("First name, last name and email are required.");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    try {
+      await onSave(reg.id, editForm);
+      setEditing(false);
+    } catch (err: any) {
+      setSaveError(err?.message ?? "Unable to save registration.");
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -1339,6 +1401,12 @@ function RegistrantDetail({ reg, onClose, onStatusChange }: {
             <p className="font-bold text-slate-900">{reg.first_name} {reg.last_name}</p>
           </div>
           <div className="flex items-center gap-3">
+            {!editing && (
+              <button onClick={() => setEditing(true)} data-testid="button-edit-registration"
+                className="flex items-center gap-1.5 text-xs bg-teal-50 text-teal-700 border border-teal-200 rounded-xl px-3 py-1.5 hover:bg-teal-100 transition-colors font-semibold">
+                <Pencil size={12} /> Edit
+              </button>
+            )}
             <WouterLink href={`/communications/compose?email=${encodeURIComponent(reg.email)}&name=${encodeURIComponent(reg.first_name + " " + reg.last_name)}&sourceType=training&sourceId=${reg.id}`}
               className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-xl px-3 py-1.5 hover:bg-slate-200 transition-colors font-semibold">
               <Mail size={12} /> Message
@@ -1353,19 +1421,52 @@ function RegistrantDetail({ reg, onClose, onStatusChange }: {
           </div>
         </div>
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
-          <Section title="Contact Information">
-            <Row label="Name" value={`${reg.first_name} ${reg.last_name}`} />
-            <Row label="Email" value={reg.email} />
-            <Row label="Job Title" value={reg.job_title} />
-            <Row label="Role" value={reg.professional_role + (reg.professional_role_other ? ` — ${reg.professional_role_other}` : "")} />
-          </Section>
-          <Section title="School Information">
-            <Row label="School" value={reg.school_name} />
-            <Row label="City" value={reg.city} />
-            <Row label="Country" value={reg.country} />
-            <Row label="School Type" value={reg.school_type} />
-            <Row label="School Size" value={reg.school_size} />
-          </Section>
+          {editing ? (
+            <>
+              <Section title="Contact Information">
+                <div className="grid grid-cols-2 gap-3">
+                  <label><span className={editLabelCls}>First Name *</span><input data-testid="input-registration-first-name" className={editInputCls} value={editForm.first_name} onChange={e => setEditField("first_name", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>Last Name *</span><input data-testid="input-registration-last-name" className={editInputCls} value={editForm.last_name} onChange={e => setEditField("last_name", e.target.value)} /></label>
+                  <label className="col-span-2"><span className={editLabelCls}>Email *</span><input data-testid="input-registration-email" type="email" className={editInputCls} value={editForm.email} onChange={e => setEditField("email", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>Job Title</span><input className={editInputCls} value={editForm.job_title} onChange={e => setEditField("job_title", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>Role</span><input className={editInputCls} value={editForm.professional_role} onChange={e => setEditField("professional_role", e.target.value)} /></label>
+                  <label className="col-span-2"><span className={editLabelCls}>Other Role</span><input className={editInputCls} value={editForm.professional_role_other} onChange={e => setEditField("professional_role_other", e.target.value)} /></label>
+                </div>
+              </Section>
+              <Section title="School Information">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="col-span-2"><span className={editLabelCls}>School</span><input className={editInputCls} value={editForm.school_name} onChange={e => setEditField("school_name", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>City</span><input className={editInputCls} value={editForm.city} onChange={e => setEditField("city", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>Country</span><input className={editInputCls} value={editForm.country} onChange={e => setEditField("country", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>School Type</span><input className={editInputCls} value={editForm.school_type} onChange={e => setEditField("school_type", e.target.value)} /></label>
+                  <label><span className={editLabelCls}>School Size</span><input className={editInputCls} value={editForm.school_size} onChange={e => setEditField("school_size", e.target.value)} /></label>
+                </div>
+              </Section>
+              {saveError && <p data-testid="status-registration-save-error" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>}
+              <div className="flex justify-end gap-2">
+                <button onClick={cancelEdit} disabled={saving} data-testid="button-cancel-registration-edit" className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                <button onClick={saveDetails} disabled={saving} data-testid="button-save-registration" className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-60 flex items-center gap-2">
+                  {saving && <Loader2 size={14} className="animate-spin" />} Save changes
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Section title="Contact Information">
+                <Row label="Name" value={`${reg.first_name} ${reg.last_name}`} />
+                <Row label="Email" value={reg.email} />
+                <Row label="Job Title" value={reg.job_title} />
+                <Row label="Role" value={reg.professional_role + (reg.professional_role_other ? ` — ${reg.professional_role_other}` : "")} />
+              </Section>
+              <Section title="School Information">
+                <Row label="School" value={reg.school_name} />
+                <Row label="City" value={reg.city} />
+                <Row label="Country" value={reg.country} />
+                <Row label="School Type" value={reg.school_type} />
+                <Row label="School Size" value={reg.school_size} />
+              </Section>
+            </>
+          )}
           <Section title="Workshop Selections">
             <div className="flex flex-wrap gap-2">
               {reg.full_series_selected

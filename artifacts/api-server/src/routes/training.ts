@@ -470,6 +470,60 @@ router.get("/training/registrations/:id", authMiddleware, requireAdmin, async (r
   }
 });
 
+// ── Admin: Update registrant details ──────────────────────────────────────────
+router.patch("/training/registrations/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const {
+      first_name, last_name, email, job_title, professional_role, professional_role_other,
+      school_name, city, country, school_type, school_size,
+    } = req.body;
+
+    if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) {
+      return res.status(400).json({ error: "First name, last name and email are required" });
+    }
+    const normalEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalEmail)) {
+      return res.status(400).json({ error: "Invalid email address" });
+    }
+
+    const duplicate = await db.execute(sql`
+      SELECT id FROM training_registrations
+      WHERE email = ${normalEmail} AND id != ${req.params.id}
+      LIMIT 1
+    `);
+    if (duplicate.rows.length > 0) {
+      return res.status(409).json({ error: "Another registration already uses this email address." });
+    }
+
+    const result = await db.execute(sql`UPDATE training_registrations SET
+      first_name = ${first_name.trim()},
+      last_name = ${last_name.trim()},
+      email = ${normalEmail},
+      job_title = ${job_title?.trim() || null},
+      professional_role = ${professional_role?.trim() || null},
+      professional_role_other = ${professional_role_other?.trim() || null},
+      school_name = ${school_name?.trim() || null},
+      city = ${city?.trim() || null},
+      country = ${country?.trim() || null},
+      school_type = ${school_type?.trim() || null},
+      school_size = ${school_size?.trim() || null},
+      updated_at = NOW()
+      WHERE id = ${req.params.id}
+      RETURNING *
+    `);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Registration not found" });
+    }
+    return res.json({ registration: result.rows[0] });
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      return res.status(409).json({ error: "Another registration already uses this email address." });
+    }
+    logger.error({ err }, "Failed to update training registration details");
+    return res.status(500).json({ error: "Failed to update registration" });
+  }
+});
+
 // ── Admin: Update status ──────────────────────────────────────────────────────
 router.patch("/training/registrations/:id/status", authMiddleware, requireAdmin, async (req, res) => {
   try {
