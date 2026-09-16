@@ -4430,6 +4430,191 @@ async function createRaepaTables() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_reports_case_id_idx ON raepa_reports (case_id)`);
 
     await db.execute(sql`ALTER TABLE raepa_sessions ADD COLUMN IF NOT EXISTS current_stimulus JSONB`);
+    await db.execute(sql`ALTER TABLE raepa_sessions ADD COLUMN IF NOT EXISTS profile_id TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_sessions ADD COLUMN IF NOT EXISTS pathway_reference TEXT`);
+
+    // RAEPA v2 stores structured evidence in small, case-scoped tables.  The
+    // project intentionally uses runtime DDL for product tables, so these
+    // additions are idempotent and safe for existing installations.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_profiles (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL UNIQUE, session_id TEXT,
+        creator_id TEXT, version INTEGER NOT NULL DEFAULT 2,
+        status TEXT NOT NULL DEFAULT 'draft', referral_question TEXT,
+        data JSONB NOT NULL DEFAULT '{}', review_status TEXT NOT NULL DEFAULT 'unreviewed',
+        reviewed_by TEXT, reviewed_at TIMESTAMPTZ, reviewer_note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_profiles_case_idx ON raepa_profiles(case_id)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_language_academic_history (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, profile_id TEXT, parent_id TEXT,
+        language TEXT NOT NULL, age_first_exposed TEXT, proficiency TEXT,
+        speaking_experience TEXT, reading_experience TEXT, writing_experience TEXT,
+        formal_schooling_experience TEXT, years_of_instruction TEXT, subjects JSONB NOT NULL DEFAULT '[]',
+        source TEXT NOT NULL DEFAULT 'parent', original_text TEXT, translated_text TEXT,
+        translation_metadata JSONB, version INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_subject_language_history (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, profile_id TEXT, subject TEXT NOT NULL,
+        language TEXT NOT NULL, years TEXT, experience TEXT, source TEXT, notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_teacher_profiles (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, profile_id TEXT, teacher_id TEXT,
+        data JSONB NOT NULL DEFAULT '{}', original_text TEXT, translated_text TEXT,
+        translation_metadata JSONB, version INTEGER NOT NULL DEFAULT 1,
+        review_status TEXT NOT NULL DEFAULT 'unreviewed', reviewed_by TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_student_interviews (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, profile_id TEXT, student_id TEXT,
+        responses JSONB NOT NULL DEFAULT '[]', original_language TEXT,
+        translation_metadata JSONB, version INTEGER NOT NULL DEFAULT 1,
+        review_status TEXT NOT NULL DEFAULT 'unreviewed', reviewed_by TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_work_sample_analyses (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, work_sample_id TEXT NOT NULL UNIQUE,
+        layer_vocabulary JSONB NOT NULL DEFAULT '{}', layer_structures JSONB NOT NULL DEFAULT '{}',
+        layer_functions JSONB NOT NULL DEFAULT '{}', layer_cognitive JSONB NOT NULL DEFAULT '{}',
+        conceptual_demand TEXT, english_language_demand TEXT, academic_register_demand TEXT,
+        output_demand TEXT, evidence_sufficiency TEXT NOT NULL DEFAULT 'limited',
+        ai_generated BOOLEAN NOT NULL DEFAULT FALSE, ai_model TEXT, ai_version TEXT,
+        source_evidence_refs JSONB NOT NULL DEFAULT '[]', review_status TEXT NOT NULL DEFAULT 'unreviewed',
+        reviewer_id TEXT, reviewed_at TIMESTAMPTZ, edits JSONB NOT NULL DEFAULT '[]',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_ws_analysis_case_idx ON raepa_work_sample_analyses(case_id)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_hypotheses (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, session_id TEXT, statement TEXT NOT NULL,
+        hypothesis_type TEXT, evidence_refs JSONB NOT NULL DEFAULT '[]',
+        confidence TEXT NOT NULL DEFAULT 'limited', ai_generated BOOLEAN NOT NULL DEFAULT TRUE,
+        ai_model TEXT, ai_version TEXT, status TEXT NOT NULL DEFAULT 'suggested',
+        original_statement TEXT, reviewer_id TEXT, reviewer_notes TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_assessment_plans (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, session_id TEXT, hypothesis_ids JSONB NOT NULL DEFAULT '[]',
+        work_sample_ids JSONB NOT NULL DEFAULT '[]', modules JSONB NOT NULL DEFAULT '[]',
+        probes JSONB NOT NULL DEFAULT '[]', functions JSONB NOT NULL DEFAULT '[]',
+        structures JSONB NOT NULL DEFAULT '[]', dynamic_conditions JSONB NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'draft', version INTEGER NOT NULL DEFAULT 1,
+        created_by TEXT, approved_by TEXT, approved_at TIMESTAMPTZ, reviewer_notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_assessment_tasks (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, plan_id TEXT NOT NULL, task_type TEXT NOT NULL,
+        task_data JSONB NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'planned',
+        administered_at TIMESTAMPTZ, completed_by TEXT, notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_dynamic_trials (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, task_id TEXT, hypothesis_id TEXT,
+        condition TEXT NOT NULL, support_level INTEGER NOT NULL DEFAULT 0,
+        initial_performance JSONB, support_provided TEXT, response JSONB,
+        mediated_performance JSONB, transfer_performance JSONB,
+        conceptual_understanding_visible BOOLEAN, observations TEXT, evidence_refs JSONB NOT NULL DEFAULT '[]',
+        created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_concept_language_relationships (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, session_id TEXT, classification TEXT NOT NULL,
+        narrative TEXT NOT NULL, evidence_refs JSONB NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, reviewed_by TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_recommendations (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, category TEXT NOT NULL, identified_need TEXT NOT NULL,
+        evidence_refs JSONB NOT NULL DEFAULT '[]', strategy TEXT NOT NULL, responsible_person TEXT,
+        context_frequency TEXT, progress_indicator TEXT, status TEXT NOT NULL DEFAULT 'draft',
+        ai_generated BOOLEAN NOT NULL DEFAULT FALSE, reviewer_id TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_qa_checks (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, report_id TEXT, check_key TEXT NOT NULL,
+        passed BOOLEAN NOT NULL, details TEXT, checked_by TEXT, checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_qa_case_report_key_idx ON raepa_qa_checks(case_id, report_id, check_key)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_access_tokens (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+        scope TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_by TEXT,
+        used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_access_tokens_case_idx ON raepa_access_tokens(case_id)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_v2_evidence (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, source TEXT NOT NULL,
+        contributor TEXT, context TEXT, summary TEXT NOT NULL, supports TEXT, concerns TEXT,
+        evidence_refs JSONB NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'draft',
+        created_by TEXT, reviewed_by TEXT, reviewed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS raepa_student_responses (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, response_type TEXT NOT NULL,
+        prompt_id TEXT NOT NULL, prompt TEXT, original_language TEXT NOT NULL,
+        original_response TEXT NOT NULL, response_mode TEXT, non_scored_evidence BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS raepa_student_responses_case_idx ON raepa_student_responses(case_id, created_at)`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_teacher_profiles ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_student_interviews ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_student_responses ADD COLUMN IF NOT EXISTS idempotency_key TEXT`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_work_samples_case_idempotency_idx
+      ON raepa_work_samples(case_id, idempotency_key)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_teacher_profiles_case_idempotency_idx
+      ON raepa_teacher_profiles(case_id, idempotency_key)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_student_interviews_case_idempotency_idx
+      ON raepa_student_interviews(case_id, idempotency_key)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS raepa_student_responses_case_idempotency_idx
+      ON raepa_student_responses(case_id, idempotency_key)`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS source TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS language_of_instruction TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS expected_outcome TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS rubric TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS classroom_context TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS completion_setting TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS classroom_access_profile JSONB`);
+    await db.execute(sql`ALTER TABLE raepa_work_samples ADD COLUMN IF NOT EXISTS support_response_matrix JSONB`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS source_evidence_refs JSONB NOT NULL DEFAULT '[]'`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS qa_status TEXT NOT NULL DEFAULT 'not_run'`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS professional_approved_by TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS professional_approved_at TIMESTAMPTZ`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS pathway TEXT NOT NULL DEFAULT 'standalone'`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1`);
+    await db.execute(sql`ALTER TABLE raepa_reports ADD COLUMN IF NOT EXISTS report_findings JSONB NOT NULL DEFAULT '[]'`);
+    await db.execute(sql`ALTER TABLE raepa_profiles ADD COLUMN IF NOT EXISTS reviewer_note TEXT`);
+    await db.execute(sql`ALTER TABLE raepa_qa_checks ADD COLUMN IF NOT EXISTS report_version INTEGER`);
 
     logger.info("RAEPA tables ensured");
   } catch (err) {

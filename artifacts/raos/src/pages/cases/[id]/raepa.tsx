@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Save, Upload, Trash2, Loader2, CheckCircle2,
   AlertTriangle, FileText, Sparkles, ChevronRight, BookOpen,
-  Layers, Star, BarChart3, RefreshCw, Eye, ClipboardList,
+  Layers, BarChart3, RefreshCw, Eye, ClipboardList,
   Share2, Copy, Check, QrCode, X, ChevronDown, Printer,
-  Pencil, Globe, Languages,
+  Pencil, Languages, ShieldCheck, Workflow, UserRound, TestTube2,
+  CheckCheck, Plus,
 } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
@@ -544,9 +545,13 @@ const PATHWAYS = [
 
 const TABS = [
   { id: "setup",     label: "Setup",         icon: ClipboardList },
+  { id: "history",   label: "History & Voices", icon: Languages },
   { id: "samples",   label: "Work Samples",  icon: FileText },
+  { id: "evidence",  label: "Evidence Review", icon: Eye },
   { id: "scoring",   label: "Domain Scoring",icon: BarChart3 },
   { id: "functions", label: "Language Functions", icon: Layers },
+  { id: "trials",    label: "Trials & Plan", icon: Workflow },
+  { id: "qa",        label: "Review & QA",  icon: ShieldCheck },
   { id: "report",    label: "Report",        icon: BookOpen },
 ];
 
@@ -590,6 +595,7 @@ interface Session {
   id: string; case_id: string; status: string; pathway: string;
   language_background: Record<string, string>;
   modules_selected: string[];
+  created_at?: string;
   overall_summary?: string; confidence_level?: string; general_notes?: string;
 }
 interface WorkSample {
@@ -608,6 +614,156 @@ interface DomainRating {
 interface LangFunction {
   id: string; session_id: string; function_name: string; level: string;
   evidence?: string; subject_context?: string;
+}
+
+type AcademicHistoryRow = {
+  id?: string;
+  language: string;
+  relationship: string;
+  years: string;
+  academic_use: string;
+  instruction_years: string;
+  confidence: string;
+  notes: string;
+};
+type SubjectHistoryRow = {
+  id?: string;
+  subject: string;
+  language: string;
+  years: string;
+  experience: string;
+  source: string;
+  notes: string;
+};
+type V2Evidence = {
+  id: string;
+  source: "parent" | "teacher" | "student";
+  contributor?: string;
+  context?: string;
+  summary?: string;
+  supports?: string;
+  concerns?: string;
+  status?: string;
+  created_at?: string;
+};
+type DemandMap = {
+  task_demand: string;
+  language_demand: string;
+  concept_demand: string;
+  support_and_independence: string;
+  reviewer_note: string;
+};
+type Hypothesis = { id: string; statement: string; evidence_refs?: string[]; status?: string; reviewer_notes?: string };
+type AssessmentPlan = {
+  id?: string;
+  goals: string;
+  supports: string;
+  success_indicators: string;
+  recommendations: { text: string; evidence_ids: string[]; rationale: string }[];
+  status?: string;
+};
+type DynamicTrial = {
+  id?: string;
+  task: string;
+  phase: "independent" | "mediated" | "transfer";
+  support_level: string;
+  performance: string;
+  concept_understanding: string;
+  language_access: string;
+  evidence_ids: string[];
+  concept_classification?: string;
+};
+type ReportEvidenceRef = { id: string; type: string; label: string };
+type ReportFinding = { id: string; conclusion: string; evidence_refs: string[]; section_key?: string; narrative_text?: string };
+type V2RequestError = Error & {
+  status?: number;
+  code?: string;
+  payload?: { error?: string; code?: string; checks?: unknown; [key: string]: unknown };
+};
+type V2Report = {
+  id?: string;
+  standalone_text?: string;
+  comprehensive_text?: string;
+  status?: string;
+  reviewer_note?: string;
+  pathway?: "standalone" | "comprehensive";
+  source_evidence_refs?: ReportEvidenceRef[];
+  findings?: ReportFinding[];
+  conclusions?: ReportFinding[];
+  version?: number;
+};
+
+function normalizeV2Report(value: V2Report): V2Report {
+  const sourceRefs = Array.isArray(value.source_evidence_refs)
+    ? value.source_evidence_refs.map(reference => typeof reference === "string"
+      ? { id: reference, type: "evidence", label: reference }
+      : reference).filter(reference => reference && typeof reference.id === "string")
+    : [];
+  const findings = (value.findings ?? value.conclusions ?? []).map((finding, index) => ({
+    id: typeof finding.id === "string" && finding.id ? finding.id : `finding-${index + 1}`,
+    conclusion: typeof finding.conclusion === "string" ? finding.conclusion : "",
+    evidence_refs: Array.isArray(finding.evidence_refs) ? finding.evidence_refs.filter(reference => typeof reference === "string") : [],
+    section_key: typeof finding.section_key === "string" ? finding.section_key : "",
+    narrative_text: typeof finding.narrative_text === "string" ? finding.narrative_text : "",
+  }));
+  return { ...value, source_evidence_refs: sourceRefs, findings, conclusions: findings };
+}
+
+function narrativeSections(text: string): Array<{ section_key: string; narrative_text: string }> {
+  const headings = [...text.matchAll(/^\s*\*\*(.+?)\*\*\s*$/gm)];
+  if (!headings.length) return text.trim() ? [{ section_key: "report", narrative_text: text.trim() }] : [];
+  const sections: Array<{ section_key: string; narrative_text: string }> = [];
+  const preamble = text.slice(0, headings[0].index ?? 0).trim();
+  if (preamble.length >= 20) sections.push({ section_key: "preamble", narrative_text: preamble });
+  sections.push(...headings.map((heading, index) => {
+    const start = (heading.index ?? 0) + heading[0].length;
+    const end = index + 1 < headings.length ? (headings[index + 1].index ?? text.length) : text.length;
+    const title = String(heading[1]).trim();
+    const sectionKey = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `section-${index + 1}`;
+    return { section_key: sectionKey, narrative_text: text.slice(start, end).trim() };
+  }));
+  return sections.filter(section => section.narrative_text.length >= 20);
+}
+
+function alignReportFindings(text: string, findings: ReportFinding[]): ReportFinding[] {
+  const sections = narrativeSections(text);
+  return sections.map((section, index) => {
+    const existing = findings.find(finding => finding.section_key === section.section_key
+      || finding.narrative_text === section.narrative_text
+      || finding.conclusion === section.narrative_text) ?? findings[index];
+    return {
+      id: existing?.id ?? `finding-${index + 1}-${section.section_key}`,
+      conclusion: section.narrative_text,
+      section_key: section.section_key,
+      narrative_text: section.narrative_text,
+      evidence_refs: existing?.evidence_refs ?? [],
+    };
+  });
+}
+
+function normalizeReturnedQa(checks: unknown): { checks: Record<string, boolean>; note: string } {
+  if (Array.isArray(checks)) {
+    const rows = checks.filter((check): check is { check_key?: unknown; passed?: unknown; details?: unknown } => !!check && typeof check === "object");
+    return {
+      checks: Object.fromEntries(rows.map(row => [String(row.check_key ?? ""), row.passed === true]).filter(([key]) => key)),
+      note: rows.map(row => typeof row.details === "string" ? row.details : "").filter(Boolean).join(" "),
+    };
+  }
+  if (checks && typeof checks === "object") {
+    return {
+      checks: Object.fromEntries(Object.entries(checks).map(([key, value]) => [key, value === true])),
+      note: "",
+    };
+  }
+  return { checks: {}, note: "" };
+}
+
+function firstHistoryValue(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value);
+  }
+  return "";
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
@@ -640,6 +796,10 @@ export default function RaepaPage() {
   const [pushingStimulus, setPushingStimulus] = useState(false);
   const [studentShareOpen, setStudentShareOpen] = useState(false);
   const [studentLinkCopied, setStudentLinkCopied] = useState(false);
+  const [studentAccessToken, setStudentAccessToken] = useState<string | null>(null);
+  const [studentTokenLoading, setStudentTokenLoading] = useState(false);
+  const [studentTokenError, setStudentTokenError] = useState<string | null>(null);
+  const studentTokenPromiseRef = useRef<Promise<string | null> | null>(null);
   const [openObs, setOpenObs] = useState<Record<string, boolean>>({});
   const [generatedReport, setGeneratedReport] = useState<string>("");
   const [generatingReport, setGeneratingReport] = useState(false);
@@ -647,16 +807,80 @@ export default function RaepaPage() {
   const [isEditingReport, setIsEditingReport] = useState(false);
   const [translatingReport, setTranslatingReport] = useState(false);
 
+  // RAEPA v2 professional review workspace. These are deliberately kept separate
+  // from the original v1 score records so a reviewer can reconcile both versions.
+  const [academicHistory, setAcademicHistory] = useState<AcademicHistoryRow[]>([
+    { language: "", relationship: "home", years: "", academic_use: "", instruction_years: "", confidence: "", notes: "" },
+  ]);
+  const [subjectHistory, setSubjectHistory] = useState<SubjectHistoryRow[]>([]);
+  const [parentVoice, setParentVoice] = useState("");
+  const [studentVoice, setStudentVoice] = useState("");
+  const [teacherVoice, setTeacherVoice] = useState("");
+  const [evidenceDraft, setEvidenceDraft] = useState({ context: "", summary: "", supports: "", concerns: "" });
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [demandMaps, setDemandMaps] = useState<Record<string, DemandMap>>({});
+  const [hypothesisNotes, setHypothesisNotes] = useState<Record<string, string>>({});
+  const [plan, setPlan] = useState<AssessmentPlan>({
+    goals: "", supports: "", success_indicators: "",
+    recommendations: [{ text: "", evidence_ids: [], rationale: "" }],
+  });
+  const [trials, setTrials] = useState<DynamicTrial[]>([]);
+  const [trialDraft, setTrialDraft] = useState<DynamicTrial>({
+    task: "", phase: "independent", support_level: "none", performance: "",
+    concept_understanding: "", language_access: "", evidence_ids: [], concept_classification: "evidence_mixed",
+  });
+  const [qaChecks, setQaChecks] = useState<Record<string, boolean>>({});
+  const [qaNote, setQaNote] = useState("");
+  const [v2Report, setV2Report] = useState<V2Report | null>(null);
+  const [v2ReportMode, setV2ReportMode] = useState<"standalone" | "comprehensive">("standalone");
+  const [v2ReportDraft, setV2ReportDraft] = useState("");
+  const [reportFindingsDraft, setReportFindingsDraft] = useState<ReportFinding[]>([]);
+  const [v2Busy, setV2Busy] = useState(false);
+
+  const createStudentAccessToken = useCallback(async (): Promise<string | null> => {
+    if (studentTokenPromiseRef.current) return studentTokenPromiseRef.current;
+    const request = (async () => {
+      setStudentTokenLoading(true);
+      setStudentTokenError(null);
+      try {
+        const response = await fetch(`${BASE_URL}/api/cases/${caseId}/raepa/access-tokens`, {
+          method: "POST",
+          headers: { ...authHeader(), "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ scope: "student", expires_hours: 168 }),
+        });
+        const data = await response.json().catch(() => null) as { token?: string; error?: string } | null;
+        if (!response.ok || !data?.token) throw new Error(data?.error || "Could not create a secure student link");
+        setStudentAccessToken(data.token);
+        return data.token;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not create a secure student link";
+        setStudentTokenError(message);
+        toast({ title: "Secure student link unavailable", description: message, variant: "destructive" });
+        return null;
+      } finally {
+        setStudentTokenLoading(false);
+      }
+    })();
+    studentTokenPromiseRef.current = request;
+    try {
+      return await request;
+    } finally {
+      studentTokenPromiseRef.current = null;
+    }
+  }, [caseId, toast]);
+
   // On mount, hydrate activeStudentKey from the server so "Clear stimulus" survives page reloads
   useEffect(() => {
     if (!caseId) return;
+    void createStudentAccessToken();
     fetch(`${BASE_URL}/api/public/raepa/student/${caseId}`)
       .then(r => r.ok ? r.json() : null)
       .then((data: { stimulus: { text: string } | null } | null) => {
         if (data?.stimulus) setActiveStudentKey("__server__");
       })
       .catch(() => {/* ignore — non-critical */});
-  }, [caseId]);
+  }, [caseId, createStudentAccessToken]);
 
   // Language functions state
   const [functions, setFunctions] = useState<Record<string, { level: string; evidence: string; subject_context: string }>>({});
@@ -821,6 +1045,10 @@ export default function RaepaPage() {
     });
   }
 
+  const studentAccessUrl = studentAccessToken
+    ? `${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}?token=${encodeURIComponent(studentAccessToken)}`
+    : null;
+
   // Upload state
   const [uploading, setUploading] = useState(false);
   const [uploadForm, setUploadForm] = useState({
@@ -830,11 +1058,20 @@ export default function RaepaPage() {
   });
 
   function copyStudentLink() {
-    const url = `${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`;
+    if (!studentAccessUrl) {
+      toast({ title: "Secure student link is not ready", description: "Try again after the secure token finishes loading.", variant: "destructive" });
+      return;
+    }
+    const url = studentAccessUrl;
     navigator.clipboard.writeText(url).then(() => {
       setStudentLinkCopied(true);
       setTimeout(() => setStudentLinkCopied(false), 2000);
     });
+  }
+
+  function openStudentShare() {
+    setStudentShareOpen(true);
+    if (!studentAccessToken) void createStudentAccessToken();
   }
 
   async function pushToStudent(key: string, content: GeneratedElicitation) {
@@ -953,6 +1190,139 @@ export default function RaepaPage() {
     },
   });
 
+  const { data: v2Evidence = [], isLoading: evidenceLoading } = useQuery<V2Evidence[]>({
+    queryKey: ["raepa-v2-evidence", caseId],
+    queryFn: async () => {
+      const [teacherResponse, studentResponse, profileResponse] = await Promise.all([
+        api(`/cases/${caseId}/raepa/teacher-profile`),
+        api(`/cases/${caseId}/raepa/student-interview`),
+        api(`/cases/${caseId}/raepa/profile`),
+      ]);
+      const teacherRows = teacherResponse.ok ? await teacherResponse.json() as Array<{ id: string; data?: Record<string, unknown> }> : [];
+      const studentRows = studentResponse.ok ? await studentResponse.json() as Array<{ id: string; responses?: Array<{ response_original?: string; prompt_original?: string }> }> : [];
+      const profile = profileResponse.ok ? await profileResponse.json() as { data?: Record<string, unknown>; status?: string; review_status?: string } | null : null;
+      const evidence: V2Evidence[] = teacherRows.map(row => {
+        const data = row.data ?? {};
+        return { id: row.id, source: "teacher", context: String(data.context ?? ""), summary: String(data.summary ?? ""), supports: String(data.supports ?? ""), concerns: String(data.concerns ?? "") };
+      });
+      for (const row of studentRows) {
+        const response = row.responses?.[0];
+        if (response) evidence.push({ id: row.id, source: "student", context: response.prompt_original ?? "", summary: response.response_original ?? "" });
+      }
+      const parentSummary = profile?.data?.parent_voice;
+      if (typeof parentSummary === "string" && parentSummary.trim()) evidence.push({ id: "profile-parent-voice", source: "parent", summary: parentSummary });
+      return evidence;
+    },
+  });
+  const { data: hypotheses = [] } = useQuery<Hypothesis[]>({
+    queryKey: ["raepa-v2-hypotheses", caseId],
+    queryFn: async () => {
+      const r = await api(`/cases/${caseId}/raepa/hypotheses`);
+      if (!r.ok) return [];
+      const data = await r.json() as unknown;
+      return Array.isArray(data) ? data as Hypothesis[] : ((data as { items?: Hypothesis[] }).items ?? []);
+    },
+  });
+  const { data: demandAnalyses = {} } = useQuery<Record<string, Record<string, unknown>>>({
+    queryKey: ["raepa-v2-demand-maps", caseId, workSamples.map(sample => sample.id).join(",")],
+    queryFn: async () => {
+      const entries = await Promise.all(workSamples.map(async sample => {
+        const response = await api(`/cases/${caseId}/raepa/work-samples/${sample.id}/analysis`);
+        return [sample.id, response.ok ? await response.json() as Record<string, unknown> : {}] as const;
+      }));
+      return Object.fromEntries(entries);
+    },
+    enabled: !!caseId && workSamples.length > 0,
+  });
+  const { data: v2Plan } = useQuery<AssessmentPlan | AssessmentPlan[] | null>({
+    queryKey: ["raepa-v2-plan", caseId],
+    queryFn: async () => {
+      const r = await api(`/cases/${caseId}/raepa/assessment-plan`);
+      if (!r.ok) return null;
+      return await r.json() as AssessmentPlan[];
+    },
+  });
+  const { data: v2Trials = [] } = useQuery<DynamicTrial[]>({
+    queryKey: ["raepa-v2-trials", caseId],
+    queryFn: async () => {
+      const r = await api(`/cases/${caseId}/raepa/dynamic-trials`);
+      if (!r.ok) return [];
+      const data = await r.json() as unknown;
+      const rows = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+      return rows.map(row => {
+        const condition = row.condition === "mediated" || row.condition === "transfer" ? row.condition : "independent";
+        const performance = condition === "mediated" ? row.mediated_performance : condition === "transfer" ? row.transfer_performance : row.initial_performance;
+        const response = row.response && typeof row.response === "object" ? row.response as Record<string, unknown> : {};
+        return {
+          id: String(row.id ?? ""), task: String(row.task_id ?? "Dynamic assessment task"), phase: condition,
+          support_level: String(row.support_level ?? "0"), performance: String((performance as Record<string, unknown> | null)?.summary ?? response.performance ?? row.observations ?? ""),
+          concept_understanding: String(response.concept_understanding ?? (row.conceptual_understanding_visible === true ? "Concept understanding was visible." : "")),
+          language_access: String(response.language_access ?? row.support_provided ?? ""),
+          evidence_ids: Array.isArray(row.evidence_refs) ? row.evidence_refs.map(String) : [],
+        } as DynamicTrial;
+      });
+    },
+  });
+  const { data: v2ReportSaved, refetch: refetchV2Report } = useQuery<V2Report | null>({
+    queryKey: ["raepa-v2-report", caseId],
+    queryFn: async () => {
+      const r = await api(`/cases/${caseId}/raepa/v2/reports`);
+      return r.ok ? normalizeV2Report(await r.json() as V2Report) : null;
+    },
+  });
+  const { data: v2History } = useQuery<{ languages?: AcademicHistoryRow[]; subjects?: SubjectHistoryRow[]; parent_voice?: string; student_voice?: string; teacher_voice?: string; profile_data?: Record<string, unknown>; profile_status?: string } | null>({
+    queryKey: ["raepa-v2-history", caseId],
+    queryFn: async () => {
+      const [historyResponse, profileResponse] = await Promise.all([
+        api(`/cases/${caseId}/raepa/v2/academic-history`),
+        api(`/cases/${caseId}/raepa/profile`),
+      ]);
+      if (!historyResponse.ok && !profileResponse.ok) return null;
+      const history = historyResponse.ok ? await historyResponse.json() as { languages?: Array<Record<string, unknown>>; subjects?: Array<Record<string, unknown>>; parent_voice?: string; student_voice?: string; teacher_voice?: string } : {};
+      const subjectResponse = await api(`/cases/${caseId}/raepa/subject-language-history`);
+      const subjectRows = subjectResponse.ok ? await subjectResponse.json() as Array<Record<string, unknown>> : [];
+      const profile = profileResponse.ok ? await profileResponse.json() as { data?: Record<string, unknown>; status?: string; review_status?: string } | null : null;
+      const data = profile?.data ?? {};
+      return {
+        languages: (history.languages ?? []).map(row => ({
+          id: firstHistoryValue(row, ["id"]), language: firstHistoryValue(row, ["language"]),
+          relationship: firstHistoryValue(row, ["relationship", "source"]) || "home",
+          // The database contract uses years_of_instruction, proficiency and
+          // formal_schooling_experience. The shorter names are legacy/v2
+          // aliases; accept either without allowing an alias mismatch to
+          // blank a previously captured value.
+          years: firstHistoryValue(row, ["years_of_instruction", "years", "instruction_years", "age_first_exposed"]),
+          academic_use: firstHistoryValue(row, ["formal_schooling_experience", "academic_use", "speaking_experience", "notes"]),
+          instruction_years: firstHistoryValue(row, ["years_of_instruction", "instruction_years", "years"]),
+          confidence: firstHistoryValue(row, ["proficiency", "confidence"]),
+          notes: firstHistoryValue(row, ["writing_experience", "notes", "formal_schooling_experience"]),
+        })),
+        subjects: (history.subjects?.length ? history.subjects : subjectRows).map(row => ({
+          id: String(row.id ?? ""), subject: String(row.subject ?? ""), language: String(row.language ?? ""),
+          years: String(row.years ?? ""), experience: String(row.experience ?? ""),
+          source: String(row.source ?? ""), notes: String(row.notes ?? ""),
+        })),
+        parent_voice: typeof history.parent_voice === "string" ? history.parent_voice : (typeof data.parent_voice === "string" ? data.parent_voice : ""),
+        student_voice: typeof history.student_voice === "string" ? history.student_voice : (typeof data.student_voice === "string" ? data.student_voice : ""),
+        teacher_voice: typeof history.teacher_voice === "string" ? history.teacher_voice : (typeof data.teacher_voice === "string" ? data.teacher_voice : ""),
+        profile_data: data,
+        profile_status: typeof profile?.review_status === "string" ? profile.review_status : (typeof profile?.status === "string" ? profile.status : ""),
+      };
+    },
+  });
+  const { data: v2Qa } = useQuery<{ checks?: Record<string, boolean>; note?: string } | null>({
+    queryKey: ["raepa-v2-qa", caseId],
+    queryFn: async () => {
+      const r = await api(`/cases/${caseId}/raepa/qa`);
+      if (!r.ok) return null;
+      const rows = await r.json() as Array<{ check_key?: string; passed?: boolean; details?: string }>;
+      return {
+        checks: Object.fromEntries(rows.map(row => [row.check_key ?? "", row.passed === true])),
+        note: rows.map(row => row.details).filter(Boolean).join(" "),
+      };
+    },
+  });
+
   // ── Sync state from server ───────────────────────────────────────────────────
 
   useEffect(() => {
@@ -979,6 +1349,72 @@ export default function RaepaPage() {
     }
     setFunctions(init);
   }, [langFunctions]);
+
+  useEffect(() => {
+    if (v2History) {
+      if (v2History.languages?.length) setAcademicHistory(v2History.languages.map(row => ({
+        language: row.language ?? "", relationship: row.relationship ?? "home", years: row.years ?? "",
+        academic_use: row.academic_use ?? "", instruction_years: row.instruction_years ?? "",
+        confidence: row.confidence ?? "", notes: row.notes ?? "", id: row.id,
+      })));
+      setSubjectHistory((v2History.subjects ?? []).map(row => ({
+        subject: row.subject ?? "", language: row.language ?? "", years: row.years ?? "",
+        experience: row.experience ?? "", source: row.source ?? "", notes: row.notes ?? "", id: row.id,
+      })));
+      setParentVoice(v2History.parent_voice ?? "");
+      setStudentVoice(v2History.student_voice ?? "");
+      setTeacherVoice(v2History.teacher_voice ?? "");
+    }
+  }, [v2History]);
+  useEffect(() => {
+    const storedPlan = Array.isArray(v2Plan) ? v2Plan[0] : v2Plan;
+    if (storedPlan) {
+      const stored = storedPlan as AssessmentPlan & { dynamic_conditions?: Array<Record<string, unknown>> };
+      const conditions = stored.dynamic_conditions?.[0] ?? {};
+      setPlan({
+      goals: String(conditions.goals ?? ""), supports: String(conditions.supports ?? ""),
+      success_indicators: String(conditions.success_indicators ?? ""),
+      recommendations: Array.isArray(stored.recommendations) ? stored.recommendations.map(item => ({
+        text: item.text ?? "", evidence_ids: item.evidence_ids ?? [], rationale: item.rationale ?? "",
+      })) : [{ text: "", evidence_ids: [], rationale: "" }],
+      id: stored.id, status: stored.status,
+      });
+    }
+  }, [v2Plan]);
+  useEffect(() => {
+    setTrials(v2Trials.map(trial => ({
+      ...trial, task: trial.task ?? "", support_level: trial.support_level ?? "none",
+      performance: trial.performance ?? "", concept_understanding: trial.concept_understanding ?? "",
+      language_access: trial.language_access ?? "", evidence_ids: trial.evidence_ids ?? [],
+      phase: trial.phase ?? "independent",
+    })));
+  }, [v2Trials]);
+  useEffect(() => {
+    if (v2ReportSaved) {
+      setV2Report(v2ReportSaved);
+      const storedMode = typeof window !== "undefined" ? window.localStorage.getItem(`raepa-report-mode:${caseId}`) : null;
+      const inferredMode = v2ReportSaved.comprehensive_text && !v2ReportSaved.standalone_text ? "comprehensive" : "standalone";
+      const hasAuthoritativePathway = v2ReportSaved.pathway === "standalone" || v2ReportSaved.pathway === "comprehensive";
+      const savedMode = hasAuthoritativePathway
+        ? v2ReportSaved.pathway!
+        : (storedMode === "comprehensive" || inferredMode === "comprehensive" ? "comprehensive" : "standalone");
+      if (hasAuthoritativePathway) window.localStorage.setItem(`raepa-report-mode:${caseId}`, savedMode);
+      setV2ReportMode(savedMode);
+      const savedText = savedMode === "comprehensive" ? (v2ReportSaved.comprehensive_text ?? "") : (v2ReportSaved.standalone_text ?? "");
+      setV2ReportDraft(savedText);
+      setReportFindingsDraft(alignReportFindings(savedText, v2ReportSaved.findings ?? v2ReportSaved.conclusions ?? []));
+      if (savedMode === "comprehensive" && savedText) {
+        setGeneratedReport(savedText);
+        setEditableReport(savedText);
+      }
+    }
+  }, [caseId, v2ReportSaved]);
+  useEffect(() => {
+    if (v2Qa) {
+      setQaChecks(v2Qa.checks ?? {});
+      setQaNote(v2Qa.note ?? "");
+    }
+  }, [v2Qa]);
 
   // ── Save session ─────────────────────────────────────────────────────────────
 
@@ -1347,11 +1783,317 @@ ${bodyHtml}
     }
   }, [caseId, qc, toast]);
 
+  // ── RAEPA v2 review contracts ────────────────────────────────────────────────
+  // The server exposes these structured records on the existing /raepa route
+  // namespace (not a literal /v2 path). Keep the UI model separate from the
+  // legacy scoring records while translating to those contracts at the boundary.
+  // The server owns identity, audit timestamps and permissions; the client sends
+  // only the review content below.
+  const v2Request = useCallback(async (path: string, method: string, body?: unknown) => {
+    const r = await api(`/cases/${caseId}/raepa/${path}`, {
+      method,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    if (!r.ok) {
+      const message = await r.text().catch(() => "");
+      let payload: V2RequestError["payload"];
+      try {
+        const parsed = JSON.parse(message) as V2RequestError["payload"];
+        if (parsed && typeof parsed === "object") payload = parsed;
+      } catch { /* Preserve non-JSON response text below. */ }
+      const error = new Error(payload?.error || message || "Request failed") as V2RequestError;
+      error.status = r.status;
+      error.code = typeof payload?.code === "string" ? payload.code : undefined;
+      error.payload = payload;
+      throw error;
+    }
+    return r.status === 204 ? null : await r.json().catch(() => null);
+  }, [caseId]);
+
+  const saveAcademicHistory = useCallback(async () => {
+    setV2Busy(true);
+    try {
+      // Keep the canonical language-history values intact in the UI model.
+      // The transactional v2 endpoint names these same values with its
+      // compatibility aliases (academic_use, instruction_years, confidence,
+      // notes), so translate only at this request boundary.
+      await v2Request("v2/academic-history", "PUT", { languages: academicHistory.filter(row => row.language.trim()).map(row => ({
+        language: row.language, relationship: row.relationship,
+        years: row.years || row.instruction_years,
+        academic_use: row.academic_use || row.notes,
+        years_of_instruction: row.instruction_years || row.years,
+        proficiency: row.confidence,
+        formal_schooling_experience: row.academic_use || row.notes,
+        instruction_years: row.instruction_years || row.years,
+        confidence: row.confidence, notes: row.notes || row.academic_use,
+      })), subjects: subjectHistory.filter(row => row.subject.trim() && row.language.trim()).map(row => ({
+        subject: row.subject, language: row.language, years: row.years, experience: row.experience,
+        source: row.source, notes: row.notes,
+      })), parent_voice: parentVoice, student_voice: studentVoice, teacher_voice: teacherVoice });
+      qc.invalidateQueries({ queryKey: ["raepa-v2-history", caseId] });
+      toast({ title: "Language history saved" });
+    } catch { toast({ title: "Could not save language history", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [academicHistory, caseId, parentVoice, qc, studentVoice, subjectHistory, teacherVoice, toast, v2Request]);
+
+  const saveEvidence = useCallback(async (source: "parent" | "teacher" | "student") => {
+    if (!evidenceDraft.summary.trim()) {
+      toast({ title: "Add an evidence summary first", variant: "destructive" });
+      return;
+    }
+    setV2Busy(true);
+    try {
+      if (source === "teacher") {
+        await v2Request("teacher-profile", "POST", { data: evidenceDraft });
+      } else if (source === "student") {
+        await v2Request("student-interview", "POST", { responses: [{
+          question_id: "academic-language-evidence", prompt_original: evidenceDraft.context,
+          response_original: [evidenceDraft.summary, evidenceDraft.supports ? `Helpful support: ${evidenceDraft.supports}` : "", evidenceDraft.concerns ? `Extra demand: ${evidenceDraft.concerns}` : ""].filter(Boolean).join("\n"),
+          language: langBg.l1 || "English",
+        }] });
+      } else {
+        await api(`/cases/${caseId}/raepa/profile`, {
+          method: "PUT",
+          body: JSON.stringify({ pathway, data: { ...(v2History?.profile_data ?? {}), parent_voice: evidenceDraft.summary } }),
+        }).then(response => { if (!response.ok) throw new Error("Could not save parent evidence"); });
+      }
+      setEvidenceDraft({ context: "", summary: "", supports: "", concerns: "" });
+      qc.invalidateQueries({ queryKey: ["raepa-v2-evidence", caseId] });
+      toast({ title: "Evidence added to review" });
+    } catch { toast({ title: "Could not save evidence", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, evidenceDraft, langBg.l1, pathway, qc, toast, v2History?.profile_data, v2Request]);
+
+  const saveDemandMap = useCallback(async (sampleId: string) => {
+    const map = demandMaps[sampleId];
+    if (!map) return;
+    setV2Busy(true);
+    try {
+      await v2Request(`work-samples/${sampleId}/analysis`, "PUT", {
+        layer_vocabulary: { summary: map.language_demand },
+        layer_structures: { summary: map.language_demand },
+        layer_functions: { summary: map.task_demand },
+        layer_cognitive: { summary: map.concept_demand, support_and_independence: map.support_and_independence },
+        conceptual_demand: map.concept_demand, english_language_demand: map.language_demand,
+        academic_register_demand: map.language_demand, output_demand: map.task_demand,
+        evidence_sufficiency: map.reviewer_note ? "adequate" : "limited",
+      });
+      toast({ title: "Four-layer demand map saved" });
+      qc.invalidateQueries({ queryKey: ["raepa-v2-demand-maps", caseId] });
+    } catch { toast({ title: "Could not save demand map", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, demandMaps, qc, toast, v2Request]);
+
+  const reviewHypothesis = useCallback(async (hypothesisId: string, decision: "approve" | "modify" | "reject") => {
+    setV2Busy(true);
+    try {
+      const status = decision === "approve" ? "approved" : decision === "modify" ? "modified" : "rejected";
+      const reviewerNote = hypothesisNotes[hypothesisId] ?? "";
+      await v2Request(`hypotheses/${hypothesisId}`, "PATCH", {
+        status, reviewer_notes: reviewerNote, ...(status === "modified" ? { statement: reviewerNote } : {}),
+      });
+      qc.invalidateQueries({ queryKey: ["raepa-v2-hypotheses", caseId] });
+      toast({ title: `Hypothesis ${decision === "approve" ? "approved" : decision}` });
+    } catch { toast({ title: "Could not update hypothesis", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, hypothesisNotes, qc, toast, v2Request]);
+
+  const savePlan = useCallback(async (approve = false) => {
+    setV2Busy(true);
+    try {
+      const hypothesisIds = hypotheses.filter(hypothesis => hypothesis.status === "approved" || hypothesis.status === "modified").map(hypothesis => hypothesis.id);
+      if (!hypothesisIds.length) throw new Error("Review at least one hypothesis before saving a plan");
+      const saved = await v2Request("assessment-plan", "POST", {
+        hypothesis_ids: hypothesisIds, work_sample_ids: workSamples.map(sample => sample.id),
+        modules: selectedModules, probes: [], functions: LANGUAGE_FUNCTIONS, structures: DOMAINS,
+        dynamic_conditions: [{ goals: plan.goals, supports: plan.supports, success_indicators: plan.success_indicators }],
+        reviewer_notes: plan.recommendations.map(recommendation => recommendation.rationale).filter(Boolean).join("\n"),
+        status: approve ? "approved" : "draft",
+      });
+      if (saved) setPlan({ ...plan, id: (saved as { id?: string }).id, status: (saved as { status?: string }).status });
+      for (const recommendation of plan.recommendations.filter(item => item.text.trim() && item.evidence_ids.length)) {
+        await v2Request("recommendations", "POST", {
+          category: "Academic English support", identified_need: recommendation.rationale || recommendation.text,
+          strategy: recommendation.text, evidence_refs: recommendation.evidence_ids,
+        });
+      }
+      qc.invalidateQueries({ queryKey: ["raepa-v2-plan", caseId] });
+      toast({ title: approve ? "Individualized plan approved" : "Individualized plan saved" });
+    } catch { toast({ title: "Could not save the individualized plan", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, hypotheses, plan, qc, selectedModules, toast, v2Request, workSamples]);
+
+  const saveTrial = useCallback(async () => {
+    if (!trialDraft.task.trim() || !trialDraft.performance.trim()) {
+      toast({ title: "Add the task and observed performance", variant: "destructive" });
+      return;
+    }
+    setV2Busy(true);
+    try {
+      const supportLevel = Number(trialDraft.support_level);
+      const response = { performance: trialDraft.performance, concept_understanding: trialDraft.concept_understanding, language_access: trialDraft.language_access };
+      await v2Request("dynamic-trials", "POST", {
+        condition: trialDraft.phase, task_id: trialDraft.task, support_level: Number.isFinite(supportLevel) ? supportLevel : 0,
+        initial_performance: trialDraft.phase === "independent" ? response : undefined,
+        mediated_performance: trialDraft.phase === "mediated" ? response : undefined,
+        transfer_performance: trialDraft.phase === "transfer" ? response : undefined,
+        support_provided: trialDraft.phase === "mediated" ? trialDraft.language_access : "",
+        response, conceptual_understanding_visible: !!trialDraft.concept_understanding,
+        observations: trialDraft.performance, evidence_refs: trialDraft.evidence_ids,
+      });
+      if (trialDraft.concept_understanding) {
+        await v2Request("concept-language", "POST", {
+          classification: trialDraft.concept_classification ?? "evidence_mixed",
+          narrative: trialDraft.concept_understanding, evidence_refs: trialDraft.evidence_ids,
+        });
+      }
+      setTrialDraft({ task: "", phase: "independent", support_level: "0", performance: "", concept_understanding: "", language_access: "", evidence_ids: [], concept_classification: "evidence_mixed" });
+      qc.invalidateQueries({ queryKey: ["raepa-v2-trials", caseId] });
+      toast({ title: "Trial recorded" });
+    } catch { toast({ title: "Could not record trial", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, qc, toast, trialDraft, v2Request]);
+
+  const saveQa = useCallback(async () => {
+    setV2Busy(true);
+    try {
+      const result = await v2Request("qa", "POST", { report_id: v2Report?.id });
+      if (result && Array.isArray((result as { checks?: Array<{ key?: string; passed?: boolean }> }).checks)) {
+        setQaChecks(Object.fromEntries((result as { checks: Array<{ key?: string; passed?: boolean }> }).checks.map(check => [check.key ?? "", check.passed === true])));
+      }
+      qc.invalidateQueries({ queryKey: ["raepa-v2-qa", caseId] });
+      toast({ title: "QA checklist saved" });
+    } catch { toast({ title: "Could not save QA checklist", variant: "destructive" }); }
+    finally { setV2Busy(false); }
+  }, [caseId, qc, qaNote, toast, v2Report?.id, v2Request]);
+
+  const generateV2Report = useCallback(async () => {
+    setV2Busy(true);
+    try {
+      window.localStorage.setItem(`raepa-report-mode:${caseId}`, v2ReportMode);
+      const expectedVersion = v2Report?.version ?? v2ReportSaved?.version;
+      const saved = normalizeV2Report(await v2Request("v2/reports/generate", "POST", {
+        mode: v2ReportMode,
+        expected_version: expectedVersion ?? 0,
+      }) as V2Report);
+      const generatedText = v2ReportMode === "comprehensive" ? saved.comprehensive_text : saved.standalone_text;
+      if (!saved?.id || !generatedText) throw new Error("Report generation returned no narrative");
+      setV2Report({ ...saved, pathway: v2ReportMode });
+      setV2ReportDraft(generatedText);
+      setReportFindingsDraft(alignReportFindings(generatedText, saved.findings ?? saved.conclusions ?? []));
+      if (v2ReportMode === "comprehensive") {
+        // The comprehensive mode is the Academic English section of the
+        // existing comprehensive report workflow, not a disconnected label.
+        setGeneratedReport(generatedText);
+        setEditableReport(generatedText);
+      }
+      toast({ title: `${v2ReportMode === "standalone" ? "Standalone" : "Comprehensive"} report draft generated` });
+    } catch (error) {
+      const requestError = error as V2RequestError;
+      if (requestError.status === 409 || requestError.code === "version_conflict") {
+        await refetchV2Report();
+        toast({ title: "This report draft is stale", description: "Another reviewer changed the report. The latest saved draft has been reloaded; your unsaved generation was not applied.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Could not generate report draft", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+    finally { setV2Busy(false); }
+  }, [caseId, refetchV2Report, toast, v2Report, v2ReportMode, v2ReportSaved?.version, v2Request]);
+
+  const reviewProfile = useCallback(async () => {
+    const response = await api(`/cases/${caseId}/raepa/profile/review`, {
+      method: "POST",
+      body: JSON.stringify({ decision: "approve", note: "Assessment Lead reviewed the professional profile before report release." }),
+    });
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      throw new Error(message || "Assessment Lead profile review was rejected");
+    }
+    qc.invalidateQueries({ queryKey: ["raepa-v2-history", caseId] });
+    const refreshedReport = await refetchV2Report();
+    const currentReport = refreshedReport.data;
+    if (currentReport) {
+      setV2Report(currentReport);
+      const currentText = v2ReportMode === "comprehensive"
+        ? currentReport.comprehensive_text ?? ""
+        : currentReport.standalone_text ?? "";
+      setV2ReportDraft(currentText);
+      setReportFindingsDraft(alignReportFindings(currentText, currentReport.findings ?? currentReport.conclusions ?? []));
+    }
+  }, [caseId, qc, refetchV2Report, v2ReportMode]);
+
+  const markProfileReviewed = useCallback(async () => {
+    setV2Busy(true);
+    try {
+      await reviewProfile();
+      toast({ title: "Assessment Lead review recorded", description: "The professional profile is now eligible for report QA." });
+    } catch (error) {
+      toast({ title: "Could not review profile", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setV2Busy(false);
+    }
+  }, [reviewProfile, toast]);
+
+  const reviewV2Report = useCallback(async (decision: "save" | "approve") => {
+    setV2Busy(true);
+    try {
+      if (!v2Report?.id) throw new Error("Generate the report before reviewing it");
+      const findingsForSubmit = alignReportFindings(v2ReportDraft, reportFindingsDraft);
+      const unmappedFindings = findingsForSubmit.filter(finding => !finding.evidence_refs.length);
+      if (decision === "approve" && unmappedFindings.length > 0) {
+        throw new Error(`${unmappedFindings.length} conclusion${unmappedFindings.length === 1 ? "" : "s"} still need evidence mapping`);
+      }
+      const expectedVersion = v2Report.version ?? v2ReportSaved?.version;
+      if (typeof expectedVersion !== "number") throw new Error("Reload the saved report before saving or approving it so its version can be verified");
+      const saved = normalizeV2Report(await v2Request(`v2/reports/${v2Report.id}/review`, "POST", {
+        mode: v2ReportMode, text: v2ReportDraft, decision, findings: findingsForSubmit,
+        expected_version: expectedVersion,
+      }) as V2Report);
+      setV2Report({ ...saved, pathway: v2ReportMode });
+      setReportFindingsDraft(alignReportFindings(v2ReportDraft, saved.findings ?? saved.conclusions ?? findingsForSubmit));
+      qc.invalidateQueries({ queryKey: ["raepa-v2-report", caseId] });
+      toast({ title: decision === "approve" ? "Assessment Lead approved report" : "Report review saved" });
+    } catch (error) {
+      const requestError = error as V2RequestError;
+      if (requestError.status === 409 || requestError.code === "version_conflict") {
+        await refetchV2Report();
+        toast({ title: "This report draft is stale", description: "Another reviewer saved a newer version. The latest report and evidence mappings have been reloaded; your changes were not applied.", variant: "destructive" });
+        return;
+      }
+      if (requestError.status === 422 || requestError.code === "qa_blocked") {
+        const returnedQa = normalizeReturnedQa(
+          requestError.payload?.checks
+          ?? requestError.payload?.qa_checks
+          ?? requestError.payload?.checklist
+          ?? (requestError.payload?.qa as { checks?: unknown } | undefined)?.checks,
+        );
+        setQaChecks(returnedQa.checks);
+        setQaNote(returnedQa.note);
+        await refetchV2Report();
+        toast({
+          title: "Report approval blocked by QA",
+          description: returnedQa.note || requestError.message || "The returned QA checklist must pass before approval.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Could not save report review", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+    finally { setV2Busy(false); }
+  }, [caseId, qc, refetchV2Report, reportFindingsDraft, toast, v2Report, v2ReportDraft, v2ReportMode, v2ReportSaved?.version, v2Request]);
+
   // ── Computed values ───────────────────────────────────────────────────────────
 
   const client = caseData?.client ?? caseData;
   const clientName = client ? `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() : "Client";
   const clientAge = client?.dateOfBirth ? calcAge(client.dateOfBirth) : null;
+  const reportEvidenceRefs = v2Report?.source_evidence_refs?.length
+    ? v2Report.source_evidence_refs
+    : v2Evidence.map(evidence => ({ id: evidence.id, type: evidence.source, label: `${evidence.source}: ${evidence.summary || evidence.context || "Evidence"}` }));
+  const unmappedReportFindings = reportFindingsDraft.filter(finding => (finding.narrative_text ?? finding.conclusion).trim() && finding.evidence_refs.length === 0);
+  const profileReviewComplete = v2History?.profile_status === "reviewed"
+    || v2History?.profile_status === "approved"
+    || v2History?.profile_status === "complete";
 
   const savedRatings = domainRatings.map(r => ({ ...r, score: ratings[r.domain]?.score ?? r.score }));
   const profileAvg = DOMAINS.length ? DOMAINS.reduce((sum, d) => sum + (ratings[d]?.score ?? 0), 0) / DOMAINS.length : 0;
@@ -1406,7 +2148,7 @@ ${bodyHtml}
             <Badge className="bg-indigo-900 text-indigo-300 font-mono text-xs">
               {pathway === "comprehensive" ? "Add-on" : "Standalone"}
             </Badge>
-            <Button size="sm" variant="outline" onClick={() => setStudentShareOpen(true)} className="border-teal-700 text-teal-400 hover:bg-teal-900/30 gap-1.5">
+            <Button data-testid="button-open-student-share" size="sm" variant="outline" onClick={openStudentShare} className="border-teal-700 text-teal-400 hover:bg-teal-900/30 gap-1.5">
               <QrCode className="w-3.5 h-3.5" />
               Student view
             </Button>
@@ -1610,6 +2352,60 @@ ${bodyHtml}
                 Save Setup
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* ── MULTILINGUAL HISTORY & VOICES ───────────────────────────── */}
+        {activeTab === "history" && (
+          <div className="space-y-6">
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <div>
+                  <h2 className="text-base font-semibold">Language and learning history</h2>
+                  <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+                    Record languages used at home and school, and the language in which the student learned academic ideas.
+                    This is context, not a measure of ability. Keep the parent’s words alongside the professional review.
+                  </p>
+                </div>
+                <Button data-testid="button-add-language-history" variant="outline" size="sm" onClick={() => setAcademicHistory(rows => [...rows, { language: "", relationship: "school", years: "", academic_use: "", instruction_years: "", confidence: "", notes: "" }])}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add language
+                </Button>
+              </div>
+              <div className="overflow-x-auto mt-5">
+                <table className="w-full min-w-[850px] text-xs">
+                  <thead><tr className="text-left text-slate-500 border-b border-slate-800">
+                    <th className="pb-2 pr-2">Language</th><th className="pb-2 pr-2">Years</th><th className="pb-2 pr-2">Academic use / learning</th>
+                    <th className="pb-2 pr-2">Schooling years</th><th className="pb-2 pr-2">Confidence</th><th className="pb-2 pr-2">Notes</th><th className="pb-2 pr-2">Used for</th><th />
+                  </tr></thead>
+                  <tbody>
+                    {academicHistory.map((row, index) => (
+                      <tr key={index} className="border-b border-slate-800/70">
+                        {(["language", "years", "academic_use", "instruction_years", "confidence", "notes"] as const).map(field => (
+                          <td key={field} className="py-2 pr-2">
+                            <input data-testid={`input-history-${field}-${index}`} className="w-full min-w-[105px] bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 outline-none focus:border-indigo-500" value={row[field]} placeholder={field === "language" ? "e.g. Mandarin" : "Add detail…"} onChange={e => setAcademicHistory(rows => rows.map((r, i) => i === index ? { ...r, [field]: e.target.value } : r))} />
+                          </td>
+                        ))}
+                        <td className="py-2 pr-2">
+                          <select data-testid={`select-history-relationship-${index}`} className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200" value={row.relationship} onChange={e => setAcademicHistory(rows => rows.map((r, i) => i === index ? { ...r, relationship: e.target.value } : r))}>
+                            <option value="home">Home</option><option value="school">School</option><option value="community">Community</option><option value="other">Other</option>
+                          </select>
+                        </td>
+                        <td className="py-2"><button data-testid={`button-remove-language-${index}`} className="text-slate-500 hover:text-red-400 p-1" aria-label="Remove language" onClick={() => setAcademicHistory(rows => rows.length > 1 ? rows.filter((_, i) => i !== index) : rows)}><Trash2 className="w-3.5 h-3.5" /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4 mt-5">
+                <div><label className="block text-xs text-slate-400 mb-1">Parent / carer perspective</label><Textarea data-testid="textarea-parent-voice" className="bg-slate-800 border-slate-700 min-h-[100px]" placeholder="What does the family notice helps the student understand or explain school learning?" value={parentVoice} onChange={e => setParentVoice(e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-400 mb-1">Student perspective</label><Textarea data-testid="textarea-student-voice" className="bg-slate-800 border-slate-700 min-h-[100px]" placeholder="What feels easy, difficult, or helpful in English-medium learning?" value={studentVoice} onChange={e => setStudentVoice(e.target.value)} /></div>
+                <div className="md:col-span-2"><label className="block text-xs text-slate-400 mb-1">Teacher / school perspective</label><Textarea data-testid="textarea-teacher-voice" className="bg-slate-800 border-slate-700 min-h-[90px]" placeholder="How does the student participate across subjects? Which supports are already used?" value={teacherVoice} onChange={e => setTeacherVoice(e.target.value)} /></div>
+              </div>
+              <div className="flex justify-end mt-4"><Button data-testid="button-save-history" onClick={saveAcademicHistory} disabled={v2Busy} className="bg-indigo-600 hover:bg-indigo-700"><Save className="w-4 h-4 mr-2" /> Save language history</Button></div>
+            </section>
+            <section className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-xs text-amber-200">
+              <strong>Review safeguard:</strong> language history is not a diagnosis and does not prove why a student performed a certain way. Use it to ask better questions and compare evidence across contexts.
+            </section>
           </div>
         )}
 
@@ -1870,6 +2666,65 @@ ${bodyHtml}
                 </div>
               </section>
             )}
+          </div>
+        )}
+
+        {/* ── EVIDENCE REVIEW & DEMAND MAPS ───────────────────────────── */}
+        {activeTab === "evidence" && (
+          <div className="space-y-6">
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-5">
+                <UserRound className="w-5 h-5 text-indigo-400 mt-0.5" />
+                <div><h2 className="text-base font-semibold">Teacher, parent and student evidence</h2><p className="text-xs text-slate-400 mt-1">Keep each person’s observation visible. Describe what was seen or heard; do not turn one comment into a conclusion.</p></div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3 mb-4">
+                <input data-testid="input-evidence-context" className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500" placeholder="Context or subject (e.g. Year 6 science)" value={evidenceDraft.context} onChange={e => setEvidenceDraft(d => ({ ...d, context: e.target.value }))} />
+                <input data-testid="input-evidence-summary" className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500" placeholder="Short observation" value={evidenceDraft.summary} onChange={e => setEvidenceDraft(d => ({ ...d, summary: e.target.value }))} />
+                <Textarea data-testid="textarea-evidence-supports" className="bg-slate-800 border-slate-700" placeholder="What helped the student show learning?" value={evidenceDraft.supports} onChange={e => setEvidenceDraft(d => ({ ...d, supports: e.target.value }))} />
+                <Textarea data-testid="textarea-evidence-concerns" className="bg-slate-800 border-slate-700" placeholder="Where did English create extra demand?" value={evidenceDraft.concerns} onChange={e => setEvidenceDraft(d => ({ ...d, concerns: e.target.value }))} />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {(["parent", "teacher", "student"] as const).map(source => <Button key={source} data-testid={`button-add-${source}-evidence`} variant="outline" size="sm" onClick={() => saveEvidence(source)} disabled={v2Busy}><Plus className="w-3.5 h-3.5 mr-1" /> Add {source} evidence</Button>)}
+              </div>
+              <div className="mt-5 space-y-2">
+                {evidenceLoading ? <p className="text-xs text-slate-500">Loading evidence…</p> : v2Evidence.length === 0 ? <p className="text-xs text-slate-500">No v2 evidence has been added yet. Existing work samples remain available in Work Samples.</p> : v2Evidence.map(item => (
+                  <button data-testid={`button-evidence-${item.id}`} key={item.id} onClick={() => setSelectedEvidenceId(item.id)} className={`w-full text-left rounded-lg border p-3 transition-colors ${selectedEvidenceId === item.id ? "border-indigo-500 bg-indigo-950/40" : "border-slate-800 bg-slate-800/50 hover:border-slate-600"}`}>
+                    <div className="flex gap-2 items-center"><Badge className="capitalize bg-slate-700 text-slate-200">{item.source}</Badge><span className="text-xs text-slate-400">{item.context || "Unspecified context"}</span><span className="ml-auto text-[10px] text-slate-500">{item.status || "Captured"}</span></div>
+                    <p className="text-sm text-slate-200 mt-2">{item.summary}</p>
+                    {(item.supports || item.concerns) && <p className="text-xs text-slate-400 mt-1">{item.supports ? `Helps: ${item.supports}` : ""}{item.concerns ? ` · Demand: ${item.concerns}` : ""}</p>}
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-2"><Layers className="w-5 h-5 text-violet-400 mt-0.5" /><div><h2 className="text-base font-semibold">Four-layer work-sample demand maps</h2><p className="text-xs text-slate-400 mt-1">Separate what the task asks, what English is needed, what the student must understand, and what support makes independence possible.</p></div></div>
+              <div className="grid gap-4 mt-5">
+                {workSamples.length === 0 ? <p className="text-xs text-slate-500">Upload a classroom work sample first.</p> : workSamples.map(sample => {
+                  const analysis = demandAnalyses[sample.id] ?? {};
+                  const layer = (key: string) => analysis[key] && typeof analysis[key] === "object" ? String((analysis[key] as { summary?: unknown }).summary ?? "") : "";
+                  const existing = demandMaps[sample.id] ?? {
+                    task_demand: String(analysis.output_demand ?? layer("layer_functions") ?? sample.task_type ?? ""),
+                    language_demand: String(analysis.english_language_demand ?? layer("layer_structures") ?? sample.ai_analysis?.demand_map?.language ?? ""),
+                    concept_demand: String(analysis.conceptual_demand ?? layer("layer_cognitive") ?? sample.ai_analysis?.demand_map?.concept ?? ""),
+                    support_and_independence: String(layer("layer_cognitive") || sample.support_provided || ""),
+                    reviewer_note: String(Array.isArray(analysis.source_evidence_refs) ? analysis.source_evidence_refs.join(", ") : ""),
+                  };
+                  const setMap = (field: keyof DemandMap, value: string) => setDemandMaps(maps => ({ ...maps, [sample.id]: { ...(maps[sample.id] ?? existing), [field]: value } }));
+                  return <div key={sample.id} className="rounded-lg border border-slate-800 p-4">
+                    <div className="flex gap-2 items-center mb-3"><FileText className="w-4 h-4 text-violet-400" /><span className="text-sm font-medium">{sample.title || sample.file_name || "Work sample"}</span><Badge className="ml-auto bg-slate-800 text-slate-400">{sample.subject || "Subject not set"}</Badge></div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {([
+                        ["task_demand", "1. Task demand", "What must the student do or produce?"],
+                        ["language_demand", "2. English demand", "Words, sentence structures, directions or genre needed"],
+                        ["concept_demand", "3. Concept demand", "Subject knowledge or reasoning required (not language ability)"],
+                        ["support_and_independence", "4. Support and independence", "What support was used? What happened when it was reduced?"],
+                      ] as [keyof DemandMap, string, string][]).map(([field, label, placeholder]) => <div key={field}><label className="block text-xs font-medium text-slate-300 mb-1">{label}</label><Textarea data-testid={`textarea-demand-${field}-${sample.id}`} className="bg-slate-800 border-slate-700 min-h-[72px] text-xs" placeholder={placeholder} value={existing[field]} onChange={e => setMap(field, e.target.value)} /></div>)}
+                    </div>
+                    <div className="flex items-end gap-3 mt-3"><div className="flex-1"><label className="block text-xs text-slate-500 mb-1">Reviewer note / evidence link</label><input data-testid={`input-demand-note-${sample.id}`} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs" value={existing.reviewer_note} onChange={e => setMap("reviewer_note", e.target.value)} placeholder="What supports this map?" /></div><Button data-testid={`button-save-demand-map-${sample.id}`} size="sm" onClick={() => saveDemandMap(sample.id)} disabled={v2Busy}><Save className="w-3.5 h-3.5 mr-1" /> Save map</Button></div>
+                  </div>;
+                })}
+              </div>
+            </section>
           </div>
         )}
 
@@ -2310,9 +3165,120 @@ ${bodyHtml}
           </div>
         )}
 
+        {/* ── DYNAMIC TRIALS, HYPOTHESES & PLAN ───────────────────────── */}
+        {activeTab === "trials" && (
+          <div className="space-y-6">
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-4"><Sparkles className="w-5 h-5 text-amber-400 mt-0.5" /><div><h2 className="text-base font-semibold">AI hypotheses — professional review</h2><p className="text-xs text-slate-400 mt-1">AI suggestions are drafts. Approve, modify, or reject them only when the linked evidence supports the wording.</p></div></div>
+              {hypotheses.length === 0 ? <p className="text-xs text-slate-500">No hypotheses are waiting for review. They can be generated from the evidence workspace.</p> : <div className="space-y-3">{hypotheses.map(hypothesis => <div key={hypothesis.id} className="rounded-lg border border-slate-800 p-4">
+                <div className="flex items-center gap-2 mb-2"><Badge className={`${hypothesis.status === "approved" ? "bg-emerald-900 text-emerald-300" : hypothesis.status === "rejected" ? "bg-red-900 text-red-300" : "bg-amber-900 text-amber-300"}`}>{hypothesis.status || "Needs review"}</Badge><span className="text-[11px] text-slate-500">Evidence: {hypothesis.evidence_refs?.join(", ") || "not linked"}</span></div>
+                <p className="text-sm text-slate-200 leading-relaxed">{hypothesis.statement}</p>
+                <Textarea data-testid={`textarea-hypothesis-note-${hypothesis.id}`} className="mt-3 bg-slate-800 border-slate-700 min-h-[62px] text-xs" placeholder="Professional note; for Modify, enter the revised hypothesis wording…" value={hypothesisNotes[hypothesis.id] ?? hypothesis.reviewer_notes ?? ""} onChange={e => setHypothesisNotes(notes => ({ ...notes, [hypothesis.id]: e.target.value }))} />
+                <div className="flex gap-2 justify-end mt-2"><Button data-testid={`button-reject-hypothesis-${hypothesis.id}`} size="sm" variant="outline" onClick={() => reviewHypothesis(hypothesis.id, "reject")} disabled={v2Busy}>Reject</Button><Button data-testid={`button-modify-hypothesis-${hypothesis.id}`} size="sm" variant="outline" onClick={() => reviewHypothesis(hypothesis.id, "modify")} disabled={v2Busy}><Pencil className="w-3 h-3 mr-1" /> Save change</Button><Button data-testid={`button-approve-hypothesis-${hypothesis.id}`} size="sm" onClick={() => reviewHypothesis(hypothesis.id, "approve")} disabled={v2Busy}><CheckCheck className="w-3 h-3 mr-1" /> Approve</Button></div>
+              </div>)}</div>}
+            </section>
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-4"><TestTube2 className="w-5 h-5 text-teal-400 mt-0.5" /><div><h2 className="text-base font-semibold">Independent, supported and transfer trials</h2><p className="text-xs text-slate-400 mt-1">Record what the student can do alone, what becomes visible with support, and whether the learning carries to a similar task.</p></div></div>
+              <div className="grid md:grid-cols-2 gap-3">
+                <input data-testid="input-trial-task" className="md:col-span-2 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm" placeholder="Task or probe" value={trialDraft.task} onChange={e => setTrialDraft(d => ({ ...d, task: e.target.value }))} />
+                <select data-testid="select-trial-phase" className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm" value={trialDraft.phase} onChange={e => setTrialDraft(d => ({ ...d, phase: e.target.value as DynamicTrial["phase"] }))}><option value="independent">Independent — no added support</option><option value="mediated">Mediated — support provided</option><option value="transfer">Transfer — comparable new task</option></select>
+                <select data-testid="select-trial-support" className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm" value={trialDraft.support_level} onChange={e => setTrialDraft(d => ({ ...d, support_level: e.target.value }))}><option value="0">Support: none</option><option value="1">Support: light prompt / clarification</option><option value="3">Support: model / organiser</option><option value="5">Support: intensive teaching / translation</option></select>
+                <Textarea data-testid="textarea-trial-performance" className="bg-slate-800 border-slate-700" placeholder="Observed performance (what happened?)" value={trialDraft.performance} onChange={e => setTrialDraft(d => ({ ...d, performance: e.target.value }))} />
+                <Textarea data-testid="textarea-trial-concept" className="bg-slate-800 border-slate-700" placeholder="Concept understanding (what does the student appear to know?)" value={trialDraft.concept_understanding} onChange={e => setTrialDraft(d => ({ ...d, concept_understanding: e.target.value }))} />
+                <Textarea data-testid="textarea-trial-language" className="bg-slate-800 border-slate-700" placeholder="English access (which words or structures helped or blocked expression?)" value={trialDraft.language_access} onChange={e => setTrialDraft(d => ({ ...d, language_access: e.target.value }))} />
+                <select data-testid="select-concept-language-classification" className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm" value={trialDraft.concept_classification} onChange={e => setTrialDraft(d => ({ ...d, concept_classification: e.target.value }))}><option value="evidence_mixed">Concept–language relationship: evidence mixed</option><option value="concept_language_both_accessible">Concept and English both accessible</option><option value="concept_stronger_than_english">Concept appears stronger than English expression</option><option value="improves_with_mediation">Performance improves with mediation</option><option value="academic_register_restricts">Academic language/register restricts access</option><option value="conceptual_difficulty_persists">Conceptual difficulty persists with support</option><option value="insufficient_evidence">Insufficient evidence</option></select>
+                <div className="bg-slate-800/60 rounded border border-slate-700 p-3 text-xs text-slate-400"><p className="font-medium text-slate-300 mb-2">Link evidence (optional)</p>{v2Evidence.slice(0, 6).map(evidence => <label key={evidence.id} className="flex gap-2 items-start mb-1.5"><input data-testid={`checkbox-trial-evidence-${evidence.id}`} type="checkbox" checked={trialDraft.evidence_ids.includes(evidence.id)} onChange={e => setTrialDraft(d => ({ ...d, evidence_ids: e.target.checked ? [...d.evidence_ids, evidence.id] : d.evidence_ids.filter(id => id !== evidence.id) }))} /> <span>{evidence.source}: {evidence.summary}</span></label>)}</div>
+              </div>
+              <div className="flex justify-end mt-3"><Button data-testid="button-save-trial" onClick={saveTrial} disabled={v2Busy} className="bg-teal-700 hover:bg-teal-600"><Save className="w-4 h-4 mr-2" /> Record trial</Button></div>
+              {trials.length > 0 && <div className="mt-5 space-y-2">{trials.map((trial, index) => <div key={trial.id ?? index} className="rounded-lg border border-slate-800 p-3 text-xs"><div className="flex items-center gap-2"><Badge className="capitalize bg-teal-900 text-teal-300">{trial.phase}</Badge><span className="font-medium text-slate-200">{trial.task}</span><span className="ml-auto text-slate-500">{trial.support_level}</span></div><p className="text-slate-400 mt-2">{trial.performance}</p><p className="text-slate-500 mt-1">Concept: {trial.concept_understanding || "Not recorded"} · English access: {trial.language_access || "Not recorded"}</p></div>)}</div>}
+            </section>
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-4"><ClipboardList className="w-5 h-5 text-indigo-400 mt-0.5" /><div><h2 className="text-base font-semibold">Individualized support plan</h2><p className="text-xs text-slate-400 mt-1">Turn findings into practical goals. Every recommendation should point back to evidence.</p></div></div>
+              <div className="grid gap-3">
+                <Textarea data-testid="textarea-plan-goals" className="bg-slate-800 border-slate-700" placeholder="Priority learning goals (plain language)" value={plan.goals} onChange={e => setPlan(p => ({ ...p, goals: e.target.value }))} />
+                <Textarea data-testid="textarea-plan-supports" className="bg-slate-800 border-slate-700" placeholder="Classroom supports and how to fade them over time" value={plan.supports} onChange={e => setPlan(p => ({ ...p, supports: e.target.value }))} />
+                <Textarea data-testid="textarea-plan-success" className="bg-slate-800 border-slate-700" placeholder="What progress should look like (including independence and transfer)" value={plan.success_indicators} onChange={e => setPlan(p => ({ ...p, success_indicators: e.target.value }))} />
+                {plan.recommendations.map((recommendation, index) => <div key={index} className="border border-slate-800 rounded-lg p-3"><div className="flex gap-2"><input data-testid={`input-recommendation-${index}`} className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm" placeholder="Evidence-linked recommendation" value={recommendation.text} onChange={e => setPlan(p => ({ ...p, recommendations: p.recommendations.map((r, i) => i === index ? { ...r, text: e.target.value } : r) }))} /><button data-testid={`button-remove-recommendation-${index}`} className="text-slate-500 hover:text-red-400" onClick={() => setPlan(p => ({ ...p, recommendations: p.recommendations.filter((_, i) => i !== index) }))}><Trash2 className="w-4 h-4" /></button></div><input data-testid={`input-recommendation-rationale-${index}`} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 mt-2 text-xs" placeholder="Why this recommendation fits the evidence" value={recommendation.rationale} onChange={e => setPlan(p => ({ ...p, recommendations: p.recommendations.map((r, i) => i === index ? { ...r, rationale: e.target.value } : r) }))} /><div className="flex flex-wrap gap-2 mt-2">{v2Evidence.map(evidence => <label key={evidence.id} className="text-[10px] text-slate-400 flex items-center gap-1"><input data-testid={`checkbox-recommendation-evidence-${index}-${evidence.id}`} type="checkbox" checked={recommendation.evidence_ids.includes(evidence.id)} onChange={e => setPlan(p => ({ ...p, recommendations: p.recommendations.map((r, i) => i === index ? { ...r, evidence_ids: e.target.checked ? [...r.evidence_ids, evidence.id] : r.evidence_ids.filter(id => id !== evidence.id) } : r) }))} /> {evidence.source} evidence</label>)}</div></div>)}
+                <Button data-testid="button-add-recommendation" variant="outline" size="sm" onClick={() => setPlan(p => ({ ...p, recommendations: [...p.recommendations, { text: "", evidence_ids: [], rationale: "" }] }))}><Plus className="w-3.5 h-3.5 mr-1" /> Add recommendation</Button>
+              </div>
+              <div className="flex justify-end gap-2 mt-4"><Button data-testid="button-save-plan" variant="outline" onClick={() => savePlan(false)} disabled={v2Busy}><Save className="w-4 h-4 mr-2" /> Save plan</Button><Button data-testid="button-approve-plan" onClick={() => savePlan(true)} disabled={v2Busy} className="bg-emerald-700 hover:bg-emerald-600"><CheckCircle2 className="w-4 h-4 mr-2" /> Approve plan</Button></div>
+            </section>
+          </div>
+        )}
+
+        {/* ── REVIEW & QA ────────────────────────────────────────────── */}
+        {activeTab === "qa" && (
+          <div className="space-y-6">
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start gap-3 mb-5"><ShieldCheck className="w-5 h-5 text-emerald-400 mt-0.5" /><div><h2 className="text-base font-semibold">Visible quality checklist</h2><p className="text-xs text-slate-400 mt-1">Complete these checks before sharing a report. They protect the student and make the interpretation defensible.</p></div></div>
+              <div className="space-y-3">
+                {[
+                  ["evidence", "Findings are linked to specific observations, work samples or trials."],
+                  ["concept_language", "Concept understanding is separated from English access where the evidence allows."],
+                  ["mediation", "Any support provided is recorded, including what changed after support."],
+                  ["transfer", "Transfer was recorded when a comparable task was available, or marked not administered."],
+                  ["hypothesis", "AI hypotheses were reviewed by an authorized professional; no AI draft is treated as a diagnosis."],
+                  ["recommendations", "Recommendations are practical, individualized and linked to evidence."],
+                  ["language", "Original parent, teacher and student words are preserved; translations are clearly identified."],
+                  ["privacy", "Consent, audience and confidentiality have been checked before release."],
+                ].map(([key, label]) => <label key={key} data-testid={`qa-check-${key}`} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer ${qaChecks[key] ? "border-emerald-700/50 bg-emerald-950/20" : "border-slate-800"}`}><input data-testid={`checkbox-qa-${key}`} type="checkbox" className="mt-0.5 accent-emerald-500" checked={!!qaChecks[key]} onChange={e => setQaChecks(checks => ({ ...checks, [key]: e.target.checked }))} /><span className={`text-sm ${qaChecks[key] ? "text-emerald-200" : "text-slate-300"}`}>{label}</span>{qaChecks[key] && <CheckCircle2 className="w-4 h-4 text-emerald-400 ml-auto" />}</label>)}
+              </div>
+              <div className="mt-4"><label className="block text-xs text-slate-400 mb-1">Reviewer note / unresolved limitation</label><Textarea data-testid="textarea-qa-note" className="bg-slate-800 border-slate-700 min-h-[90px]" placeholder="State what remains uncertain and what follow-up would help." value={qaNote} onChange={e => setQaNote(e.target.value)} /></div>
+              <div className="flex justify-end mt-4"><Button data-testid="button-save-qa" onClick={saveQa} disabled={v2Busy} className="bg-emerald-700 hover:bg-emerald-600"><ShieldCheck className="w-4 h-4 mr-2" /> Save QA review</Button></div>
+            </section>
+            <section className="rounded-xl border border-red-700/40 bg-red-950/20 p-4 text-xs text-red-200">
+              <strong>Do not conclude:</strong> limited English is not limited intelligence; language history does not establish causation; cross-language influence is a hypothesis to test; AI cannot independently diagnose, place, or approve a report.
+            </section>
+          </div>
+        )}
+
         {/* ── REPORT TAB ────────────────────────────────────────────── */}
         {activeTab === "report" && (
           <div className="space-y-6">
+            {/* v2 report lifecycle: draft -> professional review -> approved */}
+            <section className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex items-start gap-3"><BookOpen className="w-5 h-5 text-indigo-400 mt-0.5" /><div><h2 className="text-base font-semibold">Report workspace</h2><p className="text-xs text-slate-400 mt-1">Choose whether this is a standalone RAEPA report or an Academic English section within the comprehensive report.</p></div></div>
+                <Badge className={`${v2Report?.status === "approved" ? "bg-emerald-900 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>{v2Report?.status || "Not generated"}</Badge>
+              </div>
+              <div className="flex gap-2 mb-4">
+                <button data-testid="button-report-standalone" onClick={() => { const text = v2Report?.standalone_text ?? ""; setV2ReportMode("standalone"); window.localStorage.setItem(`raepa-report-mode:${caseId}`, "standalone"); setV2ReportDraft(text); setReportFindingsDraft(alignReportFindings(text, v2Report?.findings ?? v2Report?.conclusions ?? [])); }} className={`rounded-lg border px-3 py-2 text-xs ${v2ReportMode === "standalone" ? "border-indigo-500 bg-indigo-950 text-indigo-200" : "border-slate-700 text-slate-400"}`}>Standalone assessment</button>
+                <button data-testid="button-report-comprehensive" onClick={() => { const text = v2Report?.comprehensive_text ?? ""; setV2ReportMode("comprehensive"); window.localStorage.setItem(`raepa-report-mode:${caseId}`, "comprehensive"); setV2ReportDraft(text); setReportFindingsDraft(alignReportFindings(text, v2Report?.findings ?? v2Report?.conclusions ?? [])); }} className={`rounded-lg border px-3 py-2 text-xs ${v2ReportMode === "comprehensive" ? "border-indigo-500 bg-indigo-950 text-indigo-200" : "border-slate-700 text-slate-400"}`}><Workflow className="w-3 h-3 inline mr-1" />Comprehensive add-on</button>
+                <Button data-testid="button-generate-v2-report" size="sm" className="ml-auto bg-indigo-600 hover:bg-indigo-700" onClick={generateV2Report} disabled={v2Busy}><Sparkles className="w-3.5 h-3.5 mr-1" /> Generate draft</Button>
+              </div>
+              {v2ReportMode === "comprehensive" && <div className="mb-4 rounded-lg border border-indigo-700/50 bg-indigo-950/30 p-3 text-xs text-indigo-200"><Workflow className="w-4 h-4 inline mr-1" /> This draft is the Academic English section of the existing comprehensive report. Generating it also updates the comprehensive narrative workspace below.</div>}
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                 <div><p className="text-xs font-semibold text-slate-200">1. Professional profile review</p><p className="text-[11px] text-slate-500">{profileReviewComplete ? "Reviewed by an Assessment Lead. Report QA may proceed." : "Complete this separate Assessment Lead action before report QA and release."}</p></div>
+                 <Button data-testid="button-review-profile" variant="outline" size="sm" onClick={markProfileReviewed} disabled={v2Busy || profileReviewComplete}><ShieldCheck className="w-3.5 h-3.5 mr-1" /> {profileReviewComplete ? "Profile reviewed" : "Review profile"}</Button>
+              </div>
+              {v2ReportDraft ? <>
+                <Textarea data-testid="textarea-v2-report" className="bg-slate-800 border-slate-700 min-h-[220px] text-sm leading-relaxed" value={v2ReportDraft} onChange={e => { const text = e.target.value; setV2ReportDraft(text); setReportFindingsDraft(findings => alignReportFindings(text, findings)); }} />
+                <div data-testid="report-evidence-mapping-editor" className="mt-4 rounded-lg border border-slate-700 bg-slate-950/40 p-4">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div><p className="text-xs font-semibold text-slate-200">Structured findings and evidence mapping</p><p className="text-[11px] text-slate-500 mt-1">Keep each human-edited conclusion tied to one or more canonical evidence records before release.</p></div>
+                    <Button data-testid="button-add-report-finding" variant="outline" size="sm" onClick={() => setReportFindingsDraft(findings => [...findings, { id: `finding-${Date.now()}`, conclusion: "", evidence_refs: [] }])}><Plus className="w-3 h-3 mr-1" /> Add finding</Button>
+                  </div>
+                  {reportFindingsDraft.length === 0 && <p className="text-xs text-amber-300">No structured findings are available. Add and map every conclusion before approval.</p>}
+                  <div className="space-y-3">
+                    {reportFindingsDraft.map((finding, index) => {
+                      const unmapped = finding.conclusion.trim().length > 0 && finding.evidence_refs.length === 0;
+                      return <div key={finding.id} className={`rounded-md border p-3 ${unmapped ? "border-amber-700/70 bg-amber-950/20" : "border-slate-800"}`}>
+                        <div className="flex items-start gap-2">
+                          <Textarea data-testid={`textarea-report-finding-${index}`} readOnly className="bg-slate-800 border-slate-700 min-h-[58px] text-xs flex-1 opacity-80" placeholder="Narrative section (edit the report text above)" value={finding.narrative_text || finding.conclusion} />
+                          <button data-testid={`button-remove-report-finding-${index}`} className="text-slate-500 hover:text-red-400" onClick={() => setReportFindingsDraft(findings => findings.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+                          {reportEvidenceRefs.length === 0 ? <span className="text-[11px] text-amber-300">No canonical evidence records returned.</span> : reportEvidenceRefs.map(reference => <label key={reference.id} className="flex items-center gap-1 text-[10px] text-slate-400"><input data-testid={`checkbox-report-finding-${index}-${reference.id}`} type="checkbox" checked={finding.evidence_refs.includes(reference.id)} onChange={e => setReportFindingsDraft(findings => findings.map((item, itemIndex) => itemIndex === index ? { ...item, evidence_refs: e.target.checked ? [...item.evidence_refs, reference.id] : item.evidence_refs.filter(id => id !== reference.id) } : item))} /> {reference.label} ({reference.id})</label>)}
+                        </div>
+                        {unmapped && <p data-testid={`warning-unmapped-report-finding-${index}`} className="text-[11px] text-amber-300 mt-2">Unmapped conclusion — select at least one evidence record before Assessment Lead approval.</p>}
+                      </div>;
+                    })}
+                  </div>
+                  {unmappedReportFindings.length > 0 && <p data-testid="warning-unmapped-report-findings" className="text-xs text-amber-300 mt-3"><AlertTriangle className="w-3 h-3 inline mr-1" />{unmappedReportFindings.length} conclusion{unmappedReportFindings.length === 1 ? "" : "s"} need evidence mapping before approval.</p>}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3"><p className="text-[11px] text-slate-500">{!profileReviewComplete ? "Complete the separate profile review above before approving this report." : "Profile review is complete; report approval will run canonical QA."}</p><div className="flex justify-end gap-2"><Button data-testid="button-save-v2-report" variant="outline" size="sm" onClick={() => reviewV2Report("save")} disabled={v2Busy}><Save className="w-3.5 h-3.5 mr-1" /> Save review</Button><Button data-testid="button-approve-v2-report" size="sm" className="bg-emerald-700 hover:bg-emerald-600" onClick={() => reviewV2Report("approve")} disabled={v2Busy || !profileReviewComplete || reportFindingsDraft.length === 0 || unmappedReportFindings.length > 0}><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Assessment Lead: approve report</Button></div></div>
+              </> : <p className="text-xs text-slate-500">Generate a draft after reviewing evidence, hypotheses, trials and the individualized plan. An Assessment Lead must review the profile, edit this draft, map every conclusion to evidence, and approve before release.</p>}
+            </section>
             {/* Readiness check */}
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h2 className="text-base font-semibold mb-4">Assessment Readiness</h2>
@@ -2455,7 +3421,7 @@ ${bodyHtml}
                         variant="outline"
                         size="sm"
                         className="text-xs h-7"
-                        onClick={generateReport}
+                        onClick={() => v2ReportMode === "comprehensive" ? generateV2Report() : generateReport()}
                         disabled={generatingReport}
                       >
                         <RefreshCw className={`w-3 h-3 mr-1.5 ${generatingReport ? "animate-spin" : ""}`} />
@@ -2679,13 +3645,13 @@ ${bodyHtml}
                       : "Complete domain scoring and language function profile first."}
                   </p>
                   <Button
-                    onClick={generateReport}
-                    disabled={generatingReport || (progressCounts.rated === 0 && fnProgressCounts.assessed === 0)}
+                    onClick={() => v2ReportMode === "comprehensive" ? generateV2Report() : generateReport()}
+                    disabled={generatingReport || v2Busy || (progressCounts.rated === 0 && fnProgressCounts.assessed === 0)}
                     className="bg-indigo-600 hover:bg-indigo-700"
                   >
                     {generatingReport
                       ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating…</>
-                      : <><Sparkles className="w-4 h-4 mr-2" /> Generate RAEPA Report</>}
+                        : <><Sparkles className="w-4 h-4 mr-2" /> {v2ReportMode === "comprehensive" ? "Generate comprehensive Academic English section" : "Generate RAEPA Report"}</>}
                   </Button>
                 </div>
               )}
@@ -2712,44 +3678,45 @@ ${bodyHtml}
               <p className="text-sm text-slate-400 mb-5">
                 Open this page on the student's device (tablet or second screen). It shows a waiting screen until you push content from the assessment.
               </p>
-              <div className="flex justify-center mb-5">
-                <div className="bg-white p-4 rounded-xl">
-                  <QRCodeSVG
-                    value={`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
-                    size={200}
-                    level="H"
-                    includeMargin={false}
-                  />
+              {studentTokenLoading && (
+                <div data-testid="status-student-token-loading" className="flex items-center justify-center gap-2 py-10 text-sm text-teal-300">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Creating a secure student link…
                 </div>
-              </div>
-              <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-4 min-w-0">
-                <span className="text-xs text-slate-300 truncate flex-1 font-mono">
-                  {`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
-                </span>
-                <button onClick={copyStudentLink} className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-teal-700 hover:bg-teal-600 text-white transition-colors">
-                  {studentLinkCopied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
-                </button>
-              </div>
-              <a href={`${BASE_URL}/student-view/raepa/${caseId}`} target="_blank" rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-3">
-                <Eye size={14} /> Open in new tab
-              </a>
-              <button
-                onClick={downloadStudentQrCard}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download QR Card (PNG)
-              </button>
-              <div className="hidden">
-                <QRCodeCanvas
-                  ref={studentQrDownloadRef}
-                  value={`${window.location.origin}${BASE_URL}/student-view/raepa/${caseId}`}
-                  size={720}
-                  level="H"
-                  includeMargin={false}
-                />
-              </div>
+              )}
+              {!studentTokenLoading && studentTokenError && (
+                <div data-testid="status-student-token-error" className="rounded-lg border border-red-700/50 bg-red-950/30 p-4 mb-5">
+                  <p className="text-sm text-red-200">The secure student link could not be created.</p>
+                  <p className="text-xs text-red-300/80 mt-1">{studentTokenError}</p>
+                  <Button data-testid="button-retry-student-token" size="sm" variant="outline" className="mt-3 border-red-700 text-red-200" onClick={() => void createStudentAccessToken()}>Try again</Button>
+                </div>
+              )}
+              {!studentTokenLoading && !studentTokenError && studentAccessUrl && (
+                <>
+                  <div className="flex justify-center mb-5">
+                    <div className="bg-white p-4 rounded-xl">
+                      <QRCodeSVG value={studentAccessUrl} size={200} level="H" includeMargin={false} />
+                    </div>
+                  </div>
+                  <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-2 mb-4 min-w-0">
+                    <span data-testid="text-secure-student-url" className="text-xs text-slate-300 truncate flex-1 font-mono">{studentAccessUrl}</span>
+                    <button data-testid="button-copy-secure-student-link" onClick={copyStudentLink} className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-teal-700 hover:bg-teal-600 text-white transition-colors">
+                      {studentLinkCopied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
+                    </button>
+                  </div>
+                  <a data-testid="link-open-secure-student-view" href={studentAccessUrl} target="_blank" rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-3">
+                    <Eye size={14} /> Open secure student view
+                  </a>
+                  <button data-testid="button-download-secure-student-qr" onClick={downloadStudentQrCard}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-800 transition-colors mb-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download secure QR card (PNG)
+                  </button>
+                  <div className="hidden">
+                    <QRCodeCanvas ref={studentQrDownloadRef} value={studentAccessUrl} size={720} level="H" includeMargin={false} />
+                  </div>
+                </>
+              )}
               <div className="bg-slate-800/60 rounded-xl p-4 space-y-2.5">
                 <p className="text-xs font-semibold text-teal-400 uppercase tracking-wider">How it works</p>
                 {([
