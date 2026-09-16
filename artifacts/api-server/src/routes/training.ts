@@ -190,6 +190,30 @@ function parseArrayField(val: any): string[] {
   return [];
 }
 
+const TRAINING_WORKSHOP_CUTOFFS: Record<number, string> = {
+  1: "2026-09-16T08:00:00.000Z",
+  2: "2026-09-30T08:00:00.000Z",
+  3: "2026-10-14T08:00:00.000Z",
+  4: "2026-10-28T08:00:00.000Z",
+};
+
+function getTrainingWorkshopAvailability(now = new Date()) {
+  return Object.fromEntries(
+    Object.entries(TRAINING_WORKSHOP_CUTOFFS).map(([num, cutoff]) => [
+      `workshop_${num}`,
+      now < new Date(cutoff),
+    ]),
+  ) as Record<string, boolean>;
+}
+
+router.get("/training/availability", (_req, res) => {
+  res.json({
+    timezone: "Asia/Hong_Kong",
+    cutoffLocalTime: "16:00",
+    workshops: getTrainingWorkshopAvailability(),
+  });
+});
+
 // ── Public: Register ──────────────────────────────────────────────────────────
 router.post("/training/register", async (req, res) => {
   try {
@@ -215,8 +239,22 @@ router.post("/training/register", async (req, res) => {
       return res.status(400).json({ error: "Privacy consent is required" });
     }
 
-    const normalEmail = email.trim().toLowerCase();
     const now = new Date();
+    const availability = getTrainingWorkshopAvailability(now);
+    const requestedWorkshops = [
+      !!workshop_1_selected,
+      !!workshop_2_selected,
+      !!workshop_3_selected,
+      !!workshop_4_selected,
+    ];
+    const acceptedWorkshops = requestedWorkshops.map((selected, index) =>
+      selected && availability[`workshop_${index + 1}`],
+    );
+    if (!acceptedWorkshops.some(Boolean)) {
+      return res.status(400).json({ error: "Please select at least one workshop that is still open for registration." });
+    }
+
+    const normalEmail = email.trim().toLowerCase();
     const consentTs = marketing_consent ? now.toISOString() : null;
 
     // Duplicate check — upsert on email
@@ -238,11 +276,11 @@ router.post("/training/register", async (req, res) => {
         country = ${country?.trim() ?? null},
         school_type = ${school_type ?? null},
         school_size = ${school_size ?? null},
-        workshop_1_selected = ${!!workshop_1_selected},
-        workshop_2_selected = ${!!workshop_2_selected},
-        workshop_3_selected = ${!!workshop_3_selected},
-        workshop_4_selected = ${!!workshop_4_selected},
-        full_series_selected = ${!!full_series_selected},
+        workshop_1_selected = ${acceptedWorkshops[0]},
+        workshop_2_selected = ${acceptedWorkshops[1]},
+        workshop_3_selected = ${acceptedWorkshops[2]},
+        workshop_4_selected = ${acceptedWorkshops[3]},
+        full_series_selected = ${!!full_series_selected && acceptedWorkshops.every(Boolean)},
         areas_of_interest = ${JSON.stringify(parseArrayField(areas_of_interest))}::jsonb,
         school_support_challenge = ${school_support_challenge?.trim() ?? null},
         interested_future_learning = ${!!interested_future_learning},
@@ -272,8 +310,8 @@ router.post("/training/register", async (req, res) => {
         ${job_title?.trim() ?? null}, ${professional_role ?? null}, ${professional_role_other?.trim() ?? null},
         ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null},
         ${school_type ?? null}, ${school_size ?? null},
-        ${!!workshop_1_selected}, ${!!workshop_2_selected}, ${!!workshop_3_selected}, ${!!workshop_4_selected},
-        ${!!full_series_selected}, ${JSON.stringify(parseArrayField(areas_of_interest))}::jsonb,
+        ${acceptedWorkshops[0]}, ${acceptedWorkshops[1]}, ${acceptedWorkshops[2]}, ${acceptedWorkshops[3]},
+        ${!!full_series_selected && acceptedWorkshops.every(Boolean)}, ${JSON.stringify(parseArrayField(areas_of_interest))}::jsonb,
         ${school_support_challenge?.trim() ?? null},
         ${!!interested_future_learning}, ${!!interested_school_training},
         ${!!interested_assessment_services}, ${!!interested_partner_school}, ${!!training_only},

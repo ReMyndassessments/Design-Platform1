@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   CheckCircle2, Users, Globe, BookOpen,
@@ -631,6 +631,10 @@ function WhyParticipate() {
 
 // ── Registration Form ─────────────────────────────────────────────────────────
 function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
+  const [availability, setAvailability] = useState<Record<string, boolean>>({
+    workshop_1: false, workshop_2: false, workshop_3: false, workshop_4: false,
+  });
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
   const [form, setForm] = useState({
     first_name: "", last_name: "", email: "",
     professional_role: "", professional_role_other: "",
@@ -647,10 +651,41 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetch("/api/training/availability")
+      .then(async response => {
+        if (!response.ok) throw new Error("Unable to load workshop availability.");
+        return response.json();
+      })
+      .then(data => {
+        setAvailability(data.workshops ?? {});
+        setForm(current => ({
+          ...current,
+          workshop_1: current.workshop_1 && !!data.workshops?.workshop_1,
+          workshop_2: current.workshop_2 && !!data.workshops?.workshop_2,
+          workshop_3: current.workshop_3 && !!data.workshops?.workshop_3,
+          workshop_4: current.workshop_4 && !!data.workshops?.workshop_4,
+          full_series: false,
+        }));
+        setAvailabilityLoaded(true);
+      })
+      .catch(() => {
+        setError("Workshop availability could not be loaded. Please refresh the page.");
+        setAvailabilityLoaded(true);
+      });
+  }, []);
+
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
   const handleFullSeries = (checked: boolean) => {
-    setForm(f => ({ ...f, full_series: checked, workshop_1: checked, workshop_2: checked, workshop_3: checked, workshop_4: checked }));
+    setForm(f => ({
+      ...f,
+      full_series: checked,
+      workshop_1: checked && !!availability.workshop_1,
+      workshop_2: checked && !!availability.workshop_2,
+      workshop_3: checked && !!availability.workshop_3,
+      workshop_4: checked && !!availability.workshop_4,
+    }));
   };
   const handleWorkshop = (num: number, checked: boolean) => {
     const key = `workshop_${num}` as any;
@@ -668,6 +703,10 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.privacy_consent) { setError("Please accept the privacy consent to register."); return; }
+    if (![form.workshop_1, form.workshop_2, form.workshop_3, form.workshop_4].some(Boolean)) {
+      setError("Please select at least one workshop that is still open for registration.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -793,30 +832,37 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
               <legend className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Workshop Selection</legend>
               <p className="text-xs text-slate-400 mb-4">Select the workshops you wish to attend. You are welcome to register for all four.</p>
               <div className="space-y-2.5">
-                <label className="flex items-start gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl cursor-pointer hover:bg-indigo-100/70 transition-colors">
-                  <input type="checkbox" className="mt-0.5 accent-indigo-600" checked={form.full_series} onChange={e => handleFullSeries(e.target.checked)} />
+                <label className={`flex items-start gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl transition-colors ${availabilityLoaded ? "cursor-pointer hover:bg-indigo-100/70" : "opacity-60 cursor-wait"}`}>
+                  <input type="checkbox" className="mt-0.5 accent-indigo-600" checked={form.full_series} disabled={!availabilityLoaded} onChange={e => handleFullSeries(e.target.checked)} />
                   <div>
-                    <p className="text-sm font-semibold text-indigo-800">Register me for the complete 4-part series</p>
-                    <p className="text-xs text-indigo-600 mt-0.5">Automatically selects all four workshops below</p>
+                    <p className="text-sm font-semibold text-indigo-800">Register me for all remaining workshops</p>
+                    <p className="text-xs text-indigo-600 mt-0.5">Automatically selects every workshop still open below</p>
                   </div>
                 </label>
-                {WORKSHOPS.map(w => (
-                  <label key={w.num} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                {WORKSHOPS.map(w => {
+                  const isOpen = !!availability[`workshop_${w.num}`];
+                  return (
+                  <label key={w.num} className={`flex items-start gap-3 p-3 border rounded-xl transition-colors ${isOpen ? "bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100" : "bg-slate-100 border-slate-200 cursor-not-allowed opacity-70"}`}>
                     <input
                       type="checkbox"
                       className="mt-0.5 accent-slate-700"
                       checked={(form as any)[`workshop_${w.num}`]}
+                      disabled={!availabilityLoaded || !isOpen}
                       onChange={e => handleWorkshop(w.num, e.target.checked)}
                     />
                     <div>
-                      <p className="text-sm font-medium text-slate-800">Workshop {w.num} — {w.title}</p>
+                      <p className="text-sm font-medium text-slate-800">
+                        Workshop {w.num} — {w.title}
+                        {!isOpen && availabilityLoaded && <span className="ml-2 text-xs font-bold uppercase tracking-wide text-red-600">Registration closed</span>}
+                      </p>
                       <p className="text-xs text-slate-500 mt-0.5">{w.subtitle}</p>
                       <p className="text-xs text-teal-600 font-medium mt-1 flex items-center gap-1">
                         <Calendar size={10} /> {w.date} <span className="text-slate-300">·</span> <Clock size={10} /> {w.time}
                       </p>
                     </div>
                   </label>
-                ))}
+                  );
+                })}
               </div>
             </fieldset>
 
