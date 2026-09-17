@@ -293,15 +293,23 @@ export default function CommunicationsComposePage() {
     }
 
     const hasManualRecipients = manualRecipients.split(/[\n,;]+/).some(email => email.trim());
-    if (!name || (audienceSources.length === 0 && !hasManualRecipients)) {
-      return alert("Name and at least one audience source or email recipient are required.");
+    if (audienceSources.length === 0 && !hasManualRecipients) {
+      return alert("Select an audience source or enter at least one individual email recipient.");
     }
     if (kind === "promotional" && hasManualRecipients && !marketingConsentConfirmed) {
       return alert("Confirm that these recipients previously consented to marketing email.");
     }
+    const campaignName = name.trim() || (
+      kind === "operational" && hasManualRecipients
+        ? `Individual email — ${subject.trim()}`
+        : ""
+    );
+    if (!campaignName) {
+      return alert("An internal campaign name is required for promotional email.");
+    }
     
     createCampaign.mutate(
-      { name, subject, html: generatedHtml, kind, provider, audience: getAudienceObject() },
+      { name: campaignName, subject, html: generatedHtml, kind, provider, audience: getAudienceObject() },
       {
         onSuccess: (res: any) => {
           if (action === "send") {
@@ -617,6 +625,9 @@ export default function CommunicationsComposePage() {
                     <Eye size={12} /> Preview Audience
                   </button>
                 </div>
+                <p className="text-[10px] text-slate-500 -mt-2 mb-3">
+                  Optional when sending to individual email recipients below.
+                </p>
                 <div className="space-y-2">
                   {[
                     { id: "training", label: "All Training Series Registrants" },
