@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, Save, Send, Calendar as CalendarIcon, Check, Mail, Eye, Image as ImageIcon, X } from "lucide-react";
+import { ArrowLeft, Save, Send, Calendar as CalendarIcon, Check, Mail, Eye, Image as ImageIcon, FileText, X } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateCampaign, useCreateDraft, useUpdateDraft, useScheduleCampaign, 
@@ -360,11 +360,16 @@ export default function CommunicationsComposePage() {
     );
   };
   
-  const insertAsset = (url: string) => {
+  const insertAsset = (asset: { serving_url?: string; object_path: string; name: string; content_type: string }) => {
+    const url = window.location.origin + (asset.serving_url || asset.object_path);
+    const safeName = asset.name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const assetHtml = asset.content_type.startsWith("image/")
+      ? `<img src="${url}" alt="${safeName}" style="max-width: 100%; border-radius: 8px;" />`
+      : `<a href="${url}" style="color: #0f766e; text-decoration: underline; font-weight: 600;">Download ${safeName}</a>`;
     if (mode === "structured") {
-      setBodyText(prev => prev + `\n\n<img src="${url}" style="max-width: 100%; border-radius: 8px;" />`);
+      setBodyText(prev => prev + `\n\n${assetHtml}`);
     } else {
-      setHtml(prev => prev + `<img src="${url}" style="max-width: 100%; border-radius: 8px;" />`);
+      setHtml(prev => prev + assetHtml);
     }
     setAssetsModalOpen(false);
   };
@@ -904,21 +909,31 @@ export default function CommunicationsComposePage() {
             <DialogTitle>Insert Asset</DialogTitle>
           </DialogHeader>
           <div className="pt-4 grid grid-cols-3 sm:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto">
-            {assetsData?.assets?.filter(a => a.content_type.startsWith("image/")).map((a: any) => (
+            {assetsData?.assets?.map((a: any) => (
               <div 
                 key={a.id} 
-                onClick={() => insertAsset(window.location.origin + (a.serving_url || a.object_path))}
+                onClick={() => insertAsset(a)}
+                data-testid={`button-insert-asset-${a.id}`}
                 className="border border-slate-200 rounded-lg overflow-hidden cursor-pointer hover:border-indigo-500 hover:ring-2 hover:ring-indigo-200 transition-all"
               >
                 <div className="aspect-square bg-slate-50 flex items-center justify-center">
-                  <img src={a.serving_url || a.object_path} alt={a.alt_text || a.name} className="w-full h-full object-cover" />
+                  {a.content_type.startsWith("image/") ? (
+                    <img src={a.serving_url || a.object_path} alt={a.alt_text || a.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 px-3 text-center">
+                      <FileText size={42} className="text-indigo-400" />
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase">
+                        {a.name.includes(".") ? a.name.split(".").pop() : "File"}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-2 text-[10px] truncate bg-white">{a.name}</div>
               </div>
             ))}
             {(!assetsData?.assets || assetsData.assets.length === 0) && (
               <div className="col-span-full py-12 text-center text-slate-400">
-                No images available. Upload them in the Communications dashboard first.
+                No assets available. Upload files in the Communications dashboard first.
               </div>
             )}
           </div>
