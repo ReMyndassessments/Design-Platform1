@@ -48,7 +48,7 @@ export default function LandingPage() {
           <div className="relative">
             <div className="absolute -inset-4 bg-blue-500/15 rounded-[40px] blur-2xl" />
             <div className="relative w-[112px] h-[112px] bg-white rounded-[28px] flex items-center justify-center shadow-2xl">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-[76px] h-[76px] object-contain" />
+              <img src="/images/remynd-logo-landing.png" alt="ReMynd" className="w-[76px] h-[76px] object-contain" />
             </div>
           </div>
 
