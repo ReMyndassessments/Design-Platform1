@@ -245,8 +245,9 @@ export default function CommunicationsComposePage() {
   };
 
   const handleSaveDraft = () => {
-    if (!name) return alert("Internal campaign name is required to save a draft.");
-    const payload = { name, subject, html: generatedHtml, audience: getAudienceObject() };
+    const draftName = name.trim() || `Draft — ${subject.trim() || "Untitled email"}`;
+    const payload = { name: draftName, subject, html: generatedHtml, audience: getAudienceObject() };
+    setName(draftName);
     
     if (draftId) {
       updateDraft.mutate({ id: draftId, data: payload }, {
