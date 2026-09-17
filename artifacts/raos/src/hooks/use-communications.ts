@@ -303,6 +303,17 @@ export function useUpdateDraft() {
   });
 }
 
+export function useDeleteDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customFetch(`/api/communications/drafts/${id}`, { method: "DELETE" }),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: ["communications-draft", id] });
+      qc.invalidateQueries({ queryKey: ["communications-drafts"] });
+    },
+  });
+}
+
 export function useUpdateBrandSettings() {
   const qc = useQueryClient();
   return useMutation({

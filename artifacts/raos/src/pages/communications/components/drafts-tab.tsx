@@ -1,10 +1,18 @@
-import { useDrafts } from "@/hooks/use-communications";
-import { Archive, Edit } from "lucide-react";
+import { useDeleteDraft, useDrafts } from "@/hooks/use-communications";
+import { Archive, Edit, Loader2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
 export function DraftsTab() {
   const { data, isLoading } = useDrafts();
+  const deleteDraft = useDeleteDraft();
+
+  const handleDelete = (id: string, name: string) => {
+    if (!window.confirm(`Delete "${name}"? This draft cannot be recovered.`)) return;
+    deleteDraft.mutate(id, {
+      onError: (err: any) => window.alert(err?.message || "Unable to delete draft."),
+    });
+  };
 
   if (isLoading) return <div className="py-12 text-center text-slate-400">Loading drafts...</div>;
 
@@ -31,13 +39,27 @@ export function DraftsTab() {
               Last updated {format(new Date(d.updated_at), "MMM d, yyyy h:mm a")}
             </p>
           </div>
-          <Link
-            href={`/communications/compose/${d.id}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-sm font-medium transition-colors"
-          >
-            <Edit size={14} />
-            Edit Draft
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/communications/compose/${d.id}`}
+              data-testid={`link-edit-draft-${d.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-sm font-medium transition-colors"
+            >
+              <Edit size={14} />
+              Edit Draft
+            </Link>
+            <button
+              onClick={() => handleDelete(d.id, d.name)}
+              disabled={deleteDraft.isPending}
+              data-testid={`button-delete-draft-${d.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {deleteDraft.isPending && deleteDraft.variables === d.id
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Trash2 size={14} />}
+              Delete
+            </button>
+          </div>
         </div>
       ))}
     </div>
