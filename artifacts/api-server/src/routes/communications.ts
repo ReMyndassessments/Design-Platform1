@@ -50,7 +50,7 @@ router.get("/communications/unsubscribe/:token", async (req, res) => {
   res.type("text/plain").send("You have been unsubscribed from promotional communications.");
 });
 router.get("/communications/assets/public/:id", async (req, res): Promise<void> => {
-  const found = await db.execute(sql`SELECT object_path,content_type FROM communication_assets WHERE id=${req.params.id} LIMIT 1`);
+  const found = await db.execute(sql`SELECT object_path,content_type,name FROM communication_assets WHERE id=${req.params.id} LIMIT 1`);
   if (!found.rows.length) { res.status(404).json({ error: "Asset not found" }); return; }
   try {
     const asset = found.rows[0] as any;
@@ -59,6 +59,11 @@ router.get("/communications/assets/public/:id", async (req, res): Promise<void> 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
     res.setHeader("Content-Type", asset.content_type);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (!String(asset.content_type).startsWith("image/")) {
+      const safeName = String(asset.name || "download").replace(/["\r\n]/g, "_");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    }
     res.setHeader("Cache-Control", "public, max-age=3600");
     if (!response.body) { res.end(); return; }
     Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
@@ -426,10 +431,39 @@ router.put("/communications/brand", async (req,res)=>{ await db.execute(sql`INSE
 router.post("/communications/suppressions", async(req,res): Promise<void> => {const email=String(req.body?.email||"").trim().toLowerCase();if(!validEmail.test(email)){res.status(400).json({error:"Valid email required"});return;}const kind=req.body?.kind==="hard"?"hard":"unsubscribe";await db.execute(sql`INSERT INTO communication_suppressions(email,kind,reason) VALUES(${email},${kind},${req.body?.reason??null}) ON CONFLICT(email) DO UPDATE SET kind=EXCLUDED.kind,reason=EXCLUDED.reason`);res.status(201).json({ok:true});});
 router.get("/communications/suppressions", async(_req,res)=>{const r=await db.execute(sql`SELECT email,kind,reason,created_at FROM communication_suppressions ORDER BY created_at DESC`);res.json({suppressions:r.rows});});
 router.delete("/communications/suppressions/:email", async(req,res)=>{await db.execute(sql`DELETE FROM communication_suppressions WHERE email=${String(req.params.email).toLowerCase()}`);res.json({ok:true});});
-const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const maxImageBytes = Number(process.env.COMMUNICATIONS_MAX_IMAGE_BYTES || 5 * 1024 * 1024);
-router.post("/communications/assets/request-upload", async(req,res): Promise<void> => {const {name,size,contentType}=req.body??{};if(typeof name!=="string"||!Number.isInteger(size)||size<1||size>maxImageBytes||typeof contentType!=="string"||!imageTypes.has(contentType)){res.status(400).json({error:"Only JPG, PNG, or WebP images up to the configured maximum are allowed"});return;}const uploadURL=await objectStorage.getObjectEntityUploadURL();res.json({uploadURL,objectPath:objectStorage.normalizeObjectEntityPath(uploadURL),maxBytes:maxImageBytes});});
-router.post("/communications/assets", async(req,res): Promise<void> => {const {objectPath,name,size,contentType,altText}=req.body??{};if(typeof objectPath!=="string"||!objectPath.startsWith("/objects/")||typeof name!=="string"||!Number.isInteger(size)||size<1||size>maxImageBytes||typeof contentType!=="string"||!imageTypes.has(contentType)||(altText!==undefined&&typeof altText!=="string")){res.status(400).json({error:"Invalid image asset metadata"});return;}const id=nanoid();await db.execute(sql`INSERT INTO communication_assets(id,object_path,name,size,content_type,alt_text,uploaded_by) VALUES(${id},${objectPath},${name},${size},${contentType},${altText??null},${req.userId!})`);res.status(201).json({id,servingUrl:`/api/communications/assets/public/${id}`});});
+const maxAssetBytes = Number(process.env.COMMUNICATIONS_MAX_ASSET_BYTES || 25 * 1024 * 1024);
+const blockedAssetExtensions = new Set([
+  "html", "htm", "svg", "js", "mjs", "cjs", "jsx", "ts", "tsx",
+  "exe", "dll", "com", "bat", "cmd", "msi", "sh", "ps1", "php", "jar",
+]);
+const blockedAssetTypes = new Set([
+  "text/html", "image/svg+xml", "application/javascript", "text/javascript",
+  "application/x-msdownload", "application/x-sh", "application/x-httpd-php",
+]);
+function isAllowedCommunicationAsset(name: unknown, size: unknown, contentType: unknown): boolean {
+  if (typeof name !== "string" || !name.trim() || name.length > 255) return false;
+  if (!Number.isInteger(size) || Number(size) < 1 || Number(size) > maxAssetBytes) return false;
+  if (typeof contentType !== "string" || !contentType.trim() || blockedAssetTypes.has(contentType.toLowerCase())) return false;
+  const extension = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+  return !blockedAssetExtensions.has(extension);
+}
+router.post("/communications/assets/request-upload", async(req,res): Promise<void> => {
+  const {name,size,contentType}=req.body??{};
+  if(!isAllowedCommunicationAsset(name,size,contentType)){
+    res.status(400).json({error:"This file type is not allowed, or the file exceeds the 25 MB limit"});return;
+  }
+  const uploadURL=await objectStorage.getObjectEntityUploadURL();
+  res.json({uploadURL,objectPath:objectStorage.normalizeObjectEntityPath(uploadURL),maxBytes:maxAssetBytes});
+});
+router.post("/communications/assets", async(req,res): Promise<void> => {
+  const {objectPath,name,size,contentType,altText}=req.body??{};
+  if(typeof objectPath!=="string"||!objectPath.startsWith("/objects/")||!isAllowedCommunicationAsset(name,size,contentType)||(altText!==undefined&&typeof altText!=="string")){
+    res.status(400).json({error:"Invalid asset metadata"});return;
+  }
+  const id=nanoid();
+  await db.execute(sql`INSERT INTO communication_assets(id,object_path,name,size,content_type,alt_text,uploaded_by) VALUES(${id},${objectPath},${name},${size},${contentType},${altText??null},${req.userId!})`);
+  res.status(201).json({id,servingUrl:`/api/communications/assets/public/${id}`});
+});
 router.get("/communications/assets", async(_req,res)=>{const r=await db.execute(sql`SELECT id,object_path,name,size,content_type,alt_text,created_at FROM communication_assets ORDER BY created_at DESC`);res.json({assets:(r.rows as any[]).map(x=>({...x,serving_url:`/api/communications/assets/public/${x.id}`}))});});
 
 setInterval(() => { void (async () => { try { await ensureReady(); const due=await db.execute(sql`SELECT id FROM communication_campaigns WHERE status='scheduled' AND scheduled_at <= NOW()`); for(const c of due.rows as any[]) await deliver(c.id); } catch(err) { logger.error({err},"Communications schedule poll failed"); } })(); }, 60_000).unref();

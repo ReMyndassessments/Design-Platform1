@@ -14,6 +14,7 @@ export function AssetsTab() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const contentType = file.type || "application/octet-stream";
 
     setUploading(true);
     try {
@@ -23,7 +24,7 @@ export function AssetsTab() {
         body: JSON.stringify({
           name: file.name,
           size: file.size,
-          contentType: file.type
+          contentType
         }),
         headers: { "Content-Type": "application/json" }
       });
@@ -34,7 +35,7 @@ export function AssetsTab() {
       await fetch(uploadURL, {
         method: "PUT",
         body: file,
-        headers: { "Content-Type": file.type }
+        headers: { "Content-Type": contentType }
       });
 
       // 3. Register asset
@@ -44,7 +45,7 @@ export function AssetsTab() {
           objectPath,
           name: file.name,
           size: file.size,
-          contentType: file.type,
+          contentType,
           altText: altText || undefined
         }),
         headers: { "Content-Type": "application/json" }
@@ -68,7 +69,10 @@ export function AssetsTab() {
   return (
     <div>
       <div className="flex justify-between items-end mb-6">
-        <h2 className="text-lg font-semibold text-slate-900">Media & Assets</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Media & Assets</h2>
+          <p className="text-xs text-slate-500 mt-1">Images, PDFs, Word documents, spreadsheets, presentations, audio, video, archives, and other safe files up to 25 MB.</p>
+        </div>
         <div className="flex items-center gap-3">
           <input 
             type="text" 
@@ -83,14 +87,13 @@ export function AssetsTab() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={handleUpload}
               disabled={uploading}
-              accept="image/jpeg,image/png,image/webp"
             />
             <button 
               disabled={uploading}
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
             >
               {uploading ? <span className="animate-spin">⏳</span> : <Upload size={16} />}
-              {uploading ? "Uploading..." : "Upload Image"}
+              {uploading ? "Uploading..." : "Upload File"}
             </button>
           </div>
         </div>
@@ -100,7 +103,7 @@ export function AssetsTab() {
         <div className="flex flex-col items-center justify-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-xl">
           <ImageIcon size={48} className="mb-4 text-slate-200" />
           <p className="text-sm font-medium text-slate-600">No assets yet</p>
-          <p className="text-xs mt-1">Upload images to include in campaigns.</p>
+          <p className="text-xs mt-1">Upload files to use in communications.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -121,6 +124,13 @@ export function AssetsTab() {
                   >
                     Copy URL
                   </button>
+                    <a
+                      href={a.serving_url || a.object_path}
+                      download={a.name}
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-md text-xs font-semibold hover:bg-slate-100"
+                    >
+                      Download
+                    </a>
                 </div>
               </div>
               <div className="p-3">
