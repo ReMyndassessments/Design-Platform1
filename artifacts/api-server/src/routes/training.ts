@@ -867,11 +867,8 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
       ? support_needs
       : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim()).join("\n\n");
     if (isParentWorkshop) {
-      if (!parentWechatName?.trim() || !preferred_language?.trim() || terms_consent !== true) {
-        return res.status(400).json({ error: "WeChat name, preferred language, and workshop terms consent are required" });
-      }
-      if (!["English", "Simplified Chinese", "Korean", "Both"].includes(preferred_language.trim())) {
-        return res.status(400).json({ error: "Select a supported preferred language" });
+      if (!parentWechatName?.trim() || terms_consent !== true) {
+        return res.status(400).json({ error: "WeChat name and workshop terms consent are required" });
       }
       if (Array.isArray(other_payment_options) && other_payment_options.length) {
         return res.status(400).json({ error: "Only WeChat Pay, Alipay, and Credit Card are available for this workshop" });
@@ -923,7 +920,7 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
        ${school_type?.trim() ?? null}, ${school_size?.trim() ?? null}, ${JSON.stringify(interestAreas)}::jsonb, ${school_support_challenge?.trim() ?? null},
        ${!!interested_future_learning}, ${!!interested_school_training}, ${!!interested_assessment_services}, ${!!interested_partner_school},
         ${!!training_only}, ${!!marketing_consent}, TRUE, ${!!terms_consent}, ${terms_consent ? sql`NOW()` : null},
-        ${parentWechatName?.trim() ?? null}, ${preferred_language?.trim() ?? null}, ${parentGradeBand?.trim() ?? null}, ${parentSupportNeeds?.trim() ?? null},
+         ${parentWechatName?.trim() ?? null}, ${"English"}, ${parentGradeBand?.trim() ?? null}, ${parentSupportNeeds?.trim() ?? null},
        ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "credit_card" ? "follow_up_required" : "awaiting_receipt"},
        ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
       ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message,

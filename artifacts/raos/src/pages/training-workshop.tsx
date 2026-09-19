@@ -138,7 +138,7 @@ const parentCopy: Record<ParentLocale, {
     learnItems: ["Listen without dismissing the child or confirming an untested conclusion", "Separate observable events from assumptions and interpretations", "Consider frequency, context, intensity, impact, and several possible explanations", "Prepare for a respectful conversation with the school", "Identify practical next steps, review dates, and appropriate escalation thresholds"],
     includedItems: ["One live 90-minute online parent workshop", "Bilingual Parent Action Toolkit", "A Parent-School Meeting Preparation Form and observation template", "Sample language for contacting a teacher or school", "Access to the workshop WeChat group", "Seven days of structured, workshop-related WeChat group support"],
     excludedItems: ["Individual consultation, counselling, or therapy", "Psychological or diagnostic assessment", "Review of school records or individual case documents", "Legal advice, mediation, or representation", "A determination about a teacher’s intentions or conduct", "Unlimited ongoing individual support through WeChat"],
-    faqItems: [["Is this counselling or an assessment?", "No. It is parent education and does not provide individual clinical recommendations."], ["What language is used?", "The presentation is in English with prepared Chinese-language subtitles or translated materials where provided."], ["What happens after I register?", "Your email is verified first. Payment is then reviewed by ReMynd before your place is confirmed."]],
+    faqItems: [["Is this counselling or an assessment?", "No. It is parent education and does not provide individual clinical recommendations."], ["What language is used?", "The workshop is delivered in English."], ["What happens after I register?", "Your email is verified first. Payment is then reviewed by ReMynd before your place is confirmed."]],
   },
   "zh-CN": {
     language: "简体中文", register: "报名", date: "2026年10月17日（星期六）· 中国时间上午10:00–11:30", online: "线上家长工作坊", family: "每个家庭388元人民币",
@@ -149,7 +149,7 @@ const parentCopy: Record<ParentLocale, {
     learnItems: ["倾听孩子，不轻易否定，也不立即确认未经验证的结论", "区分可观察的事件与假设和解读", "考虑频率、情境、强度、影响及多种可能解释", "为尊重和有效的家校沟通做好准备", "确定实际下一步、复盘日期和适当的升级标准"],
     includedItems: ["一次90分钟线上家长工作坊", "双语家长行动工具包", "家校会谈准备表和观察记录模板", "联系老师或学校的示例用语", "加入工作坊微信群", "七天有结构的工作坊相关微信群支持"],
     excludedItems: ["个别咨询、辅导或治疗", "心理或诊断评估", "查阅学校记录或个案文件", "法律建议、调解或代理", "判断老师的意图或行为", "通过微信提供无限期的个别支持"],
-    faqItems: [["这是辅导或评估吗？", "不是。这是家长教育工作坊，不提供个别临床建议。"], ["使用什么语言？", "演讲使用英语，并在有条件时提供中文字幕或翻译材料。"], ["报名后会怎样？", "您需要先验证电子邮箱，然后由ReMynd审核付款，之后才会确认名额。"]],
+    faqItems: [["这是辅导或评估吗？", "不是。这是家长教育工作坊，不提供个别临床建议。"], ["使用什么语言？", "本工作坊仅使用英语授课。"], ["报名后会怎样？", "您需要先验证电子邮箱，然后由ReMynd审核付款，之后才会确认名额。"]],
   },
   ko: {
     language: "한국어", register: "등록", date: "2026년 10월 17일 토요일 · 중국 시간 오전 10:00–11:30", online: "온라인 부모 워크숍", family: "가족당 388 RMB",
@@ -160,7 +160,7 @@ const parentCopy: Record<ParentLocale, {
     learnItems: ["아이를 무시하거나 검증되지 않은 결론을 바로 확인하지 않고 경청하기", "관찰 가능한 사건과 가정·해석을 구분하기", "빈도·상황·강도·영향과 여러 가능한 설명 살펴보기", "존중하는 학교와의 대화를 준비하기", "실행 단계와 검토 시점, 적절한 추가 대응 기준 정하기"],
     includedItems: ["90분 온라인 부모 워크숍", "이중언어 부모 행동 툴킷", "학교 면담 준비 양식과 관찰 기록 템플릿", "교사·학교에 연락할 때 사용할 예시 문구", "워크숍 WeChat 그룹 참여", "7일간의 구조화된 워크숍 관련 WeChat 지원"],
     excludedItems: ["개별 상담·치료", "심리 또는 진단 평가", "학교 기록이나 개별 사례 자료 검토", "법률 자문·조정·대리", "교사의 의도나 행동에 대한 판단", "WeChat을 통한 무제한 개별 지원"],
-    faqItems: [["상담이나 평가인가요?", "아닙니다. 부모 교육 워크숍이며 개별 임상 권고를 제공하지 않습니다."], ["어떤 언어로 진행되나요?", "영어로 진행되며 가능한 경우 중국어 자막 또는 번역 자료가 제공됩니다."], ["등록 후에는 어떻게 되나요?", "먼저 이메일을 인증하고 ReMynd가 결제를 검토한 후 자리를 확정합니다."]],
+    faqItems: [["상담이나 평가인가요?", "아닙니다. 부모 교육 워크숍이며 개별 임상 권고를 제공하지 않습니다."], ["어떤 언어로 진행되나요?", "워크숍은 영어로만 진행됩니다."], ["등록 후에는 어떻게 되나요?", "먼저 이메일을 인증하고 ReMynd가 결제를 검토한 후 자리를 확정합니다."]],
   },
 };
 
@@ -202,9 +202,13 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
       setStep("success");
     } catch (err) { setErrorMessage(err instanceof Error ? err.message : "Unable to submit"); } finally { setSubmitting(false); }
   }
-  const field = (key: string, label: string, required = false, type = "text") => <label className="block text-sm font-semibold text-slate-700">{label}{required && " *"}<input required={required} type={type} value={(form as any)[key]} onChange={e => update(key, e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal outline-none ring-teal-300 focus:ring-2" /></label>;
+  const field = (key: string, label: string, required = false, type = "text") => {
+    const isRequired = key === "country" ? false : required;
+    return <label className="block text-sm font-semibold text-slate-700">{label}{isRequired && " *"}<input required={isRequired} type={type} value={(form as any)[key]} onChange={e => update(key, e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal outline-none ring-teal-300 focus:ring-2" /></label>;
+  };
   const items = (list: string[]) => <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">{list.map(item => <li key={item} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-teal-600" />{item}</li>)}</ul>;
   return <div className="min-h-screen bg-[#f4f8f8] text-[#172b3a]">
+    <style>{`label:has(> select[required]) { display: none; }`}</style>
     <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-[#102d42]/95 px-4 py-3 text-white shadow-md backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between"><div className="flex items-center gap-2"><img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-9 w-9 rounded-full object-cover" /><span className="font-bold">ReMynd Student Services</span></div><div className="flex items-center gap-1 rounded-lg bg-white/10 p-1"><Languages size={15} className="mx-1 text-teal-200" />{(["en", "zh-CN", "ko"] as ParentLocale[]).map(l => <button type="button" key={l} onClick={() => setLocale(l)} className={`rounded px-2 py-1 text-xs ${locale === l ? "bg-white text-[#102d42]" : "text-white/80"}`}>{parentCopy[l].language}</button>)}</div></div></nav>
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 overflow-hidden rounded-3xl bg-[#102d42] p-3 shadow-lg sm:p-5">
