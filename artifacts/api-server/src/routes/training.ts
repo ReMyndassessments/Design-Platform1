@@ -1358,14 +1358,27 @@ router.delete("/training/workshops/manual-sales-inquiries/:id", authMiddleware, 
 // ── ADMIN: Create workshop ────────────────────────────────────────────────────
 // Coerce empty strings to null (for optional timestamp/numeric fields)
 function orNull(v: any): any { return (v === "" || v === undefined) ? null : v; }
+function validHostedCardPaymentUrl(value: unknown): string | null {
+  if (value === "" || value === undefined || value === null) return null;
+  try {
+    const parsed = new URL(String(value));
+    if (parsed.protocol !== "https:" || parsed.hostname !== "pay.airwallex.com") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { title, subtitle, description, additional_info, image_object_id, image_alt,
       session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
       registration_opens_at, registration_closes_at, max_participants,
-      is_free, price, currency, contact_email, status } = req.body;
+      is_free, price, currency, hosted_card_payment_url, contact_email, status } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    if (hosted_card_payment_url && !validHostedCardPaymentUrl(hosted_card_payment_url)) {
+      return res.status(400).json({ error: "Card payment link must be a valid pay.airwallex.com HTTPS URL" });
+    }
     const baseSlug = makeSlug(title.trim());
     const slug = await ensureUniqueSlug(baseSlug);
     const id = nanoid();
@@ -1373,7 +1386,7 @@ router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res
       id, slug, title, subtitle, description, additional_info, image_object_id, image_alt,
       session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
       registration_opens_at, registration_closes_at, max_participants,
-      is_free, price, currency, contact_email, status, created_at, updated_at
+      is_free, price, currency, hosted_card_payment_url, contact_email, status, created_at, updated_at
     ) VALUES (
       ${id}, ${slug}, ${title.trim()}, ${orNull(subtitle?.trim())}, ${orNull(description?.trim())},
       ${orNull(additional_info)}, ${orNull(image_object_id)}, ${orNull(image_alt?.trim())},
@@ -1381,7 +1394,7 @@ router.post("/training/workshops", authMiddleware, requireAdmin, async (req, res
       ${delivery_method ?? 'online'}, ${orNull(venue_info?.trim())}, ${orNull(facilitator_name?.trim())},
       ${orNull(pl_hours)},
       ${orNull(registration_opens_at)}::timestamptz, ${orNull(registration_closes_at)}::timestamptz,
-      ${orNull(max_participants)}, ${is_free !== false}, ${orNull(price)}, ${currency ?? 'USD'},
+      ${orNull(max_participants)}, ${is_free !== false}, ${orNull(price)}, ${currency ?? 'USD'}, ${validHostedCardPaymentUrl(hosted_card_payment_url)},
       ${orNull(contact_email?.trim())}, ${status ?? 'draft'}, NOW(), NOW())`);
     const created = await db.execute(sql`SELECT * FROM workshops WHERE id = ${id}`);
     return res.status(201).json({ workshop: created.rows[0] });
@@ -1406,8 +1419,11 @@ router.put("/training/workshops/:id", authMiddleware, requireAdmin, async (req, 
     const { title, subtitle, description, additional_info, image_object_id, image_alt,
       session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
       registration_opens_at, registration_closes_at, max_participants,
-      is_free, price, currency, contact_email, status } = req.body;
+      is_free, price, currency, hosted_card_payment_url, contact_email, status } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    if (hosted_card_payment_url && !validHostedCardPaymentUrl(hosted_card_payment_url)) {
+      return res.status(400).json({ error: "Card payment link must be a valid pay.airwallex.com HTTPS URL" });
+    }
     const baseSlug = makeSlug(title.trim());
     const slug = await ensureUniqueSlug(baseSlug, req.params.id);
     await db.execute(sql`UPDATE workshops SET
@@ -1423,6 +1439,7 @@ router.put("/training/workshops/:id", authMiddleware, requireAdmin, async (req, 
       registration_closes_at = ${orNull(registration_closes_at)}::timestamptz,
       max_participants = ${orNull(max_participants)}, is_free = ${is_free !== false},
       price = ${orNull(price)}, currency = ${currency ?? 'USD'},
+      hosted_card_payment_url = ${validHostedCardPaymentUrl(hosted_card_payment_url)},
       contact_email = ${orNull(contact_email?.trim())}, status = ${status ?? 'draft'},
       updated_at = NOW()
       WHERE id = ${req.params.id}`);
@@ -1460,14 +1477,14 @@ router.post("/training/workshops/:id/duplicate", authMiddleware, requireAdmin, a
       id, slug, title, subtitle, description, additional_info, image_object_id, image_alt,
       session_dates, timezone, delivery_method, venue_info, facilitator_name, pl_hours,
       registration_opens_at, registration_closes_at, max_participants,
-      is_free, price, currency, contact_email, status, created_at, updated_at
+      is_free, price, currency, hosted_card_payment_url, contact_email, status, created_at, updated_at
     ) VALUES (
       ${newId}, ${slug}, ${src.title + ' (Copy)'}, ${src.subtitle}, ${src.description},
       ${src.additional_info}, ${src.image_object_id}, ${src.image_alt},
       ${JSON.stringify(src.session_dates ?? [])}::jsonb, ${src.timezone}, ${src.delivery_method},
       ${src.venue_info}, ${src.facilitator_name}, ${src.pl_hours},
       ${null}::timestamptz, ${null}::timestamptz, ${src.max_participants},
-      ${src.is_free}, ${src.price}, ${src.currency}, ${src.contact_email}, 'draft', NOW(), NOW())`);
+      ${src.is_free}, ${src.price}, ${src.currency}, ${src.hosted_card_payment_url}, ${src.contact_email}, 'draft', NOW(), NOW())`);
     const created = await db.execute(sql`SELECT * FROM workshops WHERE id = ${newId}`);
     return res.status(201).json({ workshop: created.rows[0] });
   } catch (err) {

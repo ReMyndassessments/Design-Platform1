@@ -53,7 +53,7 @@ type Workshop = {
   facilitator_name?: string; pl_hours?: number | null;
   registration_opens_at?: string | null; registration_closes_at?: string | null;
   max_participants?: number | null;
-  is_free: boolean; price?: number | null; currency: string; contact_email?: string;
+  is_free: boolean; price?: number | null; currency: string; hosted_card_payment_url?: string; contact_email?: string;
   status: string; registration_count: number;
   created_at: string; updated_at: string;
 };
@@ -79,7 +79,7 @@ type WorkshopFormState = {
   facilitator_name: string; pl_hours: string;
   registration_opens_at: string; registration_closes_at: string;
   max_participants: string; is_free: boolean;
-  price: string; currency: string; contact_email: string;
+  price: string; currency: string; hosted_card_payment_url: string; contact_email: string;
   additional_info: string; image_object_id: string; image_alt: string; status: string;
 };
 
@@ -90,7 +90,7 @@ const defaultWorkshopForm: WorkshopFormState = {
   facilitator_name: "", pl_hours: "",
   registration_opens_at: "", registration_closes_at: "",
   max_participants: "", is_free: true,
-  price: "", currency: "USD", contact_email: "", additional_info: "",
+  price: "", currency: "USD", hosted_card_payment_url: "", contact_email: "", additional_info: "",
   image_object_id: "", image_alt: "", status: "draft",
 };
 
@@ -1015,6 +1015,7 @@ function WorkshopBuilder({ workshop, onClose, onSaved }: {
       is_free: workshop.is_free,
       price: workshop.price != null ? String(workshop.price) : "",
       currency: workshop.currency ?? "USD",
+      hosted_card_payment_url: workshop.hosted_card_payment_url ?? "",
       contact_email: workshop.contact_email ?? "",
       additional_info: workshop.additional_info ?? "",
       image_object_id: workshop.image_object_id ?? "",
@@ -1265,16 +1266,24 @@ function WorkshopBuilder({ workshop, onClose, onSaved }: {
               ))}
             </div>
             {!form.is_free && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
                   <label className={labelCls}>Price</label>
                   <input type="number" min="0" step="0.01" className={inputCls} value={form.price} onChange={e => setField("price", e.target.value)} placeholder="0.00" />
-                </div>
-                <div>
+                  </div>
+                  <div>
                   <label className={labelCls}>Currency</label>
                   <select className={inputCls + " bg-white"} value={form.currency} onChange={e => setField("currency", e.target.value)}>
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Airwallex hosted card payment link</label>
+                  <input type="url" className={inputCls} value={form.hosted_card_payment_url}
+                    onChange={e => setField("hosted_card_payment_url", e.target.value)}
+                    placeholder="https://pay.airwallex.com/..." />
                 </div>
               </div>
             )}

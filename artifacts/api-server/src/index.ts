@@ -4709,6 +4709,7 @@ async function createWorkshopTables() {
       is_free BOOLEAN NOT NULL DEFAULT TRUE,
       price NUMERIC(10,2),
       currency TEXT NOT NULL DEFAULT 'USD',
+      hosted_card_payment_url TEXT,
       contact_email TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -4777,6 +4778,8 @@ async function createWorkshopTables() {
        ADD COLUMN IF NOT EXISTS support_needs TEXT,
        ADD COLUMN IF NOT EXISTS terms_consent BOOLEAN NOT NULL DEFAULT FALSE,
        ADD COLUMN IF NOT EXISTS terms_consent_timestamp TIMESTAMPTZ`);
+    await db.execute(sql`ALTER TABLE workshops
+      ADD COLUMN IF NOT EXISTS hosted_card_payment_url TEXT`);
 
     await db.execute(sql`CREATE TABLE IF NOT EXISTS workshop_payment_intents (
       id TEXT PRIMARY KEY,
@@ -5000,6 +5003,12 @@ Parents are asked not to post child names, teacher names, school names, reports,
       UPDATE workshops
       SET price = 49, updated_at = NOW()
       WHERE slug = 'nice-try' AND price = 79
+    `);
+    await db.execute(sql`
+      UPDATE workshops
+      SET hosted_card_payment_url = 'https://pay.airwallex.com/sghmfkxz62uk', updated_at = NOW()
+      WHERE slug = 'teacher-doesnt-like-me'
+        AND hosted_card_payment_url IS DISTINCT FROM 'https://pay.airwallex.com/sghmfkxz62uk'
     `);
 
     logger.info("Workshop tables ready");
