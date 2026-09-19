@@ -4949,7 +4949,8 @@ Suitable for primary and secondary teachers, teaching assistants, pastoral and w
     await db.execute(sql`
       INSERT INTO workshops (
         id, slug, title, subtitle, description, additional_info, image_alt,
-        session_dates, timezone, delivery_method, facilitator_name, registration_closes_at,
+        session_dates, timezone, delivery_method, facilitator_name,
+        registration_opens_at, registration_closes_at,
         max_participants, is_free, price, currency, contact_email, status
       ) VALUES (
         'workshop-teacher-doesnt-like-me-2026',
@@ -4989,7 +4990,8 @@ Parents are asked not to post child names, teacher names, school names, reports,
         'Asia/Hong_Kong',
         'online',
         'Noel Roberts',
-        '2026-10-17T08:00:00Z'::timestamptz,
+        '2026-09-18T16:00:00Z'::timestamptz,
+        '2026-10-16T23:00:00Z'::timestamptz,
         100,
         FALSE,
         388,
@@ -5006,9 +5008,16 @@ Parents are asked not to post child names, teacher names, school names, reports,
     `);
     await db.execute(sql`
       UPDATE workshops
-      SET hosted_card_payment_url = 'https://pay.airwallex.com/sghmfkxz62uk', updated_at = NOW()
+      SET hosted_card_payment_url = 'https://pay.airwallex.com/sghmfkxz62uk',
+          registration_opens_at = '2026-09-18T16:00:00Z'::timestamptz,
+          registration_closes_at = '2026-10-16T23:00:00Z'::timestamptz,
+          updated_at = NOW()
       WHERE slug = 'teacher-doesnt-like-me'
-        AND hosted_card_payment_url IS DISTINCT FROM 'https://pay.airwallex.com/sghmfkxz62uk'
+        AND (
+          hosted_card_payment_url IS DISTINCT FROM 'https://pay.airwallex.com/sghmfkxz62uk'
+          OR registration_opens_at IS DISTINCT FROM '2026-09-18T16:00:00Z'::timestamptz
+          OR registration_closes_at IS DISTINCT FROM '2026-10-16T23:00:00Z'::timestamptz
+        )
     `);
 
     logger.info("Workshop tables ready");
