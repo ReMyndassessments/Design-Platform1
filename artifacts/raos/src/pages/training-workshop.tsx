@@ -172,13 +172,14 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
   const [inquiryId, setInquiryId] = useState("");
   const [code, setCode] = useState("");
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [showCardPaymentNotice, setShowCardPaymentNotice] = useState(false);
   const [form, setForm] = useState({ first_name: "", last_name: "", email: "", wechat_id: "", country: "", preferred_language: "English", phone: "", city: "", child_age_grade: "", school_type: "", help_question: "", accessibility_support: "", marketing_consent: false, terms_consent: false, privacy_consent: false, payment_method: "", payment_reference: "" });
   const t = parentCopy[locale];
   const base = getBaseUrl();
   const update = (key: string, value: string | boolean) => {
     setForm(f => ({ ...f, [key]: value }));
     if (key === "payment_method" && value === "credit_card" && workshop.hosted_card_payment_url) {
-      window.open(workshop.hosted_card_payment_url, "_blank", "noopener,noreferrer");
+      setShowCardPaymentNotice(true);
     }
   };
   const setErrorMessage = (message: string) => setError(message);
@@ -238,6 +239,39 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
         object-fit: contain;
       }
     `}</style>
+    {showCardPaymentNotice && workshop.hosted_card_payment_url && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-labelledby="card-payment-title">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+          <h2 id="card-payment-title" className="text-2xl font-black text-[#102d42]">Before you continue to Airwallex</h2>
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-base font-bold leading-relaxed text-amber-950">
+              After payment, return to this ReMynd tab and click “Continue to email verification” to complete your registration.
+            </p>
+          </div>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">
+            Airwallex will open in a new tab. Keep this registration tab open so your entered information is preserved. Your place remains pending until ReMynd reviews the payment.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setShowCardPaymentNotice(false)}
+              className="min-h-12 rounded-xl border border-slate-300 px-4 py-3 font-bold text-slate-700"
+            >
+              Go back
+            </button>
+            <a
+              href={workshop.hosted_card_payment_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setShowCardPaymentNotice(false)}
+              className="flex min-h-12 items-center justify-center rounded-xl bg-[#102d42] px-4 py-3 text-center font-bold text-white"
+            >
+              Continue to Airwallex
+            </a>
+          </div>
+        </div>
+      </div>
+    )}
     <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-[#102d42]/95 px-4 py-3 text-white shadow-md backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between"><div className="flex items-center gap-2"><img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-9 w-9 rounded-full object-cover" /><span className="font-bold">ReMynd Student Services</span></div><div className="flex items-center gap-1 rounded-lg bg-white/10 p-1"><Languages size={15} className="mx-1 text-teal-200" />{(["en", "zh-CN", "ko"] as ParentLocale[]).map(l => <button type="button" key={l} onClick={() => setLocale(l)} className={`rounded px-2 py-1 text-xs ${locale === l ? "bg-white text-[#102d42]" : "text-white/80"}`}>{parentCopy[l].language}</button>)}</div></div></nav>
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 overflow-hidden rounded-3xl bg-[#102d42] p-3 shadow-lg sm:p-5">
@@ -251,7 +285,7 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
       <div className="my-6 rounded-2xl border border-teal-200 bg-[#eaf7f5] p-5 text-sm font-semibold leading-relaxed text-[#174c4b]"><Heart size={18} className="mb-2 text-teal-600" />{t.constructive}</div>
       <section className="grid gap-5 md:grid-cols-2"><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.learn}</h2>{items(t.learnItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.included}</h2>{items(t.includedItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.notIncluded}</h2>{items(t.excludedItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.faq}</h2><div className="mt-3 space-y-4 text-sm text-slate-600">{t.faqItems.map(([q, a]) => <div key={q}><p className="font-bold text-slate-800">{q}</p><p className="mt-1">{a}</p></div>)}</div></div></section>
       <section className="mt-6 rounded-3xl bg-white p-5 shadow-lg sm:p-8">{step === "success" ? <div className="py-10 text-center"><ShieldCheck size={42} className="mx-auto text-teal-600" /><h2 className="mt-4 text-2xl font-bold">{t.success}</h2><p className="mt-2 text-slate-600">{t.review}</p></div> : step === "verify" ? <form onSubmit={submitVerification} className="mx-auto max-w-xl space-y-5"><h2 className="text-2xl font-bold">{t.codeTitle}</h2><p className="text-sm text-slate-600">{t.codeHelp}</p><input required inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value)} placeholder="000000" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-lg tracking-[.4em]" />{form.payment_method !== "credit_card" && <label className="block text-sm font-semibold">{t.receipt} *<input required type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setReceipt(e.target.files?.[0] || null)} className="mt-2 block w-full text-sm" /></label>}<button disabled={submitting} className="w-full rounded-xl bg-[#102d42] px-4 py-3 font-bold text-white disabled:opacity-50">{submitting ? t.sending : t.verify}</button>{error && <p className="text-sm text-red-600">{error}</p>}</form> : <form onSubmit={submitForm} className="mx-auto max-w-3xl space-y-5"><h2 className="text-2xl font-bold">{t.formTitle}</h2><p className="text-sm text-slate-500">{t.required} *</p><div className="grid gap-4 sm:grid-cols-2">{field("first_name", t.firstName, true)}{field("last_name", t.lastName, true)}</div>{field("email", t.email, true, "email")}{field("wechat_id", t.wechat, true)}{field("country", t.country, true)}<label className="block text-sm font-semibold">{t.preferredLanguage} *<select required value={form.preferred_language} onChange={e => update("preferred_language", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option>English</option><option>Simplified Chinese</option><option>Both</option></select></label><div className="grid gap-4 sm:grid-cols-2">{field("phone", t.phone)}{field("city", t.city)}</div><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">{t.age}<select value={form.child_age_grade} onChange={e => update("child_age_grade", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option value="">—</option><option>Early years</option><option>Primary</option><option>Secondary</option><option>Prefer not to say</option></select></label><label className="block text-sm font-semibold">{t.schoolType}<select value={form.school_type} onChange={e => update("school_type", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option value="">—</option><option>International</option><option>Bilingual</option><option>Local</option><option>Homeschool</option><option>Other</option><option>Prefer not to say</option></select></label></div><label className="block text-sm font-semibold">{t.question}<textarea maxLength={500} value={form.help_question} onChange={e => update("help_question", e.target.value)} rows={3} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label><label className="block text-sm font-semibold">{t.accessibility}<textarea maxLength={500} value={form.accessibility_support} onChange={e => update("accessibility_support", e.target.value)} rows={2} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label><fieldset className="rounded-2xl border border-slate-200 p-4"><legend className="px-1 text-sm font-bold">{t.choosePayment}</legend><div className="grid gap-3 sm:grid-cols-3">{[["wechat_pay", "WeChat Pay", qrOptions.wechatPayQr], ["alipay", "Alipay", qrOptions.alipayQr], ["credit_card", "Credit Card", null]].map(([value, label, qr]) => <label key={value as string} className={`rounded-xl border p-3 text-sm font-semibold ${form.payment_method === value ? "border-teal-500 bg-teal-50" : "border-slate-200"}`}><input required type="radio" name="parent-payment" checked={form.payment_method === value} onChange={() => update("payment_method", value as string)} /> <span className="ml-1">{label as string}</span>{qr && form.payment_method === value && <img src={qr as string} alt={`${label} QR code`} className="mt-3 h-40 w-full object-contain" />}</label>)}</div>{(form.payment_method === "wechat_pay" || form.payment_method === "alipay") && <p className="mt-3 text-xs leading-relaxed text-amber-800">{t.paymentPending}</p>}{form.payment_method && <label className="mt-3 block text-sm font-semibold">{t.reference}<input value={form.payment_reference} onChange={e => update("payment_reference", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label>}</fieldset><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" required checked={form.terms_consent} onChange={e => update("terms_consent", e.target.checked)} />{t.terms}</label><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" required checked={form.privacy_consent} onChange={e => update("privacy_consent", e.target.checked)} />{t.privacy}</label><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.marketing_consent} onChange={e => update("marketing_consent", e.target.checked)} />{t.community}</label><button disabled={submitting} className="w-full rounded-xl bg-[#102d42] px-4 py-3 font-bold text-white disabled:opacity-50">{submitting ? t.sending : t.submit}</button>{error && <p className="text-sm text-red-600">{error}</p>}</form>}</section>
-      {(step === "form" || step === "verify") && form.payment_method === "credit_card" && workshop.hosted_card_payment_url && (
+      {step === "verify" && form.payment_method === "credit_card" && workshop.hosted_card_payment_url && (
         <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-teal-200 bg-white p-5 text-center shadow-sm">
           <p className="text-sm font-semibold leading-relaxed text-[#102d42]">
             After payment, return to this tab and continue to email verification to complete your registration.
