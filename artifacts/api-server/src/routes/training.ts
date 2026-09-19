@@ -770,6 +770,11 @@ async function sendWorkshopManualSalesEmails(inquiry: any): Promise<void> {
     makeEmailRow("Marketing consent", inquiry.marketing_consent ? "Yes" : "No"),
     makeEmailRow("Payment choice", inquiry.payment_method === "wechat_pay" ? "WeChat Pay" : inquiry.payment_method === "alipay" ? "Alipay" : "Credit Card"),
     makeEmailRow("Payment reference", escapeHtml(inquiry.payment_reference)),
+    makeEmailRow("WeChat name", escapeHtml(inquiry.wechat_name)),
+    makeEmailRow("Preferred language", escapeHtml(inquiry.preferred_language)),
+    makeEmailRow("Child age / grade band", escapeHtml(inquiry.child_grade_band)),
+    makeEmailRow("Support needs", escapeHtml(inquiry.support_needs)),
+    makeEmailRow("Terms consent", inquiry.terms_consent ? "Yes" : "No"),
     makeEmailRow("Receipt screenshot", inquiry.receipt_object_path ? "Uploaded — pending administrator verification" : ""),
     makeEmailRow("Message", escapeHtml(inquiry.message)),
   ].join("");
@@ -823,7 +828,9 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
     const { first_name, last_name, email, phone, job_title, professional_role, school_name, school_type, school_size,
       areas_of_interest, school_support_challenge, city, country, message,
       interested_future_learning, interested_school_training, interested_assessment_services, interested_partner_school,
-      training_only, marketing_consent, privacy_consent, payment_method, other_payment_options, payment_reference } = req.body;
+      training_only, marketing_consent, privacy_consent, payment_method, other_payment_options, payment_reference,
+      wechat_name, wechat_id, preferred_language, child_grade_band, child_age_grade,
+      support_needs, help_question, accessibility_support, terms_consent } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (privacy_consent !== true) return res.status(400).json({ error: "Privacy consent is required" });
     if (!["wechat_pay", "alipay", "credit_card"].includes(payment_method)) return res.status(400).json({ error: "Select a payment option" });
@@ -847,9 +854,49 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
     if (Number((recentIpRequests.rows[0] as any)?.total ?? 0) >= 10) {
       return res.status(429).json({ error: "Too many verification requests. Please try again later." });
     }
-    const workshopRes = await db.execute(sql`SELECT id, title, is_free, status FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
+    const isParentWorkshop = req.params.slug === "teacher-doesnt-like-me";
+    const parentWechatName = typeof wechat_name === "string" ? wechat_name : wechat_id;
+    const parentGradeBand = typeof child_grade_band === "string" ? child_grade_band : child_age_grade;
+    const parentSupportNeeds = typeof support_needs === "string"
+      ? support_needs
+      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim()).join("\n\n");
+    if (isParentWorkshop) {
+      if (!parentWechatName?.trim() || !preferred_language?.trim() || terms_consent !== true) {
+        return res.status(400).json({ error: "WeChat name, preferred language, and workshop terms consent are required" });
+      }
+      if (!["English", "Simplified Chinese", "Korean", "Both"].includes(preferred_language.trim())) {
+        return res.status(400).json({ error: "Select a supported preferred language" });
+      }
+      if (Array.isArray(other_payment_options) && other_payment_options.length) {
+        return res.status(400).json({ error: "Only WeChat Pay, Alipay, and Credit Card are available for this workshop" });
+      }
+    }
+    const workshopRes = await db.execute(sql`
+      SELECT id, slug, title, is_free, status, registration_opens_at, registration_closes_at, max_participants
+      FROM workshops
+      WHERE slug = ${req.params.slug} AND status IN ('published', 'full')
+    `);
     if (!workshopRes.rows.length || (workshopRes.rows[0] as any).is_free) return res.status(404).json({ error: "Workshop not available for manual sales" });
     const workshop = workshopRes.rows[0] as any;
+    if (workshop.status === "full") return res.status(400).json({ error: "This workshop is full" });
+    if (workshop.registration_opens_at && new Date(workshop.registration_opens_at) > new Date()) {
+      return res.status(400).json({ error: "Registration is not open yet" });
+    }
+    if (workshop.registration_closes_at && new Date(workshop.registration_closes_at) < new Date()) {
+      return res.status(400).json({ error: "Registration has closed" });
+    }
+    if (workshop.max_participants) {
+      const occupied = await db.execute(sql`
+        SELECT COUNT(*)::int AS total
+        FROM workshop_registrations
+        WHERE workshop_id = ${workshop.id}
+          AND status != 'cancelled'
+          AND payment_status = 'paid'
+      `);
+      if (Number((occupied.rows[0] as any)?.total ?? 0) >= Number(workshop.max_participants)) {
+        return res.status(400).json({ error: "This workshop is full" });
+      }
+    }
     const existing = await db.execute(sql`SELECT * FROM workshop_manual_sales_inquiries WHERE workshop_id = ${workshop.id} AND email = ${normalEmail} AND submitted_at IS NULL ORDER BY created_at DESC LIMIT 1`);
     const previous = existing.rows[0] as any;
     if (previous?.verification_sent_at && Date.now() - new Date(previous.verification_sent_at).getTime() < 60_000) {
@@ -862,13 +909,15 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
       (id, workshop_id, workshop_title, first_name, last_name, email, phone, job_title, professional_role, school_name, city, country, message,
        school_type, school_size, areas_of_interest, school_support_challenge,
        interested_future_learning, interested_school_training, interested_assessment_services, interested_partner_school,
-       training_only, marketing_consent, privacy_consent,
+       training_only, marketing_consent, privacy_consent, terms_consent, terms_consent_timestamp,
+       wechat_name, preferred_language, child_grade_band, support_needs,
        payment_method, other_payment_options, payment_reference, payment_status,
        verification_code_hash, verification_expires_at, verification_sent_at, verification_attempts, request_ip, updated_at)
       VALUES (${id}, ${workshop.id}, ${workshop.title}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail}, ${phone?.trim() ?? null}, ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${message?.trim() ?? null},
        ${school_type?.trim() ?? null}, ${school_size?.trim() ?? null}, ${JSON.stringify(interestAreas)}::jsonb, ${school_support_challenge?.trim() ?? null},
        ${!!interested_future_learning}, ${!!interested_school_training}, ${!!interested_assessment_services}, ${!!interested_partner_school},
-       ${!!training_only}, ${!!marketing_consent}, TRUE,
+        ${!!training_only}, ${!!marketing_consent}, TRUE, ${!!terms_consent}, ${terms_consent ? sql`NOW()` : null},
+        ${parentWechatName?.trim() ?? null}, ${preferred_language?.trim() ?? null}, ${parentGradeBand?.trim() ?? null}, ${parentSupportNeeds?.trim() ?? null},
        ${payment_method}, ${JSON.stringify(requestedOptions)}::jsonb, ${payment_reference?.trim() ?? null}, ${payment_method === "credit_card" ? "follow_up_required" : "awaiting_receipt"},
        ${hash}, NOW() + INTERVAL '15 minutes', NOW(), 0, ${requestIp}, NOW())
       ON CONFLICT (id) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, phone = EXCLUDED.phone, job_title = EXCLUDED.job_title, professional_role = EXCLUDED.professional_role, school_name = EXCLUDED.school_name, city = EXCLUDED.city, country = EXCLUDED.country, message = EXCLUDED.message,
@@ -876,7 +925,10 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
        school_support_challenge = EXCLUDED.school_support_challenge,
        interested_future_learning = EXCLUDED.interested_future_learning, interested_school_training = EXCLUDED.interested_school_training,
        interested_assessment_services = EXCLUDED.interested_assessment_services, interested_partner_school = EXCLUDED.interested_partner_school,
-       training_only = EXCLUDED.training_only, marketing_consent = EXCLUDED.marketing_consent, privacy_consent = TRUE,
+        training_only = EXCLUDED.training_only, marketing_consent = EXCLUDED.marketing_consent, privacy_consent = TRUE,
+        terms_consent = EXCLUDED.terms_consent, terms_consent_timestamp = EXCLUDED.terms_consent_timestamp,
+        wechat_name = EXCLUDED.wechat_name, preferred_language = EXCLUDED.preferred_language,
+        child_grade_band = EXCLUDED.child_grade_band, support_needs = EXCLUDED.support_needs,
        payment_method = EXCLUDED.payment_method, other_payment_options = EXCLUDED.other_payment_options, payment_reference = EXCLUDED.payment_reference,
        payment_status = EXCLUDED.payment_status, receipt_object_path = NULL,
        verification_code_hash = EXCLUDED.verification_code_hash, verification_expires_at = EXCLUDED.verification_expires_at, verification_sent_at = NOW(), verification_attempts = 0, request_ip = EXCLUDED.request_ip, updated_at = NOW()`);
@@ -964,7 +1016,9 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
       school_name, city, country, phone, school_type, school_size, areas_of_interest,
       school_support_challenge, interested_future_learning, interested_school_training,
       interested_assessment_services, interested_partner_school, training_only,
-      marketing_consent, privacy_consent,
+      marketing_consent, privacy_consent, wechat_name, wechat_id, preferred_language,
+      child_grade_band, child_age_grade, support_needs, help_question, accessibility_support,
+      terms_consent,
     } = req.body;
     if (!first_name?.trim() || !last_name?.trim() || !email?.trim()) return res.status(400).json({ error: "Name and email are required" });
     if (!privacy_consent) return res.status(400).json({ error: "Privacy consent is required" });
@@ -974,6 +1028,20 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     const workshopRes = await db.execute(sql`SELECT * FROM workshops WHERE slug = ${req.params.slug} AND status IN ('published', 'full')`);
     if (!workshopRes.rows.length) return res.status(404).json({ error: "Workshop not open for registration" });
     const workshop = workshopRes.rows[0] as any;
+    const isParentWorkshop = workshop.slug === "teacher-doesnt-like-me";
+    const parentWechatName = typeof wechat_name === "string" ? wechat_name : wechat_id;
+    const parentGradeBand = typeof child_grade_band === "string" ? child_grade_band : child_age_grade;
+    const parentSupportNeeds = typeof support_needs === "string"
+      ? support_needs
+      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim()).join("\n\n");
+    if (isParentWorkshop) {
+      if (!parentWechatName?.trim() || !preferred_language?.trim() || terms_consent !== true) {
+        return res.status(400).json({ error: "WeChat name, preferred language, and workshop terms consent are required" });
+      }
+      if (!["English", "Simplified Chinese", "Korean", "Both"].includes(preferred_language.trim())) {
+        return res.status(400).json({ error: "Select a supported preferred language" });
+      }
+    }
     if (!workshop.is_free && workshopManualSalesMode()) {
       return res.status(403).json({
         error: "Workshop registration and payment are currently arranged directly with ReMynd",
@@ -1031,7 +1099,9 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
        school_name, city, country, phone, school_type, school_size, areas_of_interest, school_support_challenge,
        interested_future_learning, interested_school_training, interested_assessment_services,
        interested_partner_school, training_only, marketing_consent, marketing_consent_timestamp,
-       privacy_consent, privacy_consent_timestamp, payment_status, status, created_at, updated_at)
+       privacy_consent, privacy_consent_timestamp, wechat_name, preferred_language,
+       child_grade_band, support_needs, terms_consent, terms_consent_timestamp,
+       payment_status, status, created_at, updated_at)
       VALUES (${regId}, ${workshop.id}, ${first_name.trim()}, ${last_name.trim()}, ${normalEmail},
         ${job_title?.trim() ?? null}, ${professional_role?.trim() ?? null}, ${professional_role_other?.trim() ?? null},
         ${school_name?.trim() ?? null}, ${city?.trim() ?? null}, ${country?.trim() ?? null}, ${phone?.trim() ?? null},
@@ -1041,7 +1111,10 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
         ${!!interested_future_learning}, ${!!interested_school_training},
         ${!!interested_assessment_services}, ${!!interested_partner_school}, ${!!training_only},
         ${!!marketing_consent}, ${marketing_consent ? sql`NOW()` : null},
-        TRUE, NOW(), ${paymentStatus}, ${regStatus}, NOW(), NOW())`);
+         TRUE, NOW(), ${parentWechatName?.trim() ?? null}, ${preferred_language?.trim() ?? null},
+         ${parentGradeBand?.trim() ?? null}, ${parentSupportNeeds?.trim() ?? null},
+         ${!!terms_consent}, ${terms_consent ? sql`NOW()` : null},
+         ${paymentStatus}, ${regStatus}, NOW(), NOW())`);
 
     if (workshop.is_free) {
       (async () => {
@@ -1139,6 +1212,9 @@ router.get("/training/workshops/manual-sales-inquiries", authMiddleware, require
       interested_assessment_services AS "interestedAssessmentServices",
       interested_partner_school AS "interestedPartnerSchool",
       training_only AS "trainingOnly", marketing_consent AS "marketingConsent",
+       wechat_name AS "wechatName", preferred_language AS "preferredLanguage",
+       child_grade_band AS "childGradeBand", support_needs AS "supportNeeds",
+       terms_consent AS "termsConsent",
       payment_method AS "paymentMethod", other_payment_options AS "otherPaymentOptions",
       payment_reference AS "paymentReference", payment_status AS "paymentStatus",
       (receipt_object_path IS NOT NULL) AS "receiptUploaded",
@@ -1195,7 +1271,9 @@ router.patch("/training/workshops/manual-sales-inquiries/:id/status", authMiddle
          school_support_challenge, interested_future_learning, interested_school_training,
          interested_assessment_services, interested_partner_school, training_only,
          marketing_consent, marketing_consent_timestamp, privacy_consent,
-         privacy_consent_timestamp, payment_status, status, created_at, updated_at)
+         privacy_consent_timestamp, terms_consent, terms_consent_timestamp,
+         wechat_name, preferred_language, child_grade_band, support_needs,
+         payment_status, status, created_at, updated_at)
         VALUES (${registrationId}, ${inquiry.workshop_id}, ${inquiry.first_name}, ${inquiry.last_name},
           ${inquiry.email}, ${inquiry.job_title}, ${inquiry.professional_role}, ${inquiry.school_name},
           ${inquiry.city}, ${inquiry.country}, ${inquiry.phone}, ${inquiry.school_type},
@@ -1204,7 +1282,11 @@ router.patch("/training/workshops/manual-sales-inquiries/:id/status", authMiddle
           ${!!inquiry.interested_school_training}, ${!!inquiry.interested_assessment_services},
           ${!!inquiry.interested_partner_school}, ${!!inquiry.training_only},
           ${!!inquiry.marketing_consent}, ${inquiry.marketing_consent ? sql`NOW()` : null},
-          TRUE, COALESCE(${inquiry.verified_at}, NOW()), 'paid', 'registered', NOW(), NOW())`);
+           TRUE, COALESCE(${inquiry.verified_at}, NOW()),
+           ${!!inquiry.terms_consent}, ${inquiry.terms_consent_timestamp ?? inquiry.verified_at ?? null},
+           ${inquiry.wechat_name ?? null}, ${inquiry.preferred_language ?? null},
+           ${inquiry.child_grade_band ?? null}, ${inquiry.support_needs ?? null},
+           'paid', 'registered', NOW(), NOW())`);
     }
 
     await db.execute(sql`

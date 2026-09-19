@@ -14,7 +14,7 @@ import { useParams } from "wouter";
 import {
   Calendar, Clock, MapPin, Monitor, Award, DollarSign,
   Users, Mail, Phone, User, Building2, Globe, Check,
-  AlertCircle, Loader2, Wifi,
+  AlertCircle, Loader2, Wifi, Heart, ShieldCheck, Languages,
 } from "lucide-react";
 
 declare global {
@@ -113,6 +113,107 @@ function InfoChip({ icon: Icon, label, value }: { icon: any; label: string; valu
       </div>
     </div>
   );
+}
+
+type ParentLocale = "en" | "zh-CN" | "ko";
+
+const parentCopy: Record<ParentLocale, {
+  language: string; register: string; date: string; online: string; family: string;
+  overview: string; learn: string; included: string; notIncluded: string; who: string;
+  faq: string; accessibility: string; formTitle: string; required: string; optional: string;
+  fullName: string; firstName: string; lastName: string; email: string; wechat: string;
+  country: string; preferredLanguage: string; phone: string; city: string; age: string;
+  schoolType: string; question: string; support: string; terms: string; privacy: string;
+  community: string; choosePayment: string; paymentPending: string; receipt: string;
+  reference: string; submit: string; sending: string; codeTitle: string; codeHelp: string;
+  verify: string; success: string; review: string; constructive: string; learnItems: string[];
+  includedItems: string[]; excludedItems: string[]; faqItems: [string, string][];
+}> = {
+  en: {
+    language: "English", register: "Register", date: "Saturday, October 17, 2026 · 10:00–11:30 AM China Time", online: "Online parent workshop", family: "388 RMB per family",
+    overview: "When a child says, “My teacher doesn’t like me,” parents can feel worried, protective, and unsure what to do next. This calm, practical workshop helps you listen carefully, protect your child’s dignity, gather useful information, and communicate with school constructively.",
+    learn: "What you will learn", included: "What your registration includes", notIncluded: "What this workshop does not include", who: "Who this is for", faq: "Frequently asked questions", accessibility: "Accessibility and participation support",
+    formTitle: "Reserve your family place", required: "Required", optional: "Optional", fullName: "Parent or caregiver name", firstName: "First name", lastName: "Last name", email: "Email address", wechat: "WeChat ID or display name", country: "Country or region", preferredLanguage: "Preferred workshop language", phone: "Mobile number", city: "City", age: "Child age range or grade band", schoolType: "School type", question: "What would you most like help with?", support: "Accessibility, language, or participation support needed", terms: "I agree to the workshop terms.", privacy: "I agree to the Privacy Notice and processing of my registration and payment information.", community: "I would like to remain connected to the ReMynd parent community and receive future educational information (optional).",
+    choosePayment: "Choose payment method", paymentPending: "Your place remains pending until ReMynd verifies payment. Uploading a screenshot does not confirm registration.", receipt: "Payment confirmation screenshot", reference: "Payment reference or payer name", submit: "Continue to payment", sending: "Sending verification code…", codeTitle: "Check your email", codeHelp: "Enter the six-digit verification code we sent. Payment review happens after verification.", verify: "Verify and submit", success: "Thank you. Your registration and payment are pending administrator review.", review: "We will email you after your payment has been reviewed.", constructive: "This workshop is not about fighting with the school, blaming anyone, or assuming that a teacher has acted with harmful intent. It helps parents understand what may be happening, support their child, gather useful information, and communicate with the school in a calm and constructive way.",
+    learnItems: ["Listen without dismissing the child or confirming an untested conclusion", "Separate observable events from assumptions and interpretations", "Consider frequency, context, intensity, impact, and several possible explanations", "Prepare for a respectful conversation with the school", "Identify practical next steps, review dates, and appropriate escalation thresholds"],
+    includedItems: ["One live 90-minute online parent workshop", "Bilingual Parent Action Toolkit", "A Parent-School Meeting Preparation Form and observation template", "Sample language for contacting a teacher or school", "Access to the workshop WeChat group", "Seven days of structured, workshop-related WeChat group support"],
+    excludedItems: ["Individual consultation, counselling, or therapy", "Psychological or diagnostic assessment", "Review of school records or individual case documents", "Legal advice, mediation, or representation", "A determination about a teacher’s intentions or conduct", "Unlimited ongoing individual support through WeChat"],
+    faqItems: [["Is this counselling or an assessment?", "No. It is parent education and does not provide individual clinical recommendations."], ["What language is used?", "The presentation is in English with prepared Chinese-language subtitles or translated materials where provided."], ["What happens after I register?", "Your email is verified first. Payment is then reviewed by ReMynd before your place is confirmed."]],
+  },
+  "zh-CN": {
+    language: "简体中文", register: "报名", date: "2026年10月17日（星期六）· 中国时间上午10:00–11:30", online: "线上家长工作坊", family: "每个家庭388元人民币",
+    overview: "当孩子说“老师不喜欢我”时，家长可能会担心、想保护孩子，也不确定下一步该怎么做。本工作坊帮助您认真倾听、保护孩子的尊严、收集有用信息，并以建设性的方式与学校沟通。",
+    learn: "您将学到", included: "报名包括", notIncluded: "本工作坊不包括", who: "适合参加者", faq: "常见问题", accessibility: "无障碍及参与支持",
+    formTitle: "为您的家庭预留名额", required: "必填", optional: "选填", fullName: "家长或照顾者姓名", firstName: "名字", lastName: "姓氏", email: "电子邮箱", wechat: "微信号或微信昵称", country: "国家或地区", preferredLanguage: "希望使用的工作坊语言", phone: "手机号码", city: "城市", age: "孩子年龄范围或年级段", schoolType: "学校类型", question: "您最希望在本次工作坊中获得哪些帮助？", support: "无障碍、语言或参与方面的支持需要", terms: "我同意工作坊条款。", privacy: "我同意隐私声明，并同意处理我的报名及付款信息。", community: "我愿意继续加入ReMynd家长社区并接收未来教育信息（选填）。",
+    choosePayment: "选择付款方式", paymentPending: "在ReMynd核实付款前，您的名额仍处于待确认状态。上传截图并不代表报名已确认。", receipt: "付款确认截图", reference: "付款参考号或付款人姓名", submit: "继续付款", sending: "正在发送验证码…", codeTitle: "请查收电子邮件", codeHelp: "请输入我们发送的六位验证码。验证后，ReMynd将审核付款。", verify: "验证并提交", success: "谢谢。您的报名和付款正在等待管理员审核。", review: "付款审核完成后，我们会通过电子邮件通知您。", constructive: "本工作坊不是为了与学校争斗、指责任何人，或假定老师有恶意。它帮助家长理解可能发生的情况、支持孩子、收集有用信息，并以冷静和建设性的方式与学校沟通。",
+    learnItems: ["倾听孩子，不轻易否定，也不立即确认未经验证的结论", "区分可观察的事件与假设和解读", "考虑频率、情境、强度、影响及多种可能解释", "为尊重和有效的家校沟通做好准备", "确定实际下一步、复盘日期和适当的升级标准"],
+    includedItems: ["一次90分钟线上家长工作坊", "双语家长行动工具包", "家校会谈准备表和观察记录模板", "联系老师或学校的示例用语", "加入工作坊微信群", "七天有结构的工作坊相关微信群支持"],
+    excludedItems: ["个别咨询、辅导或治疗", "心理或诊断评估", "查阅学校记录或个案文件", "法律建议、调解或代理", "判断老师的意图或行为", "通过微信提供无限期的个别支持"],
+    faqItems: [["这是辅导或评估吗？", "不是。这是家长教育工作坊，不提供个别临床建议。"], ["使用什么语言？", "演讲使用英语，并在有条件时提供中文字幕或翻译材料。"], ["报名后会怎样？", "您需要先验证电子邮箱，然后由ReMynd审核付款，之后才会确认名额。"]],
+  },
+  ko: {
+    language: "한국어", register: "등록", date: "2026년 10월 17일 토요일 · 중국 시간 오전 10:00–11:30", online: "온라인 부모 워크숍", family: "가족당 388 RMB",
+    overview: "아이가 “선생님이 나를 좋아하지 않는 것 같아요”라고 말하면 부모는 걱정되고 무엇을 해야 할지 막막할 수 있습니다. 이 차분하고 실용적인 워크숍은 아이의 이야기를 듣고 존엄성을 지키며 유용한 정보를 모으고 학교와 건설적으로 소통하도록 돕습니다.",
+    learn: "배우게 될 내용", included: "등록에 포함된 내용", notIncluded: "포함되지 않는 내용", who: "참여 대상", faq: "자주 묻는 질문", accessibility: "접근성 및 참여 지원",
+    formTitle: "가족 자리를 예약하세요", required: "필수", optional: "선택", fullName: "부모 또는 보호자 이름", firstName: "이름", lastName: "성", email: "이메일 주소", wechat: "WeChat ID 또는 표시 이름", country: "국가 또는 지역", preferredLanguage: "선호 워크숍 언어", phone: "휴대전화", city: "도시", age: "자녀 연령대 또는 학년", schoolType: "학교 유형", question: "이 워크숍에서 가장 도움받고 싶은 것은 무엇인가요?", support: "접근성·언어·참여 지원이 필요하다면 알려 주세요", terms: "워크숍 약관에 동의합니다.", privacy: "개인정보 보호정책 및 등록·결제 정보 처리에 동의합니다.", community: "ReMynd 부모 커뮤니티에 계속 연결되어 향후 교육 정보를 받고 싶습니다(선택).",
+    choosePayment: "결제 방법 선택", paymentPending: "ReMynd가 결제를 확인할 때까지 자리는 대기 상태입니다. 스크린샷을 업로드해도 등록이 확정되는 것은 아닙니다.", receipt: "결제 확인 스크린샷", reference: "결제 참조번호 또는 결제자 이름", submit: "결제로 계속", sending: "인증 코드를 보내는 중…", codeTitle: "이메일을 확인해 주세요", codeHelp: "받은 6자리 인증 코드를 입력해 주세요. 인증 후 결제를 검토합니다.", verify: "인증하고 제출", success: "감사합니다. 등록과 결제가 관리자 검토를 기다리고 있습니다.", review: "결제 검토가 완료되면 이메일로 안내해 드립니다.", constructive: "이 워크숍은 학교와 싸우거나 누군가를 비난하거나 교사가 해로운 의도로 행동했다고 가정하기 위한 것이 아닙니다. 부모가 상황을 이해하고 아이를 지지하며 정보를 모으고 차분하고 건설적으로 학교와 소통하도록 돕습니다.",
+    learnItems: ["아이를 무시하거나 검증되지 않은 결론을 바로 확인하지 않고 경청하기", "관찰 가능한 사건과 가정·해석을 구분하기", "빈도·상황·강도·영향과 여러 가능한 설명 살펴보기", "존중하는 학교와의 대화를 준비하기", "실행 단계와 검토 시점, 적절한 추가 대응 기준 정하기"],
+    includedItems: ["90분 온라인 부모 워크숍", "이중언어 부모 행동 툴킷", "학교 면담 준비 양식과 관찰 기록 템플릿", "교사·학교에 연락할 때 사용할 예시 문구", "워크숍 WeChat 그룹 참여", "7일간의 구조화된 워크숍 관련 WeChat 지원"],
+    excludedItems: ["개별 상담·치료", "심리 또는 진단 평가", "학교 기록이나 개별 사례 자료 검토", "법률 자문·조정·대리", "교사의 의도나 행동에 대한 판단", "WeChat을 통한 무제한 개별 지원"],
+    faqItems: [["상담이나 평가인가요?", "아닙니다. 부모 교육 워크숍이며 개별 임상 권고를 제공하지 않습니다."], ["어떤 언어로 진행되나요?", "영어로 진행되며 가능한 경우 중국어 자막 또는 번역 자료가 제공됩니다."], ["등록 후에는 어떻게 되나요?", "먼저 이메일을 인증하고 ReMynd가 결제를 검토한 후 자리를 확정합니다."]],
+  },
+};
+
+function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Workshop; slug: string; qrOptions: { wechatPayQr: string | null; alipayQr: string | null } }) {
+  const [locale, setLocale] = useState<ParentLocale>("en");
+  const [step, setStep] = useState<"form" | "verify" | "success">("form");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [inquiryId, setInquiryId] = useState("");
+  const [code, setCode] = useState("");
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", wechat_id: "", country: "", preferred_language: "English", phone: "", city: "", child_age_grade: "", school_type: "", help_question: "", accessibility_support: "", marketing_consent: false, terms_consent: false, privacy_consent: false, payment_method: "", payment_reference: "" });
+  const t = parentCopy[locale];
+  const base = getBaseUrl();
+  const update = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }));
+  const setErrorMessage = (message: string) => setError(message);
+  async function submitForm(e: React.FormEvent) {
+    e.preventDefault(); setError(""); setSubmitting(true);
+    try {
+      const response = await fetch(`${base}/api/training/workshops/public/${slug}/manual-sales/request-verification`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || "Unable to send verification code");
+      setInquiryId(data.inquiryId); setStep("verify");
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : "Unable to submit registration"); } finally { setSubmitting(false); }
+  }
+  async function submitVerification(e: React.FormEvent) {
+    e.preventDefault(); setError(""); setSubmitting(true);
+    try {
+      let receiptPath: string | undefined;
+      if (form.payment_method !== "credit_card") {
+        if (!receipt) throw new Error(t.receipt + " is required.");
+        if (!["image/jpeg", "image/png", "image/webp"].includes(receipt.type) || receipt.size > 10 * 1024 * 1024) throw new Error("Use a PNG, JPEG, or WebP image under 10 MB.");
+        const upload = await fetch(`${base}/api/training/workshops/public/${slug}/manual-sales/${inquiryId}/receipt-upload-url`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ size: receipt.size, contentType: receipt.type }) });
+        const uploadData = await upload.json(); if (!upload.ok) throw new Error(uploadData.error || "Unable to prepare upload");
+        const put = await fetch(uploadData.uploadURL, { method: "PUT", headers: { "Content-Type": receipt.type }, body: receipt }); if (!put.ok) throw new Error("Receipt upload failed");
+        receiptPath = uploadData.objectPath;
+      }
+      const response = await fetch(`${base}/api/training/workshops/public/${slug}/manual-sales/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inquiry_id: inquiryId, verification_code: code, receipt_object_path: receiptPath }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || "Unable to submit");
+      setStep("success");
+    } catch (err) { setErrorMessage(err instanceof Error ? err.message : "Unable to submit"); } finally { setSubmitting(false); }
+  }
+  const field = (key: string, label: string, required = false, type = "text") => <label className="block text-sm font-semibold text-slate-700">{label}{required && " *"}<input required={required} type={type} value={(form as any)[key]} onChange={e => update(key, e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-normal outline-none ring-teal-300 focus:ring-2" /></label>;
+  const items = (list: string[]) => <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">{list.map(item => <li key={item} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-teal-600" />{item}</li>)}</ul>;
+  return <div className="min-h-screen bg-[#f4f8f8] text-[#172b3a]">
+    <nav className="border-b border-slate-200/70 bg-[#102d42] px-4 py-3 text-white"><div className="mx-auto flex max-w-6xl items-center justify-between"><div className="flex items-center gap-2"><img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-9 w-9 rounded-full object-cover" /><span className="font-bold">ReMynd Student Services</span></div><div className="flex items-center gap-1 rounded-lg bg-white/10 p-1"><Languages size={15} className="mx-1 text-teal-200" />{(["en", "zh-CN", "ko"] as ParentLocale[]).map(l => <button type="button" key={l} onClick={() => setLocale(l)} className={`rounded px-2 py-1 text-xs ${locale === l ? "bg-white text-[#102d42]" : "text-white/80"}`}>{parentCopy[l].language}</button>)}</div></div></nav>
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+      <section className="rounded-3xl bg-gradient-to-br from-[#dceff0] via-[#f8f4eb] to-[#e9f0f8] px-5 py-8 shadow-sm sm:px-10 sm:py-12"><div className="max-w-3xl"><p className="mb-3 text-xs font-bold uppercase tracking-[.18em] text-teal-700">{t.online} · {t.family}</p><h1 className="text-3xl font-black leading-tight text-[#102d42] sm:text-5xl">{workshop.title || "When Your Child Says, “My Teacher Doesn’t Like Me”"}</h1><p className="mt-5 text-lg leading-relaxed text-slate-700">{t.overview}</p><div className="mt-6 flex flex-wrap gap-3"><span className="rounded-full bg-white/80 px-4 py-2 text-sm font-semibold">{t.date}</span><span className="rounded-full bg-white/80 px-4 py-2 text-sm font-semibold">{workshop.facilitator_name || "Noel Roberts"}</span></div></div></section>
+      <div className="my-6 rounded-2xl border border-teal-200 bg-[#eaf7f5] p-5 text-sm font-semibold leading-relaxed text-[#174c4b]"><Heart size={18} className="mb-2 text-teal-600" />{t.constructive}</div>
+      <section className="grid gap-5 md:grid-cols-2"><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.learn}</h2>{items(t.learnItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.included}</h2>{items(t.includedItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.notIncluded}</h2>{items(t.excludedItems)}</div><div className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-bold">{t.faq}</h2><div className="mt-3 space-y-4 text-sm text-slate-600">{t.faqItems.map(([q, a]) => <div key={q}><p className="font-bold text-slate-800">{q}</p><p className="mt-1">{a}</p></div>)}</div></div></section>
+      <section className="mt-6 rounded-3xl bg-white p-5 shadow-lg sm:p-8">{step === "success" ? <div className="py-10 text-center"><ShieldCheck size={42} className="mx-auto text-teal-600" /><h2 className="mt-4 text-2xl font-bold">{t.success}</h2><p className="mt-2 text-slate-600">{t.review}</p></div> : step === "verify" ? <form onSubmit={submitVerification} className="mx-auto max-w-xl space-y-5"><h2 className="text-2xl font-bold">{t.codeTitle}</h2><p className="text-sm text-slate-600">{t.codeHelp}</p><input required inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value)} placeholder="000000" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-lg tracking-[.4em]" />{form.payment_method !== "credit_card" && <label className="block text-sm font-semibold">{t.receipt} *<input required type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setReceipt(e.target.files?.[0] || null)} className="mt-2 block w-full text-sm" /></label>}<button disabled={submitting} className="w-full rounded-xl bg-[#102d42] px-4 py-3 font-bold text-white disabled:opacity-50">{submitting ? t.sending : t.verify}</button>{error && <p className="text-sm text-red-600">{error}</p>}</form> : <form onSubmit={submitForm} className="mx-auto max-w-3xl space-y-5"><h2 className="text-2xl font-bold">{t.formTitle}</h2><p className="text-sm text-slate-500">{t.required} *</p><div className="grid gap-4 sm:grid-cols-2">{field("first_name", t.firstName, true)}{field("last_name", t.lastName, true)}</div>{field("email", t.email, true, "email")}{field("wechat_id", t.wechat, true)}{field("country", t.country, true)}<label className="block text-sm font-semibold">{t.preferredLanguage} *<select required value={form.preferred_language} onChange={e => update("preferred_language", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option>English</option><option>Simplified Chinese</option><option>Both</option></select></label><div className="grid gap-4 sm:grid-cols-2">{field("phone", t.phone)}{field("city", t.city)}</div><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">{t.age}<select value={form.child_age_grade} onChange={e => update("child_age_grade", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option value="">—</option><option>Early years</option><option>Primary</option><option>Secondary</option><option>Prefer not to say</option></select></label><label className="block text-sm font-semibold">{t.schoolType}<select value={form.school_type} onChange={e => update("school_type", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm"><option value="">—</option><option>International</option><option>Bilingual</option><option>Local</option><option>Homeschool</option><option>Other</option><option>Prefer not to say</option></select></label></div><label className="block text-sm font-semibold">{t.question}<textarea maxLength={500} value={form.help_question} onChange={e => update("help_question", e.target.value)} rows={3} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label><label className="block text-sm font-semibold">{t.accessibility}<textarea maxLength={500} value={form.accessibility_support} onChange={e => update("accessibility_support", e.target.value)} rows={2} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label><fieldset className="rounded-2xl border border-slate-200 p-4"><legend className="px-1 text-sm font-bold">{t.choosePayment}</legend><div className="grid gap-3 sm:grid-cols-3">{[["wechat_pay", "WeChat Pay", qrOptions.wechatPayQr], ["alipay", "Alipay", qrOptions.alipayQr], ["credit_card", "Credit Card", null]].map(([value, label, qr]) => <label key={value as string} className={`rounded-xl border p-3 text-sm font-semibold ${form.payment_method === value ? "border-teal-500 bg-teal-50" : "border-slate-200"}`}><input required type="radio" name="parent-payment" checked={form.payment_method === value} onChange={() => update("payment_method", value as string)} /> <span className="ml-1">{label as string}</span>{qr && form.payment_method === value && <img src={qr as string} alt={`${label} QR code`} className="mt-3 h-40 w-full object-contain" />}</label>)}</div>{(form.payment_method === "wechat_pay" || form.payment_method === "alipay") && <p className="mt-3 text-xs leading-relaxed text-amber-800">{t.paymentPending}</p>}{form.payment_method && <label className="mt-3 block text-sm font-semibold">{t.reference}<input value={form.payment_reference} onChange={e => update("payment_reference", e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-3 text-sm" /></label>}</fieldset><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" required checked={form.terms_consent} onChange={e => update("terms_consent", e.target.checked)} />{t.terms}</label><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" required checked={form.privacy_consent} onChange={e => update("privacy_consent", e.target.checked)} />{t.privacy}</label><label className="flex gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.marketing_consent} onChange={e => update("marketing_consent", e.target.checked)} />{t.community}</label><button disabled={submitting} className="w-full rounded-xl bg-[#102d42] px-4 py-3 font-bold text-white disabled:opacity-50">{submitting ? t.sending : t.submit}</button>{error && <p className="text-sm text-red-600">{error}</p>}</form>}</section>
+      <p className="mt-6 text-center text-xs text-slate-500">{t.accessibility} · ReMynd Student Services</p>
+    </main>
+  </div>;
 }
 
 export default function WorkshopPublicPage() {
@@ -370,6 +471,10 @@ export default function WorkshopPublicPage() {
     ? Math.round(Number(workshop.price) * usdCnyRate.rate)
     : null;
   const manualSalesMode = !workshop.is_free && !!workshop.manual_sales_mode;
+
+  if (slug === "teacher-doesnt-like-me") {
+    return <ParentWorkshopExperience workshop={workshop} slug={slug} qrOptions={qrOptions} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#fdf8f0]">

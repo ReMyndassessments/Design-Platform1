@@ -4741,6 +4741,12 @@ async function createWorkshopTables() {
       marketing_consent_timestamp TIMESTAMPTZ,
       privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
       privacy_consent_timestamp TIMESTAMPTZ,
+      wechat_name TEXT,
+      preferred_language TEXT,
+      child_grade_band TEXT,
+      support_needs TEXT,
+      terms_consent BOOLEAN NOT NULL DEFAULT FALSE,
+      terms_consent_timestamp TIMESTAMPTZ,
       payment_status TEXT NOT NULL DEFAULT 'free',
       payment_intent_id TEXT,
       status TEXT NOT NULL DEFAULT 'registered',
@@ -4764,7 +4770,13 @@ async function createWorkshopTables() {
       ADD COLUMN IF NOT EXISTS interested_partner_school BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS training_only BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS marketing_consent_timestamp TIMESTAMPTZ`);
+       ADD COLUMN IF NOT EXISTS marketing_consent_timestamp TIMESTAMPTZ,
+       ADD COLUMN IF NOT EXISTS wechat_name TEXT,
+       ADD COLUMN IF NOT EXISTS preferred_language TEXT,
+       ADD COLUMN IF NOT EXISTS child_grade_band TEXT,
+       ADD COLUMN IF NOT EXISTS support_needs TEXT,
+       ADD COLUMN IF NOT EXISTS terms_consent BOOLEAN NOT NULL DEFAULT FALSE,
+       ADD COLUMN IF NOT EXISTS terms_consent_timestamp TIMESTAMPTZ`);
 
     await db.execute(sql`CREATE TABLE IF NOT EXISTS workshop_payment_intents (
       id TEXT PRIMARY KEY,
@@ -4801,6 +4813,12 @@ async function createWorkshopTables() {
       training_only BOOLEAN NOT NULL DEFAULT FALSE,
       marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
       privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+      terms_consent BOOLEAN NOT NULL DEFAULT FALSE,
+      terms_consent_timestamp TIMESTAMPTZ,
+      wechat_name TEXT,
+      preferred_language TEXT,
+      child_grade_band TEXT,
+      support_needs TEXT,
       payment_method TEXT,
       other_payment_options JSONB NOT NULL DEFAULT '[]'::jsonb,
       payment_reference TEXT,
@@ -4845,6 +4863,13 @@ async function createWorkshopTables() {
       ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN NOT NULL DEFAULT FALSE`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS privacy_consent BOOLEAN NOT NULL DEFAULT FALSE`);
+    await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
+       ADD COLUMN IF NOT EXISTS terms_consent BOOLEAN NOT NULL DEFAULT FALSE,
+       ADD COLUMN IF NOT EXISTS terms_consent_timestamp TIMESTAMPTZ,
+       ADD COLUMN IF NOT EXISTS wechat_name TEXT,
+       ADD COLUMN IF NOT EXISTS preferred_language TEXT,
+       ADD COLUMN IF NOT EXISTS child_grade_band TEXT,
+       ADD COLUMN IF NOT EXISTS support_needs TEXT`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
       ADD COLUMN IF NOT EXISTS payment_method TEXT`);
     await db.execute(sql`ALTER TABLE workshop_manual_sales_inquiries
@@ -4914,6 +4939,59 @@ Suitable for primary and secondary teachers, teaching assistants, pastoral and w
         FALSE,
         49,
         'USD',
+        'published'
+      )
+      ON CONFLICT (slug) DO NOTHING
+    `);
+    await db.execute(sql`
+      INSERT INTO workshops (
+        id, slug, title, subtitle, description, additional_info, image_alt,
+        session_dates, timezone, delivery_method, facilitator_name, registration_closes_at,
+        max_participants, is_free, price, currency, contact_email, status
+      ) VALUES (
+        'workshop-teacher-doesnt-like-me-2026',
+        'teacher-doesnt-like-me',
+        'When Your Child Says, “My Teacher Doesn’t Like Me”',
+        'Recognising patterns, protecting your child, and advocating without escalating conflict.',
+        'A practical online parent workshop for responding thoughtfully when a child says or appears to believe that a teacher does not like them.',
+        ${`## What parents will learn
+
+- Listen carefully without dismissing the child's experience or immediately confirming an untested conclusion.
+- Protect the child's dignity, emotional safety, and continuing relationship with learning.
+- Distinguish observable events from assumptions and interpretations.
+- Consider frequency, context, intensity, impact, and several possible explanations.
+- Gather useful information before approaching the school and communicate calmly, specifically, and constructively.
+- Work toward shared understanding and practical support rather than escalating conflict.
+- Identify practical next steps, review dates, and appropriate thresholds for additional support.
+
+## Included in the 388 RMB family registration
+
+- One live 90-minute online parent workshop
+- English presentation supported by prepared Chinese-language subtitles or translated materials
+- A bilingual Parent Action Toolkit
+- A Parent Action Plan, meeting-preparation form, observation template, and sample language for contacting a school
+- Access to the workshop WeChat group and seven days of structured, workshop-related group support
+
+## Important boundaries
+
+This is a parent-education workshop. It does not include individual consultation, counselling or therapy, psychological or diagnostic assessment, review of school records or assessment documents, legal advice, mediation, a determination that a teacher dislikes or has mistreated a child, or unlimited individual support through WeChat. Parents may make a separate enquiry about another ReMynd service; workshop registration does not initiate or authorise an assessment referral.
+
+## A constructive approach
+
+This workshop is not about fighting with the school or assuming that a teacher has acted with harmful intent. It helps parents understand what may be happening, support their child, gather useful information, and communicate with the school in a calm and constructive way.
+
+Parents are asked not to post child names, teacher names, school names, reports, or identifying case information in the workshop WeChat group. Participation in the group may make a participant's WeChat display name visible to other members.`},
+        'Parent workshop flyer and accessible workshop information',
+        '[{"date":"2026-10-17","start_time":"10:00","end_time":"11:30"}]'::jsonb,
+        'Asia/Hong_Kong',
+        'online',
+        'Noel Roberts',
+        '2026-10-17T08:00:00Z'::timestamptz,
+        100,
+        FALSE,
+        388,
+        'CNY',
+        'ne_roberts@yahoo.com',
         'published'
       )
       ON CONFLICT (slug) DO NOTHING

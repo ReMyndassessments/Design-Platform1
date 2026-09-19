@@ -149,9 +149,11 @@ async function resolveContacts(audience: any, kind: string) {
   }
   if (sources.includes("workshops") && Array.isArray(audience?.workshopIds) && audience.workshopIds.length) {
     const r = await db.execute(sql`
-      SELECT id, workshop_id, email, concat_ws(' ', first_name, last_name) AS name, marketing_consent
-      FROM workshop_registrations
-      WHERE status != 'cancelled'
+      SELECT r.id, r.workshop_id, r.email, concat_ws(' ', r.first_name, r.last_name) AS name, r.marketing_consent
+      FROM workshop_registrations r
+      JOIN workshops w ON w.id = r.workshop_id
+      WHERE r.status != 'cancelled'
+        AND (w.is_free = TRUE OR r.payment_status = 'paid')
     `);
     const selectedWorkshopIds = new Set(audience.workshopIds.map(String));
     const matches = (r.rows as any[]).filter(x => selectedWorkshopIds.has(String(x.workshop_id)));
