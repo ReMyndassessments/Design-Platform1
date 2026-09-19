@@ -815,6 +815,12 @@ router.get("/training/workshops/public/:slug/manual-sales/payment-options", asyn
   if (!workshopManualSalesMode()) return res.status(404).json({ error: "Not found" });
   const workshop = await db.execute(sql`SELECT id FROM workshops WHERE slug = ${req.params.slug} AND is_free = FALSE AND status IN ('published', 'full') LIMIT 1`);
   if (!workshop.rows.length) return res.status(404).json({ error: "Workshop not available" });
+  if (req.params.slug === "teacher-doesnt-like-me") {
+    return res.json({
+      wechatPayQr: "/images/payments/teacher-doesnt-like-me-wechat.jpg",
+      alipayQr: "/images/payments/teacher-doesnt-like-me-alipay.jpg",
+    });
+  }
   const base = `/api/training/workshops/public/${encodeURIComponent(req.params.slug)}/manual-sales/payment-qr`;
   return res.json({
     wechatPayQr: publicQrPath(process.env.AIRWALLEX_WECHAT_QR_PATH) ? `${base}/wechat_pay` : null,
