@@ -218,6 +218,19 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
       .parent-registration-form label:has(img[alt$="QR code"]) {
         grid-column: 1 / -1;
       }
+      .parent-registration-form label:has(img[alt$="QR code"])::after {
+        content: "Workshop fee: 388 RMB per family";
+        display: block;
+        margin-top: 1rem;
+        border-radius: 0.75rem;
+        background: #102d42;
+        padding: 0.9rem 1rem;
+        color: white;
+        text-align: center;
+        font-size: clamp(1.25rem, 3vw, 1.75rem);
+        font-weight: 800;
+        line-height: 1.2;
+      }
       .parent-registration-form img[alt$="QR code"] {
         width: 100%;
         height: auto;
