@@ -213,7 +213,18 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
   };
   const items = (list: string[]) => <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">{list.map(item => <li key={item} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-teal-600" />{item}</li>)}</ul>;
   return <div className="min-h-screen bg-[#f4f8f8] text-[#172b3a]">
-    <style>{`label:has(> select[required]) { display: none; }`}</style>
+    <style>{`
+      label:has(> select[required]) { display: none; }
+      .parent-registration-form label:has(img[alt$="QR code"]) {
+        grid-column: 1 / -1;
+      }
+      .parent-registration-form img[alt$="QR code"] {
+        width: 100%;
+        height: auto;
+        max-height: 42rem;
+        object-fit: contain;
+      }
+    `}</style>
     <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-[#102d42]/95 px-4 py-3 text-white shadow-md backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between"><div className="flex items-center gap-2"><img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-9 w-9 rounded-full object-cover" /><span className="font-bold">ReMynd Student Services</span></div><div className="flex items-center gap-1 rounded-lg bg-white/10 p-1"><Languages size={15} className="mx-1 text-teal-200" />{(["en", "zh-CN", "ko"] as ParentLocale[]).map(l => <button type="button" key={l} onClick={() => setLocale(l)} className={`rounded px-2 py-1 text-xs ${locale === l ? "bg-white text-[#102d42]" : "text-white/80"}`}>{parentCopy[l].language}</button>)}</div></div></nav>
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 overflow-hidden rounded-3xl bg-[#102d42] p-3 shadow-lg sm:p-5">
