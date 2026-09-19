@@ -594,7 +594,13 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
 
   useEffect(() => {
     if (!w.image_object_id) {
-      setImageUrl(w.slug === "nice-try" ? "/images/nice-try-workshop.png" : null);
+      setImageUrl(
+        w.slug === "nice-try"
+          ? "/images/nice-try-workshop.png"
+          : w.slug === "teacher-doesnt-like-me"
+            ? "/images/teacher-doesnt-like-me-workshop-flyer.png"
+            : null,
+      );
       return;
     }
 
@@ -616,7 +622,13 @@ function WorkshopCard({ workshop: w, onView, onEdit, onPublish, onUnpublish, onD
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setImageUrl(w.slug === "nice-try" ? "/images/nice-try-workshop.png" : null);
+          setImageUrl(
+            w.slug === "nice-try"
+              ? "/images/nice-try-workshop.png"
+              : w.slug === "teacher-doesnt-like-me"
+                ? "/images/teacher-doesnt-like-me-workshop-flyer.png"
+                : null,
+          );
         }
       });
 
