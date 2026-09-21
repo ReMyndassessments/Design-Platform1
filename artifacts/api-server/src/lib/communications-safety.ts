@@ -110,14 +110,14 @@ export async function sendGmailTest(options: {
 export async function runWithCampaignLock<T>(options: {
   claim: () => Promise<T | null>;
   deliver: (campaign: T) => Promise<void>;
-  markFailed: (campaign: T) => Promise<void>;
+  markFailed: (campaign: T, error: unknown) => Promise<void>;
 }): Promise<boolean> {
   const campaign = await options.claim();
   if (!campaign) return false;
   try {
     await options.deliver(campaign);
   } catch (error) {
-    await options.markFailed(campaign);
+    await options.markFailed(campaign, error);
     throw error;
   }
   return true;

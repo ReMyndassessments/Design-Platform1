@@ -118,7 +118,7 @@ export function CampaignsTab() {
                   </a>
                   <button
                     onClick={() => {
-                      if (window.confirm("Confirm only after you have sent this campaign to the prepared list in EmailOctopus. Mark all 510 recipients as sent in RAOS?")) {
+                      if (window.confirm(`Confirm only after you have sent this campaign to the prepared list in EmailOctopus. Mark all ${c.recipient_count} recipients as sent in RAOS?`)) {
                         confirmEmailOctopusSent.mutate(c.id);
                       }
                     }}

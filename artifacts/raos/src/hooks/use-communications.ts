@@ -12,6 +12,10 @@ export function useCampaigns() {
   return useQuery({
     queryKey: ["communications-campaigns"],
     queryFn: () => customFetch("/api/communications/campaigns") as Promise<{ campaigns: any[] }>,
+    refetchInterval: query => {
+      const data = query.state.data as { campaigns?: any[] } | undefined;
+      return data?.campaigns?.some(campaign => campaign.status === "sending") ? 2_000 : false;
+    },
   });
 }
 

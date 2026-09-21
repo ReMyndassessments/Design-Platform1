@@ -15,3 +15,4 @@
 - [RAOS communications provider split](communications-provider-split.md) — Gmail handles direct operational mail; EmailOctopus handles consent-eligible bulk campaigns with minimal data.
 - [Workshop manual-sales mode](workshop-manual-sales-mode.md) — paid workshops bypass Airwallex via verified inquiries; free workshops and LSC payments remain unchanged.
 - [RAOS promotional demo safety](raos-promotional-demo-safety.md) — public demo uses synthetic pre-written AI examples; the permanent internal demo case is server-enforced read-only.
+- [EmailOctopus bulk preparation](emailoctopus-bulk-preparation.md) — prepare large audiences asynchronously, throttle contact sync, and persist the list ID before uploading contacts.

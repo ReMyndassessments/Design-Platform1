@@ -30,6 +30,7 @@ const ready = (async () => {
   await db.execute(sql`ALTER TABLE communication_campaigns ADD COLUMN IF NOT EXISTS provider_campaign_id text`);
   await db.execute(sql`ALTER TABLE communication_campaigns ADD COLUMN IF NOT EXISTS archived_at timestamptz`);
   await db.execute(sql`ALTER TABLE communication_campaigns ADD COLUMN IF NOT EXISTS is_test boolean NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE communication_campaigns ADD COLUMN IF NOT EXISTS last_error text`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_recipients (id text PRIMARY KEY, campaign_id text NOT NULL REFERENCES communication_campaigns(id) ON DELETE CASCADE, email text NOT NULL, name text, source_type text NOT NULL, source_id text NOT NULL, status text NOT NULL DEFAULT 'pending', attempts integer NOT NULL DEFAULT 0, provider_message_id text, error text, sent_at timestamptz, created_at timestamptz NOT NULL DEFAULT NOW(), UNIQUE(campaign_id, email))`);
   await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS unsubscribe_token text UNIQUE`);
   await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS delivered_at timestamptz`);
@@ -223,7 +224,7 @@ async function getBrandSettings(): Promise<CommunicationBrandSettings> {
 async function deliver(campaignId: string, retry = false) {
   await runWithCampaignLock<any>({
     claim: async () => {
-      const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed') RETURNING *`);
+      const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', last_error = NULL, updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed') RETURNING *`);
       return (lock.rows[0] as any) ?? null;
     },
     deliver: async (campaign) => {
@@ -243,11 +244,14 @@ async function deliver(campaignId: string, retry = false) {
         fromName: typeof settings.fromName === "string" ? settings.fromName : undefined,
         fromEmail: typeof settings.fromEmail === "string" ? settings.fromEmail : undefined,
         recipients: rows.map(row => ({ to: row.email, subject: campaign.subject, html: brandedHtml, name: row.name })),
+         onListCreated: async createdListId => {
+           await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${`list:${createdListId}`}, updated_at=NOW() WHERE id=${campaignId}`);
+         },
       });
       // EmailOctopus's documented API can prepare lists and contacts, but does
       // not create or dispatch broadcast campaigns. Keep recipients queued
       // until an administrator sends to this list in EmailOctopus and confirms.
-      await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${`list:${listId}`}, status='ready', updated_at=NOW() WHERE id=${campaignId}`);
+      await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${`list:${listId}`}, status='ready', last_error=NULL, updated_at=NOW() WHERE id=${campaignId}`);
         return;
       }
        const settings = await getBrandSettings();
@@ -268,8 +272,10 @@ async function deliver(campaignId: string, retry = false) {
       const failed = Number((totals.rows[0] as any).failed);
       await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
     },
-    markFailed: async () => {
-      await db.execute(sql`UPDATE communication_campaigns SET status='failed', updated_at=NOW() WHERE id=${campaignId}`);
+    markFailed: async (_campaign, error) => {
+      const message = error instanceof Error ? error.message : "Campaign preparation failed";
+      logger.error({ err: error, campaignId }, "Campaign delivery failed");
+      await db.execute(sql`UPDATE communication_campaigns SET status='failed', last_error=${message.slice(0, 1000)}, updated_at=NOW() WHERE id=${campaignId}`);
     },
   });
 }
@@ -282,6 +288,9 @@ const reportRank: Record<string, number> = {
 };
 async function reconcileEmailOctopusCampaign(campaign: any) {
   if (campaign.provider !== "emailoctopus" || !campaign.provider_campaign_id) return { processed: 0 };
+  // A list:* reference is only a prepared audience. EmailOctopus has no
+  // campaign reports until an actual provider campaign ID has been linked.
+  if (String(campaign.provider_campaign_id).startsWith("list:")) return { processed: 0 };
   let processed = 0;
   for (const report of ["sent", "bounced", "complained", "unsubscribed"] as EmailOctopusReportType[]) {
     for (const event of await getEmailOctopusCampaignReport(campaign.provider_campaign_id, report)) {
@@ -345,12 +354,19 @@ router.post("/communications/campaigns/:id/send-test", async (req, res): Promise
   }
 });
 router.post("/communications/campaigns/:id/send", async (req, res) => {
-  try { await deliver(req.params.id); await writeAudit({ eventType: "communications.campaign.sent", actorId: req.userId, actorRole: req.userRole, metadata: { campaignId: req.params.id } }); res.json({ ok: true }); }
-  catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Campaign send failed" }); }
+  const campaignId = req.params.id;
+  const actorId = req.userId;
+  const actorRole = req.userRole;
+  void deliver(campaignId)
+    .then(() => writeAudit({ eventType: "communications.campaign.sent", actorId, actorRole, metadata: { campaignId } }))
+    .catch(err => logger.error({ err, campaignId }, "Background campaign delivery failed"));
+  res.status(202).json({ ok: true, status: "preparing" });
 });
 router.post("/communications/campaigns/:id/retry-failed", async (req, res) => {
-  try { await deliver(req.params.id, true); res.json({ ok: true }); }
-  catch (err) { res.status(409).json({ error: err instanceof Error ? err.message : "Retry failed" }); }
+  const campaignId = req.params.id;
+  void deliver(campaignId, true)
+    .catch(err => logger.error({ err, campaignId }, "Background campaign retry failed"));
+  res.status(202).json({ ok: true, status: "preparing" });
 });
 router.post("/communications/campaigns/:id/confirm-emailoctopus-sent", async (req, res): Promise<void> => {
   const campaignId = req.params.id;

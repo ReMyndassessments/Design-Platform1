@@ -14,6 +14,7 @@ export interface CommunicationsMailer {
 export interface EmailOctopusCampaignInput {
   name: string; subject: string; html: string; text: string; recipients: Array<OutboundMessage & { name?: string | null }>;
   fromName?: string; fromEmail?: string;
+  onListCreated?: (listId: string) => Promise<void>;
 }
 
 export type EmailOctopusReportType = "sent" | "bounced" | "complained" | "unsubscribed";
@@ -102,11 +103,11 @@ export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInp
   });
   const listId = String(targetList?.id || "");
   if (!listId) throw new Error("EmailOctopus did not return a campaign audience list ID");
+  await input.onListCreated?.(listId);
   // API 1.6 supports list contact creation and list-bound campaigns. This is
   // intentionally called only after RAOS has applied its consent/suppression filter.
-  // A campaign can contain hundreds of contacts. Sequential requests exceed
-  // the deployment request timeout, while unbounded concurrency risks provider
-  // rate limits. Three workers keep the import comfortably bounded.
+  // This work runs in the background. Keep uploads under EmailOctopus's
+  // documented 10 requests/second limit so large lists do not fail with 429s.
   let nextRecipientIndex = 0;
   const addContact = async () => {
     while (nextRecipientIndex < input.recipients.length) {
@@ -120,11 +121,13 @@ export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInp
         // Do not issue an update: that could overwrite fields or re-subscribe a
         // provider-unsubscribed person. Other provider errors remain fatal.
         if (!/already|exist|duplicate/i.test(error instanceof Error ? error.message : "")) throw error;
+      } finally {
+        await new Promise(resolve => setTimeout(resolve, 250));
       }
     }
   };
   await Promise.all(
-    Array.from({ length: Math.min(3, input.recipients.length) }, () => addContact()),
+    Array.from({ length: Math.min(2, input.recipients.length) }, () => addContact()),
   );
   return listId;
 }
