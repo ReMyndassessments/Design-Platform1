@@ -1884,7 +1884,7 @@ export default function CaseDetail() {
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-lg flex items-center text-blue-900 gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-200 text-blue-800 text-xs font-bold shrink-0">2</span>
-                    <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain" />
+                    <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-5 h-5 object-contain" />
                     AI Intake Analysis
                   </CardTitle>
                   {!intakeFormsComplete && !c.intakeAnalysis && (

@@ -480,7 +480,7 @@ export default function AssessmentServicesPage() {
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/">
             <div className="flex items-center gap-3 cursor-pointer">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="h-9 w-9 object-contain" />
+              <img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-9 w-9 object-contain" />
               <div className="leading-none">
                 <p className="text-sm font-extrabold text-slate-900 tracking-tight">ReMynd</p>
                 <p className="text-[10px] font-medium text-slate-500 tracking-wide">{a.navBrandSub}</p>

@@ -34,7 +34,7 @@ export default function QuickMeetPage() {
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white rounded-xl shadow-sm border border-emerald-100 flex items-center justify-center">
             <img
-              src="/images/remynd-logo.png"
+              src="/images/remynd-logo-new.png"
               alt="ReMynd"
               className="w-6 h-6 object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -59,7 +59,7 @@ export default function QuickMeetPage() {
           <div className="flex flex-col items-center mb-8">
             <div className="w-20 h-20 rounded-2xl bg-white shadow-lg border border-emerald-100 flex items-center justify-center mb-4">
               <img
-                src="/images/remynd-logo.png"
+                src="/images/remynd-logo-new.png"
                 alt="ReMynd"
                 className="w-14 h-14 object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}

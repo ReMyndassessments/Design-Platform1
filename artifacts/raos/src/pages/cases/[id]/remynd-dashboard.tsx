@@ -1259,7 +1259,7 @@ export default function RemyndDashboardPage() {
         <div className="print-header mb-6 border-b pb-4">
           <div className="flex items-center gap-2 mb-1">
             <img
-              src="/images/remynd-logo.png"
+              src="/images/remynd-logo-new.png"
               alt="ReMynd"
               className="h-5 object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}

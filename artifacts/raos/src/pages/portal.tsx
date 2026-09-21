@@ -585,7 +585,7 @@ export default function Portal() {
               <div className="relative">
                 <div className="absolute -inset-1 bg-blue-400/15 rounded-[14px] blur-md" />
                 <div className="relative w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/10">
-                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-6 h-6 object-contain" />
+                  <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-6 h-6 object-contain" />
                 </div>
               </div>
               <div className="leading-none">

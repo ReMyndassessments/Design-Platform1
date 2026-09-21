@@ -139,7 +139,7 @@ export default function LscCheckoutPage() {
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2.5 mb-2">
           <div className="w-9 h-9 bg-white rounded-xl shadow-md flex items-center justify-center">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-7 h-7 object-contain" />
+            <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-7 h-7 object-contain" />
           </div>
           <span className="font-bold text-xl text-slate-900 tracking-tight">ReMynd</span>
         </div>

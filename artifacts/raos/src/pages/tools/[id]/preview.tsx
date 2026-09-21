@@ -612,7 +612,7 @@ function PrintableForm({
     <article className="print-only form-print-document">
       <header className="form-print-brand">
         <div className="form-print-brand-mark">
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="form-print-brand-logo" />
+          <img src="/images/remynd-logo-new.png" alt="ReMynd" className="form-print-brand-logo" />
           <div>
             <p className="form-print-brand-name">ReMynd</p>
             <p className="form-print-brand-subtitle">Assessment Operating System</p>
@@ -857,7 +857,7 @@ export default function FormPreviewPage() {
           )}
 
           <div className="flex items-center text-primary">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain mr-1.5" />
+            <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-5 h-5 object-contain mr-1.5" />
             <span className="font-bold text-sm">ReMynd</span>
           </div>
         </div>

@@ -763,7 +763,7 @@ function FormIcon({ formType }: { formType: string }) {
   if (formType === "REFERRAL") return <ClipboardList size={26} className={cls} />;
   if (formType === "CONSENT")  return <ShieldCheck size={26} className={cls} />;
   if (formType === "INTAKE")   return <FileText size={26} className={cls} />;
-  return <img src="/images/remynd-logo.png" alt="ReMynd" className="w-9 h-9 object-contain mix-blend-multiply" />;
+  return <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-9 h-9 object-contain mix-blend-multiply" />;
 }
 
 function getFormLabel(formType: string) {
@@ -1508,7 +1508,7 @@ function PortalView({
         <div className="relative z-10 px-5 py-3 flex items-center gap-3">
           <a href="https://remyndassessments.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-shrink-0 group">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+              <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-8 h-8 object-contain" />
             </div>
             <div className="leading-none">
               <span className="font-display font-bold text-xl tracking-tight leading-none text-white block group-hover:text-slate-200 transition-colors">ReMynd</span>
@@ -2541,7 +2541,7 @@ function PortalView({
         {/* Footer */}
         <div className="pt-2 pb-8 flex items-center justify-center">
           <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+            <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
             <span>ReMynd Assessment System</span>
           </div>
         </div>
@@ -2632,7 +2632,7 @@ function FormView({
   const ReMyndFooter = () => (
     <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
       <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-        <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+        <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
         <span>ReMynd Assessment System</span>
       </div>
     </div>
@@ -2766,7 +2766,7 @@ function FormView({
             <div className="h-4 w-px bg-white/10" />
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+                <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-8 h-8 object-contain" />
               </div>
               <div className="leading-none">
                 <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
@@ -2953,7 +2953,7 @@ export default function ExternalFormView() {
           style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div className="relative z-10 px-5 py-3 flex items-center gap-3">
           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-            <img src="/images/remynd-logo.png" alt="ReMynd" className="w-8 h-8 object-contain" />
+            <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-8 h-8 object-contain" />
           </div>
           <div className="leading-none">
             <span className="font-display font-bold text-xl tracking-tight leading-none text-white block">ReMynd</span>
@@ -2996,7 +2996,7 @@ export default function ExternalFormView() {
               This link is invalid or has expired. Please contact the assessment team for a new link.
             </p>
             <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <img src="/images/remynd-logo.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
+              <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />
               <span>ReMynd Assessment System</span>
             </div>
           </div>

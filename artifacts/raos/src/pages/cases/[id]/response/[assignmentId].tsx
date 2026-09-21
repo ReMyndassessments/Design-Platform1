@@ -788,7 +788,7 @@ export default function ResponseViewer() {
                   {getRespondentTypeLabel(assignment.respondentType)} — {studentName}
                 </p>
                 <div className="flex items-center gap-2">
-                  <img src="/images/remynd-logo.png" alt="ReMynd" className="w-5 h-5 object-contain opacity-70" />
+                  <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-5 h-5 object-contain opacity-70" />
                   <span className="text-slate-400 text-xs font-medium tracking-wide">ReMynd Assessment System · Completed Response</span>
                 </div>
               </div>

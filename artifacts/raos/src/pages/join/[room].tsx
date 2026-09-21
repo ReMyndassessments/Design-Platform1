@@ -54,7 +54,7 @@ export default function JoinMeetingPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900 shrink-0">
         <div className="flex items-center gap-3">
           <img
-            src="/images/remynd-logo.png"
+            src="/images/remynd-logo-new.png"
             alt="ReMynd"
             className="w-8 h-8 object-contain brightness-0 invert"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}

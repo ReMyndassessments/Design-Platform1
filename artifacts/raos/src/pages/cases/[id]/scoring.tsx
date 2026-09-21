@@ -912,7 +912,7 @@ export default function ScoringView() {
             <h1 className="text-2xl font-bold text-slate-900">Scoring &amp; Analysis Report</h1>
             <p className="text-slate-500 text-sm mt-0.5">Case: {studentName} · Generated {today}</p>
           </div>
-          <img src="/images/remynd-logo.png" alt="ReMynd" className="h-10 w-10 object-contain" />
+          <img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-10 w-10 object-contain" />
         </div>
       </div>
 
