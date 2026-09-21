@@ -115,6 +115,66 @@ function InfoChip({ icon: Icon, label, value }: { icon: any; label: string; valu
   );
 }
 
+function getWorkshopImageUrl(workshop: Workshop): string | null {
+  if (workshop.image_object_id) {
+    return `${getBaseUrl()}/api/training/workshops/public/${workshop.slug}/image`;
+  }
+  if (workshop.slug === "teacher-doesnt-like-me") {
+    return `${getBaseUrl()}/images/teacher-doesnt-like-me-workshop-flyer.png`;
+  }
+  if (workshop.slug === "nice-try") {
+    return `${getBaseUrl()}/images/nice-try-workshop.png`;
+  }
+  return null;
+}
+
+function OtherWorkshops({ workshops }: { workshops: Workshop[] }) {
+  if (!workshops.length) return null;
+
+  return (
+    <section className="mx-auto w-full max-w-5xl px-4 pb-12 pt-8 md:px-6" aria-labelledby="other-workshops-title">
+      <h2 id="other-workshops-title" className="mb-5 text-xl font-bold text-slate-900">Other Workshops</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {workshops.map(w => {
+          const imageUrl = getWorkshopImageUrl(w);
+          const price = w.is_free ? "Free" : `${CURRENCIES[w.currency] ?? ""}${w.price} ${w.currency}`;
+          return (
+            <a
+              key={w.id}
+              href={`${getBaseUrl()}/training/${w.slug}`}
+              className="group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+            >
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={w.image_alt || `${w.title} workshop flyer`}
+                  className="h-52 w-full bg-[#0c1a2e] object-contain object-center transition-opacity group-hover:opacity-90"
+                />
+              ) : (
+                <div className="flex h-52 w-full items-center justify-center bg-gradient-to-br from-[#0c1a2e] to-teal-900">
+                  <Calendar size={32} className="text-white/30" />
+                </div>
+              )}
+              <div className="p-4">
+                <p className="line-clamp-2 text-sm font-bold leading-snug text-slate-900 transition-colors group-hover:text-teal-700">{w.title}</p>
+                {w.subtitle && <p className="mt-1 line-clamp-1 text-xs text-slate-500">{w.subtitle}</p>}
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-teal-600">{price}</span>
+                  {(w.status === "published" || w.status === "full") && (
+                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-teal-700">
+                      {w.status === "full" ? "Full" : "Open"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 type ParentLocale = "en" | "zh-CN" | "ko";
 
 const parentCopy: Record<ParentLocale, {
@@ -164,7 +224,7 @@ const parentCopy: Record<ParentLocale, {
   },
 };
 
-function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Workshop; slug: string; qrOptions: { wechatPayQr: string | null; alipayQr: string | null } }) {
+function ParentWorkshopExperience({ workshop, slug, qrOptions, otherWorkshops }: { workshop: Workshop; slug: string; qrOptions: { wechatPayQr: string | null; alipayQr: string | null }; otherWorkshops: Workshop[] }) {
   const [locale, setLocale] = useState<ParentLocale>("en");
   const [step, setStep] = useState<"form" | "verify" | "success">("form");
   const [submitting, setSubmitting] = useState(false);
@@ -294,6 +354,7 @@ function ParentWorkshopExperience({ workshop, slug, qrOptions }: { workshop: Wor
         </div>
       )}
       <p className="mt-6 text-center text-xs text-slate-500">{t.accessibility} · ReMynd Student Services</p>
+      <OtherWorkshops workshops={otherWorkshops} />
     </main>
   </div>;
 }
@@ -540,11 +601,7 @@ export default function WorkshopPublicPage() {
   const canRegister = !isClosed && !regClosed && !(isFull && workshop.max_participants && workshop.registration_count >= workshop.max_participants);
   const usesExpandedRegistration = true;
 
-  const imageUrl = workshop.image_object_id
-    ? `${getBaseUrl()}/api/training/workshops/public/${slug}/image`
-    : slug === "nice-try"
-      ? `${getBaseUrl()}/images/nice-try-workshop.png`
-      : null;
+  const imageUrl = getWorkshopImageUrl(workshop);
 
   const priceStr = workshop.is_free
     ? "Free"
@@ -555,7 +612,7 @@ export default function WorkshopPublicPage() {
   const manualSalesMode = !workshop.is_free && !!workshop.manual_sales_mode;
 
   if (slug === "teacher-doesnt-like-me") {
-    return <ParentWorkshopExperience workshop={workshop} slug={slug} qrOptions={qrOptions} />;
+    return <ParentWorkshopExperience workshop={workshop} slug={slug} qrOptions={qrOptions} otherWorkshops={otherWorkshops} />;
   }
 
   return (
@@ -1007,45 +1064,7 @@ export default function WorkshopPublicPage() {
         </div>
       </div>
 
-      {/* More Workshops */}
-      {otherWorkshops.length > 0 && (
-        <div className="max-w-5xl mx-auto px-4 md:px-6 pb-12">
-          <h2 className="text-xl font-bold text-slate-900 mb-5">More Workshops</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {otherWorkshops.map(w => {
-              const wImageUrl = w.image_object_id
-                ? `${getBaseUrl()}/api/training/workshops/public/${w.slug}/image`
-                : null;
-              const wPrice = w.is_free ? "Free" : `${CURRENCIES[w.currency] ?? ""}${w.price} ${w.currency}`;
-              return (
-                <a
-                  key={w.id}
-                  href={`/training/${w.slug}`}
-                  className="block bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
-                >
-                  {wImageUrl ? (
-                    <img src={wImageUrl} alt={w.title} className="w-full h-36 object-cover object-top group-hover:opacity-90 transition-opacity" />
-                  ) : (
-                    <div className="w-full h-36 bg-gradient-to-br from-[#0c1a2e] to-teal-900 flex items-center justify-center">
-                      <Calendar size={32} className="text-white/30" />
-                    </div>
-                  )}
-                  <div className="p-4">
-                    <p className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 group-hover:text-teal-700 transition-colors">{w.title}</p>
-                    {w.subtitle && <p className="text-xs text-slate-500 mt-1 line-clamp-1">{w.subtitle}</p>}
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs font-semibold text-teal-600">{wPrice}</span>
-                      {w.status === "published" && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">Open</span>
-                      )}
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <OtherWorkshops workshops={otherWorkshops} />
 
       {/* Footer */}
       <footer className="bg-[#0c1a2e] mt-4 px-6 py-8 text-center">
