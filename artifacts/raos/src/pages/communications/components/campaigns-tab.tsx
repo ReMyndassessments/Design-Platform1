@@ -108,6 +108,18 @@ export function CampaignsTab() {
               )}
               {c.status === "ready" && c.provider === "emailoctopus" && (
                 <>
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Re-check and prepare all recipients in the existing EmailOctopus list?")) {
+                        retryMutation.mutate(c.id);
+                      }
+                    }}
+                    disabled={retryMutation.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={14} className={retryMutation.isPending && retryMutation.variables === c.id ? "animate-spin" : ""} />
+                    {retryMutation.isPending && retryMutation.variables === c.id ? "Preparing..." : "Re-prepare Audience"}
+                  </button>
                   <a
                     href="https://emailoctopus.com/campaigns"
                     target="_blank"

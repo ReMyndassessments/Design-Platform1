@@ -224,7 +224,7 @@ async function getBrandSettings(): Promise<CommunicationBrandSettings> {
 async function deliver(campaignId: string, retry = false) {
   await runWithCampaignLock<any>({
     claim: async () => {
-      const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', last_error = NULL, updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed') RETURNING *`);
+      const lock = await db.execute(sql`UPDATE communication_campaigns SET status = 'sending', last_error = NULL, updated_at = NOW() WHERE id = ${campaignId} AND status IN ('draft','scheduled','failed'${retry ? sql`, 'ready'` : sql``}) RETURNING *`);
       return (lock.rows[0] as any) ?? null;
     },
     deliver: async (campaign) => {
@@ -239,11 +239,12 @@ async function deliver(campaignId: string, retry = false) {
       const existingListId = typeof campaign.provider_campaign_id === "string" && campaign.provider_campaign_id.startsWith("list:")
         ? campaign.provider_campaign_id.slice(5)
         : null;
-      const listId = existingListId || await prepareEmailOctopusAudience({
+       const listId = await prepareEmailOctopusAudience({
         name: campaign.name, subject: campaign.subject, html: brandedHtml, text,
         fromName: typeof settings.fromName === "string" ? settings.fromName : undefined,
         fromEmail: typeof settings.fromEmail === "string" ? settings.fromEmail : undefined,
         recipients: rows.map(row => ({ to: row.email, subject: campaign.subject, html: brandedHtml, name: row.name })),
+         existingListId,
          onListCreated: async createdListId => {
            await db.execute(sql`UPDATE communication_campaigns SET provider_campaign_id=${`list:${createdListId}`}, updated_at=NOW() WHERE id=${campaignId}`);
          },

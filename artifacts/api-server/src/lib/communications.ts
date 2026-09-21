@@ -14,6 +14,7 @@ export interface CommunicationsMailer {
 export interface EmailOctopusCampaignInput {
   name: string; subject: string; html: string; text: string; recipients: Array<OutboundMessage & { name?: string | null }>;
   fromName?: string; fromEmail?: string;
+  existingListId?: string | null;
   onListCreated?: (listId: string) => Promise<void>;
 }
 
@@ -104,12 +105,12 @@ export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInp
   // EmailOctopus campaigns send to their entire bound list. Use a dedicated
   // campaign list so the provider audience exactly matches RAOS's consent,
   // suppression, deduplication, and prior-send filtering snapshot.
-  const targetList = await emailOctopusRequest("/lists", {
-    name: `RAOS Campaign - ${input.name.slice(0, 145)} - ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
-  });
-  const listId = String(targetList?.id || "");
+  const targetList = input.existingListId ? null : await emailOctopusRequest("/lists", {
+      name: `RAOS Campaign - ${input.name.slice(0, 145)} - ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    });
+  const listId = String(input.existingListId || targetList?.id || "");
   if (!listId) throw new Error("EmailOctopus did not return a campaign audience list ID");
-  await input.onListCreated?.(listId);
+  if (!input.existingListId) await input.onListCreated?.(listId);
   // API 1.6 supports list contact creation and list-bound campaigns. This is
   // intentionally called only after RAOS has applied its consent/suppression filter.
   // This work runs in the background. Keep uploads under EmailOctopus's
@@ -136,6 +137,12 @@ export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInp
   await Promise.all(
     Array.from({ length: Math.min(2, input.recipients.length) }, () => addContact()),
   );
+  const preparedList = await emailOctopusGet(`/api/1.6/lists/${encodeURIComponent(listId)}`);
+  const preparedCount = ["pending", "subscribed", "unsubscribed"]
+    .reduce((total, key) => total + Number(preparedList?.counts?.[key] || 0), 0);
+  if (preparedCount < input.recipients.length) {
+    throw new Error(`EmailOctopus audience preparation incomplete: expected ${input.recipients.length} contacts but found ${preparedCount}`);
+  }
   return listId;
 }
 
