@@ -26,8 +26,14 @@ export type AudienceResolution = {
 
 const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export function normalizeCommunicationEmail(value: unknown): string {
+  const email = String(value || "").trim().toLowerCase();
+  const angleWrapped = email.match(/^<([^<>]+)>$/);
+  return angleWrapped ? angleWrapped[1].trim() : email;
+}
+
 export function isValidCommunicationEmail(email: string): boolean {
-  return validEmail.test(email);
+  return validEmail.test(normalizeCommunicationEmail(email));
 }
 
 export function resolveEligibleContacts(
@@ -40,7 +46,7 @@ export function resolveEligibleContacts(
   const counts = { included: 0, excluded: 0, invalid: 0, duplicate: 0, suppressed: 0, noConsent: 0 };
 
   for (const contact of contacts) {
-    const email = String(contact.email || "").trim().toLowerCase();
+    const email = normalizeCommunicationEmail(contact.email);
     const suppression = suppressions.get(email);
     if (!isValidCommunicationEmail(email)) {
       counts.invalid++;

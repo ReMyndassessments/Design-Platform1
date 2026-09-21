@@ -17,6 +17,12 @@ export interface EmailOctopusCampaignInput {
   onListCreated?: (listId: string) => Promise<void>;
 }
 
+function normalizeEmailOctopusAddress(value: string): string {
+  const email = value.trim().toLowerCase();
+  const angleWrapped = email.match(/^<([^<>]+)>$/);
+  return angleWrapped ? angleWrapped[1].trim() : email;
+}
+
 export type EmailOctopusReportType = "sent" | "bounced" | "complained" | "unsubscribed";
 export interface EmailOctopusReportEntry {
   contactId: string | null;
@@ -114,7 +120,8 @@ export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInp
       const recipient = input.recipients[nextRecipientIndex++];
       try {
         await emailOctopusRequest(`/lists/${encodeURIComponent(listId)}/contacts`, {
-          email_address: recipient.to, fields: recipient.name ? { FirstName: recipient.name } : {}, status: "SUBSCRIBED",
+          email_address: normalizeEmailOctopusAddress(recipient.to),
+          status: "SUBSCRIBED",
         });
       } catch (error) {
         // API 1.6 returns a validation/conflict response for an existing contact.

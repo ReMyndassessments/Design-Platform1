@@ -7,4 +7,4 @@ Large EmailOctopus audiences must be prepared asynchronously rather than inside 
 
 **Why:** Uploading hundreds of contacts synchronously exceeded the request window and returned a campaign-level failure before any recipient could be processed. Saving the list reference only at the end also caused retries to create fresh lists.
 
-**How to apply:** For bulk promotional campaigns, acknowledge preparation immediately, show a preparing state, poll until ready or failed, throttle provider calls, preserve the provider list reference early, and store/log the exact provider error. A `list:` reference is a prepared audience, not a campaign report ID.
+**How to apply:** For bulk promotional campaigns, acknowledge preparation immediately, show a preparing state, poll until ready or failed, throttle provider calls, preserve the provider list reference early, and store/log the exact provider error. Normalize angle-bracket-wrapped addresses before validation and provider upload. A `list:` reference is a prepared audience, not a campaign report ID.

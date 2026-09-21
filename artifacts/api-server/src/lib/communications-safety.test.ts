@@ -39,6 +39,14 @@ test("operational resolution honors hard suppressions but does not require promo
   assert.equal(result.counts.suppressed, 1);
 });
 
+test("audience resolution normalizes angle-bracket wrapped email addresses", () => {
+  const result = resolveEligibleContacts([
+    { email: "<Person@Example.com>", name: "Person", sourceType: "manual", sourceId: "1", consent: true },
+  ], "promotional", new Map());
+
+  assert.deepEqual(result.recipients.map(recipient => recipient.email), ["person@example.com"]);
+});
+
 test("Gmail groups use one transaction per recipient and never expose peer addresses", async () => {
   const messages: Array<{ to: string; subject: string; html: string }> = [];
   const marked: string[] = [];
