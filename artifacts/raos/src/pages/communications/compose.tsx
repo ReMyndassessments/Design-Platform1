@@ -636,6 +636,9 @@ export default function CommunicationsComposePage() {
                 </p>
                 <div className="space-y-2">
                   {[
+                    ...(kind === "operational"
+                      ? [{ id: "operational_saved", label: "Saved Approved Operational List" }]
+                      : []),
                     { id: "training", label: "All Training Series Registrants" },
                     { id: "training_series", label: "Training Series Cohorts" },
                     { id: "workshops", label: "Standalone Workshop Registrations" },

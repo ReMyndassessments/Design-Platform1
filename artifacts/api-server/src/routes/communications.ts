@@ -39,6 +39,7 @@ const ready = (async () => {
   await db.execute(sql`ALTER TABLE communication_recipients ADD COLUMN IF NOT EXISTS unsubscribed_at timestamptz`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_delivery_events (id text PRIMARY KEY, event_key text NOT NULL UNIQUE, campaign_id text NOT NULL REFERENCES communication_campaigns(id) ON DELETE CASCADE, recipient_id text NOT NULL REFERENCES communication_recipients(id) ON DELETE CASCADE, provider text NOT NULL, event_type text NOT NULL, occurred_at timestamptz, payload jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_suppressions (email text PRIMARY KEY, kind text NOT NULL DEFAULT 'unsubscribe', reason text, created_at timestamptz NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_operational_contacts (email text PRIMARY KEY, name text, active boolean NOT NULL DEFAULT true, failure_reason text, created_at timestamptz NOT NULL DEFAULT NOW(), updated_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS communication_campaign_due_idx ON communication_campaigns(status, scheduled_at)`);
 })();
 async function ensureReady() { await ready; }
@@ -117,6 +118,16 @@ async function resolveContacts(audience: any, kind: string) {
       const email = value.trim().toLowerCase();
       found.push({ email, name: null, sourceType: "manual", sourceId: email, consent: false });
     }
+  }
+  if (kind === "operational" && sources.includes("operational_saved")) {
+    const r = await db.execute(sql`SELECT email, name FROM communication_operational_contacts WHERE active=true ORDER BY email`);
+    found.push(...(r.rows as any[]).map(x => ({
+      email: x.email,
+      name: x.name,
+      sourceType: "operational_saved",
+      sourceId: x.email,
+      consent: false,
+    })));
   }
   if (kind === "promotional" && audience?.marketingConsentOverride === true && Array.isArray(audience?.manualRecipients)) {
     for (const value of audience.manualRecipients.slice(0, 10_000)) {
@@ -264,9 +275,15 @@ async function deliver(campaignId: string, retry = false) {
          renderHtml: recipient => renderBrandedEmail(renderEmail(campaign.html, recipient.name), settings),
         markSent: async (recipient, messageId) => {
           await db.execute(sql`UPDATE communication_recipients SET status = 'sent', attempts = attempts + 1, provider_message_id = ${messageId ?? null}, sent_at = NOW(), error = NULL WHERE id = ${recipient.id}`);
+           if (recipient.source_type === "manual" || recipient.source_type === "operational_saved") {
+             await db.execute(sql`INSERT INTO communication_operational_contacts(email,name,active,failure_reason) VALUES(${recipient.email},${recipient.name ?? null},true,NULL) ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=true,failure_reason=NULL,updated_at=NOW()`);
+           }
         },
         markFailed: async (recipient, error) => {
           await db.execute(sql`UPDATE communication_recipients SET status = 'failed', attempts = attempts + 1, error = ${error.message.slice(0, 1000)} WHERE id = ${recipient.id}`);
+           if (recipient.source_type === "manual" || recipient.source_type === "operational_saved") {
+             await db.execute(sql`INSERT INTO communication_operational_contacts(email,name,active,failure_reason) VALUES(${recipient.email},${recipient.name ?? null},false,${error.message.slice(0, 1000)}) ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=false,failure_reason=EXCLUDED.failure_reason,updated_at=NOW()`);
+           }
         },
       });
       const totals = await db.execute(sql`SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM communication_recipients WHERE campaign_id = ${campaignId}`);
