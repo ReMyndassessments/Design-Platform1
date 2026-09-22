@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   resolveEligibleContacts,
+  isPermanentOperationalEmailFailure,
   runWithCampaignLock,
   sendGmailGroup,
   sendGmailTest,
@@ -74,7 +75,7 @@ test("Gmail groups use one transaction per recipient and never expose peer addre
   assert.deepEqual(recipients, sourceRecords, "delivery does not mutate case or workshop source snapshots");
 });
 
-test("Gmail groups process large approved lists in consecutive batches of at most 50", async () => {
+test("Gmail groups process large approved lists in consecutive batches of 50 with throttled concurrency", async () => {
   let sends = 0;
   let active = 0;
   let maxActive = 0;
@@ -98,7 +99,13 @@ test("Gmail groups process large approved lists in consecutive batches of at mos
   });
   assert.equal(sends, 120);
   assert.equal(marked.length, 120);
-  assert.equal(maxActive, 50);
+  assert.equal(maxActive, 5);
+});
+
+test("operational email failures distinguish temporary provider errors from permanent bad addresses", () => {
+  assert.equal(isPermanentOperationalEmailFailure(new Error("421 4.3.0 Temporary System Problem")), false);
+  assert.equal(isPermanentOperationalEmailFailure(new Error("550 5.1.1 User unknown")), true);
+  assert.equal(isPermanentOperationalEmailFailure(new Error("Connection timed out")), false);
 });
 
 test("Gmail groups isolate failures so a retry can target only failed recipients", async () => {

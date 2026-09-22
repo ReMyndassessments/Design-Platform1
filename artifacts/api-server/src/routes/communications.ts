@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
 import { prepareEmailOctopusAudience, getCommunicationsMailer, getEmailOctopusCampaignReport, renderBrandedEmail, renderEmail, sanitizeEmailHtml, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
-import { isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
+import { isPermanentOperationalEmailFailure, isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
 
@@ -40,6 +40,7 @@ const ready = (async () => {
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_delivery_events (id text PRIMARY KEY, event_key text NOT NULL UNIQUE, campaign_id text NOT NULL REFERENCES communication_campaigns(id) ON DELETE CASCADE, recipient_id text NOT NULL REFERENCES communication_recipients(id) ON DELETE CASCADE, provider text NOT NULL, event_type text NOT NULL, occurred_at timestamptz, payload jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_suppressions (email text PRIMARY KEY, kind text NOT NULL DEFAULT 'unsubscribe', reason text, created_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_operational_contacts (email text PRIMARY KEY, name text, active boolean NOT NULL DEFAULT true, failure_reason text, created_at timestamptz NOT NULL DEFAULT NOW(), updated_at timestamptz NOT NULL DEFAULT NOW())`);
+  await db.execute(sql`UPDATE communication_operational_contacts SET active=true,updated_at=NOW() WHERE active=false AND failure_reason ~* '(^|[^0-9])4[0-9]{2}([^0-9]|$)'`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS communication_campaign_due_idx ON communication_campaigns(status, scheduled_at)`);
 })();
 async function ensureReady() { await ready; }
@@ -282,13 +283,14 @@ async function deliver(campaignId: string, retry = false) {
         markFailed: async (recipient, error) => {
           await db.execute(sql`UPDATE communication_recipients SET status = 'failed', attempts = attempts + 1, error = ${error.message.slice(0, 1000)} WHERE id = ${recipient.id}`);
            if (recipient.source_type === "manual" || recipient.source_type === "operational_saved") {
-             await db.execute(sql`INSERT INTO communication_operational_contacts(email,name,active,failure_reason) VALUES(${recipient.email},${recipient.name ?? null},false,${error.message.slice(0, 1000)}) ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=false,failure_reason=EXCLUDED.failure_reason,updated_at=NOW()`);
+             const permanent = isPermanentOperationalEmailFailure(error);
+             await db.execute(sql`INSERT INTO communication_operational_contacts(email,name,active,failure_reason) VALUES(${recipient.email},${recipient.name ?? null},${!permanent},${error.message.slice(0, 1000)}) ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=EXCLUDED.active,failure_reason=EXCLUDED.failure_reason,updated_at=NOW()`);
            }
         },
       });
       const totals = await db.execute(sql`SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM communication_recipients WHERE campaign_id = ${campaignId}`);
       const failed = Number((totals.rows[0] as any).failed);
-      await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
+      await db.execute(sql`UPDATE communication_campaigns SET status = ${failed ? "failed" : "sent"}, sent_at = CASE WHEN ${failed > 0} THEN sent_at ELSE NOW() END, updated_at = NOW() WHERE id = ${campaignId}`);
     },
     markFailed: async (_campaign, error) => {
       const message = error instanceof Error ? error.message : "Campaign preparation failed";

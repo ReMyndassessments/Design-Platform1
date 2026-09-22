@@ -84,30 +84,42 @@ export async function sendGmailGroup(options: {
   markSent: (recipient: GmailRecipient, messageId?: string) => Promise<void>;
   markFailed: (recipient: GmailRecipient, error: Error) => Promise<void>;
   batchDelayMs?: number;
+  concurrency?: number;
 }): Promise<void> {
   if (options.kind !== "operational") {
     throw new Error("Gmail campaigns are limited to operational communication; use EmailOctopus for promotional cohorts");
   }
   const batchSize = 50;
-  const batchDelayMs = options.batchDelayMs ?? 1_000;
+  const batchDelayMs = options.batchDelayMs ?? 5_000;
+  const concurrency = Math.max(1, Math.min(options.concurrency ?? 5, batchSize));
   for (let offset = 0; offset < options.recipients.length; offset += batchSize) {
     const batch = options.recipients.slice(offset, offset + batchSize);
-    await Promise.all(batch.map(async recipient => {
-      try {
-        const result = await options.mailer.send({
-          to: recipient.email,
-          subject: options.subject,
-          html: options.renderHtml(recipient),
-        });
-        await options.markSent(recipient, result.id);
-      } catch (error) {
-        await options.markFailed(recipient, error instanceof Error ? error : new Error("Delivery failed"));
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < batch.length) {
+        const recipient = batch[nextIndex++];
+        try {
+          const result = await options.mailer.send({
+            to: recipient.email,
+            subject: options.subject,
+            html: options.renderHtml(recipient),
+          });
+          await options.markSent(recipient, result.id);
+        } catch (error) {
+          await options.markFailed(recipient, error instanceof Error ? error : new Error("Delivery failed"));
+        }
       }
-    }));
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, batch.length) }, () => worker()));
     if (offset + batchSize < options.recipients.length && batchDelayMs > 0) {
       await new Promise(resolve => setTimeout(resolve, batchDelayMs));
     }
   }
+}
+
+export function isPermanentOperationalEmailFailure(error: Error): boolean {
+  const message = error.message;
+  return /\b(550|551|553)\b|user unknown|no such (user|recipient)|recipient address rejected|mailbox (does not exist|not found)/i.test(message);
 }
 
 export async function sendGmailTest(options: {
