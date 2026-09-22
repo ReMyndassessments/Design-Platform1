@@ -406,6 +406,10 @@ router.delete("/communications/campaigns/:id", async (req, res): Promise<void> =
       AND (
         c.is_test=true
         OR c.name LIKE '[TEST]%'
+        OR NOT EXISTS (
+          SELECT 1 FROM communication_recipients r
+          WHERE r.campaign_id=c.id
+        )
         OR (
           c.status IN ('draft','cancelled','failed')
           AND NOT EXISTS (
@@ -420,7 +424,7 @@ router.delete("/communications/campaigns/:id", async (req, res): Promise<void> =
     const exists = await db.execute(sql`SELECT id FROM communication_campaigns WHERE id=${req.params.id}`);
     res.status(exists.rows.length ? 409 : 404).json({
       error: exists.rows.length
-        ? "Only failed or unsent campaigns with no sent recipients can be permanently deleted"
+        ? "Only test records, empty campaigns, or failed/unsent campaigns with no sent recipients can be permanently deleted"
         : "Campaign not found",
     });
     return;
