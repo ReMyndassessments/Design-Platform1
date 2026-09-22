@@ -83,23 +83,29 @@ export async function sendGmailGroup(options: {
   mailer: CommunicationsMailer;
   markSent: (recipient: GmailRecipient, messageId?: string) => Promise<void>;
   markFailed: (recipient: GmailRecipient, error: Error) => Promise<void>;
+  batchDelayMs?: number;
 }): Promise<void> {
   if (options.kind !== "operational") {
     throw new Error("Gmail campaigns are limited to operational communication; use EmailOctopus for promotional cohorts");
   }
-  if (options.recipients.length > 50) {
-    throw new Error("Gmail operational campaigns are limited to 50 recipients; use EmailOctopus for bulk cohorts");
-  }
-  for (const recipient of options.recipients) {
-    try {
-      const result = await options.mailer.send({
-        to: recipient.email,
-        subject: options.subject,
-        html: options.renderHtml(recipient),
-      });
-      await options.markSent(recipient, result.id);
-    } catch (error) {
-      await options.markFailed(recipient, error instanceof Error ? error : new Error("Delivery failed"));
+  const batchSize = 50;
+  const batchDelayMs = options.batchDelayMs ?? 1_000;
+  for (let offset = 0; offset < options.recipients.length; offset += batchSize) {
+    const batch = options.recipients.slice(offset, offset + batchSize);
+    await Promise.all(batch.map(async recipient => {
+      try {
+        const result = await options.mailer.send({
+          to: recipient.email,
+          subject: options.subject,
+          html: options.renderHtml(recipient),
+        });
+        await options.markSent(recipient, result.id);
+      } catch (error) {
+        await options.markFailed(recipient, error instanceof Error ? error : new Error("Delivery failed"));
+      }
+    }));
+    if (offset + batchSize < options.recipients.length && batchDelayMs > 0) {
+      await new Promise(resolve => setTimeout(resolve, batchDelayMs));
     }
   }
 }

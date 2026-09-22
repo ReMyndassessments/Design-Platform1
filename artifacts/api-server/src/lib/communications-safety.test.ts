@@ -74,18 +74,31 @@ test("Gmail groups use one transaction per recipient and never expose peer addre
   assert.deepEqual(recipients, sourceRecords, "delivery does not mutate case or workshop source snapshots");
 });
 
-test("Gmail groups reject recipient 51 before any transaction", async () => {
+test("Gmail groups process large approved lists in consecutive batches of at most 50", async () => {
   let sends = 0;
-  await assert.rejects(sendGmailGroup({
+  let active = 0;
+  let maxActive = 0;
+  const marked: string[] = [];
+  await sendGmailGroup({
     kind: "operational",
-    recipients: Array.from({ length: 51 }, (_, index) => ({ id: String(index), email: `family${index}@example.com` })),
+    recipients: Array.from({ length: 120 }, (_, index) => ({ id: String(index), email: `family${index}@example.com` })),
     subject: "Update",
     renderHtml: () => "Update",
-    mailer: { send: async () => { sends++; return {}; } },
-    markSent: async () => {},
+    mailer: { send: async () => {
+      sends++;
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise(resolve => setImmediate(resolve));
+      active--;
+      return {};
+    } },
+    markSent: async recipient => { marked.push(recipient.id); },
     markFailed: async () => {},
-  }), /limited to 50 recipients/);
-  assert.equal(sends, 0);
+    batchDelayMs: 0,
+  });
+  assert.equal(sends, 120);
+  assert.equal(marked.length, 120);
+  assert.equal(maxActive, 50);
 });
 
 test("Gmail groups isolate failures so a retry can target only failed recipients", async () => {

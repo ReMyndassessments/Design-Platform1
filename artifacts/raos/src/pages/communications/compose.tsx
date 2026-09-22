@@ -615,7 +615,7 @@ export default function CommunicationsComposePage() {
                 </div>
                 <p className="text-[10px] text-slate-500 mt-2">
                   {kind === "operational" 
-                    ? "Uses Gmail. Strict limits apply. For transactional alerts only." 
+                    ? "Uses Gmail. Approved recipients are sent automatically in private batches of 50."
                     : "Uses EmailOctopus. For bulk marketing and newsletters. Includes footer and honors suppressions."}
                 </p>
               </div>
@@ -658,7 +658,7 @@ export default function CommunicationsComposePage() {
                 {(kind === "operational" || kind === "promotional") && (
                   <div className="mt-4">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {kind === "promotional" ? "Consented marketing email list" : "Individual email recipients"}
+                      {kind === "promotional" ? "Consented marketing email list" : "Approved email recipients"}
                     </label>
                     <textarea
                       value={manualRecipients}
@@ -670,7 +670,7 @@ export default function CommunicationsComposePage() {
                     <p className="text-[10px] text-slate-500 mt-1">
                       {kind === "promotional"
                         ? "Paste one address per line, or separate addresses with commas. Preview excludes suppressed, duplicate, invalid, and previously sent addresses."
-                        : "Enter one address per line, or separate addresses with commas. These recipients are included only in this operational email."}
+                        : "Enter one address per line, or separate addresses with commas. Lists over 50 are processed automatically in consecutive batches."}
                     </p>
                     {kind === "promotional" && (
                       <label className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 cursor-pointer">
