@@ -36,7 +36,15 @@ function gmailMailer(): CommunicationsMailer {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) throw new Error("GMAIL_USER or GMAIL_APP_PASSWORD environment variable is not set");
-  const transport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+  const transport = nodemailer.createTransport({
+    service: "gmail",
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 100,
+    rateDelta: 1_000,
+    rateLimit: 2,
+    auth: { user, pass },
+  });
   return {
     async send(message) {
       // One SMTP transaction per recipient is intentional: no address is disclosed to another recipient.
