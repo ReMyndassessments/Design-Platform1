@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable, interviewRecordingsTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -809,11 +809,15 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   }
 
   const c = rows[0];
+  if (!canAccessCase(req.userRole!, req.userId!, c, req.userSchool)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
 
   const REFERRAL_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"];
   const ADMIN_IDS = new Set([...REFERRAL_IDS, "CONSENT", "INTAKE"]);
 
-  const [assignments, allTools] = await Promise.all([
+  const [assignments, allTools, parentInterviews] = await Promise.all([
     db.select().from(assignmentsTable).where(
       and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE"]))
     ),
@@ -826,6 +830,14 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
       category: assessmentToolsTable.category,
       isRemyndOwned: assessmentToolsTable.isRemyndOwned,
     }).from(assessmentToolsTable),
+    db.select({
+      transcript: interviewRecordingsTable.transcript,
+      structuredNotes: interviewRecordingsTable.structuredNotes,
+      interviewDate: interviewRecordingsTable.interviewDate,
+    }).from(interviewRecordingsTable).where(and(
+      eq(interviewRecordingsTable.caseId, req.params.caseId),
+      eq(interviewRecordingsTable.conversationType, "parent_intake"),
+    )).orderBy(interviewRecordingsTable.createdAt),
   ]);
 
   const referralAssignmentIds = assignments.filter(a => REFERRAL_IDS.includes(a.toolId)).map(a => a.id);
@@ -874,6 +886,15 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     age = (m < 0 || (m === 0 && today.getDate() < dob.getDate())) ? y - 1 : y;
   }
 
+  const recordedInterviewNotes = parentInterviews.map((recording, index) => {
+    const notes = recording.structuredNotes as { sections?: Array<{ label?: string; content?: string }> } | null;
+    const sections = Array.isArray(notes?.sections)
+      ? notes.sections.filter(section => typeof section.content === "string" && section.content.trim())
+        .map(section => `${section.label || "Interview note"}: ${section.content}`).join("\n")
+      : "";
+    return `Parent interview ${index + 1}${recording.interviewDate ? ` (${recording.interviewDate.toISOString().slice(0, 10)})` : ""}:\n${sections || recording.transcript || "No transcript available"}`;
+  }).join("\n\n");
+
   const analysis = await analyzeIntakeWithAI({
     studentName: c.studentName,
     caseId: req.params.caseId,
@@ -884,12 +905,17 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     age,
     referralFormAnswers: referralAnswers,
     parentIntakeAnswers: intakeAnswers,
-    parentInterviewNotes: c.parentInterviewNotes ?? null,
+    parentInterviewNotes: [c.parentInterviewNotes?.trim(), recordedInterviewNotes].filter(Boolean).join("\n\n") || null,
     assessmentTools,
   });
 
   await db.update(casesTable).set({
-    intakeAnalysis: analysis as Record<string, unknown>,
+    // Preserve clinician dismissals, product overrides and dashboard settings
+    // stored alongside generated analysis, even if they changed during the AI call.
+    intakeAnalysis: sql`(COALESCE(${casesTable.intakeAnalysis}, '{}'::jsonb)
+      - 'recommendedTools' - 'recommendedDomains' - 'riskLevel'
+      - 'summary' - 'flags' - 'suggestedQuestions')
+      || ${JSON.stringify(analysis)}::jsonb`,
     riskLevel: analysis.riskLevel as typeof casesTable.$inferSelect["riskLevel"],
     updatedAt: new Date(),
   }).where(eq(casesTable.id, req.params.caseId));

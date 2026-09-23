@@ -685,7 +685,10 @@ export default function CaseDetail() {
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = !userLoading && canAdvancePhase(role) && c.currentPhase !== "complete";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
-  const showAiCard = isPhaseVisible(role, "intake") && PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring");
+  const showAiCard = isPhaseVisible(role, "intake") && (
+    Boolean(c.intakeAnalysis) ||
+    (PHASES.indexOf(displayPhase(c.currentPhase)) > PHASES.indexOf("intake") && PHASES.indexOf(displayPhase(c.currentPhase)) <= PHASES.indexOf("scoring"))
+  );
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
   const showInvigilatorPanel = role === 'assessment_invigilator' && c.currentPhase === 'assessment';
   const hasLeftContent = showAiCard || showMeetingCard;
@@ -895,11 +898,17 @@ export default function CaseDetail() {
   };
 
   const handleAnalyzeIntake = () => {
+    if (interviewNotesDraft !== ((c as any)?.parentInterviewNotes ?? "")) {
+      toast({ title: "Save the parent interview first", description: "Save your edited notes before regenerating the analysis.", variant: "destructive" });
+      return;
+    }
+    if (c?.intakeAnalysis && !window.confirm("Regenerate the intake analysis using the latest saved forms, parent interview notes and parent interview recordings? This replaces the current AI summary and recommendations, but does not change assigned tools.")) return;
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-      }
+      },
+      onError: () => toast({ title: "Could not regenerate intake analysis", description: "The existing analysis has been kept. Please try again.", variant: "destructive" }),
     });
   };
 
@@ -1881,20 +1890,31 @@ export default function CaseDetail() {
           return (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100" id="tour-ai-synthesis">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-lg flex items-center text-blue-900 gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-200 text-blue-800 text-xs font-bold shrink-0">2</span>
                     <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-5 h-5 object-contain" />
                     AI Intake Analysis
                   </CardTitle>
-                  {!intakeFormsComplete && !c.intakeAnalysis && (
-                    <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full shrink-0">Complete Step 1 first</span>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!intakeFormsComplete && !c.intakeAnalysis && (
+                      <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">Complete Step 1 first</span>
+                    )}
+                    {c.intakeAnalysis && (role === "admin" || role === "school_clinical_coordinator") && (
+                      <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || savingInterviewNotes} className="text-blue-700 border-blue-200 hover:bg-blue-50">
+                        <RefreshCw size={14} className={`mr-1.5 ${analyzeIntakeMut.isPending ? "animate-spin" : ""}`} />
+                        {analyzeIntakeMut.isPending ? "Regenerating..." : "Regenerate Analysis"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {c.intakeAnalysis ? (
                   <div className="space-y-5">
+                    {(role === "admin" || role === "school_clinical_coordinator") && (
+                      <p className="text-xs text-blue-700">Save any new parent interview notes first, then regenerate to include them and saved parent interview recordings.</p>
+                    )}
                     {/* Summary */}
                     <div className="text-sm text-slate-700 bg-white/70 p-3 rounded-lg border border-blue-100">
                       {c.intakeAnalysis.summary}
@@ -2055,11 +2075,6 @@ export default function CaseDetail() {
                       );
                     })()}
 
-                    {(role === "admin" || role === "school_clinical_coordinator") && (
-                      <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending} className="w-full text-blue-700 border-blue-200 hover:bg-blue-50">
-                        {analyzeIntakeMut.isPending ? "Re-analyzing..." : "Re-run Analysis"}
-                      </Button>
-                    )}
                   </div>
                 ) : (
                   <div className="text-center py-6">

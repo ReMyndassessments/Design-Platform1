@@ -17,3 +17,4 @@
 - [RAOS promotional demo safety](raos-promotional-demo-safety.md) — public demo uses synthetic pre-written AI examples; the permanent internal demo case is server-enforced read-only.
 - [EmailOctopus bulk preparation](emailoctopus-bulk-preparation.md) — prepare large audiences asynchronously, throttle contact sync, and persist the list ID before uploading contacts.
 - [Operational Gmail throttling](operational-gmail-throttling.md) — groups of 50 are queue boundaries, not 50 simultaneous SMTP sends; Gmail 421 errors are temporary and must remain retryable.
+- [Intake regeneration safety](intake-regeneration-safety.md) — reruns should preserve non-generated case settings and keep the old clinical analysis when AI fails.

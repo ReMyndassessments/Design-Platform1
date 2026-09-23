@@ -110,13 +110,13 @@ ${intake.parentIntakeAnswers
   : "No parent intake form data available."}
 
 ${intake.parentInterviewNotes
-  ? `═══ SUPPLEMENTARY OFFLINE PARENT INTERVIEW NOTES (recorded by clinician) ═══\n${intake.parentInterviewNotes}\n`
+  ? `═══ SUPPLEMENTARY PARENT INTERVIEWS (manual notes and/or recorded interview notes) ═══\n${intake.parentInterviewNotes}\n`
   : ""}
 ═══ AVAILABLE ASSESSMENT TOOLS ═══
 ${toolList || "No tools available in library."}
 
 ═══ INSTRUCTIONS ═══
-Based on ALL the above information (student age, grade, gender if mentioned, referral concerns from the referral form, and developmental/behavioral history from the parent intake form):
+Based on ALL the above information (student age, grade, gender if mentioned, referral concerns from the referral form, developmental/behavioral history from the parent intake form, and any supplementary parent interviews). Incorporate material new concerns or context from the parent interviews in the summary, domains, flags and recommendations:
 
 1. Identify the key domains of concern
 2. Select appropriate assessment tools from the library above that match:
@@ -162,14 +162,8 @@ Return ONLY a JSON object (no markdown, no code fences) with this exact structur
           }
         : undefined,
     };
-  } catch {
-    return {
-      recommendedTools: [],
-      recommendedDomains: ["attention", "executive_function"],
-      riskLevel: "moderate",
-      summary: `${intake.studentName} has been referred for: ${intake.referralReason || "concerns noted in intake"}. Full AI analysis unavailable — manual review recommended.`,
-      flags: ["Manual review recommended — AI analysis could not be completed"],
-    };
+  } catch (error) {
+    throw new Error("AI intake analysis could not be generated. The previous analysis has been kept.", { cause: error });
   }
 }
 
