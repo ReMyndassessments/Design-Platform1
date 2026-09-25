@@ -244,6 +244,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntakeFollowUpResult"
 
+  /cases/{caseId}/intake-group-response:
+    put:
+      operationId: saveIntakeGroupResponse
+      tags: [cases]
+      summary: Save one combined response for the teacher or parent question set
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeGroupResponseInput"
+      responses:
+        "200":
+          description: Saved group response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeGroupResponseInput"
+
   /cases/{caseId}/intake-discussion:
     post:
       operationId: discussIntake
@@ -1264,6 +1288,12 @@ components:
         audience: { type: string, enum: [teacher, parent] }
         question: { type: string }
         answer: { type: string }
+    IntakeGroupResponseInput:
+      type: object
+      required: [audience, answer]
+      properties:
+        audience: { type: string, enum: [teacher, parent] }
+        answer: { type: string, maxLength: 20000 }
     IntakeDiscussionInput:
       type: object
       required: [message]

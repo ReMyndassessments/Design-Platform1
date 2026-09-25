@@ -468,6 +468,27 @@ export const SaveIntakeFollowUpResponse = zod.object({
 });
 
 /**
+ * @summary Save one combined response for the teacher or parent question set
+ */
+export const SaveIntakeGroupResponseParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const saveIntakeGroupResponseBodyAnswerMax = 20000;
+
+export const SaveIntakeGroupResponseBody = zod.object({
+  audience: zod.enum(["teacher", "parent"]),
+  answer: zod.string().max(saveIntakeGroupResponseBodyAnswerMax),
+});
+
+export const saveIntakeGroupResponseResponseAnswerMax = 20000;
+
+export const SaveIntakeGroupResponseResponse = zod.object({
+  audience: zod.enum(["teacher", "parent"]),
+  answer: zod.string().max(saveIntakeGroupResponseResponseAnswerMax),
+});
+
+/**
  * @summary Ask the intake advisor a case-specific question
  */
 export const DiscussIntakeParams = zod.object({

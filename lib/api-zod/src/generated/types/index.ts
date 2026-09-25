@@ -61,6 +61,8 @@ export * from "./intakeFollowUpInput";
 export * from "./intakeFollowUpInputAudience";
 export * from "./intakeFollowUpResult";
 export * from "./intakeFollowUpResultAudience";
+export * from "./intakeGroupResponseInput";
+export * from "./intakeGroupResponseInputAudience";
 export * from "./intakeLeadContextInput";
 export * from "./intakeLeadContextResult";
 export * from "./listCasesParams";

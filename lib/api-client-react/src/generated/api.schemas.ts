@@ -411,6 +411,20 @@ export interface IntakeFollowUpResult {
   answer: string;
 }
 
+export type IntakeGroupResponseInputAudience =
+  (typeof IntakeGroupResponseInputAudience)[keyof typeof IntakeGroupResponseInputAudience];
+
+export const IntakeGroupResponseInputAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface IntakeGroupResponseInput {
+  audience: IntakeGroupResponseInputAudience;
+  /** @maxLength 20000 */
+  answer: string;
+}
+
 export interface IntakeDiscussionInput {
   /**
    * @minLength 1

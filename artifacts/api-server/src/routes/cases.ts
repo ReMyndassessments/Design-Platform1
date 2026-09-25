@@ -950,6 +950,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     parentIntakeAnswers: intakeAnswers,
     parentInterviewNotes: [c.parentInterviewNotes?.trim(), recordedInterviewNotes].filter(Boolean).join("\n\n") || null,
     followUpAnswers: (c.intakeAnalysis as { followUpAnswers?: Record<string, unknown> } | null)?.followUpAnswers ?? null,
+    groupResponses: (c.intakeAnalysis as { groupResponses?: Record<string, string> } | null)?.groupResponses ?? null,
     leadContext: (c.intakeAnalysis as { leadContext?: string } | null)?.leadContext ?? null,
     assessmentTools,
   });
@@ -1003,6 +1004,39 @@ router.put("/cases/:caseId/intake-follow-up", authMiddleware, async (req, res): 
     updatedAt: new Date(),
   }).where(eq(casesTable.id, c.id));
   res.json({ audience, question, answer });
+});
+
+router.put("/cases/:caseId/intake-group-response", authMiddleware, async (req, res): Promise<void> => {
+  if (!isAdminLike(req.userRole)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const parsed = z.object({
+    audience: z.enum(["teacher", "parent"]),
+    answer: z.string().max(20000),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "validation_error" }); return;
+  }
+  const caseId = Array.isArray(req.params.caseId) ? req.params.caseId[0] : req.params.caseId;
+  const [c] = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!c) { res.status(404).json({ error: "not_found" }); return; }
+  if (!canAccessCase(req.userRole!, req.userId!, c, req.userSchool)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  if (!c.intakeAnalysis) {
+    res.status(409).json({ error: "Generate intake analysis first" }); return;
+  }
+  const { audience, answer } = parsed.data;
+  // Merge into the live JSON so edits to the other audience or clinician
+  // clarifications are not overwritten.
+  await db.update(casesTable).set({
+    intakeAnalysis: sql`jsonb_set(COALESCE(${casesTable.intakeAnalysis}, '{}'::jsonb),
+      '{groupResponses}',
+      COALESCE(${casesTable.intakeAnalysis}->'groupResponses', '{}'::jsonb) ||
+        jsonb_build_object(${audience}, ${answer}::text), true)`,
+    updatedAt: new Date(),
+  }).where(eq(casesTable.id, caseId));
+  res.json({ audience, answer });
 });
 
 router.put("/cases/:caseId/intake-lead-context", authMiddleware, async (req, res): Promise<void> => {
@@ -1075,6 +1109,7 @@ router.post("/cases/:caseId/intake-discussion", authMiddleware, async (req, res)
     summary: analysis.summary, riskLevel: analysis.riskLevel, flags: analysis.flags,
     recommendedDomains: analysis.recommendedDomains, recommendedTools: analysis.recommendedTools,
     suggestedQuestions: analysis.suggestedQuestions, followUpAnswers: analysis.followUpAnswers,
+    groupResponses: analysis.groupResponses,
     leadContext: analysis.leadContext,
   };
   // Remove known identifiers before sending evidence to the model. Free-text

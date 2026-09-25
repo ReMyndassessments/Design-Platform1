@@ -70,6 +70,7 @@ export async function analyzeIntakeWithAI(intake: {
   parentIntakeAnswers?: Record<string, unknown> | null;
   parentInterviewNotes?: string | null;
   followUpAnswers?: Record<string, unknown> | null;
+  groupResponses?: Record<string, string> | null;
   leadContext?: string | null;
   assessmentTools?: Array<{
     id: string;
@@ -116,6 +117,9 @@ ${intake.parentInterviewNotes
   : ""}
 ${intake.followUpAnswers
   ? `═══ LATER RESPONSES TO TEACHER/PARENT FOLLOW-UP QUESTIONS ═══\n${JSON.stringify(intake.followUpAnswers, null, 2)}\n`
+  : ""}
+${intake.groupResponses
+  ? `═══ COMBINED RESPONSES TO TEACHER/PARENT QUESTION SETS ═══\n${JSON.stringify(intake.groupResponses, null, 2)}\n`
   : ""}
 ${intake.leadContext
   ? `═══ VERIFIED ASSESSMENT LEAD CLARIFICATIONS ═══\n${intake.leadContext}\n`

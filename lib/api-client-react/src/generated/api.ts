@@ -40,6 +40,7 @@ import type {
   IntakeDiscussionResult,
   IntakeFollowUpInput,
   IntakeFollowUpResult,
+  IntakeGroupResponseInput,
   IntakeLeadContextInput,
   IntakeLeadContextResult,
   ListCasesParams,
@@ -914,6 +915,97 @@ export const useSaveIntakeFollowUp = <
   TContext
 > => {
   return useMutation(getSaveIntakeFollowUpMutationOptions(options));
+};
+
+/**
+ * @summary Save one combined response for the teacher or parent question set
+ */
+export const getSaveIntakeGroupResponseUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-group-response`;
+};
+
+export const saveIntakeGroupResponse = async (
+  caseId: string,
+  intakeGroupResponseInput: IntakeGroupResponseInput,
+  options?: RequestInit,
+): Promise<IntakeGroupResponseInput> => {
+  return customFetch<IntakeGroupResponseInput>(
+    getSaveIntakeGroupResponseUrl(caseId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(intakeGroupResponseInput),
+    },
+  );
+};
+
+export const getSaveIntakeGroupResponseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeGroupResponse>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeGroupResponseInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveIntakeGroupResponse>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeGroupResponseInput> },
+  TContext
+> => {
+  const mutationKey = ["saveIntakeGroupResponse"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveIntakeGroupResponse>>,
+    { caseId: string; data: BodyType<IntakeGroupResponseInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return saveIntakeGroupResponse(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveIntakeGroupResponseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveIntakeGroupResponse>>
+>;
+export type SaveIntakeGroupResponseMutationBody =
+  BodyType<IntakeGroupResponseInput>;
+export type SaveIntakeGroupResponseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save one combined response for the teacher or parent question set
+ */
+export const useSaveIntakeGroupResponse = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeGroupResponse>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeGroupResponseInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveIntakeGroupResponse>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeGroupResponseInput> },
+  TContext
+> => {
+  return useMutation(getSaveIntakeGroupResponseMutationOptions(options));
 };
 
 /**

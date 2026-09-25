@@ -8,62 +8,55 @@ type Turn = { role: "user" | "assistant"; text: string; at?: string };
 type IntakeAnalysis = {
   suggestedQuestions?: Partial<Record<Audience, string[]>>;
   followUpAnswers?: Partial<Record<Audience, Record<string, string>>>;
+  groupResponses?: Partial<Record<Audience, string>>;
   intakeDiscussion?: Turn[];
   leadContext?: string;
 };
 
-function QuestionResponse({
-  audience, question, index, saved, canEdit, onSave,
+function GroupResponse({
+  audience, saved, canEdit, onSave,
 }: {
-  audience: Audience; question: string; index: number; saved: string;
-  canEdit: boolean; onSave: (audience: Audience, question: string, answer: string) => Promise<void>;
+  audience: Audience; saved: string; canEdit: boolean;
+  onSave: (audience: Audience, answer: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(saved);
-  const [open, setOpen] = useState(Boolean(saved));
   const [saving, setSaving] = useState(false);
   useEffect(() => { setDraft(saved); }, [saved]);
-  const color = audience === "teacher" ? "indigo" : "teal";
+  const label = audience === "teacher" ? "Teacher responses" : "Parent / Guardian responses";
   return (
-    <li className={`rounded-md border p-3 text-sm bg-white ${color === "indigo" ? "border-indigo-100" : "border-teal-100"}`}>
-      <div className="flex items-start gap-2">
-        <span className="font-semibold text-slate-400 shrink-0">{index + 1}.</span>
-        <span className="text-slate-700">{question}</span>
-      </div>
-      {!open && canEdit && (
-        <button type="button" className="text-xs text-blue-700 mt-2 hover:underline" onClick={() => setOpen(true)}>
-          {saved ? "View response" : "Add response (optional)"}
-        </button>
-      )}
-      {(open || (!canEdit && saved)) && (
-        <div className="mt-3 pl-5">
-          {canEdit ? (
-            <>
-              <label htmlFor={`${audience}-answer-${index}`} className="text-xs font-medium text-slate-600">Response received</label>
-              <textarea
-                id={`${audience}-answer-${index}`}
-                className="mt-1 w-full min-h-24 rounded-md border border-slate-200 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder={`Enter the ${audience === "teacher" ? "teacher's" : "parent's"} response here, if received…`}
-                value={draft}
-                maxLength={20000}
-                onChange={e => setDraft(e.target.value)}
-              />
-              <div className="flex justify-end gap-2 mt-2">
-                <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Close</Button>
-                <Button type="button" size="sm" disabled={saving || draft === saved} onClick={async () => {
-                  setSaving(true);
-                  try { await onSave(audience, question, draft); }
-                  catch { /* The parent already displays a save error; keep the draft. */ }
-                  finally { setSaving(false); }
-                }}>
-                  {saving ? <Loader2 className="mr-1 animate-spin" size={14} /> : <Save className="mr-1" size={14} />}
-                  Save response
-                </Button>
-              </div>
-            </>
-          ) : <p className="whitespace-pre-wrap text-slate-700"><strong>Response:</strong> {saved}</p>}
+    <div className="mt-3">
+      {canEdit ? (
+        <>
+          <label htmlFor={`${audience}-group-response`} className="block text-xs font-medium text-slate-600 mb-1">
+            {label} (one response for the full question set)
+          </label>
+          <textarea
+            id={`${audience}-group-response`}
+            className="w-full min-h-40 rounded-md border border-slate-200 bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+            placeholder={`Enter all ${audience === "teacher" ? "teacher" : "parent / guardian"} responses here. You can number them to match the questions above.`}
+            value={draft}
+            maxLength={20000}
+            onChange={e => setDraft(e.target.value)}
+          />
+          <div className="flex justify-end mt-2">
+            <Button type="button" size="sm" disabled={saving || draft === saved} onClick={async () => {
+              setSaving(true);
+              try { await onSave(audience, draft); }
+              catch { /* The parent already displays a save error; keep the draft. */ }
+              finally { setSaving(false); }
+            }}>
+              {saving ? <Loader2 className="mr-1 animate-spin" size={14} /> : <Save className="mr-1" size={14} />}
+              Save {audience} responses
+            </Button>
+          </div>
+        </>
+      ) : saved ? (
+        <div className="rounded-md bg-white border border-slate-200 p-3">
+          <p className="text-xs font-medium text-slate-600 mb-1">{label}</p>
+          <p className="text-sm whitespace-pre-wrap text-slate-700">{saved}</p>
         </div>
-      )}
-    </li>
+      ) : null}
+    </div>
   );
 }
 
@@ -78,12 +71,12 @@ export function IntakeFollowUp({
   const [asking, setAsking] = useState(false);
   const [savingContext, setSavingContext] = useState(false);
   const token = () => localStorage.getItem("raos_token");
-  const saveResponse = async (audience: Audience, question: string, answer: string) => {
+  const saveResponse = async (audience: Audience, answer: string) => {
     try {
-      const r = await fetch(`${baseUrl}/api/cases/${encodeURIComponent(caseId)}/intake-follow-up`, {
+      const r = await fetch(`${baseUrl}/api/cases/${encodeURIComponent(caseId)}/intake-group-response`, {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ audience, question, answer }),
+        body: JSON.stringify({ audience, answer }),
       });
       if (!r.ok) throw new Error("Unable to save response");
       await onUpdated();
@@ -134,34 +127,36 @@ export function IntakeFollowUp({
       <section className="space-y-3" aria-label="Suggested questions and responses">
         <div>
           <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Suggested questions &amp; responses</h3>
-          <p className="text-xs text-slate-500 mt-1">Optional: record answers as they arrive. Saved responses are available to the AI advisor below.</p>
+          <p className="text-xs text-slate-500 mt-1">One response box per group. Number answers to match the questions if helpful. Saved responses are available to the AI advisor below.</p>
         </div>
         {(["teacher", "parent"] as const).map(audience => {
           const questions = analysis.suggestedQuestions?.[audience];
           const currentQuestions = Array.isArray(questions) ? questions : [];
-          const earlierAnswers = Object.entries(analysis.followUpAnswers?.[audience] ?? {})
-            .filter(([question, answer]) => Boolean(answer) && !currentQuestions.includes(question));
-          if (!currentQuestions.length && !earlierAnswers.length) return null;
+          const individualAnswers = Object.entries(analysis.followUpAnswers?.[audience] ?? {})
+            .filter(([, answer]) => Boolean(answer));
+          const savedGroupResponse = analysis.groupResponses?.[audience] ?? "";
+          if (!currentQuestions.length && !individualAnswers.length && !savedGroupResponse) return null;
           return (
-            <div key={audience}>
-              <h4 className="text-xs font-semibold text-slate-600 mb-2">{audience === "teacher" ? "Teacher" : "Parent / Guardian"}</h4>
-              <ol className="space-y-2">
+            <div key={audience} className={`rounded-lg border p-4 ${audience === "teacher" ? "border-indigo-100 bg-indigo-50/50" : "border-teal-100 bg-teal-50/50"}`}>
+              <h4 className="text-sm font-semibold text-slate-800 mb-2">{audience === "teacher" ? "Teacher questions" : "Parent / Guardian questions"}</h4>
+              <ol className="space-y-2 list-decimal pl-5 text-sm text-slate-700 marker:text-slate-400">
                 {currentQuestions.map((question, index) => (
-                  <QuestionResponse key={`${audience}:${question}`} audience={audience} question={question} index={index}
-                    saved={analysis.followUpAnswers?.[audience]?.[question] ?? ""}
-                    canEdit={canEdit} onSave={saveResponse} />
+                  <li key={`${audience}:${index}`} className="pl-1">{question}</li>
                 ))}
               </ol>
-              {earlierAnswers.length > 0 && (
-                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
-                  <p className="font-semibold mb-2">Saved responses to questions from an earlier analysis</p>
-                  <p className="mb-2">These remain available to the AI advisor, even though the regenerated questions changed.</p>
-                  {earlierAnswers.map(([question, answer]) => (
-                    <div key={question} className="mb-2 last:mb-0">
+              <GroupResponse audience={audience} saved={savedGroupResponse} canEdit={canEdit} onSave={saveResponse} />
+              {individualAnswers.length > 0 && (
+                <details className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                  <summary className="cursor-pointer font-semibold">
+                    Previously saved individual answers ({individualAnswers.length})
+                  </summary>
+                  <p className="mt-2">These remain saved and available to the AI advisor.</p>
+                  {individualAnswers.map(([question, answer]) => (
+                    <div key={question} className="mt-2">
                       <strong>{question}</strong><p className="whitespace-pre-wrap mt-1">{answer}</p>
                     </div>
                   ))}
-                </div>
+                </details>
               )}
             </div>
           );
