@@ -16,6 +16,8 @@ import * as airwallex from "../lib/airwallex.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { z } from "zod";
 import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
+import { recipientMatchesReportToken, reportRecipientPortalUrl } from "../lib/recipientPortalLinks.js";
+import { parentPermissionError, resolveReportRole } from "../lib/recipientPortalIdentity.js";
 
 const storage = new ObjectStorageService();
 
@@ -197,13 +199,6 @@ async function notifyAdminsOfAirwallexFailure(
     await db.execute(sql`DELETE FROM airwallex_webhook_notifications WHERE event_id = ${eventId}`);
     throw error;
   }
-}
-
-function resolveReportRole(respondentType: string | null): "parent" | "teacher" | null {
-  if (!respondentType) return null;
-  if (respondentType === "parent") return "parent";
-  if (respondentType.startsWith("teacher")) return "teacher";
-  return null;
 }
 
 const FORM_TYPES = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"];
@@ -391,15 +386,18 @@ router.get("/external/portal/:token", async (req, res) => {
     // Check if reports are available for this respondent
     let reportAccess: object | null = null;
     const reportPhases = ["report", "debrief", "complete"];
-    if (caseData && reportPhases.includes(caseData.currentPhase ?? "")) {
+    if (caseData && reportPhases.includes(caseData.currentPhase ?? "") && assignment.assignedToEmail) {
       const reportRole = resolveReportRole(assignment.respondentType);
       if (reportRole) {
         const uploads = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, assignment.caseId));
         if (uploads.length > 0) {
-          const [tok] = await db
+          const tokens = await db
             .select()
             .from(reportTokensTable)
-            .where(and(eq(reportTokensTable.caseId, assignment.caseId), eq(reportTokensTable.role, reportRole)));
+            .where(eq(reportTokensTable.caseId, assignment.caseId));
+          const tok = tokens.find(token => token.sentAt && recipientMatchesReportToken(token, {
+            caseId: assignment.caseId, role: reportRole, email: assignment.assignedToEmail,
+          }));
           if (tok) {
             reportAccess = {
               tokenId: tok.id,
@@ -442,8 +440,8 @@ router.get("/external/portal/:token", async (req, res) => {
         uniqueToken: s.uniqueToken,
       })),
       reportAccess,
-      debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
-      debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
+      debriefMeetingUrl: reportAccess ? (caseData?.debriefMeetingUrl ?? null) : null,
+      debriefMeetingDate: reportAccess ? (caseData?.debriefMeetingDate ?? null) : null,
       bobbyAiPortalCredentials: caseData?.bobbyAiPortalCredentials ?? null,
     });
     return;
@@ -460,25 +458,51 @@ router.get("/external/portal/:token", async (req, res) => {
     const [caseData] = await db.select({
       studentName: casesTable.studentName,
       languagePreference: casesTable.languagePreference,
+      currentPhase: casesTable.currentPhase,
+      progressPercentage: casesTable.progressPercentage,
+      debriefMeetingUrl: casesTable.debriefMeetingUrl,
+      debriefMeetingDate: casesTable.debriefMeetingDate,
     }).from(casesTable).where(eq(casesTable.id, questionOnlyRequest.caseId)).limit(1);
     if (!caseData) {
       res.status(404).json({ error: "not_found", message: "Question invitation not found" });
       return;
     }
+    const role = questionOnlyRequest.audience;
+    let reportAccess: object | null = null;
+    if (["report", "debrief", "complete"].includes(caseData.currentPhase ?? "")) {
+      const tokens = await db.select().from(reportTokensTable)
+        .where(eq(reportTokensTable.caseId, questionOnlyRequest.caseId));
+      const tok = tokens.find(token => token.sentAt && recipientMatchesReportToken(token, {
+        caseId: questionOnlyRequest.caseId, role, email: questionOnlyRequest.recipientEmail,
+      }));
+      if (tok) {
+        const uploads = await db.select().from(reportUploadsTable)
+          .where(eq(reportUploadsTable.caseId, questionOnlyRequest.caseId));
+        if (uploads.length) {
+          reportAccess = {
+            tokenId: tok.id, role: tok.role,
+            files: uploads.map(u => ({ id: u.id, filename: u.filename, label: u.label, uploadedAt: u.uploadedAt })),
+            downloadedAt: tok.downloadedAt, permissionGranted: tok.permissionGranted,
+            adminOverride: tok.adminOverride, blocked: tok.role === "teacher" && !tok.permissionGranted && !tok.adminOverride,
+            hasAccessCode: !!tok.accessCode,
+          };
+        }
+      }
+    }
     res.json({
       questionOnly: true,
       studentName: caseData.studentName,
-      currentPhase: "intake",
-      progressPercentage: 0,
+      currentPhase: reportAccess ? "debrief" : "intake",
+      progressPercentage: reportAccess ? (caseData.progressPercentage ?? 100) : 0,
       assignedToName: questionOnlyRequest.recipientName,
       respondentLabel: questionOnlyRequest.audience === "parent" ? "Parent / Guardian" : "Teacher",
       respondentType: questionOnlyRequest.audience,
       role: questionOnlyRequest.audience,
       languagePreference: caseData.languagePreference ?? "english",
       forms: [],
-      reportAccess: null,
-      debriefMeetingUrl: null,
-      debriefMeetingDate: null,
+      reportAccess,
+      debriefMeetingUrl: reportAccess ? caseData.debriefMeetingUrl : null,
+      debriefMeetingDate: reportAccess ? caseData.debriefMeetingDate : null,
       bobbyAiPortalCredentials: null,
       questionRequests: [{
         id: questionOnlyRequest.id,
@@ -720,18 +744,17 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
   }
 
   const { granted } = req.body as { granted: boolean };
+  if (typeof granted !== "boolean") {
+    res.status(400).json({ error: "invalid_permission" }); return;
+  }
+  const permissionError = parentPermissionError(tok, req.headers["x-access-code"] as string | undefined);
+  if (permissionError) {
+    res.status(permissionError === "access_code_required" ? 401 : 409).json({ error: permissionError }); return;
+  }
   // Update the parent token
   await db.update(reportTokensTable)
     .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
     .where(eq(reportTokensTable.id, tok.id));
-
-  // Also unlock / re-lock all teacher and other tokens for this case so they reflect the parent's decision
-  await db.update(reportTokensTable)
-    .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
-    .where(and(
-      eq(reportTokensTable.caseId, tok.caseId),
-      sql`${reportTokensTable.role} IN ('teacher', 'other')`
-    ));
 
   const { sendEmail } = await import("../lib/outlookEmail.js");
   const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, tok.caseId));
@@ -740,59 +763,64 @@ router.post("/external/report/:tokenId/permission", async (req, res) => {
   const host = req.headers.host as string ?? "localhost";
   const base = `${proto}://${host}`;
 
+  // Admin preview consent must never unlock or notify real school recipients.
+  if (tok.recipientName?.startsWith("TEST PREVIEW")) {
+    if (granted) {
+      const [existingPreview] = await db.select().from(reportTokensTable).where(and(
+        eq(reportTokensTable.caseId, tok.caseId),
+        eq(reportTokensTable.role, "teacher"),
+        eq(reportTokensTable.recipientName, "TEST PREVIEW (admin)"),
+        eq(reportTokensTable.email, tok.email),
+      ));
+      const previewToken = existingPreview?.token ?? randomUUID();
+      if (!existingPreview) await db.insert(reportTokensTable).values({
+        id: randomUUID(), caseId: tok.caseId, role: "teacher", email: tok.email,
+        token: previewToken, accessCode: null, recipientName: "TEST PREVIEW (admin)",
+        sentAt: new Date(), permissionGranted: true, permissionGrantedAt: new Date(),
+      });
+      const banner = `<div style="background:#ede9fe;padding:14px;font-family:sans-serif"><strong>ADMIN TEST PREVIEW — School / Teacher Email</strong><p>This preview does not grant access to real school recipients.</p></div>`;
+      await sendEmail({
+        to: tok.email,
+        subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
+        html: banner + buildTeacherEmail(studentName, `${base}/external/${previewToken}`, null, caseRow?.debriefMeetingDate ?? null),
+      });
+    }
+    res.json({ ok: true }); return;
+  }
+
+  // Only a real parent's verified decision may unlock school recipients.
+  await db.update(reportTokensTable)
+    .set({ permissionGranted: granted, permissionGrantedAt: new Date(), updatedAt: new Date() })
+    .where(and(
+      eq(reportTokensTable.caseId, tok.caseId),
+      sql`${reportTokensTable.role} IN ('teacher', 'other')`,
+      sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+    ));
+
   if (granted) {
     // Find and notify the teacher with their download link
     try {
       const [teacherTok] = await db
         .select()
         .from(reportTokensTable)
-        .where(and(eq(reportTokensTable.caseId, tok.caseId), eq(reportTokensTable.role, "teacher")));
-
-      const isTestPreview = tok.recipientName === "TEST PREVIEW (admin)";
+        .where(and(
+          eq(reportTokensTable.caseId, tok.caseId),
+          eq(reportTokensTable.role, "teacher"),
+          sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+        ));
 
       if (teacherTok) {
-        const teacherLink = `${base}/external/${teacherTok.token}`;
+        const teacherLink = await reportRecipientPortalUrl(base, tok.caseId, teacherTok.email, "teacher", teacherTok.token);
         const debriefJoinUrl = caseRow?.debriefMeetingUrl ? `${base}/join/debrief?type=debrief&student=${encodeURIComponent(studentName)}&redirectUrl=${encodeURIComponent(caseRow.debriefMeetingUrl)}` : null;
-        const teacherEmailHtml = buildTeacherEmail(studentName, teacherLink, debriefJoinUrl, caseRow?.debriefMeetingDate ?? null);
-        const teacherTestBanner = isTestPreview
-          ? `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
-              <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
-              <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the teacher receives once the parent grants consent. The download button below is a real working link to the teacher portal — no access code is required for teachers.</p>
-            </div>`
-          : "";
+        const teacherEmailHtml = buildTeacherEmail(studentName, teacherLink, debriefJoinUrl, caseRow?.debriefMeetingDate ?? null, teacherTok.accessCode ?? undefined);
         await sendEmail({
-          to: isTestPreview ? tok.email : teacherTok.email,
-          subject: isTestPreview
-            ? `[TEST — Teacher] Assessment Report Now Available — ${studentName}`
-            : `Assessment Report Available — ${studentName}`,
-          html: teacherTestBanner + teacherEmailHtml,
+          to: teacherTok.email,
+          subject: `Assessment Report Available — ${studentName}`,
+          html: teacherEmailHtml,
         });
-      } else if (isTestPreview) {
-        // No permanent teacher token yet — create a real temporary test teacher token so the admin
-        // can experience the complete end-to-end flow including actually downloading the report.
-        const testTeacherToken = randomUUID();
-        await db.insert(reportTokensTable).values({
-          id: randomUUID(),
-          caseId: tok.caseId,
-          role: "teacher",
-          email: tok.email,
-          token: testTeacherToken,
-          accessCode: null,
-          recipientName: "TEST PREVIEW (admin)",
-          sentAt: new Date(),
-          permissionGranted: true,
-          permissionGrantedAt: new Date(),
-        });
-        const teacherLink = `${base}/external/${testTeacherToken}`;
-        const teacherTestBanner = `<div style="background:#ede9fe;border:2px dashed #7c3aed;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
-          <p style="margin:0;font-size:14px;font-weight:700;color:#4c1d95">⚠️ ADMIN TEST PREVIEW — Step 2 of 2: School / Teacher Email</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#6d28d9">This is exactly what the school receives once the parent grants consent. The "Download Report" button below is a real, working link — click it to experience the full teacher flow. No access code is required.</p>
-        </div>`;
-        await sendEmail({
-          to: tok.email,
-          subject: `[TEST — Teacher] Assessment Report Now Available — ${studentName}`,
-          html: teacherTestBanner + buildTeacherEmail(studentName, teacherLink, caseRow?.debriefMeetingUrl ? `${base}/join/debrief?type=debrief&student=${encodeURIComponent(studentName)}&redirectUrl=${encodeURIComponent(caseRow.debriefMeetingUrl)}` : null, caseRow?.debriefMeetingDate ?? null),
-        });
+        await db.update(reportTokensTable)
+          .set({ sentAt: new Date(), updatedAt: new Date() })
+          .where(eq(reportTokensTable.id, teacherTok.id));
       }
     } catch (_) {}
   } else {

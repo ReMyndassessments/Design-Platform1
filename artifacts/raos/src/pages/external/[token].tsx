@@ -1010,7 +1010,7 @@ function PortalView({
   portalToken: string;
   onRefresh: () => void;
 }) {
-  const restricted = preview || (questionOnly && portal.forms.length === 0);
+  const restricted = preview || (questionOnly && portal.forms.length === 0 && !portal.reportAccess);
   const isMandarin = language === "mandarin";
   const isKorean = language === "korean";
   const questionCopy = {
@@ -1509,11 +1509,15 @@ function PortalView({
     setConsentSubmitting(true);
     try {
       const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
-      await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/permission`, {
+      const response = await fetch(`${apiBase}/api/external/report/${portal.reportAccess.tokenId}/permission`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(portal.reportAccess.hasAccessCode ? { "X-Access-Code": sessionStorage.getItem(`raos_code_${portal.reportAccess.tokenId}`) ?? "" } : {}),
+        },
         body: JSON.stringify({ granted }),
       });
+      if (!response.ok) throw new Error(`Consent update failed: ${response.status}`);
       setConsentDecision(granted);
       setShowConsentModal(false);
     } catch (e) {
@@ -1637,7 +1641,7 @@ function PortalView({
         )}
 
         {/* Forms Card */}
-        {!restricted && (
+        {!restricted && portal.forms.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
@@ -1866,7 +1870,7 @@ function PortalView({
             )}
             <div className="px-5 pb-5">
               <a
-                href={`/join/debrief?type=debrief&student=${encodeURIComponent(portal.studentName)}&redirectUrl=${encodeURIComponent(portal.debriefMeetingUrl!)}`}
+                href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/join/debrief?type=debrief&student=${encodeURIComponent(portal.studentName)}&redirectUrl=${encodeURIComponent(portal.debriefMeetingUrl!)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"

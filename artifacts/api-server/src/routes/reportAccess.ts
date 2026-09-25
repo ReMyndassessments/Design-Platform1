@@ -10,6 +10,8 @@ import { randomUUID } from "crypto";
 import { Readable } from "stream";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
+import { reportRecipientPortalUrl } from "../lib/recipientPortalLinks.js";
+import { parentPermissionError } from "../lib/recipientPortalIdentity.js";
 
 function generateAccessCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -45,9 +47,9 @@ const EMAIL_COPY = {
     korean:   "아래 버튼을 클릭하여 기밀 사본에 접근하세요:",
   },
   parentDownloadBtn: {
-    english: "Download My Report",
-    mandarin: "下载我的报告",
-    korean:   "내 보고서 다운로드",
+    english: "Open My ReMynd Portal",
+    mandarin: "打开我的 ReMynd 门户",
+    korean:   "내 ReMynd 포털 열기",
   },
   parentConsent: {
     english: (school: string) => `After downloading, you will be asked whether you give permission for <strong>${school}</strong> to access their copy of the report. This is entirely your choice.`,
@@ -111,9 +113,9 @@ function makeDebriefJoinUrl(base: string, studentName: string, rawUrl: string): 
 
 function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: string | null): string {
   const labels = {
-    english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting to walk you through the assessment results. Click the button below to join at your scheduled time.", btn: "Join Debrief Meeting", dateLabel: "Scheduled:" },
-    mandarin: { heading: "汇报会议", body: "您的临床医生已安排了一次虚拟汇报会议，为您详细讲解评估结果。请在预定时间点击下方按钮加入会议。", btn: "加入汇报会议", dateLabel: "预定时间：" },
-    korean:   { heading: "디브리핑 미팅", body: "담당 임상의가 평가 결과를 안내해 드리기 위해 가상 미팅을 예약했습니다. 예약된 시간에 아래 버튼을 클릭하여 참여하세요.", btn: "디브리핑 미팅 참여", dateLabel: "예정 일시:" },
+    english:  { heading: "Debrief Meeting", body: "Your clinician has scheduled a virtual debrief meeting. Open your ReMynd portal using the button above to find the meeting link at the scheduled time.", dateLabel: "Scheduled:" },
+    mandarin: { heading: "汇报会议", body: "您的临床医生已安排虚拟汇报会议。请使用上方按钮打开 ReMynd 门户，在预定时间查找会议链接。", dateLabel: "预定时间：" },
+    korean:   { heading: "디브리핑 미팅", body: "담당 임상의가 화상 미팅을 예약했습니다. 위 버튼으로 ReMynd 포털을 열어 예정된 시간에 미팅 링크를 확인하세요.", dateLabel: "예정 일시:" },
   };
   const label = labels[lang];
   const dateRow = meetingDate
@@ -123,7 +125,6 @@ function buildDebriefMeetingBlock(lang: Lang, meetingUrl: string, meetingDate?: 
     <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em">📹 ${label.heading}</p>
     <p style="margin:0 0 10px;font-size:13px;color:#15803d">${label.body}</p>
     ${dateRow}
-    <a href="${meetingUrl}" style="background:#16a34a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">${label.btn} ↗</a>
   </div>`;
 }
 
@@ -371,7 +372,7 @@ router.post("/cases/:id/report-access/send-test", authMiddleware, async (req, re
 
   const parentTestBanner = `<div style="background:#fef3c7;border:2px dashed #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-family:sans-serif">
     <p style="margin:0;font-size:14px;font-weight:700;color:#92400e">⚠️ ADMIN TEST PREVIEW — Step 1 of 2: Parent / Guardian Email</p>
-    <p style="margin:6px 0 0;font-size:12px;color:#b45309">This is exactly what the parent receives. Click the download button, enter the access code, download the report, then <strong>grant consent for the school</strong> when prompted. Granting consent will automatically send you a second email — the school notification — so you can review the full end-to-end sequence.</p>
+    <p style="margin:6px 0 0;font-size:12px;color:#b45309">This is exactly what the parent receives. Open the portal, enter the access code, download the report, then <strong>grant consent for the school</strong> when prompted. Granting consent will automatically send you a second email — the school notification — so you can review the full end-to-end sequence.</p>
   </div>`;
 
   await sendEmail({
@@ -494,7 +495,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
       await sendEmail({
         to: parentEmail,
         subject: EMAIL_COPY.parentSubject[lang](studentName),
-        html: buildParentEmail(lang, studentName, schoolName, `${base}/external/${token}`, parentAccessCode, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow?.debriefMeetingDate ?? null),
+        html: buildParentEmail(lang, studentName, schoolName, await reportRecipientPortalUrl(base, String(caseId), parentEmail, "parent", token), parentAccessCode, caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined, caseRow?.debriefMeetingDate ?? null),
       });
     }
 
@@ -583,7 +584,7 @@ router.post("/cases/:id/report-access/upload", authMiddleware, async (req, res) 
         .where(and(eq(reportTokensTable.caseId, caseId), isNotNull(reportTokensTable.sentAt)));
       const fileLabel = (label as string | undefined)?.trim() || filename;
       for (const tok of existingTokens) {
-        const portalLink = `${base}/external/${tok.token}`;
+        const portalLink = await reportRecipientPortalUrl(base, String(caseId), tok.email, tok.role, tok.token);
         await sendEmail({
           to: tok.email,
           subject: `Updated Document Available — ${studentName}`,
@@ -625,7 +626,7 @@ router.patch("/cases/:id/report-access/tokens/:tokenId", authMiddleware, async (
     const studentName = caseRow?.studentName ?? "your student";
     const schoolName = caseRow?.school ?? "the school";
     const base = getBaseUrl(req);
-    const link = `${base}/external/${t.token}`;
+    const link = await reportRecipientPortalUrl(base, t.caseId, email, t.role, t.token);
     const debriefJoinUrl = caseRow?.debriefMeetingUrl ? makeDebriefJoinUrl(base, studentName, caseRow.debriefMeetingUrl) : undefined;
     const debriefDate = caseRow?.debriefMeetingDate ?? null;
 
@@ -707,7 +708,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
   const bobbyAiCreds = (caseRow as any).bobbyAiPortalCredentials ?? null;
 
   for (const t of activeTokens) {
-    const link = `${base}/external/${t.token}`;
+    const link = await reportRecipientPortalUrl(base, t.caseId, t.email, t.role, t.token);
     let html: string;
     if (t.role === "parent") {
       html = buildParentEmail(lang, studentName, schoolName, link, t.accessCode ?? undefined, debriefJoinUrl, debriefDate, bobbyAiCreds);
@@ -716,6 +717,8 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
       html = buildTeacherEmail(studentName, link, debriefJoinUrl, debriefDate, t.accessCode ?? undefined, bobbyAiCreds);
     }
     await sendEmail({ to: t.email, subject, html });
+    await db.update(reportTokensTable).set({ sentAt: new Date(), updatedAt: new Date() })
+      .where(eq(reportTokensTable.id, t.id));
     sent++;
   }
 
@@ -742,7 +745,7 @@ router.post("/cases/:id/report-access/send-debrief", authMiddleware, async (req,
       sentAt: new Date(),
     });
 
-    const link = `${base}/external/${token}`;
+    const link = await reportRecipientPortalUrl(base, String(req.params.id), e.email.trim(), role, token);
     let html: string;
     if (role === "parent") {
       html = buildParentEmail(lang, studentName, schoolName, link, accessCode, debriefJoinUrl, debriefDate, bobbyAiCreds);
@@ -782,16 +785,28 @@ router.post("/cases/:id/report-access/tokens/:tokenId/override", authMiddleware,
   await db.update(reportTokensTable)
     .set({ permissionGranted: true, adminOverride: true, adminOverrideAt: new Date(), adminOverrideBy: req.userId ?? "admin", updatedAt: new Date() })
     .where(eq(reportTokensTable.id, req.params.tokenId));
+  // The portal and download routes check each recipient's own token, not the
+  // parent's token. Keep real school recipients in sync with the override.
+  await db.update(reportTokensTable)
+    .set({ permissionGranted: true, adminOverride: true, adminOverrideAt: new Date(), adminOverrideBy: req.userId ?? "admin", updatedAt: new Date() })
+    .where(and(
+      eq(reportTokensTable.caseId, token.caseId),
+      sql`${reportTokensTable.role} IN ('teacher', 'other')`,
+      sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+    ));
 
   // Notify teacher
   const [teacherToken] = await db.select().from(reportTokensTable)
-    .where(and(eq(reportTokensTable.caseId, token.caseId), eq(reportTokensTable.role, "teacher")));
+    .where(and(
+      eq(reportTokensTable.caseId, token.caseId), eq(reportTokensTable.role, "teacher"),
+      sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+    ));
 
   if (teacherToken) {
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, token.caseId));
     const studentName = caseRow?.studentName ?? "your student";
     const base = getBaseUrl(req);
-    const link = `${base}/external/${teacherToken.token}`;
+    const link = await reportRecipientPortalUrl(base, token.caseId, teacherToken.email, "teacher", teacherToken.token);
 
     await sendEmail({
       to: teacherToken.email,
@@ -901,13 +916,11 @@ router.get("/report-access/:token/download", async (req, res) => {
   const [token] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.token, req.params.token));
   if (!token) { res.status(404).json({ error: "not_found" }); return; }
 
-  // Teacher: check parental consent
-  if (token.role === "teacher") {
-    const [parentToken] = await db.select().from(reportTokensTable)
-      .where(and(eq(reportTokensTable.caseId, token.caseId), eq(reportTokensTable.role, "parent")));
-    if (parentToken && !parentToken.permissionGranted) {
-      res.status(403).json({ error: "awaiting_consent" }); return;
-    }
+  if (token.accessCode && (req.headers["x-access-code"] as string | undefined)?.trim() !== token.accessCode) {
+    res.status(401).json({ error: "access_code_required" }); return;
+  }
+  if ((token.role === "teacher" || token.role === "other") && !token.permissionGranted && !token.adminOverride) {
+    res.status(403).json({ error: "awaiting_consent" }); return;
   }
 
   const [upload] = await db.select().from(reportUploadsTable).where(eq(reportUploadsTable.caseId, token.caseId));
@@ -976,22 +989,40 @@ router.post("/report-access/:token/permission", async (req, res) => {
   const [token] = await db.select().from(reportTokensTable).where(eq(reportTokensTable.token, req.params.token));
   if (!token) { res.status(404).json({ error: "not_found" }); return; }
   if (token.role !== "parent") { res.status(400).json({ error: "Only parents can grant permission" }); return; }
+  if (token.recipientName?.startsWith("TEST PREVIEW")) {
+    res.status(403).json({ error: "preview_not_supported" }); return;
+  }
+  const permissionError = parentPermissionError(token, req.headers["x-access-code"] as string | undefined);
+  if (permissionError) {
+    res.status(permissionError === "access_code_required" ? 401 : 409).json({ error: permissionError }); return;
+  }
 
   const { grant } = req.body as { grant: boolean };
+  if (typeof grant !== "boolean") { res.status(400).json({ error: "invalid_permission" }); return; }
 
   await db.update(reportTokensTable)
     .set({ permissionGranted: grant, permissionGrantedAt: grant ? new Date() : null, updatedAt: new Date() })
     .where(eq(reportTokensTable.id, token.id));
+  await db.update(reportTokensTable)
+    .set({ permissionGranted: grant, permissionGrantedAt: grant ? new Date() : null, updatedAt: new Date() })
+    .where(and(
+      eq(reportTokensTable.caseId, token.caseId),
+      sql`${reportTokensTable.role} IN ('teacher', 'other')`,
+      sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+    ));
 
   if (grant) {
     // Notify teacher that download is now available
     const [teacherToken] = await db.select().from(reportTokensTable)
-      .where(and(eq(reportTokensTable.caseId, token.caseId), eq(reportTokensTable.role, "teacher")));
+      .where(and(
+        eq(reportTokensTable.caseId, token.caseId), eq(reportTokensTable.role, "teacher"),
+        sql`(${reportTokensTable.recipientName} IS NULL OR ${reportTokensTable.recipientName} NOT LIKE 'TEST PREVIEW%')`,
+      ));
     const [caseRow] = await db.select().from(casesTable).where(eq(casesTable.id, token.caseId));
 
     if (teacherToken && caseRow) {
       const base = getBaseUrl(req);
-      const link = `${base}/external/${teacherToken.token}`;
+      const link = await reportRecipientPortalUrl(base, token.caseId, teacherToken.email, "teacher", teacherToken.token);
       await sendEmail({
         to: teacherToken.email,
         subject: `Assessment Report Now Available — ${caseRow.studentName}`,

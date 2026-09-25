@@ -24,18 +24,17 @@ export function buildTeacherEmail(studentName: string, link: string, debriefMeet
   const debriefBlock = debriefMeetingUrl
     ? `<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:16px 20px;margin:24px 0;text-align:center">
         <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em">📹 Debrief Meeting</p>
-        <p style="margin:0 0 10px;font-size:13px;color:#15803d">A virtual debrief meeting has been scheduled to walk the family through the assessment results. As the school representative, you are invited to attend. Click the button below to join at the scheduled time.</p>
+        <p style="margin:0 0 10px;font-size:13px;color:#15803d">A virtual debrief meeting has been scheduled to walk the family through the assessment results. As the school representative, you are invited to attend. Open your ReMynd portal using the button above to find the meeting link at the scheduled time.</p>
         ${dateRow}
-        <a href="${debriefMeetingUrl}" style="background:#16a34a;color:#fff;padding:11px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px" target="_blank">Join Debrief Meeting ↗</a>
       </div>`
     : "";
 
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
     <h2 style="color:#0a1628">Assessment report now available</h2>
     <p>The psychoeducational assessment report for <strong>${studentName}</strong> is now ready for you to download.</p>
-    <p>The parent/guardian has reviewed the report and given their permission for the school to receive a copy.</p>
+    <p>If the parent/guardian has authorised school access, you can download the report from your ReMynd portal.</p>
     <p style="text-align:center;margin:28px 0">
-      <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Download Report</a>
+      <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">Open ReMynd Portal</a>
     </p>
     ${accessCode ? buildAccessCodeBlockEN(accessCode) : ""}
     ${debriefBlock}
