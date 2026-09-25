@@ -7,28 +7,36 @@ function escapeHtml(value: string): string {
 }
 
 export function buildIntakeQuestionEmail({
-  audience, questions, recipientName, portalUrl, isTest = false,
+  audience, recipientName, portalUrl, isTest = false,
 }: {
   audience: "teacher" | "parent";
-  questions: string[];
   recipientName?: string;
-  portalUrl?: string;
+  portalUrl: string;
   isTest?: boolean;
 }): string {
-  const label = audience === "teacher" ? "Teacher" : "Parent / Guardian";
-  const list = questions.map(question => `<li style="margin-bottom:10px">${escapeHtml(question)}</li>`).join("");
-  const introduction = isTest
-    ? `<p><strong>TEST COPY:</strong> This previews the ${label.toLowerCase()} questions. It does not create an invitation or collect responses.</p>`
-    : `<p>Hello ${escapeHtml(recipientName ?? "there")}, the ReMynd assessment team would appreciate your responses to the questions below.</p>`;
-  const responseLink = portalUrl && !isTest
-    ? `<p><a href="${escapeHtml(portalUrl)}" style="display:inline-block;padding:12px 20px;background:#0f766e;color:white;text-decoration:none;border-radius:6px">Respond securely in your portal</a></p>
-       <p style="font-size:12px;color:#64748b">This secure link is intended only for you. Please submit your answers through the portal rather than replying to this email.</p>`
-    : "";
-  return `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#172033">
-    <h2>${isTest ? "Test email — " : ""}${label} questions</h2>
-    ${introduction}
-    <ol style="line-height:1.6">${list}</ol>
-    ${responseLink}
+  const role = audience === "teacher" ? "teacher" : "parent or guardian";
+  return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
+    <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
+      <p style="margin:0;font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px">ReMynd Student Services</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em">Assessment Operating System</p>
+    </div>
+    <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+      ${isTest ? '<p style="margin:0 0 20px;padding:10px 14px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:13px;font-weight:700">TEST PREVIEW — no invitation or response will be created</p>' : ""}
+      <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hello${recipientName ? ` ${escapeHtml(recipientName)}` : ""},</h2>
+      <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#475569">
+        ${isTest
+          ? `Here is a preview of what a ${role} sees when invited to provide information through the ReMynd assessment portal.`
+          : `Our assessment team is requesting your input as a ${role}. Your questions and secure response area are ready in your ReMynd assessment portal.`}
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569">
+        ${isTest ? "Open the preview to review the portal experience. Submitting answers is disabled in preview mode." : "Please use the private link below to view the request and respond. You can return to the same portal link whenever you need."}
+      </p>
+      <p style="text-align:center;margin:28px 0">
+        <a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">${isTest ? "Preview ReMynd Portal" : "Open My ReMynd Portal"} ↗</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+      <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>${isTest ? "Test preview link — please do not forward." : "This private link is intended only for you. Please do not share it."}</p>
+    </div>
   </div>`;
 }
 

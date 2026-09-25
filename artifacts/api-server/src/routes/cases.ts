@@ -12,6 +12,7 @@ import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase
 import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intakeQuestionEmail.js";
+import { createIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -1025,7 +1026,6 @@ async function sendIntakeQuestionRequest(
   const portalUrl = questionRequestPortalUrl(req, token);
   const html = buildIntakeQuestionEmail({
     audience: request.audience,
-    questions: request.questions,
     recipientName: request.recipientName,
     portalUrl,
   });
@@ -1175,11 +1175,20 @@ router.post("/cases/:caseId/intake-question-requests/test-email", authMiddleware
     res.status(409).json({ error: "account_email_missing", message: "Your account has no email address for the test copy." });
     return;
   }
+  if (!process.env.SESSION_SECRET) {
+    res.status(503).json({ error: "preview_unavailable", message: "Secure preview links are currently unavailable." });
+    return;
+  }
   try {
+    const previewToken = createIntakeQuestionPreviewToken(caseId, parsed.data.audience, process.env.SESSION_SECRET);
     await sendIntakeQuestionEmail({
       to: user.email.trim(),
-      subject: `ReMynd TEST: ${parsed.data.audience} intake questions`,
-      html: buildIntakeQuestionEmail({ audience: parsed.data.audience, questions, isTest: true }),
+      subject: `ReMynd TEST: ${parsed.data.audience} portal preview`,
+      html: buildIntakeQuestionEmail({
+        audience: parsed.data.audience,
+        portalUrl: questionRequestPortalUrl(req, previewToken),
+        isTest: true,
+      }),
     });
   } catch (error) {
     res.status(502).json({

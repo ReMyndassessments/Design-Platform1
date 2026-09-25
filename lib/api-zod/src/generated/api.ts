@@ -528,7 +528,7 @@ export const SendIntakeQuestionRequestResponse = zod.object({
 });
 
 /**
- * Does not create an invitation or portal link.
+ * Sends a branded email linking to a short-lived, read-only preview of the respondent portal. Does not create an invitation or accept responses.
  * @summary Email a test copy of current suggested questions to the signed-in admin
  */
 export const SendIntakeQuestionTestEmailParams = zod.object({

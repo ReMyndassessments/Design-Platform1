@@ -9,12 +9,13 @@ import { Readable } from "stream";
 import { nanoid } from "nanoid";
 import { SAMPLE_QUESTIONS, FormQuestion } from "../lib/questions.js";
 import { buildTeacherEmail } from "../lib/emailTemplates.js";
+import { readIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
 import { writeAudit } from "../lib/audit.js";
 import * as airwallex from "../lib/airwallex.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { z } from "zod";
-import { assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
+import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
 
 const storage = new ObjectStorageService();
 
@@ -268,9 +269,72 @@ const router = Router();
 router.get("/external/portal/:token", async (req, res) => {
   const portalToken = req.params.token;
 
+  // Signed test links use the same respondent portal, but never expose forms
+  // or create a question request that could accept a clinical response.
+  if (portalToken.startsWith("preview.")) {
+    const preview = readIntakeQuestionPreviewToken(portalToken, process.env.SESSION_SECRET ?? "");
+    if (!preview) {
+      res.status(404).json({ error: "not_found", message: "Preview link invalid or expired" });
+      return;
+    }
+    const [caseData] = await db.select({
+      studentName: casesTable.studentName,
+      languagePreference: casesTable.languagePreference,
+      intakeAnalysis: casesTable.intakeAnalysis,
+    }).from(casesTable).where(eq(casesTable.id, preview.caseId)).limit(1);
+    if (!caseData) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const suggested = (caseData.intakeAnalysis as { suggestedQuestions?: Record<string, unknown> } | null)
+      ?.suggestedQuestions?.[preview.audience];
+    const questions = Array.isArray(suggested)
+      ? suggested.filter((question): question is string => typeof question === "string" && !!question.trim())
+      : [];
+    res.json({
+      questionOnly: true,
+      preview: true,
+      studentName: caseData.studentName,
+      currentPhase: "intake",
+      progressPercentage: 0,
+      assignedToName: null,
+      respondentLabel: preview.audience === "parent" ? "Parent / Guardian" : "Teacher",
+      respondentType: preview.audience,
+      languagePreference: caseData.languagePreference ?? "english",
+      forms: [],
+      reportAccess: null,
+      debriefMeetingUrl: null,
+      debriefMeetingDate: null,
+      bobbyAiPortalCredentials: null,
+      questionRequests: questions.length ? [{
+        id: "preview",
+        audience: preview.audience,
+        questions,
+        answer: null,
+        submittedAt: null,
+        recipientName: "Preview",
+      }] : [],
+    });
+    return;
+  }
+
   // ── Path A: token matches an assignment (normal portal link) ──────────────
   const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
-  const assignment = rows[0];
+  let assignment: (typeof rows)[number] | undefined = rows[0];
+  if (!assignment) {
+    // A teacher or parent who received questions before being assigned forms
+    // keeps the original portal link. It expands to their forms later, only
+    // when the case, role and recipient email all match.
+    const [earlyRequest] = await db.select().from(intakeQuestionRequestsTable).where(and(
+      eq(intakeQuestionRequestsTable.questionOnlyToken, portalToken),
+      sql`${intakeQuestionRequestsTable.sentAt} IS NOT NULL`,
+    )).limit(1);
+    if (earlyRequest && !earlyRequest.assignmentId) {
+      const candidates = await db.select().from(assignmentsTable)
+        .where(eq(assignmentsTable.caseId, earlyRequest.caseId));
+      assignment = candidates.find(candidate => assignmentMatchesQuestionRecipient(earlyRequest, candidate));
+    }
+  }
 
   if (assignment) {
     const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
@@ -282,32 +346,32 @@ router.get("/external/portal/:token", async (req, res) => {
       caseId: intakeQuestionRequestsTable.caseId,
       recipientEmail: intakeQuestionRequestsTable.recipientEmail,
       sentAt: intakeQuestionRequestsTable.sentAt,
+      questionOnlyToken: intakeQuestionRequestsTable.questionOnlyToken,
       questions: intakeQuestionRequestsTable.questions,
       answer: intakeQuestionRequestsTable.answer,
       submittedAt: intakeQuestionRequestsTable.submittedAt,
       recipientName: intakeQuestionRequestsTable.recipientName,
-    }).from(intakeQuestionRequestsTable).where(and(
-      eq(intakeQuestionRequestsTable.assignmentId, assignment.id),
-      eq(intakeQuestionRequestsTable.caseId, assignment.caseId),
-    ));
+    }).from(intakeQuestionRequestsTable)
+      .where(eq(intakeQuestionRequestsTable.caseId, assignment.caseId));
     const questionRequests = linkedQuestionRequests
       .filter(request => assignmentOwnsQuestionRequest(request, assignment))
       .map(({ id, audience, questions, answer, submittedAt, recipientName }) => ({
         id, audience, questions, answer, submittedAt, recipientName,
       }));
 
-    // Group by respondentType + respondentLabel (exact match).
-    // Empty-label assignments are backfilled at startup so they always carry
-    // the correct label by the time a portal is opened.
+    // Group by the verified recipient email when available. A shared label
+    // must never expose another person's forms; a teacher may also receive
+    // several teacher-role assignments at different stages.
     const anchorLabel = assignment.respondentLabel ?? "";
     const anchorType = assignment.respondentType;
     // When the portal is opened by a self-report respondent (or an invigilator acting
     // on their behalf), also include invigilator-type forms (e.g. ABO) for the same case
     // so the invigilator can complete their observation form in the same session.
-    const typeCondition = anchorType === "self"
-      ? or(eq(assignmentsTable.respondentType, "self"), eq(assignmentsTable.respondentType, "invigilator"))
-      : eq(assignmentsTable.respondentType, anchorType);
-    const siblings = await db
+    const teacherRoles = new Set(["teacher1", "teacher2", "school_counselor", "special_needs_teacher", "referring_teacher", "boarding_staff"]);
+    const sameRole = (role: string) => anchorType === "self"
+      ? role === "self" || role === "invigilator"
+      : teacherRoles.has(anchorType) ? teacherRoles.has(role) : role === anchorType;
+    const siblingCandidates = await db
       .select({
         toolId: assignmentsTable.toolId,
         toolName: assignmentsTable.toolName,
@@ -315,18 +379,14 @@ router.get("/external/portal/:token", async (req, res) => {
         uniqueToken: assignmentsTable.uniqueToken,
         respondentLabel: assignmentsTable.respondentLabel,
         respondentType: assignmentsTable.respondentType,
+        assignedToEmail: assignmentsTable.assignedToEmail,
       })
       .from(assignmentsTable)
-      .where(
-        and(
-          eq(assignmentsTable.caseId, assignment.caseId),
-          typeCondition,
-          or(
-            eq(assignmentsTable.respondentLabel, anchorLabel),
-            eq(assignmentsTable.respondentType, "invigilator"),
-          ),
-        )
-      );
+      .where(eq(assignmentsTable.caseId, assignment.caseId));
+    const recipientEmail = assignment.assignedToEmail?.trim().toLowerCase();
+    const siblings = siblingCandidates.filter(s => recipientEmail
+      ? s.assignedToEmail?.trim().toLowerCase() === recipientEmail && sameRole(s.respondentType)
+      : sameRole(s.respondentType) && (s.respondentLabel === anchorLabel || (anchorType === "self" && s.respondentType === "invigilator")));
 
     // Check if reports are available for this respondent
     let reportAccess: object | null = null;
@@ -408,11 +468,18 @@ router.get("/external/portal/:token", async (req, res) => {
     res.json({
       questionOnly: true,
       studentName: caseData.studentName,
+      currentPhase: "intake",
+      progressPercentage: 0,
       assignedToName: questionOnlyRequest.recipientName,
       respondentLabel: questionOnlyRequest.audience === "parent" ? "Parent / Guardian" : "Teacher",
       respondentType: questionOnlyRequest.audience,
       role: questionOnlyRequest.audience,
       languagePreference: caseData.languagePreference ?? "english",
+      forms: [],
+      reportAccess: null,
+      debriefMeetingUrl: null,
+      debriefMeetingDate: null,
+      bobbyAiPortalCredentials: null,
       questionRequests: [{
         id: questionOnlyRequest.id,
         audience: questionOnlyRequest.audience,
@@ -531,7 +598,6 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
     const [linkedRequest] = await db.select().from(intakeQuestionRequestsTable).where(and(
       eq(intakeQuestionRequestsTable.id, requestId),
       eq(intakeQuestionRequestsTable.caseId, assignment.caseId),
-      eq(intakeQuestionRequestsTable.assignmentId, assignment.id),
     )).limit(1);
     if (!linkedRequest || !assignmentOwnsQuestionRequest(linkedRequest, assignment)) {
       res.status(404).json({ error: "not_found", message: "Question request not found for this portal recipient" });

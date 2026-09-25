@@ -10,6 +10,7 @@ type AssignmentAccessTarget = {
 type IntakeQuestionRequestAccessTarget = {
   caseId: string;
   assignmentId: string | null;
+  questionOnlyToken?: string | null;
   audience: IntakeQuestionAudience;
   recipientEmail: string;
   sentAt: Date | null;
@@ -24,14 +25,24 @@ const TEACHER_RESPONDENT_TYPES = new Set([
   "boarding_staff",
 ]);
 
-/** A portal token only reveals a sent request for its exact current recipient. */
-export function assignmentOwnsQuestionRequest(
+/** Match a case's sent questions to an assignment by recipient and role. */
+export function assignmentMatchesQuestionRecipient(
   request: IntakeQuestionRequestAccessTarget,
   assignment: AssignmentAccessTarget,
 ): boolean {
-  if (!request.sentAt || request.assignmentId !== assignment.id || request.caseId !== assignment.caseId) return false;
+  if (!request.sentAt || request.caseId !== assignment.caseId) return false;
   if (!assignment.assignedToEmail || request.recipientEmail.trim().toLowerCase() !== assignment.assignedToEmail.trim().toLowerCase()) return false;
   return request.audience === "parent"
     ? assignment.respondentType === "parent"
     : TEACHER_RESPONDENT_TYPES.has(assignment.respondentType);
+}
+
+/** A form portal may show its own requests plus standalone invitations for that exact recipient. */
+export function assignmentOwnsQuestionRequest(
+  request: IntakeQuestionRequestAccessTarget,
+  assignment: AssignmentAccessTarget,
+): boolean {
+  return assignmentMatchesQuestionRecipient(request, assignment) &&
+    (request.assignmentId === assignment.id ||
+      (request.assignmentId === null && !!request.questionOnlyToken));
 }

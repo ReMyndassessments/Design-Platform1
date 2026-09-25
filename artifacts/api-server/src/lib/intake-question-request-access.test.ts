@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assignmentOwnsQuestionRequest } from "./intake-question-request-access.ts";
+import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } from "./intake-question-request-access.ts";
 
 const sentAt = new Date("2026-01-01T00:00:00Z");
 const request = {
@@ -29,4 +29,16 @@ test("parent requests are limited to parent assignments for the same case and as
   assert.equal(assignmentOwnsQuestionRequest(parentRequest, { ...assignment, respondentType: "parent" }), true);
   assert.equal(assignmentOwnsQuestionRequest(parentRequest, { ...assignment, caseId: "another-case", respondentType: "parent" }), false);
   assert.equal(assignmentOwnsQuestionRequest(parentRequest, { ...assignment, id: "another-assignment", respondentType: "parent" }), false);
+});
+
+test("an early question-only portal gains later forms only for the exact case, role and email", () => {
+  const earlyRequest = { ...request, assignmentId: null, questionOnlyToken: "private-original-link" };
+  assert.equal(assignmentMatchesQuestionRecipient(earlyRequest, assignment), true);
+  assert.equal(assignmentOwnsQuestionRequest(earlyRequest, assignment), true);
+  assert.equal(assignmentMatchesQuestionRecipient(earlyRequest, { ...assignment, caseId: "another-case" }), false);
+  assert.equal(assignmentMatchesQuestionRecipient(earlyRequest, { ...assignment, respondentType: "parent" }), false);
+  assert.equal(assignmentMatchesQuestionRecipient(earlyRequest, { ...assignment, assignedToEmail: "someone@school.example" }), false);
+  assert.equal(assignmentMatchesQuestionRecipient({ ...earlyRequest, sentAt: null }, assignment), false);
+  assert.equal(assignmentOwnsQuestionRequest({ ...earlyRequest, questionOnlyToken: null }, assignment), false);
+  assert.equal(assignmentOwnsQuestionRequest({ ...request, assignmentId: "different-assignment" }, assignment), false);
 });

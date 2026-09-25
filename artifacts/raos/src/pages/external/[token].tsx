@@ -74,6 +74,7 @@ type PortalData = {
   debriefMeetingDate?: string | null;
   bobbyAiPortalCredentials?: string | null;
   questionOnly?: boolean;
+  preview?: boolean;
   questionRequests?: PortalQuestionRequest[];
 };
 
@@ -992,6 +993,8 @@ const LANG_OPTIONS = [
 
 function PortalView({
   portal,
+  questionOnly,
+  preview,
   language,
   setLanguage,
   onStartForm,
@@ -999,18 +1002,36 @@ function PortalView({
   onRefresh,
 }: {
   portal: PortalData;
+  questionOnly: boolean;
+  preview: boolean;
   language: string;
   setLanguage: (l: string) => void;
   onStartForm: (token: string) => void;
   portalToken: string;
   onRefresh: () => void;
 }) {
+  const restricted = preview || (questionOnly && portal.forms.length === 0);
+  const isMandarin = language === "mandarin";
+  const isKorean = language === "korean";
+  const questionCopy = {
+    eyebrow: isMandarin ? "专属问题" : isKorean ? "전용 질문" : "A note for you",
+    title: isMandarin ? "欢迎来到 ReMynd" : isKorean ? "ReMynd에 오신 것을 환영합니다" : "Welcome to ReMynd",
+    intro: isMandarin
+      ? `感谢您分享${portal.studentName ? `您对 ${portal.studentName} 的` : ""}观察。您的见解有助于我们的评估团队更全面地了解孩子的情况。请在下方回答专门发送给您的问题。`
+      : isKorean
+      ? `${portal.studentName ? `${portal.studentName}에 대해 ` : ""}관찰하신 내용을 공유해 주셔서 감사합니다. 귀하의 의견은 평가팀이 학생을 더 잘 이해하는 데 도움이 됩니다. 아래에 전달된 질문에 답해 주세요.`
+      : `Thank you for sharing what you have noticed${portal.studentName ? ` about ${portal.studentName}` : ""}. Your perspective helps our assessment team build a fuller picture. Please respond to the questions shared with you below.`,
+    section: isMandarin ? "请您回答" : isKorean ? "답변해 주세요" : "Your questions",
+    sectionDetail: isMandarin ? "仅显示通过此链接发送给您的问题。" : isKorean ? "이 링크로 전달된 질문만 표시됩니다." : "Only the questions shared through this link are shown here.",
+    empty: isMandarin ? "目前没有需要回答的问题。如有疑问，请联系发送此链接给您的人。" : isKorean ? "현재 답변할 질문이 없습니다. 궁금한 점이 있으면 링크를 보내신 분에게 문의해 주세요." : "There are no questions to answer right now. If this seems unexpected, please contact the person who sent you this link.",
+    previewDetail: isMandarin ? "这是测试邮件链接的预览。问题仅供查看，无法填写或提交回复。" : isKorean ? "테스트 이메일 링크 미리보기입니다. 질문을 볼 수 있지만 답변을 작성하거나 제출할 수 없습니다." : "This is a test-email preview. You can review the questions, but answers cannot be entered or submitted from this link.",
+  };
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
   const allDone = pendingCount === 0;
   const ADMIN_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
   const adminFormsAllDone = portal.forms.filter(f => ADMIN_TOOL_IDS.has(f.toolId)).every(f => f.status === "completed");
-  const postDebriefFeaturesAvailable = portal.currentPhase === "complete";
+  const postDebriefFeaturesAvailable = !restricted && portal.currentPhase === "complete";
 
   // Report download state
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -1086,7 +1107,7 @@ function PortalView({
   // Effect 2: fetch prompts whenever chat is open and prompts not yet loaded
   // (chains from Effect 1 — language change resets promptsLoaded → this re-fires)
   useEffect(() => {
-    if (!chatOpen || promptsLoaded || promptsLoading) return;
+    if (restricted || !chatOpen || promptsLoaded || promptsLoading) return;
     setPromptsLoading(true);
     fetch(`${apiBase}/api/external/portal/${portalToken}/prompts?role=${role}&language=${language}`)
       .then(r => r.ok ? r.json() : { prompts: [] })
@@ -1553,6 +1574,37 @@ function PortalView({
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 md:px-6 py-8 space-y-5">
 
+        {restricted ? (
+          <>
+            {preview && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 shadow-sm" role="status" data-testid="status-test-preview">
+                <div className="flex items-center gap-2 text-sm font-extrabold tracking-[0.12em] text-amber-900">
+                  <Info size={18} aria-hidden="true" /> TEST PREVIEW
+                </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-amber-900">{questionCopy.previewDetail}</p>
+              </div>
+            )}
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-6 py-7 sm:px-8 sm:py-8">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.17em] text-indigo-700">{questionCopy.eyebrow}</p>
+                <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl" data-testid="text-portal-welcome">{questionCopy.title}</h1>
+                <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">{questionCopy.intro}</p>
+              </div>
+              <div className="flex items-start gap-3 bg-indigo-50/70 px-6 py-4 sm:px-8">
+                <ShieldCheck size={19} className="mt-0.5 shrink-0 text-indigo-700" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{t("secureTitle", language)}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{t("secureBody", language)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="pt-2">
+              <h2 className="text-base font-bold text-slate-900">{questionCopy.section}</h2>
+              <p className="mt-1 text-xs text-slate-500">{questionCopy.sectionDetail}</p>
+            </div>
+          </>
+        ) : (
+        <>
         {/* Primary portal notice */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500 shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -1572,10 +1624,20 @@ function PortalView({
           studentName={portal.studentName}
           language={language}
         />
+        </>
+        )}
 
-        <IntakeQuestionCards requests={portal.questionRequests} token={portalToken} onSubmitted={onRefresh} />
+        {restricted && !portal.questionRequests?.length ? (
+          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-8 text-center text-sm leading-relaxed text-slate-600" data-testid="status-no-questions">
+            {questionCopy.empty}
+          </div>
+        ) : (
+          <IntakeQuestionCards requests={portal.questionRequests} token={portalToken} onSubmitted={onRefresh}
+            preview={preview} language={language} />
+        )}
 
         {/* Forms Card */}
+        {!restricted && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
@@ -1652,9 +1714,10 @@ function PortalView({
             })}
           </div>
         </div>
+        )}
 
         {/* Report Download Card */}
-        {portal.reportAccess && (
+        {!restricted && portal.reportAccess && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
@@ -1773,7 +1836,7 @@ function PortalView({
         )}
 
         {/* Debrief Meeting Card — hidden once meeting time is >4 hours past */}
-        {portal.debriefMeetingUrl && (() => {
+        {!restricted && portal.debriefMeetingUrl && (() => {
           const d = parseDebriefDate(portal.debriefMeetingDate);
           if (d && d.getTime() < Date.now() - 4 * 60 * 60 * 1000) return null;
           return true;
@@ -1818,7 +1881,7 @@ function PortalView({
         )}
 
         {/* Intervention Progress Tracker Card */}
-        {portal.bobbyAiPortalCredentials && (() => {
+        {!restricted && portal.bobbyAiPortalCredentials && (() => {
           const creds = portal.bobbyAiPortalCredentials ?? "";
           const caseIdMatch = creds.match(/Case\s*ID\s*[:\-]\s*([^\n\r]+)/i);
           const codeMatch = creds.match(/Access\s*Code\s*[:\-]\s*([^\n\r]+)/i);
@@ -2505,7 +2568,7 @@ function PortalView({
         )}
 
         {/* Parental Consent Modal */}
-        {showConsentModal && portal.reportAccess && (
+        {!restricted && showConsentModal && portal.reportAccess && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4 mx-auto">
@@ -2534,7 +2597,7 @@ function PortalView({
         )}
 
         {/* Info notice */}
-        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 flex gap-3 items-start">
+        {!restricted && <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 flex gap-3 items-start">
           <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
             <Lock size={14} className="text-blue-500" />
           </div>
@@ -2544,7 +2607,7 @@ function PortalView({
               {t("secureBody", language)}
             </p>
           </div>
-        </div>
+        </div>}
 
         {/* Footer */}
         <div className="pt-2 pb-8 flex items-center justify-center">
@@ -3013,7 +3076,7 @@ export default function ExternalFormView() {
     );
   }
 
-  if (mode === "form") {
+  if (mode === "form" && !portal.preview && portal.forms.some(form => form.uniqueToken === activeFormToken)) {
     return (
       <FormView
         key={activeFormToken}
@@ -3026,24 +3089,11 @@ export default function ExternalFormView() {
     );
   }
 
-  if (portal.questionOnly) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <BrandHeader />
-        <main className="mx-auto max-w-2xl space-y-4 px-4 py-8">
-          <p className="text-sm text-slate-600">
-            Questions for {portal.studentName} · {portal.assignedToName ?? portal.respondentLabel}
-          </p>
-          <IntakeQuestionCards requests={portal.questionRequests} token={portalToken}
-            onSubmitted={() => setPortalRefreshKey(key => key + 1)} />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <PortalView
       portal={portal}
+      questionOnly={portal.questionOnly === true}
+      preview={portal.preview === true}
       language={language}
       setLanguage={setLanguage}
       onStartForm={handleStartForm}

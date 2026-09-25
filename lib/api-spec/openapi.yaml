@@ -301,7 +301,7 @@ paths:
       operationId: sendIntakeQuestionTestEmail
       tags: [cases]
       summary: Email a test copy of current suggested questions to the signed-in admin
-      description: Does not create an invitation or portal link.
+      description: Sends a branded email linking to a short-lived, read-only preview of the respondent portal. Does not create an invitation or accept responses.
       parameters:
         - name: caseId
           in: path

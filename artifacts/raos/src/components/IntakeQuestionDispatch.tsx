@@ -23,7 +23,7 @@ type Invitation = {
   submittedAt: string | null;
 };
 
-const teacherTypes = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher"]);
+const teacherTypes = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor", "boarding_staff"]);
 
 export function IntakeQuestionDispatch({
   caseId, audience, assignments, baseUrl, questionCount, parentName, parentEmail,
@@ -91,7 +91,7 @@ export function IntakeQuestionDispatch({
     const selected = recipients.find(item => item.id === selection);
     const name = selected?.assignedToName || selected?.respondentLabel || newName.trim();
     const email = selected?.assignedToEmail || newEmail.trim();
-    if (!window.confirm(`Send the ${audience} questions to ${name} (${email})? This will email a private portal link to this recipient only.`)) return;
+    if (!window.confirm(`Invite ${name} (${email}) to answer the ${audience} questions in their ReMynd portal? The email contains a private portal link, not the questions themselves.`)) return;
     setBusy(true);
     try {
       const response = await fetch(endpoint, {
@@ -136,7 +136,7 @@ export function IntakeQuestionDispatch({
   };
 
   const sendTest = async () => {
-    if (!window.confirm(`Email a test copy of these ${audience} questions to your signed-in account? This does not create an invitation or portal link.`)) return;
+    if (!window.confirm(`Email a test preview of the ${audience} portal to your signed-in account? Its link opens a read-only view of these questions; no invitation or response is created.`)) return;
     setTesting(true);
     try {
       const response = await fetch(`${endpoint}/test-email`, {
@@ -146,7 +146,7 @@ export function IntakeQuestionDispatch({
       });
       const result = await response.json().catch(() => ({})) as { recipientEmail?: string; message?: string };
       if (!response.ok) throw new Error(result.message || "Could not send the test email.");
-      toast({ title: "Test copy sent", description: `Sent to your account email: ${result.recipientEmail}. No invitation was created.` });
+      toast({ title: "Portal preview sent", description: `Sent to your account email: ${result.recipientEmail}. No invitation was created.` });
     } catch (error) {
       toast({ title: "Test email not sent", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
@@ -160,7 +160,7 @@ export function IntakeQuestionDispatch({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h5 className="text-sm font-semibold text-slate-800">Send these questions</h5>
-          <p className="text-xs text-slate-600">Send to one recipient at a time; repeat for as many people as needed. Existing recipients use their portal; others receive a question-only link. You can resend any invitation below.</p>
+          <p className="text-xs text-slate-600">Send to one recipient at a time; repeat for as many people as needed. Each person opens their ReMynd portal; a new recipient's link will also show their forms when assigned later. You can resend any invitation below.</p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void refresh()} aria-label="Refresh recipient responses">
           <RefreshCw size={14} />
@@ -198,9 +198,9 @@ export function IntakeQuestionDispatch({
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="outline" disabled={testing || busy || !questionCount} onClick={() => void sendTest()}>
           {testing ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Mail size={14} className="mr-2" />}
-          Email me a test copy
+          Email me a portal preview
         </Button>
-        <span className="text-xs text-slate-500">Includes the questions. No invitation or response link is created.</span>
+        <span className="text-xs text-slate-500">Opens a read-only ReMynd portal with these questions; the email contains no questions or student details.</span>
       </div>
       {loadError && <p role="alert" className="text-xs text-red-700">Could not load question invitations. Use Refresh to try again.</p>}
       {!loading && audienceRequests.length > 0 && (
