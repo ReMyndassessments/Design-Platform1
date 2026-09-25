@@ -35,6 +35,12 @@ import type {
   ExternalForm,
   HealthStatus,
   IntakeAnalysis,
+  IntakeDiscussionInput,
+  IntakeDiscussionResult,
+  IntakeFollowUpInput,
+  IntakeFollowUpResult,
+  IntakeLeadContextInput,
+  IntakeLeadContextResult,
   ListCasesParams,
   LoginRequest,
   LoginResponse,
@@ -733,6 +739,271 @@ export const useAnalyzeIntake = <
   TContext
 > => {
   return useMutation(getAnalyzeIntakeMutationOptions(options));
+};
+
+/**
+ * @summary Save a response to a generated teacher or parent question
+ */
+export const getSaveIntakeFollowUpUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-follow-up`;
+};
+
+export const saveIntakeFollowUp = async (
+  caseId: string,
+  intakeFollowUpInput: IntakeFollowUpInput,
+  options?: RequestInit,
+): Promise<IntakeFollowUpResult> => {
+  return customFetch<IntakeFollowUpResult>(getSaveIntakeFollowUpUrl(caseId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(intakeFollowUpInput),
+  });
+};
+
+export const getSaveIntakeFollowUpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeFollowUp>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeFollowUpInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveIntakeFollowUp>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeFollowUpInput> },
+  TContext
+> => {
+  const mutationKey = ["saveIntakeFollowUp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveIntakeFollowUp>>,
+    { caseId: string; data: BodyType<IntakeFollowUpInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return saveIntakeFollowUp(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveIntakeFollowUpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveIntakeFollowUp>>
+>;
+export type SaveIntakeFollowUpMutationBody = BodyType<IntakeFollowUpInput>;
+export type SaveIntakeFollowUpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save a response to a generated teacher or parent question
+ */
+export const useSaveIntakeFollowUp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeFollowUp>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeFollowUpInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveIntakeFollowUp>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeFollowUpInput> },
+  TContext
+> => {
+  return useMutation(getSaveIntakeFollowUpMutationOptions(options));
+};
+
+/**
+ * @summary Ask the intake advisor a case-specific question
+ */
+export const getDiscussIntakeUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-discussion`;
+};
+
+export const discussIntake = async (
+  caseId: string,
+  intakeDiscussionInput: IntakeDiscussionInput,
+  options?: RequestInit,
+): Promise<IntakeDiscussionResult> => {
+  return customFetch<IntakeDiscussionResult>(getDiscussIntakeUrl(caseId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(intakeDiscussionInput),
+  });
+};
+
+export const getDiscussIntakeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discussIntake>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeDiscussionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof discussIntake>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeDiscussionInput> },
+  TContext
+> => {
+  const mutationKey = ["discussIntake"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof discussIntake>>,
+    { caseId: string; data: BodyType<IntakeDiscussionInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return discussIntake(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DiscussIntakeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof discussIntake>>
+>;
+export type DiscussIntakeMutationBody = BodyType<IntakeDiscussionInput>;
+export type DiscussIntakeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Ask the intake advisor a case-specific question
+ */
+export const useDiscussIntake = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discussIntake>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeDiscussionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof discussIntake>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeDiscussionInput> },
+  TContext
+> => {
+  return useMutation(getDiscussIntakeMutationOptions(options));
+};
+
+/**
+ * @summary Save assessment lead's verified context for future intake regeneration
+ */
+export const getSaveIntakeLeadContextUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-lead-context`;
+};
+
+export const saveIntakeLeadContext = async (
+  caseId: string,
+  intakeLeadContextInput: IntakeLeadContextInput,
+  options?: RequestInit,
+): Promise<IntakeLeadContextResult> => {
+  return customFetch<IntakeLeadContextResult>(
+    getSaveIntakeLeadContextUrl(caseId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(intakeLeadContextInput),
+    },
+  );
+};
+
+export const getSaveIntakeLeadContextMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeLeadContext>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeLeadContextInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveIntakeLeadContext>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeLeadContextInput> },
+  TContext
+> => {
+  const mutationKey = ["saveIntakeLeadContext"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveIntakeLeadContext>>,
+    { caseId: string; data: BodyType<IntakeLeadContextInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return saveIntakeLeadContext(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveIntakeLeadContextMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveIntakeLeadContext>>
+>;
+export type SaveIntakeLeadContextMutationBody =
+  BodyType<IntakeLeadContextInput>;
+export type SaveIntakeLeadContextMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save assessment lead's verified context for future intake regeneration
+ */
+export const useSaveIntakeLeadContext = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveIntakeLeadContext>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeLeadContextInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveIntakeLeadContext>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeLeadContextInput> },
+  TContext
+> => {
+  return useMutation(getSaveIntakeLeadContextMutationOptions(options));
 };
 
 /**

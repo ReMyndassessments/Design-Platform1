@@ -382,6 +382,63 @@ export const AnalyzeIntakeResponse = zod.object({
 });
 
 /**
+ * @summary Save a response to a generated teacher or parent question
+ */
+export const SaveIntakeFollowUpParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const saveIntakeFollowUpBodyQuestionMax = 2000;
+
+export const saveIntakeFollowUpBodyAnswerMax = 20000;
+
+export const SaveIntakeFollowUpBody = zod.object({
+  audience: zod.enum(["teacher", "parent"]),
+  question: zod.string().min(1).max(saveIntakeFollowUpBodyQuestionMax),
+  answer: zod.string().max(saveIntakeFollowUpBodyAnswerMax),
+});
+
+export const SaveIntakeFollowUpResponse = zod.object({
+  audience: zod.enum(["teacher", "parent"]),
+  question: zod.string(),
+  answer: zod.string(),
+});
+
+/**
+ * @summary Ask the intake advisor a case-specific question
+ */
+export const DiscussIntakeParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const discussIntakeBodyMessageMax = 4000;
+
+export const DiscussIntakeBody = zod.object({
+  message: zod.string().min(1).max(discussIntakeBodyMessageMax),
+});
+
+export const DiscussIntakeResponse = zod.object({
+  reply: zod.string(),
+});
+
+/**
+ * @summary Save assessment lead's verified context for future intake regeneration
+ */
+export const SaveIntakeLeadContextParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const saveIntakeLeadContextBodyContextMax = 20000;
+
+export const SaveIntakeLeadContextBody = zod.object({
+  context: zod.string().max(saveIntakeLeadContextBodyContextMax),
+});
+
+export const SaveIntakeLeadContextResponse = zod.object({
+  context: zod.string(),
+});
+
+/**
  * @summary List assessment tools
  */
 export const ListAssessmentToolsResponseItem = zod.object({

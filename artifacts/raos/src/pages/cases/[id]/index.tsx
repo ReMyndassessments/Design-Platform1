@@ -34,6 +34,7 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
 import { AiNotetaker, type Recording as InterviewRecording } from "@/components/AiNotetaker";
+import { IntakeFollowUp } from "@/components/IntakeFollowUp";
 import { InvigilatorNotetakerPanel } from "@/components/InvigilatorNotetakerPanel";
 import { useWatchAlong } from "@/hooks/use-watch-along";
 import { GuidedTour } from "@/components/guided-tour";
@@ -326,6 +327,7 @@ export default function CaseDetail() {
   const [interviewNotesDraft, setInterviewNotesDraft] = useState<string>("");
   const [interviewNotesSaved, setInterviewNotesSaved] = useState(false);
   const [savingInterviewNotes, setSavingInterviewNotes] = useState(false);
+  const [leadContextDraft, setLeadContextDraft] = useState("");
 
   // ── AI Notetaker state ─────────────────────────────────────────────────────
   const [interviewRecordings, setInterviewRecordings] = useState<InterviewRecording[]>([]);
@@ -346,6 +348,10 @@ export default function CaseDetail() {
   useEffect(() => {
     setInterviewNotesDraft((c as any)?.parentInterviewNotes ?? "");
   }, [(c as any)?.parentInterviewNotes]);
+
+  useEffect(() => {
+    setLeadContextDraft(((c?.intakeAnalysis as any)?.leadContext as string) ?? "");
+  }, [(c?.intakeAnalysis as any)?.leadContext]);
 
   useEffect(() => {
     if (!caseId) return;
@@ -902,7 +908,11 @@ export default function CaseDetail() {
       toast({ title: "Save the parent interview first", description: "Save your edited notes before regenerating the analysis.", variant: "destructive" });
       return;
     }
-    if (c?.intakeAnalysis && !window.confirm("Regenerate the intake analysis using the latest saved forms, parent interview notes and parent interview recordings? This replaces the current AI summary and recommendations, but does not change assigned tools.")) return;
+    if (leadContextDraft !== (((c?.intakeAnalysis as any)?.leadContext as string) ?? "")) {
+      toast({ title: "Save your assessment lead notes first", description: "Save your clarification before regenerating the analysis.", variant: "destructive" });
+      return;
+    }
+    if (c?.intakeAnalysis && !window.confirm("Regenerate the intake analysis using saved forms, parent interviews, teacher/parent responses and assessment lead clarifications? This replaces the current AI summary and recommendations, but does not change assigned tools or delete saved responses.")) return;
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
@@ -1954,48 +1964,15 @@ export default function CaseDetail() {
                       </div>
                     )}
 
-                    {/* Suggested Questions */}
-                    {(c.intakeAnalysis as any).suggestedQuestions && (() => {
-                      const sq = (c.intakeAnalysis as any).suggestedQuestions as { teacher: string[]; parent: string[] };
-                      const hasTeacher = Array.isArray(sq.teacher) && sq.teacher.length > 0;
-                      const hasParent = Array.isArray(sq.parent) && sq.parent.length > 0;
-                      if (!hasTeacher && !hasParent) return null;
-                      return (
-                        <div className="space-y-3">
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Suggested Questions</span>
-                          {hasTeacher && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">For Teacher</span>
-                              </div>
-                              <ol className="space-y-1.5 list-none">
-                                {sq.teacher.map((q: string, i: number) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 bg-indigo-50/60 border border-indigo-100 rounded px-2.5 py-1.5">
-                                    <span className="shrink-0 font-semibold text-indigo-400 mt-0.5">{i + 1}.</span>
-                                    <span>{q}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            </div>
-                          )}
-                          {hasParent && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">For Parent / Guardian</span>
-                              </div>
-                              <ol className="space-y-1.5 list-none">
-                                {sq.parent.map((q: string, i: number) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs text-slate-700 bg-teal-50/60 border border-teal-100 rounded px-2.5 py-1.5">
-                                    <span className="shrink-0 font-semibold text-teal-400 mt-0.5">{i + 1}.</span>
-                                    <span>{q}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    <IntakeFollowUp
+                      caseId={caseId}
+                      analysis={c.intakeAnalysis as any}
+                      canEdit={role === "admin" || role === "school_clinical_coordinator"}
+                      baseUrl={BASE_URL}
+                      leadContextDraft={leadContextDraft}
+                      onLeadContextChange={setLeadContextDraft}
+                      onUpdated={() => queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] })}
+                    />
 
                     {/* Recommended Tools */}
                     {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (() => {

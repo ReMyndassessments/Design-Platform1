@@ -190,6 +190,78 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntakeAnalysis"
 
+  /cases/{caseId}/intake-follow-up:
+    put:
+      operationId: saveIntakeFollowUp
+      tags: [cases]
+      summary: Save a response to a generated teacher or parent question
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeFollowUpInput"
+      responses:
+        "200":
+          description: Updated follow-up answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeFollowUpResult"
+
+  /cases/{caseId}/intake-discussion:
+    post:
+      operationId: discussIntake
+      tags: [cases]
+      summary: Ask the intake advisor a case-specific question
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeDiscussionInput"
+      responses:
+        "200":
+          description: Saved advisory reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeDiscussionResult"
+
+  /cases/{caseId}/intake-lead-context:
+    put:
+      operationId: saveIntakeLeadContext
+      tags: [cases]
+      summary: Save assessment lead's verified context for future intake regeneration
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeLeadContextInput"
+      responses:
+        "200":
+          description: Saved context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeLeadContextResult"
+
   # ─── Assessment Tools ─────────────────────────────────────────────────────
   /assessment-tools:
     get:
@@ -1139,6 +1211,41 @@ components:
           items:
             type: string
       required: [recommendedDomains, riskLevel, summary]
+
+    IntakeFollowUpInput:
+      type: object
+      required: [audience, question, answer]
+      properties:
+        audience: { type: string, enum: [teacher, parent] }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+        answer: { type: string, maxLength: 20000 }
+    IntakeFollowUpResult:
+      type: object
+      required: [audience, question, answer]
+      properties:
+        audience: { type: string, enum: [teacher, parent] }
+        question: { type: string }
+        answer: { type: string }
+    IntakeDiscussionInput:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000 }
+    IntakeDiscussionResult:
+      type: object
+      required: [reply]
+      properties:
+        reply: { type: string }
+    IntakeLeadContextInput:
+      type: object
+      required: [context]
+      properties:
+        context: { type: string, maxLength: 20000 }
+    IntakeLeadContextResult:
+      type: object
+      required: [context]
+      properties:
+        context: { type: string }
 
     # ─── Assessment Tool ──────────────────────────────────────────────────────
     AssessmentTool:

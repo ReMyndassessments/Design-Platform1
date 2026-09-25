@@ -69,6 +69,8 @@ export async function analyzeIntakeWithAI(intake: {
   referralFormAnswers?: Record<string, unknown> | null;
   parentIntakeAnswers?: Record<string, unknown> | null;
   parentInterviewNotes?: string | null;
+  followUpAnswers?: Record<string, unknown> | null;
+  leadContext?: string | null;
   assessmentTools?: Array<{
     id: string;
     name: string;
@@ -111,6 +113,12 @@ ${intake.parentIntakeAnswers
 
 ${intake.parentInterviewNotes
   ? `═══ SUPPLEMENTARY PARENT INTERVIEWS (manual notes and/or recorded interview notes) ═══\n${intake.parentInterviewNotes}\n`
+  : ""}
+${intake.followUpAnswers
+  ? `═══ LATER RESPONSES TO TEACHER/PARENT FOLLOW-UP QUESTIONS ═══\n${JSON.stringify(intake.followUpAnswers, null, 2)}\n`
+  : ""}
+${intake.leadContext
+  ? `═══ VERIFIED ASSESSMENT LEAD CLARIFICATIONS ═══\n${intake.leadContext}\n`
   : ""}
 ═══ AVAILABLE ASSESSMENT TOOLS ═══
 ${toolList || "No tools available in library."}

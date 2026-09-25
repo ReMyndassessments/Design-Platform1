@@ -357,6 +357,60 @@ export interface UpdateCaseRequest {
   consentObtained?: boolean;
 }
 
+export type IntakeFollowUpInputAudience =
+  (typeof IntakeFollowUpInputAudience)[keyof typeof IntakeFollowUpInputAudience];
+
+export const IntakeFollowUpInputAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface IntakeFollowUpInput {
+  audience: IntakeFollowUpInputAudience;
+  /**
+   * @minLength 1
+   * @maxLength 2000
+   */
+  question: string;
+  /** @maxLength 20000 */
+  answer: string;
+}
+
+export type IntakeFollowUpResultAudience =
+  (typeof IntakeFollowUpResultAudience)[keyof typeof IntakeFollowUpResultAudience];
+
+export const IntakeFollowUpResultAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface IntakeFollowUpResult {
+  audience: IntakeFollowUpResultAudience;
+  question: string;
+  answer: string;
+}
+
+export interface IntakeDiscussionInput {
+  /**
+   * @minLength 1
+   * @maxLength 4000
+   */
+  message: string;
+}
+
+export interface IntakeDiscussionResult {
+  reply: string;
+}
+
+export interface IntakeLeadContextInput {
+  /** @maxLength 20000 */
+  context: string;
+}
+
+export interface IntakeLeadContextResult {
+  context: string;
+}
+
 export type AssessmentToolRespondentTypesItem =
   (typeof AssessmentToolRespondentTypesItem)[keyof typeof AssessmentToolRespondentTypesItem];
 
