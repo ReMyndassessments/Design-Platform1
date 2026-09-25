@@ -11,7 +11,7 @@ import { ageOnDate, isValidDob } from "../lib/case-demographics.js";
 import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase-navigation.js";
 import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intakeQuestionEmail.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -1023,40 +1023,18 @@ async function sendIntakeQuestionRequest(
   }
 
   const portalUrl = questionRequestPortalUrl(req, token);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#172033">
-    <h2>Additional information requested</h2>
-    <p>Hello ${escapeHtml(request.recipientName)}, the ReMynd assessment team has a few questions for you. For privacy, the questions and your response are available only through your secure portal link.</p>
-    <p><a href="${escapeHtml(portalUrl)}" style="display:inline-block;padding:12px 20px;background:#0f766e;color:white;text-decoration:none;border-radius:6px">Respond securely</a></p>
-    <p style="font-size:12px;color:#64748b">This secure link is intended only for you.</p>
-  </div>`;
+  const html = buildIntakeQuestionEmail({
+    audience: request.audience,
+    questions: request.questions,
+    recipientName: request.recipientName,
+    portalUrl,
+  });
   try {
-    const connectors = new ReplitConnectors();
-    const profileResponse = await connectors.proxy("google-mail", "/gmail/v1/users/me/profile", { method: "GET" });
-    if (!profileResponse.ok) throw new Error(`Gmail account could not be verified (HTTP ${profileResponse.status})`);
-    const profile = await profileResponse.json() as { emailAddress?: string };
-    if (!profile.emailAddress || !/^[^\s@]+@[^\s@]+$/.test(profile.emailAddress)) {
-      throw new Error("Gmail sender address is unavailable");
-    }
-    if (!/^[^\s@]+@[^\s@]+$/.test(request.recipientEmail)) {
-      throw new Error("Recipient email address is invalid");
-    }
-    const encodedHtml = Buffer.from(html, "utf8").toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? "";
-    const mime = [
-      `From: ReMynd Student Services <${profile.emailAddress}>`,
-      `To: ${request.recipientEmail}`,
-      "Subject: ReMynd: additional information requested",
-      "MIME-Version: 1.0",
-      "Content-Type: text/html; charset=UTF-8",
-      "Content-Transfer-Encoding: base64",
-      "",
-      encodedHtml,
-    ].join("\r\n");
-    const response = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raw: Buffer.from(mime).toString("base64url") }),
+    await sendIntakeQuestionEmail({
+      to: request.recipientEmail,
+      subject: "ReMynd: additional information requested",
+      html,
     });
-    if (!response.ok) throw new Error(`Gmail did not accept the invitation (HTTP ${response.status})`);
   } catch (error) {
     return {
       item: formatQuestionRequest(request, portalUrl),
@@ -1069,12 +1047,6 @@ async function sendIntakeQuestionRequest(
     .returning();
   const saved = updated ?? request;
   return { item: formatQuestionRequest(saved, portalUrl) };
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[char]!);
 }
 
 async function authorizeIntakeQuestionRequestCase(caseId: string, req: any, res: any): Promise<boolean> {
@@ -1092,6 +1064,11 @@ async function authorizeIntakeQuestionRequestCase(caseId: string, req: any, res:
     return false;
   }
   return true;
+}
+
+function getSuggestedIntakeQuestions(analysis: unknown, audience: "teacher" | "parent"): string[] {
+  const suggested = (analysis as { suggestedQuestions?: Record<string, unknown> } | null)?.suggestedQuestions?.[audience];
+  return Array.isArray(suggested) ? suggested.filter((q): q is string => typeof q === "string" && !!q.trim()) : [];
 }
 
 router.get("/cases/:caseId/intake-question-requests", authMiddleware, async (req, res): Promise<void> => {
@@ -1154,8 +1131,7 @@ router.post("/cases/:caseId/intake-question-requests", authMiddleware, async (re
   }
   const [caseRow] = await db.select({ studentName: casesTable.studentName, intakeAnalysis: casesTable.intakeAnalysis })
     .from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
-  const suggested = (caseRow?.intakeAnalysis as { suggestedQuestions?: Record<string, unknown> } | null)?.suggestedQuestions?.[body.audience];
-  const questions = Array.isArray(suggested) ? suggested.filter((q): q is string => typeof q === "string" && !!q.trim()) : [];
+  const questions = getSuggestedIntakeQuestions(caseRow?.intakeAnalysis, body.audience);
   if (!questions.length) {
     res.status(409).json({ error: "questions_unavailable", message: "Generate intake analysis with suggested questions before creating an invitation." });
     return;
@@ -1176,6 +1152,43 @@ router.post("/cases/:caseId/intake-question-requests", authMiddleware, async (re
     return;
   }
   res.status(201).json(sent.item);
+});
+
+router.post("/cases/:caseId/intake-question-requests/test-email", authMiddleware, async (req, res): Promise<void> => {
+  const caseId = Array.isArray(req.params.caseId) ? req.params.caseId[0] : req.params.caseId;
+  if (!await authorizeIntakeQuestionRequestCase(caseId, req, res)) return;
+  const parsed = z.object({ audience: z.enum(["teacher", "parent"]) }).strict().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "validation_error", message: "Choose teacher or parent questions." });
+    return;
+  }
+  const [[caseRow], [user]] = await Promise.all([
+    db.select({ intakeAnalysis: casesTable.intakeAnalysis }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1),
+    db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1),
+  ]);
+  const questions = getSuggestedIntakeQuestions(caseRow?.intakeAnalysis, parsed.data.audience);
+  if (!questions.length) {
+    res.status(409).json({ error: "questions_unavailable", message: "Generate intake analysis with suggested questions before sending a test." });
+    return;
+  }
+  if (!user?.email?.trim()) {
+    res.status(409).json({ error: "account_email_missing", message: "Your account has no email address for the test copy." });
+    return;
+  }
+  try {
+    await sendIntakeQuestionEmail({
+      to: user.email.trim(),
+      subject: `ReMynd TEST: ${parsed.data.audience} intake questions`,
+      html: buildIntakeQuestionEmail({ audience: parsed.data.audience, questions, isTest: true }),
+    });
+  } catch (error) {
+    res.status(502).json({
+      error: "email_delivery_failed",
+      message: error instanceof Error ? error.message : "Gmail did not accept the test email.",
+    });
+    return;
+  }
+  res.json({ recipientEmail: user.email.trim(), questionCount: questions.length });
 });
 
 router.post("/cases/:caseId/intake-question-requests/:id/send", authMiddleware, async (req, res): Promise<void> => {

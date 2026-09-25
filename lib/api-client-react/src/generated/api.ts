@@ -49,6 +49,8 @@ import type {
   IntakeQuestionRequest,
   IntakeQuestionRequestDeliveryError,
   IntakeQuestionRequestInput,
+  IntakeQuestionTestEmailInput,
+  IntakeQuestionTestEmailResult,
   ListCasesParams,
   LoginRequest,
   ManualScoreRequest,
@@ -1110,6 +1112,98 @@ export const useSendIntakeQuestionRequest = <
   TContext
 > => {
   return useMutation(getSendIntakeQuestionRequestMutationOptions(options));
+};
+
+/**
+ * Does not create an invitation or portal link.
+ * @summary Email a test copy of current suggested questions to the signed-in admin
+ */
+export const getSendIntakeQuestionTestEmailUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-question-requests/test-email`;
+};
+
+export const sendIntakeQuestionTestEmail = async (
+  caseId: string,
+  intakeQuestionTestEmailInput: IntakeQuestionTestEmailInput,
+  options?: RequestInit,
+): Promise<IntakeQuestionTestEmailResult> => {
+  return customFetch<IntakeQuestionTestEmailResult>(
+    getSendIntakeQuestionTestEmailUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(intakeQuestionTestEmailInput),
+    },
+  );
+};
+
+export const getSendIntakeQuestionTestEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeQuestionTestEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeQuestionTestEmailInput> },
+  TContext
+> => {
+  const mutationKey = ["sendIntakeQuestionTestEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>,
+    { caseId: string; data: BodyType<IntakeQuestionTestEmailInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return sendIntakeQuestionTestEmail(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendIntakeQuestionTestEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>
+>;
+export type SendIntakeQuestionTestEmailMutationBody =
+  BodyType<IntakeQuestionTestEmailInput>;
+export type SendIntakeQuestionTestEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Email a test copy of current suggested questions to the signed-in admin
+ */
+export const useSendIntakeQuestionTestEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeQuestionTestEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendIntakeQuestionTestEmail>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeQuestionTestEmailInput> },
+  TContext
+> => {
+  return useMutation(getSendIntakeQuestionTestEmailMutationOptions(options));
 };
 
 /**

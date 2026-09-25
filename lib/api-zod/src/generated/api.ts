@@ -528,6 +528,23 @@ export const SendIntakeQuestionRequestResponse = zod.object({
 });
 
 /**
+ * Does not create an invitation or portal link.
+ * @summary Email a test copy of current suggested questions to the signed-in admin
+ */
+export const SendIntakeQuestionTestEmailParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const SendIntakeQuestionTestEmailBody = zod.object({
+  audience: zod.enum(["teacher", "parent"]),
+});
+
+export const SendIntakeQuestionTestEmailResponse = zod.object({
+  recipientEmail: zod.string().email(),
+  questionCount: zod.number(),
+});
+
+/**
  * @summary Save a response to a generated teacher or parent question
  */
 export const SaveIntakeFollowUpParams = zod.object({

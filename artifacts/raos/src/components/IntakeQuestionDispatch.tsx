@@ -45,6 +45,7 @@ export function IntakeQuestionDispatch({
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
   const endpoint = `${baseUrl}/api/cases/${encodeURIComponent(caseId)}/intake-question-requests`;
   const authHeaders = () => ({
     "Content-Type": "application/json",
@@ -116,20 +117,40 @@ export function IntakeQuestionDispatch({
   };
 
   const resend = async (request: Invitation) => {
-    if (!window.confirm(`Send the question link to ${request.recipientName} (${request.recipientEmail})?`)) return;
+    if (!window.confirm(`Resend the same questions and private portal link to ${request.recipientName} (${request.recipientEmail})?`)) return;
     setRetryingId(request.id);
     try {
       const response = await fetch(`${endpoint}/${encodeURIComponent(request.id)}/send`, {
         method: "POST",
         headers: authHeaders(),
       });
-      if (!response.ok) throw new Error("Could not send the link. Please try again.");
+      const result = await response.json().catch(() => ({})) as { message?: string };
+      if (!response.ok) throw new Error(result.message || "Could not resend the questions. Please try again.");
       await refresh();
-      toast({ title: "Question link sent", description: request.recipientEmail });
-    } catch {
-      toast({ title: "Could not send the link", variant: "destructive" });
+      toast({ title: "Questions resent", description: request.recipientEmail });
+    } catch (error) {
+      toast({ title: "Could not resend the questions", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  const sendTest = async () => {
+    if (!window.confirm(`Email a test copy of these ${audience} questions to your signed-in account? This does not create an invitation or portal link.`)) return;
+    setTesting(true);
+    try {
+      const response = await fetch(`${endpoint}/test-email`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ audience }),
+      });
+      const result = await response.json().catch(() => ({})) as { recipientEmail?: string; message?: string };
+      if (!response.ok) throw new Error(result.message || "Could not send the test email.");
+      toast({ title: "Test copy sent", description: `Sent to your account email: ${result.recipientEmail}. No invitation was created.` });
+    } catch (error) {
+      toast({ title: "Test email not sent", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -139,7 +160,7 @@ export function IntakeQuestionDispatch({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h5 className="text-sm font-semibold text-slate-800">Send these questions</h5>
-          <p className="text-xs text-slate-600">Choose one recipient. Existing portal recipients use their current link; others receive a question-only link.</p>
+          <p className="text-xs text-slate-600">Send to one recipient at a time; repeat for as many people as needed. Existing recipients use their portal; others receive a question-only link. You can resend any invitation below.</p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void refresh()} aria-label="Refresh recipient responses">
           <RefreshCw size={14} />
@@ -160,7 +181,7 @@ export function IntakeQuestionDispatch({
           </option>)}
           <option value="new">{audience === "teacher" ? "Another teacher" : "Another parent / guardian"} (new link)</option>
         </select>
-        <Button size="sm" type="button" disabled={!selection || busy || !questionCount} onClick={() => void send()}>
+        <Button size="sm" type="button" disabled={!selection || busy || testing || !questionCount} onClick={() => void send()}>
           {busy ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Mail size={14} className="mr-2" />}
           Send questions
         </Button>
@@ -174,6 +195,13 @@ export function IntakeQuestionDispatch({
             className="h-9 rounded-md border border-slate-300 px-2 text-sm" />
         </div>
       )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" variant="outline" disabled={testing || busy || !questionCount} onClick={() => void sendTest()}>
+          {testing ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Mail size={14} className="mr-2" />}
+          Email me a test copy
+        </Button>
+        <span className="text-xs text-slate-500">Includes the questions. No invitation or response link is created.</span>
+      </div>
       {loadError && <p role="alert" className="text-xs text-red-700">Could not load question invitations. Use Refresh to try again.</p>}
       {!loading && audienceRequests.length > 0 && (
         <div className="space-y-2 border-t border-slate-100 pt-3">
@@ -194,7 +222,7 @@ export function IntakeQuestionDispatch({
               )}
               <Button size="sm" variant="link" type="button" className="mt-1 h-auto p-0 text-xs"
                 disabled={retryingId === request.id} onClick={() => void resend(request)}>
-                {retryingId === request.id ? "Sending…" : request.sentAt ? "Resend link" : "Retry sending"}
+                {retryingId === request.id ? "Sending…" : request.sentAt ? "Resend questions and link" : "Retry sending"}
               </Button>
             </div>
           ))}

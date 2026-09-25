@@ -296,6 +296,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntakeQuestionRequestDeliveryError"
 
+  /cases/{caseId}/intake-question-requests/test-email:
+    post:
+      operationId: sendIntakeQuestionTestEmail
+      tags: [cases]
+      summary: Email a test copy of current suggested questions to the signed-in admin
+      description: Does not create an invitation or portal link.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeQuestionTestEmailInput"
+      responses:
+        "200":
+          description: Test email accepted for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeQuestionTestEmailResult"
+
   /cases/{caseId}/intake-follow-up:
     put:
       operationId: saveIntakeFollowUp
@@ -1427,6 +1452,17 @@ components:
         recipientName: { type: string, minLength: 1, maxLength: 200 }
         recipientEmail: { type: string, format: email, maxLength: 320 }
       description: Provide assignmentId, or provide both recipientName and recipientEmail.
+    IntakeQuestionTestEmailInput:
+      type: object
+      required: [audience]
+      properties:
+        audience: { type: string, enum: [teacher, parent] }
+    IntakeQuestionTestEmailResult:
+      type: object
+      required: [recipientEmail, questionCount]
+      properties:
+        recipientEmail: { type: string, format: email }
+        questionCount: { type: integer }
     IntakeQuestionRequest:
       type: object
       required: [id, audience, recipientName, recipientEmail, questions, answer, sentAt, submittedAt, portalUrl]

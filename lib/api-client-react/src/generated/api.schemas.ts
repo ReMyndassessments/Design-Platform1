@@ -406,6 +406,23 @@ export interface IntakeQuestionRequestInput {
   recipientEmail?: string;
 }
 
+export type IntakeQuestionTestEmailInputAudience =
+  (typeof IntakeQuestionTestEmailInputAudience)[keyof typeof IntakeQuestionTestEmailInputAudience];
+
+export const IntakeQuestionTestEmailInputAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface IntakeQuestionTestEmailInput {
+  audience: IntakeQuestionTestEmailInputAudience;
+}
+
+export interface IntakeQuestionTestEmailResult {
+  recipientEmail: string;
+  questionCount: number;
+}
+
 export type IntakeQuestionRequestAudience =
   (typeof IntakeQuestionRequestAudience)[keyof typeof IntakeQuestionRequestAudience];
 
