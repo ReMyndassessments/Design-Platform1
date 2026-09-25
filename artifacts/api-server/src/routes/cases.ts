@@ -6,10 +6,9 @@ import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
-import { analyzeIntakeWithAI } from "../lib/ai.js";
+import { analyzeIntakeWithAI, callDeepSeek } from "../lib/ai.js";
 import { ageOnDate, isValidDob } from "../lib/case-demographics.js";
 import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase-navigation.js";
-import { ai } from "@workspace/integrations-gemini-ai";
 import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { ReplitConnectors } from "@replit/connectors-sdk";
@@ -1031,19 +1030,33 @@ async function sendIntakeQuestionRequest(
     <p style="font-size:12px;color:#64748b">This secure link is intended only for you.</p>
   </div>`;
   try {
-    const response = await new ReplitConnectors().proxy("outlook", "/v1.0/me/sendMail", {
+    const connectors = new ReplitConnectors();
+    const profileResponse = await connectors.proxy("google-mail", "/gmail/v1/users/me/profile", { method: "GET" });
+    if (!profileResponse.ok) throw new Error(`Gmail account could not be verified (HTTP ${profileResponse.status})`);
+    const profile = await profileResponse.json() as { emailAddress?: string };
+    if (!profile.emailAddress || !/^[^\s@]+@[^\s@]+$/.test(profile.emailAddress)) {
+      throw new Error("Gmail sender address is unavailable");
+    }
+    if (!/^[^\s@]+@[^\s@]+$/.test(request.recipientEmail)) {
+      throw new Error("Recipient email address is invalid");
+    }
+    const encodedHtml = Buffer.from(html, "utf8").toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? "";
+    const mime = [
+      `From: ReMynd Student Services <${profile.emailAddress}>`,
+      `To: ${request.recipientEmail}`,
+      "Subject: ReMynd: additional information requested",
+      "MIME-Version: 1.0",
+      "Content-Type: text/html; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      encodedHtml,
+    ].join("\r\n");
+    const response = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: {
-          subject: "Additional information requested — ReMynd Student Services",
-          body: { contentType: "HTML", content: html },
-          toRecipients: [{ emailAddress: { address: request.recipientEmail } }],
-        },
-        saveToSentItems: true,
-      }),
+      body: JSON.stringify({ raw: Buffer.from(mime).toString("base64url") }),
     });
-    if (response.status !== 202) throw new Error(`Outlook did not accept the invitation (HTTP ${response.status})`);
+    if (!response.ok) throw new Error(`Gmail did not accept the invitation (HTTP ${response.status})`);
   } catch (error) {
     return {
       item: formatQuestionRequest(request, portalUrl),
@@ -1370,12 +1383,7 @@ ${deidentify(message)}`;
   if (prompt.length > 110_000) {
     res.status(413).json({ error: "Case evidence is too long for the AI discussion; shorten the source notes first." }); return;
   }
-  const result = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: 8192 },
-  });
-  const reply = result.text?.trim();
+  const reply = (await callDeepSeek(prompt, 8192)).trim();
   if (!reply) throw new Error("The intake advisor returned an empty response");
   const turns = JSON.stringify([
     { role: "user", text: message, at: new Date().toISOString() },

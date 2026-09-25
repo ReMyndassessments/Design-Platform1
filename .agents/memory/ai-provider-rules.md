@@ -23,6 +23,13 @@ Import `ai` from `@workspace/integrations-gemini-ai` and call `ai.models.generat
 Env vars `AI_INTEGRATIONS_GEMINI_BASE_URL` and `AI_INTEGRATIONS_GEMINI_API_KEY` are auto-provisioned — do not ask user for them.
 No per-call cost to user; billed through Replit credits (free tier available).
 
+## Intake text → DeepSeek
+Use DeepSeek for both intake analysis and the assessment lead's intake follow-up discussion, not Gemini.
+
+**Why:** The user explicitly chose DeepSeek instead of Gemini for the intake follow-up workflow.
+
+**How to apply:** Keep this preference scoped to intake text. Vision work remains under the vision rule above unless the user explicitly changes it.
+
 ## OpenRouter → forbidden without asking
 Never provision or use Replit OpenRouter AI integration without checking with the user first — it bills Replit credits directly.
 

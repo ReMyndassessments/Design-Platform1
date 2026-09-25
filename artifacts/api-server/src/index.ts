@@ -2280,6 +2280,35 @@ async function runMigrations() {
   }
 }
 
+async function ensureIntakeQuestionRequestsTable() {
+  await db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE intake_question_audience AS ENUM ('teacher', 'parent');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS intake_question_requests (
+      id text PRIMARY KEY,
+      case_id text NOT NULL,
+      audience intake_question_audience NOT NULL,
+      assignment_id text,
+      recipient_name text NOT NULL,
+      recipient_email text NOT NULL,
+      question_only_token text UNIQUE,
+      questions jsonb NOT NULL,
+      answer text,
+      sent_at timestamptz,
+      submitted_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS intake_question_requests_case_id_idx ON intake_question_requests(case_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS intake_question_requests_assignment_id_idx ON intake_question_requests(assignment_id)`);
+  logger.info("Intake question requests table ready");
+}
+
 async function reviseHIQForm() {
   try {
     const rows = await db
@@ -5044,6 +5073,7 @@ async function purgeInvalidScores() {
 }
 
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
+  .then(() => ensureIntakeQuestionRequestsTable())
   .then(() => backfillRespondentLabels())
   .then(() => migrateBehavObsToInvigilator())
   .then(() => reviseHIQForm())
