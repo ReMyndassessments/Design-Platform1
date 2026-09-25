@@ -24,6 +24,8 @@ export * from "./caseCurrentPhase";
 export * from "./caseDetail";
 export * from "./caseDetailIntakeData";
 export * from "./caseLanguagePreference";
+export * from "./casePhaseReturnInput";
+export * from "./casePhaseReturnInputTargetPhase";
 export * from "./caseRiskLevel";
 export * from "./cdpFormAssignmentSummary";
 export * from "./cdpFormResult";

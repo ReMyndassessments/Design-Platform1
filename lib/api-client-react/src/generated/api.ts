@@ -25,6 +25,7 @@ import type {
   BatteryDetail,
   Case,
   CaseDetail,
+  CasePhaseReturnInput,
   CdpProfile,
   CreateAssessmentToolRequest,
   CreateAssignmentRequest,
@@ -655,6 +656,93 @@ export const useAdvanceCasePhase = <
   TContext
 > => {
   return useMutation(getAdvanceCasePhaseMutationOptions(options));
+};
+
+/**
+ * @summary Return a case to the previous phase or a selected earlier phase
+ */
+export const getStepBackCasePhaseUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/step-back`;
+};
+
+export const stepBackCasePhase = async (
+  caseId: string,
+  casePhaseReturnInput?: CasePhaseReturnInput,
+  options?: RequestInit,
+): Promise<Case> => {
+  return customFetch<Case>(getStepBackCasePhaseUrl(caseId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(casePhaseReturnInput),
+  });
+};
+
+export const getStepBackCasePhaseMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stepBackCasePhase>>,
+    TError,
+    { caseId: string; data: BodyType<CasePhaseReturnInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof stepBackCasePhase>>,
+  TError,
+  { caseId: string; data: BodyType<CasePhaseReturnInput> },
+  TContext
+> => {
+  const mutationKey = ["stepBackCasePhase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof stepBackCasePhase>>,
+    { caseId: string; data: BodyType<CasePhaseReturnInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return stepBackCasePhase(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StepBackCasePhaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof stepBackCasePhase>>
+>;
+export type StepBackCasePhaseMutationBody = BodyType<CasePhaseReturnInput>;
+export type StepBackCasePhaseMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Return a case to the previous phase or a selected earlier phase
+ */
+export const useStepBackCasePhase = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stepBackCasePhase>>,
+    TError,
+    { caseId: string; data: BodyType<CasePhaseReturnInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof stepBackCasePhase>>,
+  TError,
+  { caseId: string; data: BodyType<CasePhaseReturnInput> },
+  TContext
+> => {
+  return useMutation(getStepBackCasePhaseMutationOptions(options));
 };
 
 /**

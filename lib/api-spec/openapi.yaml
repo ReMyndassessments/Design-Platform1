@@ -171,6 +171,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/Case"
 
+  /cases/{caseId}/step-back:
+    post:
+      operationId: stepBackCasePhase
+      tags: [cases]
+      summary: Return a case to the previous phase or a selected earlier phase
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasePhaseReturnInput"
+      responses:
+        "200":
+          description: Updated case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "400":
+          description: Target must be an earlier displayed phase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /cases/{caseId}/intake-analysis:
     post:
       operationId: analyzeIntake
@@ -1193,6 +1223,14 @@ components:
           type: string
         consentObtained:
           type: boolean
+
+    CasePhaseReturnInput:
+      type: object
+      properties:
+        targetPhase:
+          type: string
+          enum: [intake, assessment, scoring, report, final_review, debrief, complete]
+          description: Omit to step back one internal phase; provide an earlier displayed phase to jump directly.
 
     IntakeAnalysis:
       type: object

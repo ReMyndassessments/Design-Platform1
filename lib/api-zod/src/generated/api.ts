@@ -368,6 +368,69 @@ export const AdvanceCasePhaseResponse = zod.object({
 });
 
 /**
+ * @summary Return a case to the previous phase or a selected earlier phase
+ */
+export const StepBackCasePhaseParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const StepBackCasePhaseBody = zod.object({
+  targetPhase: zod
+    .enum([
+      "intake",
+      "assessment",
+      "scoring",
+      "report",
+      "final_review",
+      "debrief",
+      "complete",
+    ])
+    .optional()
+    .describe(
+      "Omit to step back one internal phase; provide an earlier displayed phase to jump directly.",
+    ),
+});
+
+export const stepBackCasePhaseResponseProgressPercentageMin = 0;
+export const stepBackCasePhaseResponseProgressPercentageMax = 100;
+
+export const StepBackCasePhaseResponse = zod.object({
+  id: zod.string(),
+  studentName: zod.string(),
+  dob: zod.string(),
+  school: zod.string(),
+  grade: zod.string().optional(),
+  languagePreference: zod.enum(["english", "mandarin", "cantonese"]),
+  referralReason: zod.string().optional(),
+  caseStatus: zod.enum(["active", "on_hold", "completed", "archived"]),
+  caseMode: zod.enum(["live", "test"]).optional(),
+  currentPhase: zod.enum([
+    "pre_commitment",
+    "intake",
+    "setup",
+    "forms",
+    "assessment",
+    "scoring",
+    "report",
+    "debrief",
+    "complete",
+  ]),
+  progressPercentage: zod
+    .number()
+    .min(stepBackCasePhaseResponseProgressPercentageMin)
+    .max(stepBackCasePhaseResponseProgressPercentageMax),
+  riskLevel: zod.enum(["low", "moderate", "high"]).nullish(),
+  assignedLeadId: zod.string().nullish(),
+  assignedPsychId: zod.string().nullish(),
+  parentName: zod.string().nullish(),
+  parentEmail: zod.string().nullish(),
+  parentPhone: zod.string().nullish(),
+  consentObtained: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
  * @summary Run AI intake analysis
  */
 export const AnalyzeIntakeParams = zod.object({

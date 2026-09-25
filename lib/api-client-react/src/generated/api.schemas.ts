@@ -357,6 +357,27 @@ export interface UpdateCaseRequest {
   consentObtained?: boolean;
 }
 
+/**
+ * Omit to step back one internal phase; provide an earlier displayed phase to jump directly.
+ */
+export type CasePhaseReturnInputTargetPhase =
+  (typeof CasePhaseReturnInputTargetPhase)[keyof typeof CasePhaseReturnInputTargetPhase];
+
+export const CasePhaseReturnInputTargetPhase = {
+  intake: "intake",
+  assessment: "assessment",
+  scoring: "scoring",
+  report: "report",
+  final_review: "final_review",
+  debrief: "debrief",
+  complete: "complete",
+} as const;
+
+export interface CasePhaseReturnInput {
+  /** Omit to step back one internal phase; provide an earlier displayed phase to jump directly. */
+  targetPhase?: CasePhaseReturnInputTargetPhase;
+}
+
 export type IntakeFollowUpInputAudience =
   (typeof IntakeFollowUpInputAudience)[keyof typeof IntakeFollowUpInputAudience];
 

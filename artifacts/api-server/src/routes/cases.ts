@@ -7,6 +7,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
+import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase-navigation.js";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
@@ -185,21 +186,10 @@ const PHASE_PROGRESS: Record<string, number> = {
   complete: 100,
 };
 
-const PHASE_ORDER = [
-  "pre_commitment", "intake", "setup", "forms", "assessment",
-  "scoring", "report", "final_review", "debrief", "complete"
-];
-
 function nextPhase(current: string): string {
-  const idx = PHASE_ORDER.indexOf(current);
+  const idx = PHASE_ORDER.findIndex(phase => phase === current);
   if (idx === -1 || idx === PHASE_ORDER.length - 1) return current;
   return PHASE_ORDER[idx + 1];
-}
-
-function prevPhase(current: string): string {
-  const idx = PHASE_ORDER.indexOf(current);
-  if (idx <= 0) return current;
-  return PHASE_ORDER[idx - 1];
 }
 
 function isAdminLike(role?: string): boolean {
@@ -578,28 +568,40 @@ router.post("/cases/:caseId/advance", authMiddleware, async (req, res) => {
   res.json(formatCase(updated[0]));
 });
 
-// ── Admin: step case back one phase ───────────────────────────────────────────
-router.post("/cases/:caseId/step-back", authMiddleware, async (req, res) => {
+// ── Admin: step back one internal phase or return to an earlier visible phase ─
+router.post("/cases/:caseId/step-back", authMiddleware, async (req, res): Promise<void> => {
   if (!isAdminLike(req.userRole)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can step back a phase" });
     return;
   }
-  const rows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  const parsed = z.object({
+    targetPhase: z.enum(DISPLAY_PHASES).optional(),
+  }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_target_phase" });
+    return;
+  }
+  const caseId = Array.isArray(req.params.caseId) ? req.params.caseId[0] : req.params.caseId;
+  const rows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!rows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  if (!canAccessCase(req.userRole!, req.userId!, rows[0], req.userSchool)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
   const current = rows[0].currentPhase;
-  const prev = prevPhase(current);
-  if (prev === current) {
-    res.status(400).json({ error: "already_at_first_phase" }); return;
+  const target = resolveStepBackTarget(current, parsed.data.targetPhase);
+  if (!target) {
+    res.status(400).json({ error: "target_must_be_earlier_phase" }); return;
   }
   const PHASE_PROGRESS: Record<string, number> = {
     pre_commitment: 5, intake: 15, setup: 25, forms: 38,
     assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 95,
   };
   const updated = await db.update(casesTable).set({
-    currentPhase: prev as typeof casesTable.$inferSelect["currentPhase"],
-    progressPercentage: PHASE_PROGRESS[prev] ?? 0,
+    currentPhase: target as typeof casesTable.$inferSelect["currentPhase"],
+    progressPercentage: PHASE_PROGRESS[target] ?? 0,
     updatedAt: new Date(),
-  }).where(eq(casesTable.id, req.params.caseId)).returning();
+  }).where(eq(casesTable.id, caseId)).returning();
   res.json(formatCase(updated[0]));
 });
 

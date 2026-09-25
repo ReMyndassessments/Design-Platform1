@@ -42,6 +42,10 @@ import { GuidedTour } from "@/components/guided-tour";
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
 ];
+const INTERNAL_PHASES = [
+  "pre_commitment", "intake", "setup", "forms", "assessment",
+  "scoring", "report", "final_review", "debrief", "complete",
+];
 const PHASE_PROGRESS: Record<string, number> = {
   pre_commitment: 5, intake: 15, setup: 25, forms: 38,
   assessment: 52, scoring: 66, report: 79, final_review: 90, debrief: 95, complete: 100,
@@ -183,19 +187,24 @@ export default function CaseDetail() {
   ];
 
   const stepBackMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ targetPhase }: { targetPhase?: string }) => {
       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/step-back`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(targetPhase ? { targetPhase } : {}),
       });
       if (!r.ok) throw new Error(await r.text());
       return r.json();
     },
-    onSuccess: () => {
-      toast({ title: "Phase stepped back" });
+    onSuccess: (_result, variables) => {
+      toast({ title: variables.targetPhase ? `Returned to ${PHASE_LABELS[variables.targetPhase]}` : "Phase stepped back" });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/cases"] });
       setStepBackConfirmOpen(false);
+      setStepBackTarget(null);
     },
     onError: () => toast({ title: "Could not step back", variant: "destructive" }),
   });
@@ -283,6 +292,7 @@ export default function CaseDetail() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [includeAbo, setIncludeAbo] = useState(false);
   const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
+  const [stepBackTarget, setStepBackTarget] = useState<string | null>(null);
   const [openingDemoPortal, setOpeningDemoPortal] = useState(false);
 
   const handleOpenDemoPortal = async () => {
@@ -690,6 +700,7 @@ export default function CaseDetail() {
     : (currentUser?.role ?? "psychometrician");
   const currentPhaseIndex = PHASES.indexOf(displayPhase(c.currentPhase));
   const canAdvance = !userLoading && canAdvancePhase(role) && c.currentPhase !== "complete";
+  const canReturnToPhase = !userLoading && canAdvancePhase(role) && c.id !== "raos-promotional-demo-v2";
   const hideAssignments = ['report', 'final_review', 'debrief', 'complete'].includes(c.currentPhase);
   const showAiCard = isPhaseVisible(role, "intake") && (
     Boolean(c.intakeAnalysis) ||
@@ -698,8 +709,9 @@ export default function CaseDetail() {
   const showMeetingCard = c.currentPhase === 'assessment' && role !== 'assessment_invigilator';
   const showInvigilatorPanel = role === 'assessment_invigilator' && c.currentPhase === 'assessment';
   const hasLeftContent = showAiCard || showMeetingCard;
-  const prevPhaseName = currentPhaseIndex > 0
-    ? (PHASE_LABELS[PHASES[currentPhaseIndex - 1]] ?? PHASES[currentPhaseIndex - 1])
+  const previousInternalPhase = INTERNAL_PHASES[INTERNAL_PHASES.indexOf(c.currentPhase) - 1];
+  const prevPhaseName = previousInternalPhase
+    ? (PHASE_LABELS[previousInternalPhase] ?? previousInternalPhase.replace("_", " "))
     : null;
 
   const filteredTools = tools?.filter(t => {
@@ -1194,7 +1206,7 @@ export default function CaseDetail() {
                 </DropdownMenuItem>
                 {c.currentPhase !== "pre_commitment" && c.currentPhase !== "intake" && (
                   <DropdownMenuItem
-                    onClick={() => setStepBackConfirmOpen(true)}
+                    onClick={() => { setStepBackTarget(null); setStepBackConfirmOpen(true); }}
                     disabled={stepBackMut.isPending}
                     className="gap-2"
                   >
@@ -1227,10 +1239,11 @@ export default function CaseDetail() {
       {/* Phase Stepper */}
       <Card className="border-none shadow-md overflow-hidden bg-gradient-to-r from-slate-900 to-slate-800 text-white">
         <CardContent className="p-6">
-          <div className="relative">
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-white/10 -translate-y-1/2 rounded-full" />
+          <div className="overflow-x-auto" role="group" aria-label="Case phases">
+            <div className="relative min-w-[740px] md:min-w-0 h-[72px]">
+            <div className="absolute top-4 left-0 w-full h-1 bg-white/10 -translate-y-1/2 rounded-full" />
             <div 
-              className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 rounded-full transition-all duration-700" 
+              className="absolute top-4 left-0 h-1 bg-primary -translate-y-1/2 rounded-full transition-all duration-700"
               style={{ width: `${(currentPhaseIndex / (PHASES.length - 1)) * 100}%` }} 
             />
             
@@ -1239,29 +1252,40 @@ export default function CaseDetail() {
                 const isPast = idx < currentPhaseIndex;
                 const isActive = idx === currentPhaseIndex;
                 const visible = isPhaseVisible(role, phase);
+                const isEarlierInternalPhase = phase === "intake" && (c.currentPhase === "setup" || c.currentPhase === "forms");
+                const canSelect = canReturnToPhase && visible && (isPast || isEarlierInternalPhase);
                 return (
                   <div key={phase} className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 transition-colors duration-500 ${
-                      !visible ? 'bg-slate-600 text-slate-500' :
-                      isActive ? 'bg-primary ring-4 ring-primary/30 text-white' : 
-                      isPast ? 'bg-primary text-white' : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {!visible ? <Lock size={12} /> :
-                       isPast ? <CheckCircle2 size={16} /> : 
-                       <span className="text-xs font-bold">{idx + 1}</span>}
-                    </div>
-                    <span className={`text-[10px] uppercase font-bold mt-2 tracking-wider absolute top-10 whitespace-nowrap text-center ${
-                      !visible ? 'text-slate-600' :
-                      isActive ? 'text-white' : 'text-slate-400'
-                    }`}>
-                      {PHASE_LABELS[phase] ?? phase.replace('_', ' ')}
-                    </span>
+                    <button type="button"
+                      disabled={!canSelect || stepBackMut.isPending}
+                      aria-label={canSelect ? `Return to ${PHASE_LABELS[phase]} phase` : `${PHASE_LABELS[phase]} phase`}
+                      title={canSelect ? `Return to ${PHASE_LABELS[phase]}` : undefined}
+                      onClick={() => { setStepBackTarget(phase); setStepBackConfirmOpen(true); }}
+                      className={`relative flex flex-col items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-full ${canSelect ? "cursor-pointer group" : "cursor-default"}`}
+                    >
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center z-10 transition-all duration-200 ${
+                        !visible ? 'bg-slate-600 text-slate-500' :
+                        isActive ? 'bg-primary ring-4 ring-primary/30 text-white' :
+                        isPast ? 'bg-primary text-white' : 'bg-slate-700 text-slate-400'
+                      } ${canSelect ? "group-hover:scale-110 group-hover:ring-4 group-hover:ring-white/30" : ""}`}>
+                        {!visible ? <Lock size={12} /> :
+                         isPast ? <CheckCircle2 size={16} /> :
+                         <span className="text-xs font-bold">{idx + 1}</span>}
+                      </span>
+                      <span className={`text-[10px] uppercase font-bold tracking-wider absolute top-10 left-1/2 -translate-x-1/2 whitespace-nowrap text-center ${
+                        !visible ? 'text-slate-600' :
+                        isActive ? 'text-white' : 'text-slate-400'
+                      } ${canSelect ? "group-hover:text-white" : ""}`}>
+                        {PHASE_LABELS[phase] ?? phase.replace('_', ' ')}
+                      </span>
+                    </button>
                   </div>
                 );
               })}
             </div>
+            </div>
           </div>
-          <div className="mt-12 flex justify-between items-end">
+          <div className="mt-2 flex justify-between items-end">
             <div>
               <p className="text-sm text-slate-400">Current Phase</p>
               <h3 className="text-xl font-bold font-display capitalize text-white">{PHASE_LABELS[c.currentPhase] ?? c.currentPhase.replace('_', ' ')}</h3>
@@ -1274,6 +1298,9 @@ export default function CaseDetail() {
               <p className="text-2xl font-bold text-primary-foreground">{PHASE_PROGRESS[c.currentPhase] ?? c.progressPercentage}%</p>
             </div>
           </div>
+          {canReturnToPhase && (currentPhaseIndex > 0 || c.currentPhase === "setup" || c.currentPhase === "forms") && (
+            <p className="mt-3 text-xs text-slate-400">Select an earlier phase above to return to it. Existing forms and results will not be deleted.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -3080,16 +3107,17 @@ export default function CaseDetail() {
       <Dialog open={stepBackConfirmOpen} onOpenChange={open => { if (!open) setStepBackConfirmOpen(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Step Back to Previous Phase?</DialogTitle>
+            <DialogTitle>{stepBackTarget ? `Return to ${PHASE_LABELS[stepBackTarget]}?` : "Step Back to Previous Phase?"}</DialogTitle>
             <DialogDescription>
               This will move <span className="font-semibold text-slate-900">{c.studentName}</span>'s case back to the{" "}
-              {prevPhaseName && <span className="font-semibold text-slate-900">{prevPhaseName}</span>} phase. You can advance again at any time.
+              <span className="font-semibold text-slate-900">{stepBackTarget ? PHASE_LABELS[stepBackTarget] : prevPhaseName}</span> phase.
+              Existing forms, responses, and assessment results will not be deleted. You can advance again later.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
             <Button variant="outline" className="flex-1" onClick={() => setStepBackConfirmOpen(false)} disabled={stepBackMut.isPending}>Cancel</Button>
-            <Button variant="default" className="flex-1 bg-amber-600 hover:bg-amber-700" onClick={() => stepBackMut.mutate()} disabled={stepBackMut.isPending}>
-              {stepBackMut.isPending ? "Stepping back..." : "Step Back"}
+            <Button variant="default" className="flex-1 bg-amber-600 hover:bg-amber-700" onClick={() => stepBackMut.mutate(stepBackTarget ? { targetPhase: stepBackTarget } : {})} disabled={stepBackMut.isPending}>
+              {stepBackMut.isPending ? "Moving phase..." : stepBackTarget ? "Return to phase" : "Step Back"}
             </Button>
           </div>
         </DialogContent>
