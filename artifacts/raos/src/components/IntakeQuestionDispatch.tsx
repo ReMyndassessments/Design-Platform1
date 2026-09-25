@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Mail, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { readIntakeQuestionAnswers } from "@/lib/intakeQuestionAnswers";
 
 type Audience = "teacher" | "parent";
 type AssignmentRecipient = {
@@ -217,7 +218,19 @@ export function IntakeQuestionDispatch({
               {request.answer && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs font-medium text-indigo-700">View submitted response</summary>
-                  <p className="mt-2 whitespace-pre-wrap text-slate-700">{request.answer}</p>
+                  {(() => {
+                    const answers = readIntakeQuestionAnswers(request.answer, request.questions.length);
+                    return answers
+                      ? <ol className="mt-3 space-y-3">
+                          {request.questions.map((question, index) => (
+                            <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
+                              <p className="text-xs font-semibold text-slate-700">{index + 1}. {question}</p>
+                              <p className="mt-1 whitespace-pre-wrap text-slate-800">{answers[index]}</p>
+                            </li>
+                          ))}
+                        </ol>
+                      : <p className="mt-2 whitespace-pre-wrap text-slate-700">{request.answer}</p>;
+                  })()}
                 </details>
               )}
               <Button size="sm" variant="link" type="button" className="mt-1 h-auto p-0 text-xs"

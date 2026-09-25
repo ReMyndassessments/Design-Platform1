@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, MessageSquareText } from "lucide-react";
+import { readIntakeQuestionAnswers, writeIntakeQuestionAnswers } from "@/lib/intakeQuestionAnswers";
 
 export type PortalQuestionRequest = {
   id: string;
@@ -19,15 +20,20 @@ function QuestionCard({
   preview?: boolean;
   language?: string;
 }) {
-  const [draft, setDraft] = useState(request.answer ?? "");
+  const [drafts, setDrafts] = useState<string[]>(
+    () => readIntakeQuestionAnswers(request.answer, request.questions.length) ?? request.questions.map(() => ""),
+  );
   const [editing, setEditing] = useState(!request.submittedAt);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const savedAnswers = readIntakeQuestionAnswers(request.answer, request.questions.length);
 
   useEffect(() => {
-    setDraft(request.answer ?? "");
+    setDrafts(readIntakeQuestionAnswers(request.answer, request.questions.length) ?? request.questions.map(() => ""));
     setEditing(!request.submittedAt);
-  }, [request.answer, request.submittedAt]);
+  // A portal refresh returns a new questions array even when this invitation
+  // has not changed. Do not discard an in-progress reply on that refetch.
+  }, [request.answer, request.submittedAt, request.id, request.questions.length]);
 
   const isMandarin = language === "mandarin";
   const isKorean = language === "korean";
@@ -35,25 +41,38 @@ function QuestionCard({
     heading: request.audience === "teacher"
       ? (isMandarin ? "给老师的问题" : isKorean ? "교사에게 드리는 질문" : "Questions for your teacher")
       : (isMandarin ? "给家长或监护人的问题" : isKorean ? "부모 또는 보호자에게 드리는 질문" : "Questions for your parent or guardian"),
-    guidance: isMandarin ? "请在下方统一回复这些问题。您可以按问题编号作答。" : isKorean ? "아래 질문에 하나의 답변으로 응답해 주세요. 번호를 맞춰 작성하셔도 됩니다." : "Please answer the questions below in one response. Number your answers to match the questions if helpful.",
-    response: isMandarin ? "您的回复" : isKorean ? "답변" : "Your response",
-    placeholder: isMandarin ? "在此填写或粘贴您的回复…" : isKorean ? "여기에 답변을 작성하거나 붙여넣으세요…" : "Write or paste your responses here…",
+    guidance: isMandarin ? "请在每个问题下方的输入框填写答案，然后统一提交。" : isKorean ? "각 질문 아래의 입력란에 답변을 작성한 뒤 한 번에 제출해 주세요." : "Write your answer in the box below each question, then submit them together.",
+    response: isMandarin ? "您的回答" : isKorean ? "답변" : "Your answer",
+    placeholder: isMandarin ? "在此填写您的回答…" : isKorean ? "여기에 답변을 작성하세요…" : "Write your answer here…",
     submit: isMandarin ? "提交回复" : isKorean ? "답변 제출" : "Submit responses",
     submitting: isMandarin ? "正在提交…" : isKorean ? "제출 중…" : "Submitting…",
     submitted: isMandarin ? "回复已提交" : isKorean ? "답변이 제출되었습니다" : "Responses submitted",
     edit: isMandarin ? "编辑并重新提交" : isKorean ? "수정 후 다시 제출" : "Edit and resubmit",
     failed: isMandarin ? "无法保存您的回复。您的文字仍在此处，请重试。" : isKorean ? "답변을 저장할 수 없습니다. 작성한 내용은 그대로 있으니 다시 시도해 주세요." : "Your response could not be saved. Your text is still here; please try again.",
+    missing: isMandarin ? "请在提交前回答每个问题。" : isKorean ? "제출하기 전에 모든 질문에 답변해 주세요." : "Please answer every question before submitting.",
+    tooLong: isMandarin ? "回复总长度不能超过 20,000 个字符。请缩短答案后再试。" : isKorean ? "전체 답변은 20,000자를 초과할 수 없습니다. 답변을 줄인 뒤 다시 시도해 주세요." : "Your combined answers are too long (20,000 characters maximum). Please shorten them and try again.",
+    preview: isMandarin ? "测试预览：您可以试填输入框，但这些答案不会保存，也无法提交。" : isKorean ? "테스트 미리보기: 입력란을 사용해 볼 수 있지만 답변은 저장되거나 제출되지 않습니다." : "Test preview: you can try the answer boxes, but nothing you type here will be saved or submitted.",
+    previous: isMandarin ? "之前提交的统一回复" : isKorean ? "이전에 제출한 통합 답변" : "Previously submitted combined response",
   };
 
   const submit = async () => {
     if (preview) return;
+    if (drafts.length !== request.questions.length || drafts.some(answer => !answer.trim())) {
+      setError(copy.missing);
+      return;
+    }
+    const answer = writeIntakeQuestionAnswers(drafts);
+    if (answer.length > 20000) {
+      setError(copy.tooLong);
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
       const response = await fetch(`/api/external/portal/${encodeURIComponent(token)}/intake-questions/${encodeURIComponent(request.id)}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: draft.trim() }),
+        body: JSON.stringify({ answer }),
       });
       if (!response.ok) throw new Error("Unable to save response");
       setEditing(false);
@@ -78,34 +97,52 @@ function QuestionCard({
           <h2 className="text-base font-bold text-slate-900">
             {copy.heading}
           </h2>
-          {!preview && <p className="mt-1 text-xs leading-relaxed text-slate-500">{copy.guidance}</p>}
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{preview ? copy.preview : copy.guidance}</p>
           </div>
         </div>
         {!preview && request.submittedAt && <CheckCircle2 size={20} className="shrink-0 text-emerald-600" aria-label="Submitted" />}
       </div>
-      <ol className="mt-5 space-y-3">
+      <ol className="mt-5 space-y-4">
         {request.questions.map((question, index) => (
-          <li key={index} className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
-            <span className="shrink-0 font-bold tabular-nums text-indigo-600">{String(index + 1).padStart(2, "0")}</span>
-            <span>{question}</span>
+          <li key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-4 text-sm leading-relaxed text-slate-700">
+            <div className="flex gap-3">
+              <span className="shrink-0 font-bold tabular-nums text-indigo-600">{String(index + 1).padStart(2, "0")}</span>
+              <span className="font-medium text-slate-800">{question}</span>
+            </div>
+            {(editing || preview) ? (
+              <div className="mt-4">
+                <label htmlFor={`portal-questions-${request.id}-${index}`} className="mb-1.5 block text-xs font-semibold text-slate-700">{copy.response} {index + 1}</label>
+                <textarea
+                  id={`portal-questions-${request.id}-${index}`}
+                  value={drafts[index] ?? ""}
+                  maxLength={5000}
+                  rows={3}
+                  onChange={event => {
+                    setDrafts(previous => previous.map((item, i) => i === index ? event.target.value : item));
+                    setError("");
+                  }}
+                  className="w-full min-h-24 resize-y rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  placeholder={copy.placeholder}
+                  data-testid={`input-intake-answer-${request.id}-${index}`}
+                />
+              </div>
+            ) : savedAnswers ? (
+              <p className="mt-3 whitespace-pre-wrap border-t border-slate-200 pt-3 text-slate-700">{savedAnswers[index]}</p>
+            ) : null}
           </li>
         ))}
       </ol>
+      {!savedAnswers && request.answer && !preview && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold text-slate-700">{copy.previous}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{request.answer}</p>
+        </div>
+      )}
       {preview ? null : editing ? (
         <div className="mt-6 space-y-2 border-t border-slate-100 pt-5">
-          <label htmlFor={`portal-questions-${request.id}`} className="text-sm font-semibold text-slate-800">{copy.response}</label>
-          <textarea
-            id={`portal-questions-${request.id}`}
-            value={draft}
-            maxLength={20000}
-            onChange={event => setDraft(event.target.value)}
-            className="min-h-40 w-full rounded-xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-            placeholder={copy.placeholder}
-            data-testid={`input-intake-answer-${request.id}`}
-          />
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="flex justify-end">
-            <button type="button" disabled={submitting || !draft.trim()} onClick={submit}
+            <button type="button" disabled={submitting} onClick={submit}
               data-testid={`button-submit-intake-${request.id}`}
               className="rounded-lg bg-indigo-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">
               {submitting ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />{copy.submitting}</span> : copy.submit}
@@ -115,7 +152,6 @@ function QuestionCard({
       ) : (
         <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800"><CheckCircle2 size={16} />{copy.submitted}</p>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{request.answer}</p>
           <button type="button" className="mt-3 text-sm font-semibold text-indigo-700 underline underline-offset-2 hover:text-indigo-900" onClick={() => setEditing(true)}
             data-testid={`button-edit-intake-${request.id}`}>
             {copy.edit}
