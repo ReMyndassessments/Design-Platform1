@@ -137,7 +137,7 @@ export function IntakeQuestionDispatch({
   };
 
   const sendTest = async () => {
-    if (!window.confirm(`Email a test preview of the ${audience} portal to your signed-in account? Its link opens a read-only view of these questions; no invitation or response is created.`)) return;
+    if (!window.confirm(`Email a test preview of the ${audience} portal to your signed-in account? You can try the answer boxes, but nothing can be saved or submitted; no invitation or response is created.`)) return;
     setTesting(true);
     try {
       const response = await fetch(`${endpoint}/test-email`, {
@@ -201,7 +201,7 @@ export function IntakeQuestionDispatch({
           {testing ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Mail size={14} className="mr-2" />}
           Email me a portal preview
         </Button>
-        <span className="text-xs text-slate-500">Opens a read-only ReMynd portal with these questions; the email contains no questions or student details.</span>
+        <span className="text-xs text-slate-500">Opens a non-submitting ReMynd portal preview; the email contains no questions or student details.</span>
       </div>
       {loadError && <p role="alert" className="text-xs text-red-700">Could not load question invitations. Use Refresh to try again.</p>}
       {!loading && audienceRequests.length > 0 && (

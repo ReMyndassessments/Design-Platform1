@@ -1024,7 +1024,7 @@ function PortalView({
     section: isMandarin ? "请您回答" : isKorean ? "답변해 주세요" : "Your questions",
     sectionDetail: isMandarin ? "仅显示通过此链接发送给您的问题。" : isKorean ? "이 링크로 전달된 질문만 표시됩니다." : "Only the questions shared through this link are shown here.",
     empty: isMandarin ? "目前没有需要回答的问题。如有疑问，请联系发送此链接给您的人。" : isKorean ? "현재 답변할 질문이 없습니다. 궁금한 점이 있으면 링크를 보내신 분에게 문의해 주세요." : "There are no questions to answer right now. If this seems unexpected, please contact the person who sent you this link.",
-    previewDetail: isMandarin ? "这是测试邮件链接的预览。问题仅供查看，无法填写或提交回复。" : isKorean ? "테스트 이메일 링크 미리보기입니다. 질문을 볼 수 있지만 답변을 작성하거나 제출할 수 없습니다." : "This is a test-email preview. You can review the questions, but answers cannot be entered or submitted from this link.",
+    previewDetail: isMandarin ? "这是测试邮件链接的预览。您可以试填输入框，但回复不会保存或提交。" : isKorean ? "테스트 이메일 링크 미리보기입니다. 입력란에 답변을 작성해 볼 수 있지만 저장하거나 제출할 수 없습니다." : "This is a test-email preview. You can try the answer boxes, but replies cannot be saved or submitted from this link.",
   };
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
@@ -1633,7 +1633,7 @@ function PortalView({
           </div>
         ) : (
           <IntakeQuestionCards requests={portal.questionRequests} token={portalToken} onSubmitted={onRefresh}
-            preview={preview} language={language} />
+            preview={preview} hasAssessmentForms={portal.forms.some(form => !ADMIN_TOOL_IDS.has(form.toolId))} language={language} />
         )}
 
         {/* Forms Card */}
