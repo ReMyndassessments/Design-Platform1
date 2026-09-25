@@ -15,6 +15,16 @@ export function promotionalDemoReadOnly(req: Request, res: Response, next: NextF
     return;
   }
 
+  // Deleting the fixed case is a deliberate administrator action, checked by
+  // the case DELETE route. Do not exempt edits, subroutes or other demo records.
+  if (req.method === "DELETE" && (
+    req.path === `/cases/${PROMOTIONAL_DEMO_CASE_ID}` ||
+    req.path === `/api/cases/${PROMOTIONAL_DEMO_CASE_ID}`
+  )) {
+    next();
+    return;
+  }
+
   const pathTargetsDemo = decodeURIComponent(req.path).split("/").includes(PROMOTIONAL_DEMO_CASE_ID);
   const bodyTargetsDemo = req.body?.caseId === PROMOTIONAL_DEMO_CASE_ID;
 

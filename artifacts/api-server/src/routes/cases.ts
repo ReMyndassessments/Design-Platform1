@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable, interviewRecordingsTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable, clinicalApprenticeNotesTable, clinicalApprenticeFeedbackTable, interviewRecordingsTable, rmraSessionsTable, rmraTaskResponsesTable, reportsTable, reportUploadsTable, reportTokensTable, reportDraftsTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -725,6 +725,45 @@ router.delete("/cases/:caseId", authMiddleware, async (req, res) => {
   const isDemoCase = rows[0].caseMode === "test" || rows[0].studentName === "Demo Student";
   if (!isAdminLike(req.userRole) && !(isInvigilator && isDemoCase)) {
     res.status(403).json({ error: "forbidden", message: "Only admins can delete live cases" });
+    return;
+  }
+  if (rows[0].id === PROMOTIONAL_DEMO_CASE_ID) {
+    // The fixed promotional case is synthetic. Remove its case-linked records
+    // atomically so no demo responses or report access remain after deletion.
+    // Compliance audit history is retained separately.
+    await db.transaction(async (tx) => {
+      const caseId = PROMOTIONAL_DEMO_CASE_ID;
+      const assignments = await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
+        .where(eq(assignmentsTable.caseId, caseId));
+      const assignmentIds = assignments.map(a => a.id);
+      const sessions = await tx.select({ id: rmraSessionsTable.id }).from(rmraSessionsTable)
+        .where(assignmentIds.length
+          ? or(eq(rmraSessionsTable.caseId, caseId), inArray(rmraSessionsTable.assignmentId, assignmentIds))
+          : eq(rmraSessionsTable.caseId, caseId));
+      if (sessions.length) {
+        await tx.delete(rmraTaskResponsesTable)
+          .where(inArray(rmraTaskResponsesTable.sessionId, sessions.map(s => s.id)));
+      }
+      await tx.delete(rmraSessionsTable).where(assignmentIds.length
+        ? or(eq(rmraSessionsTable.caseId, caseId), inArray(rmraSessionsTable.assignmentId, assignmentIds))
+        : eq(rmraSessionsTable.caseId, caseId));
+      if (assignmentIds.length) {
+        await tx.delete(responsesTable).where(inArray(responsesTable.assignmentId, assignmentIds));
+      }
+      await tx.delete(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+      await tx.delete(scoresTable).where(eq(scoresTable.caseId, caseId));
+      await tx.delete(referralInvitesTable).where(eq(referralInvitesTable.resultingCaseId, caseId));
+      await tx.delete(caseApprenticeAssignmentsTable).where(eq(caseApprenticeAssignmentsTable.caseId, caseId));
+      await tx.delete(clinicalApprenticeNotesTable).where(eq(clinicalApprenticeNotesTable.caseId, caseId));
+      await tx.delete(clinicalApprenticeFeedbackTable).where(eq(clinicalApprenticeFeedbackTable.caseId, caseId));
+      await tx.delete(interviewRecordingsTable).where(eq(interviewRecordingsTable.caseId, caseId));
+      await tx.delete(reportTokensTable).where(eq(reportTokensTable.caseId, caseId));
+      await tx.delete(reportUploadsTable).where(eq(reportUploadsTable.caseId, caseId));
+      await tx.delete(reportDraftsTable).where(eq(reportDraftsTable.caseId, caseId));
+      await tx.delete(reportsTable).where(eq(reportsTable.caseId, caseId));
+      await tx.delete(casesTable).where(eq(casesTable.id, caseId));
+    });
+    res.status(204).send();
     return;
   }
   await db.delete(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));

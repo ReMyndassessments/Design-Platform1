@@ -1201,12 +1201,14 @@ export default function CaseDetail() {
                     <ChevronLeft size={14} /> Step Back
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem
-                  onClick={() => setDeleteCaseOpen(true)}
-                  className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
-                  <Trash2 size={14} /> Delete Case
-                </DropdownMenuItem>
+                {(c.id !== "raos-promotional-demo-v2" || currentUser?.role === "admin") && (
+                  <DropdownMenuItem
+                    onClick={() => setDeleteCaseOpen(true)}
+                    className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <Trash2 size={14} /> Delete Case
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -3098,7 +3100,8 @@ export default function CaseDetail() {
           <DialogHeader>
             <DialogTitle>Delete Case?</DialogTitle>
             <DialogDescription>
-              This will permanently delete <span className="font-semibold text-slate-900">{c.studentName}</span>'s case along with all assignments and scores. This cannot be undone.
+              This will permanently delete <span className="font-semibold text-slate-900">{c.studentName}</span>'s case and its associated case data. This cannot be undone.
+              {c.id === "raos-promotional-demo-v2" && " The fictional demo can be recreated later using the administrator Guided Demo action."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
