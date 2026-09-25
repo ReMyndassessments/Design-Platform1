@@ -2009,6 +2009,9 @@ export default function CaseDetail() {
                       caseId={caseId}
                       analysis={c.intakeAnalysis as any}
                       canEdit={role === "admin" || role === "school_clinical_coordinator"}
+                      assignments={c.assignments ?? []}
+                      parentName={c.parentName}
+                      parentEmail={c.parentEmail}
                       baseUrl={BASE_URL}
                       leadContextDraft={leadContextDraft}
                       onLeadContextChange={setLeadContextDraft}

@@ -34,6 +34,8 @@ import type {
   DashboardStats,
   ErrorResponse,
   ExternalForm,
+  ExternalIntakeQuestionRequest,
+  ExternalPortal,
   HealthStatus,
   IntakeAnalysis,
   IntakeDiscussionInput,
@@ -43,9 +45,12 @@ import type {
   IntakeGroupResponseInput,
   IntakeLeadContextInput,
   IntakeLeadContextResult,
+  IntakeQuestionAnswerInput,
+  IntakeQuestionRequest,
+  IntakeQuestionRequestDeliveryError,
+  IntakeQuestionRequestInput,
   ListCasesParams,
   LoginRequest,
-  LoginResponse,
   ManualScoreRequest,
   RecommendToolsRequest,
   Report,
@@ -63,6 +68,7 @@ import type {
   UpdateReportRequest,
   UpdateUserRequest,
   User,
+  UserLoginResult,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -828,6 +834,282 @@ export const useAnalyzeIntake = <
   TContext
 > => {
   return useMutation(getAnalyzeIntakeMutationOptions(options));
+};
+
+/**
+ * @summary List question invitations and responses for a case
+ */
+export const getListIntakeQuestionRequestsUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-question-requests`;
+};
+
+export const listIntakeQuestionRequests = async (
+  caseId: string,
+  options?: RequestInit,
+): Promise<IntakeQuestionRequest[]> => {
+  return customFetch<IntakeQuestionRequest[]>(
+    getListIntakeQuestionRequestsUrl(caseId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListIntakeQuestionRequestsQueryKey = (caseId: string) => {
+  return [`/api/cases/${caseId}/intake-question-requests`] as const;
+};
+
+export const getListIntakeQuestionRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listIntakeQuestionRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listIntakeQuestionRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListIntakeQuestionRequestsQueryKey(caseId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listIntakeQuestionRequests>>
+  > = ({ signal }) =>
+    listIntakeQuestionRequests(caseId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!caseId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listIntakeQuestionRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListIntakeQuestionRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listIntakeQuestionRequests>>
+>;
+export type ListIntakeQuestionRequestsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List question invitations and responses for a case
+ */
+
+export function useListIntakeQuestionRequests<
+  TData = Awaited<ReturnType<typeof listIntakeQuestionRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listIntakeQuestionRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListIntakeQuestionRequestsQueryOptions(
+    caseId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Snapshot suggested questions and send an invitation
+ */
+export const getCreateIntakeQuestionRequestUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/intake-question-requests`;
+};
+
+export const createIntakeQuestionRequest = async (
+  caseId: string,
+  intakeQuestionRequestInput: IntakeQuestionRequestInput,
+  options?: RequestInit,
+): Promise<IntakeQuestionRequest> => {
+  return customFetch<IntakeQuestionRequest>(
+    getCreateIntakeQuestionRequestUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(intakeQuestionRequestInput),
+    },
+  );
+};
+
+export const getCreateIntakeQuestionRequestMutationOptions = <
+  TError = ErrorType<IntakeQuestionRequestDeliveryError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createIntakeQuestionRequest>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeQuestionRequestInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createIntakeQuestionRequest>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeQuestionRequestInput> },
+  TContext
+> => {
+  const mutationKey = ["createIntakeQuestionRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createIntakeQuestionRequest>>,
+    { caseId: string; data: BodyType<IntakeQuestionRequestInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return createIntakeQuestionRequest(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateIntakeQuestionRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createIntakeQuestionRequest>>
+>;
+export type CreateIntakeQuestionRequestMutationBody =
+  BodyType<IntakeQuestionRequestInput>;
+export type CreateIntakeQuestionRequestMutationError =
+  ErrorType<IntakeQuestionRequestDeliveryError>;
+
+/**
+ * @summary Snapshot suggested questions and send an invitation
+ */
+export const useCreateIntakeQuestionRequest = <
+  TError = ErrorType<IntakeQuestionRequestDeliveryError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createIntakeQuestionRequest>>,
+    TError,
+    { caseId: string; data: BodyType<IntakeQuestionRequestInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createIntakeQuestionRequest>>,
+  TError,
+  { caseId: string; data: BodyType<IntakeQuestionRequestInput> },
+  TContext
+> => {
+  return useMutation(getCreateIntakeQuestionRequestMutationOptions(options));
+};
+
+/**
+ * @summary Send or resend a question invitation
+ */
+export const getSendIntakeQuestionRequestUrl = (caseId: string, id: string) => {
+  return `/api/cases/${caseId}/intake-question-requests/${id}/send`;
+};
+
+export const sendIntakeQuestionRequest = async (
+  caseId: string,
+  id: string,
+  options?: RequestInit,
+): Promise<IntakeQuestionRequest> => {
+  return customFetch<IntakeQuestionRequest>(
+    getSendIntakeQuestionRequestUrl(caseId, id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getSendIntakeQuestionRequestMutationOptions = <
+  TError = ErrorType<IntakeQuestionRequestDeliveryError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendIntakeQuestionRequest>>,
+    TError,
+    { caseId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendIntakeQuestionRequest>>,
+  TError,
+  { caseId: string; id: string },
+  TContext
+> => {
+  const mutationKey = ["sendIntakeQuestionRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendIntakeQuestionRequest>>,
+    { caseId: string; id: string }
+  > = (props) => {
+    const { caseId, id } = props ?? {};
+
+    return sendIntakeQuestionRequest(caseId, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendIntakeQuestionRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendIntakeQuestionRequest>>
+>;
+
+export type SendIntakeQuestionRequestMutationError =
+  ErrorType<IntakeQuestionRequestDeliveryError>;
+
+/**
+ * @summary Send or resend a question invitation
+ */
+export const useSendIntakeQuestionRequest = <
+  TError = ErrorType<IntakeQuestionRequestDeliveryError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendIntakeQuestionRequest>>,
+    TError,
+    { caseId: string; id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendIntakeQuestionRequest>>,
+  TError,
+  { caseId: string; id: string },
+  TContext
+> => {
+  return useMutation(getSendIntakeQuestionRequestMutationOptions(options));
 };
 
 /**
@@ -2067,6 +2349,190 @@ export function useGetExternalForm<
 }
 
 /**
+ * @summary Get assignment portal or minimal question-only invitation portal
+ */
+export const getGetExternalPortalUrl = (token: string) => {
+  return `/api/external/portal/${token}`;
+};
+
+export const getExternalPortal = async (
+  token: string,
+  options?: RequestInit,
+): Promise<ExternalPortal> => {
+  return customFetch<ExternalPortal>(getGetExternalPortalUrl(token), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetExternalPortalQueryKey = (token: string) => {
+  return [`/api/external/portal/${token}`] as const;
+};
+
+export const getGetExternalPortalQueryOptions = <
+  TData = Awaited<ReturnType<typeof getExternalPortal>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getExternalPortal>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetExternalPortalQueryKey(token);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getExternalPortal>>
+  > = ({ signal }) => getExternalPortal(token, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!token,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getExternalPortal>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetExternalPortalQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getExternalPortal>>
+>;
+export type GetExternalPortalQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get assignment portal or minimal question-only invitation portal
+ */
+
+export function useGetExternalPortal<
+  TData = Awaited<ReturnType<typeof getExternalPortal>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getExternalPortal>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetExternalPortalQueryOptions(token, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Submit or revise an invited teacher or parent response
+ */
+export const getSubmitExternalIntakeQuestionUrl = (
+  token: string,
+  id: string,
+) => {
+  return `/api/external/portal/${token}/intake-questions/${id}/submit`;
+};
+
+export const submitExternalIntakeQuestion = async (
+  token: string,
+  id: string,
+  intakeQuestionAnswerInput: IntakeQuestionAnswerInput,
+  options?: RequestInit,
+): Promise<ExternalIntakeQuestionRequest> => {
+  return customFetch<ExternalIntakeQuestionRequest>(
+    getSubmitExternalIntakeQuestionUrl(token, id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(intakeQuestionAnswerInput),
+    },
+  );
+};
+
+export const getSubmitExternalIntakeQuestionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitExternalIntakeQuestion>>,
+    TError,
+    { token: string; id: string; data: BodyType<IntakeQuestionAnswerInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitExternalIntakeQuestion>>,
+  TError,
+  { token: string; id: string; data: BodyType<IntakeQuestionAnswerInput> },
+  TContext
+> => {
+  const mutationKey = ["submitExternalIntakeQuestion"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitExternalIntakeQuestion>>,
+    { token: string; id: string; data: BodyType<IntakeQuestionAnswerInput> }
+  > = (props) => {
+    const { token, id, data } = props ?? {};
+
+    return submitExternalIntakeQuestion(token, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitExternalIntakeQuestionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitExternalIntakeQuestion>>
+>;
+export type SubmitExternalIntakeQuestionMutationBody =
+  BodyType<IntakeQuestionAnswerInput>;
+export type SubmitExternalIntakeQuestionMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Submit or revise an invited teacher or parent response
+ */
+export const useSubmitExternalIntakeQuestion = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitExternalIntakeQuestion>>,
+    TError,
+    { token: string; id: string; data: BodyType<IntakeQuestionAnswerInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitExternalIntakeQuestion>>,
+  TError,
+  { token: string; id: string; data: BodyType<IntakeQuestionAnswerInput> },
+  TContext
+> => {
+  return useMutation(getSubmitExternalIntakeQuestionMutationOptions(options));
+};
+
+/**
  * @summary Submit form response (no auth)
  */
 export const getSubmitExternalFormUrl = (token: string) => {
@@ -3245,8 +3711,8 @@ export const getLoginUrl = () => {
 export const login = async (
   loginRequest: LoginRequest,
   options?: RequestInit,
-): Promise<LoginResponse> => {
-  return customFetch<LoginResponse>(getLoginUrl(), {
+): Promise<UserLoginResult> => {
+  return customFetch<UserLoginResult>(getLoginUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },

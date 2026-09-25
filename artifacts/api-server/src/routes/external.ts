@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
-import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable } from "@workspace/db/schema";
+import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, intakeQuestionRequestsTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
 import { eq, and, or, ne, asc, sql } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
@@ -13,6 +13,8 @@ import { getAdminEmails } from "../lib/adminEmails.js";
 import { writeAudit } from "../lib/audit.js";
 import * as airwallex from "../lib/airwallex.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { z } from "zod";
+import { assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
 
 const storage = new ObjectStorageService();
 
@@ -273,6 +275,26 @@ router.get("/external/portal/:token", async (req, res) => {
   if (assignment) {
     const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
     const caseData = caseRows[0];
+    const linkedQuestionRequests = await db.select({
+      id: intakeQuestionRequestsTable.id,
+      audience: intakeQuestionRequestsTable.audience,
+      assignmentId: intakeQuestionRequestsTable.assignmentId,
+      caseId: intakeQuestionRequestsTable.caseId,
+      recipientEmail: intakeQuestionRequestsTable.recipientEmail,
+      sentAt: intakeQuestionRequestsTable.sentAt,
+      questions: intakeQuestionRequestsTable.questions,
+      answer: intakeQuestionRequestsTable.answer,
+      submittedAt: intakeQuestionRequestsTable.submittedAt,
+      recipientName: intakeQuestionRequestsTable.recipientName,
+    }).from(intakeQuestionRequestsTable).where(and(
+      eq(intakeQuestionRequestsTable.assignmentId, assignment.id),
+      eq(intakeQuestionRequestsTable.caseId, assignment.caseId),
+    ));
+    const questionRequests = linkedQuestionRequests
+      .filter(request => assignmentOwnsQuestionRequest(request, assignment))
+      .map(({ id, audience, questions, answer, submittedAt, recipientName }) => ({
+        id, audience, questions, answer, submittedAt, recipientName,
+      }));
 
     // Group by respondentType + respondentLabel (exact match).
     // Empty-label assignments are backfilled at startup so they always carry
@@ -352,6 +374,7 @@ router.get("/external/portal/:token", async (req, res) => {
       respondentLabel: assignment.respondentLabel,
       respondentType: assignment.respondentType,
       assignedToName: assignment.assignedToName ?? null,
+      questionRequests,
       forms: siblings.map(s => ({
         toolId: s.toolId,
         toolName: s.toolName,
@@ -362,6 +385,42 @@ router.get("/external/portal/:token", async (req, res) => {
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
       debriefMeetingDate: caseData?.debriefMeetingDate ?? null,
       bobbyAiPortalCredentials: caseData?.bobbyAiPortalCredentials ?? null,
+    });
+    return;
+  }
+
+  // A question-only token deliberately resolves to no assignment, report,
+  // forms, or case details. It grants access solely to its invitation.
+  const [questionOnlyRequest] = await db.select().from(intakeQuestionRequestsTable)
+    .where(and(
+      eq(intakeQuestionRequestsTable.questionOnlyToken, portalToken),
+      sql`${intakeQuestionRequestsTable.sentAt} IS NOT NULL`,
+    )).limit(1);
+  if (questionOnlyRequest && !questionOnlyRequest.assignmentId) {
+    const [caseData] = await db.select({
+      studentName: casesTable.studentName,
+      languagePreference: casesTable.languagePreference,
+    }).from(casesTable).where(eq(casesTable.id, questionOnlyRequest.caseId)).limit(1);
+    if (!caseData) {
+      res.status(404).json({ error: "not_found", message: "Question invitation not found" });
+      return;
+    }
+    res.json({
+      questionOnly: true,
+      studentName: caseData.studentName,
+      assignedToName: questionOnlyRequest.recipientName,
+      respondentLabel: questionOnlyRequest.audience === "parent" ? "Parent / Guardian" : "Teacher",
+      respondentType: questionOnlyRequest.audience,
+      role: questionOnlyRequest.audience,
+      languagePreference: caseData.languagePreference ?? "english",
+      questionRequests: [{
+        id: questionOnlyRequest.id,
+        audience: questionOnlyRequest.audience,
+        questions: questionOnlyRequest.questions,
+        answer: questionOnlyRequest.answer,
+        submittedAt: questionOnlyRequest.submittedAt,
+        recipientName: questionOnlyRequest.recipientName,
+      }],
     });
     return;
   }
@@ -405,6 +464,7 @@ router.get("/external/portal/:token", async (req, res) => {
       languagePreference: caseData?.languagePreference ?? "english",
       respondentLabel: reportTok.role === "parent" ? "Parent / Guardian" : reportTok.role === "teacher" ? "Teacher" : (reportTok.recipientName ?? "Recipient"),
       respondentType: reportTok.role,
+      questionRequests: [],
       forms: [],
       reportAccess,
       debriefMeetingUrl: caseData?.debriefMeetingUrl ?? null,
@@ -442,6 +502,7 @@ router.get("/external/portal/:token", async (req, res) => {
       languagePreference: "english",
       respondentLabel: "Referring Teacher",
       respondentType: "referring_teacher",
+      questionRequests: [],
       forms,
       reportAccess: null,
       debriefMeetingUrl: null,
@@ -452,6 +513,57 @@ router.get("/external/portal/:token", async (req, res) => {
   }
 
   res.status(404).json({ error: "not_found", message: "Form link not found" });
+});
+
+router.post("/external/portal/:token/intake-questions/:id/submit", async (req, res): Promise<void> => {
+  const rawToken = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+  const requestId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const parsed = z.object({ answer: z.string().trim().min(1).max(20000) }).strict().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "validation_error", message: "Enter a response of up to 20,000 characters." });
+    return;
+  }
+
+  const [assignment] = await db.select().from(assignmentsTable)
+    .where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+  let request: typeof intakeQuestionRequestsTable.$inferSelect | undefined;
+  if (assignment) {
+    const [linkedRequest] = await db.select().from(intakeQuestionRequestsTable).where(and(
+      eq(intakeQuestionRequestsTable.id, requestId),
+      eq(intakeQuestionRequestsTable.caseId, assignment.caseId),
+      eq(intakeQuestionRequestsTable.assignmentId, assignment.id),
+    )).limit(1);
+    if (!linkedRequest || !assignmentOwnsQuestionRequest(linkedRequest, assignment)) {
+      res.status(404).json({ error: "not_found", message: "Question request not found for this portal recipient" });
+      return;
+    }
+    request = linkedRequest;
+  } else {
+    const [standaloneRequest] = await db.select().from(intakeQuestionRequestsTable).where(and(
+      eq(intakeQuestionRequestsTable.id, requestId),
+      eq(intakeQuestionRequestsTable.questionOnlyToken, rawToken),
+    )).limit(1);
+    if (!standaloneRequest || standaloneRequest.assignmentId || !standaloneRequest.sentAt) {
+      res.status(404).json({ error: "not_found", message: "Question request not found for this portal recipient" });
+      return;
+    }
+    request = standaloneRequest;
+  }
+
+  const now = new Date();
+  const [updated] = await db.update(intakeQuestionRequestsTable).set({
+    answer: parsed.data.answer,
+    submittedAt: now,
+    updatedAt: now,
+  }).where(eq(intakeQuestionRequestsTable.id, request.id)).returning();
+  res.json({
+    id: updated.id,
+    audience: updated.audience,
+    questions: updated.questions,
+    answer: updated.answer,
+    submittedAt: updated.submittedAt,
+    recipientName: updated.recipientName,
+  });
 });
 
 // Verify access code for a report token

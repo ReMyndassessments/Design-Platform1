@@ -5,9 +5,11 @@
  * ReMynd Assessment Operating System API
  * OpenAPI spec version: 0.1.0
  */
-import type { User } from "./user";
 
-export interface LoginResponse {
-  user: User;
-  token: string;
+export interface IntakeQuestionAnswerInput {
+  /**
+   * @minLength 1
+   * @maxLength 20000
+   */
+  answer: string;
 }

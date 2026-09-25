@@ -1,3 +1,4 @@
+import { IntakeQuestionCards, type PortalQuestionRequest } from "@/components/IntakeQuestionCards";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
@@ -72,6 +73,8 @@ type PortalData = {
   debriefMeetingUrl?: string | null;
   debriefMeetingDate?: string | null;
   bobbyAiPortalCredentials?: string | null;
+  questionOnly?: boolean;
+  questionRequests?: PortalQuestionRequest[];
 };
 
 // ── Debrief date parser ───────────────────────────────────────────────────────
@@ -992,11 +995,15 @@ function PortalView({
   language,
   setLanguage,
   onStartForm,
+  portalToken,
+  onRefresh,
 }: {
   portal: PortalData;
   language: string;
   setLanguage: (l: string) => void;
   onStartForm: (token: string) => void;
+  portalToken: string;
+  onRefresh: () => void;
 }) {
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
@@ -1028,7 +1035,6 @@ function PortalView({
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
 
-  const portalToken = window.location.pathname.split("/").pop() ?? "";
   const role = portal.respondentType ?? "parent";
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -1566,6 +1572,8 @@ function PortalView({
           studentName={portal.studentName}
           language={language}
         />
+
+        <IntakeQuestionCards requests={portal.questionRequests} token={portalToken} onSubmitted={onRefresh} />
 
         {/* Forms Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -3018,12 +3026,29 @@ export default function ExternalFormView() {
     );
   }
 
+  if (portal.questionOnly) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <BrandHeader />
+        <main className="mx-auto max-w-2xl space-y-4 px-4 py-8">
+          <p className="text-sm text-slate-600">
+            Questions for {portal.studentName} · {portal.assignedToName ?? portal.respondentLabel}
+          </p>
+          <IntakeQuestionCards requests={portal.questionRequests} token={portalToken}
+            onSubmitted={() => setPortalRefreshKey(key => key + 1)} />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <PortalView
       portal={portal}
       language={language}
       setLanguage={setLanguage}
       onStartForm={handleStartForm}
+      portalToken={portalToken}
+      onRefresh={() => setPortalRefreshKey(key => key + 1)}
     />
   );
 }

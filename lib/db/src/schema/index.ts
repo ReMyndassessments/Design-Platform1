@@ -14,3 +14,4 @@ export * from "./rmra";
 export * from "./clinicalApprentice";
 export * from "./interviewRecordings";
 export * from "./communications";
+export * from "./intakeQuestionRequests";

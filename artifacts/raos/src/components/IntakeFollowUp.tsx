@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageCircle, Save } from "lucide-react";
+import { IntakeQuestionDispatch } from "./IntakeQuestionDispatch";
 
 type Audience = "teacher" | "parent";
 type Turn = { role: "user" | "assistant"; text: string; at?: string };
@@ -61,10 +62,12 @@ function GroupResponse({
 }
 
 export function IntakeFollowUp({
-  caseId, analysis, canEdit, onUpdated, baseUrl, leadContextDraft, onLeadContextChange,
+  caseId, analysis, canEdit, onUpdated, baseUrl, leadContextDraft, onLeadContextChange, assignments, parentName, parentEmail,
 }: {
   caseId: string; analysis: IntakeAnalysis; canEdit: boolean; onUpdated: () => Promise<unknown>;
   baseUrl: string; leadContextDraft: string; onLeadContextChange: (value: string) => void;
+  assignments: Array<{ id: string; respondentType: string; respondentLabel?: string | null; assignedToName?: string | null; assignedToEmail?: string | null }>;
+  parentName?: string | null; parentEmail?: string | null;
 }) {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
@@ -145,6 +148,10 @@ export function IntakeFollowUp({
                 ))}
               </ol>
               <GroupResponse audience={audience} saved={savedGroupResponse} canEdit={canEdit} onSave={saveResponse} />
+              {canEdit && currentQuestions.length > 0 && (
+                <IntakeQuestionDispatch caseId={caseId} audience={audience} assignments={assignments}
+                  baseUrl={baseUrl} questionCount={currentQuestions.length} parentName={parentName} parentEmail={parentEmail} />
+              )}
               {individualAnswers.length > 0 && (
                 <details className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
                   <summary className="cursor-pointer font-semibold">

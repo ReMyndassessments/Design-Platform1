@@ -220,6 +220,82 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntakeAnalysis"
 
+  /cases/{caseId}/intake-question-requests:
+    get:
+      operationId: listIntakeQuestionRequests
+      tags: [cases]
+      summary: List question invitations and responses for a case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Question requests, including unsent and submitted statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IntakeQuestionRequest"
+    post:
+      operationId: createIntakeQuestionRequest
+      tags: [cases]
+      summary: Snapshot suggested questions and send an invitation
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeQuestionRequestInput"
+      responses:
+        "201":
+          description: Created and sent question request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeQuestionRequest"
+        "502":
+          description: Request persisted but email delivery failed; requestId can be retried
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeQuestionRequestDeliveryError"
+
+  /cases/{caseId}/intake-question-requests/{id}/send:
+    post:
+      operationId: sendIntakeQuestionRequest
+      tags: [cases]
+      summary: Send or resend a question invitation
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeQuestionRequest"
+        "502":
+          description: Email delivery failed and the request remains retryable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntakeQuestionRequestDeliveryError"
+
   /cases/{caseId}/intake-follow-up:
     put:
       operationId: saveIntakeFollowUp
@@ -520,6 +596,70 @@ paths:
                 $ref: "#/components/schemas/ExternalForm"
         "404":
           description: Token not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /external/portal/{token}:
+    get:
+      operationId: getExternalPortal
+      tags: [external]
+      summary: Get assignment portal or minimal question-only invitation portal
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Portal response with requests for this assignment, or the isolated question-only portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalPortal"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /external/portal/{token}/intake-questions/{id}/submit:
+    post:
+      operationId: submitExternalIntakeQuestion
+      tags: [external]
+      summary: Submit or revise an invited teacher or parent response
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeQuestionAnswerInput"
+      responses:
+        "200":
+          description: Saved answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalIntakeQuestionRequest"
+        "400":
+          description: Answer is blank or exceeds 20,000 characters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Question request does not belong to this portal token
           content:
             application/json:
               schema:
@@ -840,7 +980,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
+                $ref: "#/components/schemas/UserLoginResult"
         "401":
           description: Invalid credentials
           content:
@@ -1078,7 +1218,7 @@ components:
           type: string
       required: [email, password]
 
-    LoginResponse:
+    UserLoginResult:
       type: object
       properties:
         user:
@@ -1277,6 +1417,73 @@ components:
           items:
             type: string
       required: [recommendedDomains, riskLevel, summary]
+
+    IntakeQuestionRequestInput:
+      type: object
+      required: [audience]
+      properties:
+        audience: { type: string, enum: [teacher, parent] }
+        assignmentId: { type: string }
+        recipientName: { type: string, minLength: 1, maxLength: 200 }
+        recipientEmail: { type: string, format: email, maxLength: 320 }
+      description: Provide assignmentId, or provide both recipientName and recipientEmail.
+    IntakeQuestionRequest:
+      type: object
+      required: [id, audience, recipientName, recipientEmail, questions, answer, sentAt, submittedAt, portalUrl]
+      properties:
+        id: { type: string }
+        audience: { type: string, enum: [teacher, parent] }
+        assignmentId: { type: [string, "null"] }
+        recipientName: { type: string }
+        recipientEmail: { type: string, format: email }
+        questions:
+          type: array
+          items: { type: string }
+        answer: { type: [string, "null"] }
+        sentAt: { type: [string, "null"], format: date-time }
+        submittedAt: { type: [string, "null"], format: date-time }
+        portalUrl: { type: string, format: uri }
+    IntakeQuestionRequestDeliveryError:
+      type: object
+      required: [error, requestId, message, item]
+      properties:
+        error: { type: string }
+        requestId: { type: string }
+        message: { type: string }
+        item:
+          $ref: "#/components/schemas/IntakeQuestionRequest"
+    IntakeQuestionAnswerInput:
+      type: object
+      required: [answer]
+      properties:
+        answer: { type: string, minLength: 1, maxLength: 20000 }
+    ExternalIntakeQuestionRequest:
+      type: object
+      required: [id, audience, questions, answer, submittedAt, recipientName]
+      properties:
+        id: { type: string }
+        audience: { type: string, enum: [teacher, parent] }
+        questions:
+          type: array
+          items: { type: string }
+        answer: { type: [string, "null"] }
+        submittedAt: { type: [string, "null"], format: date-time }
+        recipientName: { type: string }
+    ExternalPortal:
+      type: object
+      required: [questionRequests]
+      properties:
+        questionOnly: { type: boolean }
+        studentName: { type: string }
+        assignedToName: { type: [string, "null"] }
+        respondentLabel: { type: string }
+        respondentType: { type: string, enum: [teacher, parent] }
+        role: { type: string, enum: [teacher, parent] }
+        languagePreference: { type: string }
+        questionRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExternalIntakeQuestionRequest"
 
     IntakeFollowUpInput:
       type: object

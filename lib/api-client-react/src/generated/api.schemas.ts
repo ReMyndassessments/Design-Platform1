@@ -81,7 +81,7 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse {
+export interface UserLoginResult {
   user: User;
   token: string;
 }
@@ -381,6 +381,116 @@ export const CasePhaseReturnInputTargetPhase = {
 export interface CasePhaseReturnInput {
   /** Omit to step back one internal phase; provide an earlier displayed phase to jump directly. */
   targetPhase?: CasePhaseReturnInputTargetPhase;
+}
+
+export type IntakeQuestionRequestInputAudience =
+  (typeof IntakeQuestionRequestInputAudience)[keyof typeof IntakeQuestionRequestInputAudience];
+
+export const IntakeQuestionRequestInputAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+/**
+ * Provide assignmentId, or provide both recipientName and recipientEmail.
+ */
+export interface IntakeQuestionRequestInput {
+  audience: IntakeQuestionRequestInputAudience;
+  assignmentId?: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  recipientName?: string;
+  /** @maxLength 320 */
+  recipientEmail?: string;
+}
+
+export type IntakeQuestionRequestAudience =
+  (typeof IntakeQuestionRequestAudience)[keyof typeof IntakeQuestionRequestAudience];
+
+export const IntakeQuestionRequestAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface IntakeQuestionRequest {
+  id: string;
+  audience: IntakeQuestionRequestAudience;
+  /** @nullable */
+  assignmentId?: string | null;
+  recipientName: string;
+  recipientEmail: string;
+  questions: string[];
+  /** @nullable */
+  answer: string | null;
+  /** @nullable */
+  sentAt: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  portalUrl: string;
+}
+
+export interface IntakeQuestionRequestDeliveryError {
+  error: string;
+  requestId: string;
+  message: string;
+  item: IntakeQuestionRequest;
+}
+
+export interface IntakeQuestionAnswerInput {
+  /**
+   * @minLength 1
+   * @maxLength 20000
+   */
+  answer: string;
+}
+
+export type ExternalIntakeQuestionRequestAudience =
+  (typeof ExternalIntakeQuestionRequestAudience)[keyof typeof ExternalIntakeQuestionRequestAudience];
+
+export const ExternalIntakeQuestionRequestAudience = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface ExternalIntakeQuestionRequest {
+  id: string;
+  audience: ExternalIntakeQuestionRequestAudience;
+  questions: string[];
+  /** @nullable */
+  answer: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  recipientName: string;
+}
+
+export type ExternalPortalRespondentType =
+  (typeof ExternalPortalRespondentType)[keyof typeof ExternalPortalRespondentType];
+
+export const ExternalPortalRespondentType = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export type ExternalPortalRole =
+  (typeof ExternalPortalRole)[keyof typeof ExternalPortalRole];
+
+export const ExternalPortalRole = {
+  teacher: "teacher",
+  parent: "parent",
+} as const;
+
+export interface ExternalPortal {
+  questionOnly?: boolean;
+  studentName?: string;
+  /** @nullable */
+  assignedToName?: string | null;
+  respondentLabel?: string;
+  respondentType?: ExternalPortalRespondentType;
+  role?: ExternalPortalRole;
+  languagePreference?: string;
+  questionRequests: ExternalIntakeQuestionRequest[];
 }
 
 export type IntakeFollowUpInputAudience =

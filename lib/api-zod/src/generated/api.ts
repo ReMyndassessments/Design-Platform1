@@ -454,6 +454,80 @@ export const AnalyzeIntakeResponse = zod.object({
 });
 
 /**
+ * @summary List question invitations and responses for a case
+ */
+export const ListIntakeQuestionRequestsParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const ListIntakeQuestionRequestsResponseItem = zod.object({
+  id: zod.string(),
+  audience: zod.enum(["teacher", "parent"]),
+  assignmentId: zod.string().nullish(),
+  recipientName: zod.string(),
+  recipientEmail: zod.string().email(),
+  questions: zod.array(zod.string()),
+  answer: zod.string().nullable(),
+  sentAt: zod.date().nullable(),
+  submittedAt: zod.date().nullable(),
+  portalUrl: zod.string().url(),
+});
+export const ListIntakeQuestionRequestsResponse = zod.array(
+  ListIntakeQuestionRequestsResponseItem,
+);
+
+/**
+ * @summary Snapshot suggested questions and send an invitation
+ */
+export const CreateIntakeQuestionRequestParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const createIntakeQuestionRequestBodyRecipientNameMax = 200;
+
+export const createIntakeQuestionRequestBodyRecipientEmailMax = 320;
+
+export const CreateIntakeQuestionRequestBody = zod
+  .object({
+    audience: zod.enum(["teacher", "parent"]),
+    assignmentId: zod.string().optional(),
+    recipientName: zod
+      .string()
+      .min(1)
+      .max(createIntakeQuestionRequestBodyRecipientNameMax)
+      .optional(),
+    recipientEmail: zod
+      .string()
+      .email()
+      .max(createIntakeQuestionRequestBodyRecipientEmailMax)
+      .optional(),
+  })
+  .describe(
+    "Provide assignmentId, or provide both recipientName and recipientEmail.",
+  );
+
+/**
+ * @summary Send or resend a question invitation
+ */
+export const SendIntakeQuestionRequestParams = zod.object({
+  caseId: zod.coerce.string(),
+  id: zod.coerce.string(),
+});
+
+export const SendIntakeQuestionRequestResponse = zod.object({
+  id: zod.string(),
+  audience: zod.enum(["teacher", "parent"]),
+  assignmentId: zod.string().nullish(),
+  recipientName: zod.string(),
+  recipientEmail: zod.string().email(),
+  questions: zod.array(zod.string()),
+  answer: zod.string().nullable(),
+  sentAt: zod.date().nullable(),
+  submittedAt: zod.date().nullable(),
+  portalUrl: zod.string().url(),
+});
+
+/**
  * @summary Save a response to a generated teacher or parent question
  */
 export const SaveIntakeFollowUpParams = zod.object({
@@ -812,6 +886,56 @@ export const GetExternalFormResponse = zod.object({
     }),
   ),
   alreadySubmitted: zod.boolean(),
+});
+
+/**
+ * @summary Get assignment portal or minimal question-only invitation portal
+ */
+export const GetExternalPortalParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const GetExternalPortalResponse = zod.object({
+  questionOnly: zod.boolean().optional(),
+  studentName: zod.string().optional(),
+  assignedToName: zod.string().nullish(),
+  respondentLabel: zod.string().optional(),
+  respondentType: zod.enum(["teacher", "parent"]).optional(),
+  role: zod.enum(["teacher", "parent"]).optional(),
+  languagePreference: zod.string().optional(),
+  questionRequests: zod.array(
+    zod.object({
+      id: zod.string(),
+      audience: zod.enum(["teacher", "parent"]),
+      questions: zod.array(zod.string()),
+      answer: zod.string().nullable(),
+      submittedAt: zod.date().nullable(),
+      recipientName: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Submit or revise an invited teacher or parent response
+ */
+export const SubmitExternalIntakeQuestionParams = zod.object({
+  token: zod.coerce.string(),
+  id: zod.coerce.string(),
+});
+
+export const submitExternalIntakeQuestionBodyAnswerMax = 20000;
+
+export const SubmitExternalIntakeQuestionBody = zod.object({
+  answer: zod.string().min(1).max(submitExternalIntakeQuestionBodyAnswerMax),
+});
+
+export const SubmitExternalIntakeQuestionResponse = zod.object({
+  id: zod.string(),
+  audience: zod.enum(["teacher", "parent"]),
+  questions: zod.array(zod.string()),
+  answer: zod.string().nullable(),
+  submittedAt: zod.date().nullable(),
+  recipientName: zod.string(),
 });
 
 /**
