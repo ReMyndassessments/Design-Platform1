@@ -14,3 +14,9 @@ Follow-up answers and verified assessment-lead clarifications can be included in
 **Why:** Clinical decisions need a traceable distinction between evidence received, the lead's verified context, and exploratory AI advice.
 
 **How to apply:** Require an explicit save of source answers or lead clarifications before making them input to regeneration. AI conversation can advise about missing evidence but must not automatically rewrite the case, assigned tools, or report.
+
+For current age and grade, the structured case birth date and grade take precedence over approximate ages or historic grade references in interviews and forms. Do not infer a replacement birth date from an approximate age in narrative notes.
+
+**Why:** A family narrative may describe a prior school transition or round a child's age; treating it as current demographics can produce a mixed-grade or incorrect-age clinical summary after regeneration.
+
+**How to apply:** Let authorized users correct structured demographics explicitly, show the saved values before regeneration, and tell the AI to identify conflicts for review rather than blending multiple current values. Calculate age from the birth date at the time of analysis.

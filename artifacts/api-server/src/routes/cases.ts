@@ -7,6 +7,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { analyzeIntakeWithAI } from "../lib/ai.js";
+import { ageOnDate, isValidDob } from "../lib/case-demographics.js";
 import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase-navigation.js";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { z } from "zod";
@@ -440,7 +441,7 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
 
   const updates: Partial<typeof casesTable.$inferInsert> = {};
   const adminFields = ["currentPhase", "caseStatus", "assignedLeadId", "assignedPsychId", "riskLevel"];
-  const baseAllowed = ["studentName", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate", "bobbyAiPortalCredentials", "productIds", "parentInterviewNotes"];
+  const baseAllowed = ["studentName", "dob", "school", "grade", "languagePreference", "parentName", "parentEmail", "parentPhone", "consentObtained", "workingDocUrl", "customMeetingUrl", "moderatorMeetingUrl", "assessmentMeetingDate", "debriefMeetingUrl", "debriefMeetingDate", "bobbyAiPortalCredentials", "productIds", "parentInterviewNotes"];
   let allowed = isAdminLike(req.userRole) ? [...baseAllowed, ...adminFields] : baseAllowed;
 
   // caseMode (live vs. test/training) is a structural/security-relevant field
@@ -457,6 +458,13 @@ router.patch("/cases/:caseId", authMiddleware, async (req, res) => {
   for (const key of allowed) {
     if (req.body[key] !== undefined) {
       (updates as Record<string, unknown>)[key === "studentName" ? "studentName" : key] = req.body[key];
+    }
+  }
+
+  if (updates.dob !== undefined) {
+    if (!isValidDob(updates.dob)) {
+      res.status(400).json({ error: "validation_error", message: "Date of birth must be a valid YYYY-MM-DD date" });
+      return;
     }
   }
 
@@ -920,14 +928,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const assessmentTools = allTools.filter(t => !ADMIN_IDS.has(t.id));
 
-  let age: number | null = null;
-  if (c.dob) {
-    const dob = new Date(c.dob);
-    const today = new Date();
-    const y = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    age = (m < 0 || (m === 0 && today.getDate() < dob.getDate())) ? y - 1 : y;
-  }
+  const age = c.dob ? ageOnDate(c.dob) : null;
 
   const recordedInterviewNotes = parentInterviews.map((recording, index) => {
     const notes = recording.structuredNotes as { sections?: Array<{ label?: string; content?: string }> } | null;

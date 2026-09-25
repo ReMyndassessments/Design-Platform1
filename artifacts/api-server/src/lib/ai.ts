@@ -94,9 +94,11 @@ Analyze the following intake data for a student and recommend which assessment t
 ═══ STUDENT INFORMATION ═══
 Case Reference: ${intake.caseId ? `[${intake.caseId}]` : "[CASE-REDACTED]"}
 School: ${intake.school}
-Grade: ${intake.grade ?? "Not specified"}
-Age: ${intake.age != null ? `${intake.age} years old` : "Unknown"}
+Current grade (authoritative case field): ${intake.grade || "Not specified"}
+Current age (calculated from the case date of birth as of ${new Date().toISOString().slice(0, 10)}): ${intake.age != null ? `${intake.age} years old` : "Unknown"}
 Primary Referral Reason: ${intake.referralReason || "Not specified"}
+
+Treat the structured current grade and calculated age above as authoritative for the student's CURRENT demographics. Other forms, interviews, and notes may contain approximate ages or refer to earlier grades. Do not combine a past grade with the current grade (for example, "Grade 7/8") or substitute a stated approximate age in the summary. Describe historical school transitions as past events. If evidence conflicts with the case demographics, add a flag requesting verification rather than asserting two current values.
 
 ═══ REFERRAL FORM RESPONSES ═══
 ${intake.referralFormAnswers

@@ -13,6 +13,11 @@ import type { UpdateCaseRequestRiskLevel } from "./updateCaseRequestRiskLevel";
 
 export interface UpdateCaseRequest {
   studentName?: string;
+  /**
+   * Corrected date of birth, used to calculate age for intake analysis.
+   * @pattern ^\d{4}-\d{2}-\d{2}$
+   */
+  dob?: string;
   school?: string;
   grade?: string;
   languagePreference?: UpdateCaseRequestLanguagePreference;

@@ -72,6 +72,14 @@ function displayPhase(phase: string): string {
   return PHASE_DISPLAY_MAP[phase] ?? phase;
 }
 
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
+  const [year, month, day] = dob.split("-").map(Number);
+  const today = new Date();
+  return today.getUTCFullYear() - year -
+    (today.getUTCMonth() + 1 < month || (today.getUTCMonth() + 1 === month && today.getUTCDate() < day) ? 1 : 0);
+}
+
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
@@ -250,7 +258,7 @@ export default function CaseDetail() {
   const [deleteCaseOpen, setDeleteCaseOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [assigningToolId, setAssigningToolId] = useState<string | null>(null);
-  const [editFields, setEditFields] = useState({ studentName: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", caseMode: "live", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
+  const [editFields, setEditFields] = useState({ studentName: "", dob: "", school: "", grade: "", languagePreference: "", referralReason: "", parentName: "", parentEmail: "", parentPhone: "", caseStatus: "", caseMode: "live", workingDocUrl: "", assignedLeadId: "", assignedPsychId: "" });
   
   const [newAssignment, setNewAssignment] = useState({
     toolIds: [] as string[],
@@ -924,7 +932,9 @@ export default function CaseDetail() {
       toast({ title: "Save your assessment lead notes first", description: "Save your clarification before regenerating the analysis.", variant: "destructive" });
       return;
     }
-    if (c?.intakeAnalysis && !window.confirm("Regenerate the intake analysis using saved forms, parent interviews, teacher/parent responses and assessment lead clarifications? This replaces the current AI summary and recommendations, but does not change assigned tools or delete saved responses.")) return;
+    if (c?.intakeAnalysis && !window.confirm(
+      `Regenerate the intake analysis using the saved case details (Grade ${c.grade || "not specified"}, age ${ageFromDob(c.dob) ?? "unknown"} from the saved birth date), forms, interviews and responses?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`
+    )) return;
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
@@ -1012,6 +1022,7 @@ export default function CaseDetail() {
   const handleOpenEdit = () => {
     setEditFields({
       studentName: c.studentName ?? "",
+      dob: c.dob?.slice(0, 10) ?? "",
       school: c.school ?? "",
       grade: c.grade ?? "",
       languagePreference: c.languagePreference ?? "english",
@@ -1035,9 +1046,10 @@ export default function CaseDetail() {
       assignedLeadId: editFields.assignedLeadId || null,
       assignedPsychId: editFields.assignedPsychId || null,
     };
+    const demographicsChanged = data.grade !== c.grade || data.dob !== c.dob;
     updateCaseMut.mutate({ caseId, data }, {
       onSuccess: () => {
-        toast({ title: "Case updated" });
+        toast({ title: "Case updated", description: demographicsChanged ? "Regenerate the intake analysis to refresh the age and grade in its summary." : undefined });
         setEditCaseOpen(false);
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       },
@@ -3000,17 +3012,22 @@ export default function CaseDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Grade</label>
-                <Input value={editFields.grade} onChange={e => setEditFields(f => ({ ...f, grade: e.target.value }))} />
+                <label htmlFor="edit-case-dob" className="text-sm font-medium">Date of Birth</label>
+                <Input id="edit-case-dob" type="date" value={editFields.dob} onChange={e => setEditFields(f => ({ ...f, dob: e.target.value }))} required />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Language</label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.languagePreference} onChange={e => setEditFields(f => ({ ...f, languagePreference: e.target.value }))}>
-                  <option value="english">English</option>
-                  <option value="mandarin">Mandarin</option>
-                  <option value="korean">Korean</option>
-                </select>
+                <label htmlFor="edit-case-grade" className="text-sm font-medium">Current Grade</label>
+                <Input id="edit-case-grade" value={editFields.grade} onChange={e => setEditFields(f => ({ ...f, grade: e.target.value }))} />
               </div>
+            </div>
+            <p className="text-xs text-slate-500">The birth date determines the age shown in the intake analysis. Save changes, then regenerate the analysis.</p>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Language</label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={editFields.languagePreference} onChange={e => setEditFields(f => ({ ...f, languagePreference: e.target.value }))}>
+                <option value="english">English</option>
+                <option value="mandarin">Mandarin</option>
+                <option value="korean">Korean</option>
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Referral Reason</label>

@@ -1216,6 +1216,10 @@ components:
       properties:
         studentName:
           type: string
+        dob:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Corrected date of birth, used to calculate age for intake analysis.
         school:
           type: string
         grade:

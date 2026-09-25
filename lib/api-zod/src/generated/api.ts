@@ -251,8 +251,17 @@ export const UpdateCaseParams = zod.object({
   caseId: zod.coerce.string(),
 });
 
+export const updateCaseBodyDobRegExp = new RegExp("^\\d{4}-\\d{2}-\\d{2}$");
+
 export const UpdateCaseBody = zod.object({
   studentName: zod.string().optional(),
+  dob: zod
+    .string()
+    .regex(updateCaseBodyDobRegExp)
+    .optional()
+    .describe(
+      "Corrected date of birth, used to calculate age for intake analysis.",
+    ),
   school: zod.string().optional(),
   grade: zod.string().optional(),
   languagePreference: zod.enum(["english", "mandarin", "cantonese"]).optional(),
