@@ -39,8 +39,8 @@ function QuestionCard({
   const isKorean = language === "korean";
   const copy = {
     heading: request.audience === "teacher"
-      ? (isMandarin ? "给老师的问题" : isKorean ? "교사에게 드리는 질문" : "Questions for your teacher")
-      : (isMandarin ? "给家长或监护人的问题" : isKorean ? "부모 또는 보호자에게 드리는 질문" : "Questions for your parent or guardian"),
+      ? (isMandarin ? "给教师或学校辅导员的问题" : isKorean ? "교사 또는 학교 상담사를 위한 질문" : "Questions for teachers and school counselors")
+      : (isMandarin ? "给家长或监护人的问题" : isKorean ? "부모 또는 보호자에게 드리는 질문" : "Questions for parents and guardians"),
     guidance: isMandarin ? "请在每个问题下方的输入框填写答案，然后统一提交。" : isKorean ? "각 질문 아래의 입력란에 답변을 작성한 뒤 한 번에 제출해 주세요." : "Write your answer in the box below each question, then submit them together.",
     response: isMandarin ? "您的回答" : isKorean ? "답변" : "Your answer",
     placeholder: isMandarin ? "在此填写您的回答…" : isKorean ? "여기에 답변을 작성하세요…" : "Write your answer here…",
