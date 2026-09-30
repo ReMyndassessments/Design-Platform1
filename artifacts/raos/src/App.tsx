@@ -90,6 +90,7 @@ const GuidedSelfReport = React.lazy(() => import("@/pages/cases/[id]/self-report
 const CdpProfilePage = React.lazy(() => import("@/pages/cases/[id]/cdp"));
 const ResponseViewer = React.lazy(() => import("@/pages/cases/[id]/response/[assignmentId]"));
 const ExternalFormView = React.lazy(() => import("@/pages/external/[token]"));
+const TestPackagePage = React.lazy(() => import("@/pages/test-package"));
 const DemoStudentCase = React.lazy(() => import("@/pages/demo/student-case"));
 const JoinMeetingPage = React.lazy(() => import("@/pages/join/[room]"));
 const QuickMeetPage = React.lazy(() => import("@/pages/meet/[room]"));
@@ -223,6 +224,7 @@ function Router() {
         <Route path="/assessment-preparation" component={AssessmentPreparationPage} />
         <Route path="/my-portal" component={MyPortalLogin} />
         <Route path="/external/:token" component={ExternalFormView} />
+        <Route path="/test-package" component={TestPackagePage} />
         <Route path="/demo/student-case" component={DemoStudentCase} />
         <Route path="/ramri-upload/:token" component={RamriUploadPage} />
         <Route path="/student-view/rda" component={RdaStudentView} />

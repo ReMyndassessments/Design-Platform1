@@ -26,6 +26,9 @@ import type {
   BatteryDetail,
   BatteryReviewBlockedError,
   BatteryReviewStatus,
+  BatteryTestEmailInput,
+  BatteryTestEmailResult,
+  BatteryTestPackage,
   Case,
   CaseDetail,
   CasePhaseReturnInput,
@@ -2640,6 +2643,269 @@ export const useSendRespondentEmail = <
 > => {
   return useMutation(getSendRespondentEmailMutationOptions(options));
 };
+
+/**
+ * @summary Email a non-submitting assessment test package link to any email address (administrator only)
+ */
+export const getSendBatteryTestPackageEmailUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/battery-test-email`;
+};
+
+export const sendBatteryTestPackageEmail = async (
+  caseId: string,
+  batteryTestEmailInput: BatteryTestEmailInput,
+  options?: RequestInit,
+): Promise<BatteryTestEmailResult> => {
+  return customFetch<BatteryTestEmailResult>(
+    getSendBatteryTestPackageEmailUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(batteryTestEmailInput),
+    },
+  );
+};
+
+export const getSendBatteryTestPackageEmailMutationOptions = <
+  TError = ErrorType<ErrorResponse | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>,
+    TError,
+    { caseId: string; data: BodyType<BatteryTestEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>,
+  TError,
+  { caseId: string; data: BodyType<BatteryTestEmailInput> },
+  TContext
+> => {
+  const mutationKey = ["sendBatteryTestPackageEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>,
+    { caseId: string; data: BodyType<BatteryTestEmailInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return sendBatteryTestPackageEmail(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendBatteryTestPackageEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>
+>;
+export type SendBatteryTestPackageEmailMutationBody =
+  BodyType<BatteryTestEmailInput>;
+export type SendBatteryTestPackageEmailMutationError =
+  ErrorType<ErrorResponse | void>;
+
+/**
+ * @summary Email a non-submitting assessment test package link to any email address (administrator only)
+ */
+export const useSendBatteryTestPackageEmail = <
+  TError = ErrorType<ErrorResponse | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>,
+    TError,
+    { caseId: string; data: BodyType<BatteryTestEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendBatteryTestPackageEmail>>,
+  TError,
+  { caseId: string; data: BodyType<BatteryTestEmailInput> },
+  TContext
+> => {
+  return useMutation(getSendBatteryTestPackageEmailMutationOptions(options));
+};
+
+/**
+ * @summary Load an expiring non-submitting test package using its emailed bearer token
+ */
+export const getGetBatteryTestPackageUrl = () => {
+  return `/api/external/battery-test`;
+};
+
+export const getBatteryTestPackage = async (
+  options?: RequestInit,
+): Promise<BatteryTestPackage> => {
+  return customFetch<BatteryTestPackage>(getGetBatteryTestPackageUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBatteryTestPackageQueryKey = () => {
+  return [`/api/external/battery-test`] as const;
+};
+
+export const getGetBatteryTestPackageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBatteryTestPackage>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBatteryTestPackage>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBatteryTestPackageQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBatteryTestPackage>>
+  > = ({ signal }) => getBatteryTestPackage({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBatteryTestPackage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBatteryTestPackageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBatteryTestPackage>>
+>;
+export type GetBatteryTestPackageQueryError = ErrorType<void>;
+
+/**
+ * @summary Load an expiring non-submitting test package using its emailed bearer token
+ */
+
+export function useGetBatteryTestPackage<
+  TData = Awaited<ReturnType<typeof getBatteryTestPackage>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBatteryTestPackage>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBatteryTestPackageQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Load one frozen form in an expiring non-submitting test package
+ */
+export const getGetBatteryTestPackageFormUrl = (assignmentId: string) => {
+  return `/api/external/battery-test/forms/${assignmentId}`;
+};
+
+export const getBatteryTestPackageForm = async (
+  assignmentId: string,
+  options?: RequestInit,
+): Promise<StaffAssignmentPreview> => {
+  return customFetch<StaffAssignmentPreview>(
+    getGetBatteryTestPackageFormUrl(assignmentId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetBatteryTestPackageFormQueryKey = (assignmentId: string) => {
+  return [`/api/external/battery-test/forms/${assignmentId}`] as const;
+};
+
+export const getGetBatteryTestPackageFormQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBatteryTestPackageForm>>,
+  TError = ErrorType<void>,
+>(
+  assignmentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBatteryTestPackageForm>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetBatteryTestPackageFormQueryKey(assignmentId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBatteryTestPackageForm>>
+  > = ({ signal }) =>
+    getBatteryTestPackageForm(assignmentId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!assignmentId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBatteryTestPackageForm>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBatteryTestPackageFormQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBatteryTestPackageForm>>
+>;
+export type GetBatteryTestPackageFormQueryError = ErrorType<void>;
+
+/**
+ * @summary Load one frozen form in an expiring non-submitting test package
+ */
+
+export function useGetBatteryTestPackageForm<
+  TData = Awaited<ReturnType<typeof getBatteryTestPackageForm>>,
+  TError = ErrorType<void>,
+>(
+  assignmentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getBatteryTestPackageForm>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBatteryTestPackageFormQueryOptions(
+    assignmentId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Update assignment status

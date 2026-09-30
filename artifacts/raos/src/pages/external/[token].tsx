@@ -2749,6 +2749,7 @@ export function FormView({
   previewForm,
   previewLoading = false,
   previewError = null,
+  previewBackLabel = "Back to case",
 }: {
   activeToken: string;
   language: string;
@@ -2759,6 +2760,7 @@ export function FormView({
   previewForm?: StaffPreviewForm | null;
   previewLoading?: boolean;
   previewError?: string | null;
+  previewBackLabel?: string;
 }) {
   const liveFormQuery = useGetExternalForm(activeToken, {
     query: {
@@ -2872,7 +2874,7 @@ export function FormView({
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">🔗</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">{previewMode ? "Preview Not Available" : "Link Not Found"}</h2>
           <p className="text-slate-500 text-sm leading-relaxed">{previewMode ? previewError ?? "The assigned form could not be loaded. No live respondent link was opened." : "This form link is invalid or has already expired."}</p>
-          <button onClick={onBack} className="mt-6 text-sm text-primary underline">{previewMode ? "← Back to case" : "← Back to portal"}</button>
+          <button onClick={onBack} className="mt-6 text-sm text-primary underline">{previewMode ? `← ${previewBackLabel}` : "← Back to portal"}</button>
           <ReMyndFooter />
         </div>
       </div>
@@ -2982,7 +2984,7 @@ export function FormView({
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 font-medium transition-colors"
             >
               <ArrowLeft size={14} />
-              <span className="hidden sm:inline">{previewMode ? "Back to case" : "My Forms"}</span>
+              <span className="hidden sm:inline">{previewMode ? previewBackLabel : "My Forms"}</span>
             </button>
             <div className="h-4 w-px bg-white/10" />
             <div className="flex items-center gap-3">

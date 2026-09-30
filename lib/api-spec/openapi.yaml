@@ -716,6 +716,102 @@ paths:
         "502":
           description: Invitation email could not be sent
 
+  /cases/{caseId}/battery-test-email:
+    post:
+      operationId: sendBatteryTestPackageEmail
+      tags: [assignments]
+      summary: Email a non-submitting assessment test package link to any email address (administrator only)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatteryTestEmailInput"
+      responses:
+        "200":
+          description: Test-only link emailed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryTestEmailResult"
+        "400":
+          description: Invalid email or package selection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Administrator access required
+        "404":
+          description: Case not found
+        "409":
+          description: Selected form snapshots are invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Test email could not be sent
+        "503":
+          description: Assessment test links are not configured
+
+  /external/battery-test:
+    get:
+      operationId: getBatteryTestPackage
+      tags: [external]
+      summary: Load an expiring non-submitting test package using its emailed bearer token
+      parameters:
+        - name: X-Battery-Test-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test-only package form list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryTestPackage"
+        "410":
+          description: Invalid, expired, or stale test package link
+        "503":
+          description: Test link signing key is not configured
+
+  /external/battery-test/forms/{assignmentId}:
+    get:
+      operationId: getBatteryTestPackageForm
+      tags: [external]
+      summary: Load one frozen form in an expiring non-submitting test package
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Battery-Test-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Form preview compatible with the staff form viewer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAssignmentPreview"
+        "410":
+          description: Invalid, expired, stale, or unlisted test package form
+        "503":
+          description: Test link signing key is not configured
+
   /cases/{caseId}/assignments/{assignmentId}:
     patch:
       operationId: updateAssignment
@@ -1954,6 +2050,63 @@ components:
           type: string
           pattern: "^[a-fA-F0-9]{64}$"
       required: [fingerprint]
+
+    BatteryTestEmailInput:
+      type: object
+      properties:
+        toEmail:
+          type: string
+          format: email
+          maxLength: 254
+        assignmentIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 256
+      required: [toEmail, assignmentIds]
+      additionalProperties: false
+
+    BatteryTestEmailResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        expiresAt:
+          type: string
+          format: date-time
+      required: [success, expiresAt]
+
+    BatteryTestPackageForm:
+      type: object
+      properties:
+        assignmentId:
+          type: string
+        toolName:
+          type: string
+        respondentLabel:
+          type: string
+      required: [assignmentId, toolName, respondentLabel]
+
+    BatteryTestPackage:
+      type: object
+      properties:
+        preview:
+          type: boolean
+          const: true
+        packageLabel:
+          type: string
+        forms:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatteryTestPackageForm"
+        expiresAt:
+          type: string
+          format: date-time
+      required: [preview, packageLabel, forms, expiresAt]
 
     BatteryReviewBlockedError:
       type: object

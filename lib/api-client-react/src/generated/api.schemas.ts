@@ -708,6 +708,34 @@ export interface ApproveBatteryReviewInput {
   fingerprint: string;
 }
 
+export interface BatteryTestEmailInput {
+  /** @maxLength 254 */
+  toEmail: string;
+  /**
+   * @minItems 1
+   * @maxItems 100
+   */
+  assignmentIds: string[];
+}
+
+export interface BatteryTestEmailResult {
+  success: true;
+  expiresAt: string;
+}
+
+export interface BatteryTestPackageForm {
+  assignmentId: string;
+  toolName: string;
+  respondentLabel: string;
+}
+
+export interface BatteryTestPackage {
+  preview: true;
+  packageLabel: string;
+  forms: BatteryTestPackageForm[];
+  expiresAt: string;
+}
+
 export interface BatteryReviewBlockedError {
   error: "battery_approval_required";
   message: string;

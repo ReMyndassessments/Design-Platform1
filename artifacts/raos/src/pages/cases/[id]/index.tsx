@@ -354,6 +354,11 @@ export default function CaseDetail() {
   } | null>(null);
   const [sendEmailForm, setSendEmailForm] = useState({ name: "", email: "" });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [testPackageTarget, setTestPackageTarget] = useState<{ label: string; assignmentIds: string[] } | null>(null);
+  const [testPackageEmail, setTestPackageEmail] = useState("");
+  const [testPackageError, setTestPackageError] = useState<string | null>(null);
+  const [testPackageExpiresAt, setTestPackageExpiresAt] = useState<string | null>(null);
+  const [isSendingTestPackage, setIsSendingTestPackage] = useState(false);
   const [includeAbo, setIncludeAbo] = useState(false);
   const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
   const [stepBackTarget, setStepBackTarget] = useState<string | null>(null);
@@ -403,6 +408,40 @@ export default function CaseDetail() {
       toast({ title: "Could not open demo portal", variant: "destructive" });
     } finally {
       setOpeningDemoPortal(false);
+    }
+  };
+
+  const handleSendTestPackage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!testPackageTarget || !testPackageEmail.trim() || isSendingTestPackage) return;
+    setIsSendingTestPackage(true);
+    setTestPackageError(null);
+    setTestPackageExpiresAt(null);
+    try {
+      const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/battery-test-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token") ?? ""}`,
+        },
+        body: JSON.stringify({
+          toEmail: testPackageEmail.trim(),
+          assignmentIds: testPackageTarget.assignmentIds,
+        }),
+      });
+      const body = await response.json().catch(() => null) as { success?: boolean; expiresAt?: string; message?: string; error?: string } | null;
+      if (!response.ok || !body?.success || !body.expiresAt) {
+        throw new Error(body?.message ?? body?.error ?? "The test package email could not be sent.");
+      }
+      setTestPackageExpiresAt(body.expiresAt);
+      toast({
+        title: "Test package link sent",
+        description: `Sent to ${testPackageEmail.trim()}. This does not change the respondent's real link or email.`,
+      });
+    } catch (error) {
+      setTestPackageError(error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setIsSendingTestPackage(false);
     }
   };
   const [showAllTools, setShowAllTools] = useState(false);
@@ -2976,6 +3015,22 @@ export default function CaseDetail() {
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0 flex-wrap">
+                        {currentUser?.role === "admin" && ["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor"].includes(group.respondentType) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 border-violet-200 text-violet-800 hover:bg-violet-50"
+                            data-testid={`button-send-test-package-${group.groupKey.replace(/[^a-z0-9-]/gi, "-")}`}
+                            onClick={() => {
+                              setTestPackageTarget({ label: group.label, assignmentIds: group.forms.map(form => form.id) });
+                              setTestPackageEmail("");
+                              setTestPackageError(null);
+                              setTestPackageExpiresAt(null);
+                            }}
+                          >
+                            <FlaskConical size={14} /> Send test package
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Show QR Code"}
                           onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
                           <QrCode size={15} />
@@ -3258,6 +3313,84 @@ export default function CaseDetail() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!testPackageTarget} onOpenChange={open => {
+        if (!open && !isSendingTestPackage) {
+          setTestPackageTarget(null);
+          setTestPackageError(null);
+          setTestPackageExpiresAt(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical size={18} className="text-violet-700" />
+              Send test package
+            </DialogTitle>
+            <DialogDescription>
+              Send a temporary, test-only copy of this package to any email address. This is separate from the respondent’s real forms link.
+            </DialogDescription>
+          </DialogHeader>
+          {testPackageTarget && (
+            <form onSubmit={handleSendTestPackage} className="space-y-4">
+              <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
+                <p className="text-sm font-semibold text-violet-950" data-testid="text-test-package-label">{testPackageTarget.label}</p>
+                <p className="text-xs text-violet-800 mt-1">{testPackageTarget.assignmentIds.length} form{testPackageTarget.assignmentIds.length === 1 ? "" : "s"} in this test package</p>
+                <p className="text-xs font-bold text-violet-950 mt-2">[TEST ONLY] No responses are saved.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="test-package-email">Email address</Label>
+                <Input
+                  id="test-package-email"
+                  data-testid="input-test-package-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={testPackageEmail}
+                  onChange={event => setTestPackageEmail(event.target.value)}
+                  required
+                  disabled={isSendingTestPackage || !!testPackageExpiresAt}
+                />
+              </div>
+              {testPackageError && (
+                <p role="alert" data-testid="status-test-package-error" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {testPackageError}
+                </p>
+              )}
+              {testPackageExpiresAt && (
+                <p role="status" data-testid="status-test-package-sent" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  Test link sent to {testPackageEmail.trim()}. It expires {new Date(testPackageExpiresAt).toLocaleString()}. No respondent details or real response link were changed.
+                </p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={isSendingTestPackage}
+                  onClick={() => {
+                    setTestPackageTarget(null);
+                    setTestPackageError(null);
+                    setTestPackageExpiresAt(null);
+                  }}
+                >
+                  {testPackageExpiresAt ? "Done" : "Cancel"}
+                </Button>
+                {!testPackageExpiresAt && (
+                  <Button
+                    type="submit"
+                    className="flex-1 gap-2"
+                    disabled={isSendingTestPackage || !testPackageEmail.trim() || currentUser?.role !== "admin"}
+                    data-testid="button-confirm-send-test-package"
+                  >
+                    <Send size={14} /> {isSendingTestPackage ? "Sending…" : "Send test link"}
+                  </Button>
+                )}
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>

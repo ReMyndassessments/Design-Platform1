@@ -14,6 +14,11 @@ import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/pare
 import { buildBatteryReviewState, INTAKE_TOOL_IDS } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
+import {
+  BATTERY_TEST_TOKEN_TTL_SECONDS,
+  createBatteryTestToken,
+  validateBatteryTestPackage,
+} from "../lib/batteryTestInvitation.js";
 import { z } from "zod";
 
 const router = Router();
@@ -136,6 +141,145 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     alreadySubmitted: false,
     preview: true,
   });
+});
+
+router.post("/cases/:caseId/battery-test-email", authMiddleware, async (req, res): Promise<void> => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "forbidden", message: "Only an administrator can send an assessment test package." });
+    return;
+  }
+
+  const caseId = req.params.caseId;
+  if (typeof caseId !== "string" || !caseId.trim()) {
+    res.status(400).json({ error: "invalid_case_id" });
+    return;
+  }
+
+  const body = z.object({
+    toEmail: z.string().trim().email().max(254).transform(email => email.toLowerCase()),
+    assignmentIds: z.array(z.string().min(1).max(256)).min(1).max(100),
+  }).strict().safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "invalid_request", message: "Provide a valid email address and one complete parent or teacher package." });
+    return;
+  }
+
+  const [caseRow] = await db.select({
+    id: casesTable.id,
+    batteryApproval: casesTable.batteryApproval,
+  }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRow) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  const caseAssignments = await db.select({
+    id: assignmentsTable.id,
+    toolId: assignmentsTable.toolId,
+    toolName: assignmentsTable.toolName,
+    respondentLabel: assignmentsTable.respondentLabel,
+    respondentType: assignmentsTable.respondentType,
+    uniqueLink: assignmentsTable.uniqueLink,
+    formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+    assignedToName: assignmentsTable.assignedToName,
+    assignedToEmail: assignmentsTable.assignedToEmail,
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+  const packageData = validateBatteryTestPackage(caseAssignments, body.data.assignmentIds);
+  if (!packageData) {
+    res.status(400).json({
+      error: "invalid_package",
+      message: "Selected forms must be the complete parent or teacher package for this case.",
+    });
+    return;
+  }
+
+  if (packageData.assignments.some(assignment => !questionsFromAssignmentSnapshot(assignment.formItemsSnapshot))) {
+    res.status(409).json({
+      error: "missing_snapshot",
+      message: "Every selected form must have a valid frozen snapshot before a test link can be sent.",
+    });
+    return;
+  }
+
+  const secret = process.env.SESSION_SECRET;
+  if (!secret?.trim()) {
+    res.status(503).json({
+      error: "test_links_unavailable",
+      message: "Assessment test links are unavailable because SESSION_SECRET is not configured.",
+    });
+    return;
+  }
+
+  const fingerprint = buildBatteryReviewState(
+    caseAssignments,
+    caseRow.batteryApproval as BatteryApproval | null,
+  ).fingerprint;
+  const expiresAtSeconds = Math.ceil(Date.now() / 1000) + BATTERY_TEST_TOKEN_TTL_SECONDS;
+  let token: string;
+  try {
+    token = createBatteryTestToken({
+      caseId,
+      assignmentIds: body.data.assignmentIds.slice().sort(),
+      fingerprint,
+      exp: expiresAtSeconds,
+    }, secret);
+  } catch {
+    res.status(503).json({
+      error: "test_links_unavailable",
+      message: "Assessment test links could not be created. Confirm SESSION_SECRET is configured.",
+    });
+    return;
+  }
+
+  const expiresAt = new Date(expiresAtSeconds * 1000).toISOString();
+  const testPackageLink = `${getBaseUrl(req)}/test-package?token=${encodeURIComponent(token)}`;
+  const escapedTestPackageLink = testPackageLink
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+  const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1e293b">
+    <h2 style="color:#0a1628">Assessment package test link</h2>
+    <p><strong>[TEST ONLY]</strong> This link opens a non-submitting preview of an assessment package.</p>
+    <p><a href="${escapedTestPackageLink}" style="display:inline-block;background:#1d4ed8;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Open test package</a></p>
+    <p>This preview expires in 48 hours. Answers are not saved and the link must not be used for a real assessment response.</p>
+  </div>`;
+
+  try {
+    await sendEmail({
+      to: body.data.toEmail,
+      subject: "[TEST ONLY] Assessment package preview",
+      html,
+    });
+  } catch {
+    req.log.error({ caseId }, "Could not send assessment test package email");
+    res.status(502).json({
+      error: "send_failed",
+      message: "The assessment test email could not be sent. Please try again.",
+    });
+    return;
+  }
+
+  try {
+    await writeAudit({
+      eventType: "assessment.test_package_email_sent",
+      caseId,
+      actorId: req.userId ?? null,
+      actorRole: req.userRole ?? null,
+      ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
+      metadata: {
+        recipientEmail: body.data.toEmail,
+        packageType: packageData.category,
+        assignmentCount: packageData.assignments.length,
+        expiresAt,
+      },
+    });
+  } catch (error) {
+    req.log.error({ err: error, caseId }, "Assessment test email was sent but its audit entry could not be recorded");
+  }
+
+  res.json({ success: true, expiresAt });
 });
 
 router.post("/cases/:caseId/battery-review/approve", authMiddleware, async (req, res): Promise<void> => {

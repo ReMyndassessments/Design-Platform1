@@ -20,8 +20,15 @@ import { recipientMatchesReportToken, reportRecipientPortalUrl } from "../lib/re
 import { parentPermissionError, resolveReportRole } from "../lib/recipientPortalIdentity.js";
 import { consolidatedParentPortalToken } from "../lib/parentPackageConsolidation.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
+import { buildBatteryReviewState } from "../lib/batteryReview.js";
+import type { BatteryApproval } from "../lib/batteryReview.js";
+import {
+  validateBatteryTestPackage,
+  verifyBatteryTestToken,
+} from "../lib/batteryTestInvitation.js";
 
 const storage = new ObjectStorageService();
+const router = Router();
 
 const AIRWALLEX_PAYMENT_FAILURE_EVENTS = new Set([
   "payment_attempt.authentication_failed",
@@ -70,6 +77,139 @@ function airwallexReferenceId(value: unknown): string | undefined {
 const QR_PAYMENT_METHODS = new Set(["wechat_pay", "alipay"]);
 const QR_FAILURE_EVENTS = new Set([...AIRWALLEX_PAYMENT_FAILURE_EVENTS, "payment_intent.payment_failed", "payment_intent.cancelled"]);
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+type BatteryTestContext = {
+  category: "parent" | "teacher";
+  expiresAt: string;
+  language: string;
+  assignments: Array<{
+    id: string;
+    toolId: string;
+    toolName: string;
+    respondentLabel: string;
+    respondentType: string;
+    formItemsSnapshot: string | null;
+  }>;
+};
+
+async function loadBatteryTestContext(token: string): Promise<BatteryTestContext | null> {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret?.trim()) throw new Error("SESSION_SECRET environment variable is required for assessment test links");
+  const claims = verifyBatteryTestToken(token, secret);
+  if (!claims) return null;
+
+  const [caseRow] = await db.select({
+    id: casesTable.id,
+    languagePreference: casesTable.languagePreference,
+    batteryApproval: casesTable.batteryApproval,
+  }).from(casesTable).where(eq(casesTable.id, claims.caseId)).limit(1);
+  if (!caseRow) return null;
+
+  const caseAssignments = await db.select({
+    id: assignmentsTable.id,
+    toolId: assignmentsTable.toolId,
+    toolName: assignmentsTable.toolName,
+    respondentLabel: assignmentsTable.respondentLabel,
+    respondentType: assignmentsTable.respondentType,
+    uniqueLink: assignmentsTable.uniqueLink,
+    formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+    assignedToName: assignmentsTable.assignedToName,
+    assignedToEmail: assignmentsTable.assignedToEmail,
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, claims.caseId));
+  const currentFingerprint = buildBatteryReviewState(
+    caseAssignments,
+    caseRow.batteryApproval as BatteryApproval | null,
+  ).fingerprint;
+  if (currentFingerprint !== claims.fingerprint) return null;
+
+  const packageData = validateBatteryTestPackage(caseAssignments, claims.assignmentIds);
+  if (!packageData || packageData.assignments.some(assignment => !questionsFromAssignmentSnapshot(assignment.formItemsSnapshot))) {
+    return null;
+  }
+
+  return {
+    category: packageData.category,
+    expiresAt: new Date(claims.exp * 1000).toISOString(),
+    language: caseRow.languagePreference ?? "english",
+    assignments: packageData.assignments.map(assignment => ({
+      id: assignment.id,
+      toolId: assignment.toolId,
+      toolName: assignment.toolName ?? assignment.toolId,
+      respondentLabel: assignment.respondentLabel,
+      respondentType: assignment.respondentType,
+      formItemsSnapshot: assignment.formItemsSnapshot ?? null,
+    })),
+  };
+}
+
+function batteryTestTokenFromRequest(req: import("express").Request, res: import("express").Response): string | null {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret?.trim()) {
+    res.status(503).json({
+      error: "test_links_unavailable",
+      message: "Assessment test links are unavailable because SESSION_SECRET is not configured.",
+    });
+    return null;
+  }
+  const token = req.get("x-battery-test-token");
+  if (!token) {
+    res.status(410).json({ error: "test_link_expired", message: "This assessment test link is invalid or expired." });
+    return null;
+  }
+  return token;
+}
+
+router.get("/external/battery-test", async (req, res): Promise<void> => {
+  const token = batteryTestTokenFromRequest(req, res);
+  if (!token) return;
+  const context = await loadBatteryTestContext(token);
+  if (!context) {
+    res.status(410).json({ error: "test_link_expired", message: "This assessment test link is invalid, expired, or the assessment package has changed." });
+    return;
+  }
+
+  res.json({
+    preview: true,
+    packageLabel: context.category === "parent" ? "Parent assessment test package" : "Teacher assessment test package",
+    forms: context.assignments.map(assignment => ({
+      assignmentId: assignment.id,
+      toolName: assignment.toolName,
+      respondentLabel: context.category === "parent" ? "Parent" : "Teacher",
+    })),
+    expiresAt: context.expiresAt,
+  });
+});
+
+router.get("/external/battery-test/forms/:assignmentId", async (req, res): Promise<void> => {
+  const token = batteryTestTokenFromRequest(req, res);
+  if (!token) return;
+  const context = await loadBatteryTestContext(token);
+  const assignmentId = req.params.assignmentId;
+  if (!context || typeof assignmentId !== "string") {
+    res.status(410).json({ error: "test_link_expired", message: "This assessment test link is invalid, expired, or the assessment package has changed." });
+    return;
+  }
+
+  const assignment = context.assignments.find(form => form.id === assignmentId);
+  const questions = assignment ? questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) : null;
+  if (!assignment || !questions) {
+    res.status(410).json({ error: "test_link_expired", message: "This form is not part of the active assessment test package." });
+    return;
+  }
+
+  res.json({
+    assignmentId: assignment.id,
+    toolId: assignment.toolId,
+    formType: "screener",
+    toolName: assignment.toolName,
+    respondentLabel: context.category === "parent" ? "Parent" : "Teacher",
+    studentName: "Test Student",
+    language: context.language,
+    questions,
+    alreadySubmitted: false,
+    preview: true,
+  });
+});
 
 function publicQrPath(value: string | undefined): string | null {
   const path = value?.trim();
@@ -260,8 +400,6 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
 
   return SAMPLE_QUESTIONS[toolId] ?? SAMPLE_QUESTIONS["default"];
 }
-
-const router = Router();
 
 router.get("/external/portal/:token", async (req, res) => {
   const portalToken = req.params.token;

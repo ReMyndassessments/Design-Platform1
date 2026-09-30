@@ -960,6 +960,88 @@ export const SendRespondentEmailResponse = zod.object({
 });
 
 /**
+ * @summary Email a non-submitting assessment test package link to any email address (administrator only)
+ */
+export const SendBatteryTestPackageEmailParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const sendBatteryTestPackageEmailBodyToEmailMax = 254;
+
+export const sendBatteryTestPackageEmailBodyAssignmentIdsItemMax = 256;
+
+export const sendBatteryTestPackageEmailBodyAssignmentIdsMax = 100;
+
+export const SendBatteryTestPackageEmailBody = zod.object({
+  toEmail: zod.string().email().max(sendBatteryTestPackageEmailBodyToEmailMax),
+  assignmentIds: zod
+    .array(
+      zod
+        .string()
+        .min(1)
+        .max(sendBatteryTestPackageEmailBodyAssignmentIdsItemMax),
+    )
+    .min(1)
+    .max(sendBatteryTestPackageEmailBodyAssignmentIdsMax),
+});
+
+export const SendBatteryTestPackageEmailResponse = zod.object({
+  success: zod.boolean(),
+  expiresAt: zod.date(),
+});
+
+/**
+ * @summary Load an expiring non-submitting test package using its emailed bearer token
+ */
+export const GetBatteryTestPackageHeader = zod.object({
+  "X-Battery-Test-Token": zod.string(),
+});
+
+export const GetBatteryTestPackageResponse = zod.object({
+  preview: zod.boolean(),
+  packageLabel: zod.string(),
+  forms: zod.array(
+    zod.object({
+      assignmentId: zod.string(),
+      toolName: zod.string(),
+      respondentLabel: zod.string(),
+    }),
+  ),
+  expiresAt: zod.date(),
+});
+
+/**
+ * @summary Load one frozen form in an expiring non-submitting test package
+ */
+export const GetBatteryTestPackageFormParams = zod.object({
+  assignmentId: zod.coerce.string(),
+});
+
+export const GetBatteryTestPackageFormHeader = zod.object({
+  "X-Battery-Test-Token": zod.string(),
+});
+
+export const GetBatteryTestPackageFormResponse = zod.object({
+  assignmentId: zod.string(),
+  toolId: zod.string(),
+  formType: zod.string(),
+  toolName: zod.string(),
+  respondentLabel: zod.string(),
+  studentName: zod.string(),
+  language: zod.string(),
+  questions: zod.array(
+    zod.object({
+      id: zod.string().optional(),
+      text: zod.string().optional(),
+      type: zod.string().optional(),
+      required: zod.boolean().optional(),
+    }),
+  ),
+  alreadySubmitted: zod.boolean(),
+  preview: zod.boolean(),
+});
+
+/**
  * @summary Update assignment status
  */
 export const UpdateAssignmentParams = zod.object({
