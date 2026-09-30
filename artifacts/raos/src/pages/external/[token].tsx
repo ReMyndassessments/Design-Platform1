@@ -286,17 +286,19 @@ function phaseIndex(key: string) {
 function usePortalData(token: string, refreshKey: number) {
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<"not_found" | "parent_link_replaced" | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`/api/external/portal/${token}`)
       .then(r => {
+        if (r.status === 410) throw new Error("parent_link_replaced");
         if (!r.ok) throw new Error("not found");
         return r.json() as Promise<PortalData>;
       })
       .then(d => { setData(d); setLoading(false); })
-      .catch(() => { setError(true); setLoading(false); });
+      .catch(e => { setError(e instanceof Error && e.message === "parent_link_replaced" ? "parent_link_replaced" : "not_found"); setLoading(false); });
   }, [token, refreshKey]);
 
   return { data, loading, error };
@@ -3066,9 +3068,11 @@ export default function ExternalFormView() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">{portalError === "parent_link_replaced" ? "Parent Link Replaced" : "Link Not Found"}</h2>
             <p className="text-slate-500 text-sm leading-relaxed">
-              This link is invalid or has expired. Please contact the assessment team for a new link.
+              {portalError === "parent_link_replaced"
+                ? "This parent assessment package now has one shared link. Please ask the assessment team for the current link."
+                : "This link is invalid or has expired. Please contact the assessment team for a new link."}
             </p>
             <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-400">
               <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-4 h-4 object-contain mix-blend-multiply" />

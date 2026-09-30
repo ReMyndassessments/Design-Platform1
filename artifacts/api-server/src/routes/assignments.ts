@@ -10,7 +10,7 @@ import { generateIntakeSummary, generateAboSummary, generateFormSummary, generat
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
-import { planParentPackageConsolidation } from "../lib/parentPackageConsolidation.js";
+import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/parentPackageConsolidation.js";
 
 const router = Router();
 
@@ -43,8 +43,8 @@ router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   res.json(assignments);
 });
 
-// An explicit, non-destructive repair for two unnamed parent groups that staff
-// have confirmed belong to the same recipient. Existing tokens and responses stay put.
+// Staff-confirmed parent consolidation: one shared entry link while per-form
+// tokens remain available for submitting the individual questionnaires.
 router.post("/cases/:caseId/assignments/consolidate-parent", authMiddleware, async (req, res) => {
   if (!["admin", "psychometrician", "school_clinical_coordinator"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "forbidden" });
@@ -55,51 +55,79 @@ router.post("/cases/:caseId/assignments/consolidate-parent", authMiddleware, asy
     res.status(400).json({ error: "invalid_case_id" });
     return;
   }
-  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+  const [caseRow] = await db.select({ id: casesTable.id, school: casesTable.school })
+    .from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  if (!caseRow) {
     res.status(404).json({ error: "not_found" });
     return;
   }
-
-  const parentRows = await db.select({
-    id: assignmentsTable.id,
-    toolId: assignmentsTable.toolId,
-    respondentLabel: assignmentsTable.respondentLabel,
-    assignedToName: assignmentsTable.assignedToName,
-    assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(and(
-    eq(assignmentsTable.caseId, caseId),
-    eq(assignmentsTable.respondentType, "parent"),
-    inArray(assignmentsTable.respondentLabel, ["Parent", "Parent Assessment Package"]),
-  ));
-  const assessmentRows = parentRows.filter(a => !INTAKE_TOOL_IDS.has(a.toolId));
-  const plan = planParentPackageConsolidation(assessmentRows);
-  if ("error" in plan && plan.error === "recipient_identified") {
-    res.status(409).json({ error: "recipient_identified", message: "A parent form has a name or email. Review the recipients before combining packages." });
+  if (req.userRole === "school_clinical_coordinator" && (!req.userSchool || caseRow.school !== req.userSchool)) {
+    res.status(403).json({ error: "forbidden" });
     return;
   }
-  if ("error" in plan) {
-    res.status(409).json({ error: "no_split_parent_package", message: "The two unnamed parent packages are not present." });
+
+  let result: { updated: number; expected: number } | { error: string; message: string };
+  try {
+    result = await db.transaction(async tx => {
+      const parentRows = await tx.select({
+        id: assignmentsTable.id,
+        toolId: assignmentsTable.toolId,
+        respondentLabel: assignmentsTable.respondentLabel,
+        assignedToName: assignmentsTable.assignedToName,
+        assignedToEmail: assignmentsTable.assignedToEmail,
+        createdAt: assignmentsTable.createdAt,
+        uniqueToken: assignmentsTable.uniqueToken,
+        uniqueLink: assignmentsTable.uniqueLink,
+      }).from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, caseId),
+        eq(assignmentsTable.respondentType, "parent"),
+        inArray(assignmentsTable.respondentLabel, ["Parent", "Parent Assessment Package"]),
+      )).for("update");
+      const assessmentRows = parentRows.filter(a => !INTAKE_TOOL_IDS.has(a.toolId));
+      const plan = planParentPackageConsolidation(assessmentRows);
+      if ("error" in plan) {
+        return plan.error === "recipient_identified"
+          ? { error: plan.error, message: "A parent form has a name or email. Review the recipients before combining packages." }
+          : { error: plan.error, message: "The two unnamed parent packages are not present." };
+      }
+      const canonical = [...assessmentRows].sort((a, b) =>
+        a.createdAt.getTime() - b.createdAt.getTime() || a.uniqueToken.localeCompare(b.uniqueToken))[0];
+      if (tokenFromPortalLink(canonical.uniqueLink) !== canonical.uniqueToken) {
+        return { error: "invalid_parent_link", message: "The original parent link could not be verified. No forms were changed." };
+      }
+      const updated = await tx.update(assignmentsTable).set({
+        respondentLabel: "Parent Assessment Package",
+        uniqueLink: canonical.uniqueLink,
+        qrCodeData: canonical.uniqueLink,
+      }).where(and(
+        eq(assignmentsTable.caseId, caseId),
+        eq(assignmentsTable.respondentType, "parent"),
+        inArray(assignmentsTable.id, assessmentRows.map(a => a.id)),
+        sql`coalesce(btrim(${assignmentsTable.assignedToName}), '') = ''`,
+        sql`coalesce(btrim(${assignmentsTable.assignedToEmail}), '') = ''`,
+      )).returning({ id: assignmentsTable.id });
+      if (updated.length !== assessmentRows.length) {
+        throw new Error("Parent assignments changed during consolidation");
+      }
+      return { updated: plan.sourceIds.length, expected: plan.sourceIds.length };
+    });
+  } catch {
+    console.error("[consolidate-parent] Transaction failed");
+    res.status(500).json({ error: "consolidation_failed", message: "No parent forms were changed. Refresh and try again." });
     return;
   }
-  const sourceIds = plan.sourceIds;
-
-  const updated = await db.update(assignmentsTable).set({ respondentLabel: "Parent Assessment Package" })
-    .where(and(
-      eq(assignmentsTable.caseId, caseId),
-      eq(assignmentsTable.respondentType, "parent"),
-      eq(assignmentsTable.respondentLabel, "Parent"),
-      inArray(assignmentsTable.id, sourceIds),
-      sql`coalesce(btrim(${assignmentsTable.assignedToName}), '') = ''`,
-      sql`coalesce(btrim(${assignmentsTable.assignedToEmail}), '') = ''`,
-    )).returning({ id: assignmentsTable.id });
+  if ("error" in result) {
+    res.status(409).json(result);
+    return;
+  }
   void writeAudit({
     eventType: "assignment.parent_packages_consolidated",
     caseId,
     actorId: req.userId ?? null,
     actorRole: req.userRole ?? null,
-    metadata: { count: updated.length },
+    metadata: { count: result.updated },
   });
-  res.json({ updated: updated.length, expected: sourceIds.length });
+  res.json(result);
 });
 
 router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {

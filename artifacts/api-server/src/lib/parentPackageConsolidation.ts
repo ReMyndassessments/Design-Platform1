@@ -17,3 +17,31 @@ export function planParentPackageConsolidation(rows: readonly ParentAssessmentRo
   }
   return { sourceIds };
 }
+
+export function tokenFromPortalLink(link: string): string | null {
+  return link.match(/\/external\/([^/?#]+)/)?.[1] ?? null;
+}
+
+type ParentPortalAssignment = {
+  uniqueToken: string;
+  uniqueLink: string;
+  respondentLabel: string;
+  assignedToEmail: string | null;
+};
+
+// A shared link on an assignment with a different form token marks an explicitly
+// consolidated group. Its recipient portal accepts only the shared link's token.
+export function consolidatedParentPortalToken(
+  anchor: ParentPortalAssignment,
+  candidates: readonly ParentPortalAssignment[],
+): string | null {
+  const email = anchor.assignedToEmail?.trim().toLowerCase();
+  const group = candidates.filter(candidate => email
+    ? candidate.assignedToEmail?.trim().toLowerCase() === email
+    : !candidate.assignedToEmail?.trim() && candidate.respondentLabel === anchor.respondentLabel);
+  const marker = group.find(candidate => {
+    const linkToken = tokenFromPortalLink(candidate.uniqueLink);
+    return linkToken && linkToken !== candidate.uniqueToken;
+  });
+  return marker ? tokenFromPortalLink(marker.uniqueLink) : null;
+}

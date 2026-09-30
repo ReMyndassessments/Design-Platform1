@@ -295,7 +295,7 @@ export default function CaseDetail() {
   };
 
   const handleConsolidateParent = async () => {
-    if (!window.confirm("These two unnamed parent rows belong to the same person. Combine their assessment forms so staff can share one parent portal link? Older links may still open the portal. Existing responses are kept; duplicate forms are NOT deleted.")) return;
+    if (!window.confirm("These two unnamed parent rows belong to the same person. Combine their assessment forms under one link? The other parent assessment entry links will stop opening the portal. Completed intake links and responses are kept; duplicate forms are NOT deleted.")) return;
     setConsolidatingParent(true);
     try {
       const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/assignments/consolidate-parent`, {
@@ -308,7 +308,7 @@ export default function CaseDetail() {
       }
       const result = await response.json() as { updated: number; expected: number };
       if (result.updated !== result.expected) throw new Error("Only some forms were combined. Refresh and try again.");
-      toast({ title: "One parent link ready to share", description: `${result.updated} forms joined the parent package. Review the duplicate CDP form before sending.` });
+      toast({ title: "One parent link ready to share", description: `${result.updated} forms joined the parent package; the other assessment links were retired. Review the duplicate CDP form before sending.` });
     } catch (error) {
       toast({ title: "Could not combine parent forms", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
@@ -2655,7 +2655,10 @@ export default function CaseDetail() {
                                 </Button>
                               </>
                             )}
-                            <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}>
+                            <Button variant="outline" size="sm" className="bg-white"
+                              title={a.respondentType === "parent" ? "Open Parent Portal" : "Open Form"}
+                              disabled={hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                              onClick={() => setFormModalUrl(a.respondentType === "parent" ? a.uniqueLink : `${BASE_URL}/external/${a.uniqueToken}`)}>
                               <ExternalLink size={16} />
                             </Button>
                           </>
@@ -2664,7 +2667,8 @@ export default function CaseDetail() {
                           <Button
                             size="sm"
                             className="bg-indigo-600 hover:bg-indigo-700"
-                            onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}
+                            disabled={hasSplitUnnamedParentPackages && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                            onClick={() => setFormModalUrl(a.uniqueLink)}
                           >
                             <Play size={14} className="mr-1" /> Launch Guided
                           </Button>

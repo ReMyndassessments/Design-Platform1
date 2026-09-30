@@ -18,6 +18,7 @@ import { z } from "zod";
 import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
 import { recipientMatchesReportToken, reportRecipientPortalUrl } from "../lib/recipientPortalLinks.js";
 import { parentPermissionError, resolveReportRole } from "../lib/recipientPortalIdentity.js";
+import { consolidatedParentPortalToken } from "../lib/parentPackageConsolidation.js";
 
 const storage = new ObjectStorageService();
 
@@ -372,12 +373,24 @@ router.get("/external/portal/:token", async (req, res) => {
         toolName: assignmentsTable.toolName,
         status: assignmentsTable.status,
         uniqueToken: assignmentsTable.uniqueToken,
+        uniqueLink: assignmentsTable.uniqueLink,
         respondentLabel: assignmentsTable.respondentLabel,
         respondentType: assignmentsTable.respondentType,
         assignedToEmail: assignmentsTable.assignedToEmail,
       })
       .from(assignmentsTable)
       .where(eq(assignmentsTable.caseId, assignment.caseId));
+    // Only the shared invitation token opens a consolidated parent assessment
+    // portal. Keep the per-form tokens for completing forms inside that portal,
+    // and leave already-completed referral, consent, and intake links alone.
+    if (rows[0] && anchorType === "parent" && !FORM_TYPES.includes(assignment.toolId)) {
+      const canonicalToken = consolidatedParentPortalToken(assignment, siblingCandidates.filter(s =>
+        s.respondentType === "parent" && !FORM_TYPES.includes(s.toolId)));
+      if (canonicalToken && portalToken !== canonicalToken) {
+        res.status(410).json({ error: "parent_link_replaced", message: "This parent assessment link has been replaced. Ask the assessment team for the current link." });
+        return;
+      }
+    }
     const recipientEmail = assignment.assignedToEmail?.trim().toLowerCase();
     const siblings = siblingCandidates.filter(s => recipientEmail
       ? s.assignedToEmail?.trim().toLowerCase() === recipientEmail && sameRole(s.respondentType)
