@@ -9,6 +9,7 @@ import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { generateIntakeSummary, generateAboSummary, generateFormSummary, generateRppiSummary, generateRdaSummary, generateRrfaSummary, generateRrcaSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
+import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
 });
 
 router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
-  const { toolId, respondentType, respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const { toolId, respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
 
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
   if (!caseRows[0]) {
@@ -53,6 +54,11 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const { userRole } = req;
   if (userRole !== "admin" && userRole !== "psychometrician" && userRole !== "school_clinical_coordinator") {
     res.status(403).json({ error: "forbidden", message: "Only administrators and psychometricians can assign forms" });
+    return;
+  }
+  const respondentType = normalizeAssignmentRespondentType(req.body.respondentType);
+  if (!respondentType) {
+    res.status(400).json({ error: "invalid_respondent_type", message: "Choose a valid respondent type for this assignment." });
     return;
   }
 
@@ -443,7 +449,12 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
     return;
   }
 
-  const { respondentType = "parent", respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const { respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const respondentType = normalizeAssignmentRespondentType(req.body.respondentType ?? "parent");
+  if (!respondentType) {
+    res.status(400).json({ error: "invalid_respondent_type", message: "Choose a valid respondent type for this battery." });
+    return;
+  }
   const toolIds = (battery.toolIds as string[]) ?? [];
 
   // Fetch tool names for label

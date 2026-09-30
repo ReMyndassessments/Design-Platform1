@@ -96,6 +96,10 @@ const RESPONDENT_LABELS: Record<string, string> = {
   invigilator: "Assessment Administration Team",
 };
 
+function assignmentRespondentType(catalogueType: string): string {
+  return catalogueType === "teacher" ? "teacher1" : catalogueType;
+}
+
 
 const RESPONDENT_TYPES_IN_MODAL = [
   "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "examiner",
@@ -517,6 +521,17 @@ export default function CaseDetail() {
   const RT_ORDER = ["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
   const DEFAULT_SELECTED_RTS = new Set(["parent", "teacher1", "self"]);
 
+  const loadExistingAssignmentKeys = async (): Promise<Set<string>> => {
+    const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/assignments`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("raos_token") ?? ""}` },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Could not check existing assignments");
+    const assignments = await response.json() as Array<{ toolId: string; respondentType: string }>;
+    if (!Array.isArray(assignments)) throw new Error("Invalid assignment list");
+    return new Set(assignments.map(a => `${a.toolId}\0${a.respondentType}`));
+  };
+
   function getProductRTInfo(productId: string, toolsList: typeof tools): Array<{ rt: string; formCount: number }> {
     const product = ASSESSMENT_PRODUCTS.find(p => p.id === productId);
     if (!product || !toolsList) return [];
@@ -524,7 +539,8 @@ export default function CaseDetail() {
     for (const toolId of product.toolIds) {
       const tool = toolsList.find(t => t.id === toolId);
       if (!tool) continue;
-      for (const rt of (tool.respondentTypes ?? [])) {
+      for (const catalogueType of (tool.respondentTypes ?? [])) {
+        const rt = assignmentRespondentType(catalogueType);
         rtMap.set(rt, (rtMap.get(rt) ?? 0) + 1);
       }
     }
@@ -566,13 +582,17 @@ export default function CaseDetail() {
     if (!selectedSlots.length) return;
     setProductAssigning(true);
     try {
+      const existingKeys = await loadExistingAssignmentKeys();
       const selectedRTs = new Set(selectedSlots.map(s => s.respondentType));
       let totalCreated = 0;
       for (const toolId of product.toolIds) {
         const toolData = tools?.find(t => t.id === toolId);
         if (!toolData) continue;
-        for (const rt of (toolData.respondentTypes ?? [])) {
+        for (const catalogueType of (toolData.respondentTypes ?? [])) {
+          const rt = assignmentRespondentType(catalogueType);
           if (!selectedRTs.has(rt)) continue;
+          const key = `${toolId}\0${rt}`;
+          if (existingKeys.has(key)) continue;
           const slot = selectedSlots.find(s => s.respondentType === rt)!;
           await createAssignmentMut.mutateAsync({
             caseId,
@@ -585,6 +605,7 @@ export default function CaseDetail() {
               assignedToEmail: slot.email || undefined,
             } as any
           });
+          existingKeys.add(key);
           totalCreated++;
         }
       }
@@ -599,7 +620,7 @@ export default function CaseDetail() {
           });
         } catch { /* non-fatal */ }
       }
-      toast({ title: "Product assigned", description: `${totalCreated} form${totalCreated !== 1 ? "s" : ""} assigned across ${selectedSlots.length} respondent${selectedSlots.length !== 1 ? "s" : ""}.` });
+      toast({ title: totalCreated ? "Product assigned" : "Product already assigned", description: totalCreated ? `${totalCreated} new form${totalCreated !== 1 ? "s" : ""} assigned. Existing assignments were kept.` : "No duplicate forms were created." });
       setProductModalOpen(false);
       setSelectedProductId("");
       setProductRespondentSlots([]);
@@ -607,6 +628,7 @@ export default function CaseDetail() {
     } catch {
       toast({ title: "Failed to assign product", variant: "destructive" });
     } finally {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       setProductAssigning(false);
     }
   };
@@ -946,15 +968,18 @@ export default function CaseDetail() {
 
   const handleAssignTool = async (rec: { toolId: string; name: string }) => {
     const toolData = (tools ?? []).find(t => t.id === rec.toolId);
-    const respondentTypes = toolData?.respondentTypes ?? [];
+    const respondentTypes = [...new Set((toolData?.respondentTypes ?? []).map(assignmentRespondentType))];
     if (respondentTypes.length === 0) {
       toast({ title: "No respondent types", description: "This tool has no respondent types configured.", variant: "destructive" });
       return;
     }
     setAssigningToolId(rec.toolId);
+    let count = 0;
     try {
-      let count = 0;
+      const existingKeys = await loadExistingAssignmentKeys();
       for (const rt of respondentTypes) {
+        const key = `${rec.toolId}\0${rt}`;
+        if (existingKeys.has(key)) continue;
         await createAssignmentMut.mutateAsync({
           caseId,
           data: {
@@ -964,14 +989,17 @@ export default function CaseDetail() {
             respondentLabel: RESPONDENT_LABELS[rt] ?? rt,
           } as any,
         });
+        existingKeys.add(key);
         count++;
       }
-      toast({ title: `${rec.name} assigned`, description: `Added ${count} assignment${count !== 1 ? "s" : ""} (${respondentTypes.map(rt => RESPONDENT_LABELS[rt] ?? rt).join(", ")}).` });
+      toast({ title: count ? `${rec.name} assigned` : `${rec.name} already assigned`, description: count ? `Added ${count} assignment${count !== 1 ? "s" : ""}. Existing respondent assignments were kept.` : "No duplicate assignments were created." });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
     } catch {
-      toast({ title: "Error assigning tool", variant: "destructive" });
+      toast({ title: "Error assigning tool", description: count ? "Some respondents were assigned. Retry to add any missing respondents without duplicating existing ones." : "No new assignments could be added. Please try again.", variant: "destructive" });
     } finally {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
       setAssigningToolId(null);
     }
   };
