@@ -295,7 +295,7 @@ export default function CaseDetail() {
   };
 
   const handleConsolidateParent = async () => {
-    if (!window.confirm("These two unnamed parent rows belong to the same person. Combine their assessment forms into one portal package? Existing links and responses will remain valid. Duplicate forms will NOT be deleted.")) return;
+    if (!window.confirm("These two unnamed parent rows belong to the same person. Combine their assessment forms so staff can share one parent portal link? Older links may still open the portal. Existing responses are kept; duplicate forms are NOT deleted.")) return;
     setConsolidatingParent(true);
     try {
       const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/assignments/consolidate-parent`, {
@@ -308,7 +308,7 @@ export default function CaseDetail() {
       }
       const result = await response.json() as { updated: number; expected: number };
       if (result.updated !== result.expected) throw new Error("Only some forms were combined. Refresh and try again.");
-      toast({ title: "Parent forms combined", description: `${result.updated} forms moved into one parent portal package. Existing links and responses remain valid. Review the duplicate CDP form before sending.` });
+      toast({ title: "One parent link ready to share", description: `${result.updated} forms joined the parent package. Review the duplicate CDP form before sending.` });
     } catch (error) {
       toast({ title: "Could not combine parent forms", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally {
@@ -665,7 +665,10 @@ export default function CaseDetail() {
       name: string | null; email: string | null; link: string;
       forms: { id: string; name: string; status: string }[];
     }>();
-    for (const a of c.assignments) {
+    // Pick the oldest assignment as the stable, single invitation link for each
+    // group; newly added forms must not silently change the link already shared.
+    for (const a of [...c.assignments].sort((left, right) =>
+      left.createdAt.localeCompare(right.createdAt) || left.uniqueToken.localeCompare(right.uniqueToken))) {
       if (INTAKE_TOOL_IDS.has(a.toolId ?? "")) continue;
       if (!EXTERNAL_RESPONDENT_TYPES.has(a.respondentType)) continue;
       // RASR is psychometrician-administered internally — skip it here
@@ -705,6 +708,12 @@ export default function CaseDetail() {
     parentAssessmentRows.some(a => a.respondentLabel === "Parent") &&
     parentAssessmentRows.some(a => a.respondentLabel === "Parent Assessment Package") &&
     parentAssessmentRows.every(a => !a.assignedToName?.trim() && !a.assignedToEmail?.trim());
+  // Do not offer two incomplete parent links while these rows await consolidation.
+  const dispatchGroups = hasSplitUnnamedParentPackages
+    ? respondentGroups.filter(group =>
+        group.groupKey !== "type:parent:Parent" &&
+        group.groupKey !== "type:parent:Parent Assessment Package")
+    : respondentGroups;
   const parentToolCounts = new Map<string, number>();
   for (const assignment of parentAssessmentRows) {
     const toolId = assignment.toolId ?? "";
@@ -2636,12 +2645,16 @@ export default function CaseDetail() {
                           ) : null;
                         })() ?? (
                           <>
-                            <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" title="Show QR Code">
-                              <QrCode size={16} />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
-                              <Copy size={16} />
-                            </Button>
+                            {a.respondentType !== "parent" && (
+                              <>
+                                <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" title="Show QR Code">
+                                  <QrCode size={16} />
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
+                                  <Copy size={16} />
+                                </Button>
+                              </>
+                            )}
                             <Button variant="outline" size="sm" className="bg-white" title="Open Form" onClick={() => setFormModalUrl(`${BASE_URL}/external/${a.uniqueToken}`)}>
                               <ExternalLink size={16} />
                             </Button>
@@ -2689,14 +2702,14 @@ export default function CaseDetail() {
           <div className="px-6 py-4 flex items-center gap-2 border-b bg-slate-50/50">
             <Users size={17} className="text-primary" />
             <h3 className="font-semibold text-slate-800">Send Forms to Respondents</h3>
-            {respondentGroups.length > 0 && (
-              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{respondentGroups.length} respondent{respondentGroups.length !== 1 ? "s" : ""}</span>
+            {(dispatchGroups.length > 0 || hasSplitUnnamedParentPackages) && (
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{dispatchGroups.length + (hasSplitUnnamedParentPackages ? 1 : 0)} respondent{dispatchGroups.length + (hasSplitUnnamedParentPackages ? 1 : 0) !== 1 ? "s" : ""}</span>
             )}
           </div>
           <CardContent className="p-0">
             {hasSplitUnnamedParentPackages && (role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator") && (
               <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-amber-900">Two unnamed parent rows have different package labels. If they belong to one person, combine them before sending. This keeps all forms and links, including any duplicates.</p>
+                <p className="text-xs text-amber-900">Parent forms are in two incomplete groups. Confirm they belong to one person, then combine them before sharing one link. Existing forms and responses are kept.</p>
                 <Button size="sm" variant="outline" className="bg-white border-amber-300 text-amber-900" disabled={consolidatingParent} onClick={handleConsolidateParent}>
                   {consolidatingParent ? "Combining…" : "Combine parent packages"}
                 </Button>
@@ -2707,7 +2720,7 @@ export default function CaseDetail() {
                 Duplicate parent form{duplicateParentToolNames.length === 1 ? "" : "s"}: {duplicateParentToolNames.join(", ")}. Review before sending; combining packages does not remove duplicates.
               </p>
             )}
-            {respondentGroups.length === 0 ? (
+            {dispatchGroups.length === 0 && !hasSplitUnnamedParentPackages ? (
               <div className="flex flex-col items-center justify-center py-8 px-6 text-center gap-2">
                 <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
                   <Users size={22} className="text-slate-400" />
@@ -2717,7 +2730,13 @@ export default function CaseDetail() {
               </div>
             ) : (
               <div className="divide-y">
-                {respondentGroups.map(group => {
+                {hasSplitUnnamedParentPackages && (
+                  <div className="px-5 py-4 bg-amber-50/40">
+                    <p className="font-semibold text-slate-800 text-sm">Parent assessment package</p>
+                    <p className="text-xs text-slate-600 mt-1">{parentAssessmentRows.length} forms pending consolidation. A shareable parent link will be available after the packages are combined.</p>
+                  </div>
+                )}
+                {dispatchGroups.map(group => {
                   const completedCount = group.forms.filter(f => f.status === "completed").length;
                   const allDone = completedCount === group.forms.length;
                   return (
