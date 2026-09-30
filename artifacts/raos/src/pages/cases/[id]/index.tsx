@@ -30,6 +30,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
+import { assignmentRespondentTypes, missingTeacherAssignments } from "@/lib/assignment-respondents";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
@@ -95,11 +96,6 @@ const RESPONDENT_LABELS: Record<string, string> = {
   boarding_staff: "Boarding Staff",
   invigilator: "Assessment Administration Team",
 };
-
-function assignmentRespondentType(catalogueType: string): string {
-  return catalogueType === "teacher" ? "teacher1" : catalogueType;
-}
-
 
 const RESPONDENT_TYPES_IN_MODAL = [
   "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "examiner",
@@ -514,12 +510,17 @@ export default function CaseDetail() {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [productAssigning, setProductAssigning] = useState(false);
+  const [completingTeacherForms, setCompletingTeacherForms] = useState(false);
 
   type ProductRespondentSlot = { respondentType: string; label: string; selected: boolean; name: string; email: string };
   const [productRespondentSlots, setProductRespondentSlots] = useState<ProductRespondentSlot[]>([]);
 
-  const RT_ORDER = ["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
-  const DEFAULT_SELECTED_RTS = new Set(["parent", "teacher1", "self"]);
+  const RT_ORDER = ["parent", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "self", "invigilator"];
+  const DEFAULT_SELECTED_RTS = new Set(["parent", "teacher1", "teacher2", "self"]);
+  const missingTeacherForms = missingTeacherAssignments(
+    new Set((c?.assignments ?? []).map(a => `${a.toolId}\0${a.respondentType}`)),
+    tools ?? [],
+  );
 
   const loadExistingAssignmentKeys = async (): Promise<Set<string>> => {
     const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/assignments`, {
@@ -539,8 +540,7 @@ export default function CaseDetail() {
     for (const toolId of product.toolIds) {
       const tool = toolsList.find(t => t.id === toolId);
       if (!tool) continue;
-      for (const catalogueType of (tool.respondentTypes ?? [])) {
-        const rt = assignmentRespondentType(catalogueType);
+      for (const rt of assignmentRespondentTypes(tool.respondentTypes ?? [])) {
         rtMap.set(rt, (rtMap.get(rt) ?? 0) + 1);
       }
     }
@@ -588,8 +588,7 @@ export default function CaseDetail() {
       for (const toolId of product.toolIds) {
         const toolData = tools?.find(t => t.id === toolId);
         if (!toolData) continue;
-        for (const catalogueType of (toolData.respondentTypes ?? [])) {
-          const rt = assignmentRespondentType(catalogueType);
+        for (const rt of assignmentRespondentTypes(toolData.respondentTypes ?? [])) {
           if (!selectedRTs.has(rt)) continue;
           const key = `${toolId}\0${rt}`;
           if (existingKeys.has(key)) continue;
@@ -968,7 +967,7 @@ export default function CaseDetail() {
 
   const handleAssignTool = async (rec: { toolId: string; name: string }) => {
     const toolData = (tools ?? []).find(t => t.id === rec.toolId);
-    const respondentTypes = [...new Set((toolData?.respondentTypes ?? []).map(assignmentRespondentType))];
+    const respondentTypes = assignmentRespondentTypes(toolData?.respondentTypes ?? []);
     if (respondentTypes.length === 0) {
       toast({ title: "No respondent types", description: "This tool has no respondent types configured.", variant: "destructive" });
       return;
@@ -1001,6 +1000,42 @@ export default function CaseDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
       setAssigningToolId(null);
+    }
+  };
+
+  const handleCompleteTeacherForms = async () => {
+    setCompletingTeacherForms(true);
+    let added = 0;
+    try {
+      const existingKeys = await loadExistingAssignmentKeys();
+      const missing = missingTeacherAssignments(existingKeys, tools ?? []);
+      for (const { toolId, respondentType } of missing) {
+        await createAssignmentMut.mutateAsync({
+          caseId,
+          data: {
+            toolId,
+            toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
+            respondentType,
+            respondentLabel: RESPONDENT_LABELS[respondentType],
+          } as any,
+        });
+        existingKeys.add(`${toolId}\0${respondentType}`);
+        added++;
+      }
+      toast({
+        title: added ? "Teacher forms completed" : "Teacher forms already complete",
+        description: added ? `${added} missing form${added === 1 ? "" : "s"} added with separate links. Existing forms and responses were kept.` : "No duplicate forms were created.",
+      });
+    } catch {
+      toast({
+        title: "Could not complete teacher forms",
+        description: added ? "Some forms were added. Retry to add only the remaining forms." : "No forms were added. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
+      setCompletingTeacherForms(false);
     }
   };
 
@@ -2060,10 +2095,13 @@ export default function CaseDetail() {
                           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Recommended Assessment Tools</span>
                           <div className="space-y-2">
                             {visibleTools.map((t: any) => {
-                              const alreadyAssigned = (c.assignments ?? []).some((a: any) => a.toolId === t.toolId);
+                              const assignedTypes = new Set((c.assignments ?? []).filter((a: any) => a.toolId === t.toolId).map((a: any) => a.respondentType));
                               const isAssigning = assigningToolId === t.toolId;
                               const toolData = (tools ?? []).find(tool => tool.id === t.toolId);
                               const respondentTypes = toolData?.respondentTypes ?? [];
+                              const missingTypes = assignmentRespondentTypes(respondentTypes).filter(rt => !assignedTypes.has(rt));
+                              const alreadyAssigned = assignedTypes.size > 0;
+                              const fullyAssigned = alreadyAssigned && missingTypes.length === 0;
                               return (
                                 <div key={t.toolId} className={`bg-white rounded-lg border p-3 transition-colors ${alreadyAssigned ? 'border-emerald-200 bg-emerald-50/30' : 'border-blue-100'}`}>
                                   <div className="flex items-start justify-between gap-2 mb-1">
@@ -2074,18 +2112,18 @@ export default function CaseDetail() {
                                           {t.priority}
                                         </Badge>
                                         {alreadyAssigned && (
-                                          <span className="text-xs text-emerald-600 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">Assigned</span>
+                                          <span className={`text-xs border px-1.5 py-0.5 rounded-full font-medium ${fullyAssigned ? "text-emerald-600 bg-emerald-100 border-emerald-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>{fullyAssigned ? "Assigned" : "Missing respondent forms"}</span>
                                         )}
                                       </div>
                                       <p className="text-xs text-slate-500 mt-1">{t.rationale}</p>
                                       {respondentTypes.length > 0 && (
-                                        <p className="text-[10px] text-slate-400 mt-1">Respondents: {respondentTypes.map((rt: string) => RESPONDENT_LABELS[rt] ?? rt).join(", ")}</p>
+                                        <p className="text-[10px] text-slate-400 mt-1">Respondents: {assignmentRespondentTypes(respondentTypes).map(rt => RESPONDENT_LABELS[rt] ?? rt).join(", ")}</p>
                                       )}
                                     </div>
                                   </div>
                                   {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                                     <div className="flex gap-2 mt-2 pt-2 border-t border-blue-50">
-                                      {alreadyAssigned ? (
+                                      {fullyAssigned ? (
                                         <Button
                                           size="sm"
                                           variant="outline"
@@ -2102,7 +2140,7 @@ export default function CaseDetail() {
                                           disabled={isAssigning}
                                           onClick={() => handleAssignTool({ toolId: t.toolId, name: t.name })}
                                         >
-                                          {isAssigning ? "Assigning…" : "Assign"}
+                                          {isAssigning ? "Assigning…" : alreadyAssigned ? `Add ${missingTypes.length} missing form${missingTypes.length === 1 ? "" : "s"}` : "Assign"}
                                         </Button>
                                       )}
                                       <Button
@@ -2436,6 +2474,16 @@ export default function CaseDetail() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {missingTeacherForms.length > 0 && (role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator") && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-5 py-3">
+                  <p className="text-xs text-amber-900">
+                    {missingTeacherForms.length} teacher form{missingTeacherForms.length === 1 ? "" : "s"} missing a matching copy for the other teacher. Existing responses will be kept.
+                  </p>
+                  <Button size="sm" variant="outline" className="bg-white border-amber-300 text-amber-900" disabled={completingTeacherForms} onClick={handleCompleteTeacherForms}>
+                    {completingTeacherForms ? "Adding…" : "Add missing teacher forms"}
+                  </Button>
+                </div>
+              )}
               {(!c.assignments || c.assignments.filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).length === 0) ? (
                 <div className="p-12 text-center text-slate-500 flex flex-col items-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">

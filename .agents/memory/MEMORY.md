@@ -21,3 +21,4 @@
 - [Intake regeneration safety](intake-regeneration-safety.md) — reruns should preserve non-generated case settings and keep the old clinical analysis when AI fails.
 - [Runtime credential checks](runtime-credential-checks.md) — a secrets-inventory miss does not prove a running service lacks a credential; check runtime presence without revealing it.
 - [Unified respondent portal security](unified-respondent-portal-security.md) — older intake links can reach reports only with exact recipient matching; consent needs a code and download; previews cannot grant live access.
+- [Parallel teacher form coverage](parallel-teacher-form-coverage.md) — teacher-rated tools should be assigned to both teacher slots with identical questionnaires but separate links and responses.
