@@ -95,6 +95,8 @@ function ageFromDob(dob: string | null | undefined): number | null {
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
+const isSeparateExaminerWorkflow = (assignment: { toolId?: string | null; respondentType: string }) =>
+  assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? "");
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
@@ -365,6 +367,7 @@ export default function CaseDetail() {
   const [stepBackTarget, setStepBackTarget] = useState<string | null>(null);
   const [openingDemoPortal, setOpeningDemoPortal] = useState(false);
   const reviewApproved = batteryReviewQuery.data?.approved === true && !batteryReviewQuery.isFetching;
+  const separateExaminerCount = (c?.assignments ?? []).filter(isSeparateExaminerWorkflow).length;
 
   const handleApproveBattery = async () => {
     const review = batteryReviewQuery.data;
@@ -384,7 +387,7 @@ export default function CaseDetail() {
       if (!response.ok || !body) throw new Error(body?.message ?? "The battery could not be approved. Refresh and review the listed issues.");
       queryClient.setQueryData(batteryReviewQueryKey, body);
       await queryClient.invalidateQueries({ queryKey: batteryReviewQueryKey });
-      toast({ title: "Assessment battery approved", description: "Recipient links are now available to authorized staff." });
+      toast({ title: "Questionnaire links approved for sending", description: "Recipient links are now available to authorized staff. Examiner workflows are separate." });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Review status changed. Refresh and try again.";
       setBatteryReviewActionError(message);
@@ -2835,7 +2838,7 @@ export default function CaseDetail() {
                 )}
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Test the assigned questionnaires below. Test answers remain in your browser; only an admin can approve sharing. Examiner-led tasks use separate workflows, not questionnaire items.
+                Test the assigned questionnaires below. Test answers remain in your browser. Examiner assessments have their own task workflows and are not tested by this questionnaire review.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2874,13 +2877,16 @@ export default function CaseDetail() {
                       {batteryReviewQuery.data.missingSnapshots} assigned form{batteryReviewQuery.data.missingSnapshots === 1 ? "" : "s"} lack a frozen questionnaire and cannot be approved yet.
                     </p>
                   )}
-                  <div className="max-h-[360px] overflow-y-auto divide-y rounded-lg border bg-white">
+                  <div className="max-h-[360px] overflow-y-auto rounded-lg border bg-white">
                     {(c.assignments ?? []).filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).length === 0 ? (
                       <p className="p-4 text-sm text-slate-500">No assessment forms are assigned yet.</p>
-                    ) : (c.assignments ?? [])
-                      .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? ""))
-                      .map(assignment => (
-                        <div key={assignment.id} data-testid={`row-review-form-${assignment.id}`} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    ) : (
+                      <>
+                        <p className="border-b bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-950">Questionnaires to check before sending</p>
+                        {(c.assignments ?? [])
+                          .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "") && !isSeparateExaminerWorkflow(a))
+                          .map(assignment => (
+                        <div key={assignment.id} data-testid={`row-review-form-${assignment.id}`} className="flex flex-col gap-2 border-b px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-slate-800">{assignment.toolName}</p>
                             <p className="text-xs text-slate-500">
@@ -2888,19 +2894,27 @@ export default function CaseDetail() {
                               {assignment.respondentLabel ? ` · ${assignment.respondentLabel}` : ""}
                             </p>
                           </div>
-                          {assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? "") ? (
-                            <span className="shrink-0 text-xs text-slate-500" title="This examiner-led task uses a separate workflow, not a questionnaire.">
-                              Examiner task · no questionnaire
-                            </span>
-                          ) : (
-                            <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
-                              <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
-                                <Eye size={14} /> Test form
-                              </Button>
-                            </Link>
-                          )}
+                          <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
+                            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
+                              <Eye size={14} /> Test form
+                            </Button>
+                          </Link>
                         </div>
                       ))}
+                        {separateExaminerCount > 0 && (
+                          <>
+                            <p className="border-b bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                              Examiner assessments · separate task workflows, not tested here
+                            </p>
+                            {(c.assignments ?? []).filter(isSeparateExaminerWorkflow).map(assignment => (
+                              <div key={assignment.id} data-testid={`row-review-examiner-${assignment.id}`} className="border-b px-3 py-3 text-sm text-slate-700">
+                                {assignment.toolName}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
                   {batteryReviewActionError && (
                     <p role="alert" data-testid="status-battery-approval-error" className="text-sm text-red-700">{batteryReviewActionError}</p>
@@ -2908,7 +2922,7 @@ export default function CaseDetail() {
                   {currentUser?.role === "admin" && (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-slate-500">
-                          {batteryReviewQuery.data.assignmentCount} assigned assessment tool{batteryReviewQuery.data.assignmentCount === 1 ? "" : "s"} in this approval. Examiner-led tasks have no questionnaire preview.
+                          {batteryReviewQuery.data.assignmentCount - separateExaminerCount} questionnaire{batteryReviewQuery.data.assignmentCount - separateExaminerCount === 1 ? "" : "s"} checked for sending; {separateExaminerCount} examiner assessment{separateExaminerCount === 1 ? "" : "s"} shown separately and not tested here.
                       </p>
                       <Button
                         onClick={handleApproveBattery}
@@ -2917,7 +2931,7 @@ export default function CaseDetail() {
                         data-testid="button-approve-battery"
                       >
                         <ShieldCheck size={15} />
-                        {approvingBattery ? "Approving…" : batteryReviewQuery.data.approved ? "Approved for sending" : "Approve for sending"}
+                        {approvingBattery ? "Approving…" : batteryReviewQuery.data.approved ? "Questionnaires approved" : "Approve questionnaire links"}
                       </Button>
                     </div>
                   )}

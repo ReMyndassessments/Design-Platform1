@@ -23,5 +23,5 @@
 - [Unified respondent portal security](unified-respondent-portal-security.md) — older intake links can reach reports only with exact recipient matching; consent needs a code and download; previews cannot grant live access.
 - [Parallel teacher form coverage](parallel-teacher-form-coverage.md) — teacher-rated tools should be assigned to both teacher slots with identical questionnaires but separate links and responses.
 - [RAOS parent assessment link policy](raos-parent-assessment-link-policy.md) — one shared parent-facing assessment link; retire split entry URLs without touching completed intake or internal form tokens.
-- [RAOS battery review policy](raos-battery-review-policy.md) — admin alone approves assessment sends and can email temporary, non-saving test packages to arbitrary email addresses; admins/psychometricians can preview assigned forms.
+- [RAOS battery review policy](raos-battery-review-policy.md) — admin approves sends; staff dry runs cover questionnaires, not separate examiner workflows; test-package links never save answers.
 - [RAOS Drizzle schema drift](raos-drizzle-schema-drift.md) — broad schema push may propose renaming unrelated legacy tables; inspect and reject ambiguous changes.
