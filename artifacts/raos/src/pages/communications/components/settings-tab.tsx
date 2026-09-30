@@ -138,7 +138,7 @@ export function SettingsTab() {
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400 bg-white"
             >
               <option value="unsubscribe">Unsubscribe (Promotional only)</option>
-              <option value="hard">Hard block (All communications)</option>
+              <option value="hard">Hard block (All Communications Center emails)</option>
             </select>
           </div>
           <div>

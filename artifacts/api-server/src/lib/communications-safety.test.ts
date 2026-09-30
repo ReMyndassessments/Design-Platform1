@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   resolveEligibleContacts,
+  isCommunicationBlocked,
   isPermanentOperationalEmailFailure,
   runWithCampaignLock,
   sendGmailGroup,
@@ -38,6 +39,27 @@ test("operational resolution honors hard suppressions but does not require promo
   ], "operational", new Map([["hard@example.com", "hard"]]));
   assert.deepEqual(result.recipients.map(contact => contact.email), ["family@example.com"]);
   assert.equal(result.counts.suppressed, 1);
+  assert.equal(isCommunicationBlocked("operational", "unsubscribe"), false);
+  assert.equal(isCommunicationBlocked("operational", "hard"), true);
+  assert.equal(isCommunicationBlocked("promotional", "unsubscribe"), true);
+});
+
+test("Gmail checks a suppression again immediately before delivery", async () => {
+  const sent: string[] = [];
+  const skipped: string[] = [];
+  await sendGmailGroup({
+    kind: "operational",
+    recipients: [{ id: "1", email: "blocked@example.com" }, { id: "2", email: "ok@example.com" }],
+    subject: "Update",
+    renderHtml: () => "Update",
+    mailer: { send: async message => { sent.push(message.to); return {}; } },
+    shouldSkip: async recipient => recipient.email === "blocked@example.com",
+    markSkipped: async recipient => { skipped.push(recipient.email); },
+    markSent: async () => {},
+    markFailed: async () => { assert.fail("suppressed recipient must not be treated as a delivery failure"); },
+  });
+  assert.deepEqual(sent, ["ok@example.com"]);
+  assert.deepEqual(skipped, ["blocked@example.com"]);
 });
 
 test("audience resolution normalizes angle-bracket wrapped email addresses", () => {

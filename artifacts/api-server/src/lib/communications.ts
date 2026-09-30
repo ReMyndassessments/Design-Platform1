@@ -108,6 +108,24 @@ export async function getEmailOctopusCampaignReport(id: string, report: EmailOct
   return entries;
 }
 
+/** Native EmailOctopus links unsubscribe contacts from a list, not from RAOS.
+ * Read the list status as well as campaign reports so a new campaign list
+ * cannot silently re-add a person who used EmailOctopus's own link. */
+export async function getEmailOctopusListUnsubscribes(listId: string): Promise<string[]> {
+  let next: string | null = `/api/1.6/lists/${encodeURIComponent(listId)}/contacts/unsubscribed?limit=100`;
+  const emails = new Set<string>();
+  while (next) {
+    const payload = await emailOctopusGet(next);
+    for (const contact of Array.isArray(payload?.data) ? payload.data : []) {
+      const email = typeof contact?.email_address === "string" ? contact.email_address.trim().toLowerCase() : "";
+      if (email) emails.add(email);
+    }
+    next = typeof payload?.paging?.next === "string" && payload.paging.next ? payload.paging.next : null;
+    if (next) await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  return [...emails];
+}
+
 export async function prepareEmailOctopusAudience(input: EmailOctopusCampaignInput): Promise<string> {
   emailOctopusConfig();
   // EmailOctopus campaigns send to their entire bound list. Use a dedicated

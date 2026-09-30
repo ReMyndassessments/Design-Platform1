@@ -14,3 +14,9 @@ For targeted intake questions, one-to-one Gmail invitations must be branded, lin
 **Why:** The user corrected an earlier email containing bare questions as unprofessional and potentially harmful during first contact with teachers and parents. The intended experience is to view and answer requests inside the established respondent portal, never inside the email itself.
 
 **How to apply:** Every teacher/parent action-request email should direct the recipient into the actual respondent portal component, not a similar-looking separate page. An early question-only invitation's private link should show that same recipient's forms as they are assigned later; match by case, exact recipient email, and respondent role to prevent cross-recipient exposure. Keep test previews distinct from real invitations, scope test delivery to the signed-in admin's account, and preserve the original question snapshot when resending a real invitation. Do not send another live test email automatically when correcting templates.
+
+An opt-out from Communications Center must retain a minimal hard suppression while removing the saved operational contact; keep historical recipient records. Do not downgrade a hard block to promotional-only when processing a later provider event.
+
+**Why:** Deleting every trace permits the address to be sourced again. EmailOctopus native unsubscribes are list-scoped; a new dedicated list could otherwise re-add an address that opted out on an older list.
+
+**How to apply:** Reconcile native EmailOctopus unsubscribes into the shared hard block, and check it at both audience preparation and actual Gmail delivery. A provider list prepared before the opt-out remains a separate cleanup responsibility; do not claim it was removed merely because RAOS blocked the address.

@@ -36,6 +36,10 @@ export function isValidCommunicationEmail(email: string): boolean {
   return validEmail.test(normalizeCommunicationEmail(email));
 }
 
+export function isCommunicationBlocked(kind: CommunicationKind, suppression: string | undefined): boolean {
+  return suppression === "hard" || (kind === "promotional" && Boolean(suppression));
+}
+
 export function resolveEligibleContacts(
   contacts: readonly SourceContact[],
   kind: CommunicationKind,
@@ -52,7 +56,7 @@ export function resolveEligibleContacts(
       counts.invalid++;
       continue;
     }
-    if (suppression === "hard" || (kind === "promotional" && Boolean(suppression))) {
+    if (isCommunicationBlocked(kind, suppression)) {
       counts.suppressed++;
       continue;
     }
@@ -73,7 +77,7 @@ export function resolveEligibleContacts(
   return { recipients, counts };
 }
 
-type GmailRecipient = { id: string; email: string; name?: string | null };
+type GmailRecipient = { id: string; email: string; name?: string | null; source_type?: string; unsubscribe_token?: string };
 
 export async function sendGmailGroup(options: {
   kind: CommunicationKind;
@@ -83,6 +87,8 @@ export async function sendGmailGroup(options: {
   mailer: CommunicationsMailer;
   markSent: (recipient: GmailRecipient, messageId?: string) => Promise<void>;
   markFailed: (recipient: GmailRecipient, error: Error) => Promise<void>;
+  shouldSkip?: (recipient: GmailRecipient) => Promise<boolean>;
+  markSkipped?: (recipient: GmailRecipient) => Promise<void>;
   batchDelayMs?: number;
   concurrency?: number;
 }): Promise<void> {
@@ -99,6 +105,10 @@ export async function sendGmailGroup(options: {
       while (nextIndex < batch.length) {
         const recipient = batch[nextIndex++];
         try {
+          if (await options.shouldSkip?.(recipient)) {
+            await options.markSkipped?.(recipient);
+            continue;
+          }
           const result = await options.mailer.send({
             to: recipient.email,
             subject: options.subject,
