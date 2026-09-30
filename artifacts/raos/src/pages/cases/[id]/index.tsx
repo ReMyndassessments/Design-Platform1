@@ -270,6 +270,7 @@ export default function CaseDetail() {
   const [editingNameKey, setEditingNameKey] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [consolidatingParent, setConsolidatingParent] = useState(false);
 
   const handleSaveRespondentName = async (group: { groupKey: string; forms: { id: string }[] }) => {
     if (!editingNameValue.trim()) return;
@@ -290,6 +291,30 @@ export default function CaseDetail() {
       toast({ title: "Could not save name", variant: "destructive" });
     } finally {
       setSavingName(false);
+    }
+  };
+
+  const handleConsolidateParent = async () => {
+    if (!window.confirm("These two unnamed parent rows belong to the same person. Combine their assessment forms into one portal package? Existing links and responses will remain valid. Duplicate forms will NOT be deleted.")) return;
+    setConsolidatingParent(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/assignments/consolidate-parent`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token") ?? ""}` },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(data.message ?? "Could not combine the parent packages.");
+      }
+      const result = await response.json() as { updated: number; expected: number };
+      if (result.updated !== result.expected) throw new Error("Only some forms were combined. Refresh and try again.");
+      toast({ title: "Parent forms combined", description: `${result.updated} forms moved into one parent portal package. Existing links and responses remain valid. Review the duplicate CDP form before sending.` });
+    } catch (error) {
+      toast({ title: "Could not combine parent forms", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally {
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] });
+      setConsolidatingParent(false);
     }
   };
 
@@ -655,8 +680,8 @@ export default function CaseDetail() {
           groupKey: key,
           label: isSelf ? "Student Self-Report" : (RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType),
           respondentType: a.respondentType,
-          name: a.assignedToName ?? null,
-          email: a.assignedToEmail ?? null,
+          name: a.assignedToName?.trim() || null,
+          email: a.assignedToEmail?.trim() || null,
           link: a.uniqueLink,
           forms: [],
         });
@@ -671,6 +696,23 @@ export default function CaseDetail() {
     }
     return [...groups.values()];
   }, [c?.assignments]);
+  const parentAssessmentRows = (c?.assignments ?? []).filter(a =>
+    a.respondentType === "parent" &&
+    !INTAKE_TOOL_IDS.has(a.toolId ?? "") &&
+    (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")
+  );
+  const hasSplitUnnamedParentPackages =
+    parentAssessmentRows.some(a => a.respondentLabel === "Parent") &&
+    parentAssessmentRows.some(a => a.respondentLabel === "Parent Assessment Package") &&
+    parentAssessmentRows.every(a => !a.assignedToName?.trim() && !a.assignedToEmail?.trim());
+  const parentToolCounts = new Map<string, number>();
+  for (const assignment of parentAssessmentRows) {
+    const toolId = assignment.toolId ?? "";
+    parentToolCounts.set(toolId, (parentToolCounts.get(toolId) ?? 0) + 1);
+  }
+  const duplicateParentToolNames = [...new Set(parentAssessmentRows
+    .filter(a => (parentToolCounts.get(a.toolId ?? "") ?? 0) > 1)
+    .map(a => a.toolName ?? a.toolId ?? "Unknown form"))];
 
   const intakeRespondentGroups = useMemo(() => {
     if (!c?.assignments) return [];
@@ -2652,6 +2694,19 @@ export default function CaseDetail() {
             )}
           </div>
           <CardContent className="p-0">
+            {hasSplitUnnamedParentPackages && (role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator") && (
+              <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-amber-900">Two unnamed parent rows have different package labels. If they belong to one person, combine them before sending. This keeps all forms and links, including any duplicates.</p>
+                <Button size="sm" variant="outline" className="bg-white border-amber-300 text-amber-900" disabled={consolidatingParent} onClick={handleConsolidateParent}>
+                  {consolidatingParent ? "Combining…" : "Combine parent packages"}
+                </Button>
+              </div>
+            )}
+            {duplicateParentToolNames.length > 0 && (
+              <p className="px-5 py-2 text-xs text-amber-900 bg-amber-50 border-b border-amber-100">
+                Duplicate parent form{duplicateParentToolNames.length === 1 ? "" : "s"}: {duplicateParentToolNames.join(", ")}. Review before sending; combining packages does not remove duplicates.
+              </p>
+            )}
             {respondentGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-6 text-center gap-2">
                 <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">

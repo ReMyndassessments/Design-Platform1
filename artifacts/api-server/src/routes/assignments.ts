@@ -10,6 +10,7 @@ import { generateIntakeSummary, generateAboSummary, generateFormSummary, generat
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
+import { planParentPackageConsolidation } from "../lib/parentPackageConsolidation.js";
 
 const router = Router();
 
@@ -40,6 +41,65 @@ router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   }
   const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
   res.json(assignments);
+});
+
+// An explicit, non-destructive repair for two unnamed parent groups that staff
+// have confirmed belong to the same recipient. Existing tokens and responses stay put.
+router.post("/cases/:caseId/assignments/consolidate-parent", authMiddleware, async (req, res) => {
+  if (!["admin", "psychometrician", "school_clinical_coordinator"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const caseId = req.params.caseId;
+  if (typeof caseId !== "string") {
+    res.status(400).json({ error: "invalid_case_id" });
+    return;
+  }
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  const parentRows = await db.select({
+    id: assignmentsTable.id,
+    toolId: assignmentsTable.toolId,
+    respondentLabel: assignmentsTable.respondentLabel,
+    assignedToName: assignmentsTable.assignedToName,
+    assignedToEmail: assignmentsTable.assignedToEmail,
+  }).from(assignmentsTable).where(and(
+    eq(assignmentsTable.caseId, caseId),
+    eq(assignmentsTable.respondentType, "parent"),
+    inArray(assignmentsTable.respondentLabel, ["Parent", "Parent Assessment Package"]),
+  ));
+  const assessmentRows = parentRows.filter(a => !INTAKE_TOOL_IDS.has(a.toolId));
+  const plan = planParentPackageConsolidation(assessmentRows);
+  if ("error" in plan && plan.error === "recipient_identified") {
+    res.status(409).json({ error: "recipient_identified", message: "A parent form has a name or email. Review the recipients before combining packages." });
+    return;
+  }
+  if ("error" in plan) {
+    res.status(409).json({ error: "no_split_parent_package", message: "The two unnamed parent packages are not present." });
+    return;
+  }
+  const sourceIds = plan.sourceIds;
+
+  const updated = await db.update(assignmentsTable).set({ respondentLabel: "Parent Assessment Package" })
+    .where(and(
+      eq(assignmentsTable.caseId, caseId),
+      eq(assignmentsTable.respondentType, "parent"),
+      eq(assignmentsTable.respondentLabel, "Parent"),
+      inArray(assignmentsTable.id, sourceIds),
+      sql`coalesce(btrim(${assignmentsTable.assignedToName}), '') = ''`,
+      sql`coalesce(btrim(${assignmentsTable.assignedToEmail}), '') = ''`,
+    )).returning({ id: assignmentsTable.id });
+  void writeAudit({
+    eventType: "assignment.parent_packages_consolidated",
+    caseId,
+    actorId: req.userId ?? null,
+    actorRole: req.userRole ?? null,
+    metadata: { count: updated.length },
+  });
+  res.json({ updated: updated.length, expected: sourceIds.length });
 });
 
 router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
