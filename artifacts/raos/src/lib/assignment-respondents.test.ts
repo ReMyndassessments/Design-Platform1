@@ -13,17 +13,21 @@ test("explicit teacher slots are kept distinct without duplicates", () => {
   assert.deepEqual(assignmentRespondentTypes(["parent", "self"]), ["parent", "self"]);
 });
 
-test("only missing teacher counterparts are proposed; parent and existing work are untouched", () => {
+test("all assigned teacher-eligible tools get both slots without replacing existing work", () => {
   const tools = [
     { id: "CDP-CL", respondentTypes: ["parent", "teacher"] },
+    { id: "CDP-CI", respondentTypes: ["parent", "teacher"] },
     { id: "VADTRS", respondentTypes: ["teacher1", "teacher2"] },
     { id: "VADPRS", respondentTypes: ["parent"] },
+    { id: "UNASSIGNED", respondentTypes: ["teacher1", "teacher2"] },
   ];
   assert.deepEqual(missingTeacherAssignments(
-    new Set(["CDP-CL\0parent", "CDP-CL\0teacher1", "VADTRS\0teacher2", "VADPRS\0parent"]),
+    new Set(["CDP-CL\0parent", "CDP-CL\0teacher1", "CDP-CI\0parent", "VADTRS\0teacher2", "VADPRS\0parent"]),
     tools,
   ), [
     { toolId: "CDP-CL", respondentType: "teacher2" },
+    { toolId: "CDP-CI", respondentType: "teacher1" },
+    { toolId: "CDP-CI", respondentType: "teacher2" },
     { toolId: "VADTRS", respondentType: "teacher1" },
   ]);
 });

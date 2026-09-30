@@ -11,11 +11,11 @@ export function missingTeacherAssignments(
   tools: readonly { id: string; respondentTypes?: readonly string[] | null }[],
 ): Array<{ toolId: string; respondentType: "teacher1" | "teacher2" }> {
   const missing: Array<{ toolId: string; respondentType: "teacher1" | "teacher2" }> = [];
+  const assignedToolIds = new Set([...existingKeys].map(key => key.split("\0", 1)[0]));
   for (const tool of tools) {
-    if (!assignmentRespondentTypes(tool.respondentTypes ?? []).includes("teacher1")) continue;
+    if (!assignedToolIds.has(tool.id) || !assignmentRespondentTypes(tool.respondentTypes ?? []).includes("teacher1")) continue;
     const first = existingKeys.has(`${tool.id}\0teacher1`);
     const second = existingKeys.has(`${tool.id}\0teacher2`);
-    if (!first && !second) continue;
     if (!first) missing.push({ toolId: tool.id, respondentType: "teacher1" });
     if (!second) missing.push({ toolId: tool.id, respondentType: "teacher2" });
   }

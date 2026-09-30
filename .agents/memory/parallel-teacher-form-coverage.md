@@ -7,4 +7,4 @@ Every teacher-rated assessment tool should be available independently to Teacher
 
 **Why:** The product owner noticed that CDP and Vanderbilt forms reached only one teacher and explicitly asked for identical form coverage for both teachers, not shared responses.
 
-**How to apply:** When adding a teacher-eligible tool through recommendation or product assignment flows, include both teacher slots; when completing an existing partial case, add only missing counterparts and preserve all existing assignment data.
+**How to apply:** When adding a teacher-eligible tool through recommendation or product assignment flows, include both teacher slots. For an existing partial case, a teacher-eligible tool may have only a parent assignment or just one teacher assignment; add whichever teacher slots are missing while preserving all existing assignment data.
