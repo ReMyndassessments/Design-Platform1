@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./approveBatteryReviewInput";
 export * from "./assessmentTool";
 export * from "./assessmentToolRespondentTypesItem";
 export * from "./assessmentToolScoringType";
@@ -16,6 +17,9 @@ export * from "./assignmentRespondentType";
 export * from "./assignmentStatus";
 export * from "./battery";
 export * from "./batteryDetail";
+export * from "./batteryReviewApproval";
+export * from "./batteryReviewBlockedError";
+export * from "./batteryReviewStatus";
 export * from "./batteryTool";
 export * from "./case";
 export * from "./caseCaseMode";
@@ -35,6 +39,7 @@ export * from "./cdpFormScore";
 export * from "./cdpFormScoreDomainScores";
 export * from "./cdpFormScoreNormalizedScores";
 export * from "./cdpProfile";
+export * from "./completedAssignmentResetResult";
 export * from "./createAssessmentToolRequest";
 export * from "./createAssessmentToolRequestFormItemsItem";
 export * from "./createAssessmentToolRequestScoringConfig";
@@ -86,6 +91,8 @@ export * from "./manualScoreRequestDomainScores";
 export * from "./recommendToolsRequest";
 export * from "./report";
 export * from "./reportStatus";
+export * from "./resetCompletedAssignmentsInput";
+export * from "./respondentEmailSendResult";
 export * from "./response";
 export * from "./responseAnswers";
 export * from "./score";
@@ -93,6 +100,9 @@ export * from "./scoreDomainScores";
 export * from "./scoreNormalizedScores";
 export * from "./selfReportRequest";
 export * from "./selfReportRequestAnswers";
+export * from "./sendRespondentEmailInput";
+export * from "./staffAssignmentPreview";
+export * from "./staffPreviewQuestion";
 export * from "./submitFormRequest";
 export * from "./submitFormRequestAnswers";
 export * from "./submitFormResponse";

@@ -1,7 +1,7 @@
 import { IntakeQuestionCards, type PortalQuestionRequest } from "@/components/IntakeQuestionCards";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
+import { getGetExternalFormQueryKey, useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Question = {
+export type Question = {
   id: string;
   text: string;
   textChinese?: string;
@@ -33,6 +33,7 @@ type Question = {
   noteKorean?: string;
   /** Clickable links rendered below the label/note. */
   links?: Array<{ text: string; url: string }>;
+  rows?: Question[];
 };
 
 type PortalForm = {
@@ -40,6 +41,19 @@ type PortalForm = {
   toolName: string;
   status: string;
   uniqueToken: string;
+};
+
+export type StaffPreviewForm = {
+  assignmentId: string;
+  toolId: string;
+  formType: string;
+  toolName: string;
+  respondentLabel: string;
+  studentName: string;
+  language: string;
+  questions: Question[];
+  alreadySubmitted: false;
+  preview: true;
 };
 
 type ReportFile = {
@@ -697,6 +711,101 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
   );
 }
 
+function FrequencyGridRow({
+  row,
+  language,
+  options,
+  value,
+  required,
+  setAnswer,
+}: {
+  row: Question;
+  language: string;
+  options: { value: string; label: string }[];
+  value: string;
+  required: boolean;
+  setAnswer: (id: string, value: string) => void;
+}) {
+  const { label } = useText(row, language);
+  return (
+    <div id={`q-${row.id}`} className="rounded-lg border border-slate-200 bg-white p-3">
+      <p className="text-sm font-medium text-slate-700 mb-2">
+        {label}
+        {required && <span className="ml-1 text-red-500" aria-label="required">*</span>}
+      </p>
+      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
+        {options.map(option => {
+          const selected = value === option.value;
+          return (
+            <label
+              key={option.value}
+              className="cursor-pointer"
+            >
+              <input
+                type="radio"
+                name={`frequency-grid-${row.id}`}
+                value={option.value}
+                checked={selected}
+                onChange={() => setAnswer(row.id, option.value)}
+                className="peer sr-only"
+              />
+              <span
+                className={cn(
+                  "inline-flex rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary/50",
+                  selected
+                    ? "border-primary bg-primary text-white shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-600 hover:border-primary/40 hover:bg-primary/5",
+                )}
+              >
+                {option.label}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FrequencyGridField({
+  q,
+  language,
+  answers,
+  setAnswer,
+}: {
+  q: Question;
+  language: string;
+  answers: Record<string, string | string[]>;
+  setAnswer: (id: string, value: string | string[]) => void;
+}) {
+  const { label, note } = useText(q, language);
+  const sourceOptions = q.options ?? [];
+  const displayedOptions = useOption(sourceOptions, q.optionsChinese, language, q.optionsKorean);
+  const options = sourceOptions.map((value, index) => ({
+    value,
+    label: displayedOptions[index] ?? value,
+  }));
+
+  return (
+    <div>
+      <FieldLabel label={label} required={q.required} note={note} />
+      <div className="space-y-3">
+        {(q.rows ?? []).filter(row => isQuestionVisible(row, answers)).map(row => (
+          <FrequencyGridRow
+            key={row.id}
+            row={row}
+            language={language}
+            options={options}
+            value={typeof answers[row.id] === "string" ? answers[row.id] as string : ""}
+            required={row.required ?? q.required ?? false}
+            setAnswer={(id, value) => setAnswer(id, value)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Question Dispatcher ───────────────────────────────────────────────────────
 
 // V1 IDs retained so historical snapshots still render with styled buttons.
@@ -758,6 +867,7 @@ function QuestionField({ q, language, answers, setAnswer }: {
     case "checkbox":       return <SingleCheckboxField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
     case "likert":
     case "scale":          return <LikertField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
+    case "frequency_grid": return <FrequencyGridField q={q} language={language} answers={answers} setAnswer={setAnswer} />;
     default:               return <TextField q={q} language={language} value={strVal} onChange={v => setAnswer(q.id, v)} />;
   }
 }
@@ -2629,36 +2739,60 @@ function PortalView({
 
 // ── Form View (inline) ────────────────────────────────────────────────────────
 
-function FormView({
+export function FormView({
   activeToken,
   language,
   setLanguage,
   onBack,
   onSubmitted,
+  previewMode = false,
+  previewForm,
+  previewLoading = false,
+  previewError = null,
 }: {
   activeToken: string;
   language: string;
   setLanguage: (l: string) => void;
   onBack: () => void;
   onSubmitted: () => void;
+  previewMode?: boolean;
+  previewForm?: StaffPreviewForm | null;
+  previewLoading?: boolean;
+  previewError?: string | null;
 }) {
-  const { data: form, isLoading, isError } = useGetExternalForm(activeToken, { query: { retry: false } });
+  const liveFormQuery = useGetExternalForm(activeToken, {
+    query: {
+      retry: false,
+      enabled: !previewMode && !!activeToken,
+      queryKey: getGetExternalFormQueryKey(activeToken),
+    },
+  });
+  const form = (previewMode ? previewForm : liveFormQuery.data) as any;
+  const isLoading = previewMode ? previewLoading : liveFormQuery.isLoading;
+  const isError = previewMode ? Boolean(previewError) : liveFormQuery.isError;
   const submitMut = useSubmitExternalForm();
 
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [submitted, setSubmitted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [previewChecked, setPreviewChecked] = useState(false);
 
   const setAnswer = (id: string, val: string | string[]) => {
     setAnswers(prev => ({ ...prev, [id]: val }));
     setValidationError(null);
+    setPreviewChecked(false);
   };
 
   const requiredQuestions = useMemo(() => {
     if (!form) return [];
-    return (form.questions as Question[]).filter(q => {
-      if (q.type === "section_header" || !q.required) return false;
-      return isQuestionVisible(q, answers);
+    return (form.questions as Question[]).flatMap(q => {
+      if (q.type === "section_header" || !isQuestionVisible(q, answers)) return [];
+      if (q.type === "frequency_grid") {
+        return (q.rows ?? []).filter(row =>
+          (row.required ?? q.required) && isQuestionVisible(row, answers)
+        );
+      }
+      return q.required ? [q] : [];
     });
   }, [form, answers]);
 
@@ -2697,6 +2831,11 @@ function FormView({
         return;
       }
     }
+    if (previewMode) {
+      setPreviewChecked(true);
+      setValidationError(null);
+      return;
+    }
     const serialized: Record<string, string> = {};
     Object.entries(answers).forEach(([k, v]) => { serialized[k] = Array.isArray(v) ? v.join(", ") : v; });
     submitMut.mutate({ token: activeToken, data: { answers: serialized, language } }, {
@@ -2731,9 +2870,9 @@ function FormView({
       <div className="min-h-screen flex justify-center items-center bg-slate-50 p-6">
         <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center border border-slate-100">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">🔗</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Link Not Found</h2>
-          <p className="text-slate-500 text-sm leading-relaxed">This form link is invalid or has already expired.</p>
-          <button onClick={onBack} className="mt-6 text-sm text-primary underline">← Back to portal</button>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{previewMode ? "Preview Not Available" : "Link Not Found"}</h2>
+          <p className="text-slate-500 text-sm leading-relaxed">{previewMode ? previewError ?? "The assigned form could not be loaded. No live respondent link was opened." : "This form link is invalid or has already expired."}</p>
+          <button onClick={onBack} className="mt-6 text-sm text-primary underline">{previewMode ? "← Back to case" : "← Back to portal"}</button>
           <ReMyndFooter />
         </div>
       </div>
@@ -2768,7 +2907,7 @@ function FormView({
   const isRppiForm = form.toolName.toLowerCase().includes("rppi")
     || (form as any).isExaminerAdministered === true
     || (form as any).toolId === "RPPI";
-  if (isRppiForm) {
+  if (isRppiForm && !previewMode) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
         <div className="w-full max-w-md text-center">
@@ -2795,7 +2934,7 @@ function FormView({
   }
 
   // Already submitted — show thank you and back button
-  if (form.alreadySubmitted || submitted) {
+  if (!previewMode && (form.alreadySubmitted || submitted)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
         <div className="w-full max-w-md text-center">
@@ -2824,6 +2963,11 @@ function FormView({
 
   return (
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
+      {previewMode && (
+        <div role="status" data-testid="status-staff-dry-run" className="bg-amber-100 border-b border-amber-300 px-4 py-3 text-center text-sm font-semibold text-amber-950">
+          STAFF DRY RUN — test answers stay in this browser only. Nothing will be submitted or saved to the case.
+        </div>
+      )}
       {/* Nav */}
       <header
         className="relative overflow-hidden sticky top-0 z-20"
@@ -2838,7 +2982,7 @@ function FormView({
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 font-medium transition-colors"
             >
               <ArrowLeft size={14} />
-              <span className="hidden sm:inline">My Forms</span>
+              <span className="hidden sm:inline">{previewMode ? "Back to case" : "My Forms"}</span>
             </button>
             <div className="h-4 w-px bg-white/10" />
             <div className="flex items-center gap-3">
@@ -2946,18 +3090,23 @@ function FormView({
             <span>{validationError}</span>
           </div>
         )}
+        {previewMode && previewChecked && (
+          <div role="status" data-testid="status-dry-run-passed" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            Dry-run validation passed. No answers were sent or saved.
+          </div>
+        )}
 
         <div className="mt-8 pt-6 border-t border-slate-200">
           <Button
             size="lg"
             onClick={handleSubmit}
-            disabled={submitMut.isPending}
+            disabled={!previewMode && submitMut.isPending}
             className="w-full h-13 text-base font-semibold rounded-xl shadow-md shadow-primary/20 py-4"
           >
-            {submitMut.isPending ? "Submitting..." : getSubmitLabel(formType)}
+            {previewMode ? "Check form — no response saved" : submitMut.isPending ? "Submitting..." : getSubmitLabel(formType)}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mt-3 font-medium">
-            <Lock size={11} /> Responses are encrypted and kept strictly confidential
+            <Lock size={11} /> {previewMode ? "Review answers remain local and are never submitted." : "Responses are encrypted and kept strictly confidential"}
           </p>
         </div>
       </main>

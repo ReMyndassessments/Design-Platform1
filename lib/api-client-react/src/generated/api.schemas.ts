@@ -687,6 +687,77 @@ export interface ToolRecommendations {
   rationale: string;
 }
 
+export interface BatteryReviewApproval {
+  approvedAt: string;
+  approvedBy: string;
+}
+
+export interface BatteryReviewStatus {
+  approved: boolean;
+  approval: BatteryReviewApproval | null;
+  /** @minimum 0 */
+  assignmentCount: number;
+  /** @minimum 0 */
+  missingSnapshots: number;
+  issues: string[];
+  fingerprint: string;
+}
+
+export interface ApproveBatteryReviewInput {
+  /** @pattern ^[a-fA-F0-9]{64}$ */
+  fingerprint: string;
+}
+
+export interface BatteryReviewBlockedError {
+  error: "battery_approval_required";
+  message: string;
+  review: BatteryReviewStatus | null;
+}
+
+export interface ResetCompletedAssignmentsInput {
+  assignmentIds: string[];
+}
+
+export interface CompletedAssignmentResetResult {
+  /** @minimum 0 */
+  reset: number;
+}
+
+export interface SendRespondentEmailInput {
+  toEmail: string;
+  toName: string;
+  formLink: string;
+  formNames: string[];
+  studentName?: string;
+  respondentRole?: string;
+}
+
+export const RespondentEmailSendResultValue = {
+  success: true,
+} as const;
+export type RespondentEmailSendResult = typeof RespondentEmailSendResultValue;
+
+export interface StaffPreviewQuestion {
+  id?: string;
+  text?: string;
+  type?: string;
+  required?: boolean;
+  [key: string]: unknown;
+}
+
+export interface StaffAssignmentPreview {
+  assignmentId: string;
+  toolId: string;
+  formType: string;
+  toolName: string;
+  respondentLabel: string;
+  studentName: string;
+  language: string;
+  questions: StaffPreviewQuestion[];
+  alreadySubmitted: false;
+  preview: true;
+}
+
 export type CreateAssignmentRequestRespondentType =
   (typeof CreateAssignmentRequestRespondentType)[keyof typeof CreateAssignmentRequestRespondentType];
 

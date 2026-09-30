@@ -31,7 +31,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { assignmentRespondentTypes, missingTeacherAssignments } from "@/lib/assignment-respondents";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
 import { AiNotetaker, type Recording as InterviewRecording } from "@/components/AiNotetaker";
@@ -63,6 +63,17 @@ const PHASE_LABELS: Record<string, string> = {
   debrief: "Debrief",
   complete: "Complete",
 };
+type BatteryReviewStatus = {
+  approved: boolean;
+  approval: { approvedAt: string; approvedBy: string } | null;
+  assignmentCount: number;
+  missingSnapshots: number;
+  issues: string[];
+  fingerprint: string;
+};
+const BATTERY_STALE_APPROVAL_ISSUE_PREFIX = "Assessment assignments changed after approval.";
+const hasBlockingBatteryReviewIssues = (issues: string[]) =>
+  issues.some(issue => !issue.startsWith(BATTERY_STALE_APPROVAL_ISSUE_PREFIX));
 // Map hidden internal phases to their nearest visible display phase
 const PHASE_DISPLAY_MAP: Record<string, string> = {
   pre_commitment: "intake",
@@ -167,6 +178,26 @@ export default function CaseDetail() {
   const deleteAssignmentMut = useDeleteAssignment();
 
   const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const batteryReviewQueryKey = [`/api/cases/${caseId}/battery-review`];
+  const batteryReviewQuery = useQuery<BatteryReviewStatus>({
+    queryKey: batteryReviewQueryKey,
+    enabled: Boolean(caseId && currentUser),
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/battery-review`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(body?.message ?? "Unable to load staff battery review status.");
+      }
+      return response.json() as Promise<BatteryReviewStatus>;
+    },
+  });
+  const [approvingBattery, setApprovingBattery] = useState(false);
+  const [batteryReviewActionError, setBatteryReviewActionError] = useState<string | null>(null);
+  const [sendEmailError, setSendEmailError] = useState<string | null>(null);
 
   const queryParams = new URLSearchParams(window.location.search);
   const [tourVisible, setTourVisible] = useState(queryParams.get("tour") === "true");
@@ -319,7 +350,7 @@ export default function CaseDetail() {
   };
 
   const [sendEmailTarget, setSendEmailTarget] = useState<{
-    groupKey: string; label: string; name: string; email: string; link: string; formNames: string[]; respondentRole: string; assignmentIds: string[];
+    groupKey: string; label: string; name: string; email: string; link: string; formNames: string[]; respondentRole: string; assignmentIds: string[]; requiresBatteryApproval: boolean;
   } | null>(null);
   const [sendEmailForm, setSendEmailForm] = useState({ name: "", email: "" });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -327,6 +358,35 @@ export default function CaseDetail() {
   const [stepBackConfirmOpen, setStepBackConfirmOpen] = useState(false);
   const [stepBackTarget, setStepBackTarget] = useState<string | null>(null);
   const [openingDemoPortal, setOpeningDemoPortal] = useState(false);
+  const reviewApproved = batteryReviewQuery.data?.approved === true && !batteryReviewQuery.isFetching;
+
+  const handleApproveBattery = async () => {
+    const review = batteryReviewQuery.data;
+    if (currentUser?.role !== "admin" || batteryReviewQuery.isFetching || !review?.fingerprint || hasBlockingBatteryReviewIssues(review.issues) || review.missingSnapshots > 0 || review.assignmentCount === 0) return;
+    setApprovingBattery(true);
+    setBatteryReviewActionError(null);
+    try {
+      const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/battery-review/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("raos_token")}`,
+        },
+        body: JSON.stringify({ fingerprint: review.fingerprint }),
+      });
+      const body = await response.json().catch(() => null) as BatteryReviewStatus & { message?: string; error?: string } | null;
+      if (!response.ok || !body) throw new Error(body?.message ?? "The battery could not be approved. Refresh and review the listed issues.");
+      queryClient.setQueryData(batteryReviewQueryKey, body);
+      await queryClient.invalidateQueries({ queryKey: batteryReviewQueryKey });
+      toast({ title: "Assessment battery approved", description: "Recipient links are now available to authorized staff." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Review status changed. Refresh and try again.";
+      setBatteryReviewActionError(message);
+      await queryClient.invalidateQueries({ queryKey: batteryReviewQueryKey });
+    } finally {
+      setApprovingBattery(false);
+    }
+  };
 
   const handleOpenDemoPortal = async () => {
     setOpeningDemoPortal(true);
@@ -722,6 +782,17 @@ export default function CaseDetail() {
   const duplicateParentToolNames = [...new Set(parentAssessmentRows
     .filter(a => (parentToolCounts.get(a.toolId ?? "") ?? 0) > 1)
     .map(a => a.toolName ?? a.toolId ?? "Unknown form"))];
+  const assessmentAssignmentStructureKey = (c?.assignments ?? [])
+    .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? ""))
+    .map(a => `${a.id}:${a.toolId}:${a.respondentType}:${a.respondentLabel ?? ""}`)
+    .sort()
+    .join("|");
+
+  useEffect(() => {
+    if (c) {
+      void queryClient.invalidateQueries({ queryKey: batteryReviewQueryKey });
+    }
+  }, [caseId, assessmentAssignmentStructureKey, queryClient]);
 
   const intakeRespondentGroups = useMemo(() => {
     if (!c?.assignments) return [];
@@ -1937,7 +2008,7 @@ export default function CaseDetail() {
                             <div className="flex gap-2 shrink-0 flex-wrap">
                               <Button variant="outline" size="sm" className="bg-white" title="Show QR Code" onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}><QrCode size={15} /></Button>
                               <Button variant="outline" size="sm" className="bg-white" title="Copy link" onClick={() => copyLink(group.link)}><Copy size={15} /></Button>
-                              <Button size="sm" className="gap-1.5" onClick={() => { setSendEmailTarget({ groupKey: group.groupKey, label: group.label, name: group.name ?? "", email: group.email ?? "", link: group.link, formNames: group.forms.map(f => f.name), respondentRole: group.label, assignmentIds: group.forms.map(f => f.id) }); setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" }); }}>
+                              <Button size="sm" className="gap-1.5" onClick={() => { setSendEmailError(null); setSendEmailTarget({ groupKey: group.groupKey, label: group.label, name: group.name ?? "", email: group.email ?? "", link: group.link, formNames: group.forms.map(f => f.name), respondentRole: group.label, assignmentIds: group.forms.map(f => f.id), requiresBatteryApproval: false }); setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" }); }}>
                                 <Send size={14} /> Send Email
                               </Button>
                             </div>
@@ -2637,27 +2708,33 @@ export default function CaseDetail() {
                         ) : (() => {
                           const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : a.toolId === 'RAMRI' ? 'ramri' : a.toolId === 'RAEPA' ? 'raepa' : null;
                           return examinerPath ? (
-                            <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
-                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                            reviewApproved ? (
+                              <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
+                                <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                                  <Play size={14} /> Administer {a.toolId}
+                                </Button>
+                              </Link>
+                            ) : (
+                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700" disabled title="Admin approval is required before administering an assessment from this staff screen.">
                                 <Play size={14} /> Administer {a.toolId}
                               </Button>
-                            </Link>
+                            )
                           ) : null;
                         })() ?? (
                           <>
                             {a.respondentType !== "parent" && (
                               <>
-                                <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" title="Show QR Code">
+                                <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Show QR Code"}>
                                   <QrCode size={16} />
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" title="Copy Link">
+                                <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Copy Link"}>
                                   <Copy size={16} />
                                 </Button>
                               </>
                             )}
                             <Button variant="outline" size="sm" className="bg-white"
-                              title={a.respondentType === "parent" ? "Open Parent Portal" : "Open Form"}
-                              disabled={hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                              disabled={!reviewApproved || hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                              title={!reviewApproved ? "Admin approval is required before sharing from this staff screen. Use Test form for a safe preview." : a.respondentType === "parent" ? "Open Parent Portal" : "Open Form"}
                               onClick={() => setFormModalUrl(a.respondentType === "parent" ? a.uniqueLink : `${BASE_URL}/external/${a.uniqueToken}`)}>
                               <ExternalLink size={16} />
                             </Button>
@@ -2667,18 +2744,25 @@ export default function CaseDetail() {
                           <Button
                             size="sm"
                             className="bg-indigo-600 hover:bg-indigo-700"
-                            disabled={hasSplitUnnamedParentPackages && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                            disabled={!reviewApproved || hasSplitUnnamedParentPackages && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                            title={!reviewApproved ? "Admin approval is required before launching an assessment from this staff screen." : undefined}
                             onClick={() => setFormModalUrl(a.uniqueLink)}
                           >
                             <Play size={14} className="mr-1" /> Launch Guided
                           </Button>
                         )}
                         {a.respondentType === 'self' && a.status !== 'completed' && (
-                          <Link href={`/cases/${caseId}/self-report`}>
-                            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                          reviewApproved ? (
+                            <Link href={`/cases/${caseId}/self-report`}>
+                              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                                <Play size={14} className="mr-1" /> Launch Guided
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" disabled title="Admin approval is required before launching an assessment from this staff screen.">
                               <Play size={14} className="mr-1" /> Launch Guided
                             </Button>
-                          </Link>
+                          )
                         )}
                         {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && (
                           <Button
@@ -2700,6 +2784,103 @@ export default function CaseDetail() {
           </Card>
         )}
 
+        {(currentUser?.role === "admin" || currentUser?.role === "psychometrician") && (
+          <Card className="border border-violet-200 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-violet-950">
+                <ShieldCheck size={18} className="text-violet-700" />
+                Staff review before sending
+                {batteryReviewQuery.data?.approved && (
+                  <Badge className="ml-auto bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Approved</Badge>
+                )}
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Test the exact assigned forms below. Test answers remain in your browser; only an admin can approve this battery for sharing.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {batteryReviewQuery.isLoading ? (
+                <p className="text-sm text-slate-500">Checking the assigned battery…</p>
+              ) : batteryReviewQuery.isError ? (
+                <p role="alert" data-testid="status-battery-review-load-error" className="text-sm text-red-700">
+                  {batteryReviewQuery.error.message}
+                </p>
+              ) : batteryReviewQuery.data ? (
+                <>
+                  {batteryReviewQuery.data.approved ? (
+                    <div role="status" data-testid="status-battery-approved" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                      Admin approved {new Date(batteryReviewQuery.data.approval?.approvedAt ?? "").toLocaleString()}
+                      {batteryReviewQuery.data.approval?.approvedBy ? ` · ${batteryReviewQuery.data.approval.approvedBy}` : ""}. Changes to this battery will require fresh approval.
+                    </div>
+                  ) : batteryReviewQuery.data.approval ? (
+                    <div role="status" data-testid="status-battery-approval-stale" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      The assessment battery changed after its previous approval. Review the updated forms and approve it again before sharing from this staff screen; links already sent to respondents continue to work.
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                      Sharing assessment links from this staff screen is held until an admin approves this review. Links already sent to respondents continue to work.
+                    </div>
+                  )}
+                  {batteryReviewQuery.data.issues.map((issue, index) => {
+                    const staleApprovalNotice = issue.startsWith(BATTERY_STALE_APPROVAL_ISSUE_PREFIX);
+                    return (
+                    <div key={`${issue}-${index}`} role={staleApprovalNotice ? "status" : "alert"} data-testid={`status-battery-review-issue-${index}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {issue}
+                    </div>
+                    );
+                  })}
+                  {batteryReviewQuery.data.missingSnapshots > 0 && (
+                    <p role="alert" data-testid="status-missing-form-snapshots" className="text-sm font-medium text-red-700">
+                      {batteryReviewQuery.data.missingSnapshots} assigned form{batteryReviewQuery.data.missingSnapshots === 1 ? "" : "s"} lack a frozen questionnaire and cannot be approved yet.
+                    </p>
+                  )}
+                  <div className="max-h-[360px] overflow-y-auto divide-y rounded-lg border bg-white">
+                    {(c.assignments ?? []).filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? "")).length === 0 ? (
+                      <p className="p-4 text-sm text-slate-500">No assessment forms are assigned yet.</p>
+                    ) : (c.assignments ?? [])
+                      .filter(a => !INTAKE_TOOL_IDS.has(a.toolId ?? ""))
+                      .map(assignment => (
+                        <div key={assignment.id} data-testid={`row-review-form-${assignment.id}`} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-800">{assignment.toolName}</p>
+                            <p className="text-xs text-slate-500">
+                              {(RESPONDENT_TYPE_LABELS[assignment.respondentType] ?? assignment.respondentType)}
+                              {assignment.respondentLabel ? ` · ${assignment.respondentLabel}` : ""}
+                            </p>
+                          </div>
+                          <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
+                            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
+                              <Eye size={14} /> Test form
+                            </Button>
+                          </Link>
+                        </div>
+                      ))}
+                  </div>
+                  {batteryReviewActionError && (
+                    <p role="alert" data-testid="status-battery-approval-error" className="text-sm text-red-700">{batteryReviewActionError}</p>
+                  )}
+                  {currentUser?.role === "admin" && (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-slate-500">
+                        {batteryReviewQuery.data.assignmentCount} assigned assessment form{batteryReviewQuery.data.assignmentCount === 1 ? "" : "s"} in this approval.
+                      </p>
+                      <Button
+                        onClick={handleApproveBattery}
+                        disabled={approvingBattery || batteryReviewQuery.isFetching || batteryReviewQuery.data.approved || batteryReviewQuery.data.assignmentCount === 0 || batteryReviewQuery.data.missingSnapshots > 0 || hasBlockingBatteryReviewIssues(batteryReviewQuery.data.issues)}
+                        className="gap-2"
+                        data-testid="button-approve-battery"
+                      >
+                        <ShieldCheck size={15} />
+                        {approvingBattery ? "Approving…" : batteryReviewQuery.data.approved ? "Approved for sending" : "Approve for sending"}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── Respondent Dispatch Panel ── below assignments so battery is finalized first ── */}
       {((role === "admin" || role === "school_clinical_coordinator") || role === "psychometrician" || role === "clinical_apprentice") && !hideAssignments && (
         <Card className="border-none shadow-md">
@@ -2711,6 +2892,11 @@ export default function CaseDetail() {
             )}
           </div>
           <CardContent className="p-0">
+            {!reviewApproved && (
+              <div role="status" data-testid="status-links-waiting-for-approval" className="px-5 py-3 border-b border-amber-200 bg-amber-50 text-sm text-amber-950">
+                Sharing assessment links from this staff screen is held until an admin approves the staff review. Links already sent to respondents continue to work. Intake/referral links are unchanged.
+              </div>
+            )}
             {hasSplitUnnamedParentPackages && (role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator") && (
               <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-amber-900">Parent forms are in two incomplete groups. Confirm they belong to one person, then combine them before sharing one link. Existing forms and responses are kept.</p>
@@ -2790,16 +2976,18 @@ export default function CaseDetail() {
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0 flex-wrap">
-                        <Button variant="outline" size="sm" className="bg-white" title="Show QR Code"
+                        <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Show QR Code"}
                           onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
                           <QrCode size={15} />
                         </Button>
-                        <Button variant="outline" size="sm" className="bg-white" title="Copy link"
+                        <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Copy link"}
                           onClick={() => copyLink(group.link)}>
                           <Copy size={15} />
                         </Button>
-                        <Button size="sm" className="gap-1.5" title={group.respondentType === "self" ? "Send portal link to invigilator" : "Send link by email"}
+                        <Button size="sm" className="gap-1.5" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : group.respondentType === "self" ? "Send portal link to invigilator" : "Send link by email"}
                           onClick={() => {
+                            if (!reviewApproved) return;
+                            setSendEmailError(null);
                             setSendEmailTarget({
                               groupKey: group.groupKey,
                               label: group.label,
@@ -2809,6 +2997,7 @@ export default function CaseDetail() {
                               formNames: group.forms.map(f => f.name),
                               respondentRole: group.respondentType === "self" ? "Invigilator" : group.label,
                               assignmentIds: group.forms.map(f => f.id),
+                              requiresBatteryApproval: true,
                             });
                             setSendEmailForm({ name: group.name ?? "", email: group.email ?? "" });
                           }}>
@@ -2926,7 +3115,7 @@ export default function CaseDetail() {
       </Dialog>
 
       {/* Send Email to Respondent */}
-      <Dialog open={!!sendEmailTarget} onOpenChange={open => { if (!open) { setSendEmailTarget(null); setIsSendingEmail(false); setIncludeAbo(false); } }}>
+      <Dialog open={!!sendEmailTarget} onOpenChange={open => { if (!open) { setSendEmailTarget(null); setIsSendingEmail(false); setIncludeAbo(false); setSendEmailError(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -2988,31 +3177,55 @@ export default function CaseDetail() {
                   value={sendEmailForm.email}
                   onChange={e => setSendEmailForm(f => ({ ...f, email: e.target.value }))} />
               </div>
+              {sendEmailError && (
+                <p role="alert" data-testid="status-send-email-error" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {sendEmailError}
+                </p>
+              )}
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => { setSendEmailTarget(null); setIsSendingEmail(false); }}>
+                <Button variant="outline" className="flex-1" onClick={() => { setSendEmailTarget(null); setIsSendingEmail(false); setSendEmailError(null); }}>
                   Cancel
                 </Button>
-                <Button className="flex-1 gap-2" disabled={isSendingEmail || !sendEmailForm.name.trim() || !sendEmailForm.email.trim()}
+                <Button className="flex-1 gap-2" disabled={!!sendEmailTarget.requiresBatteryApproval && !reviewApproved || isSendingEmail || !sendEmailForm.name.trim() || !sendEmailForm.email.trim()}
                   onClick={async () => {
                     if (!sendEmailTarget) return;
                     setIsSendingEmail(true);
+                    setSendEmailError(null);
                     try {
+                      if (sendEmailTarget.requiresBatteryApproval) {
+                        const reviewResponse = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/battery-review`, {
+                          headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+                        });
+                        const latestReview = reviewResponse.ok
+                          ? await reviewResponse.json() as BatteryReviewStatus
+                          : null;
+                        if (!latestReview?.approved || latestReview.fingerprint !== batteryReviewQuery.data?.fingerprint) {
+                          if (latestReview) queryClient.setQueryData(batteryReviewQueryKey, latestReview);
+                          throw new Error("The assessment battery changed or approval expired. Refresh the review and have an admin approve it again before sending.");
+                        }
+                      }
                       // Auto-assign ABO if checkbox was ticked and it isn't already on the case
                       if (includeAbo && !c.assignments?.some(a => a.toolId === "BEHAVOBS")) {
-                        await fetch(`${BASE_URL}/api/cases/${caseId}/assignments`, {
+                        const added = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
                           body: JSON.stringify({ toolId: "BEHAVOBS", respondentType: "self", respondentLabel: "" }),
                         });
+                        if (!added.ok) throw new Error("Assessment Behavior Observation could not be added.");
                         await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
+                        await queryClient.invalidateQueries({ queryKey: batteryReviewQueryKey });
+                        setSendEmailTarget(null);
+                        toast({ title: "Form added — approval needed again", description: "Test the new form and have an admin approve the updated battery before sharing from this staff screen. Previously sent links continue to work." });
+                        return;
                       }
                       // Reset any completed assignments so the respondent can resubmit
                       if (sendEmailTarget.assignmentIds.length > 0) {
-                        await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/reset-completed`, {
+                        const resetResponse = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/reset-completed`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
                           body: JSON.stringify({ assignmentIds: sendEmailTarget.assignmentIds }),
                         });
+                        if (!resetResponse.ok) throw new Error("Completed forms could not be prepared for resending. No email was sent.");
                       }
                       const r = await fetch(`${BASE_URL}/api/cases/${caseId}/send-respondent-email`, {
                         method: "POST",
@@ -3026,12 +3239,17 @@ export default function CaseDetail() {
                           respondentRole: sendEmailTarget.respondentRole,
                         }),
                       });
-                      if (!r.ok) throw new Error(await r.text());
+                      if (!r.ok) {
+                        const body = await r.json().catch(() => null) as { message?: string; error?: string } | null;
+                        throw new Error(body?.message ?? body?.error ?? "The server rejected the send. No email was sent.");
+                      }
                       toast({ title: "Email sent", description: `Forms link sent to ${sendEmailForm.email}` });
                       setSendEmailTarget(null);
                       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-                    } catch {
-                      toast({ title: "Could not send email", description: "Please try again or copy the link manually.", variant: "destructive" });
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : "Please refresh the review and try again.";
+                      setSendEmailError(message);
+                      toast({ title: "Could not send email", description: message, variant: "destructive" });
                     } finally {
                       setIsSendingEmail(false);
                     }

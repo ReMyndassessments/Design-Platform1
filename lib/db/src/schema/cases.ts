@@ -66,11 +66,17 @@ export const casesTable = pgTable("cases", {
   debriefNotes: text("debrief_notes"),
   intakeData: jsonb("intake_data"),
   intakeAnalysis: jsonb("intake_analysis"),
+  batteryApproval: jsonb("battery_approval").$type<{
+    fingerprint: string;
+    approvedAt: string;
+    approvedBy: string;
+  } | null>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const insertCaseSchema = createInsertSchema(casesTable).omit({
+  batteryApproval: true,
   createdAt: true,
   updatedAt: true,
 });

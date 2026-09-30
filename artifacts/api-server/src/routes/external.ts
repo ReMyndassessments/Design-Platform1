@@ -19,6 +19,7 @@ import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } fro
 import { recipientMatchesReportToken, reportRecipientPortalUrl } from "../lib/recipientPortalLinks.js";
 import { parentPermissionError, resolveReportRole } from "../lib/recipientPortalIdentity.js";
 import { consolidatedParentPortalToken } from "../lib/parentPackageConsolidation.js";
+import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
 
 const storage = new ObjectStorageService();
 
@@ -910,33 +911,7 @@ router.get("/external/form/:token", async (req, res) => {
   let questions: Awaited<ReturnType<typeof resolveQuestions>>;
   const snapRow = await db.execute(sql`SELECT form_items_snapshot FROM assignments WHERE id = ${assignment.id}`);
   const snapshotJson = (snapRow.rows?.[0] as any)?.form_items_snapshot ?? null;
-  if (snapshotJson) {
-    try {
-      const stored = JSON.parse(snapshotJson) as StoredFormItem[];
-      questions = stored.map(item => ({
-        id: item.id,
-        text: item.text,
-        textChinese: item.textChinese,
-        textKorean: item.textKorean,
-        type: (ITEM_TYPE_MAP[item.type] ?? item.type) as FormQuestion["type"],
-        options: item.options,
-        optionsChinese: item.optionsChinese,
-        optionsKorean: item.optionsKorean,
-        domain: item.domain ?? "",
-        required: item.required ?? false,
-        note: item.note,
-        noteChinese: item.noteChinese,
-        noteKorean: item.noteKorean,
-        links: item.links,
-        conditionalOn: item.conditionalOn,
-        conditionalType: item.conditionalType,
-      }));
-    } catch {
-      questions = await resolveQuestions(toolId);
-    }
-  } else {
-    questions = await resolveQuestions(toolId);
-  }
+  questions = questionsFromAssignmentSnapshot(snapshotJson) ?? await resolveQuestions(toolId);
 
   if (!alreadySubmitted) {
     void writeAudit({

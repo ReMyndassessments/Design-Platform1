@@ -83,6 +83,7 @@ const Dashboard = React.lazy(() => import("@/pages/dashboard"));
 const CasesList = React.lazy(() => import("@/pages/cases/index"));
 const NewCase = React.lazy(() => import("@/pages/cases/new"));
 const CaseDetail = React.lazy(() => import("@/pages/cases/[id]/index"));
+const AssignmentReviewPreviewPage = React.lazy(() => import("@/pages/cases/assignment-review"));
 const ScoringView = React.lazy(() => import("@/pages/cases/[id]/scoring"));
 const ReportEditor = React.lazy(() => import("@/pages/cases/[id]/report"));
 const GuidedSelfReport = React.lazy(() => import("@/pages/cases/[id]/self-report"));
@@ -267,6 +268,9 @@ function Router() {
         </Route>
         <Route path="/cases/:id/scoring">
           {() => <ProtectedRoute component={ScoringView} allowApprentice />}
+        </Route>
+        <Route path="/cases/:id/assignments/:assignmentId/review">
+          {() => <ProtectedRoute component={AssignmentReviewPreviewPage} />}
         </Route>
         <Route path="/cases/:id">
           {() => <ProtectedRoute component={CaseDetail} allowApprentice />}

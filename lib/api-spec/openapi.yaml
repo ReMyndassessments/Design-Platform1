@@ -552,6 +552,170 @@ paths:
               schema:
                 $ref: "#/components/schemas/Assignment"
 
+  /cases/{caseId}/battery-review:
+    get:
+      operationId: getCaseBatteryReview
+      tags: [assignments]
+      summary: Get the current staff review and approval state for an assessment battery
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current battery review state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryReviewStatus"
+        "403":
+          description: Staff review access required
+        "404":
+          description: Case not found
+
+  /cases/{caseId}/battery-review/approve:
+    post:
+      operationId: approveCaseBatteryReview
+      tags: [assignments]
+      summary: Approve the current assessment battery for respondent invitations (administrator only)
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveBatteryReviewInput"
+      responses:
+        "200":
+          description: Approved battery review state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryReviewStatus"
+        "400":
+          description: Invalid fingerprint
+        "403":
+          description: Administrator access required
+        "404":
+          description: Case not found
+        "409":
+          description: Battery changed or has unresolved review blockers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{caseId}/assignments/{assignmentId}/staff-preview:
+    get:
+      operationId: getStaffAssignmentPreview
+      tags: [assignments]
+      summary: Preview the frozen form assigned to a case without opening or submitting the respondent form
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Non-submittable preview payload for the exact assigned form snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAssignmentPreview"
+        "403":
+          description: Staff review access required
+        "404":
+          description: Assignment not found
+        "409":
+          description: Frozen form snapshot is missing or invalid
+
+  /cases/{caseId}/assignments/reset-completed:
+    post:
+      operationId: resetCompletedAssignments
+      tags: [assignments]
+      summary: Reset completed assignments for an approved battery
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetCompletedAssignmentsInput"
+      responses:
+        "200":
+          description: Number of completed assignments reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompletedAssignmentResetResult"
+        "403":
+          description: Administrator or psychometrician access required
+        "409":
+          description: Current assessment battery is not approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryReviewBlockedError"
+
+  /cases/{caseId}/send-respondent-email:
+    post:
+      operationId: sendRespondentEmail
+      tags: [assignments]
+      summary: Send an assignment link after administrator battery approval
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendRespondentEmailInput"
+      responses:
+        "200":
+          description: Invitation email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespondentEmailSendResult"
+        "400":
+          description: Invalid email or assignment link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Administrator or psychometrician access required
+        "409":
+          description: Current assessment battery is not approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryReviewBlockedError"
+        "502":
+          description: Invitation email could not be sent
+
   /cases/{caseId}/assignments/{assignmentId}:
     patch:
       operationId: updateAssignment
@@ -1749,6 +1913,149 @@ components:
         - qrCodeData
         - status
         - createdAt
+
+    BatteryReviewApproval:
+      type: object
+      properties:
+        approvedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: string
+      required: [approvedAt, approvedBy]
+
+    BatteryReviewStatus:
+      type: object
+      properties:
+        approved:
+          type: boolean
+        approval:
+          anyOf:
+            - $ref: "#/components/schemas/BatteryReviewApproval"
+            - type: "null"
+        assignmentCount:
+          type: integer
+          minimum: 0
+        missingSnapshots:
+          type: integer
+          minimum: 0
+        issues:
+          type: array
+          items:
+            type: string
+        fingerprint:
+          type: string
+      required: [approved, approval, assignmentCount, missingSnapshots, issues, fingerprint]
+
+    ApproveBatteryReviewInput:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+      required: [fingerprint]
+
+    BatteryReviewBlockedError:
+      type: object
+      properties:
+        error:
+          type: string
+          const: battery_approval_required
+        message:
+          type: string
+        review:
+          anyOf:
+            - $ref: "#/components/schemas/BatteryReviewStatus"
+            - type: "null"
+      required: [error, message, review]
+
+    ResetCompletedAssignmentsInput:
+      type: object
+      properties:
+        assignmentIds:
+          type: array
+          items:
+            type: string
+      required: [assignmentIds]
+
+    CompletedAssignmentResetResult:
+      type: object
+      properties:
+        reset:
+          type: integer
+          minimum: 0
+      required: [reset]
+
+    SendRespondentEmailInput:
+      type: object
+      properties:
+        toEmail:
+          type: string
+          format: email
+        toName:
+          type: string
+        formLink:
+          type: string
+          format: uri
+        formNames:
+          type: array
+          items:
+            type: string
+        studentName:
+          type: string
+        respondentRole:
+          type: string
+      required: [toEmail, toName, formLink, formNames]
+
+    RespondentEmailSendResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+
+    StaffPreviewQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+      additionalProperties: true
+
+    StaffAssignmentPreview:
+      type: object
+      properties:
+        assignmentId:
+          type: string
+        toolId:
+          type: string
+        formType:
+          type: string
+        toolName:
+          type: string
+        respondentLabel:
+          type: string
+        studentName:
+          type: string
+        language:
+          type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffPreviewQuestion"
+        alreadySubmitted:
+          type: boolean
+          const: false
+        preview:
+          type: boolean
+          const: true
+      required: [assignmentId, toolId, formType, toolName, respondentLabel, studentName, language, questions, alreadySubmitted, preview]
 
     CreateAssignmentRequest:
       type: object

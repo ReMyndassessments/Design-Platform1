@@ -825,6 +825,141 @@ export const CreateAssignmentBody = zod.object({
 });
 
 /**
+ * @summary Get the current staff review and approval state for an assessment battery
+ */
+export const GetCaseBatteryReviewParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const getCaseBatteryReviewResponseAssignmentCountMin = 0;
+
+export const getCaseBatteryReviewResponseMissingSnapshotsMin = 0;
+
+export const GetCaseBatteryReviewResponse = zod.object({
+  approved: zod.boolean(),
+  approval: zod.union([
+    zod.object({
+      approvedAt: zod.date(),
+      approvedBy: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  assignmentCount: zod
+    .number()
+    .min(getCaseBatteryReviewResponseAssignmentCountMin),
+  missingSnapshots: zod
+    .number()
+    .min(getCaseBatteryReviewResponseMissingSnapshotsMin),
+  issues: zod.array(zod.string()),
+  fingerprint: zod.string(),
+});
+
+/**
+ * @summary Approve the current assessment battery for respondent invitations (administrator only)
+ */
+export const ApproveCaseBatteryReviewParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const approveCaseBatteryReviewBodyFingerprintRegExp = new RegExp(
+  "^[a-fA-F0-9]{64}$",
+);
+
+export const ApproveCaseBatteryReviewBody = zod.object({
+  fingerprint: zod
+    .string()
+    .regex(approveCaseBatteryReviewBodyFingerprintRegExp),
+});
+
+export const approveCaseBatteryReviewResponseAssignmentCountMin = 0;
+
+export const approveCaseBatteryReviewResponseMissingSnapshotsMin = 0;
+
+export const ApproveCaseBatteryReviewResponse = zod.object({
+  approved: zod.boolean(),
+  approval: zod.union([
+    zod.object({
+      approvedAt: zod.date(),
+      approvedBy: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  assignmentCount: zod
+    .number()
+    .min(approveCaseBatteryReviewResponseAssignmentCountMin),
+  missingSnapshots: zod
+    .number()
+    .min(approveCaseBatteryReviewResponseMissingSnapshotsMin),
+  issues: zod.array(zod.string()),
+  fingerprint: zod.string(),
+});
+
+/**
+ * @summary Preview the frozen form assigned to a case without opening or submitting the respondent form
+ */
+export const GetStaffAssignmentPreviewParams = zod.object({
+  caseId: zod.coerce.string(),
+  assignmentId: zod.coerce.string(),
+});
+
+export const GetStaffAssignmentPreviewResponse = zod.object({
+  assignmentId: zod.string(),
+  toolId: zod.string(),
+  formType: zod.string(),
+  toolName: zod.string(),
+  respondentLabel: zod.string(),
+  studentName: zod.string(),
+  language: zod.string(),
+  questions: zod.array(
+    zod.object({
+      id: zod.string().optional(),
+      text: zod.string().optional(),
+      type: zod.string().optional(),
+      required: zod.boolean().optional(),
+    }),
+  ),
+  alreadySubmitted: zod.boolean(),
+  preview: zod.boolean(),
+});
+
+/**
+ * @summary Reset completed assignments for an approved battery
+ */
+export const ResetCompletedAssignmentsParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const ResetCompletedAssignmentsBody = zod.object({
+  assignmentIds: zod.array(zod.string()),
+});
+
+export const resetCompletedAssignmentsResponseResetMin = 0;
+
+export const ResetCompletedAssignmentsResponse = zod.object({
+  reset: zod.number().min(resetCompletedAssignmentsResponseResetMin),
+});
+
+/**
+ * @summary Send an assignment link after administrator battery approval
+ */
+export const SendRespondentEmailParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const SendRespondentEmailBody = zod.object({
+  toEmail: zod.string().email(),
+  toName: zod.string(),
+  formLink: zod.string().url(),
+  formNames: zod.array(zod.string()),
+  studentName: zod.string().optional(),
+  respondentRole: zod.string().optional(),
+});
+
+export const SendRespondentEmailResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary Update assignment status
  */
 export const UpdateAssignmentParams = zod.object({

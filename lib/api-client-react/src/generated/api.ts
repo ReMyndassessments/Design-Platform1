@@ -17,16 +17,20 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ApproveBatteryReviewInput,
   AssessmentTool,
   AssignBatteryRequest,
   AssignBatteryResponse,
   Assignment,
   Battery,
   BatteryDetail,
+  BatteryReviewBlockedError,
+  BatteryReviewStatus,
   Case,
   CaseDetail,
   CasePhaseReturnInput,
   CdpProfile,
+  CompletedAssignmentResetResult,
   CreateAssessmentToolRequest,
   CreateAssignmentRequest,
   CreateCaseRequest,
@@ -56,9 +60,13 @@ import type {
   ManualScoreRequest,
   RecommendToolsRequest,
   Report,
+  ResetCompletedAssignmentsInput,
+  RespondentEmailSendResult,
   Response,
   Score,
   SelfReportRequest,
+  SendRespondentEmailInput,
+  StaffAssignmentPreview,
   SubmitFormRequest,
   SubmitFormResponse,
   SuccessResponse,
@@ -2154,6 +2162,483 @@ export const useCreateAssignment = <
   TContext
 > => {
   return useMutation(getCreateAssignmentMutationOptions(options));
+};
+
+/**
+ * @summary Get the current staff review and approval state for an assessment battery
+ */
+export const getGetCaseBatteryReviewUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/battery-review`;
+};
+
+export const getCaseBatteryReview = async (
+  caseId: string,
+  options?: RequestInit,
+): Promise<BatteryReviewStatus> => {
+  return customFetch<BatteryReviewStatus>(getGetCaseBatteryReviewUrl(caseId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCaseBatteryReviewQueryKey = (caseId: string) => {
+  return [`/api/cases/${caseId}/battery-review`] as const;
+};
+
+export const getGetCaseBatteryReviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCaseBatteryReview>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCaseBatteryReview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCaseBatteryReviewQueryKey(caseId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCaseBatteryReview>>
+  > = ({ signal }) =>
+    getCaseBatteryReview(caseId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!caseId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCaseBatteryReview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCaseBatteryReviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCaseBatteryReview>>
+>;
+export type GetCaseBatteryReviewQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the current staff review and approval state for an assessment battery
+ */
+
+export function useGetCaseBatteryReview<
+  TData = Awaited<ReturnType<typeof getCaseBatteryReview>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCaseBatteryReview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCaseBatteryReviewQueryOptions(caseId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Approve the current assessment battery for respondent invitations (administrator only)
+ */
+export const getApproveCaseBatteryReviewUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/battery-review/approve`;
+};
+
+export const approveCaseBatteryReview = async (
+  caseId: string,
+  approveBatteryReviewInput: ApproveBatteryReviewInput,
+  options?: RequestInit,
+): Promise<BatteryReviewStatus> => {
+  return customFetch<BatteryReviewStatus>(
+    getApproveCaseBatteryReviewUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(approveBatteryReviewInput),
+    },
+  );
+};
+
+export const getApproveCaseBatteryReviewMutationOptions = <
+  TError = ErrorType<void | ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveCaseBatteryReview>>,
+    TError,
+    { caseId: string; data: BodyType<ApproveBatteryReviewInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveCaseBatteryReview>>,
+  TError,
+  { caseId: string; data: BodyType<ApproveBatteryReviewInput> },
+  TContext
+> => {
+  const mutationKey = ["approveCaseBatteryReview"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveCaseBatteryReview>>,
+    { caseId: string; data: BodyType<ApproveBatteryReviewInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return approveCaseBatteryReview(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveCaseBatteryReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveCaseBatteryReview>>
+>;
+export type ApproveCaseBatteryReviewMutationBody =
+  BodyType<ApproveBatteryReviewInput>;
+export type ApproveCaseBatteryReviewMutationError =
+  ErrorType<void | ErrorResponse>;
+
+/**
+ * @summary Approve the current assessment battery for respondent invitations (administrator only)
+ */
+export const useApproveCaseBatteryReview = <
+  TError = ErrorType<void | ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveCaseBatteryReview>>,
+    TError,
+    { caseId: string; data: BodyType<ApproveBatteryReviewInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveCaseBatteryReview>>,
+  TError,
+  { caseId: string; data: BodyType<ApproveBatteryReviewInput> },
+  TContext
+> => {
+  return useMutation(getApproveCaseBatteryReviewMutationOptions(options));
+};
+
+/**
+ * @summary Preview the frozen form assigned to a case without opening or submitting the respondent form
+ */
+export const getGetStaffAssignmentPreviewUrl = (
+  caseId: string,
+  assignmentId: string,
+) => {
+  return `/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`;
+};
+
+export const getStaffAssignmentPreview = async (
+  caseId: string,
+  assignmentId: string,
+  options?: RequestInit,
+): Promise<StaffAssignmentPreview> => {
+  return customFetch<StaffAssignmentPreview>(
+    getGetStaffAssignmentPreviewUrl(caseId, assignmentId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStaffAssignmentPreviewQueryKey = (
+  caseId: string,
+  assignmentId: string,
+) => {
+  return [
+    `/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`,
+  ] as const;
+};
+
+export const getGetStaffAssignmentPreviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStaffAssignmentPreview>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  assignmentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStaffAssignmentPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetStaffAssignmentPreviewQueryKey(caseId, assignmentId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStaffAssignmentPreview>>
+  > = ({ signal }) =>
+    getStaffAssignmentPreview(caseId, assignmentId, {
+      signal,
+      ...requestOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(caseId && assignmentId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStaffAssignmentPreview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStaffAssignmentPreviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStaffAssignmentPreview>>
+>;
+export type GetStaffAssignmentPreviewQueryError = ErrorType<void>;
+
+/**
+ * @summary Preview the frozen form assigned to a case without opening or submitting the respondent form
+ */
+
+export function useGetStaffAssignmentPreview<
+  TData = Awaited<ReturnType<typeof getStaffAssignmentPreview>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  assignmentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStaffAssignmentPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStaffAssignmentPreviewQueryOptions(
+    caseId,
+    assignmentId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Reset completed assignments for an approved battery
+ */
+export const getResetCompletedAssignmentsUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/assignments/reset-completed`;
+};
+
+export const resetCompletedAssignments = async (
+  caseId: string,
+  resetCompletedAssignmentsInput: ResetCompletedAssignmentsInput,
+  options?: RequestInit,
+): Promise<CompletedAssignmentResetResult> => {
+  return customFetch<CompletedAssignmentResetResult>(
+    getResetCompletedAssignmentsUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(resetCompletedAssignmentsInput),
+    },
+  );
+};
+
+export const getResetCompletedAssignmentsMutationOptions = <
+  TError = ErrorType<void | BatteryReviewBlockedError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetCompletedAssignments>>,
+    TError,
+    { caseId: string; data: BodyType<ResetCompletedAssignmentsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetCompletedAssignments>>,
+  TError,
+  { caseId: string; data: BodyType<ResetCompletedAssignmentsInput> },
+  TContext
+> => {
+  const mutationKey = ["resetCompletedAssignments"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetCompletedAssignments>>,
+    { caseId: string; data: BodyType<ResetCompletedAssignmentsInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return resetCompletedAssignments(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetCompletedAssignmentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetCompletedAssignments>>
+>;
+export type ResetCompletedAssignmentsMutationBody =
+  BodyType<ResetCompletedAssignmentsInput>;
+export type ResetCompletedAssignmentsMutationError =
+  ErrorType<void | BatteryReviewBlockedError>;
+
+/**
+ * @summary Reset completed assignments for an approved battery
+ */
+export const useResetCompletedAssignments = <
+  TError = ErrorType<void | BatteryReviewBlockedError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetCompletedAssignments>>,
+    TError,
+    { caseId: string; data: BodyType<ResetCompletedAssignmentsInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetCompletedAssignments>>,
+  TError,
+  { caseId: string; data: BodyType<ResetCompletedAssignmentsInput> },
+  TContext
+> => {
+  return useMutation(getResetCompletedAssignmentsMutationOptions(options));
+};
+
+/**
+ * @summary Send an assignment link after administrator battery approval
+ */
+export const getSendRespondentEmailUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/send-respondent-email`;
+};
+
+export const sendRespondentEmail = async (
+  caseId: string,
+  sendRespondentEmailInput: SendRespondentEmailInput,
+  options?: RequestInit,
+): Promise<RespondentEmailSendResult> => {
+  return customFetch<RespondentEmailSendResult>(
+    getSendRespondentEmailUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(sendRespondentEmailInput),
+    },
+  );
+};
+
+export const getSendRespondentEmailMutationOptions = <
+  TError = ErrorType<ErrorResponse | void | BatteryReviewBlockedError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendRespondentEmail>>,
+    TError,
+    { caseId: string; data: BodyType<SendRespondentEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendRespondentEmail>>,
+  TError,
+  { caseId: string; data: BodyType<SendRespondentEmailInput> },
+  TContext
+> => {
+  const mutationKey = ["sendRespondentEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendRespondentEmail>>,
+    { caseId: string; data: BodyType<SendRespondentEmailInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return sendRespondentEmail(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendRespondentEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendRespondentEmail>>
+>;
+export type SendRespondentEmailMutationBody =
+  BodyType<SendRespondentEmailInput>;
+export type SendRespondentEmailMutationError = ErrorType<
+  ErrorResponse | void | BatteryReviewBlockedError
+>;
+
+/**
+ * @summary Send an assignment link after administrator battery approval
+ */
+export const useSendRespondentEmail = <
+  TError = ErrorType<ErrorResponse | void | BatteryReviewBlockedError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendRespondentEmail>>,
+    TError,
+    { caseId: string; data: BodyType<SendRespondentEmailInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendRespondentEmail>>,
+  TError,
+  { caseId: string; data: BodyType<SendRespondentEmailInput> },
+  TContext
+> => {
+  return useMutation(getSendRespondentEmailMutationOptions(options));
 };
 
 /**

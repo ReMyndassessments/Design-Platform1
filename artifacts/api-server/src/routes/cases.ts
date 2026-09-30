@@ -409,6 +409,7 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
     db.select().from(referralInvitesTable).where(eq(referralInvitesTable.resultingCaseId, req.params.caseId)).limit(1),
   ]);
+  const caseAssignments = assignments.map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment);
   const referralInvite = referralInviteRows[0]
     ? {
         token: referralInviteRows[0].token,
@@ -423,7 +424,7 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     ...formatCase(c),
     intakeData: c.intakeData,
     intakeAnalysis: c.intakeAnalysis,
-    assignments,
+    assignments: caseAssignments,
     scores,
     referralInvite,
   });

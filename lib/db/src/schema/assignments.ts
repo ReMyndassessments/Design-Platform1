@@ -39,10 +39,12 @@ export const assignmentsTable = pgTable("assignments", {
   dueDate: timestamp("due_date"),
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  formItemsSnapshot: text("form_items_snapshot"),
 });
 
 export const insertAssignmentSchema = createInsertSchema(assignmentsTable).omit({
   createdAt: true,
+  formItemsSnapshot: true,
 });
 export type InsertAssignment = z.infer<typeof insertAssignmentSchema>;
 export type Assignment = typeof assignmentsTable.$inferSelect;
