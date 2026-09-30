@@ -10,6 +10,16 @@ export const INTAKE_TOOL_IDS = new Set([
   "INTAKE",
 ]);
 
+// These examiner-led modules present their own task workflow instead of a
+// questionnaire from assessment_tools.form_items. Their frozen snapshot is [].
+export const SPECIALIZED_EXAMINER_TOOL_IDS = new Set([
+  "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA",
+]);
+
+export function isSpecializedExaminerAssignment(row: { toolId: string; respondentType: string }): boolean {
+  return row.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(row.toolId);
+}
+
 export type BatteryApproval = {
   fingerprint: string;
   approvedAt: string;
@@ -41,21 +51,22 @@ export function buildBatteryReviewState(
   savedApproval: BatteryApproval | null,
 ): BatteryReviewState {
   const assessmentRows = assignments.filter(row => !INTAKE_TOOL_IDS.has(row.toolId));
+  const questionnaireRows = assessmentRows.filter(row => !isSpecializedExaminerAssignment(row));
   const fingerprintInput = [...assessmentRows]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(({ id, toolId, respondentLabel, respondentType, uniqueLink, formItemsSnapshot }) => ({
       id, toolId, respondentLabel, respondentType, uniqueLink, formItemsSnapshot,
     }));
   const fingerprint = createHash("sha256").update(JSON.stringify(fingerprintInput)).digest("hex");
-  const missingSnapshots = assessmentRows.filter(row => !isValidSnapshot(row.formItemsSnapshot)).length;
+  const missingSnapshots = questionnaireRows.filter(row => !isValidSnapshot(row.formItemsSnapshot)).length;
   const issues: string[] = [];
 
-  if (assessmentRows.length === 0) issues.push("Assign at least one assessment form before approving the battery.");
+  if (questionnaireRows.length === 0) issues.push("Assign at least one questionnaire form before approving assessment sends.");
   if (missingSnapshots > 0) issues.push(`${missingSnapshots} assigned assessment form${missingSnapshots === 1 ? " is" : "s are"} missing a valid frozen form snapshot.`);
 
   const groupedTools = new Map<string, Set<string>>();
   const duplicates = new Set<string>();
-  for (const row of assessmentRows) {
+  for (const row of questionnaireRows) {
     const key = `${row.respondentType}\u0000${row.respondentLabel ?? ""}`;
     const tools = groupedTools.get(key) ?? new Set<string>();
     if (tools.has(row.toolId)) duplicates.add(`${row.respondentLabel || row.respondentType}: ${row.toolId}`);
@@ -66,7 +77,7 @@ export function buildBatteryReviewState(
     issues.push(`Duplicate assessment forms in one recipient group: ${[...duplicates].sort().join(", ")}. Remove unintended duplicates before approving.`);
   }
 
-  const parentRows = assessmentRows.filter(row =>
+  const parentRows = questionnaireRows.filter(row =>
     row.respondentType === "parent" &&
     (row.respondentLabel === "Parent" || row.respondentLabel === "Parent Assessment Package"),
   );

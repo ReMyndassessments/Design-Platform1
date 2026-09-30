@@ -94,6 +94,7 @@ function ageFromDob(dob: string | null | undefined): number | null {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
+const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
@@ -2834,7 +2835,7 @@ export default function CaseDetail() {
                 )}
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Test the exact assigned forms below. Test answers remain in your browser; only an admin can approve this battery for sharing.
+                Test the assigned questionnaires below. Test answers remain in your browser; only an admin can approve sharing. Examiner-led tasks use separate workflows, not questionnaire items.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2887,11 +2888,17 @@ export default function CaseDetail() {
                               {assignment.respondentLabel ? ` · ${assignment.respondentLabel}` : ""}
                             </p>
                           </div>
-                          <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
-                            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
-                              <Eye size={14} /> Test form
-                            </Button>
-                          </Link>
+                          {assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? "") ? (
+                            <span className="shrink-0 text-xs text-slate-500" title="This examiner-led task uses a separate workflow, not a questionnaire.">
+                              Examiner task · no questionnaire
+                            </span>
+                          ) : (
+                            <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
+                              <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
+                                <Eye size={14} /> Test form
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       ))}
                   </div>
@@ -2901,7 +2908,7 @@ export default function CaseDetail() {
                   {currentUser?.role === "admin" && (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-slate-500">
-                        {batteryReviewQuery.data.assignmentCount} assigned assessment form{batteryReviewQuery.data.assignmentCount === 1 ? "" : "s"} in this approval.
+                          {batteryReviewQuery.data.assignmentCount} assigned assessment tool{batteryReviewQuery.data.assignmentCount === 1 ? "" : "s"} in this approval. Examiner-led tasks have no questionnaire preview.
                       </p>
                       <Button
                         onClick={handleApproveBattery}

@@ -72,6 +72,31 @@ test("duplicate recipient forms, split unnamed parent packages, and missing snap
   assert.ok(missingState.issues.some(issue => issue.includes("missing a valid frozen form snapshot")));
 });
 
+test("specialized examiner workflows do not require questionnaire snapshots, but missing recipient forms still block", () => {
+  const examinerTools = ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].map((toolId, index) => ({
+    ...assessment,
+    id: `examiner-${index}`,
+    toolId,
+    respondentType: "examiner",
+    respondentLabel: "Examiner",
+    formItemsSnapshot: "[]",
+  }));
+  const state = buildBatteryReviewState([assessment, ...examinerTools], null);
+  assert.equal(state.assignmentCount, 7);
+  assert.equal(state.missingSnapshots, 0);
+  assert.deepEqual(state.issues, []);
+  assert.equal(buildBatteryReviewState([assessment, ...examinerTools], {
+    fingerprint: state.fingerprint,
+    approvedAt: "2026-01-02T03:04:05.000Z",
+    approvedBy: "admin-id",
+  }).approved, true);
+
+  const missingTeacher = { ...assessment, id: "teacher-missing", respondentType: "teacher1", respondentLabel: "Teacher 1", formItemsSnapshot: null };
+  const withMissingTeacher = buildBatteryReviewState([assessment, ...examinerTools, missingTeacher], null);
+  assert.equal(withMissingTeacher.missingSnapshots, 1);
+  assert.equal(withMissingTeacher.approved, false);
+});
+
 test("snapshot preview uses external form radio normalization and rejects malformed snapshots", () => {
   assert.deepEqual(questionsFromAssignmentSnapshot(snapshot), [{
     id: "q1",
