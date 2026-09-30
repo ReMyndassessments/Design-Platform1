@@ -9,6 +9,12 @@ An intake-analysis regeneration should replace only the AI-generated portions of
 
 **How to apply:** When changing intake synthesis, merge only generated fields into the current stored document, and keep generation failure separate from successful output. Include newly saved parent interview sources, but never use unsaved browser drafts.
 
+Parseable JSON from the AI is not necessarily a successful analysis. Require the full expected clinical result before replacing any generated fields.
+
+**Why:** A model can return `{}` or partial JSON without a parsing error; filling missing fields with defaults would erase a useful previous summary and recommendations.
+
+**How to apply:** Reject incomplete results before the database update so the existing analysis remains intact, while making the failure visible to staff.
+
 Follow-up answers and verified assessment-lead clarifications can be included in future regeneration. Keep exploratory AI discussion separate: a question or hypothetical scenario in chat is not automatically a confirmed case fact.
 
 **Why:** Clinical decisions need a traceable distinction between evidence received, the lead's verified context, and exploratory AI advice.

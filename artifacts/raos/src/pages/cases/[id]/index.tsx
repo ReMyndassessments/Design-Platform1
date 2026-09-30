@@ -933,11 +933,11 @@ export default function CaseDetail() {
       return;
     }
     if (c?.intakeAnalysis && !window.confirm(
-      `Regenerate the intake analysis using the saved case details (Grade ${c.grade || "not specified"}, age ${ageFromDob(c.dob) ?? "unknown"} from the saved birth date), forms, interviews and responses?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`
+      `Regenerate the intake analysis using the saved case details (Grade ${c.grade || "not specified"}, age ${ageFromDob(c.dob) ?? "unknown"} from the saved birth date), forms, interviews and the latest submitted parent/teacher question responses?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`
     )) return;
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
-        toast({ title: "Intake Analysis Complete", description: "AI has processed the intake data." });
+        toast({ title: "Intake Analysis Complete", description: "Saved parent and teacher question responses were included in the regenerated analysis." });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       },
       onError: () => toast({ title: "Could not regenerate intake analysis", description: "The existing analysis has been kept. Please try again.", variant: "destructive" }),

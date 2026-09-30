@@ -26,6 +26,82 @@ type Invitation = {
 
 const teacherTypes = new Set(["teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor", "boarding_staff"]);
 
+type EnglishTranslation = {
+  sourceAnswer: string;
+  translatedAnswers: string[] | null;
+  translatedText: string | null;
+};
+
+function SubmittedResponse({ request, endpoint }: { request: Invitation; endpoint: string }) {
+  const originalAnswers = readIntakeQuestionAnswers(request.answer, request.questions.length);
+  const [translation, setTranslation] = useState<EnglishTranslation | null>(null);
+  const [showEnglish, setShowEnglish] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [error, setError] = useState("");
+  const usableTranslation = translation?.sourceAnswer === request.answer &&
+    (originalAnswers
+      ? Array.isArray(translation?.translatedAnswers) &&
+        translation.translatedAnswers.length === originalAnswers.length &&
+        translation.translatedAnswers.every(answer => typeof answer === "string")
+      : typeof translation?.translatedText === "string" && !!translation.translatedText.trim());
+  const inEnglish = showEnglish && usableTranslation;
+  const answers = inEnglish && originalAnswers ? translation!.translatedAnswers : originalAnswers;
+
+  const toggleTranslation = async () => {
+    if (usableTranslation) {
+      setShowEnglish(value => !value);
+      return;
+    }
+    setTranslating(true);
+    setError("");
+    try {
+      const response = await fetch(`${endpoint}/${encodeURIComponent(request.id)}/translate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+      });
+      if (!response.ok) throw new Error("Translation could not be generated");
+      const result = await response.json() as EnglishTranslation;
+      if (result.sourceAnswer !== request.answer ||
+        (originalAnswers
+          ? !Array.isArray(result.translatedAnswers) || result.translatedAnswers.length !== originalAnswers.length ||
+            !result.translatedAnswers.every(answer => typeof answer === "string")
+          : typeof result.translatedText !== "string" || !result.translatedText.trim())) {
+        throw new Error("Response changed. Refresh the responses and try again.");
+      }
+      setTranslation(result);
+      setShowEnglish(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Translation could not be generated");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-xs font-medium text-indigo-700">View submitted response</summary>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button size="sm" type="button" variant="outline" disabled={translating} onClick={() => void toggleTranslation()}>
+          {translating && <Loader2 size={13} className="mr-1 animate-spin" />}
+          {inEnglish ? "Show original response" : "View in English"}
+        </Button>
+        {inEnglish && <span className="text-xs text-slate-500">AI translation for review; the original response is unchanged.</span>}
+      </div>
+      {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
+      {answers
+        ? <ol className="mt-3 space-y-3">
+            {request.questions.map((question, index) => (
+              <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs font-semibold text-slate-700">{index + 1}. {question}</p>
+                <p className="mt-1 whitespace-pre-wrap text-slate-800">{answers[index]}</p>
+              </li>
+            ))}
+          </ol>
+        : <p className="mt-2 whitespace-pre-wrap text-slate-700">{inEnglish ? translation!.translatedText : request.answer}</p>}
+    </details>
+  );
+}
+
 export function IntakeQuestionDispatch({
   caseId, audience, assignments, baseUrl, questionCount, parentName, parentEmail,
 }: {
@@ -215,24 +291,7 @@ export function IntakeQuestionDispatch({
                   {request.submittedAt ? "Response received" : request.sentAt ? "Awaiting response" : "Not sent"}
                 </span>
               </div>
-              {request.answer && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs font-medium text-indigo-700">View submitted response</summary>
-                  {(() => {
-                    const answers = readIntakeQuestionAnswers(request.answer, request.questions.length);
-                    return answers
-                      ? <ol className="mt-3 space-y-3">
-                          {request.questions.map((question, index) => (
-                            <li key={index} className="rounded-lg border border-slate-200 bg-white p-3">
-                              <p className="text-xs font-semibold text-slate-700">{index + 1}. {question}</p>
-                              <p className="mt-1 whitespace-pre-wrap text-slate-800">{answers[index]}</p>
-                            </li>
-                          ))}
-                        </ol>
-                      : <p className="mt-2 whitespace-pre-wrap text-slate-700">{request.answer}</p>;
-                  })()}
-                </details>
-              )}
+              {request.answer && <SubmittedResponse request={request} endpoint={endpoint} />}
               <Button size="sm" variant="link" type="button" className="mt-1 h-auto p-0 text-xs"
                 disabled={retryingId === request.id} onClick={() => void resend(request)}>
                 {retryingId === request.id ? "Sending…" : request.sentAt ? "Resend questions and link" : "Retry sending"}

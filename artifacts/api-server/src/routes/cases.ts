@@ -6,7 +6,7 @@ import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
-import { analyzeIntakeWithAI, callDeepSeek } from "../lib/ai.js";
+import { analyzeIntakeWithAI, callDeepSeek, translateIntakeQuestionResponseToEnglish } from "../lib/ai.js";
 import { ageOnDate, isValidDob } from "../lib/case-demographics.js";
 import { DISPLAY_PHASES, PHASE_ORDER, resolveStepBackTarget } from "../lib/phase-navigation.js";
 import { z } from "zod";
@@ -900,7 +900,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   }).from(intakeQuestionRequestsTable).where(and(
     eq(intakeQuestionRequestsTable.caseId, req.params.caseId),
     sql`${intakeQuestionRequestsTable.submittedAt} IS NOT NULL`,
-  ));
+  )).orderBy(intakeQuestionRequestsTable.submittedAt);
 
   const referralAssignmentIds = assignments.filter(a => REFERRAL_IDS.includes(a.toolId)).map(a => a.id);
   const intakeAssignmentIds = assignments.filter(a => a.toolId === "INTAKE").map(a => a.id);
@@ -1087,6 +1087,26 @@ router.get("/cases/:caseId/intake-question-requests", authMiddleware, async (req
     row,
     questionRequestPortalUrl(req, row.assignmentId ? tokenByAssignment.get(row.assignmentId) ?? "" : row.questionOnlyToken ?? ""),
   )));
+});
+
+router.post("/cases/:caseId/intake-question-requests/:id/translate", authMiddleware, async (req, res): Promise<void> => {
+  const caseId = Array.isArray(req.params.caseId) ? req.params.caseId[0] : req.params.caseId;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!await authorizeIntakeQuestionRequestCase(caseId, req, res)) return;
+  const [request] = await db.select().from(intakeQuestionRequestsTable).where(and(
+    eq(intakeQuestionRequestsTable.id, id),
+    eq(intakeQuestionRequestsTable.caseId, caseId),
+  )).limit(1);
+  if (!request?.submittedAt || !request.answer?.trim()) {
+    res.status(404).json({ error: "response_not_found" }); return;
+  }
+  try {
+    const translation = await translateIntakeQuestionResponseToEnglish(request.answer, request.questions);
+    res.json({ sourceAnswer: request.answer, ...translation });
+  } catch {
+    req.log.warn({ requestId: id }, "Could not translate intake question response");
+    res.status(502).json({ error: "translation_failed", message: "The response could not be translated. Please try again." });
+  }
 });
 
 router.post("/cases/:caseId/intake-question-requests", authMiddleware, async (req, res): Promise<void> => {
