@@ -15,7 +15,7 @@
 - [BEHAVOBS upgrade policy](behavobs-upgrade-policy.md) — productive struggle extends the existing form, not a separate tool; preserve completed and saved-answer snapshots.
 - [Workshop Builder implementation](workshop-builder.md) — DB tables + API routes + admin tab + public page; route order in App.tsx matters; image proxy skips drafts; webhook checks workshop intents before LSC.
 - [RAOS communications provider split](communications-provider-split.md) — Gmail handles direct operational mail; EmailOctopus handles consent-eligible bulk campaigns with minimal data.
-- [Intake response compatibility](intake-response-compatibility.md) — per-question responses must coexist with older combined replies without silently reinterpreting clinical narratives.
+- [Intake response compatibility](intake-response-compatibility.md) — preserve legacy narratives; submitted replies become read-only from assessment, using the internal case phase.
 - [Workshop manual-sales mode](workshop-manual-sales-mode.md) — paid workshops bypass Airwallex via verified inquiries; free workshops and LSC payments remain unchanged.
 - [RAOS promotional demo safety](raos-promotional-demo-safety.md) — public demo uses synthetic pre-written AI examples; the permanent internal demo case is server-enforced read-only.
 - [EmailOctopus bulk preparation](emailoctopus-bulk-preparation.md) — prepare large audiences asynchronously, throttle contact sync, and persist the list ID before uploading contacts.

@@ -9,6 +9,7 @@ export type PortalQuestionRequest = {
   answer: string | null;
   submittedAt: string | null;
   recipientName: string;
+  canEdit?: boolean;
 };
 
 function QuestionCard({
@@ -27,6 +28,8 @@ function QuestionCard({
   const [editing, setEditing] = useState(!request.submittedAt);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [serverLocked, setServerLocked] = useState(false);
+  const readOnly = !preview && (request.canEdit === false || serverLocked);
   const savedAnswers = readIntakeQuestionAnswers(request.answer, request.questions.length);
 
   useEffect(() => {
@@ -58,10 +61,11 @@ function QuestionCard({
     preview: isMandarin ? "测试预览：您可以试填输入框，但这些答案不会保存，也无法提交。" : isKorean ? "테스트 미리보기: 입력란을 사용해 볼 수 있지만 답변은 저장되거나 제출되지 않습니다." : "Test preview: you can try the answer boxes, but nothing you type here will be saved or submitted.",
     previewSubmit: isMandarin ? "真实受访者会在此看到提交按钮。测试预览无法提交回复。" : isKorean ? "실제 응답자에게는 여기에 제출 버튼이 표시됩니다. 테스트 미리보기에서는 답변을 제출할 수 없습니다." : "Real respondents can submit their answers here. This button is disabled in the test preview.",
     previous: isMandarin ? "之前提交的统一回复" : isKorean ? "이전에 제출한 통합 답변" : "Previously submitted combined response",
+    locked: isMandarin ? "这些初步接收回复已锁定，以保护用于分析的原始资料。如需补充信息，请联系评估团队。" : isKorean ? "분석에 사용된 원본 정보를 보호하기 위해 초기 접수 답변이 잠겼습니다. 추가 정보는 평가팀에 문의해 주세요." : "These intake responses are locked to protect the original information used in the analysis. Contact the assessment team with any additional information.",
   };
 
   const submit = async () => {
-    if (preview) return;
+    if (preview || readOnly) return;
     if (drafts.length !== request.questions.length || drafts.some(answer => !answer.trim())) {
       setError(copy.missing);
       return;
@@ -79,7 +83,16 @@ function QuestionCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answer }),
       });
-      if (!response.ok) throw new Error("Unable to save response");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        if (failure?.error === "intake_response_locked") {
+          setServerLocked(true);
+          setEditing(false);
+          onSubmitted();
+          return;
+        }
+        throw new Error("Unable to save response");
+      }
       setEditing(false);
       onSubmitted();
     } catch {
@@ -102,7 +115,7 @@ function QuestionCard({
           <h2 className="text-base font-bold text-slate-900">
             {copy.heading}
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">{preview ? copy.preview : copy.guidance}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{preview ? copy.preview : readOnly ? copy.locked : copy.guidance}</p>
           </div>
         </div>
         {!preview && request.submittedAt && <CheckCircle2 size={20} className="shrink-0 text-emerald-600" aria-label="Submitted" />}
@@ -117,7 +130,7 @@ function QuestionCard({
               <span className="shrink-0 font-bold tabular-nums text-indigo-600">{String(index + 1).padStart(2, "0")}</span>
               <span className="font-medium text-slate-800">{question}</span>
             </div>
-            {(editing || preview) ? (
+            {((editing && !readOnly) || preview) ? (
               <div className="mt-4">
                 <label htmlFor={`portal-questions-${request.id}-${index}`} className="mb-1.5 block text-xs font-semibold text-slate-700">{copy.response} {index + 1}</label>
                 <textarea
@@ -153,7 +166,7 @@ function QuestionCard({
             {copy.submit}
           </button>
         </div>
-      ) : editing ? (
+      ) : editing && !readOnly ? (
         <div className="mt-6 space-y-2 border-t border-slate-100 pt-5">
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="flex justify-end">
@@ -167,10 +180,10 @@ function QuestionCard({
       ) : (
         <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800"><CheckCircle2 size={16} />{copy.submitted}</p>
-          <button type="button" className="mt-3 text-sm font-semibold text-indigo-700 underline underline-offset-2 hover:text-indigo-900" onClick={() => setEditing(true)}
+          {readOnly ? <p className="mt-2 text-sm leading-relaxed text-emerald-900" data-testid={`notice-intake-locked-${request.id}`}>{copy.locked}</p> : <button type="button" className="mt-3 text-sm font-semibold text-indigo-700 underline underline-offset-2 hover:text-indigo-900" onClick={() => setEditing(true)}
             data-testid={`button-edit-intake-${request.id}`}>
             {copy.edit}
-          </button>
+          </button>}
         </div>
       )}
       </div>

@@ -16,6 +16,7 @@ import * as airwallex from "../lib/airwallex.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { z } from "zod";
 import { assignmentMatchesQuestionRecipient, assignmentOwnsQuestionRequest } from "../lib/intake-question-request-access.js";
+import { canEditIntakeQuestionResponse } from "../lib/intakeQuestionEditPolicy.js";
 import { recipientMatchesReportToken, reportRecipientPortalUrl } from "../lib/recipientPortalLinks.js";
 import { parentPermissionError, resolveReportRole } from "../lib/recipientPortalIdentity.js";
 import { consolidatedParentPortalToken } from "../lib/parentPackageConsolidation.js";
@@ -492,6 +493,7 @@ router.get("/external/portal/:token", async (req, res) => {
       .filter(request => assignmentOwnsQuestionRequest(request, assignment))
       .map(({ id, audience, questions, answer, submittedAt, recipientName }) => ({
         id, audience, questions, answer, submittedAt, recipientName,
+        canEdit: canEditIntakeQuestionResponse(caseData?.currentPhase, submittedAt),
       }));
 
     // Group by the verified recipient email when available. A shared label
@@ -663,6 +665,7 @@ router.get("/external/portal/:token", async (req, res) => {
         answer: questionOnlyRequest.answer,
         submittedAt: questionOnlyRequest.submittedAt,
         recipientName: questionOnlyRequest.recipientName,
+        canEdit: canEditIntakeQuestionResponse(caseData.currentPhase, questionOnlyRequest.submittedAt),
       }],
     });
     return;
@@ -792,12 +795,36 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
     request = standaloneRequest;
   }
 
-  const now = new Date();
-  const [updated] = await db.update(intakeQuestionRequestsTable).set({
-    answer: parsed.data.answer,
-    submittedAt: now,
-    updatedAt: now,
-  }).where(eq(intakeQuestionRequestsTable.id, request.id)).returning();
+  const authorizedRequest = request;
+  const result = await db.transaction(async tx => {
+    // Phase changes update this same case row. Hold its lock until saving so
+    // a stale open form cannot write after assessment has started.
+    const [caseData] = await tx.select({ currentPhase: casesTable.currentPhase })
+      .from(casesTable).where(eq(casesTable.id, authorizedRequest.caseId)).for("update");
+    const [currentRequest] = await tx.select().from(intakeQuestionRequestsTable)
+      .where(and(eq(intakeQuestionRequestsTable.id, authorizedRequest.id),
+        eq(intakeQuestionRequestsTable.caseId, authorizedRequest.caseId))).for("update");
+    if (!caseData || !currentRequest) return { error: "not_found" as const };
+    if (!canEditIntakeQuestionResponse(caseData.currentPhase, currentRequest.submittedAt)) {
+      return { error: "intake_response_locked" as const };
+    }
+    const now = new Date();
+    const [updated] = await tx.update(intakeQuestionRequestsTable).set({
+      answer: parsed.data.answer,
+      submittedAt: now,
+      updatedAt: now,
+    }).where(eq(intakeQuestionRequestsTable.id, currentRequest.id)).returning();
+    return { updated, canEdit: canEditIntakeQuestionResponse(caseData.currentPhase, updated.submittedAt) };
+  });
+  if ("error" in result) {
+    res.status(result.error === "not_found" ? 404 : 409).json({
+      error: result.error,
+      message: result.error === "not_found" ? "Question request not found"
+        : "These intake responses are locked because the case has moved to assessment or a later phase. Contact the assessment team with any additional information.",
+    });
+    return;
+  }
+  const { updated } = result;
   res.json({
     id: updated.id,
     audience: updated.audience,
@@ -805,6 +832,7 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
     answer: updated.answer,
     submittedAt: updated.submittedAt,
     recipientName: updated.recipientName,
+    canEdit: result.canEdit,
   });
 });
 
