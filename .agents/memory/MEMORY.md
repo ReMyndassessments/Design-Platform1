@@ -11,6 +11,7 @@
 - [Airwallex LSC integration](airwallex-lsc-integration.md) — 1–12 month upfront model; plan col stores months as string; popup-blocker trick; SDK global is AirwallexComponentsSDK not Airwallex.
 - [PIPL Compliance Phase 1](pipl-compliance-phase1.md) — 5 additive compliance tables, admin-only routes/page, AI de-id in 2 DeepSeek functions; Groq audio deferred (critical).
 - [BEHAVOBS Chinese string escaping](behavobs-chinese-escaping.md) — Chinese curly quotes (U+201C/D) inside double-quoted strings become bare ASCII " on write; use escaped \" or remove them from note strings.
+- [BEHAVOBS upgrade policy](behavobs-upgrade-policy.md) — productive struggle extends the existing form, not a separate tool; preserve completed and saved-answer snapshots.
 - [Workshop Builder implementation](workshop-builder.md) — DB tables + API routes + admin tab + public page; route order in App.tsx matters; image proxy skips drafts; webhook checks workshop intents before LSC.
 - [RAOS communications provider split](communications-provider-split.md) — Gmail handles direct operational mail; EmailOctopus handles consent-eligible bulk campaigns with minimal data.
 - [Intake response compatibility](intake-response-compatibility.md) — per-question responses must coexist with older combined replies without silently reinterpreting clinical narratives.

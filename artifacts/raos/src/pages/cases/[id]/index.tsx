@@ -112,7 +112,7 @@ const RESPONDENT_LABELS: Record<string, string> = {
 };
 
 const RESPONDENT_TYPES_IN_MODAL = [
-  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "examiner",
+  "parent", "teacher1", "teacher2", "boarding_staff", "referring_teacher", "self", "invigilator", "examiner",
 ] as const;
 
 const RESPONDENT_TYPE_LABELS: Record<string, string> = {
@@ -124,7 +124,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   boarding_staff:    "Boarding Staff",
   self:              "Student Self-Report Package",
   examiner:          "Examiner-Administered Battery",
-  invigilator:       "Assessment Administration Team",
+  invigilator:       "Invigilator / Assessment Administration Team",
 };
 
 function canAdvancePhase(role: string): boolean {
@@ -3285,7 +3285,7 @@ export default function CaseDetail() {
                         const added = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
-                          body: JSON.stringify({ toolId: "BEHAVOBS", respondentType: "self", respondentLabel: "" }),
+                          body: JSON.stringify({ toolId: "BEHAVOBS", respondentType: "invigilator", respondentLabel: "Post-Assessment" }),
                         });
                         if (!added.ok) throw new Error("Assessment Behavior Observation could not be added.");
                         await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });

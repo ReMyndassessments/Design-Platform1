@@ -332,7 +332,7 @@ router.post("/cases", authMiddleware, async (req, res) => {
     for (const tool of invigilatorTools) {
       const token = crypto.randomBytes(24).toString("hex");
       const uniqueLink = `${baseUrl}/external/${token}`;
-      await db.insert(assignmentsTable).values({
+      const [assignment] = await db.insert(assignmentsTable).values({
         id: nanoid(),
         caseId: newCase[0].id,
         toolId: tool.id,
@@ -345,7 +345,11 @@ router.post("/cases", authMiddleware, async (req, res) => {
         uniqueLink,
         qrCodeData: uniqueLink,
         status: "not_started",
-      });
+        formItemsSnapshot: tool.formItems ? JSON.stringify(tool.formItems) : null,
+      }).returning({ id: assignmentsTable.id });
+      await db.execute(sql`UPDATE assignments SET tool_version_id =
+        (SELECT version_id FROM assessment_tools WHERE id=${tool.id})
+        WHERE id=${assignment.id}`);
     }
   } catch {
     // Non-fatal: case is still created; assignments can be added manually

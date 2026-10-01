@@ -478,9 +478,9 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     id: "BEHAVOBS",
     name: "Assessment Behavior Observation",
     category: "behavior",
-    description: "A systematic direct observation tool used to measure a student's active and passive engaged time, as well as off-task and disruptive behaviors, in a classroom setting. It is designed for school-aged children and is used by psychologists and educational professionals to assess academic engagement and behavior in the natural environment.",
+    description: "An assessment-session observation form completed by the invigilator, assessing clinician, or psychometrist. Includes general behavior observations, the structured Response to Productive Struggle profile, and additional test-specific observations.",
     isRemyndOwned: true,
-    respondentTypes: ["examiner"],
+    respondentTypes: ["invigilator"],
     scoringType: "manual",
     domains: [],
     scoringConfig: null,
@@ -491,7 +491,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
         textKorean: "평가 행동 관찰",
         type: "section_header", domain: "admin", required: false,
         options: [], optionsChinese: [], optionsKorean: [],
-        note: "This form is completed by the assessing clinician or psychometrist during the assessment session. Record your observations of the student's behaviour, presentation, and engagement throughout the session.",
+        note: "This form is completed by the invigilator, assessing clinician, or psychometrist during or after the assessment session. Record your observations of the student's behaviour, presentation, and engagement throughout the session.",
         noteChinese: "本表格由主评临床医生或心理测量师在评估过程中填写。请记录您在整个评估过程中对学生的行为、表现和参与情况的观察。",
         noteKorean: "이 양식은 평가 세션 동안 평가 임상가 또는 심리측정사가 작성합니다. 세션 전반에 걸쳐 학생의 행동, 발표 및 참여에 대한 관찰을 기록해 주세요.",
       },
@@ -3559,6 +3559,30 @@ async function backfillRscaSnapshots() {
   }
 }
 
+async function refreshUntouchedBehavobsAssignments() {
+  try {
+    // Upgrade only the legacy, untouched form. Never replace submitted or
+    // partially saved clinical evidence, even if its status is inconsistent.
+    const result = await db.execute(sql`
+      UPDATE assignments a
+      SET form_items_snapshot = t.form_items::text,
+          tool_version_id = t.version_id
+      FROM assessment_tools t
+      WHERE a.tool_id = 'BEHAVOBS' AND t.id = a.tool_id
+        AND a.status = 'not_started' AND a.submitted_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM responses r WHERE r.assignment_id = a.id)
+        AND t.form_items::jsonb @> '[{"id":"ps_d1"}]'::jsonb
+        AND (a.form_items_snapshot IS NULL OR
+             NOT (a.form_items_snapshot::jsonb @> '[{"id":"ps_d1"}]'::jsonb))
+    `);
+    if ((result.rowCount ?? 0) > 0) {
+      logger.info({ count: result.rowCount }, "Updated untouched legacy BEHAVOBS forms to the productive-struggle version");
+    }
+  } catch (err) {
+    logger.error({ err }, "refreshUntouchedBehavobsAssignments failed");
+  }
+}
+
 async function addRmraReportColumn() {
   try {
     await db.execute(sql`
@@ -5093,6 +5117,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addCoordinatorSupport())
   .then(() => syncAssignmentToolNames())
   .then(() => backfillRscaSnapshots())
+  .then(() => refreshUntouchedBehavobsAssignments())
   .then(() => addCaseProductIds())
   .then(() => purgeInvalidScores())
   .then(() => createRmraTables())
