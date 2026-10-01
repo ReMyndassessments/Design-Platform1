@@ -13,6 +13,7 @@ import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intakeQuestionEmail.js";
 import { createIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
+import { activeAssignmentCondition, isRetiredAssignment } from "../lib/assignmentRetirement.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -273,7 +274,7 @@ router.get("/cases", authMiddleware, async (req, res) => {
     const rows = await db
       .select({ caseId: assignmentsTable.caseId, status: assignmentsTable.status })
       .from(assignmentsTable)
-      .where(inArray(assignmentsTable.caseId, productCaseIds));
+      .where(and(inArray(assignmentsTable.caseId, productCaseIds), activeAssignmentCondition()));
 
     const stats = new Map<string, { total: number; done: number }>();
     for (const row of rows) {
@@ -413,7 +414,13 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
     db.select().from(referralInvitesTable).where(eq(referralInvitesTable.resultingCaseId, req.params.caseId)).limit(1),
   ]);
-  const caseAssignments = assignments.map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment);
+  const activeAssignments = assignments.filter(assignment => !isRetiredAssignment(assignment));
+  const retiredAssignments = assignments
+    .filter(isRetiredAssignment)
+    .map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment);
+  const caseAssignments = activeAssignments.map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment);
+  const activeScorePairs = new Set(activeAssignments.map(a => `${a.toolId}::${a.respondentType ?? ""}`));
+  const activeScores = scores.filter(score => activeScorePairs.has(`${score.toolId}::${score.respondentType ?? ""}`));
   const referralInvite = referralInviteRows[0]
     ? {
         token: referralInviteRows[0].token,
@@ -429,7 +436,8 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     intakeData: c.intakeData,
     intakeAnalysis: c.intakeAnalysis,
     assignments: caseAssignments,
-    scores,
+    retiredAssignments,
+    scores: activeScores,
     referralInvite,
   });
 });
@@ -716,13 +724,21 @@ router.post("/cases/:caseId/create-moderated-meeting", authMiddleware, async (re
 
 router.delete("/cases/:caseId/assignments/by-tool/:toolId", authMiddleware, async (req, res) => {
   const { caseId, toolId } = req.params;
-  const rows = await db.select().from(assignmentsTable)
+  const allRows = await db.select().from(assignmentsTable)
     .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, toolId)));
-  if (!rows.length) { res.status(404).json({ error: "No assignment found for this tool" }); return; }
+  const rows = allRows.filter(row => !isRetiredAssignment(row));
+  if (!rows.length) {
+    if (allRows.some(isRetiredAssignment)) {
+      res.status(409).json({ error: "assignment_retired", message: "Retired assignments cannot be deleted" });
+      return;
+    }
+    res.status(404).json({ error: "No assignment found for this tool" });
+    return;
+  }
   const completed = rows.some(r => r.status === "completed");
   if (completed) { res.status(409).json({ error: "Cannot unassign a completed assessment" }); return; }
   await db.delete(assignmentsTable)
-    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, toolId)));
+    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, toolId), activeAssignmentCondition()));
   res.status(204).send();
 });
 
@@ -810,6 +826,7 @@ router.post("/cases/:caseId/self-report", authMiddleware, async (req, res) => {
     and(
       eq(assignmentsTable.caseId, caseId),
       eq(assignmentsTable.toolId, toolId),
+      activeAssignmentCondition(),
       or(
         eq(assignmentsTable.respondentType, "self"),
         eq(assignmentsTable.respondentType, "student"),
@@ -876,7 +893,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const [assignments, allTools, parentInterviews] = await Promise.all([
     db.select().from(assignmentsTable).where(
-      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE"]))
+      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE"]), activeAssignmentCondition())
     ),
     db.select({
       id: assessmentToolsTable.id,
@@ -1016,7 +1033,7 @@ async function sendIntakeQuestionRequest(
   let token: string;
   if (request.assignmentId) {
     const [assignment] = await db.select().from(assignmentsTable)
-      .where(eq(assignmentsTable.id, request.assignmentId)).limit(1);
+      .where(and(eq(assignmentsTable.id, request.assignmentId), activeAssignmentCondition())).limit(1);
     if (!assignment || assignment.caseId !== request.caseId || !assignment.assignedToEmail ||
       assignment.assignedToEmail.trim().toLowerCase() !== request.recipientEmail.trim().toLowerCase()) {
       throw new Error("The linked assignment is no longer available for this recipient");
@@ -1085,7 +1102,7 @@ router.get("/cases/:caseId/intake-question-requests", authMiddleware, async (req
   const assignmentIds = [...new Set(rows.map(row => row.assignmentId).filter((id): id is string => !!id))];
   const assignments = assignmentIds.length
     ? await db.select({ id: assignmentsTable.id, uniqueToken: assignmentsTable.uniqueToken })
-      .from(assignmentsTable).where(inArray(assignmentsTable.id, assignmentIds))
+      .from(assignmentsTable).where(and(inArray(assignmentsTable.id, assignmentIds), activeAssignmentCondition()))
     : [];
   const tokenByAssignment = new Map(assignments.map(row => [row.id, row.uniqueToken]));
   res.json(rows.map(row => formatQuestionRequest(
@@ -1135,6 +1152,7 @@ router.post("/cases/:caseId/intake-question-requests", authMiddleware, async (re
     const [assignment] = await db.select().from(assignmentsTable).where(and(
       eq(assignmentsTable.id, body.assignmentId),
       eq(assignmentsTable.caseId, caseId),
+      activeAssignmentCondition(),
     )).limit(1);
     if (!assignment) {
       res.status(404).json({ error: "assignment_not_found", message: "Assignment not found for this case" });
@@ -1363,6 +1381,7 @@ router.post("/cases/:caseId/intake-discussion", authMiddleware, async (req, res)
     db.select().from(assignmentsTable).where(and(
       eq(assignmentsTable.caseId, c.id),
       inArray(assignmentsTable.toolId, ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "INTAKE"]),
+      activeAssignmentCondition(),
     )),
     db.select({ structuredNotes: interviewRecordingsTable.structuredNotes, transcript: interviewRecordingsTable.transcript })
       .from(interviewRecordingsTable).where(and(

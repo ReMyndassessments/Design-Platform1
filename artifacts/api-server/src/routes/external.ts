@@ -27,6 +27,7 @@ import {
   validateBatteryTestPackage,
   verifyBatteryTestToken,
 } from "../lib/batteryTestInvitation.js";
+import { activeAssignmentCondition, isRetiredAssignment } from "../lib/assignmentRetirement.js";
 
 const storage = new ObjectStorageService();
 const router = Router();
@@ -116,7 +117,10 @@ async function loadBatteryTestContext(token: string): Promise<BatteryTestContext
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     assignedToName: assignmentsTable.assignedToName,
     assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, claims.caseId));
+  }).from(assignmentsTable).where(and(
+    eq(assignmentsTable.caseId, claims.caseId),
+    activeAssignmentCondition(),
+  ));
   const currentFingerprint = buildBatteryReviewState(
     caseAssignments,
     caseRow.batteryApproval as BatteryApproval | null,
@@ -455,8 +459,19 @@ router.get("/external/portal/:token", async (req, res) => {
   }
 
   // ── Path A: token matches an assignment (normal portal link) ──────────────
-  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
+  const rows = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.uniqueToken, portalToken),
+    activeAssignmentCondition(),
+  )).limit(1);
   let assignment: (typeof rows)[number] | undefined = rows[0];
+  if (!assignment) {
+    const [retiredAnchor] = await db.select().from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
+    if (retiredAnchor && isRetiredAssignment(retiredAnchor)) {
+      res.status(410).json({ error: "assignment_retired", message: "This assessment link has been retired. Ask the assessment team for a current link." });
+      return;
+    }
+  }
   if (!assignment) {
     // A teacher or parent who received questions before being assigned forms
     // keeps the original portal link. It expands to their forms later, only
@@ -468,7 +483,12 @@ router.get("/external/portal/:token", async (req, res) => {
     if (earlyRequest && !earlyRequest.assignmentId) {
       const candidates = await db.select().from(assignmentsTable)
         .where(eq(assignmentsTable.caseId, earlyRequest.caseId));
-      assignment = candidates.find(candidate => assignmentMatchesQuestionRecipient(earlyRequest, candidate));
+      const retiredRecipientAssignment = candidates.some(candidate =>
+        isRetiredAssignment(candidate) && assignmentMatchesQuestionRecipient(earlyRequest, candidate));
+      if (!retiredRecipientAssignment) {
+        assignment = candidates.find(candidate =>
+          !isRetiredAssignment(candidate) && assignmentMatchesQuestionRecipient(earlyRequest, candidate));
+      }
     }
   }
 
@@ -518,9 +538,10 @@ router.get("/external/portal/:token", async (req, res) => {
         respondentLabel: assignmentsTable.respondentLabel,
         respondentType: assignmentsTable.respondentType,
         assignedToEmail: assignmentsTable.assignedToEmail,
+        metadata: assignmentsTable.metadata,
       })
       .from(assignmentsTable)
-      .where(eq(assignmentsTable.caseId, assignment.caseId));
+      .where(and(eq(assignmentsTable.caseId, assignment.caseId), activeAssignmentCondition()));
     // Only the shared invitation token opens a consolidated parent assessment
     // portal. Keep the per-form tokens for completing forms inside that portal,
     // and leave already-completed referral, consent, and intake links alone.
@@ -533,9 +554,10 @@ router.get("/external/portal/:token", async (req, res) => {
       }
     }
     const recipientEmail = assignment.assignedToEmail?.trim().toLowerCase();
-    const siblings = siblingCandidates.filter(s => recipientEmail
+    const siblings = siblingCandidates.filter(s => !isRetiredAssignment(s) && (recipientEmail
       ? s.assignedToEmail?.trim().toLowerCase() === recipientEmail && sameRole(s.respondentType)
-      : sameRole(s.respondentType) && (s.respondentLabel === anchorLabel || (anchorType === "self" && s.respondentType === "invigilator")));
+      : !s.assignedToEmail?.trim() && sameRole(s.respondentType) &&
+        (s.respondentLabel === anchorLabel || (anchorType === "self" && s.respondentType === "invigilator"))));
 
     // Check if reports are available for this respondent
     let reportAccess: object | null = null;
@@ -771,7 +793,15 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
   }
 
   const [assignment] = await db.select().from(assignmentsTable)
-    .where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+    .where(and(eq(assignmentsTable.uniqueToken, rawToken), activeAssignmentCondition())).limit(1);
+  if (!assignment) {
+    const [retiredAssignment] = await db.select().from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+    if (retiredAssignment && isRetiredAssignment(retiredAssignment)) {
+      res.status(410).json({ error: "assignment_retired", message: "This assessment link has been retired. Ask the assessment team for a current link." });
+      return;
+    }
+  }
   let request: typeof intakeQuestionRequestsTable.$inferSelect | undefined;
   if (assignment) {
     const [linkedRequest] = await db.select().from(intakeQuestionRequestsTable).where(and(
@@ -801,6 +831,14 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
     // a stale open form cannot write after assessment has started.
     const [caseData] = await tx.select({ currentPhase: casesTable.currentPhase })
       .from(casesTable).where(eq(casesTable.id, authorizedRequest.caseId)).for("update");
+    if (caseData && assignment) {
+      const [currentAssignment] = await tx.select().from(assignmentsTable).where(and(
+        eq(assignmentsTable.id, assignment.id),
+        eq(assignmentsTable.uniqueToken, rawToken),
+        activeAssignmentCondition(),
+      )).for("update");
+      if (!currentAssignment || isRetiredAssignment(currentAssignment)) return { error: "retired" as const };
+    }
     const [currentRequest] = await tx.select().from(intakeQuestionRequestsTable)
       .where(and(eq(intakeQuestionRequestsTable.id, authorizedRequest.id),
         eq(intakeQuestionRequestsTable.caseId, authorizedRequest.caseId))).for("update");
@@ -817,10 +855,11 @@ router.post("/external/portal/:token/intake-questions/:id/submit", async (req, r
     return { updated, canEdit: canEditIntakeQuestionResponse(caseData.currentPhase, updated.submittedAt) };
   });
   if ("error" in result) {
-    res.status(result.error === "not_found" ? 404 : 409).json({
+    res.status(result.error === "not_found" ? 404 : result.error === "retired" ? 410 : 409).json({
       error: result.error,
       message: result.error === "not_found" ? "Question request not found"
-        : "These intake responses are locked because the case has moved to assessment or a later phase. Contact the assessment team with any additional information.",
+        : result.error === "retired" ? "This assessment link has been retired. Ask the assessment team for a current link."
+          : "These intake responses are locked because the case has moved to assessment or a later phase. Contact the assessment team with any additional information.",
     });
     return;
   }
@@ -1021,10 +1060,19 @@ router.get("/external/form/:token", async (req, res) => {
   const rawToken = req.params.token;
 
   // ── Standard assignment token (checked first — takes priority after invite is submitted) ──
-  const rows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
-  const assignment = rows[0];
+  const rows = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.uniqueToken, rawToken),
+    activeAssignmentCondition(),
+  )).limit(1);
+  let assignment = rows[0];
 
   if (!assignment) {
+    const [retiredAssignment] = await db.select().from(assignmentsTable)
+      .where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+    if (retiredAssignment && isRetiredAssignment(retiredAssignment)) {
+      res.status(410).json({ error: "assignment_retired", message: "This form link has been retired. Ask the assessment team for a current link." });
+      return;
+    }
     // ── Fallback: referral invite token (no case created yet) ────────────────
     const isConsentSuffix = rawToken.endsWith("__consent");
     const baseToken = isConsentSuffix ? rawToken.replace(/__consent$/, "") : rawToken;
@@ -1109,11 +1157,84 @@ router.post("/external/form/:token/submit", async (req, res) => {
   const { answers, language } = req.body;
 
   // ── Standard assignment path (checked first — handles post-submission consent) ─
-  const existingAssignmentRows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
-  if (existingAssignmentRows[0]) {
-    const assignment = existingAssignmentRows[0];
-    await db.insert(responsesTable).values({ id: nanoid(), assignmentId: assignment.id, answers: answers ?? {}, language: language ?? "english" });
-    await db.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() }).where(eq(assignmentsTable.id, assignment.id));
+  const [tokenAssignment] = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.uniqueToken, rawToken),
+    activeAssignmentCondition(),
+  )).limit(1);
+  if (tokenAssignment) {
+    const submission = await db.transaction(async tx => {
+      // Reassignment takes the same case lock before changing assignment tokens.
+      // Re-resolving the submitted token only after taking both locks prevents
+      // a request that waited behind reassignment from writing to history.
+      const [caseRow] = await tx.select({ id: casesTable.id }).from(casesTable)
+        .where(eq(casesTable.id, tokenAssignment.caseId)).for("update");
+      if (!caseRow) return { error: "not_found" as const };
+      const [assignment] = await tx.select().from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, caseRow.id),
+        eq(assignmentsTable.uniqueToken, rawToken),
+        activeAssignmentCondition(),
+      )).for("update").limit(1);
+      if (!assignment || isRetiredAssignment(assignment)) return { error: "retired" as const };
+
+      const [existingResponse] = await tx.select({ id: responsesTable.id })
+        .from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id)).limit(1);
+      if (existingResponse || assignment.status === "completed") {
+        return { alreadySubmitted: true as const, assignment };
+      }
+
+      await tx.insert(responsesTable).values({
+        id: nanoid(),
+        assignmentId: assignment.id,
+        answers: answers ?? {},
+        language: language ?? "english",
+      });
+      await tx.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() })
+        .where(and(eq(assignmentsTable.id, assignment.id), activeAssignmentCondition()));
+
+      const teacherRoles = new Set(["teacher1", "teacher2", "school_counselor", "special_needs_teacher", "referring_teacher", "boarding_staff"]);
+      const sameRoleFamily = (role: string) => assignment.respondentType === "self"
+        ? role === "self" || role === "invigilator"
+        : teacherRoles.has(assignment.respondentType ?? "")
+          ? teacherRoles.has(role)
+          : role === assignment.respondentType;
+      const activeSiblings = await tx.select({
+        toolName: assignmentsTable.toolName,
+        uniqueToken: assignmentsTable.uniqueToken,
+        respondentLabel: assignmentsTable.respondentLabel,
+        respondentType: assignmentsTable.respondentType,
+        assignedToEmail: assignmentsTable.assignedToEmail,
+        status: assignmentsTable.status,
+        id: assignmentsTable.id,
+        metadata: assignmentsTable.metadata,
+      }).from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, assignment.caseId),
+        ne(assignmentsTable.id, assignment.id),
+        ne(assignmentsTable.status, "completed"),
+        activeAssignmentCondition(),
+      ));
+      const recipientEmail = assignment.assignedToEmail?.trim().toLowerCase();
+      const siblings = activeSiblings.filter(s => !isRetiredAssignment(s) && sameRoleFamily(s.respondentType ?? "") &&
+        (recipientEmail
+          ? s.assignedToEmail?.trim().toLowerCase() === recipientEmail
+          : !s.assignedToEmail?.trim() && (s.respondentLabel === (assignment.respondentLabel ?? "") ||
+            (assignment.respondentType === "self" && s.respondentType === "invigilator"))));
+      return { assignment, siblings };
+    });
+
+    if ("error" in submission) {
+      res.status(submission.error === "retired" ? 410 : 404).json({
+        error: submission.error === "retired" ? "assignment_retired" : "not_found",
+        message: submission.error === "retired"
+          ? "This form link has been retired. Ask the assessment team for a current link."
+          : "Form link not found or has expired",
+      });
+      return;
+    }
+    if ("alreadySubmitted" in submission && submission.alreadySubmitted) {
+      res.json({ success: true, message: "This form has already been submitted. Thank you!", nextForms: [] });
+      return;
+    }
+    const { assignment, siblings } = submission;
     void writeAudit({
       eventType: "response.submitted",
       caseId: assignment.caseId,
@@ -1122,16 +1243,18 @@ router.post("/external/form/:token/submit", async (req, res) => {
       ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
       metadata: { language: language ?? "english" },
     });
-    const groupByEmail = !!assignment.assignedToEmail;
-    const siblings = await db.select({ toolName: assignmentsTable.toolName, uniqueToken: assignmentsTable.uniqueToken, respondentLabel: assignmentsTable.respondentLabel })
-      .from(assignmentsTable)
-      .where(and(
-        eq(assignmentsTable.caseId, assignment.caseId),
-        groupByEmail ? eq(assignmentsTable.assignedToEmail, assignment.assignedToEmail!) : and(eq(assignmentsTable.respondentType, assignment.respondentType), eq(assignmentsTable.respondentLabel, assignment.respondentLabel ?? "")),
-        ne(assignmentsTable.id, assignment.id),
-        ne(assignmentsTable.status, "completed"),
-      ));
-    res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms: siblings });
+    res.json({
+      success: true,
+      message: "Thank you! Your response has been submitted.",
+      nextForms: siblings.map(({ toolName, uniqueToken, respondentLabel }) => ({ toolName, uniqueToken, respondentLabel })),
+    });
+    return;
+  }
+
+  const [retiredAssignment] = await db.select().from(assignmentsTable)
+    .where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
+  if (retiredAssignment && isRetiredAssignment(retiredAssignment)) {
+    res.status(410).json({ error: "assignment_retired", message: "This form link has been retired. Ask the assessment team for a current link." });
     return;
   }
 
@@ -1290,7 +1413,10 @@ router.post("/external/form/:token/submit", async (req, res) => {
 // ── AI: resolve case from any portal token ────────────────────────────────────
 async function getCaseFromPortalToken(token: string): Promise<{ caseId: string; role: string } | null> {
   const [assignment] = await db.select({ caseId: assignmentsTable.caseId, respondentType: assignmentsTable.respondentType })
-    .from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, token)).limit(1);
+    .from(assignmentsTable).where(and(
+      eq(assignmentsTable.uniqueToken, token),
+      activeAssignmentCondition(),
+    )).limit(1);
   const tokenMatch = assignment
     ? { caseId: assignment.caseId, role: assignment.respondentType ?? "parent" }
     : await (async () => {
@@ -1631,7 +1757,7 @@ router.post("/external/portal-login", async (req, res) => {
 router.get("/ramri-upload/:token", async (req, res) => {
   try {
     const { token } = req.params;
-    const rows = await db.execute(sql`SELECT id, case_id, tool_id, metadata FROM assignments WHERE unique_token = ${token} LIMIT 1`);
+    const rows = await db.execute(sql`SELECT id, case_id, tool_id, metadata FROM assignments WHERE unique_token = ${token} AND ${activeAssignmentCondition()} LIMIT 1`);
     const assignment = rows.rows[0] as { id: string; case_id: string; tool_id: string; metadata: Record<string, unknown> | null } | undefined;
     if (!assignment || assignment.tool_id !== "RAMRI") {
       return res.status(404).json({ error: "not_found" });
@@ -1651,7 +1777,7 @@ router.get("/ramri-upload/:token", async (req, res) => {
 router.post("/ramri-upload/:token/documents", async (req, res) => {
   try {
     const { token } = req.params;
-    const rows = await db.execute(sql`SELECT id, case_id, tool_id, metadata FROM assignments WHERE unique_token = ${token} LIMIT 1`);
+    const rows = await db.execute(sql`SELECT id, case_id, tool_id, metadata FROM assignments WHERE unique_token = ${token} AND ${activeAssignmentCondition()} LIMIT 1`);
     const assignment = rows.rows[0] as { id: string; case_id: string; tool_id: string; metadata: Record<string, unknown> | null } | undefined;
     if (!assignment || assignment.tool_id !== "RAMRI") {
       return res.status(404).json({ error: "not_found" });

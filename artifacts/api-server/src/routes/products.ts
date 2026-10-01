@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
+import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
+import { activeAssignmentEvidenceRevision, activeScoresForAssignments } from "../lib/activeAssignmentEvidence.js";
 
 export type { AssessmentProductDef };
 
@@ -41,7 +43,7 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
 
   const [caseRows, assignments, scores] = await Promise.all([
     db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1),
-    db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
+    db.select().from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition())),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
   ]);
 
@@ -76,9 +78,10 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
     : [];
   const toolsById = new Map(toolRows.map(t => [t.id, t]));
   const assignedToolIds = new Set(assignments.map(a => a.toolId));
+  const activeScorePairs = new Set(assignments.map(a => `${a.toolId}::${a.respondentType ?? ""}`));
   // Score lookup by toolId (may have multiple respondents)
   const scoresByTool = new Map<string, typeof scores>();
-  for (const s of scores) {
+  for (const s of scores.filter(score => activeScorePairs.has(`${score.toolId}::${score.respondentType ?? ""}`))) {
     if (!scoresByTool.has(s.toolId)) scoresByTool.set(s.toolId, []);
     scoresByTool.get(s.toolId)!.push(s);
   }
@@ -209,7 +212,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
 
   const [caseRows, assignments, allScores] = await Promise.all([
     db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1),
-    db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
+    db.select().from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition())),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
   ]);
 
@@ -221,7 +224,9 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
   }
 
   // Fetch tool names for score entries
-  const scoreToolIds = [...new Set(allScores.map(s => s.toolId))];
+  const activeScores = activeScoresForAssignments(assignments, allScores);
+  const evidenceRevision = activeAssignmentEvidenceRevision(assignments, activeScores);
+  const scoreToolIds = [...new Set(activeScores.map(s => s.toolId))];
   const scoreToolRows = scoreToolIds.length > 0
     ? await db.select().from(assessmentToolsTable).where(inArray(assessmentToolsTable.id, scoreToolIds))
     : [];
@@ -246,7 +251,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
     );
 
     // Build toolScores from completed tools' score records
-    const toolScores = allScores
+    const toolScores = activeScores
       .filter(s => completedTools.includes(s.toolId))
       .map(s => ({
         toolId: s.toolId,
@@ -284,22 +289,49 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
     products: productSummaries,
   });
 
-  // Persist to intakeAnalysis
-  const existing = (c.intakeAnalysis as any) ?? {};
-  const existingReports = existing.productReports ?? {};
-  const key = productId ?? "all";
-  await db.update(casesTable).set({
-    intakeAnalysis: {
-      ...existing,
-      productReports: {
-        ...existingReports,
-        [key]: { report, generatedAt: new Date().toISOString() },
-      },
-    },
-    updatedAt: new Date(),
-  }).where(eq(casesTable.id, caseId));
+  const generatedAt = new Date().toISOString();
+  const persistence = await db.transaction(async tx => {
+    const [lockedCase] = await tx.select({ id: casesTable.id }).from(casesTable)
+      .where(eq(casesTable.id, caseId)).for("update");
+    if (!lockedCase) return { error: "not_found" as const };
+    const currentAssignments = await tx.select().from(assignmentsTable).where(and(
+      eq(assignmentsTable.caseId, caseId),
+      activeAssignmentCondition(),
+    ));
+    const currentScores = activeScoresForAssignments(
+      currentAssignments,
+      await tx.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
+    );
+    if (activeAssignmentEvidenceRevision(currentAssignments, currentScores) !== evidenceRevision) {
+      return { error: "stale_evidence" as const };
+    }
 
-  res.json({ report, generatedAt: new Date().toISOString() });
+    const [currentCase] = await tx.select({ intakeAnalysis: casesTable.intakeAnalysis })
+      .from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+    const existing = (currentCase?.intakeAnalysis as any) ?? {};
+    const existingReports = existing.productReports ?? {};
+    await tx.update(casesTable).set({
+      intakeAnalysis: {
+        ...existing,
+        productReports: {
+          ...existingReports,
+          [productId ?? "all"]: { report, generatedAt },
+        },
+      },
+      updatedAt: new Date(),
+    }).where(eq(casesTable.id, caseId));
+    return { error: null };
+  });
+  if (persistence.error) {
+    res.status(persistence.error === "stale_evidence" ? 409 : 404).json({
+      error: persistence.error,
+      message: persistence.error === "stale_evidence"
+        ? "Active assessment evidence changed while the report was being generated. Please generate it again."
+        : "Case not found",
+    });
+    return;
+  }
+  res.json({ report, generatedAt });
 });
 
 export default router;

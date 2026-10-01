@@ -41,6 +41,7 @@ import { useWatchAlong } from "@/hooks/use-watch-along";
 import { GuidedTour } from "@/components/guided-tour";
 import { QuestionnaireTestStatus } from "@/components/QuestionnaireTestStatus";
 import type { QuestionnaireTestResult } from "@/lib/form-test-review";
+import { RetiredTeacherHistory, TeacherReassignmentAction, type RetiredTeacherAssignment } from "@/components/teacher-reassignment";
 
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
@@ -104,6 +105,7 @@ const isSeparateExaminerWorkflow = (assignment: { toolId?: string | null; respon
   assignment.toolId === "RPPI" ||
   (assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? ""));
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
+const TEACHER_REASSIGNMENT_TYPES = new Set(["teacher", "teacher1", "teacher2", "referring_teacher", "special_needs_teacher", "school_counselor", "boarding_staff"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
   parent: "Parent Assessment Package",
@@ -784,9 +786,10 @@ export default function CaseDetail() {
       // RASR is psychometrician-administered internally — skip it here
       if (a.respondentType === "self" && a.respondentLabel === "Psychometrician") continue;
       // All self-report AND invigilator assignments share one row (same session)
+      const normalizedAssignedEmail = a.assignedToEmail?.trim().toLowerCase();
       const key = (a.respondentType === "self" || a.respondentType === "invigilator")
         ? "type:self"
-        : (a.assignedToEmail ? `email:${a.assignedToEmail}` : `type:${a.respondentType}:${a.respondentLabel ?? ""}`);
+        : (normalizedAssignedEmail ? `email:${normalizedAssignedEmail}` : `type:${a.respondentType}:${a.respondentLabel ?? ""}`);
       if (!groups.has(key)) {
         const isSelf = a.respondentType === "self";
         groups.set(key, {
@@ -892,6 +895,7 @@ export default function CaseDetail() {
   }
 
   if (!c) return <div>Case not found</div>;
+  const retiredTeacherAssignments = (c as typeof c & { retiredAssignments?: RetiredTeacherAssignment[] }).retiredAssignments ?? [];
 
   // On test/training cases, apprentices get full admin-equivalent access so a
   // mentor can coach them hands-on (no real student data is at risk). On live
@@ -2997,6 +3001,16 @@ export default function CaseDetail() {
                 {dispatchGroups.map(group => {
                   const completedCount = group.forms.filter(f => f.status === "completed").length;
                   const allDone = completedCount === group.forms.length;
+                  const teacherAssignmentRows = TEACHER_REASSIGNMENT_TYPES.has(group.respondentType)
+                    ? (c.assignments ?? []).filter(assignment =>
+                        group.forms.some(form => form.id === assignment.id) &&
+                        TEACHER_REASSIGNMENT_TYPES.has(assignment.respondentType) &&
+                        !INTAKE_TOOL_IDS.has(assignment.toolId ?? "") &&
+                        !SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? "") &&
+                        !isSeparateExaminerWorkflow(assignment) &&
+                        String(assignment.respondentType) !== "examiner"
+                      )
+                    : [];
                   return (
                     <div key={group.groupKey} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
                       <div className="flex-1 min-w-0">
@@ -3060,6 +3074,15 @@ export default function CaseDetail() {
                             <FlaskConical size={14} /> Send test package
                           </Button>
                         )}
+                        {currentUser?.role === "admin" && teacherAssignmentRows.length > 0 && (
+                          <TeacherReassignmentAction
+                            caseId={caseId}
+                            label={group.label}
+                            assignmentIds={teacherAssignmentRows.map(assignment => assignment.id)}
+                            currentName={group.name ?? ""}
+                            currentEmails={teacherAssignmentRows.map(assignment => assignment.assignedToEmail ?? "").filter(Boolean)}
+                          />
+                        )}
                         <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Show QR Code"}
                           onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
                           <QrCode size={15} />
@@ -3115,6 +3138,7 @@ export default function CaseDetail() {
                 </div>
               );
             })()}
+            <RetiredTeacherHistory caseId={caseId} assignments={retiredTeacherAssignments} />
           </CardContent>
         </Card>
         )}

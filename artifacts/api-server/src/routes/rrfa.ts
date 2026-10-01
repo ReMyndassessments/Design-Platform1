@@ -9,6 +9,7 @@ import type { RrfaAnswers } from "../lib/rrfa.js";
 import { generateRrfaPassage } from "../lib/ai.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
+import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrfa", authMiddleware, asyn
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
@@ -76,7 +77,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrfa/generate-passage", au
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRFA") {
@@ -97,7 +98,7 @@ router.get("/public/rrfa-passage/:token", async (req, res) => {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(eq(assignmentsTable.uniqueToken, token))
+      .where(and(eq(assignmentsTable.uniqueToken, token), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRFA") {
@@ -135,7 +136,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrfa/start-student", authM
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
     if (!assignment || assignment.toolId !== "RRFA") {
       return res.status(404).json({ error: "RRFA assignment not found" });
@@ -156,7 +157,7 @@ router.get("/public/rrfa-status/:token", async (req, res) => {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(eq(assignmentsTable.uniqueToken, token))
+      .where(and(eq(assignmentsTable.uniqueToken, token), activeAssignmentCondition()))
       .limit(1);
     if (!assignment || assignment.toolId !== "RRFA") {
       return res.status(404).json({ error: "Not found" });
@@ -179,7 +180,7 @@ router.put("/cases/:caseId/assignments/:assignmentId/rrfa/draft", authMiddleware
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRFA") {
@@ -206,7 +207,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrfa/submit", authMiddlewa
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRFA") {

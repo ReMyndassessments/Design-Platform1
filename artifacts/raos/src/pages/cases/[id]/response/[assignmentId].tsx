@@ -71,6 +71,7 @@ interface ResponseData {
   toolDomains: string[];
   scoringConfig: ScoringConfig | null;
   existingScore: ScoreRecord | null;
+  retired?: boolean;
 }
 
 const LIKERT_LABELS: Record<number, string> = {
@@ -551,6 +552,7 @@ export default function ResponseViewer() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
+          assignmentId: data.assignment.id,
           toolId: data.assignment.toolId,
           toolName: data.assignment.toolName,
           respondentType: data.assignment.respondentType,
@@ -609,6 +611,7 @@ export default function ResponseViewer() {
   }
 
   const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig, bascCorrectionApplied } = data;
+  const retired = data.retired === true;
   const lang = response.language;
 
   // When viewing in English, override language + merge translated free-text answers
@@ -664,17 +667,19 @@ export default function ResponseViewer() {
                 <Sparkles size={14} /> View Summary
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateSummary}
-              disabled={isGenerating}
-              className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50"
-            >
-              {isGenerating
-                ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                : <><Sparkles size={14} /> {summary ? "Regenerate Summary" : "Generate Summary"}</>}
-            </Button>
+            {!retired && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateSummary}
+                disabled={isGenerating}
+                className="gap-2 border-violet-200 text-violet-700 hover:bg-violet-50"
+              >
+                {isGenerating
+                  ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
+                  : <><Sparkles size={14} /> {summary ? "Regenerate Summary" : "Generate Summary"}</>}
+              </Button>
+            )}
 
             {/* System Scored tools */}
             {isAutoScored && score && (
@@ -687,7 +692,7 @@ export default function ResponseViewer() {
                 <TrendingUp size={14} /> View Score
               </Button>
             )}
-            {isAutoScored && (
+            {!retired && isAutoScored && (
               <Button
                 variant="outline"
                 size="sm"
@@ -712,7 +717,7 @@ export default function ResponseViewer() {
                 <TrendingUp size={14} /> View Score
               </Button>
             )}
-            {isManuallyScored && (
+            {!retired && isManuallyScored && (
               <Button
                 variant="outline"
                 size="sm"
@@ -726,7 +731,7 @@ export default function ResponseViewer() {
             )}
 
             {/* Translate to English — shown only for non-English responses */}
-            {lang !== "english" && (
+            {!retired && lang !== "english" && (
               <Button
                 variant={viewInEnglish ? "default" : "outline"}
                 size="sm"
@@ -747,6 +752,13 @@ export default function ResponseViewer() {
             </Button>
           </div>
         </div>
+
+        {retired && (
+          <div role="status" data-testid="status-retired-response-read-only" className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-950">
+            <p className="font-semibold">Retired historical response · Read-only</p>
+            <p className="mt-1 text-xs text-amber-900">This response is retained staff history. Editing, scoring, BASC correction, and AI-summary generation are unavailable.</p>
+          </div>
+        )}
 
         {/* Report Card */}
         {/* BASC Historical Response Scale Correction Disclosure */}
@@ -880,7 +892,7 @@ export default function ResponseViewer() {
         )}
 
         {/* Manual Score Entry Form */}
-        {isManuallyScored && showManualForm && (
+        {!retired && isManuallyScored && showManualForm && (
           <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden print-hide">
             <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex items-center gap-3">
               <ClipboardList size={16} className="text-indigo-600" />
@@ -1079,7 +1091,7 @@ export default function ResponseViewer() {
               <div className="p-8 space-y-8">
                 {!hasDomains ? (
                   <p className="text-slate-400 text-sm italic text-center py-4">
-                    No domain scores recorded. {score.isManual ? "Edit scores to add domain data." : "Resubmit the form to generate scores."}
+                    No domain scores recorded. {retired ? "No scores are available for this retained response." : score.isManual ? "Edit scores to add domain data." : "Resubmit the form to generate scores."}
                   </p>
                 ) : (
                   <>

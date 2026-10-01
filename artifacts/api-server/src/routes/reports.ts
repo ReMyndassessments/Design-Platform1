@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { reportsTable, casesTable, scoresTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { generateReportWithAI } from "../lib/ai.js";
+import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
+import { activeAssignmentEvidenceRevision, activeScoresForAssignments } from "../lib/activeAssignmentEvidence.js";
 
 const router = Router();
 
@@ -51,7 +53,15 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     return;
   }
   const caseData = caseRows[0];
-  const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
+  const [assignments, allScores] = await Promise.all([
+    db.select().from(assignmentsTable).where(and(
+      eq(assignmentsTable.caseId, req.params.caseId),
+      activeAssignmentCondition(),
+    )),
+    db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
+  ]);
+  const scores = activeScoresForAssignments(assignments, allScores);
+  const evidenceRevision = activeAssignmentEvidenceRevision(assignments, scores);
 
   const reportContent = await generateReportWithAI({
     caseData: { ...caseData, caseId: req.params.caseId },
@@ -60,27 +70,52 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     debriefNotes: (caseData as any).debriefNotes ?? null,
   });
 
-  const existingReport = await db.select().from(reportsTable).where(eq(reportsTable.caseId, req.params.caseId)).limit(1);
+  const persistence = await db.transaction(async tx => {
+    const [lockedCase] = await tx.select({ id: casesTable.id }).from(casesTable)
+      .where(eq(casesTable.id, req.params.caseId)).for("update");
+    if (!lockedCase) return { error: "not_found" as const };
+    const currentAssignments = await tx.select().from(assignmentsTable).where(and(
+      eq(assignmentsTable.caseId, req.params.caseId),
+      activeAssignmentCondition(),
+    ));
+    const currentScores = activeScoresForAssignments(
+      currentAssignments,
+      await tx.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId)),
+    );
+    if (activeAssignmentEvidenceRevision(currentAssignments, currentScores) !== evidenceRevision) {
+      return { error: "stale_evidence" as const };
+    }
 
-  let report;
-  if (existingReport[0]) {
-    report = await db.update(reportsTable).set({
-      ...reportContent,
-      status: "draft",
-      generatedAt: new Date(),
-      updatedAt: new Date(),
-    }).where(eq(reportsTable.caseId, req.params.caseId)).returning();
-  } else {
-    report = await db.insert(reportsTable).values({
+    const [existingReport] = await tx.select().from(reportsTable)
+      .where(eq(reportsTable.caseId, req.params.caseId)).limit(1);
+    if (existingReport) {
+      const [report] = await tx.update(reportsTable).set({
+        ...reportContent,
+        status: "draft",
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(reportsTable.caseId, req.params.caseId)).returning();
+      return { error: null, report };
+    }
+    const [report] = await tx.insert(reportsTable).values({
       id: nanoid(),
       caseId: req.params.caseId,
       ...reportContent,
       status: "draft",
       generatedAt: new Date(),
     }).returning();
+    return { error: null, report };
+  });
+  if (persistence.error) {
+    res.status(persistence.error === "stale_evidence" ? 409 : 404).json({
+      error: persistence.error,
+      message: persistence.error === "stale_evidence"
+        ? "Active assessment evidence changed while the report was being generated. Please generate it again."
+        : "Case not found",
+    });
+    return;
   }
-
-  res.json(report[0]);
+  res.json(persistence.report);
 });
 
 router.patch("/cases/:caseId/report/update", authMiddleware, async (req, res) => {

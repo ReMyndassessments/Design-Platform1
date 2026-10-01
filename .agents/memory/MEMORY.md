@@ -28,3 +28,4 @@
 - [RAOS battery review policy](raos-battery-review-policy.md) — admin approves sends; staff dry runs cover questionnaires, not separate examiner workflows; test-package links never save answers.
 - [RAOS Drizzle schema drift](raos-drizzle-schema-drift.md) — broad schema push may propose renaming unrelated legacy tables; inspect and reject ambiguous changes.
 - [Execution sandbox uniqueness](execution-runtime-quirks.md) — if notebook crypto/time APIs are unavailable, generate unique validation identifiers inside an impure function.
+- [Respondent reassignment evidence](respondent-reassignment-policy.md) — a different teacher is a new evidence source; preserve old attribution and never transfer answers into the replacement package.

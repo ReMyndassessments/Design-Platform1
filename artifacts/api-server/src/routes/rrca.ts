@@ -9,6 +9,7 @@ import type { RrcaAnswers } from "../lib/rrca.js";
 import { generateRrcaPassage } from "../lib/ai.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
+import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rrca", authMiddleware, asyn
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
@@ -68,7 +69,7 @@ router.get("/public/rrca-passage/:token", async (req, res) => {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(eq(assignmentsTable.uniqueToken, token))
+      .where(and(eq(assignmentsTable.uniqueToken, token), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRCA") {
@@ -107,7 +108,7 @@ router.put("/cases/:caseId/assignments/:assignmentId/rrca/draft", authMiddleware
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRCA") {
@@ -140,7 +141,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrca/generate-passage", au
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRCA") {
@@ -163,7 +164,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrca/submit", authMiddlewa
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RRCA") {

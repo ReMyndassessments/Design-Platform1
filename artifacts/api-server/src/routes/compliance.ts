@@ -236,8 +236,8 @@ router.get("/compliance/access-review", async (_req, res) => {
   try {
     const users = await db.execute(sql`
       SELECT u.id, u.name, u.email, u.role, u.school_name AS school, u.created_at,
-        (SELECT COUNT(*) FROM assignments a WHERE a.user_id = u.id) AS case_count,
-        (SELECT MAX(created_at) FROM assignments a WHERE a.user_id = u.id) AS last_assignment,
+        (SELECT COUNT(*) FROM assignments a WHERE a.user_id = u.id AND COALESCE(a.metadata->>'retiredAt', '') = '') AS case_count,
+        (SELECT MAX(created_at) FROM assignments a WHERE a.user_id = u.id AND COALESCE(a.metadata->>'retiredAt', '') = '') AS last_assignment,
         cr.review_label, cr.reviewed_by, cr.reviewed_at, cr.notes AS review_notes
       FROM users u
       LEFT JOIN compliance_access_reviews cr ON cr.user_id = u.id
