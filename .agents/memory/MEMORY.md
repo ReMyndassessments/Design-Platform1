@@ -27,3 +27,4 @@
 - [RAOS parent assessment link policy](raos-parent-assessment-link-policy.md) — one shared parent-facing assessment link; retire split entry URLs without touching completed intake or internal form tokens.
 - [RAOS battery review policy](raos-battery-review-policy.md) — admin approves sends; staff dry runs cover questionnaires, not separate examiner workflows; test-package links never save answers.
 - [RAOS Drizzle schema drift](raos-drizzle-schema-drift.md) — broad schema push may propose renaming unrelated legacy tables; inspect and reject ambiguous changes.
+- [Execution sandbox uniqueness](execution-runtime-quirks.md) — if notebook crypto/time APIs are unavailable, generate unique validation identifiers inside an impure function.

@@ -5096,30 +5096,6 @@ async function purgeInvalidScores() {
   }
 }
 
-async function ensureQuestionnaireTestEvidenceTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS questionnaire_test_evidence (
-      id TEXT PRIMARY KEY,
-      evidence_order BIGSERIAL NOT NULL UNIQUE,
-      case_id TEXT NOT NULL,
-      assignment_id TEXT NOT NULL,
-      tester_id TEXT NOT NULL,
-      tester_name TEXT NOT NULL,
-      tested_at TIMESTAMPTZ NOT NULL,
-      fingerprint TEXT NOT NULL,
-      result TEXT NOT NULL CHECK (result IN ('passed', 'failed')),
-      language TEXT NOT NULL,
-      checklist JSONB,
-      notes TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS questionnaire_test_evidence_latest_idx
-    ON questionnaire_test_evidence (case_id, assignment_id, evidence_order DESC)
-  `);
-}
-
 Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), syncBatteries()])
   .then(() => ensureIntakeQuestionRequestsTable())
   .then(() => backfillRespondentLabels())
@@ -5162,7 +5138,6 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => createTrainingTables())
   .then(() => createWorkshopTables())
   .then(() => ensureAirwallexWebhook())
-  .then(() => ensureQuestionnaireTestEvidenceTable())
   .then(() => {
   const server = app.listen(port, (err) => {
     if (err) {
