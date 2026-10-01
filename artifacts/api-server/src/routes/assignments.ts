@@ -140,7 +140,14 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (INTAKE_TOOL_IDS.has(assignment.toolId) || isSpecializedExaminerAssignment(assignment)) {
+  if (isSpecializedExaminerAssignment(assignment)) {
+    res.status(400).json({
+      error: "examiner_workflow",
+      message: "This is an examiner-administered assessment, not a questionnaire. Use its examiner session from the case page. No questionnaire test is required.",
+    });
+    return;
+  }
+  if (INTAKE_TOOL_IDS.has(assignment.toolId)) {
     res.status(400).json({ error: "not_assessment_form", message: "Staff battery previews are only available for assessment assignments." });
     return;
   }

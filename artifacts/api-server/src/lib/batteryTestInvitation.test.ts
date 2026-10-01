@@ -24,6 +24,13 @@ test("assessment test tokens are HMAC signed, domain-separated two-part values",
   assert.equal(verifyBatteryTestToken(changedToken, secret, 1_999_999_000_000), null);
 });
 
+test("RPPI cannot be included in a questionnaire test package even when mislabeled as a parent or teacher form", () => {
+  for (const respondentType of ["parent", "teacher", "examiner"]) {
+    const rppi = { id: "rppi", toolId: "RPPI", respondentType, respondentLabel: "Examiner" };
+    assert.equal(validateBatteryTestPackage([rppi], ["rppi"]), null);
+  }
+});
+
 test("assessment test tokens reject expiry, excessive lifetime, malformed claims, and missing secrets", () => {
   const expired = createBatteryTestToken({ ...claims, exp: 1_900_000_000 }, secret);
   assert.equal(verifyBatteryTestToken(expired, secret, 1_900_000_000_000), null);

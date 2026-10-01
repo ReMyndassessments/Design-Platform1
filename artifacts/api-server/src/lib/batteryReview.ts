@@ -20,13 +20,15 @@ export const INTAKE_TOOL_IDS = new Set([
 ]);
 
 // These examiner-led modules present their own task workflow instead of a
-// questionnaire from assessment_tools.form_items. Their frozen snapshot is [].
+// questionnaire from assessment_tools.form_items. RPPI may have a legacy
+// text-entry snapshot, but that is an examiner record, not a respondent form.
 export const SPECIALIZED_EXAMINER_TOOL_IDS = new Set([
-  "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA",
+  "RPPI", "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA",
 ]);
 
 export function isSpecializedExaminerAssignment(row: { toolId: string; respondentType: string }): boolean {
-  return row.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(row.toolId);
+  return row.toolId === "RPPI" ||
+    (row.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(row.toolId));
 }
 
 export type BatteryApproval = {
@@ -113,7 +115,7 @@ export function buildBatteryReviewState(
   const passedCount = questionnaireRows.filter(row => testResults[row.id]?.status === "passed").length;
   const issues: string[] = [];
 
-  if (questionnaireRows.length === 0) issues.push("Assign at least one questionnaire form before approving assessment sends.");
+  if (assessmentRows.length === 0) issues.push("Assign at least one assessment before approving assessment sends.");
   if (missingSnapshots > 0) issues.push(`${missingSnapshots} assigned assessment form${missingSnapshots === 1 ? " is" : "s are"} missing a valid frozen form snapshot.`);
   if (passedCount !== questionnaireRows.length) {
     const outstanding = questionnaireRows.length - passedCount;

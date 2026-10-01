@@ -14,3 +14,9 @@ Only an administrator signs off the assessment battery before new recipient emai
 **Why:** The user wants a deliberate accuracy/function check before forms reach parents or teachers and clarified “Admin only” when asked who should approve. They rejected account-bound invites in favor of entering any email address. On a live mixed battery, generic snapshot validation mistakenly counted examiner workflows as missing questionnaires; the user explicitly corrected the inference that those assessments had no content. Examiner operational pages can autosave, so opening them is not a safe dry run.
 
 **How to apply:** Keep the case-scoped review page restricted to admin/psychometrician. Distinguish questionnaire snapshots from confirmed examiner workflows and never equate an empty generic snapshot with an empty assessment; clearly label examiner workflows as not tested here. Genuine missing respondent questionnaires must still block approval. Make arbitrary-email test invitations admin-only; scope each expiring token to selected parent/teacher assignments, show only neutral test identity, and render through the no-save preview form. Keep respondent sends dependent on current admin approval. Do not expose live links in test emails or alter live recipient fields.
+
+RPPI is always an examiner-administered assessment, not a respondent questionnaire. Legacy text-entry snapshots or incorrect recipient labels must not make it eligible for generic questionnaire testing or require a questionnaire pass.
+
+**Why:** The user identified the blank RPPI dry run as meaningless: its operational examiner record was being rendered as if it were a text questionnaire.
+
+**How to apply:** Exclude RPPI from questionnaire previews, pass recording, shared-result groups, and test packages. Display it with the separate examiner assessments. Do not open its live session merely to test it or change existing records. An examiner-only battery has no questionnaire tests to complete.

@@ -117,7 +117,7 @@ export function batteryTestPackageCategory(
   respondentType: string,
   toolId: string,
 ): BatteryTestPackageCategory | null {
-  if (INTAKE_TOOL_IDS.has(toolId)) return null;
+  if (toolId === "RPPI" || INTAKE_TOOL_IDS.has(toolId)) return null;
   if (respondentType === "parent") return "parent";
   if (TEACHER_RESPONDENT_TYPES.has(respondentType)) return "teacher";
   return null;

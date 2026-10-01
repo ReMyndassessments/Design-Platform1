@@ -99,9 +99,10 @@ function ageFromDob(dob: string | null | undefined): number | null {
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
-const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
+const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RPPI", "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
 const isSeparateExaminerWorkflow = (assignment: { toolId?: string | null; respondentType: string }) =>
-  assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? "");
+  assignment.toolId === "RPPI" ||
+  (assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? ""));
 const EXTERNAL_RESPONDENT_TYPES = new Set(["parent", "teacher", "teacher1", "teacher2", "referring_teacher", "boarding_staff", "special_needs_teacher", "school_counselor", "self", "invigilator"]);
 
 const RESPONDENT_LABELS: Record<string, string> = {
@@ -2844,7 +2845,7 @@ export default function CaseDetail() {
                 )}
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Test each assigned questionnaire and record its result. Every questionnaire needs a current pass before admin approval. Test answers are not stored; only review details are saved. Examiner assessments have separate workflows and are not tested here.
+                Check each distinct questionnaire once; identical copies share its pass. Test answers are not stored. Examiner-administered assessments, including RPPI, use their own sessions and do not require a questionnaire test.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">

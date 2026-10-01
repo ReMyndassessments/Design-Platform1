@@ -8,7 +8,7 @@ import { FormView, type StaffPreviewForm } from "@/pages/external/[token]";
 import { QuestionnaireTestResultPanel } from "@/components/QuestionnaireTestResultPanel";
 import { normalizeTestLanguage, type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
 
-type StaffPreviewError = Error & { status?: number };
+type StaffPreviewError = Error & { status?: number; examinerWorkflow?: boolean };
 
 export default function AssignmentReviewPreviewPage() {
   const { id: caseId, assignmentId } = useParams<{ id: string; assignmentId: string }>();
@@ -32,9 +32,10 @@ export default function AssignmentReviewPreviewPage() {
         { headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` } },
       );
       if (!response.ok) {
-        const body = await response.json().catch(() => null) as { message?: string } | null;
+        const body = await response.json().catch(() => null) as { message?: string; error?: string } | null;
         const error = new Error(body?.message ?? "The assigned form preview could not be loaded.") as StaffPreviewError;
         error.status = response.status;
+        error.examinerWorkflow = body?.error === "examiner_workflow";
         throw error;
       }
       return response.json() as Promise<StaffPreviewForm>;
@@ -82,7 +83,9 @@ export default function AssignmentReviewPreviewPage() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 p-6 text-center">
         <ShieldAlert size={36} className="text-amber-600" />
-        <h1 className="text-xl font-semibold text-slate-900">Assigned form unavailable</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {previewQuery.error.examinerWorkflow ? "Examiner assessment — no questionnaire test needed" : "Assigned form unavailable"}
+        </h1>
         <p role="alert" data-testid="status-preview-error" className="max-w-md text-sm text-slate-600">{message}</p>
         <Button variant="outline" onClick={goBack} data-testid="button-review-back">
           <ArrowLeft size={16} className="mr-2" /> Back to case

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildBatteryReviewState, isValidSnapshot } from "./batteryReview.ts";
+import { buildBatteryReviewState, isValidSnapshot, isSpecializedExaminerAssignment } from "./batteryReview.ts";
 import { questionsFromAssignmentSnapshot } from "./assignmentSnapshotQuestions.ts";
 import { buildQuestionnaireTestFingerprint, type QuestionnaireTestEvidence } from "./staffQuestionnaireTests.ts";
 
@@ -290,7 +290,7 @@ test("duplicate recipient forms, split unnamed parent packages, and missing snap
 });
 
 test("specialized examiner workflows do not require questionnaire snapshots, but missing recipient forms still block", () => {
-  const examinerTools = ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].map((toolId, index) => ({
+  const examinerTools = ["RPPI", "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].map((toolId, index) => ({
     ...assessment,
     id: `examiner-${index}`,
     toolId,
@@ -299,7 +299,7 @@ test("specialized examiner workflows do not require questionnaire snapshots, but
     formItemsSnapshot: "[]",
   }));
   const state = buildBatteryReviewState([assessment, ...examinerTools], null);
-  assert.equal(state.assignmentCount, 7);
+  assert.equal(state.assignmentCount, 8);
   assert.equal(state.missingSnapshots, 0);
   assert.ok(state.issues.some(issue => issue.includes("staff test")));
   const currentEvidence = [passingEvidence()];
@@ -315,6 +315,27 @@ test("specialized examiner workflows do not require questionnaire snapshots, but
   const withMissingTeacher = buildBatteryReviewState([assessment, ...examinerTools, missingTeacher], null);
   assert.equal(withMissingTeacher.missingSnapshots, 1);
   assert.equal(withMissingTeacher.approved, false);
+});
+
+test("RPPI examiner records never become questionnaire tests, even with legacy text items or recipient roles", () => {
+  for (const respondentType of ["examiner", "parent", "teacher"]) {
+    const rppi = { ...assessment, id: "rppi-session", toolId: "RPPI", respondentType, respondentLabel: "Examiner" };
+    assert.equal(isSpecializedExaminerAssignment(rppi), true);
+    const examinerOnly = buildBatteryReviewState([rppi], null);
+    assert.equal(examinerOnly.questionnaireCount, 0);
+    assert.equal(examinerOnly.missingSnapshots, 0);
+    assert.deepEqual(examinerOnly.issues, []);
+    const state = buildBatteryReviewState([assessment, rppi], null, [passingEvidence()]);
+    assert.equal(state.questionnaireCount, 1);
+    assert.equal(state.passedCount, 1);
+    assert.equal(state.testResults[rppi.id], undefined);
+    assert.deepEqual(state.issues, []);
+    assert.equal(buildBatteryReviewState([assessment, rppi], {
+      fingerprint: state.fingerprint,
+      approvedAt: "2026-01-02T03:04:05.000Z",
+      approvedBy: "admin-id",
+    }, [passingEvidence()]).approved, true);
+  }
 });
 
 test("a source title changing its renderer invalidates both the saved pass and battery approval", () => {
