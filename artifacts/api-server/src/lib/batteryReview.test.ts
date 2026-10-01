@@ -122,6 +122,122 @@ test("the newest failed or stale evidence invalidates an earlier pass and batter
   assert.equal(changedLanguage.approved, false);
 });
 
+test("matching parent and teacher assignments immediately reuse legacy assignment-specific passes", () => {
+  const teacher = {
+    ...assessment,
+    id: "teacher-assignment",
+    toolName: "PHQ-9",
+    respondentType: "teacher",
+    respondentLabel: "Teacher 2",
+    uniqueLink: "https://example.org/external/teacher-token",
+    formItemsSnapshot: '[ { "type": "radio", "options": ["Never", "Often"], "text": "How often?", "id": "q1" } ]',
+  };
+  const state = buildBatteryReviewState([
+    { ...assessment, toolName: "PHQ-9" },
+    teacher,
+  ], null, [passingEvidence()]);
+
+  assert.equal(state.testResults[assessment.id]?.status, "passed");
+  assert.equal(state.testResults[teacher.id]?.status, "passed");
+  assert.equal(state.testResults[teacher.id]?.sharedFromAssignmentId, assessment.id);
+  assert.equal(state.testResults[teacher.id]?.sharedFromLabel, assessment.respondentLabel);
+  assert.equal(state.passedCount, 2);
+  assert.equal(state.issues.some(issue => issue.includes("not passed")), false);
+
+  const savedApproval = {
+    fingerprint: state.fingerprint,
+    approvedAt: "2026-01-02T03:04:05.000Z",
+    approvedBy: "admin-id",
+  };
+  assert.equal(buildBatteryReviewState([
+    { ...assessment, toolName: "PHQ-9" },
+    teacher,
+  ], savedApproval, [passingEvidence()]).approved, true);
+});
+
+test("changed item order, snapshot details, language, and tool-specific RPPI renderer never reuse another pass", () => {
+  const twoItems = JSON.stringify([
+    { id: "q1", text: "How often?", type: "radio", options: ["Never", "Often"] },
+    { id: "q2", text: "More?", type: "text", note: "Add details" },
+  ]);
+  const source = { ...assessment, formItemsSnapshot: twoItems, toolName: "Questionnaire" };
+  const differing = [
+    { ...source, id: "option-change", formItemsSnapshot: JSON.stringify([
+      { id: "q1", text: "How often?", type: "radio", options: ["Often", "Never"] },
+      { id: "q2", text: "More?", type: "text", note: "Add details" },
+    ]) },
+    { ...source, id: "instruction-change", formItemsSnapshot: JSON.stringify([
+      { id: "q1", text: "How often?", type: "radio", options: ["Never", "Often"] },
+      { id: "q2", text: "More?", type: "text", note: "Different instruction" },
+    ]) },
+    { ...source, id: "order-change", formItemsSnapshot: JSON.stringify([
+      { id: "q2", text: "More?", type: "text", note: "Add details" },
+      { id: "q1", text: "How often?", type: "radio", options: ["Never", "Often"] },
+    ]) },
+    { ...source, id: "language-change", assignedLanguage: "korean" },
+    { ...source, id: "renderer-change", toolName: "RPPI examiner session" },
+  ];
+  const state = buildBatteryReviewState([source, ...differing], null, [passingEvidence(source)]);
+  for (const changed of differing) {
+    assert.equal(state.testResults[changed.id]?.status, "not_tested", changed.id);
+    assert.equal(state.testResults[changed.id]?.sharedFromAssignmentId, undefined, changed.id);
+  }
+});
+
+test("newer failure on any identical form invalidates the inherited group and battery approval", () => {
+  const teacher = {
+    ...assessment,
+    id: "teacher-assignment",
+    toolName: "PHQ-9",
+    respondentType: "teacher",
+    respondentLabel: "Teacher 1",
+    uniqueLink: "https://example.org/external/teacher-token",
+  };
+  const parent = { ...assessment, toolName: "PHQ-9" };
+  const passing = passingEvidence(parent);
+  const current = buildBatteryReviewState([parent, teacher], null, [passing]);
+  const approval = {
+    fingerprint: current.fingerprint,
+    approvedAt: "2026-01-02T03:04:05.000Z",
+    approvedBy: "admin-id",
+  };
+  const failure = {
+    ...passingEvidence(teacher, "teacher-failure"),
+    evidenceOrder: "9007199254740994",
+    testedAt: "2026-01-01T03:04:05.000Z",
+    result: "failed" as const,
+    notes: "The translated control is not rendered correctly.",
+  };
+  const orderedPass = { ...passing, evidenceOrder: "9007199254740993" };
+  const failed = buildBatteryReviewState([parent, teacher], approval, [orderedPass, failure]);
+  assert.equal(failed.testResults[parent.id]?.status, "failed");
+  assert.equal(failed.testResults[parent.id]?.sharedFromAssignmentId, teacher.id);
+  assert.equal(failed.testResults[teacher.id]?.status, "failed");
+  assert.equal(failed.passedCount, 0);
+  assert.equal(failed.approved, false);
+});
+
+test("invalid or missing snapshots and stale source evidence cannot inherit results", () => {
+  const valid = { ...assessment, toolName: "PHQ-9" };
+  const invalid = {
+    ...assessment,
+    id: "invalid",
+    toolName: "PHQ-9",
+    formItemsSnapshot: '[{"id":"q1","type":"radio"}]',
+  };
+  const missing = { ...assessment, id: "missing", toolName: "PHQ-9", formItemsSnapshot: null };
+  const state = buildBatteryReviewState([valid, invalid, missing], null, [passingEvidence(valid)]);
+  assert.equal(state.testResults[invalid.id]?.status, "not_tested");
+  assert.equal(state.testResults[missing.id]?.status, "not_tested");
+  assert.equal(state.testResults[invalid.id]?.sharedFromAssignmentId, undefined);
+  assert.equal(state.testResults[missing.id]?.sharedFromAssignmentId, undefined);
+
+  const changed = { ...valid, formItemsSnapshot: '[{"id":"q1","text":"New wording","type":"radio"}]' };
+  const staleState = buildBatteryReviewState([changed], null, [passingEvidence(valid)]);
+  assert.equal(staleState.testResults[changed.id]?.status, "retest_required");
+  assert.equal(staleState.passedCount, 0);
+});
+
 test("string BIGSERIAL order makes every newer failure invalidate the current approval", () => {
   for (const [passOrder, failureOrder] of [
     ["9", "10"],
@@ -199,6 +315,24 @@ test("specialized examiner workflows do not require questionnaire snapshots, but
   const withMissingTeacher = buildBatteryReviewState([assessment, ...examinerTools, missingTeacher], null);
   assert.equal(withMissingTeacher.missingSnapshots, 1);
   assert.equal(withMissingTeacher.approved, false);
+});
+
+test("a source title changing its renderer invalidates both the saved pass and battery approval", () => {
+  const before = { ...assessment, toolName: "Standard questionnaire" };
+  const evidence = [passingEvidence()];
+  const ready = buildBatteryReviewState([before], null, evidence);
+  const approval = {
+    fingerprint: ready.fingerprint,
+    approvedAt: "2026-01-02T03:04:05.000Z",
+    approvedBy: "admin-id",
+  };
+  assert.equal(buildBatteryReviewState([before], approval, evidence).approved, true);
+  const changed = { ...before, toolName: "RPPI examiner workflow" };
+  const after = buildBatteryReviewState([changed], approval, evidence);
+  assert.equal(after.testResults[changed.id]?.status, "retest_required");
+  assert.equal(after.passedCount, 0);
+  assert.equal(after.approved, false);
+  assert.notEqual(after.fingerprint, ready.fingerprint);
 });
 
 test("snapshot preview uses external form radio normalization and rejects malformed snapshots", () => {

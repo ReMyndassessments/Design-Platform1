@@ -11,13 +11,15 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
 import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/parentPackageConsolidation.js";
-import { buildBatteryReviewState, INTAKE_TOOL_IDS } from "../lib/batteryReview.js";
+import { buildBatteryReviewState, INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
 import {
   buildQuestionnaireTestFingerprint,
+  buildQuestionnaireTestFormKey,
   checklistIsComplete,
   normalizeQuestionnaireLanguage,
+  resolveQuestionnaireTestResults,
   toStaffTestResult,
   validateStaffTestAnswers,
   type QuestionnaireTestEvidence,
@@ -74,6 +76,7 @@ async function getBatteryReview(caseId: string) {
   const assignments = await db.select({
     id: assignmentsTable.id,
     toolId: assignmentsTable.toolId,
+    toolName: assignmentsTable.toolName,
     respondentLabel: assignmentsTable.respondentLabel,
     respondentType: assignmentsTable.respondentType,
     uniqueLink: assignmentsTable.uniqueLink,
@@ -98,22 +101,6 @@ async function readQuestionnaireTestEvidence(caseId: string): Promise<Questionna
     ORDER BY evidence_order DESC
   `);
   return (result.rows ?? []) as unknown as QuestionnaireTestEvidence[];
-}
-
-async function readLatestAssignmentTestEvidence(
-  caseId: string,
-  assignmentId: string,
-): Promise<QuestionnaireTestEvidence | null> {
-  const result = await db.execute(sql`
-    SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
-      tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
-      language, checklist, notes
-    FROM questionnaire_test_evidence
-    WHERE case_id = ${caseId} AND assignment_id = ${assignmentId}
-    ORDER BY evidence_order DESC
-    LIMIT 1
-  `);
-  return (result.rows?.[0] as unknown as QuestionnaireTestEvidence | undefined) ?? null;
 }
 
 router.get("/cases/:caseId/battery-review", authMiddleware, async (req, res): Promise<void> => {
@@ -153,8 +140,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (INTAKE_TOOL_IDS.has(assignment.toolId) ||
-    (assignment.respondentType === "examiner" && ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].includes(assignment.toolId))) {
+  if (INTAKE_TOOL_IDS.has(assignment.toolId) || isSpecializedExaminerAssignment(assignment)) {
     res.status(400).json({ error: "not_assessment_form", message: "Staff battery previews are only available for assessment assignments." });
     return;
   }
@@ -174,16 +160,30 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
   const currentFingerprint = buildQuestionnaireTestFingerprint({
     id: assignment.id,
     toolId: assignment.toolId,
+    toolName: assignment.toolName,
     respondentType: assignment.respondentType,
     respondentLabel: assignment.respondentLabel,
     formItemsSnapshot: assignment.formItemsSnapshot,
     assignedLanguage: caseRow.languagePreference ?? "english",
   });
-  const savedEvidence = await readLatestAssignmentTestEvidence(caseId, assignmentId);
+  const caseAssignments = await db.select({
+    id: assignmentsTable.id,
+    toolId: assignmentsTable.toolId,
+    toolName: assignmentsTable.toolName,
+    respondentType: assignmentsTable.respondentType,
+    respondentLabel: assignmentsTable.respondentLabel,
+    formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+  const testEvidence = await readQuestionnaireTestEvidence(caseId);
+  const eligibleAssignments = caseAssignments
+    .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
+    .map(row => ({ ...row, assignedLanguage: caseRow.languagePreference ?? "english" }));
+  const effectiveTestResult = resolveQuestionnaireTestResults(eligibleAssignments, testEvidence)
+    .get(assignmentId);
   res.json({
     assignmentId: assignment.id,
     testFingerprint: currentFingerprint,
-    testResult: toStaffTestResult(currentFingerprint, savedEvidence),
+    testResult: effectiveTestResult ?? toStaffTestResult(currentFingerprint, null),
     toolId: assignment.toolId,
     formType: "screener",
     toolName: assignment.toolName,
@@ -253,6 +253,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     const [assignment] = await tx.select({
       id: assignmentsTable.id,
       toolId: assignmentsTable.toolId,
+      toolName: assignmentsTable.toolName,
       respondentType: assignmentsTable.respondentType,
       respondentLabel: assignmentsTable.respondentLabel,
       formItemsSnapshot: assignmentsTable.formItemsSnapshot,
@@ -261,8 +262,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       eq(assignmentsTable.caseId, caseId),
     )).for("update").limit(1);
     if (!assignment) return { kind: "not_found" as const };
-    if (INTAKE_TOOL_IDS.has(assignment.toolId) ||
-      (assignment.respondentType === "examiner" && ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].includes(assignment.toolId))) {
+    if (INTAKE_TOOL_IDS.has(assignment.toolId) || isSpecializedExaminerAssignment(assignment)) {
       return { kind: "not_questionnaire" as const };
     }
 
@@ -270,6 +270,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     const testFingerprint = buildQuestionnaireTestFingerprint({
       id: assignment.id,
       toolId: assignment.toolId,
+      toolName: assignment.toolName,
       respondentType: assignment.respondentType,
       respondentLabel: assignment.respondentLabel,
       formItemsSnapshot: assignment.formItemsSnapshot,
@@ -319,7 +320,47 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       checklist,
       notes,
     };
-    return { kind: "saved" as const, testFingerprint, testResult: toStaffTestResult(testFingerprint, evidence), result: body.data.result };
+    const currentAssignments = await tx.select({
+      id: assignmentsTable.id,
+      toolId: assignmentsTable.toolId,
+      toolName: assignmentsTable.toolName,
+      respondentType: assignmentsTable.respondentType,
+      respondentLabel: assignmentsTable.respondentLabel,
+      formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+    }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+    const evidenceResult = await tx.execute(sql`
+      SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
+        tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
+        language, checklist, notes
+      FROM questionnaire_test_evidence
+      WHERE case_id = ${caseId}
+      ORDER BY evidence_order DESC
+    `);
+    const allEvidence = (evidenceResult.rows ?? []) as unknown as QuestionnaireTestEvidence[];
+    const eligibleAssignments = currentAssignments
+      .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
+      .map(row => ({ ...row, assignedLanguage }));
+    const testResult = resolveQuestionnaireTestResults(eligibleAssignments, allEvidence).get(assignment.id)
+      ?? toStaffTestResult(testFingerprint, evidence);
+    const targetFormKey = buildQuestionnaireTestFormKey({
+      id: assignment.id,
+      toolId: assignment.toolId,
+      toolName: assignment.toolName,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel,
+      formItemsSnapshot: assignment.formItemsSnapshot,
+      assignedLanguage,
+    });
+    const coveredAssignmentCount = targetFormKey
+      ? eligibleAssignments.filter(candidate => buildQuestionnaireTestFormKey(candidate) === targetFormKey).length
+      : 1;
+    return {
+      kind: "saved" as const,
+      testFingerprint,
+      testResult,
+      coveredAssignmentCount,
+      result: body.data.result,
+    };
   });
 
   if (outcome.kind === "not_found") {
@@ -359,7 +400,11 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     actorRole: req.userRole ?? null,
     metadata: { result: outcome.result, fingerprint: outcome.testFingerprint },
   });
-  res.json({ testFingerprint: outcome.testFingerprint, testResult: outcome.testResult });
+  res.json({
+    testFingerprint: outcome.testFingerprint,
+    testResult: outcome.testResult,
+    coveredAssignmentCount: outcome.coveredAssignmentCount,
+  });
 });
 
 router.post("/cases/:caseId/battery-test-email", authMiddleware, async (req, res): Promise<void> => {
@@ -530,6 +575,7 @@ router.post("/cases/:caseId/battery-review/approve", authMiddleware, async (req,
     const assignmentRows = await tx.select({
       id: assignmentsTable.id,
       toolId: assignmentsTable.toolId,
+      toolName: assignmentsTable.toolName,
       respondentLabel: assignmentsTable.respondentLabel,
       respondentType: assignmentsTable.respondentType,
       uniqueLink: assignmentsTable.uniqueLink,

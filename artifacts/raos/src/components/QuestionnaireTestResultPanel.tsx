@@ -30,6 +30,9 @@ export function QuestionnaireTestResultPanel({
   const [saving, setSaving] = useState<"passed" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [coveredCount, setCoveredCount] = useState(1);
+  const [rechecking, setRechecking] = useState(false);
+  const inheritedPass = result?.status === "passed" && Boolean(result.sharedFromAssignmentId);
   const languageMatches = normalizeTestLanguage(validation?.language ?? "") === normalizeTestLanguage(assignedLanguage);
   const canPass = Boolean(validation?.passed && languageMatches && CHECKLIST.every(item => checklist[item.key]));
 
@@ -52,13 +55,27 @@ export function QuestionnaireTestResultPanel({
           ...(outcome === "passed" ? { answers: validation?.answers ?? {} } : {}),
         }),
       });
-      const body = await response.json().catch(() => null) as { testResult?: QuestionnaireTestResult; message?: string } | null;
+      const body = await response.json().catch(() => null) as { testResult?: QuestionnaireTestResult; coveredAssignmentCount?: number; message?: string } | null;
       if (!response.ok || !body?.testResult) {
         if (response.status === 409) onStale();
         throw new Error(body?.message ?? "The test result could not be recorded.");
       }
       onSaved(body.testResult);
       setSaved(true);
+      setCoveredCount(body.coveredAssignmentCount ?? 1);
+      queryClient.setQueryData(
+        [`/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`],
+        (previous: Record<string, unknown> | undefined) => previous ? { ...previous, testResult: body.testResult } : previous,
+      );
+      await queryClient.invalidateQueries({
+        predicate: query => {
+          const key = query.queryKey[0];
+          return typeof key === "string" &&
+            key.startsWith(`/api/cases/${caseId}/assignments/`) &&
+            key.endsWith("/staff-preview") &&
+            key !== `/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`;
+        },
+      });
       await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/battery-review`] });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The test result could not be recorded.");
@@ -74,9 +91,21 @@ export function QuestionnaireTestResultPanel({
         <p className="mt-1 text-xs text-slate-600">Version {fingerprint.slice(0, 12)} · Assigned language: {normalizeTestLanguage(assignedLanguage)}</p>
         <QuestionnaireTestStatus result={result} />
       </div>
+      {inheritedPass && !rechecking ? (
+        <div className="space-y-3">
+          <p className="text-sm text-emerald-800">This form has already passed. You don’t need to fill it out or check it again.</p>
+          <Button type="button" variant="outline" data-testid="button-recheck-identical-form" onClick={() => setRechecking(true)}>
+            Recheck or report a problem
+          </Button>
+        </div>
+      ) : (
+      <>
       <p className="text-sm text-slate-600">
         Complete the test answers, select <strong>Check form</strong>, and confirm the checks below before recording a pass.
         This records questionnaire functionality—not scoring accuracy or clinical validation.
+      </p>
+      <p className="text-sm text-slate-600">
+        One recorded pass also covers identical teacher and parent forms in the same language within this case.
       </p>
       <div className="space-y-3">
         {CHECKLIST.map(item => (
@@ -100,7 +129,13 @@ export function QuestionnaireTestResultPanel({
           placeholder="Describe any missing content, incorrect language, or form-control problems. Do not enter student details or test answers." />
       </div>
       {error && <p role="alert" data-testid="status-test-save-error" className="text-sm text-red-700">{error}</p>}
-      {saved && <p role="status" data-testid="status-test-result-saved" className="text-sm font-medium text-emerald-800">Test result saved. It will remain visible after leaving this page.</p>}
+      {saved && <p role="status" data-testid="status-test-result-saved" className="text-sm font-medium text-emerald-800">
+        {coveredCount > 1
+          ? result?.status === "passed"
+            ? `Pass recorded for ${coveredCount} identical forms in this case. You don’t need to check the other copies.`
+            : `Failed result recorded for ${coveredCount} identical forms in this case.`
+          : "Test result saved. It will remain visible after leaving this page."}
+      </p>}
       <div className="flex flex-wrap gap-3">
         <Button type="button" data-testid="button-record-test-pass" disabled={!canPass || Boolean(saving)} onClick={() => recordResult("passed")}>
           {saving === "passed" ? "Recording…" : "Record questionnaire pass"}
@@ -110,6 +145,8 @@ export function QuestionnaireTestResultPanel({
         </Button>
       </div>
       <p className="text-xs text-slate-500">Only the result, checklist, reviewer, date, language, and notes are stored. On recording a pass, test answers are sent for a transient server check and are not stored.</p>
+      </>
+      )}
     </section>
   );
 }

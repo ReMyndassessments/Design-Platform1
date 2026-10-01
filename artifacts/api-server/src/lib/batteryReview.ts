@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import type { QuestionnaireTestEvidence, StaffTestResult } from "./staffQuestionnaireTests.js";
+import {
+  buildQuestionnaireTestFingerprint,
+  isValidQuestionnaireSnapshot,
+  latestQuestionnaireTestEvidence,
+  resolveQuestionnaireTestResults,
+  type QuestionnaireTestAssignment,
+  type QuestionnaireTestEvidence,
+  type StaffTestResult,
+} from "./staffQuestionnaireTests.js";
 
 export const INTAKE_TOOL_IDS = new Set([
   "REFERRAL",
@@ -30,6 +38,7 @@ export type BatteryApproval = {
 export type BatteryReviewAssignment = {
   id: string;
   toolId: string;
+  toolName?: string | null;
   respondentLabel: string | null;
   respondentType: string;
   uniqueLink: string;
@@ -64,30 +73,31 @@ export function buildBatteryReviewState(
       id, toolId, respondentLabel, respondentType, uniqueLink, formItemsSnapshot,
     }));
   const assignmentsFingerprint = createHash("sha256").update(JSON.stringify(fingerprintInput)).digest("hex");
-  const latestEvidence = latestEvidenceByAssignment(testEvidence);
+  const latestEvidence = latestQuestionnaireTestEvidence(testEvidence);
+  const testAssignments: QuestionnaireTestAssignment[] = questionnaireRows.map(row => ({
+    id: row.id,
+    toolId: row.toolId,
+    toolName: row.toolName,
+    respondentType: row.respondentType,
+    respondentLabel: row.respondentLabel,
+    formItemsSnapshot: row.formItemsSnapshot,
+    assignedLanguage: row.assignedLanguage ?? "english",
+  }));
+  const resolvedTestResults = resolveQuestionnaireTestResults(testAssignments, testEvidence);
   const testResults: Record<string, StaffTestResult> = {};
   const currentTestFingerprints: Record<string, string> = {};
   for (const row of questionnaireRows) {
-    const currentTestFingerprint = createHash("sha256").update(JSON.stringify({
-      assignmentId: row.id,
+    const currentTestFingerprint = buildQuestionnaireTestFingerprint({
+      id: row.id,
       toolId: row.toolId,
-      formItemsSnapshot: row.formItemsSnapshot,
+      toolName: row.toolName,
       respondentType: row.respondentType,
       respondentLabel: row.respondentLabel,
-      assignedLanguage: normalizeAssignedLanguage(row.assignedLanguage ?? "english"),
-    })).digest("hex");
+      formItemsSnapshot: row.formItemsSnapshot,
+      assignedLanguage: row.assignedLanguage ?? "english",
+    });
     currentTestFingerprints[row.id] = currentTestFingerprint;
-    const latest = latestEvidence.get(row.id);
-    testResults[row.id] = !latest
-      ? { status: "not_tested", testedBy: null }
-      : {
-          status: latest.fingerprint !== currentTestFingerprint ? "retest_required" : latest.result,
-          testedBy: latest.testerName,
-          testedById: latest.testerId,
-          testedAt: latest.testedAt instanceof Date ? latest.testedAt.toISOString() : new Date(latest.testedAt).toISOString(),
-          language: latest.language,
-          ...(latest.notes ? { notes: latest.notes } : {}),
-        };
+    testResults[row.id] = resolvedTestResults.get(row.id) ?? { status: "not_tested", testedBy: null };
   }
   const hasTestEvidence = questionnaireRows.some(row => latestEvidence.has(row.id));
   const fingerprint = hasTestEvidence
@@ -157,68 +167,5 @@ export function buildBatteryReviewState(
 }
 
 export function isValidSnapshot(snapshot: string | null): boolean {
-  if (!snapshot) return false;
-  try {
-    const parsed = JSON.parse(snapshot) as unknown;
-    const isValidItem = (item: unknown): boolean => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) return false;
-      const candidate = item as { id?: unknown; text?: unknown; type?: unknown; rows?: unknown };
-      return typeof candidate.id === "string" &&
-        typeof candidate.text === "string" &&
-        typeof candidate.type === "string" &&
-        (candidate.rows === undefined ||
-          (Array.isArray(candidate.rows) && candidate.rows.every(isValidItem)));
-    };
-    return Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidItem);
-  } catch {
-    return false;
-  }
-}
-
-function normalizeAssignedLanguage(language: string): string {
-  const normalized = language.trim().toLowerCase().replaceAll("_", " ").replace(/\s+/g, " ");
-  if (["en", "eng", "english"].includes(normalized)) return "en";
-  if ([
-    "zh", "zho", "chi", "chinese", "mandarin", "simplified chinese", "traditional chinese",
-    "chinese (simplified)", "chinese (traditional)", "中文", "普通话",
-  ].includes(normalized)) return "zh";
-  if (["ko", "kor", "korean", "한국어"].includes(normalized)) return "ko";
-  return normalized;
-}
-
-function latestEvidenceByAssignment(
-  evidence: readonly QuestionnaireTestEvidence[],
-): Map<string, QuestionnaireTestEvidence> {
-  const latest = new Map<string, QuestionnaireTestEvidence>();
-  for (const row of evidence) {
-    const previous = latest.get(row.assignmentId);
-    const testedAt = new Date(row.testedAt).getTime();
-    const previousTestedAt = previous ? new Date(previous.testedAt).getTime() : Number.NEGATIVE_INFINITY;
-    const orderComparison = row.evidenceOrder !== undefined && previous?.evidenceOrder !== undefined
-      ? compareExactEvidenceOrders(row.evidenceOrder, previous.evidenceOrder)
-      : null;
-    const isMoreRecent = orderComparison !== null
-      ? orderComparison > 0
-      : testedAt > previousTestedAt ||
-        (testedAt === previousTestedAt && row.id.localeCompare(previous?.id ?? "") > 0);
-    if (!previous || isMoreRecent) {
-      latest.set(row.assignmentId, row);
-    }
-  }
-  return latest;
-}
-
-function compareExactEvidenceOrders(
-  leftValue: number | string | bigint,
-  rightValue: number | string | bigint,
-): number {
-  const toBigInt = (value: number | string | bigint): bigint => {
-    if (typeof value === "number" && !Number.isSafeInteger(value)) {
-      throw new Error("Questionnaire test evidence order must be represented exactly.");
-    }
-    return BigInt(value);
-  };
-  const left = toBigInt(leftValue);
-  const right = toBigInt(rightValue);
-  return left < right ? -1 : left > right ? 1 : 0;
+  return isValidQuestionnaireSnapshot(snapshot);
 }

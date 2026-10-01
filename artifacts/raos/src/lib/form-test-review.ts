@@ -1,10 +1,12 @@
 export type QuestionnaireTestResult = {
   status: "not_tested" | "passed" | "failed" | "retest_required";
-  testedBy?: string;
+  testedBy?: string | null;
   testedById?: string;
   testedAt?: string;
   language?: string;
   notes?: string;
+  sharedFromAssignmentId?: string;
+  sharedFromLabel?: string;
 };
 
 export type PreviewCheck = {

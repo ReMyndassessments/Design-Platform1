@@ -14,6 +14,7 @@ export type StaffTestChecklist = {
 export type QuestionnaireTestAssignment = {
   id: string;
   toolId: string;
+  toolName?: string | null;
   respondentType: string;
   respondentLabel: string | null;
   formItemsSnapshot: string | null;
@@ -41,6 +42,8 @@ export type StaffTestResult = {
   testedAt?: string;
   language?: string;
   notes?: string;
+  sharedFromAssignmentId?: string;
+  sharedFromLabel?: string;
 };
 
 export type RequiredAnswerValidation = {
@@ -74,8 +77,53 @@ export function buildQuestionnaireTestFingerprint(assignment: QuestionnaireTestA
     respondentType: assignment.respondentType,
     respondentLabel: assignment.respondentLabel,
     assignedLanguage: normalizeQuestionnaireLanguage(assignment.assignedLanguage || "english"),
+    // Preserve legacy fingerprints for ordinary forms and canonical RPPI.
+    // A title-triggered RPPI workflow on another tool needs a discriminator:
+    // an older ordinary-form check cannot certify this different workflow.
+    ...(assignment.toolId !== "RPPI" && (assignment.toolName ?? "").toLowerCase().includes("rppi")
+      ? { rppiExternalWorkflow: true }
+      : {}),
   };
   return createHash("sha256").update(JSON.stringify(scope)).digest("hex");
+}
+
+/**
+ * Parse and canonicalize a frozen form snapshot. Object key order is not part
+ * of the form; array order is, including the order of questions and options.
+ */
+export function canonicalQuestionnaireSnapshot(snapshot: string | null | undefined): string | null {
+  if (!snapshot) return null;
+  try {
+    const parsed = JSON.parse(snapshot) as unknown;
+    if (!isValidQuestionnaireSnapshotValue(parsed)) return null;
+    return JSON.stringify(canonicalizeJson(parsed));
+  } catch {
+    return null;
+  }
+}
+
+export function isValidQuestionnaireSnapshot(snapshot: string | null | undefined): boolean {
+  return canonicalQuestionnaireSnapshot(snapshot) !== null;
+}
+
+/**
+ * The assignment-specific fingerprint remains the persisted evidence identity.
+ * This second key intentionally ignores recipient metadata and assignment id
+ * so exact frozen forms assigned to different recipients can share a result.
+ */
+export function buildQuestionnaireTestFormKey(assignment: QuestionnaireTestAssignment): string | null {
+  const snapshot = canonicalQuestionnaireSnapshot(assignment.formItemsSnapshot);
+  if (!snapshot) return null;
+  return createHash("sha256").update(JSON.stringify({
+    toolId: assignment.toolId,
+    // The external renderer also recognizes RPPI from toolName text, not just
+    // toolId. Include that behavior switch without treating ordinary display
+    // title variations as different frozen questionnaires.
+    rppiExternalWorkflow: assignment.toolId === "RPPI" ||
+      (assignment.toolName ?? "").toLowerCase().includes("rppi"),
+    formItemsSnapshot: snapshot,
+    assignedLanguage: normalizeQuestionnaireLanguage(assignment.assignedLanguage || "english"),
+  })).digest("hex");
 }
 
 export function toStaffTestResult(
@@ -96,6 +144,67 @@ export function toStaffTestResult(
     language: evidence.language,
     ...(evidence.notes ? { notes: evidence.notes } : {}),
   };
+}
+
+/**
+ * Resolve current results for a case from assignment-specific evidence.
+ * Only each assignment's newest evidence can participate, and stale evidence
+ * is never a source for an equivalent form. Form groups are case-local because
+ * callers provide assignments and evidence from exactly one case.
+ */
+export function resolveQuestionnaireTestResults(
+  assignments: readonly QuestionnaireTestAssignment[],
+  evidence: readonly QuestionnaireTestEvidence[],
+): Map<string, StaffTestResult> {
+  const latestByAssignment = latestQuestionnaireTestEvidence(evidence);
+  const fingerprints = new Map(assignments.map(assignment => [
+    assignment.id,
+    buildQuestionnaireTestFingerprint(assignment),
+  ]));
+  const formKeys = new Map(assignments.map(assignment => [
+    assignment.id,
+    buildQuestionnaireTestFormKey(assignment),
+  ]));
+  const validSourcesByForm = new Map<string, QuestionnaireTestEvidence[]>();
+
+  for (const assignment of assignments) {
+    const formKey = formKeys.get(assignment.id);
+    const latest = latestByAssignment.get(assignment.id);
+    if (!formKey || !latest || latest.fingerprint !== fingerprints.get(assignment.id)) continue;
+    const sources = validSourcesByForm.get(formKey) ?? [];
+    sources.push(latest);
+    validSourcesByForm.set(formKey, sources);
+  }
+
+  const newestByForm = new Map<string, QuestionnaireTestEvidence>();
+  for (const [formKey, sources] of validSourcesByForm) {
+    let newest = sources[0];
+    for (const candidate of sources.slice(1)) {
+      if (compareQuestionnaireTestEvidenceRecency(candidate, newest) > 0) newest = candidate;
+    }
+    newestByForm.set(formKey, newest);
+  }
+
+  const labels = new Map(assignments.map(assignment => [assignment.id, assignment.respondentLabel]));
+  const results = new Map<string, StaffTestResult>();
+  for (const assignment of assignments) {
+    const fingerprint = fingerprints.get(assignment.id)!;
+    const ownLatest = latestByAssignment.get(assignment.id);
+    const formKey = formKeys.get(assignment.id);
+    const sharedEvidence = formKey ? newestByForm.get(formKey) : undefined;
+    const selectedEvidence = sharedEvidence ?? ownLatest;
+    const inheritedEvidence = sharedEvidence?.assignmentId !== assignment.id ? sharedEvidence : undefined;
+    const result = inheritedEvidence
+      ? toStaffTestResult(inheritedEvidence.fingerprint, inheritedEvidence)
+      : toStaffTestResult(fingerprint, selectedEvidence);
+    if (sharedEvidence && sharedEvidence.assignmentId !== assignment.id) {
+      result.sharedFromAssignmentId = sharedEvidence.assignmentId;
+      const label = labels.get(sharedEvidence.assignmentId);
+      if (label) result.sharedFromLabel = label;
+    }
+    results.set(assignment.id, result);
+  }
+  return results;
 }
 
 export function checklistIsComplete(checklist: StaffTestChecklist | null | undefined): boolean {
@@ -160,12 +269,12 @@ export function latestQuestionnaireTestEvidence(
   const latest = new Map<string, QuestionnaireTestEvidence>();
   for (const row of evidence) {
     const current = latest.get(row.assignmentId);
-    if (!current || compareEvidenceRecency(row, current) > 0) latest.set(row.assignmentId, row);
+    if (!current || compareQuestionnaireTestEvidenceRecency(row, current) > 0) latest.set(row.assignmentId, row);
   }
   return latest;
 }
 
-function compareEvidenceRecency(a: QuestionnaireTestEvidence, b: QuestionnaireTestEvidence): number {
+export function compareQuestionnaireTestEvidenceRecency(a: QuestionnaireTestEvidence, b: QuestionnaireTestEvidence): number {
   if (a.evidenceOrder !== undefined && b.evidenceOrder !== undefined) {
     const orderComparison = compareExactIntegerOrders(a.evidenceOrder, b.evidenceOrder);
     if (orderComparison !== 0) return orderComparison;
@@ -184,4 +293,28 @@ function compareExactIntegerOrders(a: number | string | bigint, b: number | stri
   const left = toBigInt(a);
   const right = toBigInt(b);
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function isValidQuestionnaireSnapshotValue(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) return false;
+  const isValidItem = (item: unknown): boolean => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const candidate = item as { id?: unknown; text?: unknown; type?: unknown; rows?: unknown };
+    return typeof candidate.id === "string" &&
+      typeof candidate.text === "string" &&
+      typeof candidate.type === "string" &&
+      (candidate.rows === undefined ||
+        (Array.isArray(candidate.rows) && candidate.rows.every(isValidItem)));
+  };
+  return value.every(isValidItem);
+}
+
+function canonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeJson);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, nested]) => [key, canonicalizeJson(nested)]));
+  }
+  return value;
 }

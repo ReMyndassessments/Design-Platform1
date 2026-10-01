@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { FormQuestion } from "./questions.ts";
 import {
+  buildQuestionnaireTestFormKey,
   buildQuestionnaireTestFingerprint,
+  canonicalQuestionnaireSnapshot,
   latestQuestionnaireTestEvidence,
   normalizeQuestionnaireLanguage,
+  resolveQuestionnaireTestResults,
   toStaffTestResult,
   validateStaffTestAnswers,
   type QuestionnaireTestAssignment,
@@ -79,6 +82,117 @@ test("BIGSERIAL evidence order compares digit strings numerically, including bey
     evidence({ evidenceOrder: Number.MAX_SAFE_INTEGER + 1 }),
     evidence({ id: "second", evidenceOrder: Number.MAX_SAFE_INTEGER + 2 }),
   ]), /represented exactly/);
+});
+
+test("equivalent frozen parent and teacher forms share current assignment-specific evidence", () => {
+  const teacher: QuestionnaireTestAssignment = {
+    ...assignment,
+    id: "teacher-2",
+    respondentType: "teacher",
+    respondentLabel: "Teacher 2",
+    formItemsSnapshot: '[ { "type": "radio", "text": "Question", "id": "q1" } ]',
+  };
+  const results = resolveQuestionnaireTestResults(
+    [assignment, teacher],
+    [evidence()],
+  );
+  assert.equal(results.get(assignment.id)?.status, "passed");
+  assert.equal(results.get(teacher.id)?.status, "passed");
+  assert.equal(results.get(teacher.id)?.sharedFromAssignmentId, assignment.id);
+  assert.equal(results.get(teacher.id)?.sharedFromLabel, "Parent");
+  assert.equal(results.get(assignment.id)?.sharedFromAssignmentId, undefined);
+});
+
+test("form equivalence canonicalizes object keys but preserves wording, instructions, options, item order, language and renderer identity", () => {
+  const reorderedKeys = {
+    ...assignment,
+    formItemsSnapshot: '[{"type":"radio","text":"Question","id":"q1"}]',
+  };
+  assert.equal(
+    canonicalQuestionnaireSnapshot(assignment.formItemsSnapshot),
+    canonicalQuestionnaireSnapshot(reorderedKeys.formItemsSnapshot),
+  );
+  assert.equal(buildQuestionnaireTestFormKey(assignment), buildQuestionnaireTestFormKey(reorderedKeys));
+  for (const changed of [
+    { ...assignment, formItemsSnapshot: '[{"id":"q1","text":"Changed wording","type":"radio"}]' },
+    { ...assignment, formItemsSnapshot: '[{"id":"q1","text":"Question","type":"radio","note":"Instruction"}]' },
+    { ...assignment, formItemsSnapshot: '[{"id":"q1","text":"Question","type":"radio","options":["Often","Never"]}]' },
+    {
+      ...assignment,
+      formItemsSnapshot: '[{"id":"q2","text":"Second","type":"text"},{"id":"q1","text":"Question","type":"radio"}]',
+    },
+    { ...assignment, assignedLanguage: "korean" },
+    { ...assignment, toolId: "FORM-B" },
+    { ...assignment, toolName: "RPPI examiner form" },
+  ]) {
+    assert.notEqual(buildQuestionnaireTestFormKey(assignment), buildQuestionnaireTestFormKey(changed));
+  }
+  assert.equal(buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "eng" }), buildQuestionnaireTestFormKey(assignment));
+  assert.equal(
+    buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "mandarin" }),
+    buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "Chinese" }),
+  );
+});
+
+test("invalid snapshots never inherit, and stale source evidence cannot cover changed forms or languages", () => {
+  const invalid = { ...assignment, id: "invalid", formItemsSnapshot: '[{"id":"missing-text","type":"radio"}]' };
+  const missing = { ...assignment, id: "missing", formItemsSnapshot: null };
+  const invalidResults = resolveQuestionnaireTestResults(
+    [assignment, invalid, missing],
+    [evidence()],
+  );
+  assert.equal(invalidResults.get(invalid.id)?.status, "not_tested");
+  assert.equal(invalidResults.get(missing.id)?.status, "not_tested");
+  assert.equal(invalidResults.get(invalid.id)?.sharedFromAssignmentId, undefined);
+  assert.equal(buildQuestionnaireTestFormKey(invalid), null);
+  assert.equal(buildQuestionnaireTestFormKey(missing), null);
+
+  const changedContent = { ...assignment, id: "changed-content", formItemsSnapshot: '[{"id":"q1","text":"New","type":"radio"}]' };
+  const changedLanguage = { ...assignment, id: "changed-language", assignedLanguage: "korean" };
+  const staleResults = resolveQuestionnaireTestResults(
+    [changedContent, changedLanguage],
+    [evidence()],
+  );
+  assert.equal(staleResults.get(changedContent.id)?.status, "not_tested");
+  assert.equal(staleResults.get(changedLanguage.id)?.status, "not_tested");
+  assert.equal(staleResults.get(changedContent.id)?.sharedFromAssignmentId, undefined);
+});
+
+test("the most recent exact-order group evidence, including a late failure, overrides inherited passes", () => {
+  const teacher = { ...assignment, id: "teacher-1", respondentType: "teacher", respondentLabel: "Teacher 1" };
+  const pass = evidence({ evidenceOrder: "9007199254740993", testedAt: "2026-04-12T12:00:00.000Z" });
+  const failure = evidence({
+    id: "late-failure",
+    assignmentId: teacher.id,
+    fingerprint: buildQuestionnaireTestFingerprint(teacher),
+    evidenceOrder: "9007199254740994",
+    testedAt: "2026-04-11T12:00:00.000Z",
+    result: "failed",
+    notes: "The displayed controls do not match the assigned form.",
+  });
+  const results = resolveQuestionnaireTestResults([assignment, teacher], [pass, failure]);
+  assert.equal(results.get(assignment.id)?.status, "failed");
+  assert.equal(results.get(assignment.id)?.sharedFromAssignmentId, teacher.id);
+  assert.equal(results.get(teacher.id)?.status, "failed");
+  assert.equal(results.get(teacher.id)?.sharedFromAssignmentId, undefined);
+});
+
+test("a title-triggered renderer change invalidates old evidence without invalidating ordinary legacy checks", () => {
+  const previous = { ...assignment, toolName: "Standard questionnaire" };
+  const changed = { ...previous, toolName: "RPPI examiner workflow" };
+  const duplicate = { ...changed, id: "changed-teacher", respondentType: "teacher", respondentLabel: "Teacher 1" };
+  assert.equal(buildQuestionnaireTestFingerprint(previous), buildQuestionnaireTestFingerprint(assignment));
+  assert.notEqual(buildQuestionnaireTestFingerprint(changed), buildQuestionnaireTestFingerprint(previous));
+  const results = resolveQuestionnaireTestResults([changed, duplicate], [
+    evidence({ fingerprint: buildQuestionnaireTestFingerprint(previous) }),
+  ]);
+  assert.equal(results.get(changed.id)?.status, "retest_required");
+  assert.equal(results.get(duplicate.id)?.status, "not_tested");
+  assert.equal(results.get(duplicate.id)?.sharedFromAssignmentId, undefined);
+  assert.equal(
+    buildQuestionnaireTestFingerprint({ ...assignment, toolId: "RPPI", toolName: "RPPI" }),
+    buildQuestionnaireTestFingerprint({ ...assignment, toolId: "RPPI", toolName: "Renamed title" }),
+  );
 });
 
 test("required-answer validation matches visible conditionals and required frequency-grid rows", () => {
