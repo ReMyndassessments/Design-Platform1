@@ -26,6 +26,8 @@ export default function AssignmentReviewPreviewPage() {
     enabled: Boolean(canReview && caseId && assignmentId),
     retry: false,
     staleTime: 0,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const response = await fetch(
         `${apiBase}/api/cases/${encodeURIComponent(caseId)}/assignments/${encodeURIComponent(assignmentId)}/staff-preview`,

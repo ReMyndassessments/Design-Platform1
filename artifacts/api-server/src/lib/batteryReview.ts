@@ -101,14 +101,21 @@ export function buildBatteryReviewState(
     currentTestFingerprints[row.id] = currentTestFingerprint;
     testResults[row.id] = resolvedTestResults.get(row.id) ?? { status: "not_tested", testedBy: null };
   }
-  const hasTestEvidence = questionnaireRows.some(row => latestEvidence.has(row.id));
+  const hasTestEvidence = questionnaireRows.some(row => latestEvidence.has(row.id) || testResults[row.id]?.evidenceId);
   const fingerprint = hasTestEvidence
     ? createHash("sha256").update(JSON.stringify({
         assignmentsFingerprint,
         latestTestEvidenceIds: questionnaireRows
           .slice()
           .sort((a, b) => a.id.localeCompare(b.id))
-          .map(row => [row.id, currentTestFingerprints[row.id], latestEvidence.get(row.id)?.id ?? null]),
+          .map(row => {
+            const local = [row.id, currentTestFingerprints[row.id], latestEvidence.get(row.id)?.id ?? null];
+            // Preserve existing case-local approvals; external evidence must
+            // invalidate this case's approval if another case reports a failure.
+            return testResults[row.id]?.sharedAcrossCases
+              ? [...local, testResults[row.id].evidenceId]
+              : local;
+          }),
       })).digest("hex")
     : assignmentsFingerprint;
   const missingSnapshots = questionnaireRows.filter(row => !isValidSnapshot(row.formItemsSnapshot)).length;

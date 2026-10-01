@@ -2845,7 +2845,7 @@ export default function CaseDetail() {
                 )}
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Check each distinct questionnaire once; identical copies share its pass. Test answers are not stored. Examiner-administered assessments, including RPPI, use their own sessions and do not require a questionnaire test.
+                Check each distinct questionnaire once; forms with identical content, language, and version share a pass across cases. Test answers are not stored. Examiner-administered assessments, including RPPI, use their own sessions and do not require a questionnaire test.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2904,7 +2904,7 @@ export default function CaseDetail() {
                           </div>
                           <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
                             <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
-                              <Eye size={14} /> Test form
+                              <Eye size={14} /> {batteryReviewQuery.data?.testResults?.[assignment.id]?.status === "passed" ? "Test again" : "Test form"}
                             </Button>
                           </Link>
                         </div>

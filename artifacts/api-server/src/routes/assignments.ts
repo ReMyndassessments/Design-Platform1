@@ -31,6 +31,7 @@ import {
   validateBatteryTestPackage,
 } from "../lib/batteryTestInvitation.js";
 import { z } from "zod";
+import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib/questionnaireTestHistory.js";
 
 const router = Router();
 
@@ -65,15 +66,18 @@ function mayReviewBattery(role: string | undefined): boolean {
   return role === "admin" || role === "psychometrician";
 }
 
-async function getBatteryReview(caseId: string) {
-  const [caseRow] = await db.select({
+async function getBatteryReview(caseId: string, reader: any = db, lockRows = false) {
+  const caseQuery = reader.select({
     id: casesTable.id,
     batteryApproval: casesTable.batteryApproval,
     languagePreference: casesTable.languagePreference,
-  }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
+  }).from(casesTable).where(eq(casesTable.id, caseId));
+  const [caseRow] = lockRows
+    ? await caseQuery.for("update").limit(1)
+    : await caseQuery.limit(1);
   if (!caseRow) return null;
 
-  const assignments = await db.select({
+  const assignmentQuery = reader.select({
     id: assignmentsTable.id,
     toolId: assignmentsTable.toolId,
     toolName: assignmentsTable.toolName,
@@ -83,24 +87,18 @@ async function getBatteryReview(caseId: string) {
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     assignedToName: assignmentsTable.assignedToName,
     assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)).then(rows =>
-    rows.map(row => ({ ...row, assignedLanguage: caseRow.languagePreference ?? "english" })),
-  );
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+  const assignmentRows = lockRows
+    ? await assignmentQuery.for("update")
+    : await assignmentQuery;
+  const assignments = assignmentRows.map((row: any) => ({
+    ...row,
+    assignedLanguage: caseRow.languagePreference ?? "english",
+  }));
 
-  const evidence = await readQuestionnaireTestEvidence(caseId);
+  if (lockRows) await lockQuestionnaireTestForms(assignments, reader);
+  const evidence = await readQuestionnaireTestHistory(caseId, assignments, reader);
   return buildBatteryReviewState(assignments, caseRow.batteryApproval as BatteryApproval | null, evidence);
-}
-
-async function readQuestionnaireTestEvidence(caseId: string): Promise<QuestionnaireTestEvidence[]> {
-  const result = await db.execute(sql`
-    SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
-      tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
-      language, checklist, notes
-    FROM questionnaire_test_evidence
-    WHERE case_id = ${caseId}
-    ORDER BY evidence_order DESC
-  `);
-  return (result.rows ?? []) as unknown as QuestionnaireTestEvidence[];
 }
 
 router.get("/cases/:caseId/battery-review", authMiddleware, async (req, res): Promise<void> => {
@@ -181,10 +179,10 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     respondentLabel: assignmentsTable.respondentLabel,
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
   }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
-  const testEvidence = await readQuestionnaireTestEvidence(caseId);
   const eligibleAssignments = caseAssignments
     .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
     .map(row => ({ ...row, assignedLanguage: caseRow.languagePreference ?? "english" }));
+  const testEvidence = await readQuestionnaireTestHistory(caseId, eligibleAssignments);
   const effectiveTestResult = resolveQuestionnaireTestResults(eligibleAssignments, testEvidence)
     .get(assignmentId);
   res.json({
@@ -304,7 +302,16 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
 
     const evidenceId = nanoid();
     const testedAt = new Date();
-    const checklist = body.data.checklist ?? null;
+    const currentForm = {
+      ...assignment,
+      assignedLanguage,
+    };
+    const formKey = buildQuestionnaireTestFormKey(currentForm);
+    await lockQuestionnaireTestForms([currentForm], tx);
+    const checklist: StaffTestChecklist = {
+      ...(body.data.checklist ?? { correctForm: false, contentLanguage: false, controls: false, safeTesting: false }),
+      formKey,
+    };
     await tx.execute(sql`
       INSERT INTO questionnaire_test_evidence (
         id, case_id, assignment_id, tester_id, tester_name, tested_at,
@@ -335,18 +342,10 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       respondentLabel: assignmentsTable.respondentLabel,
       formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
-    const evidenceResult = await tx.execute(sql`
-      SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
-        tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
-        language, checklist, notes
-      FROM questionnaire_test_evidence
-      WHERE case_id = ${caseId}
-      ORDER BY evidence_order DESC
-    `);
-    const allEvidence = (evidenceResult.rows ?? []) as unknown as QuestionnaireTestEvidence[];
     const eligibleAssignments = currentAssignments
       .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
       .map(row => ({ ...row, assignedLanguage }));
+    const allEvidence = await readQuestionnaireTestHistory(caseId, eligibleAssignments, tx);
     const testResult = resolveQuestionnaireTestResults(eligibleAssignments, allEvidence).get(assignment.id)
       ?? toStaffTestResult(testFingerprint, evidence);
     const targetFormKey = buildQuestionnaireTestFormKey({
@@ -594,15 +593,8 @@ router.post("/cases/:caseId/battery-review/approve", authMiddleware, async (req,
       ...row,
       assignedLanguage: caseRow.languagePreference ?? "english",
     }));
-    const testEvidenceResult = await tx.execute(sql`
-      SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
-        tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
-        language, checklist, notes
-      FROM questionnaire_test_evidence
-      WHERE case_id = ${caseId}
-      ORDER BY evidence_order DESC
-    `);
-    const testEvidence = (testEvidenceResult.rows ?? []) as unknown as QuestionnaireTestEvidence[];
+    await lockQuestionnaireTestForms(assignments, tx);
+    const testEvidence = await readQuestionnaireTestHistory(caseId, assignments, tx);
     const state = buildBatteryReviewState(
       assignments,
       caseRow.batteryApproval as BatteryApproval | null,
@@ -1238,41 +1230,44 @@ router.post("/cases/:caseId/assignments/reset-completed", authMiddleware, async 
     res.status(400).json({ error: "bad_request", message: "assignmentIds array is required" }); return;
   }
 
-  // Only reset assignments that belong to this case and are completed
-  const targets = await db.select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
-    .from(assignmentsTable)
-    .where(and(
-      eq(assignmentsTable.caseId, caseId),
-      inArray(assignmentsTable.id, assignmentIds),
-      eq(assignmentsTable.status, "completed"),
-    ));
+  const resetResult = await db.transaction(async tx => {
+    const [caseRow] = await tx.select({ id: casesTable.id })
+      .from(casesTable).where(eq(casesTable.id, caseId)).for("update").limit(1);
+    if (!caseRow) return { kind: "reset" as const, count: 0 };
 
-  if (targets.length === 0) {
-    res.json({ reset: 0 }); return;
-  }
+    // Lock only completed assignments that still belong to this case.
+    const targets = await tx.select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
+      .from(assignmentsTable)
+      .where(and(
+        eq(assignmentsTable.caseId, caseId),
+        inArray(assignmentsTable.id, assignmentIds),
+        eq(assignmentsTable.status, "completed"),
+      ))
+      .for("update");
+    if (targets.length === 0) return { kind: "reset" as const, count: 0 };
 
-  const ids = targets.map(t => t.id);
-  if (targets.some(target => !INTAKE_TOOL_IDS.has(target.toolId))) {
-    const review = await getBatteryReview(caseId);
-    if (!review?.approved) {
-      res.status(409).json({
-        error: "battery_approval_required",
-        message: "An administrator must approve the current assessment battery before completed assessment responses can be reset for sending.",
-        review,
-      });
-      return;
+    const ids = targets.map(target => target.id);
+    if (targets.some(target => !INTAKE_TOOL_IDS.has(target.toolId))) {
+      const review = await getBatteryReview(caseId, tx, true);
+      if (!review?.approved) return { kind: "approval_required" as const, review };
     }
+
+    await tx.delete(responsesTable).where(inArray(responsesTable.assignmentId, ids));
+    await tx.update(assignmentsTable)
+      .set({ status: "pending" as any })
+      .where(inArray(assignmentsTable.id, ids));
+    return { kind: "reset" as const, count: ids.length };
+  });
+
+  if (resetResult.kind === "approval_required") {
+    res.status(409).json({
+      error: "battery_approval_required",
+      message: "An administrator must approve the current assessment battery before completed assessment responses can be reset for sending.",
+      review: resetResult.review,
+    });
+    return;
   }
-
-  // Delete existing responses for these assignments
-  await db.delete(responsesTable).where(inArray(responsesTable.assignmentId, ids));
-
-  // Reset assignment status back to pending
-  await db.update(assignmentsTable)
-    .set({ status: "pending" })
-    .where(inArray(assignmentsTable.id, ids));
-
-  res.json({ reset: ids.length });
+  res.json({ reset: resetResult.count });
 });
 
 // ── POST /api/cases/:caseId/send-respondent-email ────────────────────────────
@@ -1300,42 +1295,35 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
     res.status(400).json({ error: "bad_request", message: "toEmail, toName, formLink, and formNames are required" }); return;
   }
 
-  const caseRows = await db.select({ id: casesTable.id, studentName: casesTable.studentName }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
-  if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  try {
+    const sendResult = await db.transaction(async tx => {
+      const [caseRow] = await tx.select({ id: casesTable.id, studentName: casesTable.studentName })
+        .from(casesTable).where(eq(casesTable.id, caseId)).for("update").limit(1);
+      if (!caseRow) return { kind: "not_found" as const };
 
-  const invitationToken = tokenFromPortalLink(formLink);
-  if (!invitationToken) {
-    res.status(400).json({ error: "invalid_form_link", message: "The invitation link must belong to an assignment in this case." });
-    return;
-  }
-  const [invitationAssignment] = await db.select({
-    toolId: assignmentsTable.toolId,
-    uniqueLink: assignmentsTable.uniqueLink,
-  }).from(assignmentsTable).where(and(
-    eq(assignmentsTable.caseId, caseId),
-    eq(assignmentsTable.uniqueToken, invitationToken),
-  )).limit(1);
-  if (!invitationAssignment || invitationAssignment.uniqueLink !== formLink) {
-    res.status(400).json({ error: "invalid_form_link", message: "The invitation link must match an assignment in this case." });
-    return;
-  }
-  if (!INTAKE_TOOL_IDS.has(invitationAssignment.toolId)) {
-    const review = await getBatteryReview(caseId);
-    if (!review?.approved) {
-      res.status(409).json({
-        error: "battery_approval_required",
-        message: "An administrator must review and approve the current assessment battery before invitations can be sent.",
-        review,
-      });
-      return;
-    }
-  }
+      const invitationToken = tokenFromPortalLink(formLink);
+      if (!invitationToken) return { kind: "invalid_form_link" as const, belongs: false };
+      const [invitationAssignment] = await tx.select({
+        toolId: assignmentsTable.toolId,
+        uniqueLink: assignmentsTable.uniqueLink,
+      }).from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, caseId),
+        eq(assignmentsTable.uniqueToken, invitationToken),
+      )).for("update").limit(1);
+      if (!invitationAssignment || invitationAssignment.uniqueLink !== formLink) {
+        return { kind: "invalid_form_link" as const, belongs: true };
+      }
 
-  const resolvedStudentName = studentName ?? caseRows[0].studentName ?? "the student";
-  const formsListHtml = formNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
-  const roleLabel = respondentRole ?? "respondent";
+      if (!INTAKE_TOOL_IDS.has(invitationAssignment.toolId)) {
+        const review = await getBatteryReview(caseId, tx, true);
+        if (!review?.approved) return { kind: "approval_required" as const, review };
+      }
 
-  const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
+      const resolvedStudentName = studentName ?? caseRow.studentName ?? "the student";
+      const formsListHtml = formNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
+      const roleLabel = respondentRole ?? "respondent";
+
+      const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
   <div style="background:#0a1628;padding:24px 32px;border-radius:12px 12px 0 0;text-align:center">
     <p style="margin:0;font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px">ReMynd Student Services</p>
     <p style="margin:4px 0 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em">Assessment Operating System</p>
@@ -1356,34 +1344,52 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
   </div>
 </div>`;
 
-  // Extract the unique token from the formLink so we can find the exact assignment group
-  const tokenMatch = formLink.match(/\/external\/([^/?#]+)/);
-  const portalToken = tokenMatch?.[1] ?? null;
+      // Dispatch while the case, assignments, and relevant form-key locks remain held.
+      await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
 
-  try {
-    await sendEmail({ to: toEmail, subject: `Assessment Forms for ${resolvedStudentName} — ReMynd Student Services`, html });
-
-    // Find the anchor assignment via its portal token, then update all siblings in the same group
-    if (portalToken) {
-      const anchor = await db.select({ id: assignmentsTable.id, respondentLabel: assignmentsTable.respondentLabel, assignedToEmail: assignmentsTable.assignedToEmail })
-        .from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, portalToken)).limit(1);
-
+      const anchor = await tx.select({
+        id: assignmentsTable.id,
+        respondentLabel: assignmentsTable.respondentLabel,
+        assignedToEmail: assignmentsTable.assignedToEmail,
+      }).from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, caseId),
+        eq(assignmentsTable.uniqueToken, invitationToken),
+      )).limit(1);
       if (anchor[0]) {
-        // Match by email if stored, otherwise match by respondentLabel within this case
+        // Match by email if stored, otherwise match by respondentLabel within this case.
         const siblings = anchor[0].assignedToEmail
-          ? await db.select({ id: assignmentsTable.id }).from(assignmentsTable)
+          ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
               .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.assignedToEmail, anchor[0].assignedToEmail!)))
-          : await db.select({ id: assignmentsTable.id }).from(assignmentsTable)
+          : await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
               .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? "")));
 
         if (siblings.length > 0) {
-          await db.update(assignmentsTable)
+          await tx.update(assignmentsTable)
             .set({ assignedToName: toName, assignedToEmail: toEmail })
-            .where(inArray(assignmentsTable.id, siblings.map(s => s.id)));
+            .where(inArray(assignmentsTable.id, siblings.map(sibling => sibling.id)));
         }
       }
-    }
+      return { kind: "sent" as const };
+    });
 
+    if (sendResult.kind === "not_found") {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (sendResult.kind === "invalid_form_link") {
+      res.status(400).json(sendResult.belongs
+        ? { error: "invalid_form_link", message: "The invitation link must match an assignment in this case." }
+        : { error: "invalid_form_link", message: "The invitation link must belong to an assignment in this case." });
+      return;
+    }
+    if (sendResult.kind === "approval_required") {
+      res.status(409).json({
+        error: "battery_approval_required",
+        message: "An administrator must review and approve the current assessment battery before invitations can be sent.",
+        review: sendResult.review,
+      });
+      return;
+    }
     res.json({ success: true });
   } catch (err: any) {
     console.error("[send-respondent-email] SMTP error:", err?.message ?? err, "code:", err?.code, "response:", err?.response);

@@ -9,6 +9,8 @@ export type StaffTestChecklist = {
   contentLanguage: boolean;
   controls: boolean;
   safeTesting: boolean;
+  // Server-owned content identity, stored with the review (never test answers).
+  formKey?: string | null;
 };
 
 export type QuestionnaireTestAssignment = {
@@ -33,6 +35,8 @@ export type QuestionnaireTestEvidence = {
   language: string;
   checklist: StaffTestChecklist | null;
   notes: string | null;
+  formKey?: string | null;
+  sharedAcrossCases?: boolean;
 };
 
 export type StaffTestResult = {
@@ -44,6 +48,8 @@ export type StaffTestResult = {
   notes?: string;
   sharedFromAssignmentId?: string;
   sharedFromLabel?: string;
+  sharedAcrossCases?: boolean;
+  evidenceId?: string;
 };
 
 export type RequiredAnswerValidation = {
@@ -136,6 +142,7 @@ export function toStaffTestResult(
     : evidence.result;
   return {
     status,
+    evidenceId: evidence.id,
     testedBy: evidence.testerName,
     testedById: evidence.testerId,
     testedAt: evidence.testedAt instanceof Date
@@ -147,10 +154,8 @@ export function toStaffTestResult(
 }
 
 /**
- * Resolve current results for a case from assignment-specific evidence.
- * Only each assignment's newest evidence can participate, and stale evidence
- * is never a source for an equivalent form. Form groups are case-local because
- * callers provide assignments and evidence from exactly one case.
+ * Resolve assignment-specific legacy evidence and verified content-scoped
+ * history. A later failure overrides passes for that exact form/version/language.
  */
 export function resolveQuestionnaireTestResults(
   assignments: readonly QuestionnaireTestAssignment[],
@@ -166,6 +171,13 @@ export function resolveQuestionnaireTestResults(
     buildQuestionnaireTestFormKey(assignment),
   ]));
   const validSourcesByForm = new Map<string, QuestionnaireTestEvidence[]>();
+
+  for (const row of evidence) {
+    if (!row.formKey || !/^[a-f0-9]{64}$/.test(row.formKey)) continue;
+    const sources = validSourcesByForm.get(row.formKey) ?? [];
+    sources.push(row);
+    validSourcesByForm.set(row.formKey, sources);
+  }
 
   for (const assignment of assignments) {
     const formKey = formKeys.get(assignment.id);
@@ -193,14 +205,21 @@ export function resolveQuestionnaireTestResults(
     const formKey = formKeys.get(assignment.id);
     const sharedEvidence = formKey ? newestByForm.get(formKey) : undefined;
     const selectedEvidence = sharedEvidence ?? ownLatest;
-    const inheritedEvidence = sharedEvidence?.assignmentId !== assignment.id ? sharedEvidence : undefined;
-    const result = inheritedEvidence
-      ? toStaffTestResult(inheritedEvidence.fingerprint, inheritedEvidence)
+    const contentScopedEvidence = sharedEvidence &&
+      (sharedEvidence.formKey === formKey || sharedEvidence.assignmentId !== assignment.id)
+      ? sharedEvidence : undefined;
+    const result = contentScopedEvidence
+      ? toStaffTestResult(contentScopedEvidence.fingerprint, contentScopedEvidence)
       : toStaffTestResult(fingerprint, selectedEvidence);
     if (sharedEvidence && sharedEvidence.assignmentId !== assignment.id) {
       result.sharedFromAssignmentId = sharedEvidence.assignmentId;
-      const label = labels.get(sharedEvidence.assignmentId);
+      result.sharedAcrossCases = sharedEvidence.sharedAcrossCases === true;
+      const label = !sharedEvidence.sharedAcrossCases ? labels.get(sharedEvidence.assignmentId) : undefined;
       if (label) result.sharedFromLabel = label;
+    }
+    if (sharedEvidence?.sharedAcrossCases) {
+      result.sharedAcrossCases = true;
+      delete result.notes;
     }
     results.set(assignment.id, result);
   }

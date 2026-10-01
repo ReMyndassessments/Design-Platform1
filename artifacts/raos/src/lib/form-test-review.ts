@@ -7,6 +7,8 @@ export type QuestionnaireTestResult = {
   notes?: string;
   sharedFromAssignmentId?: string;
   sharedFromLabel?: string;
+  sharedAcrossCases?: boolean;
+  evidenceId?: string;
 };
 
 export type PreviewCheck = {

@@ -30,9 +30,11 @@ export function QuestionnaireTestResultPanel({
   const [saving, setSaving] = useState<"passed" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [savedOutcome, setSavedOutcome] = useState<"passed" | "failed" | null>(null);
+  const [savedAcrossCases, setSavedAcrossCases] = useState(false);
   const [coveredCount, setCoveredCount] = useState(1);
   const [rechecking, setRechecking] = useState(false);
-  const inheritedPass = result?.status === "passed" && Boolean(result.sharedFromAssignmentId);
+  const hasPassed = result?.status === "passed";
   const languageMatches = normalizeTestLanguage(validation?.language ?? "") === normalizeTestLanguage(assignedLanguage);
   const canPass = Boolean(validation?.passed && languageMatches && CHECKLIST.every(item => checklist[item.key]));
 
@@ -41,6 +43,8 @@ export function QuestionnaireTestResultPanel({
     setSaving(outcome);
     setError(null);
     setSaved(false);
+    setSavedOutcome(null);
+    setSavedAcrossCases(false);
     try {
       const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
       const response = await fetch(`${apiBase}/api/cases/${encodeURIComponent(caseId)}/assignments/${encodeURIComponent(assignmentId)}/staff-test-result`, {
@@ -62,21 +66,32 @@ export function QuestionnaireTestResultPanel({
       }
       onSaved(body.testResult);
       setSaved(true);
+      setSavedOutcome(outcome);
+      setSavedAcrossCases(body.testResult.sharedAcrossCases === true);
       setCoveredCount(body.coveredAssignmentCount ?? 1);
       queryClient.setQueryData(
         [`/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`],
         (previous: Record<string, unknown> | undefined) => previous ? { ...previous, testResult: body.testResult } : previous,
       );
-      await queryClient.invalidateQueries({
-        predicate: query => {
-          const key = query.queryKey[0];
-          return typeof key === "string" &&
-            key.startsWith(`/api/cases/${caseId}/assignments/`) &&
-            key.endsWith("/staff-preview") &&
-            key !== `/api/cases/${caseId}/assignments/${assignmentId}/staff-preview`;
-        },
-      });
-      await queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/battery-review`] });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          predicate: query => {
+            const key = query.queryKey[0];
+            return typeof key === "string" &&
+              key.startsWith("/api/cases/") &&
+              key.includes("/assignments/") &&
+              key.endsWith("/staff-preview");
+          },
+        }),
+        queryClient.invalidateQueries({
+          predicate: query => {
+            const key = query.queryKey[0];
+            return typeof key === "string" &&
+              key.startsWith("/api/cases/") &&
+              key.endsWith("/battery-review");
+          },
+        }),
+      ]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The test result could not be recorded.");
     } finally {
@@ -91,11 +106,15 @@ export function QuestionnaireTestResultPanel({
         <p className="mt-1 text-xs text-slate-600">Version {fingerprint.slice(0, 12)} · Assigned language: {normalizeTestLanguage(assignedLanguage)}</p>
         <QuestionnaireTestStatus result={result} />
       </div>
-      {inheritedPass && !rechecking ? (
+      {hasPassed && !rechecking ? (
         <div className="space-y-3">
-          <p className="text-sm text-emerald-800">This form has already passed. You don’t need to fill it out or check it again.</p>
+          <p className="text-sm text-emerald-800">
+            {result?.sharedAcrossCases
+              ? "An identical form was already checked across cases. You don’t need to fill it out or check it again."
+              : "This form has already passed. You don’t need to fill it out or check it again."}
+          </p>
           <Button type="button" variant="outline" data-testid="button-recheck-identical-form" onClick={() => setRechecking(true)}>
-            Recheck or report a problem
+            Test again
           </Button>
         </div>
       ) : (
@@ -105,7 +124,7 @@ export function QuestionnaireTestResultPanel({
         This records questionnaire functionality—not scoring accuracy or clinical validation.
       </p>
       <p className="text-sm text-slate-600">
-        One recorded pass also covers identical teacher and parent forms in the same language within this case.
+        One recorded pass covers forms with identical content, language, and version across cases.
       </p>
       <div className="space-y-3">
         {CHECKLIST.map(item => (
@@ -131,9 +150,9 @@ export function QuestionnaireTestResultPanel({
       {error && <p role="alert" data-testid="status-test-save-error" className="text-sm text-red-700">{error}</p>}
       {saved && <p role="status" data-testid="status-test-result-saved" className="text-sm font-medium text-emerald-800">
         {coveredCount > 1
-          ? result?.status === "passed"
-            ? `Pass recorded for ${coveredCount} identical forms in this case. You don’t need to check the other copies.`
-            : `Failed result recorded for ${coveredCount} identical forms in this case.`
+          ? savedOutcome === "passed"
+            ? `Pass recorded for ${coveredCount} identical forms ${savedAcrossCases ? "across cases" : "in this case"}. You don’t need to check the other copies.`
+            : `Failed result recorded for ${coveredCount} identical forms ${savedAcrossCases ? "across cases" : "in this case"}.`
           : "Test result saved. It will remain visible after leaving this page."}
       </p>}
       <div className="flex flex-wrap gap-3">
