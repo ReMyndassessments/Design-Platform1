@@ -1,5 +1,6 @@
 import { IntakeQuestionCards, type PortalQuestionRequest } from "@/components/IntakeQuestionCards";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
+import type { PreviewCheck, QuestionnaireTestResult } from "@/lib/form-test-review";
 import { useParams, useLocation } from "wouter";
 import { getGetExternalFormQueryKey, useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,8 @@ export type StaffPreviewForm = {
   questions: Question[];
   alreadySubmitted: false;
   preview: true;
+  testFingerprint?: string;
+  testResult?: QuestionnaireTestResult;
 };
 
 type ReportFile = {
@@ -2750,6 +2753,8 @@ export function FormView({
   previewLoading = false,
   previewError = null,
   previewBackLabel = "Back to case",
+  onPreviewCheck,
+  previewReviewPanel,
 }: {
   activeToken: string;
   language: string;
@@ -2761,6 +2766,8 @@ export function FormView({
   previewLoading?: boolean;
   previewError?: string | null;
   previewBackLabel?: string;
+  onPreviewCheck?: (check: PreviewCheck) => void;
+  previewReviewPanel?: ReactNode;
 }) {
   const liveFormQuery = useGetExternalForm(activeToken, {
     query: {
@@ -2778,6 +2785,12 @@ export function FormView({
   const [submitted, setSubmitted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [previewChecked, setPreviewChecked] = useState(false);
+
+  useEffect(() => {
+    if (!previewMode) return;
+    setPreviewChecked(false);
+    onPreviewCheck?.({ passed: false, language, answers });
+  }, [answers, language, previewMode, onPreviewCheck]);
 
   const setAnswer = (id: string, val: string | string[]) => {
     setAnswers(prev => ({ ...prev, [id]: val }));
@@ -2836,6 +2849,7 @@ export function FormView({
     if (previewMode) {
       setPreviewChecked(true);
       setValidationError(null);
+      onPreviewCheck?.({ passed: true, language, answers });
       return;
     }
     const serialized: Record<string, string> = {};
@@ -2967,7 +2981,9 @@ export function FormView({
     <div className="min-h-screen bg-[#f4f6f9] flex flex-col">
       {previewMode && (
         <div role="status" data-testid="status-staff-dry-run" className="bg-amber-100 border-b border-amber-300 px-4 py-3 text-center text-sm font-semibold text-amber-950">
-          STAFF DRY RUN — test answers stay in this browser only. Nothing will be submitted or saved to the case.
+          {onPreviewCheck
+            ? "STAFF DRY RUN — no clinical response is saved. Recording a pass checks answers transiently; only the test result and review details are stored."
+            : "STAFF DRY RUN — test answers stay in this browser only. Nothing will be submitted or saved to the case."}
         </div>
       )}
       {/* Nav */}
@@ -3094,7 +3110,7 @@ export function FormView({
         )}
         {previewMode && previewChecked && (
           <div role="status" data-testid="status-dry-run-passed" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-            Dry-run validation passed. No answers were sent or saved.
+            Required-answer check passed. No clinical response was saved.
           </div>
         )}
 
@@ -3108,9 +3124,10 @@ export function FormView({
             {previewMode ? "Check form — no response saved" : submitMut.isPending ? "Submitting..." : getSubmitLabel(formType)}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mt-3 font-medium">
-            <Lock size={11} /> {previewMode ? "Review answers remain local and are never submitted." : "Responses are encrypted and kept strictly confidential"}
+            <Lock size={11} /> {previewMode ? onPreviewCheck ? "Test answers are never stored as clinical responses." : "Review answers remain local and are never submitted." : "Responses are encrypted and kept strictly confidential"}
           </p>
         </div>
+        {previewMode && previewReviewPanel}
       </main>
     </div>
   );

@@ -15,6 +15,15 @@ import { buildBatteryReviewState, INTAKE_TOOL_IDS } from "../lib/batteryReview.j
 import type { BatteryApproval } from "../lib/batteryReview.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
 import {
+  buildQuestionnaireTestFingerprint,
+  checklistIsComplete,
+  normalizeQuestionnaireLanguage,
+  toStaffTestResult,
+  validateStaffTestAnswers,
+  type QuestionnaireTestEvidence,
+  type StaffTestChecklist,
+} from "../lib/staffQuestionnaireTests.js";
+import {
   BATTERY_TEST_TOKEN_TTL_SECONDS,
   createBatteryTestToken,
   validateBatteryTestPackage,
@@ -58,6 +67,7 @@ async function getBatteryReview(caseId: string) {
   const [caseRow] = await db.select({
     id: casesTable.id,
     batteryApproval: casesTable.batteryApproval,
+    languagePreference: casesTable.languagePreference,
   }).from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRow) return null;
 
@@ -70,9 +80,40 @@ async function getBatteryReview(caseId: string) {
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     assignedToName: assignmentsTable.assignedToName,
     assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)).then(rows =>
+    rows.map(row => ({ ...row, assignedLanguage: caseRow.languagePreference ?? "english" })),
+  );
 
-  return buildBatteryReviewState(assignments, caseRow.batteryApproval as BatteryApproval | null);
+  const evidence = await readQuestionnaireTestEvidence(caseId);
+  return buildBatteryReviewState(assignments, caseRow.batteryApproval as BatteryApproval | null, evidence);
+}
+
+async function readQuestionnaireTestEvidence(caseId: string): Promise<QuestionnaireTestEvidence[]> {
+  const result = await db.execute(sql`
+    SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
+      tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
+      language, checklist, notes
+    FROM questionnaire_test_evidence
+    WHERE case_id = ${caseId}
+    ORDER BY evidence_order DESC
+  `);
+  return (result.rows ?? []) as unknown as QuestionnaireTestEvidence[];
+}
+
+async function readLatestAssignmentTestEvidence(
+  caseId: string,
+  assignmentId: string,
+): Promise<QuestionnaireTestEvidence | null> {
+  const result = await db.execute(sql`
+    SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
+      tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
+      language, checklist, notes
+    FROM questionnaire_test_evidence
+    WHERE case_id = ${caseId} AND assignment_id = ${assignmentId}
+    ORDER BY evidence_order DESC
+    LIMIT 1
+  `);
+  return (result.rows?.[0] as unknown as QuestionnaireTestEvidence | undefined) ?? null;
 }
 
 router.get("/cases/:caseId/battery-review", authMiddleware, async (req, res): Promise<void> => {
@@ -112,7 +153,8 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     res.status(404).json({ error: "not_found" });
     return;
   }
-  if (INTAKE_TOOL_IDS.has(assignment.toolId)) {
+  if (INTAKE_TOOL_IDS.has(assignment.toolId) ||
+    (assignment.respondentType === "examiner" && ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].includes(assignment.toolId))) {
     res.status(400).json({ error: "not_assessment_form", message: "Staff battery previews are only available for assessment assignments." });
     return;
   }
@@ -129,18 +171,195 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     res.status(404).json({ error: "not_found" });
     return;
   }
+  const currentFingerprint = buildQuestionnaireTestFingerprint({
+    id: assignment.id,
+    toolId: assignment.toolId,
+    respondentType: assignment.respondentType,
+    respondentLabel: assignment.respondentLabel,
+    formItemsSnapshot: assignment.formItemsSnapshot,
+    assignedLanguage: caseRow.languagePreference ?? "english",
+  });
+  const savedEvidence = await readLatestAssignmentTestEvidence(caseId, assignmentId);
   res.json({
     assignmentId: assignment.id,
+    testFingerprint: currentFingerprint,
+    testResult: toStaffTestResult(currentFingerprint, savedEvidence),
     toolId: assignment.toolId,
     formType: "screener",
     toolName: assignment.toolName,
     respondentLabel: assignment.respondentLabel,
     studentName: caseRow.studentName,
-    language: caseRow.languagePreference,
+    language: caseRow.languagePreference ?? "english",
     questions,
     alreadySubmitted: false,
     preview: true,
   });
+});
+
+router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMiddleware, async (req, res): Promise<void> => {
+  if (!mayReviewBattery(req.userRole)) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const caseId = req.params.caseId;
+  const assignmentId = req.params.assignmentId;
+  if (typeof caseId !== "string" || typeof assignmentId !== "string") {
+    res.status(400).json({ error: "invalid_assignment_id" });
+    return;
+  }
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
+  const body = z.object({
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/i),
+    result: z.enum(["passed", "failed"]),
+    language: z.string().trim().min(1).max(40),
+    notes: z.string().max(4000).optional(),
+    checklist: z.object({
+      correctForm: z.boolean(),
+      contentLanguage: z.boolean(),
+      controls: z.boolean(),
+      safeTesting: z.boolean(),
+    }).strict().optional(),
+    answers: z.record(z.string(), z.unknown()).optional(),
+  }).strict().safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "invalid_request", message: "The staff test result is invalid." });
+    return;
+  }
+  const notes = body.data.notes?.trim() || null;
+  if (body.data.result === "failed" && (!notes || notes.length < 10)) {
+    res.status(400).json({ error: "notes_required", message: "A meaningful note of at least 10 characters is required for a failed test." });
+    return;
+  }
+  if (body.data.result === "passed" && !checklistIsComplete(body.data.checklist)) {
+    res.status(400).json({ error: "checklist_incomplete", message: "All four staff-test checklist items must be confirmed before recording a pass." });
+    return;
+  }
+  if (!req.userId) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
+  const outcome = await db.transaction(async tx => {
+    const [caseRow] = await tx.select({
+      id: casesTable.id,
+      languagePreference: casesTable.languagePreference,
+    }).from(casesTable).where(eq(casesTable.id, caseId)).for("update").limit(1);
+    if (!caseRow) return { kind: "not_found" as const };
+
+    const [assignment] = await tx.select({
+      id: assignmentsTable.id,
+      toolId: assignmentsTable.toolId,
+      respondentType: assignmentsTable.respondentType,
+      respondentLabel: assignmentsTable.respondentLabel,
+      formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+    }).from(assignmentsTable).where(and(
+      eq(assignmentsTable.id, assignmentId),
+      eq(assignmentsTable.caseId, caseId),
+    )).for("update").limit(1);
+    if (!assignment) return { kind: "not_found" as const };
+    if (INTAKE_TOOL_IDS.has(assignment.toolId) ||
+      (assignment.respondentType === "examiner" && ["RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"].includes(assignment.toolId))) {
+      return { kind: "not_questionnaire" as const };
+    }
+
+    const assignedLanguage = caseRow.languagePreference ?? "english";
+    const testFingerprint = buildQuestionnaireTestFingerprint({
+      id: assignment.id,
+      toolId: assignment.toolId,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel,
+      formItemsSnapshot: assignment.formItemsSnapshot,
+      assignedLanguage,
+    });
+    if (body.data.fingerprint !== testFingerprint) {
+      return { kind: "stale" as const, testFingerprint };
+    }
+    if (body.data.result === "passed") {
+      if (normalizeQuestionnaireLanguage(body.data.language) !== normalizeQuestionnaireLanguage(assignedLanguage)) {
+        return { kind: "language_mismatch" as const };
+      }
+      const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+      if (!questions) return { kind: "missing_snapshot" as const };
+      const validation = validateStaffTestAnswers(questions, body.data.answers ?? {}, assignment.toolId);
+      if (!validation.valid) {
+        return { kind: "answers_incomplete" as const };
+      }
+    }
+
+    const [tester] = await tx.select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (!tester || !tester.name.trim()) return { kind: "tester_not_found" as const };
+
+    const evidenceId = nanoid();
+    const testedAt = new Date();
+    const checklist = body.data.checklist ?? null;
+    await tx.execute(sql`
+      INSERT INTO questionnaire_test_evidence (
+        id, case_id, assignment_id, tester_id, tester_name, tested_at,
+        fingerprint, result, language, checklist, notes
+      ) VALUES (
+        ${evidenceId}, ${caseId}, ${assignment.id}, ${tester.id}, ${tester.name},
+        ${testedAt}, ${testFingerprint}, ${body.data.result}, ${body.data.language},
+        ${checklist ? JSON.stringify(checklist) : null}::jsonb, ${notes}
+      )
+    `);
+    const evidence: QuestionnaireTestEvidence = {
+      id: evidenceId,
+      assignmentId: assignment.id,
+      testerId: tester.id,
+      testerName: tester.name,
+      testedAt,
+      fingerprint: testFingerprint,
+      result: body.data.result,
+      language: body.data.language,
+      checklist,
+      notes,
+    };
+    return { kind: "saved" as const, testFingerprint, testResult: toStaffTestResult(testFingerprint, evidence), result: body.data.result };
+  });
+
+  if (outcome.kind === "not_found") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (outcome.kind === "not_questionnaire") {
+    res.status(400).json({ error: "not_assessment_form", message: "Staff test results are only available for questionnaire assignments." });
+    return;
+  }
+  if (outcome.kind === "stale") {
+    res.status(409).json({ error: "stale_test_fingerprint", message: "The assigned form or case language changed. Refresh the preview before recording a test result.", testFingerprint: outcome.testFingerprint });
+    return;
+  }
+  if (outcome.kind === "language_mismatch") {
+    res.status(400).json({ error: "language_mismatch", message: "A passing test must use the assigned case language." });
+    return;
+  }
+  if (outcome.kind === "missing_snapshot") {
+    res.status(409).json({ error: "missing_snapshot", message: "This assignment has no valid frozen form snapshot." });
+    return;
+  }
+  if (outcome.kind === "answers_incomplete") {
+    res.status(422).json({ error: "test_validation_failed", message: "Complete all required visible questions and resolve any consent blockers before recording a passing test." });
+    return;
+  }
+  if (outcome.kind === "tester_not_found") {
+    res.status(401).json({ error: "unauthorized", message: "The authenticated tester could not be verified." });
+    return;
+  }
+
+  void writeAudit({
+    eventType: "assessment.questionnaire_staff_test_recorded",
+    caseId,
+    assignmentId,
+    actorId: req.userId,
+    actorRole: req.userRole ?? null,
+    metadata: { result: outcome.result, fingerprint: outcome.testFingerprint },
+  });
+  res.json({ testFingerprint: outcome.testFingerprint, testResult: outcome.testResult });
 });
 
 router.post("/cases/:caseId/battery-test-email", authMiddleware, async (req, res): Promise<void> => {
@@ -297,45 +516,84 @@ router.post("/cases/:caseId/battery-review/approve", authMiddleware, async (req,
     res.status(400).json({ error: "invalid_case_id" });
     return;
   }
-  const state = await getBatteryReview(caseId);
-  if (!state) {
-    res.status(404).json({ error: "not_found" });
-    return;
-  }
-  if (state.fingerprint !== body.data.fingerprint) {
-    res.status(409).json({ error: "battery_changed", message: "The assessment battery changed during review. Refresh and review the current forms.", ...state });
-    return;
-  }
-  const blockingIssues = state.issues.filter(issue =>
-    !issue.startsWith("Assessment assignments changed after approval."),
-  );
-  if (blockingIssues.length > 0) {
-    res.status(409).json({ error: "review_issues", message: "Resolve the listed assessment battery issues before approval.", ...state });
-    return;
-  }
   if (!req.userId) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-  const approval = {
-    fingerprint: state.fingerprint,
-    approvedAt: new Date().toISOString(),
-    approvedBy: req.userId,
-  };
-  await db.update(casesTable).set({ batteryApproval: approval }).where(eq(casesTable.id, caseId));
+  const approvalResult = await db.transaction(async tx => {
+    const [caseRow] = await tx.select({
+      id: casesTable.id,
+      batteryApproval: casesTable.batteryApproval,
+      languagePreference: casesTable.languagePreference,
+    }).from(casesTable).where(eq(casesTable.id, caseId)).for("update").limit(1);
+    if (!caseRow) return { kind: "not_found" as const };
+    const assignmentRows = await tx.select({
+      id: assignmentsTable.id,
+      toolId: assignmentsTable.toolId,
+      respondentLabel: assignmentsTable.respondentLabel,
+      respondentType: assignmentsTable.respondentType,
+      uniqueLink: assignmentsTable.uniqueLink,
+      formItemsSnapshot: assignmentsTable.formItemsSnapshot,
+      assignedToName: assignmentsTable.assignedToName,
+      assignedToEmail: assignmentsTable.assignedToEmail,
+    }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)).for("update");
+    const assignments = assignmentRows.map(row => ({
+      ...row,
+      assignedLanguage: caseRow.languagePreference ?? "english",
+    }));
+    const testEvidenceResult = await tx.execute(sql`
+      SELECT id, evidence_order AS "evidenceOrder", assignment_id AS "assignmentId", tester_id AS "testerId",
+        tester_name AS "testerName", tested_at AS "testedAt", fingerprint, result,
+        language, checklist, notes
+      FROM questionnaire_test_evidence
+      WHERE case_id = ${caseId}
+      ORDER BY evidence_order DESC
+    `);
+    const testEvidence = (testEvidenceResult.rows ?? []) as unknown as QuestionnaireTestEvidence[];
+    const state = buildBatteryReviewState(
+      assignments,
+      caseRow.batteryApproval as BatteryApproval | null,
+      testEvidence,
+    );
+    if (state.fingerprint !== body.data.fingerprint) {
+      return { kind: "stale" as const, state };
+    }
+    const blockingIssues = state.issues.filter(issue =>
+      !issue.startsWith("Assessment assignments changed after approval."),
+    );
+    if (blockingIssues.length > 0) return { kind: "issues" as const, state };
+
+    const approval = {
+      fingerprint: state.fingerprint,
+      approvedAt: new Date().toISOString(),
+      approvedBy: req.userId!,
+    };
+    await tx.update(casesTable).set({ batteryApproval: approval }).where(eq(casesTable.id, caseId));
+    return {
+      kind: "approved" as const,
+      state: buildBatteryReviewState(assignments, approval, testEvidence),
+    };
+  });
+  if (approvalResult.kind === "not_found") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (approvalResult.kind === "stale") {
+    res.status(409).json({ error: "battery_changed", message: "The assessment battery changed during review. Refresh and review the current forms.", ...approvalResult.state });
+    return;
+  }
+  if (approvalResult.kind === "issues") {
+    res.status(409).json({ error: "review_issues", message: "Resolve the listed assessment battery issues before approval.", ...approvalResult.state });
+    return;
+  }
   void writeAudit({
     eventType: "assessment_battery.review_approved",
     caseId,
     actorId: req.userId,
     actorRole: req.userRole ?? null,
-    metadata: { fingerprint: state.fingerprint, assignmentCount: state.assignmentCount },
+    metadata: { fingerprint: approvalResult.state.fingerprint, assignmentCount: approvalResult.state.assignmentCount },
   });
-  const updatedState = await getBatteryReview(caseId);
-  if (!updatedState) {
-    res.status(404).json({ error: "not_found" });
-    return;
-  }
-  res.json(updatedState);
+  res.json(approvalResult.state);
 });
 
 // Staff-confirmed parent consolidation: one shared entry link while per-form
@@ -427,8 +685,13 @@ router.post("/cases/:caseId/assignments/consolidate-parent", authMiddleware, asy
 
 router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const { toolId, respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const caseId = req.params.caseId;
+  if (typeof caseId !== "string") {
+    res.status(400).json({ error: "invalid_case_id" });
+    return;
+  }
 
-  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
+  const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRows[0]) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -449,40 +712,49 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
   const uniqueLink = `${baseUrl}/external/${token}`;
 
-  const assignment = await db.insert(assignmentsTable).values({
-    id: nanoid(),
-    caseId: req.params.caseId,
-    toolId,
-    toolName: req.body.toolName ?? toolId,
-    respondentType,
-    respondentLabel,
-    assignedToName,
-    assignedToEmail,
-    uniqueToken: token,
-    uniqueLink,
-    qrCodeData: uniqueLink,
-    status: "not_started",
-    dueDate: dueDate ? new Date(dueDate) : null,
-  }).returning();
+  const assignment = await db.transaction(async tx => {
+    // Serialize battery membership changes with approval and staff-test writes.
+    const [lockedCase] = await tx.select({ id: casesTable.id }).from(casesTable)
+      .where(eq(casesTable.id, caseId)).for("update").limit(1);
+    if (!lockedCase) return [];
+    const created = await tx.insert(assignmentsTable).values({
+      id: nanoid(),
+      caseId,
+      toolId,
+      toolName: req.body.toolName ?? toolId,
+      respondentType,
+      respondentLabel,
+      assignedToName,
+      assignedToEmail,
+      uniqueToken: token,
+      uniqueLink,
+      qrCodeData: uniqueLink,
+      status: "not_started",
+      dueDate: dueDate ? new Date(dueDate) : null,
+    }).returning();
 
-  // Freeze the library's exact formItems + version into the assignment row
-  try {
-    const toolRes = await db.execute(sql`SELECT version_id, form_items FROM assessment_tools WHERE id = ${toolId}`);
+    // Freeze the library's exact formItems + version into the assignment row.
+    const toolRes = await tx.execute(sql`SELECT version_id, form_items FROM assessment_tools WHERE id = ${toolId}`);
     const toolRow = toolRes.rows?.[0] as any;
     const toolVersionId = toolRow?.version_id ?? null;
     const formItemsSnapshot = toolRow?.form_items ? JSON.stringify(toolRow.form_items) : null;
-    if (assignment[0]) {
-      await db.execute(sql`
+    if (created[0]) {
+      await tx.execute(sql`
         UPDATE assignments
         SET tool_version_id = ${toolVersionId}, form_items_snapshot = ${formItemsSnapshot}
-        WHERE id = ${assignment[0].id}
+        WHERE id = ${created[0].id}
       `);
     }
-  } catch { /* columns may not exist on first boot before migrations run */ }
+    return created;
+  });
+  if (!assignment[0]) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
 
   void writeAudit({
     eventType: "assignment.created",
-    caseId: req.params.caseId,
+    caseId,
     assignmentId: assignment[0]?.id,
     toolId,
     actorId: req.userId ?? null,

@@ -3,6 +3,12 @@ name: RAOS battery review policy
 description: Approval authority and safe internal testing of assigned assessment forms
 ---
 
+Require explicit current passes for every questionnaire before admin approval. Opening a preview is not evidence of testing. The pass covers required-answer validation and a human checklist, not scoring accuracy or clinical validity. Test answers may be validated transiently but must not become clinical responses.
+
+**Why:** The user approved persistent per-form test results and agreed that current passes should be mandatory for admin approval, not optional indicators.
+
+**How to apply:** Later failures override prior passes, and changed form scope requires retesting. Unauthenticated emailed previews cannot certify a staff test. Previously sent respondent links must remain usable when staff approval is no longer current.
+
 Only an administrator signs off the assessment battery before new recipient emails are sent. Administrators and psychometricians can inspect and interactively test snapshot-based questionnaires without saving answers as clinical responses. Some assigned examiner assessments use separate operational workflows rather than standard questionnaire items; these are not safely tested in the generic staff dry run. The administrator may send a separate, short-lived, test-only questionnaire package link to any email address (no RAOS account required), but that route must never submit responses or mutate respondent assignments or live links. A changed battery needs fresh admin approval.
 
 **Why:** The user wants a deliberate accuracy/function check before forms reach parents or teachers and clarified “Admin only” when asked who should approve. They rejected account-bound invites in favor of entering any email address. On a live mixed battery, generic snapshot validation mistakenly counted examiner workflows as missing questionnaires; the user explicitly corrected the inference that those assessments had no content. Examiner operational pages can autosave, so opening them is not a safe dry run.

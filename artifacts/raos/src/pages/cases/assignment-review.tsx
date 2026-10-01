@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useGetCurrentUser } from "@workspace/api-client-react";
 import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormView, type StaffPreviewForm } from "@/pages/external/[token]";
+import { QuestionnaireTestResultPanel } from "@/components/QuestionnaireTestResultPanel";
+import { normalizeTestLanguage, type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
 
 type StaffPreviewError = Error & { status?: number };
 
@@ -14,6 +16,9 @@ export default function AssignmentReviewPreviewPage() {
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const canReview = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
   const [language, setLanguage] = useState("");
+  const [validation, setValidation] = useState<PreviewCheck | null>(null);
+  const [savedResult, setSavedResult] = useState<QuestionnaireTestResult | undefined>();
+  const onPreviewCheck = useCallback((check: PreviewCheck) => setValidation(check), []);
   const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   const previewQuery = useQuery<StaffPreviewForm, StaffPreviewError>({
@@ -37,8 +42,14 @@ export default function AssignmentReviewPreviewPage() {
   });
 
   useEffect(() => {
-    setLanguage(previewQuery.data?.language ?? "");
+    setLanguage(normalizeTestLanguage(previewQuery.data?.language ?? "english"));
+    setSavedResult(undefined);
+    setValidation(null);
   }, [assignmentId, previewQuery.data?.language]);
+
+  useEffect(() => {
+    setSavedResult(previewQuery.data?.testResult);
+  }, [previewQuery.data]);
 
   const goBack = () => setLocation(`/cases/${caseId}`);
 
@@ -84,7 +95,7 @@ export default function AssignmentReviewPreviewPage() {
 
   return (
     <FormView
-      key={assignmentId}
+      key={`${assignmentId}:${previewQuery.data.testFingerprint ?? ""}`}
       activeToken=""
       language={language || previewQuery.data.language || "english"}
       setLanguage={setLanguage}
@@ -93,6 +104,22 @@ export default function AssignmentReviewPreviewPage() {
       previewMode
       previewForm={previewQuery.data}
       previewError={previewQuery.error?.message}
+      onPreviewCheck={onPreviewCheck}
+      previewReviewPanel={previewQuery.data.testFingerprint && caseId && assignmentId ? (
+        <QuestionnaireTestResultPanel
+          key={`${previewQuery.data.testFingerprint}:${language}`}
+          caseId={caseId}
+          assignmentId={assignmentId}
+          fingerprint={previewQuery.data.testFingerprint}
+          assignedLanguage={previewQuery.data.language || "english"}
+          validation={validation}
+          result={savedResult}
+          onSaved={setSavedResult}
+          onStale={() => { setValidation(null); void previewQuery.refetch(); }}
+        />
+      ) : (
+        <p role="alert" className="mt-6 text-sm text-red-700">Test recording is unavailable because the current form version could not be verified. Refresh the page.</p>
+      )}
     />
   );
 }

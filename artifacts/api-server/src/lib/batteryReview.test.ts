@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildBatteryReviewState, isValidSnapshot } from "./batteryReview.ts";
 import { questionsFromAssignmentSnapshot } from "./assignmentSnapshotQuestions.ts";
+import { buildQuestionnaireTestFingerprint, type QuestionnaireTestEvidence } from "./staffQuestionnaireTests.ts";
 
 const snapshot = JSON.stringify([
   { id: "q1", text: "How often?", type: "radio", options: ["Never", "Often"] },
@@ -16,6 +17,28 @@ const assessment = {
   assignedToName: null,
   assignedToEmail: null,
 };
+
+function passingEvidence(assignment = assessment, id = "evidence-1"): QuestionnaireTestEvidence {
+  return {
+    id,
+    assignmentId: assignment.id,
+    testerId: "tester-1",
+    testerName: "Case Reviewer",
+    testedAt: "2026-01-02T03:04:05.000Z",
+    fingerprint: buildQuestionnaireTestFingerprint({
+      id: assignment.id,
+      toolId: assignment.toolId,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel,
+      formItemsSnapshot: assignment.formItemsSnapshot,
+      assignedLanguage: "english",
+    }),
+    result: "passed",
+    language: "en",
+    checklist: { correctForm: true, contentLanguage: true, controls: true, safeTesting: true },
+    notes: null,
+  };
+}
 
 test("battery fingerprints are stable and exclude intake and recipient metadata", () => {
   const first = buildBatteryReviewState([assessment], null);
@@ -33,14 +56,21 @@ test("battery fingerprints are stable and exclude intake and recipient metadata"
   assert.equal(first.assignmentCount, 1);
 });
 
-test("only a matching admin approval marks a clean battery approved", () => {
-  const current = buildBatteryReviewState([assessment], null);
+test("only a matching admin approval with current questionnaire tests marks a clean battery approved", () => {
+  const untested = buildBatteryReviewState([assessment], null);
+  assert.equal(untested.approved, false);
+  assert.equal(untested.questionnaireCount, 1);
+  assert.equal(untested.passedCount, 0);
+  assert.equal(untested.testResults[assessment.id]?.status, "not_tested");
+  const evidence = [passingEvidence()];
+  const current = buildBatteryReviewState([assessment], null, evidence);
   const approved = buildBatteryReviewState([assessment], {
     fingerprint: current.fingerprint,
     approvedAt: "2026-01-02T03:04:05.000Z",
     approvedBy: "admin-id",
-  });
+  }, evidence);
   assert.equal(approved.approved, true);
+  assert.equal(approved.passedCount, 1);
   assert.deepEqual(approved.approval, {
     approvedAt: "2026-01-02T03:04:05.000Z",
     approvedBy: "admin-id",
@@ -49,10 +79,81 @@ test("only a matching admin approval marks a clean battery approved", () => {
     fingerprint: current.fingerprint,
     approvedAt: "2026-01-02T03:04:05.000Z",
     approvedBy: "admin-id",
-  });
+  }, evidence);
   assert.equal(changed.approved, false);
   assert.equal(changed.approval, null);
   assert.ok(changed.issues.some(issue => issue.includes("changed after approval")));
+});
+
+test("the newest failed or stale evidence invalidates an earlier pass and battery approval", () => {
+  const passed = passingEvidence();
+  const passingState = buildBatteryReviewState([assessment], null, [passed]);
+  const savedApproval = {
+    fingerprint: passingState.fingerprint,
+    approvedAt: "2026-01-02T03:04:05.000Z",
+    approvedBy: "admin-id",
+  };
+  const newestFailure = {
+    ...passed,
+    id: "evidence-2",
+    result: "failed" as const,
+    notes: "The controls label is unclear",
+    testedAt: "2026-01-03T03:04:05.000Z",
+  };
+  const failedState = buildBatteryReviewState([assessment], savedApproval, [passed, newestFailure]);
+  assert.equal(failedState.testResults[assessment.id]?.status, "failed");
+  assert.equal(failedState.passedCount, 0);
+  assert.equal(failedState.approved, false);
+  assert.notEqual(failedState.fingerprint, passingState.fingerprint);
+
+  const changedAssignment = { ...assessment, formItemsSnapshot: `${snapshot} ` };
+  const staleState = buildBatteryReviewState([changedAssignment], null, [passed]);
+  assert.equal(staleState.testResults[assessment.id]?.status, "retest_required");
+  assert.equal(staleState.passedCount, 0);
+
+  const languageState = buildBatteryReviewState([{ ...assessment, assignedLanguage: "english" }], null, [passed]);
+  const changedLanguage = buildBatteryReviewState([{ ...assessment, assignedLanguage: "korean" }], {
+    fingerprint: languageState.fingerprint,
+    approvedAt: savedApproval.approvedAt,
+    approvedBy: savedApproval.approvedBy,
+  }, [passed]);
+  assert.equal(changedLanguage.testResults[assessment.id]?.status, "retest_required");
+  assert.notEqual(changedLanguage.fingerprint, languageState.fingerprint);
+  assert.equal(changedLanguage.approved, false);
+});
+
+test("string BIGSERIAL order makes every newer failure invalidate the current approval", () => {
+  for (const [passOrder, failureOrder] of [
+    ["9", "10"],
+    ["99", "100"],
+    ["9007199254740993", "9007199254740994"],
+  ]) {
+    const previousPass = {
+      ...passingEvidence(),
+      id: `pass-${passOrder}`,
+      evidenceOrder: passOrder,
+      testedAt: "2026-04-12T09:00:00.000Z",
+    };
+    const passingState = buildBatteryReviewState([assessment], null, [previousPass]);
+    const approvedBattery = {
+      fingerprint: passingState.fingerprint,
+      approvedAt: "2026-04-12T10:00:00.000Z",
+      approvedBy: "admin-id",
+    };
+    const latestFailure = {
+      ...previousPass,
+      id: `fail-${failureOrder}`,
+      evidenceOrder: failureOrder,
+      result: "failed" as const,
+      notes: "The tested controls do not work.",
+      testedAt: "2026-04-11T09:00:00.000Z",
+    };
+    const state = buildBatteryReviewState([assessment], approvedBattery, [previousPass, latestFailure]);
+    assert.equal(state.testResults[assessment.id]?.status, "failed", `${passOrder} -> ${failureOrder}`);
+    assert.equal(state.passedCount, 0, `${passOrder} -> ${failureOrder}`);
+    assert.equal(state.approved, false, `${passOrder} -> ${failureOrder}`);
+    assert.notEqual(state.fingerprint, passingState.fingerprint, `${passOrder} -> ${failureOrder}`);
+  }
 });
 
 test("duplicate recipient forms, split unnamed parent packages, and missing snapshots block approval", () => {
@@ -84,12 +185,15 @@ test("specialized examiner workflows do not require questionnaire snapshots, but
   const state = buildBatteryReviewState([assessment, ...examinerTools], null);
   assert.equal(state.assignmentCount, 7);
   assert.equal(state.missingSnapshots, 0);
-  assert.deepEqual(state.issues, []);
+  assert.ok(state.issues.some(issue => issue.includes("staff test")));
+  const currentEvidence = [passingEvidence()];
+  const ready = buildBatteryReviewState([assessment, ...examinerTools], null, currentEvidence);
+  assert.deepEqual(ready.issues, []);
   assert.equal(buildBatteryReviewState([assessment, ...examinerTools], {
-    fingerprint: state.fingerprint,
+    fingerprint: ready.fingerprint,
     approvedAt: "2026-01-02T03:04:05.000Z",
     approvedBy: "admin-id",
-  }).approved, true);
+  }, currentEvidence).approved, true);
 
   const missingTeacher = { ...assessment, id: "teacher-missing", respondentType: "teacher1", respondentLabel: "Teacher 1", formItemsSnapshot: null };
   const withMissingTeacher = buildBatteryReviewState([assessment, ...examinerTools, missingTeacher], null);

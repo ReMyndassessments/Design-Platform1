@@ -39,6 +39,8 @@ import { IntakeFollowUp } from "@/components/IntakeFollowUp";
 import { InvigilatorNotetakerPanel } from "@/components/InvigilatorNotetakerPanel";
 import { useWatchAlong } from "@/hooks/use-watch-along";
 import { GuidedTour } from "@/components/guided-tour";
+import { QuestionnaireTestStatus } from "@/components/QuestionnaireTestStatus";
+import type { QuestionnaireTestResult } from "@/lib/form-test-review";
 
 const PHASES = [
   "intake", "assessment", "scoring", "report", "final_review", "debrief", "complete"
@@ -70,6 +72,9 @@ type BatteryReviewStatus = {
   missingSnapshots: number;
   issues: string[];
   fingerprint: string;
+  questionnaireCount: number;
+  passedCount: number;
+  testResults: Record<string, QuestionnaireTestResult>;
 };
 const BATTERY_STALE_APPROVAL_ISSUE_PREFIX = "Assessment assignments changed after approval.";
 const hasBlockingBatteryReviewIssues = (issues: string[]) =>
@@ -187,6 +192,7 @@ export default function CaseDetail() {
     enabled: Boolean(caseId && currentUser),
     staleTime: 0,
     refetchOnMount: "always",
+    refetchInterval: 30000,
     queryFn: async () => {
       const response = await fetch(`${BASE_URL}/api/cases/${encodeURIComponent(caseId)}/battery-review`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
@@ -2838,7 +2844,7 @@ export default function CaseDetail() {
                 )}
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Test the assigned questionnaires below. Test answers remain in your browser. Examiner assessments have their own task workflows and are not tested by this questionnaire review.
+                Test each assigned questionnaire and record its result. Every questionnaire needs a current pass before admin approval. Test answers are not stored; only review details are saved. Examiner assessments have separate workflows and are not tested here.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2893,6 +2899,7 @@ export default function CaseDetail() {
                               {(RESPONDENT_TYPE_LABELS[assignment.respondentType] ?? assignment.respondentType)}
                               {assignment.respondentLabel ? ` · ${assignment.respondentLabel}` : ""}
                             </p>
+                            <QuestionnaireTestStatus result={batteryReviewQuery.data?.testResults?.[assignment.id]} />
                           </div>
                           <Link href={`/cases/${caseId}/assignments/${assignment.id}/review`}>
                             <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-violet-300 text-violet-800 hover:bg-violet-50" data-testid={`button-test-form-${assignment.id}`}>
@@ -2922,7 +2929,7 @@ export default function CaseDetail() {
                   {currentUser?.role === "admin" && (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-slate-500">
-                          {batteryReviewQuery.data.assignmentCount - separateExaminerCount} questionnaire{batteryReviewQuery.data.assignmentCount - separateExaminerCount === 1 ? "" : "s"} checked for sending; {separateExaminerCount} examiner assessment{separateExaminerCount === 1 ? "" : "s"} shown separately and not tested here.
+                          {batteryReviewQuery.data.passedCount ?? 0} / {batteryReviewQuery.data.questionnaireCount ?? batteryReviewQuery.data.assignmentCount - separateExaminerCount} questionnaires have a current test pass. {separateExaminerCount} examiner assessment{separateExaminerCount === 1 ? "" : "s"} shown separately and not tested here.
                       </p>
                       <Button
                         onClick={handleApproveBattery}
