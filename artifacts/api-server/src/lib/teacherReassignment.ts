@@ -25,11 +25,11 @@ export function sameTeacherPackage(left: ReassignmentTarget, right: Reassignment
       left.respondentType === right.respondentType && left.respondentLabel === right.respondentLabel;
 }
 
-/** Require the entire currently active package; stale/partial selections never
- * revoke some links while accidentally leaving other forms with the old teacher.
+/** Update contact details consistently across the current teacher package.
+ * Reject stale, partial or cross-recipient selections without changing anything.
  */
-export function validateTeacherReassignment(
-  rows: readonly ReassignmentTarget[], selectedIds: readonly string[], newEmail: string,
+export function validateTeacherContactUpdate(
+  rows: readonly ReassignmentTarget[], selectedIds: readonly string[],
 ): { error: string } | { targets: ReassignmentTarget[] } {
   const selected = new Set(selectedIds);
   if (!selected.size || selected.size !== selectedIds.length) return { error: "invalid_selection" };
@@ -41,13 +41,5 @@ export function validateTeacherReassignment(
   const packageRows = rows.filter(row => isTeacherQuestionnaire(row) && sameTeacherPackage(anchor, row));
   if (targets.some(row => !sameTeacherPackage(anchor, row)) ||
     packageRows.length !== targets.length) return { error: "package_changed" };
-  const normalizedEmail = newEmail.trim().toLowerCase();
-  if (anchor.assignedToEmail?.trim().toLowerCase() === normalizedEmail) {
-    return { error: "same_recipient" };
-  }
-  if (rows.some(row => isTeacherQuestionnaire(row) && !selected.has(row.id) &&
-    row.assignedToEmail?.trim().toLowerCase() === normalizedEmail)) {
-    return { error: "recipient_has_package" };
-  }
   return { targets };
 }

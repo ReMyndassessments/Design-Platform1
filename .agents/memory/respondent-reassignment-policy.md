@@ -1,10 +1,10 @@
 ---
-name: Respondent reassignment evidence policy
-description: Clinical attribution and package boundaries when replacing an assessment respondent.
+name: Teacher contact editing policy
+description: User-required limits on the Change teacher action.
 ---
 
-Treat a different teacher as a new source of clinical evidence, not as a correction to the name or ownership of an existing submission. Reassignment must preserve the original respondent's evidence separately and start the replacement person's questionnaires unanswered.
+The Change teacher action is a contact-detail edit only: update the teacher's name and email on the existing assessment package. It must not require renewed battery approval, replace forms, revoke links, archive submissions or reset answers.
 
-**Why:** The accepted teacher-reassignment promise explicitly preserves historical submissions without moving them into the replacement teacher's answers. Reusing or resetting a submitted package would misattribute clinical evidence.
+**Why:** The user explicitly rejected the earlier secure replacement-package design and clarified that they simply want to change the teacher's name and email. This supersedes the earlier reassignment policy.
 
-**How to apply:** Keep questionnaire content/version unchanged when replacing the recipient, but never carry respondent drafts, session state, scores or answers into the fresh package. Do not use destructive completed-form resets as a substitute for changing the respondent. Scope revocation to that assessment package; independent intake/referral, examiner and report invitations have separate purposes and should not be indiscriminately revoked.
+**How to apply:** Preserve existing assignment identity, tokens, status, submitted answers, scores, snapshots and battery approval when editing teacher contact details. Allow name-only and email-only corrections, including retaining the current email. Do not add automatic email sending or extra approval steps.

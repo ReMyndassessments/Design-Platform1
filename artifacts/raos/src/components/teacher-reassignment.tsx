@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { Link } from "wouter";
 import { Eye, UserRoundCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +28,6 @@ export function TeacherReassignmentAction({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [acknowledgeRevocation, setAcknowledgeRevocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +37,7 @@ export function TeacherReassignmentAction({
 
   const openDialog = () => {
     setName(currentName);
-    setEmail("");
-    setAcknowledgeRevocation(false);
+    setEmail(currentEmails[0] ?? "");
     setError(null);
     setOpen(true);
   };
@@ -54,14 +51,6 @@ export function TeacherReassignmentAction({
     }
     if (!emailPattern.test(recipientEmail)) {
       setError("Enter a valid email address for the new teacher.");
-      return;
-    }
-    if (currentEmails.some(current => current.trim().toLowerCase() === recipientEmail.toLowerCase())) {
-      setError("Enter a different email address from the current teacher.");
-      return;
-    }
-    if (!acknowledgeRevocation) {
-      setError("Confirm the link revocation and response-history details before continuing.");
       return;
     }
     if (submittingRef.current || assignmentIds.length === 0) return;
@@ -80,17 +69,16 @@ export function TeacherReassignmentAction({
           assignmentIds,
           recipientName,
           recipientEmail,
-          acknowledgeRevocation: true,
         }),
       });
       const result = await response.json().catch(() => null) as {
         success?: boolean;
-        reassignedCount?: number;
+        updatedCount?: number;
         message?: string;
         error?: string;
       } | null;
       if (!response.ok || result?.success !== true) {
-        throw new Error(result?.message ?? result?.error ?? "The teacher package could not be reassigned. No changes were made.");
+        throw new Error(result?.message ?? result?.error ?? "The teacher details could not be saved. No changes were made.");
       }
 
       await Promise.all([
@@ -106,12 +94,12 @@ export function TeacherReassignmentAction({
         }),
       ]);
       toast({
-        title: "Teacher package reassigned",
-        description: `${result.reassignedCount ?? assignmentIds.length} form${(result.reassignedCount ?? assignmentIds.length) === 1 ? "" : "s"} assigned to ${recipientName}. Fresh admin review and approval are required before sending.`,
+        title: "Teacher details saved",
+        description: "Name and email updated. Existing forms, answers, links and battery approval are unchanged.",
       });
       setOpen(false);
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "The teacher package could not be reassigned. Please try again.";
+      const message = submitError instanceof Error ? submitError.message : "The teacher details could not be saved. Please try again.";
       setError(message);
       toast({ title: "Could not change teacher", description: message, variant: "destructive" });
     } finally {
@@ -140,21 +128,15 @@ export function TeacherReassignmentAction({
           <DialogHeader>
             <DialogTitle>Change teacher</DialogTitle>
             <DialogDescription>
-              Reassign the {label.toLowerCase()} to a new teacher. The current assessment links will be revoked and the new package will need fresh staff review.
+              Update the teacher’s name and email for the {label.toLowerCase()}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-              <p className="font-semibold">What happens to this package</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
-                <li>Previously sent assessment links are revoked.</li>
-                <li>Existing submissions are kept as staff-only history.</li>
-                <li>The new teacher receives unanswered copies of the selected forms.</li>
-                <li>No email is sent automatically. Staff must complete fresh admin review and approval before using Send Email.</li>
-              </ul>
+              Existing forms, answers, links and battery approval stay unchanged. No email is sent automatically.
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reassignment-name">New teacher name</Label>
+              <Label htmlFor="reassignment-name">Teacher name</Label>
               <Input
                 id="reassignment-name"
                 autoComplete="name"
@@ -166,7 +148,7 @@ export function TeacherReassignmentAction({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reassignment-email">New teacher email</Label>
+              <Label htmlFor="reassignment-email">Teacher email</Label>
               <Input
                 id="reassignment-email"
                 type="email"
@@ -177,17 +159,6 @@ export function TeacherReassignmentAction({
                 placeholder="e.g. jordan@school.edu"
                 required
               />
-            </div>
-            <div className="flex items-start gap-2.5 rounded-md border p-3">
-              <Checkbox
-                id="acknowledge-revocation"
-                checked={acknowledgeRevocation}
-                disabled={submitting}
-                onCheckedChange={checked => setAcknowledgeRevocation(checked === true)}
-              />
-              <Label htmlFor="acknowledge-revocation" className="cursor-pointer text-sm leading-5 text-slate-700">
-                I confirm that previously sent links will be revoked and existing submissions will remain available only as staff history.
-              </Label>
             </div>
             {error && (
               <p role="alert" data-testid="status-teacher-reassignment-error" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -200,10 +171,10 @@ export function TeacherReassignmentAction({
               </Button>
               <Button
                 className="flex-1"
-                disabled={submitting || !acknowledgeRevocation}
+                disabled={submitting}
                 onClick={() => void handleSubmit()}
               >
-                {submitting ? "Changing teacher…" : "Change teacher"}
+                {submitting ? "Saving…" : "Save changes"}
               </Button>
             </div>
           </div>
