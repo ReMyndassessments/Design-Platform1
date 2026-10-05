@@ -11,6 +11,7 @@ import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
 import { canAssignObservation, visibleObservationAssignments } from "../lib/observationAssignment.js";
+import { withBehavobsDetails } from "../lib/behavobsDetails.js";
 import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/parentPackageConsolidation.js";
 import { buildBatteryReviewState, INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
@@ -156,7 +157,8 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     res.status(400).json({ error: "not_assessment_form", message: "Staff battery previews are only available for assessment assignments." });
     return;
   }
-  const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+  const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+  const questions = snapshotQuestions ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
   if (!questions) {
     res.status(409).json({ error: "missing_snapshot", message: "This assignment has no valid frozen form snapshot and cannot be safely previewed." });
     return;
@@ -295,7 +297,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       if (normalizeQuestionnaireLanguage(body.data.language) !== normalizeQuestionnaireLanguage(assignedLanguage)) {
         return { kind: "language_mismatch" as const };
       }
-      const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+      const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+      const questions = snapshotQuestions ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
       if (!questions) return { kind: "missing_snapshot" as const };
       const validation = validateStaffTestAnswers(questions, body.data.answers ?? {}, assignment.toolId);
       if (!validation.valid) {
@@ -924,6 +927,10 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
           required: item.required ?? true,
         }))
       : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+  }
+
+  if (Object.hasOwn(responseRows[0].answers ?? {}, "q24_details")) {
+    questions = withBehavobsDetails(questions, assignment.toolId);
   }
 
   let bascCorrectionApplied = false;

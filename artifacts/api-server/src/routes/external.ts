@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { canAssignObservation } from "../lib/observationAssignment.js";
+import { withBehavobsDetails } from "../lib/behavobsDetails.js";
 import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
 import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, intakeQuestionRequestsTable } from "@workspace/db/schema";
@@ -193,7 +194,8 @@ router.get("/external/battery-test/forms/:assignmentId", async (req, res): Promi
   }
 
   const assignment = context.assignments.find(form => form.id === assignmentId);
-  const questions = assignment ? questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) : null;
+  const snapshotQuestions = assignment ? questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) : null;
+  const questions = snapshotQuestions && assignment ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
   if (!assignment || !questions) {
     res.status(410).json({ error: "test_link_expired", message: "This form is not part of the active assessment test package." });
     return;
@@ -368,6 +370,7 @@ type StoredFormItem = {
   noteKorean?: string;
   links?: Array<{ text: string; url: string }>;
   conditionalOn?: string;
+  conditionalValue?: string;
   conditionalType?: string;
 };
 
@@ -396,6 +399,7 @@ async function resolveQuestions(toolId: string): Promise<FormQuestion[]> {
       noteKorean: item.noteKorean,
       links: item.links,
       conditionalOn: item.conditionalOn,
+      conditionalValue: item.conditionalValue,
       conditionalType: item.conditionalType,
     }));
   }
@@ -1081,6 +1085,9 @@ router.get("/external/form/:token", async (req, res) => {
   const snapRow = await db.execute(sql`SELECT form_items_snapshot FROM assignments WHERE id = ${assignment.id}`);
   const snapshotJson = (snapRow.rows?.[0] as any)?.form_items_snapshot ?? null;
   questions = questionsFromAssignmentSnapshot(snapshotJson) ?? await resolveQuestions(toolId);
+  if (!alreadySubmitted || Object.hasOwn(responseRows[0]?.answers ?? {}, "q24_details")) {
+    questions = withBehavobsDetails(questions, toolId);
+  }
 
   if (!alreadySubmitted) {
     void writeAudit({
