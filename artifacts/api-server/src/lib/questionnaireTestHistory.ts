@@ -4,6 +4,7 @@ import { INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "./batteryRevie
 import {
   buildQuestionnaireTestFingerprint,
   buildQuestionnaireTestFormKey,
+  buildLegacyQuestionnaireTestFormKey,
   type QuestionnaireTestAssignment,
   type QuestionnaireTestEvidence,
 } from "./staffQuestionnaireTests.js";
@@ -23,8 +24,19 @@ export function eligibleQuestionnaire(assignment: { toolId: string; respondentTy
  * when the source still proves the exact assignment-specific fingerprint.
  * Other-case recipient labels, notes, and case identities stay server-side.
  */
-export function reusableQuestionnaireEvidence(row: HistoryRow, caseId: string): QuestionnaireTestEvidence {
+export function reusableQuestionnaireEvidence(
+  row: HistoryRow,
+  caseId: string,
+  legacyKeys: ReadonlyMap<string, string> = new Map(),
+): QuestionnaireTestEvidence {
   let formKey = row.checklist?.formKey;
+  if (formKey) {
+    const source = row.sourceAssignment;
+    formKey = legacyKeys.get(formKey) ??
+      (source && eligibleQuestionnaire(source) && formKey === buildLegacyQuestionnaireTestFormKey(source)
+        ? buildQuestionnaireTestFormKey(source)
+        : formKey);
+  }
   if (!formKey || !/^[a-f0-9]{64}$/.test(formKey)) {
     const source = row.sourceAssignment;
     formKey = source && eligibleQuestionnaire(source) &&
@@ -47,7 +59,19 @@ export async function readQuestionnaireTestHistory(
   reader: EvidenceReader = db,
 ): Promise<QuestionnaireTestEvidence[]> {
   const eligible = assignments.filter(eligibleQuestionnaire);
-  const keys = [...new Set(eligible.map(buildQuestionnaireTestFormKey).filter((key): key is string => Boolean(key)))];
+  const legacyKeys = new Map<string, string>();
+  for (const assignment of eligible) {
+    const formKey = buildQuestionnaireTestFormKey(assignment);
+    if (!formKey) continue;
+    for (const language of ["english", "mandarin", "korean", assignment.assignedLanguage]) {
+      const legacyKey = buildLegacyQuestionnaireTestFormKey({ ...assignment, assignedLanguage: language });
+      if (legacyKey) legacyKeys.set(legacyKey, formKey);
+    }
+  }
+  const keys = [...new Set([
+    ...eligible.map(buildQuestionnaireTestFormKey).filter((key): key is string => Boolean(key)),
+    ...legacyKeys.keys(),
+  ])];
   const toolIds = [...new Set(eligible.map(row => row.toolId))];
   const matchingStoredKeys = keys.length
     ? sql`e.checklist->>'formKey' IN (${sql.join(keys.map(key => sql`${key}`), sql`, `)})`
@@ -73,7 +97,7 @@ export async function readQuestionnaireTestHistory(
     ORDER BY e.evidence_order DESC
   `);
   return ((result.rows ?? []) as unknown as HistoryRow[])
-    .map(row => reusableQuestionnaireEvidence(row, caseId));
+    .map(row => reusableQuestionnaireEvidence(row, caseId, legacyKeys));
 }
 
 // A shared form can be rechecked in one case while another is being approved.

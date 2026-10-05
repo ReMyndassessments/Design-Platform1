@@ -25,6 +25,21 @@ export function normalizeTestLanguage(language: string): string {
   return value;
 }
 
+export function questionnairePassBlockers(
+  validation: PreviewCheck | null,
+  _assignedLanguage: string,
+  remainingConfirmations: number,
+): string[] {
+  const blockers: string[] = [];
+  if (!validation?.passed) {
+    blockers.push('Click “Check form — no response saved” above. Complete any required fields it identifies, then check again.');
+  }
+  if (remainingConfirmations > 0) {
+    blockers.push(`Tick the ${remainingConfirmations} remaining review confirmation${remainingConfirmations === 1 ? "" : "s"}.`);
+  }
+  return blockers;
+}
+
 export const TEST_STATUS_LABELS: Record<QuestionnaireTestResult["status"], string> = {
   not_tested: "Not tested",
   passed: "Questionnaire test passed",

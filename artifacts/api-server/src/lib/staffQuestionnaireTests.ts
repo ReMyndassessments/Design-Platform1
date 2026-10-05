@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FormQuestion } from "./questions.js";
+import { withBehavobsDetails } from "./behavobsDetails.js";
 
 export type StaffTestResultStatus = "not_tested" | "passed" | "failed" | "retest_required";
 export type StaffTestOutcome = "passed" | "failed";
@@ -115,9 +116,28 @@ export function isValidQuestionnaireSnapshot(snapshot: string | null | undefined
 /**
  * The assignment-specific fingerprint remains the persisted evidence identity.
  * This second key intentionally ignores recipient metadata and assignment id
- * so exact frozen forms assigned to different recipients can share a result.
+ * so exact rendered forms can share a functionality result across recipients
+ * and assigned languages. Keep the actual reviewed language in the evidence.
  */
 export function buildQuestionnaireTestFormKey(assignment: QuestionnaireTestAssignment): string | null {
+  let snapshot = canonicalQuestionnaireSnapshot(assignment.formItemsSnapshot);
+  if (!snapshot) return null;
+  if (assignment.toolId === "BEHAVOBS") {
+    snapshot = canonicalQuestionnaireSnapshot(JSON.stringify(
+      withBehavobsDetails(JSON.parse(snapshot), assignment.toolId),
+    ));
+  }
+  if (!snapshot) return null;
+  return createHash("sha256").update(JSON.stringify({
+    toolId: assignment.toolId,
+    rppiExternalWorkflow: assignment.toolId === "RPPI" ||
+      (assignment.toolName ?? "").toLowerCase().includes("rppi"),
+    formItemsSnapshot: snapshot,
+  })).digest("hex");
+}
+
+/** Read compatibility for passes recorded before functionality tests became language-independent. */
+export function buildLegacyQuestionnaireTestFormKey(assignment: QuestionnaireTestAssignment): string | null {
   const snapshot = canonicalQuestionnaireSnapshot(assignment.formItemsSnapshot);
   if (!snapshot) return null;
   return createHash("sha256").update(JSON.stringify({
@@ -155,7 +175,7 @@ export function toStaffTestResult(
 
 /**
  * Resolve assignment-specific legacy evidence and verified content-scoped
- * history. A later failure overrides passes for that exact form/version/language.
+ * history. A later failure overrides passes for that exact form/version.
  */
 export function resolveQuestionnaireTestResults(
   assignments: readonly QuestionnaireTestAssignment[],

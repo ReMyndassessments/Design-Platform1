@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { QuestionnaireTestStatus } from "@/components/QuestionnaireTestStatus";
-import { normalizeTestLanguage, type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
+import { normalizeTestLanguage, questionnairePassBlockers, type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
 
 const CHECKLIST = [
   { key: "correctForm", label: "The assigned form, version, respondent type, and expected sections are correct." },
-  { key: "contentLanguage", label: "Instructions, questions, options, and the assigned language display correctly." },
+  { key: "contentLanguage", label: "Instructions, questions, and options display correctly in the language I tested." },
   { key: "controls", label: "I exercised the relevant controls, grids, and conditional questions; required-answer validation works." },
   { key: "safeTesting", label: "This was a staff dry run, not a real respondent submission. No live responses or emails were created." },
 ] as const;
@@ -35,11 +35,21 @@ export function QuestionnaireTestResultPanel({
   const [coveredCount, setCoveredCount] = useState(1);
   const [rechecking, setRechecking] = useState(false);
   const hasPassed = result?.status === "passed";
-  const languageMatches = normalizeTestLanguage(validation?.language ?? "") === normalizeTestLanguage(assignedLanguage);
-  const canPass = Boolean(validation?.passed && languageMatches && CHECKLIST.every(item => checklist[item.key]));
+  const remainingConfirmations = CHECKLIST.filter(item => !checklist[item.key]).length;
+  const passBlockers = questionnairePassBlockers(validation, assignedLanguage, remainingConfirmations);
+  const canPass = passBlockers.length === 0;
+
+  useEffect(() => {
+    setError(null);
+  }, [validation, checklist]);
 
   const recordResult = async (outcome: "passed" | "failed") => {
-    if (saving || (outcome === "passed" && !canPass) || (outcome === "failed" && notes.trim().length < 10)) return;
+    if (saving) return;
+    if (outcome === "passed" && !canPass) {
+      setError(passBlockers.join(" "));
+      return;
+    }
+    if (outcome === "failed" && notes.trim().length < 10) return;
     setSaving(outcome);
     setError(null);
     setSaved(false);
@@ -103,7 +113,10 @@ export function QuestionnaireTestResultPanel({
     <section className="mt-6 space-y-4 rounded-xl border border-violet-200 bg-violet-50/50 p-4" aria-label="Record questionnaire test result">
       <div>
         <h2 className="font-semibold text-slate-900">Record questionnaire test result</h2>
-        <p className="mt-1 text-xs text-slate-600">Version {fingerprint.slice(0, 12)} · Assigned language: {normalizeTestLanguage(assignedLanguage)}</p>
+        <p className="mt-1 text-xs text-slate-600">
+          Version {fingerprint.slice(0, 12)} · Staff test: {normalizeTestLanguage(validation?.language ?? "english")} · Respondent language: {normalizeTestLanguage(assignedLanguage)}.
+          You can test in English; the respondent’s language is unchanged.
+        </p>
         <QuestionnaireTestStatus result={result} />
       </div>
       {hasPassed && !rechecking ? (
@@ -124,8 +137,17 @@ export function QuestionnaireTestResultPanel({
         This records questionnaire functionality—not scoring accuracy or clinical validation.
       </p>
       <p className="text-sm text-slate-600">
-        One recorded pass covers forms with identical content, language, and version across cases.
+        One recorded functionality pass covers the same form version across cases and respondent languages.
+        It does not certify translations you did not review.
       </p>
+      {passBlockers.length > 0 && (
+        <div role="status" id={`test-pass-steps-${assignmentId}`} data-testid="status-test-pass-steps" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-semibold">Remaining steps before a pass can be saved</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {passBlockers.map(reason => <li key={reason}>{reason}</li>)}
+          </ul>
+        </div>
+      )}
       <div className="space-y-3">
         {CHECKLIST.map(item => (
           <label key={item.key} className="flex cursor-pointer items-start gap-3 text-sm text-slate-800">
@@ -140,7 +162,6 @@ export function QuestionnaireTestResultPanel({
       <p className={`text-xs font-medium ${validation?.passed ? "text-emerald-800" : "text-slate-600"}`}>
         {validation?.passed ? "Required-answer check passed for the current test answers." : "Required-answer check has not passed for the current test answers."}
       </p>
-      {!languageMatches && <p role="alert" className="text-sm text-amber-800">Switch back to the assigned language and check the form again before recording a pass.</p>}
       <div className="space-y-2">
         <label htmlFor="questionnaire-test-notes" className="text-sm font-medium text-slate-800">Notes <span className="font-normal text-slate-500">(at least 10 characters for a failed test)</span></label>
         <Textarea id="questionnaire-test-notes" data-testid="input-test-notes" value={notes} maxLength={4000}
@@ -156,7 +177,9 @@ export function QuestionnaireTestResultPanel({
           : "Test result saved. It will remain visible after leaving this page."}
       </p>}
       <div className="flex flex-wrap gap-3">
-        <Button type="button" data-testid="button-record-test-pass" disabled={!canPass || Boolean(saving)} onClick={() => recordResult("passed")}>
+        <Button type="button" data-testid="button-record-test-pass" disabled={Boolean(saving)}
+          aria-describedby={passBlockers.length > 0 ? `test-pass-steps-${assignmentId}` : undefined}
+          onClick={() => recordResult("passed")}>
           {saving === "passed" ? "Recording…" : "Record questionnaire pass"}
         </Button>
         <Button type="button" variant="outline" data-testid="button-record-test-fail" disabled={notes.trim().length < 10 || Boolean(saving)} onClick={() => recordResult("failed")}>

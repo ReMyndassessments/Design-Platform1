@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { FormQuestion } from "./questions.ts";
+import { BEHAVOBS_DETAILS } from "./behavobsDetails.ts";
 import {
   buildQuestionnaireTestFormKey,
+  buildLegacyQuestionnaireTestFormKey,
   buildQuestionnaireTestFingerprint,
   canonicalQuestionnaireSnapshot,
   latestQuestionnaireTestEvidence,
@@ -51,6 +53,13 @@ test("questionnaire fingerprint is SHA-256 scoped to the assignment snapshot, to
   assert.equal(normalizeQuestionnaireLanguage("mandarin"), normalizeQuestionnaireLanguage("Chinese"));
   assert.equal(normalizeQuestionnaireLanguage("zh"), normalizeQuestionnaireLanguage("中文"));
   assert.equal(normalizeQuestionnaireLanguage("Korean"), normalizeQuestionnaireLanguage("ko"));
+});
+
+test("legacy and current BEHAVOBS snapshots with the same rendered follow-up share a functionality pass", () => {
+  const q24 = { id: "q24", text: "Unusual/Bizarre Behavior", type: "radio", options: ["Yes", "No"] };
+  const legacy = { ...assignment, toolId: "BEHAVOBS", formItemsSnapshot: JSON.stringify([q24]) };
+  const current = { ...legacy, assignedLanguage: "mandarin", formItemsSnapshot: JSON.stringify([q24, BEHAVOBS_DETAILS]) };
+  assert.equal(buildQuestionnaireTestFormKey(legacy), buildQuestionnaireTestFormKey(current));
 });
 
 test("latest test result reports pass, fail and stale evidence without hiding tester evidence", () => {
@@ -103,7 +112,7 @@ test("equivalent frozen parent and teacher forms share current assignment-specif
   assert.equal(results.get(assignment.id)?.sharedFromAssignmentId, undefined);
 });
 
-test("form equivalence canonicalizes object keys but preserves wording, instructions, options, item order, language and renderer identity", () => {
+test("form equivalence preserves content and renderer identity, not assigned respondent language", () => {
   const reorderedKeys = {
     ...assignment,
     formItemsSnapshot: '[{"type":"radio","text":"Question","id":"q1"}]',
@@ -121,13 +130,14 @@ test("form equivalence canonicalizes object keys but preserves wording, instruct
       ...assignment,
       formItemsSnapshot: '[{"id":"q2","text":"Second","type":"text"},{"id":"q1","text":"Question","type":"radio"}]',
     },
-    { ...assignment, assignedLanguage: "korean" },
     { ...assignment, toolId: "FORM-B" },
     { ...assignment, toolName: "RPPI examiner form" },
   ]) {
     assert.notEqual(buildQuestionnaireTestFormKey(assignment), buildQuestionnaireTestFormKey(changed));
   }
   assert.equal(buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "eng" }), buildQuestionnaireTestFormKey(assignment));
+  assert.equal(buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "korean" }), buildQuestionnaireTestFormKey(assignment));
+  assert.notEqual(buildLegacyQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "korean" }), buildLegacyQuestionnaireTestFormKey(assignment));
   assert.equal(
     buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "mandarin" }),
     buildQuestionnaireTestFormKey({ ...assignment, assignedLanguage: "Chinese" }),

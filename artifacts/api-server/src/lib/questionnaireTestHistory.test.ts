@@ -5,6 +5,7 @@ import { buildBatteryReviewState } from "./batteryReview.ts";
 import {
   buildQuestionnaireTestFingerprint,
   buildQuestionnaireTestFormKey,
+  buildLegacyQuestionnaireTestFormKey,
   resolveQuestionnaireTestResults,
   type QuestionnaireTestAssignment,
   type QuestionnaireTestEvidence,
@@ -47,10 +48,9 @@ test("an existing legacy pass immediately covers an identical form assigned in a
   }, [reused]).approved, true);
 });
 
-test("different form content, tool, item order, language, or rendering never inherits another case's pass", () => {
+test("different form content, tool, item order, or rendering never inherits another case's pass", () => {
   const reused = reusableQuestionnaireEvidence(legacyRow, "new-case");
   for (const changed of [
-    { ...target, assignedLanguage: "korean" },
     { ...target, toolId: "GAD-7" },
     { ...target, toolName: "RPPI renderer" },
     { ...target, formItemsSnapshot: '[{"id":"q1","text":"Changed","type":"radio","options":["Never","Often"]}]' },
@@ -59,6 +59,32 @@ test("different form content, tool, item order, language, or rendering never inh
   ]) {
     assert.equal(resolveQuestionnaireTestResults([changed], [reused]).get(changed.id)?.status, "not_tested");
   }
+});
+
+test("an English functionality pass covers the same form for Mandarin and Korean respondents", () => {
+  const row = {
+    ...legacyRow,
+    language: "english",
+    checklist: { ...legacyRow.checklist, formKey: buildLegacyQuestionnaireTestFormKey(source) },
+  };
+  const reused = reusableQuestionnaireEvidence(row, "new-case");
+  const korean = { ...target, id: "korean-copy", assignedLanguage: "korean" };
+  const results = resolveQuestionnaireTestResults([target, korean], [reused]);
+  assert.equal(results.get(target.id)?.status, "passed");
+  assert.equal(results.get(korean.id)?.status, "passed");
+  assert.equal(results.get(korean.id)?.language, "english");
+});
+
+test("history loader reuses a pinned old language-scoped pass even when its source assignment was deleted", async () => {
+  const row = {
+    ...legacyRow,
+    sourceAssignment: null,
+    checklist: { ...legacyRow.checklist, formKey: buildLegacyQuestionnaireTestFormKey(source) },
+  };
+  const reader = { execute: async () => ({ rows: [row] }) };
+  const rows = await readQuestionnaireTestHistory("new-case", [{ ...target, assignedLanguage: "korean" }], reader as never);
+  assert.equal(rows[0].formKey, buildQuestionnaireTestFormKey(target));
+  assert.equal(resolveQuestionnaireTestResults([target], rows).get(target.id)?.status, "passed");
 });
 
 test("a newer cross-case failure invalidates inherited and own passes and existing battery approval; rechecking restores it", () => {

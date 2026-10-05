@@ -20,7 +20,6 @@ import {
   buildQuestionnaireTestFingerprint,
   buildQuestionnaireTestFormKey,
   checklistIsComplete,
-  normalizeQuestionnaireLanguage,
   resolveQuestionnaireTestResults,
   toStaffTestResult,
   validateStaffTestAnswers,
@@ -294,9 +293,6 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       return { kind: "stale" as const, testFingerprint };
     }
     if (body.data.result === "passed") {
-      if (normalizeQuestionnaireLanguage(body.data.language) !== normalizeQuestionnaireLanguage(assignedLanguage)) {
-        return { kind: "language_mismatch" as const };
-      }
       const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
       const questions = snapshotQuestions ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
       if (!questions) return { kind: "missing_snapshot" as const };
@@ -389,10 +385,6 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
   }
   if (outcome.kind === "stale") {
     res.status(409).json({ error: "stale_test_fingerprint", message: "The assigned form or case language changed. Refresh the preview before recording a test result.", testFingerprint: outcome.testFingerprint });
-    return;
-  }
-  if (outcome.kind === "language_mismatch") {
-    res.status(400).json({ error: "language_mismatch", message: "A passing test must use the assigned case language." });
     return;
   }
   if (outcome.kind === "missing_snapshot") {

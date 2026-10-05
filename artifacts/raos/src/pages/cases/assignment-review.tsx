@@ -6,7 +6,7 @@ import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormView, type StaffPreviewForm } from "@/pages/external/[token]";
 import { QuestionnaireTestResultPanel } from "@/components/QuestionnaireTestResultPanel";
-import { normalizeTestLanguage, type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
+import { type PreviewCheck, type QuestionnaireTestResult } from "@/lib/form-test-review";
 
 type StaffPreviewError = Error & { status?: number; examinerWorkflow?: boolean };
 
@@ -15,7 +15,7 @@ export default function AssignmentReviewPreviewPage() {
   const [, setLocation] = useLocation();
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const canReview = currentUser?.role === "admin" || currentUser?.role === "psychometrician";
-  const [language, setLanguage] = useState("");
+  const [language, setLanguage] = useState("english");
   const [validation, setValidation] = useState<PreviewCheck | null>(null);
   const [savedResult, setSavedResult] = useState<QuestionnaireTestResult | undefined>();
   const onPreviewCheck = useCallback((check: PreviewCheck) => setValidation(check), []);
@@ -45,10 +45,10 @@ export default function AssignmentReviewPreviewPage() {
   });
 
   useEffect(() => {
-    setLanguage(normalizeTestLanguage(previewQuery.data?.language ?? "english"));
+    setLanguage("english");
     setSavedResult(undefined);
     setValidation(null);
-  }, [assignmentId, previewQuery.data?.language]);
+  }, [assignmentId]);
 
   useEffect(() => {
     setSavedResult(previewQuery.data?.testResult);
