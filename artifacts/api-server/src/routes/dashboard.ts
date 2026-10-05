@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable } from "@workspace/db/schema";
-import { eq, or, sql, inArray, and } from "drizzle-orm";
+import { eq, or, sql, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -26,7 +25,7 @@ router.get("/dashboard/stats", authMiddleware, async (req, res) => {
 
   const caseIds = allCases.map(c => c.id);
   const relevantAssignments = caseIds.length > 0
-    ? await db.select().from(assignmentsTable).where(and(inArray(assignmentsTable.caseId, caseIds), activeAssignmentCondition()))
+    ? await db.select().from(assignmentsTable).where(inArray(assignmentsTable.caseId, caseIds))
     : [];
   const pendingForms = relevantAssignments.filter(a => a.status === "not_started" || a.status === "in_progress").length;
   const overdueForms = relevantAssignments.filter(a => a.status === "overdue").length;
@@ -85,7 +84,6 @@ router.get("/admin/validation-warnings", authMiddleware, async (req, res) => {
       JOIN assignments a ON a.id = r.assignment_id
       JOIN cases c       ON c.id = a.case_id
       WHERE r.basc_correction_applied = TRUE
-        AND COALESCE(a.metadata->>'retiredAt', '') = ''
       ORDER BY r.submitted_at DESC
     `);
     for (const row of bascRows.rows as any[]) {
@@ -127,7 +125,6 @@ router.get("/admin/validation-warnings", authMiddleware, async (req, res) => {
       WHERE a.tool_version_id IS NOT NULL
         AND a.tool_version_id != t.version_id
         AND a.status NOT IN ('completed')
-        AND COALESCE(a.metadata->>'retiredAt', '') = ''
     `);
     for (const row of driftRows.rows as any[]) {
       warnings.push({

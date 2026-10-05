@@ -8,7 +8,6 @@ import { calculateRppiScores, RPPI_FORM_ITEMS } from "../lib/rppi.js";
 import type { RppiAnswers } from "../lib/rppi.js";
 import { logger } from "../lib/logger.js";
 import { nanoid } from "nanoid";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -21,7 +20,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/rppi", authMiddleware, asyn
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
@@ -77,7 +76,7 @@ router.put("/cases/:caseId/assignments/:assignmentId/rppi/draft", authMiddleware
     const [assignment] = await db
       .select({ id: assignmentsTable.id, toolId: assignmentsTable.toolId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RPPI") {
@@ -106,7 +105,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rppi/submit", authMiddlewa
     const [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
     if (!assignment || assignment.toolId !== "RPPI") {

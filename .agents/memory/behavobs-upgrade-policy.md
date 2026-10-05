@@ -8,3 +8,9 @@ The upgraded Assessment Behavior Observation remains BEHAVOBS, not a separate fo
 **Why:** The original uploaded upgrade instructions explicitly prohibit a replacement form or standalone productive-struggle product. Treating the familiar first section as proof of an old form can lead to duplicate tools or unnecessary redesign.
 
 **How to apply:** Use the invigilator respondent slot for new assignments. Only refresh legacy snapshots when the assignment is not started, has no submission timestamp, and has no saved response. Preserve completed and partially saved evidence, including its original question snapshot.
+
+BEHAVOBS is invigilator-only. It must not appear in the student's forms, the examiner-administered battery, or the student's invitation group.
+
+**Why:** The user explicitly clarified that this records the invigilator's observations, not a test administered to the student. Generic battery assignment previously produced a second examiner copy beside the staff copy.
+
+**How to apply:** Keep observation invitations separate from student self-report invitations. Preserve all historical responses; omit only unused misrouted duplicate copies when the proper invigilator copy already exists.

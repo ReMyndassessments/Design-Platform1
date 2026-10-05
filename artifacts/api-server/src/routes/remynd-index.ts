@@ -6,7 +6,6 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateRemyndIndexInsights } from "../lib/ai.js";
 import { buildDomainMap, computeDomainScores, normalizeScores } from "../lib/scoringHelpers.js";
 import { nanoid } from "nanoid";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -162,7 +161,7 @@ async function buildIndexData(caseId: string) {
   const allAssignments = await db
     .select()
     .from(assignmentsTable)
-    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed"), activeAssignmentCondition()));
+    .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed")));
   const remyndAssignments = allAssignments.filter(a => remyndToolIds.has(a.toolId));
 
   if (remyndAssignments.length === 0) return { tools: [], index: {} };
@@ -170,9 +169,7 @@ async function buildIndexData(caseId: string) {
   // 2. Fetch all score rows for this case, then deduplicate per (toolId, respondentType)
   //    by keeping the last row encountered (query returns rows in insertion order,
   //    so later = more recent rescoring).
-  const activePairs = new Set(remyndAssignments.map(a => `${a.toolId}::${a.respondentType ?? ""}`));
-  const allScoreRows = (await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)))
-    .filter(score => activePairs.has(`${score.toolId}::${score.respondentType ?? ""}`));
+  const allScoreRows = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
   const scoreMap = new Map<string, typeof allScoreRows[0]>();
   for (const score of allScoreRows) {
     const key = `${score.toolId}::${score.respondentType ?? ""}`;

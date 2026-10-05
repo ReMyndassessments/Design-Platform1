@@ -8,7 +8,6 @@ import { nanoid } from "nanoid";
 import { RMRA_DOMAINS, RMRA_ITEMS, getItemsForSession, RMRA_STUDENT_INSTRUCTIONS } from "../lib/rmra-items.js";
 import nodemailer from "nodemailer";
 import { callDeepSeek } from "../lib/ai.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -33,15 +32,7 @@ async function loadSession(sessionId: string, caseId: string) {
     .from(rmraSessionsTable)
     .where(and(eq(rmraSessionsTable.id, sessionId), eq(rmraSessionsTable.caseId, caseId)))
     .limit(1);
-  if (!session) return null;
-  if (session.assignmentId) {
-    const [assignment] = await db.select({ id: assignmentsTable.id })
-      .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, session.assignmentId), activeAssignmentCondition()))
-      .limit(1);
-    if (!assignment) return null;
-  }
-  return session;
+  return session ?? null;
 }
 
 // ── Visual params helper (student-facing, answer-key free) ────────────────────
@@ -138,7 +129,7 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
     let [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
     // Fallback: if the specific assignmentId is stale/deleted, find the active RMRA assignment for this case
@@ -146,7 +137,7 @@ router.post("/cases/:caseId/rmra/sessions", authMiddleware, async (req, res) => 
       const [fallback] = await db
         .select()
         .from(assignmentsTable)
-        .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, "RMRA"), activeAssignmentCondition()))
+        .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, "RMRA")))
         .limit(1);
       if (!fallback) return res.status(404).json({ error: "Assignment not found" });
       assignment = fallback;
@@ -507,7 +498,7 @@ async function handleStudentPoll(req: Request, res: Response) {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.uniqueToken, sessionToken), activeAssignmentCondition()))
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
     let session: typeof rmraSessionsTable.$inferSelect | undefined;
@@ -592,7 +583,7 @@ async function handleStudentConfidence(req: Request, res: Response) {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.uniqueToken, sessionToken), activeAssignmentCondition()))
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
     let sessionId: string;
@@ -670,7 +661,7 @@ async function handleStudentTranscribe(req: Request, res: Response) {
     const [assignment] = await db
       .select({ id: assignmentsTable.id })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.uniqueToken, sessionToken), activeAssignmentCondition()))
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
     if (!assignment) {
@@ -741,7 +732,7 @@ async function handleStudentAnswer(req: Request, res: Response) {
     const [assignment] = await db
       .select({ id: assignmentsTable.id, caseId: assignmentsTable.caseId })
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.uniqueToken, sessionToken), activeAssignmentCondition()))
+      .where(eq(assignmentsTable.uniqueToken, sessionToken))
       .limit(1);
 
     let sessionId: string;

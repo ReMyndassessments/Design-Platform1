@@ -16,7 +16,6 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { canUserAccessCase, canUserViewReport } from "../lib/permissions.js";
 import { writeAudit } from "../lib/audit.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -158,11 +157,9 @@ router.get("/apprentice/cases/:caseId", authMiddleware, async (req, res) => {
   }
   const c = caseRows[0];
   const [assignments, scores] = await Promise.all([
-    db.select().from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition())),
+    db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)),
     db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId)),
   ]);
-  const activeScorePairs = new Set(assignments.map(a => `${a.toolId}::${a.respondentType ?? ""}`));
-  const activeScores = scores.filter(s => activeScorePairs.has(`${s.toolId}::${s.respondentType ?? ""}`));
 
   await writeAudit({
     eventType: "view_case",
@@ -191,7 +188,7 @@ router.get("/apprentice/cases/:caseId", authMiddleware, async (req, res) => {
       dueDate: a.dueDate,
       submittedAt: a.submittedAt,
     })),
-    scoringSummary: activeScores.map(s => ({
+    scoringSummary: scores.map(s => ({
       toolId: s.toolId,
       toolName: s.toolName,
       respondentType: s.respondentType,

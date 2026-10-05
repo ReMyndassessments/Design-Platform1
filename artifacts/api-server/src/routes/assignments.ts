@@ -10,6 +10,7 @@ import { generateIntakeSummary, generateAboSummary, generateFormSummary, generat
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
+import { canAssignObservation, visibleObservationAssignments } from "../lib/observationAssignment.js";
 import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/parentPackageConsolidation.js";
 import { buildBatteryReviewState, INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
@@ -32,7 +33,6 @@ import {
 } from "../lib/batteryTestInvitation.js";
 import { z } from "zod";
 import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib/questionnaireTestHistory.js";
-import { activeAssignmentCondition, isRetiredAssignment } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 
@@ -59,25 +59,14 @@ router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     res.status(403).json({ error: "forbidden", message: "Access denied" });
     return;
   }
-  const assignments = await db.select().from(assignmentsTable).where(and(eq(assignmentsTable.caseId, req.params.caseId), activeAssignmentCondition()));
-  res.json(assignments.map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment));
-});
-
-// This prefix also covers later staff scoring routers. Historical responses
-// remain readable, but no ordinary assignment mutation may change them.
-router.use("/cases/:caseId/assignments/:assignmentId", (req, res, next) => {
-  if (req.method === "GET" || req.method === "HEAD") { next(); return; }
-  void authMiddleware(req, res, async () => {
-    try {
-      const [row] = await db.select({ metadata: assignmentsTable.metadata }).from(assignmentsTable)
-        .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId))).limit(1);
-      if (row && isRetiredAssignment(row)) {
-        res.status(409).json({ error: "assignment_retired", message: "This is a historical teacher assignment. Its submitted evidence is read-only." });
-        return;
-      }
-      next();
-    } catch (error) { next(error); }
-  });
+  const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.caseId, req.params.caseId));
+  const observationIds = assignments.filter(a => a.toolId === "BEHAVOBS").map(a => a.id);
+  const savedObservations = observationIds.length
+    ? await db.select({ assignmentId: responsesTable.assignmentId }).from(responsesTable)
+      .where(inArray(responsesTable.assignmentId, observationIds))
+    : [];
+  res.json(visibleObservationAssignments(assignments, new Set(savedObservations.map(r => r.assignmentId)))
+    .map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment));
 });
 
 function mayReviewBattery(role: string | undefined): boolean {
@@ -105,7 +94,7 @@ async function getBatteryReview(caseId: string, reader: any = db, lockRows = fal
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     assignedToName: assignmentsTable.assignedToName,
     assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()));
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
   const assignmentRows = lockRows
     ? await assignmentQuery.for("update")
     : await assignmentQuery;
@@ -151,7 +140,6 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
   const [assignment] = await db.select().from(assignmentsTable).where(and(
     eq(assignmentsTable.id, assignmentId),
     eq(assignmentsTable.caseId, caseId),
-    activeAssignmentCondition(),
   )).limit(1);
   if (!assignment) {
     res.status(404).json({ error: "not_found" });
@@ -197,7 +185,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/staff-preview", authMiddlew
     respondentType: assignmentsTable.respondentType,
     respondentLabel: assignmentsTable.respondentLabel,
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
-  }).from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()));
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
   const eligibleAssignments = caseAssignments
     .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
     .map(row => ({ ...row, assignedLanguage: caseRow.languagePreference ?? "english" }));
@@ -284,7 +272,6 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     }).from(assignmentsTable).where(and(
       eq(assignmentsTable.id, assignmentId),
       eq(assignmentsTable.caseId, caseId),
-      activeAssignmentCondition(),
     )).for("update").limit(1);
     if (!assignment) return { kind: "not_found" as const };
     if (INTAKE_TOOL_IDS.has(assignment.toolId) || isSpecializedExaminerAssignment(assignment)) {
@@ -361,7 +348,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       respondentType: assignmentsTable.respondentType,
       respondentLabel: assignmentsTable.respondentLabel,
       formItemsSnapshot: assignmentsTable.formItemsSnapshot,
-    }).from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()));
+    }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
     const eligibleAssignments = currentAssignments
       .filter(row => !INTAKE_TOOL_IDS.has(row.toolId) && !isSpecializedExaminerAssignment(row))
       .map(row => ({ ...row, assignedLanguage }));
@@ -473,7 +460,7 @@ router.post("/cases/:caseId/battery-test-email", authMiddleware, async (req, res
     formItemsSnapshot: assignmentsTable.formItemsSnapshot,
     assignedToName: assignmentsTable.assignedToName,
     assignedToEmail: assignmentsTable.assignedToEmail,
-  }).from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()));
+  }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
   const packageData = validateBatteryTestPackage(caseAssignments, body.data.assignmentIds);
   if (!packageData) {
     res.status(400).json({
@@ -608,7 +595,7 @@ router.post("/cases/:caseId/battery-review/approve", authMiddleware, async (req,
       formItemsSnapshot: assignmentsTable.formItemsSnapshot,
       assignedToName: assignmentsTable.assignedToName,
       assignedToEmail: assignmentsTable.assignedToEmail,
-    }).from(assignmentsTable).where(and(eq(assignmentsTable.caseId, caseId), activeAssignmentCondition())).for("update");
+    }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId)).for("update");
     const assignments = assignmentRows.map(row => ({
       ...row,
       assignedLanguage: caseRow.languagePreference ?? "english",
@@ -772,6 +759,10 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     res.status(400).json({ error: "invalid_respondent_type", message: "Choose a valid respondent type for this assignment." });
     return;
   }
+  if (!canAssignObservation(toolId, respondentType)) {
+    res.status(400).json({ error: "invigilator_only", message: "Assessment Behavior Observation is for the invigilator only." });
+    return;
+  }
 
   const token = crypto.randomBytes(24).toString("hex");
   const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
@@ -782,6 +773,14 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     const [lockedCase] = await tx.select({ id: casesTable.id }).from(casesTable)
       .where(eq(casesTable.id, caseId)).for("update").limit(1);
     if (!lockedCase) return [];
+    if (toolId === "BEHAVOBS") {
+      const existing = await tx.select().from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, caseId),
+        eq(assignmentsTable.toolId, toolId),
+        eq(assignmentsTable.respondentType, "invigilator"),
+      )).limit(1);
+      if (existing.length) return existing;
+    }
     const created = await tx.insert(assignmentsTable).values({
       id: nanoid(),
       caseId,
@@ -842,7 +841,7 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
   if (req.body.dueDate) updates.dueDate = new Date(req.body.dueDate);
 
   const rows = await db.update(assignmentsTable).set(updates)
-    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId), activeAssignmentCondition()))
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
     .returning();
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
@@ -954,10 +953,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     scoringType: toolRows[0]?.scoringType ?? null,
     toolDomains: toolRows[0]?.domains ?? [],
     scoringConfig: toolRows[0]?.scoringConfig ?? null,
-    retired: isRetiredAssignment(assignment),
-    existingScore: isRetiredAssignment(assignment)
-      ? (Array.isArray(assignment.metadata?.historicalScores) ? assignment.metadata.historicalScores[0] ?? null : null)
-      : existingScoreRows[0] ?? null,
+    existingScore: existingScoreRows[0] ?? null,
   });
 });
 
@@ -1103,23 +1099,9 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     });
   }
 
-  const saved = await db.transaction(async tx => {
-    const [caseRow] = await tx.select({ id: casesTable.id }).from(casesTable)
-      .where(eq(casesTable.id, assignment.caseId)).for("update");
-    if (!caseRow) return false;
-    const [current] = await tx.select({ id: assignmentsTable.id }).from(assignmentsTable).where(and(
-      eq(assignmentsTable.id, assignment.id), eq(assignmentsTable.caseId, assignment.caseId),
-      activeAssignmentCondition(),
-    )).for("update");
-    if (!current) return false;
-    const updated = await tx.update(responsesTable).set({ summary })
-      .where(and(eq(responsesTable.id, responseRows[0].id), eq(responsesTable.assignmentId, current.id))).returning({ id: responsesTable.id });
-    return updated.length > 0;
-  });
-  if (!saved) {
-    res.status(409).json({ error: "assignment_retired", message: "This response became historical while the summary was being generated. No saved evidence was changed." });
-    return;
-  }
+  await db.update(responsesTable)
+    .set({ summary })
+    .where(eq(responsesTable.id, responseRows[0].id));
 
   res.json({ summary });
 });
@@ -1158,7 +1140,7 @@ router.delete("/cases/:caseId/assignments/:assignmentId", authMiddleware, async 
     return;
   }
   const rows = await db.delete(assignmentsTable)
-    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId), activeAssignmentCondition()))
+    .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
     .returning();
   if (!rows[0]) {
     res.status(404).json({ error: "not_found" });
@@ -1205,6 +1187,15 @@ router.post("/cases/:caseId/batteries/:batteryId/assign", authMiddleware, async 
   const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
   const created = [];
   for (const toolId of toolIds) {
+    if (!canAssignObservation(toolId, respondentType)) continue;
+    if (toolId === "BEHAVOBS") {
+      const existing = await db.select({ id: assignmentsTable.id }).from(assignmentsTable).where(and(
+        eq(assignmentsTable.caseId, req.params.caseId),
+        eq(assignmentsTable.toolId, toolId),
+        eq(assignmentsTable.respondentType, "invigilator"),
+      )).limit(1);
+      if (existing.length) continue;
+    }
     const token = crypto.randomBytes(24).toString("hex");
     const uniqueLink = `${baseUrl}/external/${token}`;
     const newAssignment = await db.insert(assignmentsTable).values({
@@ -1279,7 +1270,6 @@ router.post("/cases/:caseId/assignments/reset-completed", authMiddleware, async 
         eq(assignmentsTable.caseId, caseId),
         inArray(assignmentsTable.id, assignmentIds),
         eq(assignmentsTable.status, "completed"),
-        activeAssignmentCondition(),
       ))
       .for("update");
     if (targets.length === 0) return { kind: "reset" as const, count: 0 };
@@ -1347,7 +1337,6 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
       }).from(assignmentsTable).where(and(
         eq(assignmentsTable.caseId, caseId),
         eq(assignmentsTable.uniqueToken, invitationToken),
-        activeAssignmentCondition(),
       )).for("update").limit(1);
       if (!invitationAssignment || invitationAssignment.uniqueLink !== formLink) {
         return { kind: "invalid_form_link" as const, belongs: true };
@@ -1393,15 +1382,14 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
       }).from(assignmentsTable).where(and(
         eq(assignmentsTable.caseId, caseId),
         eq(assignmentsTable.uniqueToken, invitationToken),
-        activeAssignmentCondition(),
       )).limit(1);
       if (anchor[0]) {
         // Match by email if stored, otherwise match by respondentLabel within this case.
         const siblings = anchor[0].assignedToEmail
           ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
-              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.assignedToEmail, anchor[0].assignedToEmail!), activeAssignmentCondition()))
+              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.assignedToEmail, anchor[0].assignedToEmail!)))
           : await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
-              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? ""), activeAssignmentCondition()));
+              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? "")));
 
         if (siblings.length > 0) {
           await tx.update(assignmentsTable)

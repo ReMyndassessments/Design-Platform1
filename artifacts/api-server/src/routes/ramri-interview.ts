@@ -3,9 +3,8 @@ import { db } from "@workspace/db";
 import { assignmentsTable, casesTable, responsesTable } from "@workspace/db/schema";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authMiddleware, tryAuthenticate } from "../middlewares/authMiddleware.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { logger } from "../lib/logger.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import mammoth from "mammoth";
 import { ai } from "@workspace/integrations-gemini-ai";
@@ -119,37 +118,6 @@ async function callDeepSeekText(prompt: string, systemPrompt?: string, maxTokens
 
 const router: IRouter = Router();
 
-// RAMRI operations are tied to their originating assignment. Keep historical
-// sessions readable only through the dedicated case-history view; do not let
-// session APIs mutate data after that assignment has been retired.
-router.use("/cases/:caseId/ramri/sessions/:sessionId", tryAuthenticate, async (req, res, next) => {
-  if (!req.userId) return next();
-  try {
-    const sessionRows = await db.execute(sql`
-      SELECT assignment_id FROM ramri_sessions
-      WHERE id = ${req.params.sessionId} AND case_id = ${req.params.caseId}
-      LIMIT 1
-    `);
-    const session = sessionRows.rows[0] as { assignment_id?: string } | undefined;
-    if (!session?.assignment_id) return next();
-    const [activeAssignment] = await db.select({ id: assignmentsTable.id })
-      .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, session.assignment_id), activeAssignmentCondition()))
-      .limit(1);
-    if (!activeAssignment) {
-      const [assignment] = await db.select({ id: assignmentsTable.id })
-        .from(assignmentsTable).where(eq(assignmentsTable.id, session.assignment_id)).limit(1);
-      if (assignment) {
-        res.status(409).json({ error: "assignment_retired", message: "This RAMRI assignment is historical and cannot be modified" });
-        return;
-      }
-    }
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 async function docxToText(buffer: Buffer): Promise<string> {
@@ -226,14 +194,14 @@ router.post("/cases/:caseId/ramri/sessions", authMiddleware, async (req, res) =>
     let [assignment] = await db
       .select()
       .from(assignmentsTable)
-      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId), activeAssignmentCondition()))
+      .where(and(eq(assignmentsTable.id, assignmentId), eq(assignmentsTable.caseId, caseId)))
       .limit(1);
 
     if (!assignment) {
       const [fallback] = await db
         .select()
         .from(assignmentsTable)
-        .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, "RAMRI"), activeAssignmentCondition()))
+        .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.toolId, "RAMRI")))
         .limit(1);
       if (!fallback) return res.status(404).json({ error: "Assignment not found" });
       assignment = fallback;
@@ -381,10 +349,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/toggle-uploads", authMiddl
     const sessionRow = sessionRows.rows[0] as { assignment_id?: string } | undefined;
     if (!sessionRow?.assignment_id) return res.status(404).json({ error: "Session not found" });
 
-    const [assignment] = await db.select().from(assignmentsTable).where(and(
-      eq(assignmentsTable.id, sessionRow.assignment_id),
-      activeAssignmentCondition(),
-    )).limit(1);
+    const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, sessionRow.assignment_id)).limit(1);
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
 
     // If explicit closed value provided, use it; otherwise toggle
@@ -865,7 +830,7 @@ router.post("/cases/:caseId/ramri/sessions/:sessionId/extract-samples", authMidd
       respondentType: assignmentsTable.respondentType,
       respondentLabel: assignmentsTable.respondentLabel,
     }).from(assignmentsTable).where(
-      and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed"), activeAssignmentCondition())
+      and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed"))
     );
 
     // Demographic-relevant answer keys (case-insensitive partial match)

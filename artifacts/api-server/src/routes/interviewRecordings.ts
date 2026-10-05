@@ -4,7 +4,6 @@ import { interviewRecordingsTable, casesTable, assignmentsTable, usersTable } fr
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 import { transcribeAudio } from "../lib/groqTranscription.js";
 import { structureInterviewNotes, type ConversationType } from "../lib/interviewStructuring.js";
 import { randomUUID } from "crypto";
@@ -60,7 +59,6 @@ async function isInvigilatorAssignedToCase(userId: string, caseId: string): Prom
       eq(assignmentsTable.caseId, caseId),
       eq(assignmentsTable.respondentType, "invigilator"),
       eq(assignmentsTable.assignedToEmail, email),
-      activeAssignmentCondition(),
     ))
     .limit(1);
   return rows.length > 0;
@@ -75,7 +73,7 @@ async function getInvigilatorActiveCases(email: string) {
       assessmentMeetingDate: casesTable.assessmentMeetingDate,
     })
     .from(casesTable)
-    .innerJoin(assignmentsTable, and(eq(assignmentsTable.caseId, casesTable.id), activeAssignmentCondition()))
+    .innerJoin(assignmentsTable, eq(assignmentsTable.caseId, casesTable.id))
     .where(and(
       eq(casesTable.caseStatus, "active"),
       eq(assignmentsTable.respondentType, "invigilator"),

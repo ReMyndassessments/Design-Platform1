@@ -4,7 +4,6 @@ import { batteriesTable, assessmentToolsTable, assignmentsTable, scoresTable } f
 import { eq, inArray, and, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { buildDomainMap, getScaleMax, computeDomainScores, normalizeScores, getLatestAnswers } from "../lib/scoringHelpers.js";
-import { activeAssignmentCondition } from "../lib/assignmentRetirement.js";
 
 const router = Router();
 const CDP_TOOL_IDS = ["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"];
@@ -62,7 +61,6 @@ router.get("/cases/:caseId/cdp/profile", authMiddleware, async (req, res) => {
     .where(and(
       eq(assignmentsTable.caseId, caseId),
       inArray(assignmentsTable.toolId, CDP_TOOL_IDS),
-      activeAssignmentCondition(),
     ));
 
   // Load scoring configs for all 4 CDP tools
@@ -114,12 +112,10 @@ router.get("/cases/:caseId/cdp/profile", authMiddleware, async (req, res) => {
 
     if (completedAssignment) {
       // Try to find an existing score
-      const activeRespondentTypes = new Set(form.assignments.map((a: any) => a.respondentType));
       const existingScores = await db.select().from(scoresTable)
         .where(and(
           eq(scoresTable.caseId, caseId),
           eq(scoresTable.toolId, tid),
-          inArray(scoresTable.respondentType, [...activeRespondentTypes]),
         ))
         .orderBy(desc(scoresTable.generatedAt))
         .limit(1);
