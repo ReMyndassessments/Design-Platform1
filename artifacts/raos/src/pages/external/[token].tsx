@@ -3111,7 +3111,9 @@ export function FormView({
         {previewMode && previewChecked && (
           <div role="status" data-testid="status-dry-run-passed" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
             {onPreviewCheck
-              ? "Answer check passed. The staff-test pass is not saved yet: tick the four review confirmations below, then select Record questionnaire pass. No clinical response was saved."
+              ? form.testResult?.status === "passed"
+                ? "Staff-test pass saved. No clinical response was saved."
+                : "Answer check passed. Complete the four review confirmations below to save your staff-test pass automatically. No clinical response was saved."
               : "Required-answer check passed. No clinical response was saved."}
           </div>
         )}

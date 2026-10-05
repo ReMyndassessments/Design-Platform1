@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,7 @@ export function QuestionnaireTestResultPanel({
   const [savedAcrossCases, setSavedAcrossCases] = useState(false);
   const [coveredCount, setCoveredCount] = useState(1);
   const [rechecking, setRechecking] = useState(false);
+  const autoSaveAttempt = useRef<string | null>(null);
   const hasPassed = result?.status === "passed";
   const remainingConfirmations = CHECKLIST.filter(item => !checklist[item.key]).length;
   const passBlockers = questionnairePassBlockers(validation, assignedLanguage, remainingConfirmations);
@@ -76,6 +77,7 @@ export function QuestionnaireTestResultPanel({
       }
       onSaved(body.testResult);
       setSaved(true);
+      setRechecking(false);
       setSavedOutcome(outcome);
       setSavedAcrossCases(body.testResult.sharedAcrossCases === true);
       setCoveredCount(body.coveredAssignmentCount ?? 1);
@@ -109,6 +111,14 @@ export function QuestionnaireTestResultPanel({
     }
   };
 
+  useEffect(() => {
+    if (!canPass || saving || (hasPassed && !rechecking)) return;
+    const attempt = JSON.stringify({ fingerprint, validation, checklist });
+    if (autoSaveAttempt.current === attempt) return;
+    autoSaveAttempt.current = attempt;
+    void recordResult("passed");
+  }, [canPass, validation, checklist, fingerprint, hasPassed, rechecking]);
+
   return (
     <section className="mt-6 space-y-4 rounded-xl border border-violet-200 bg-violet-50/50 p-4" aria-label="Record questionnaire test result">
       <div>
@@ -126,14 +136,19 @@ export function QuestionnaireTestResultPanel({
               ? "An identical form was already checked across cases. You don’t need to fill it out or check it again."
               : "This form has already passed. You don’t need to fill it out or check it again."}
           </p>
-          <Button type="button" variant="outline" data-testid="button-recheck-identical-form" onClick={() => setRechecking(true)}>
+          <Button type="button" variant="outline" data-testid="button-recheck-identical-form" onClick={() => {
+            setChecklist({ correctForm: false, contentLanguage: false, controls: false, safeTesting: false });
+            autoSaveAttempt.current = null;
+            setRechecking(true);
+          }}>
             Test again
           </Button>
         </div>
       ) : (
       <>
       <p className="text-sm text-slate-600">
-        Complete the test answers, select <strong>Check form</strong>, and confirm the checks below before recording a pass.
+        Complete the test answers, select <strong>Check form</strong>, and confirm the four checks below.
+        Your pass is saved automatically once all these steps are complete.
         This records questionnaire functionality—not scoring accuracy or clinical validation.
       </p>
       <p className="text-sm text-slate-600">
@@ -180,7 +195,7 @@ export function QuestionnaireTestResultPanel({
         <Button type="button" data-testid="button-record-test-pass" disabled={Boolean(saving)}
           aria-describedby={passBlockers.length > 0 ? `test-pass-steps-${assignmentId}` : undefined}
           onClick={() => recordResult("passed")}>
-          {saving === "passed" ? "Recording…" : "Record questionnaire pass"}
+          {saving === "passed" ? "Saving test pass…" : error && canPass ? "Retry saving questionnaire pass" : "Record questionnaire pass"}
         </Button>
         <Button type="button" variant="outline" data-testid="button-record-test-fail" disabled={notes.trim().length < 10 || Boolean(saving)} onClick={() => recordResult("failed")}>
           {saving === "failed" ? "Recording…" : "Record failed test"}

@@ -3,6 +3,18 @@ name: RAOS battery review policy
 description: Approval authority and safe internal testing of assigned assessment forms
 ---
 
+A completed staff functionality test must persist once answer validation and all four human confirmations are complete; do not require an additional, easily missed save step.
+
+**Why:** The user repeatedly reported having completed testing while the case still showed “Not tested.” A local answer-validation success is not a persisted staff acceptance result.
+
+**How to apply:** Make successful persistence visible and verifiable after reload. Keep failed saves visible with a retry path. Never fabricate an earlier pass or treat clinical submissions as staff-test evidence.
+
+Questionnaire-link approval must not block authorized internal examiner assessments.
+
+**Why:** The user found examiner forms unavailable because an unrelated BEHAVOBS questionnaire check was outstanding. Approval governs recipient sharing, not internal examiner administration.
+
+**How to apply:** Keep RRFA, RDA, RPPI, RRCA and the other specialized examiner workflows accessible through their existing authorized routes, including from the review list. Preserve approval gates on respondent sharing.
+
 Require a current recorded pass covering every questionnaire before admin approval. Identical copies across cases can share one recorded check, with an optional test-again action; opening a preview is not evidence of testing. The pass covers required-answer validation and a human checklist, not scoring accuracy or clinical validity. Test answers may be validated transiently but must not become clinical responses.
 
 **Why:** The user approved persistent test results and mandatory current passes, then explicitly requested that identical teacher/parent forms share a pass and that reassignment to a different case retain the already-tested status without removing the option to test again.

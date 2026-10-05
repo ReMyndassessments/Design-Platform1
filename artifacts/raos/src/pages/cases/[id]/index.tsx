@@ -100,6 +100,8 @@ function ageFromDob(dob: string | null | undefined): number | null {
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
 const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
 const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RPPI", "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
+const getExaminerWorkflowPath = (toolId: string | null | undefined) =>
+  toolId && SPECIALIZED_EXAMINER_TOOL_IDS.has(toolId) ? toolId.toLowerCase() : null;
 const isSeparateExaminerWorkflow = (assignment: { toolId?: string | null; respondentType: string }) =>
   assignment.toolId === "RPPI" ||
   (assignment.respondentType === "examiner" && SPECIALIZED_EXAMINER_TOOL_IDS.has(assignment.toolId ?? ""));
@@ -2757,17 +2759,11 @@ export default function CaseDetail() {
                         ) : (() => {
                           const examinerPath = a.toolId === 'RPPI' ? 'rppi' : a.toolId === 'RDA' ? 'rda' : a.toolId === 'RRFA' ? 'rrfa' : a.toolId === 'RRCA' ? 'rrca' : a.toolId === 'RMRA' ? 'rmra' : a.toolId === 'RAMRI' ? 'ramri' : a.toolId === 'RAEPA' ? 'raepa' : null;
                           return examinerPath ? (
-                            reviewApproved ? (
                               <Link href={`/cases/${caseId}/${examinerPath}/${a.id}`}>
-                                <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700">
+                                <Button size="sm" data-testid={`button-administer-${a.id}`} className="gap-1.5 bg-violet-600 hover:bg-violet-700">
                                   <Play size={14} /> Administer {a.toolId}
                                 </Button>
                               </Link>
-                            ) : (
-                              <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-700" disabled title="Admin approval is required before administering an assessment from this staff screen.">
-                                <Play size={14} /> Administer {a.toolId}
-                              </Button>
-                            )
                           ) : null;
                         })() ?? (
                           <>
@@ -2911,11 +2907,17 @@ export default function CaseDetail() {
                         {separateExaminerCount > 0 && (
                           <>
                             <p className="border-b bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
-                              Examiner assessments · separate task workflows, not tested here
+                              Examiner assessments · internal workflows, available independently of questionnaire-link approval
                             </p>
                             {(c.assignments ?? []).filter(isSeparateExaminerWorkflow).map(assignment => (
-                              <div key={assignment.id} data-testid={`row-review-examiner-${assignment.id}`} className="border-b px-3 py-3 text-sm text-slate-700">
-                                {assignment.toolName}
+                              <div key={assignment.id} data-testid={`row-review-examiner-${assignment.id}`} className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3 text-sm text-slate-700">
+                                <span>{assignment.toolName}</span>
+                                <Link href={`/cases/${caseId}/${getExaminerWorkflowPath(assignment.toolId)}/${assignment.id}`}>
+                                  <Button size="sm" variant="outline" data-testid={`button-open-examiner-review-${assignment.id}`} className="gap-1.5">
+                                    {assignment.status === "completed" ? <Eye size={14} /> : <Play size={14} />}
+                                    {assignment.status === "completed" ? "View assessment" : "Administer"}
+                                  </Button>
+                                </Link>
                               </div>
                             ))}
                           </>
