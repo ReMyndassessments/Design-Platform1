@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { ExaminerInstructions } from "@/components/examiner-instructions";
 import {
   ArrowLeft, Save, CheckCircle2, Clock, AlertTriangle, ChevronDown, ChevronRight,
   Mic, Hash, BookOpen, Info, Loader2, FileCheck, Play, Square, RotateCcw,
@@ -900,11 +901,7 @@ export default function RppiAdminPage() {
           <span>The RPPI is a non-diagnostic educational decision-support tool. It does not diagnose dyslexia or any other condition. Results should be interpreted alongside developmental history, academic achievement, classroom performance, and other assessment findings.</span>
         </div>
 
-        {/* Administration instructions */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-sm text-blue-900">
-          <p className="font-semibold mb-1 flex items-center gap-2"><Mic size={14} /> Administration Instructions</p>
-          <p>Read each item aloud <strong>exactly as written</strong>. Do not teach, correct, or give feedback during the assessment. The student should respond verbally. Type the student's response as closely as possible. Score each item before moving to the next item.</p>
-        </div>
+        <ExaminerInstructions assessment="rppi" />
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_240px] gap-6">
           <div className="space-y-4">

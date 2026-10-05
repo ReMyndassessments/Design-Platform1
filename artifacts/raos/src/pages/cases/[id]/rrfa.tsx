@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { ExaminerInstructions } from "@/components/examiner-instructions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, Play, Square, RotateCcw, Eye, Share2, Copy, Mail, MessageCircle, X, BookOpen } from "lucide-react";
 
@@ -342,6 +343,7 @@ export default function RrfaAdminPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
+        <ExaminerInstructions assessment="rrfa" />
         {isCompleted && (
           <div className="mb-4 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
             <CheckCircle2 size={16} />

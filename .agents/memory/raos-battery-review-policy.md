@@ -38,3 +38,9 @@ RPPI is always an examiner-administered assessment, not a respondent questionnai
 **Why:** The user identified the blank RPPI dry run as meaningless: its operational examiner record was being rendered as if it were a text questionnaire.
 
 **How to apply:** Exclude RPPI from questionnaire previews, pass recording, shared-result groups, and test packages. Display it with the separate examiner assessments. Do not open its live session merely to test it or change existing records. An examiner-only battery has no questionnaire tests to complete.
+
+Examiner instructions must be specific to the assessment being administered: “only the relevant instruction for the specific form.”
+
+**Why:** The user explicitly approved adding the literacy examiner manuals only with this scope restriction, not a combined manual repeated on every form.
+
+**How to apply:** Keep student scripts, administration, scoring caveats, and completion guidance relevant to the current assessment. Do not expose another assessment’s instructions on that form.
