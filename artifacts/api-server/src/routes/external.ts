@@ -1073,7 +1073,9 @@ router.get("/external/form/:token", async (req, res) => {
   const caseData = caseRows[0];
 
   const responseRows = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id)).limit(1);
-  const alreadySubmitted = responseRows.length > 0;
+  const alreadySubmitted = assignment.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION"
+    ? assignment.status === "completed"
+    : responseRows.length > 0;
 
   const toolId = assignment.toolId;
   const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
@@ -1122,6 +1124,10 @@ router.post("/external/form/:token/submit", async (req, res) => {
   const existingAssignmentRows = await db.select().from(assignmentsTable).where(eq(assignmentsTable.uniqueToken, rawToken)).limit(1);
   if (existingAssignmentRows[0]) {
     const assignment = existingAssignmentRows[0];
+    if (assignment.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") {
+      res.status(409).json({ message: "Use the Chinese literacy submission workflow with validated evidence and a current revision." });
+      return;
+    }
     if (!canAssignObservation(assignment.toolId, assignment.respondentType)) {
       res.status(403).json({ error: "invigilator_only", message: "Assessment Behavior Observation is for the invigilator only." });
       return;

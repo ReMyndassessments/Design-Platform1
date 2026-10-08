@@ -6,6 +6,8 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { SAMPLE_QUESTIONS } from "../lib/questions.js";
+import { CHINESE_LITERACY_KEY, validateLiteracyInput } from "../lib/chineseLiteracy.js";
+import { loadLiteracy } from "../lib/chineseLiteracyStore.js";
 import { generateIntakeSummary, generateAboSummary, generateFormSummary, generateRppiSummary, generateRdaSummary, generateRrfaSummary, generateRrcaSummary, translateAnswersToEnglish } from "../lib/ai.js";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { writeAudit } from "../lib/audit.js";
@@ -293,12 +295,17 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
       return { kind: "stale" as const, testFingerprint };
     }
     if (body.data.result === "passed") {
+      if (assignment.toolId === CHINESE_LITERACY_KEY) {
+        try { validateLiteracyInput(body.data.answers?.__chineseLiteracy, undefined, true); }
+        catch { return { kind: "answers_incomplete" as const }; }
+      } else {
       const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
       const questions = snapshotQuestions ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
       if (!questions) return { kind: "missing_snapshot" as const };
       const validation = validateStaffTestAnswers(questions, body.data.answers ?? {}, assignment.toolId);
       if (!validation.valid) {
         return { kind: "answers_incomplete" as const };
+      }
       }
     }
 
@@ -758,6 +765,24 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     res.status(400).json({ error: "invigilator_only", message: "Assessment Behavior Observation is for the invigilator only." });
     return;
   }
+  if (toolId === CHINESE_LITERACY_KEY) {
+    if (!["teacher1", "teacher2", "special_needs_teacher"].includes(respondentType)) {
+      res.status(422).json({ message: "Chinese literacy is a teacher-only instrument. One teacher is sufficient; a second teacher is optional." });
+      return;
+    }
+    const grade = caseRows[0].grade?.match(/(?:^|\D)(\d{1,2})(?:\D|$)/)?.[1];
+    if (grade && (Number(grade) < 3 || Number(grade) > 12)) {
+      res.status(422).json({ message: "This instrument is for Grades 3–12 only." });
+      return;
+    }
+    if (userRole === "psychometrician" && caseRows[0].assignedPsychId !== req.userId && caseRows[0].assignedLeadId !== req.userId) {
+      res.status(403).json({ message: "You are not assigned to this case." }); return;
+    }
+    if (userRole === "school_clinical_coordinator") {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+      if (!user?.schoolName || user.schoolName !== caseRows[0].school) { res.status(403).json({ message: "This case belongs to another school." }); return; }
+    }
+  }
 
   const token = crypto.randomBytes(24).toString("hex");
   const baseUrl = getBaseUrl(req as unknown as Parameters<typeof getBaseUrl>[0]);
@@ -803,6 +828,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
         SET tool_version_id = ${toolVersionId}, form_items_snapshot = ${formItemsSnapshot}
         WHERE id = ${created[0].id}
       `);
+      if (toolId === CHINESE_LITERACY_KEY) await loadLiteracy(created[0], tx);
     }
     return created;
   });
@@ -830,6 +856,12 @@ router.patch("/cases/:caseId/assignments/:assignmentId", authMiddleware, async (
     return;
   }
   const updates: Partial<typeof assignmentsTable.$inferInsert> = {};
+  if (req.body.status) {
+    const [existing] = await db.select().from(assignmentsTable).where(and(eq(assignmentsTable.id, String(req.params.assignmentId)), eq(assignmentsTable.caseId, String(req.params.caseId)))).limit(1);
+    if (existing?.toolId === CHINESE_LITERACY_KEY) {
+      res.status(409).json({ message: "Change this instrument's state through its versioned teacher/reviewer workflow." }); return;
+    }
+  }
   if (req.body.status) updates.status = req.body.status;
   if (req.body.assignedToName) updates.assignedToName = req.body.assignedToName;
   if (req.body.assignedToEmail) updates.assignedToEmail = req.body.assignedToEmail;
@@ -1271,6 +1303,11 @@ router.post("/cases/:caseId/assignments/reset-completed", authMiddleware, async 
         eq(assignmentsTable.status, "completed"),
       ))
       .for("update");
+    if (targets.some(target => target.toolId === CHINESE_LITERACY_KEY)) {
+      // The versioned observation record can only be reopened explicitly by
+      // a professional reviewer. Resending a package cannot erase its input.
+      return { kind: "reset" as const, count: 0, message: "Chinese literacy records are preserved. Use Return for revision in Chinese literacy review to reopen a record." };
+    }
     if (targets.length === 0) return { kind: "reset" as const, count: 0 };
 
     const ids = targets.map(target => target.id);

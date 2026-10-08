@@ -676,7 +676,7 @@ export default function CaseDetail() {
     for (const toolId of product.toolIds) {
       const tool = toolsList.find(t => t.id === toolId);
       if (!tool) continue;
-      for (const rt of assignmentRespondentTypes(tool.respondentTypes ?? [])) {
+      for (const rt of assignmentRespondentTypes(tool.respondentTypes ?? [], toolId)) {
         rtMap.set(rt, (rtMap.get(rt) ?? 0) + 1);
       }
     }
@@ -724,7 +724,7 @@ export default function CaseDetail() {
       for (const toolId of product.toolIds) {
         const toolData = tools?.find(t => t.id === toolId);
         if (!toolData) continue;
-        for (const rt of assignmentRespondentTypes(toolData.respondentTypes ?? [])) {
+        for (const rt of assignmentRespondentTypes(toolData.respondentTypes ?? [], toolId)) {
           if (!selectedRTs.has(rt)) continue;
           const key = `${toolId}\0${rt}`;
           if (existingKeys.has(key)) continue;
@@ -1140,7 +1140,7 @@ export default function CaseDetail() {
 
   const handleAssignTool = async (rec: { toolId: string; name: string }) => {
     const toolData = (tools ?? []).find(t => t.id === rec.toolId);
-    const respondentTypes = assignmentRespondentTypes(toolData?.respondentTypes ?? []);
+    const respondentTypes = assignmentRespondentTypes(toolData?.respondentTypes ?? [], rec.toolId);
     if (respondentTypes.length === 0) {
       toast({ title: "No respondent types", description: "This tool has no respondent types configured.", variant: "destructive" });
       return;
@@ -1996,7 +1996,7 @@ export default function CaseDetail() {
                                   </Button>
                                 </Link>
                               ) : (
-                                <Link href={`/cases/${caseId}/response/${a.id}`}>
+                                <Link href={a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION" ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
                                   <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
                                     <Eye size={14} /> View Response
                                   </Button>
@@ -2272,7 +2272,7 @@ export default function CaseDetail() {
                               const isAssigning = assigningToolId === t.toolId;
                               const toolData = (tools ?? []).find(tool => tool.id === t.toolId);
                               const respondentTypes = toolData?.respondentTypes ?? [];
-                              const missingTypes = assignmentRespondentTypes(respondentTypes).filter(rt => !assignedTypes.has(rt));
+                              const missingTypes = assignmentRespondentTypes(respondentTypes, t.toolId).filter(rt => !assignedTypes.has(rt));
                               const alreadyAssigned = assignedTypes.size > 0;
                               const fullyAssigned = alreadyAssigned && missingTypes.length === 0;
                               return (
@@ -2290,7 +2290,7 @@ export default function CaseDetail() {
                                       </div>
                                       <p className="text-xs text-slate-500 mt-1">{t.rationale}</p>
                                       {respondentTypes.length > 0 && (
-                                        <p className="text-[10px] text-slate-400 mt-1">Respondents: {assignmentRespondentTypes(respondentTypes).map(rt => RESPONDENT_LABELS[rt] ?? rt).join(", ")}</p>
+                                        <p className="text-[10px] text-slate-400 mt-1">Respondents: {assignmentRespondentTypes(respondentTypes, t.toolId).map(rt => RESPONDENT_LABELS[rt] ?? rt).join(", ")}</p>
                                       )}
                                     </div>
                                   </div>
@@ -2631,6 +2631,11 @@ export default function CaseDetail() {
                 Build Assessment Battery
               </CardTitle>
               <div className="flex gap-2">
+                {(c.assignments ?? []).some((a: any) => a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") && ["admin", "psychometrician", "school_clinical_coordinator"].includes(role as string) && (
+                  <Link href={`/cases/${caseId}/chinese-literacy`}>
+                    <Button size="sm" variant="outline" className="border-sky-200 text-sky-700 hover:bg-sky-50 gap-1.5" data-testid="link-chinese-literacy-review">Chinese literacy review</Button>
+                  </Link>
+                )}
                 <Link href={`/cases/${caseId}/dashboards`}>
                   <Button size="sm" variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300 gap-1.5">
                     <LayoutGrid size={13} /> Dashboards
@@ -2749,7 +2754,7 @@ export default function CaseDetail() {
                                 </Button>
                               </Link>
                             ) : (
-                              <Link href={`/cases/${caseId}/response/${a.id}`}>
+                              <Link href={a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION" ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
                                 <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
                                   <Eye size={14} /> View Response
                                 </Button>

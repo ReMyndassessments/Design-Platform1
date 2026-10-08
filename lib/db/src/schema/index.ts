@@ -16,3 +16,4 @@ export * from "./interviewRecordings";
 export * from "./communications";
 export * from "./intakeQuestionRequests";
 export * from "./questionnaireTestEvidence";
+export * from "./chineseLiteracy";

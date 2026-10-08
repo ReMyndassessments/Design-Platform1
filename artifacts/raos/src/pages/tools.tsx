@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { CHINESE_LITERACY_TOOL_ID } from "@/lib/assignment-respondents";
 import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
@@ -1122,7 +1123,7 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           respondentTypes: respondents,
           formItems: formItems.length > 0 ? formItems : null,
           productIds: selectedProducts,
-          ...(scoringType === "auto" && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
+          ...(scoringType === "auto" && tool.id !== CHINESE_LITERACY_TOOL_ID && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
         } as Parameters<typeof updateMut.mutate>[0]["data"],
       });
 
@@ -1325,7 +1326,12 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           <FormItemsEditor items={formItems} onChange={setFormItems} />
 
           {/* Scoring Criteria — only for auto-scored tools */}
-          {scoringType === "auto" && (
+          {tool.id === CHINESE_LITERACY_TOOL_ID && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
+              This tool is descriptive only. It reports per-domain means, coverage and classroom impact, with no norms, thresholds, overall score or risk bands, so there is nothing to configure here.
+            </div>
+          )}
+          {scoringType === "auto" && tool.id !== CHINESE_LITERACY_TOOL_ID && (
             <ScoringCriteriaEditor
               scoringConfig={scoringConfig}
               onChange={setScoringConfig}

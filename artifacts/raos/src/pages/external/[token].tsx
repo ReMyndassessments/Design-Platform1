@@ -1,4 +1,6 @@
 import { IntakeQuestionCards, type PortalQuestionRequest } from "@/components/IntakeQuestionCards";
+import TeacherForm from "@/components/chinese-literacy/TeacherForm";
+import { CHINESE_LITERACY_TOOL_ID } from "@/lib/assignment-respondents";
 import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import type { PreviewCheck, QuestionnaireTestResult } from "@/lib/form-test-review";
 import { useParams, useLocation } from "wouter";
@@ -2916,6 +2918,21 @@ export function FormView({
           <ReMyndFooter />
         </div>
       </div>
+    );
+  }
+
+  // ReMynd Chinese Literacy teacher observation uses its own guided renderer
+  if ((form as any).toolId === CHINESE_LITERACY_TOOL_ID || form.toolName === "ReMynd Chinese Literacy Observation Profile") {
+    return (
+      <>
+        <TeacherForm
+          token={activeToken}
+          preview={previewMode}
+          onBack={onBack}
+          onValidated={previewMode ? (r) => onPreviewCheck?.({ passed: r.passed, language: r.language, answers: { ...r.testAnswers, __chineseLiteracy: r.input } } as any) : undefined}
+        />
+        {previewMode && previewReviewPanel}
+      </>
     );
   }
 

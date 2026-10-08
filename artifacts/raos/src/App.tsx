@@ -117,6 +117,7 @@ const RaepaPage = React.lazy(() => import("@/pages/cases/[id]/raepa"));
 const RamriUploadPage = React.lazy(() => import("@/pages/ramri-upload/[token]"));
 const LiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/literacy-dashboard"));
 const RemyndDashboardPage = React.lazy(() => import("@/pages/cases/[id]/remynd-dashboard"));
+const ChineseLiteracyPage = React.lazy(() => import("@/pages/cases/[id]/chinese-literacy"));
 const DashboardsHub = React.lazy(() => import("@/pages/cases/[id]/dashboards"));
 const ProductDashboard = React.lazy(() => import("@/pages/cases/[id]/product-dashboard"));
 const RdaStudentView = React.lazy(() => import("@/pages/student-view/rda"));
@@ -143,6 +144,7 @@ const WorkshopPublicPage = React.lazy(() => import("@/pages/training-workshop"))
 const CommunicationsPage = React.lazy(() => import("@/pages/communications/index"));
 const CommunicationsComposePage = React.lazy(() => import("@/pages/communications/compose"));
 
+const CHINESE_LITERACY_REVIEW_ROLES = ["admin", "psychometrician", "school_clinical_coordinator"];
 const queryClient = new QueryClient();
 
 const PageFallback = () => (
@@ -151,7 +153,7 @@ const PageFallback = () => (
   </div>
 );
 
-function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApprentice = false, adminOnly = false }: { component: React.ComponentType; apprenticeOnly?: boolean; allowApprentice?: boolean; adminOnly?: boolean }) {
+function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApprentice = false, adminOnly = false, allowedRoles }: { component: React.ComponentType; apprenticeOnly?: boolean; allowApprentice?: boolean; adminOnly?: boolean; allowedRoles?: string[] }) {
   const [, navigate] = useLocation();
   const { data: user, isLoading } = useGetCurrentUser({
     query: {
@@ -176,6 +178,10 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
         navigate("/dashboard");
         return;
       }
+      if (allowedRoles && !allowedRoles.includes(user.role)) {
+        navigate("/dashboard");
+        return;
+      }
       if (isShared) return;
       if (isApprentice && !apprenticeOnly) {
         navigate("/apprentice/dashboard");
@@ -185,7 +191,7 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
     }
     // navigate is stable in wouter; intentionally excluded from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user, isApprentice, apprenticeOnly, isShared, adminOnly]);
+  }, [isLoading, user, isApprentice, apprenticeOnly, isShared, adminOnly, allowedRoles]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
@@ -196,6 +202,10 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
   }
 
   if (adminOnly && user.role !== "admin") {
+    return null;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return null;
   }
 
@@ -270,6 +280,9 @@ function Router() {
         </Route>
         <Route path="/cases/:id/scoring">
           {() => <ProtectedRoute component={ScoringView} allowApprentice />}
+        </Route>
+        <Route path="/cases/:id/chinese-literacy">
+          {() => <ProtectedRoute component={ChineseLiteracyPage} allowedRoles={CHINESE_LITERACY_REVIEW_ROLES} />}
         </Route>
         <Route path="/cases/:id/assignments/:assignmentId/review">
           {() => <ProtectedRoute component={AssignmentReviewPreviewPage} />}

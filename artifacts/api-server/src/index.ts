@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { seedChineseLiteracy } from "./lib/chineseLiteracyStore.js";
 import { setupWatchAlong } from "./lib/watchAlong.js";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
@@ -5113,6 +5114,7 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addFormItemsSnapshotColumn())
   .then(() => addAssignmentMetadataColumn())
   .then(() => patchToolVersions())
+  .then(() => seedChineseLiteracy())
   .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
   .then(() => addCoordinatorSupport())

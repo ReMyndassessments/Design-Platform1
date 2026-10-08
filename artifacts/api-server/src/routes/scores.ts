@@ -91,7 +91,9 @@ function normalize(scores: Record<string, number>, max = 5): Record<string, numb
 
 router.get("/cases/:caseId/scores", authMiddleware, async (req, res) => {
   const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
-  res.json(scores);
+  // Descriptive literacy profiles have their own coverage/evidence view, not
+  // the generic normalized/risk visualizations used by other instruments.
+  res.json(scores.filter(score => score.toolId !== "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION"));
 });
 
 router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) => {
@@ -105,6 +107,7 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   const newScores = [];
 
   for (const assignment of completedAssignments) {
+    if (assignment.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") continue;
     const responses = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id));
     if (responses.length === 0) continue;
 
@@ -160,7 +163,7 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   }
 
   const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
-  res.json(allScores);
+  res.json(allScores.filter(score => score.toolId !== "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION"));
 });
 
 router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => {
@@ -169,6 +172,9 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
     return;
   }
   const { toolId, toolName, respondentType, rawScore, domainScores, notes } = req.body;
+  if (toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") {
+    res.status(409).json({ message: "This profile uses server-calculated descriptive coverage and separate domain means. Manual scores and diagnostic normalization are not permitted." }); return;
+  }
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
 
@@ -233,6 +239,9 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
     return;
   }
   const assignment = assignmentRows[0];
+  if (assignment?.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") {
+    res.status(409).json({ message: "Use Chinese literacy review for the pinned teacher score snapshot." }); return;
+  }
 
   const responseRows = await db.select().from(responsesTable)
     .where(eq(responsesTable.assignmentId, assignmentId))

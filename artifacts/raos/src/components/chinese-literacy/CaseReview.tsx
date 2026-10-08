@@ -1,0 +1,76 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "wouter";
+import { ApiError, caseUrl, clRequest, downloadExport } from "./api";
+import { EvidencePanel, FollowUpPanel, MonitoringPanel, PlanPanel, ReportPanel } from "./ReviewPanels";
+import type { ClAdministration, ClMetadata } from "./types";
+import { Banner, Btn, Skeleton } from "./ui";
+
+interface Listing { administrations: ClAdministration[]; metadata: ClMetadata; integration: { portal: string; ai: string } }
+const TABS = [["evidence", "Evidence"], ["report", "Report"], ["plan", "Support plan"], ["monitor", "Monitoring"], ["follow", "Follow-up and export"]] as const;
+
+export default function CaseReview({ caseId }: { caseId: string }) {
+  const [data, setData] = useState<Listing | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("evidence");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
+    setError(null);
+    clRequest<Listing>(caseUrl(caseId), { staff: true }).then(d => { setData(d); setSel(s => s ?? d.administrations[0]?.assignmentId ?? null); }).catch(e => setError(e instanceof ApiError ? e.message : "Could not load."));
+  }, [caseId]);
+  useEffect(load, [load]);
+
+  const adm = data?.administrations.find(a => a.assignmentId === sel);
+  const run = async (body: Record<string, unknown>) => {
+    if (!adm || !data) return;
+    setBusy(true); setActionError(null);
+    try {
+      const res = await clRequest<any>(`${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/action`, { method: "POST", staff: true, body: { ...body, revision: adm.revision } });
+      if (res.administration) {
+        const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...res.administration };
+        setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
+      }
+      if (body.action === "followup") load();
+      return res;
+    } catch (e) {
+      setActionError(e instanceof ApiError ? `${e.message}${e.issues.length ? ": " + e.issues.join("; ") : ""}${e.status === 409 ? " Reload to see the latest revision." : ""}` : "Action failed.");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-5" data-testid="page-chinese-literacy-review">
+      <div>
+        <Link href={`/cases/${caseId}`} className="text-xs text-primary underline">Back to case</Link>
+        <h1 className="text-2xl font-bold text-slate-900 mt-1">Chinese literacy observation review</h1>
+        <p className="text-xs text-slate-500">Descriptive classroom evidence from the teacher form. Not a diagnosis, screener or risk rating.</p>
+      </div>
+      {error && <div className="space-y-2"><Banner tone="error" title="Could not load">{error}</Banner><Btn onClick={load}>Try again</Btn></div>}
+      {!data && !error && <Skeleton />}
+      {data && data.administrations.length === 0 && <Banner title="No administrations yet">Assign the Chinese literacy teacher observation to this case to begin.</Banner>}
+      {data && adm && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            {data.administrations.map(a => (
+              <button key={a.assignmentId} type="button" onClick={() => setSel(a.assignmentId)} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${a.assignmentId === sel ? "bg-primary text-white border-primary" : "bg-white text-slate-700 border-slate-300"}`}>
+                {a.teacherName || "Teacher"} {a.baselineId ? "(follow-up)" : ""} <span className="font-normal opacity-80">{a.status.replace(/_/g, " ")}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500">{adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
+          {data.integration.portal === "not_configured" && <p className="text-[11px] text-slate-500">Case Portal is not configured. Nothing is synchronised.</p>}
+          {actionError && <Banner tone="error" title="Action not completed">{actionError}</Banner>}
+          <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
+            {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} data-testid={`tab-${k}`} className={`px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 ${tab === k ? "border-primary text-primary" : "border-transparent text-slate-500"}`}>{l}</button>)}
+          </div>
+          {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The teacher has not submitted this administration. Review actions open after submission.</Banner> : null}
+          {(() => {
+            const p = { key: adm.assignmentId + adm.revision, adm, meta: data.metadata, run, busy, ai: data.integration.ai, portal: data.integration.portal };
+            return tab === "evidence" ? <EvidencePanel {...p} /> : tab === "report" ? <ReportPanel {...p} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
+              : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
+          })()}
+        </>
+      )}
+    </div>
+  );
+}
