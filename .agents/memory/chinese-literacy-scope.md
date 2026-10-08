@@ -19,7 +19,7 @@ Both Chinese literacy forms must match the established ReMynd assessment brandin
 
 **Why:** The user explicitly objected to these forms having a bare heading and inferior language control compared with the other assessment forms on 2026-10-09.
 
-**How to apply:** Reuse the existing assessment brand presentation for both respondent versions, including completed states, rather than treating specialized tools as visually separate products.
+**How to apply:** Match the established Assessment Portal header shown in the user's reference: dark navy ReMynd branding, respondent identity at the right, and compact En / 中 / 한 language buttons—not a large language dropdown or a separate Student Services brand. Apply this to both respondent versions, previews and completed states.
 
 Both forms must be considered independently by intake analysis and assessment recommendations when Chinese literacy concerns are relevant. Being a Chinese-speaking family alone is not grounds to recommend them.
 

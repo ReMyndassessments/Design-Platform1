@@ -97,6 +97,7 @@ test("branded header translates both form versions and preserves language contro
       formName: meta.formName,
       version: meta.version,
       studentIdentifier: createElement(Verbatim, null, "Reading"),
+      respondentName: "Example respondent",
       language: "mandarin",
       setLang: () => {},
       progress: 0.52,
@@ -106,8 +107,13 @@ test("branded header translates both form versions and preserves language contro
     assert.ok(html.includes(t(meta.formName, "mandarin")));
     assert.ok(html.includes(t("Language", "mandarin")));
     assert.ok(html.includes("Reading"), "Student identity remains verbatim");
-    assert.match(html, /<option[^>]*value="mandarin"[^>]*selected=""/);
-    assert.ok(html.includes("中文（简体） / Mandarin"));
+    assert.match(html, /aria-pressed="true"[^>]*title="中文（简体）"/);
+    assert.ok(html.includes('data-testid="button-interface-language-english"'));
+    assert.ok(html.includes('data-testid="button-interface-language-mandarin"'));
+    assert.ok(html.includes('data-testid="button-interface-language-korean"'));
+    assert.ok(!html.includes("<select"), "Uses the established portal language buttons, not a dropdown");
+    assert.ok(html.includes("Example respondent"), "Respondent identity remains verbatim");
+    assert.ok(html.includes("评估门户"));
     assert.ok(html.includes('data-testid="status-save"'));
     assert.ok(html.includes("width:52%"));
     assert.ok(html.includes('alt="ReMynd"'));
