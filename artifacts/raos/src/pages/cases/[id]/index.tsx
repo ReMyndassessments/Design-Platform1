@@ -1485,7 +1485,7 @@ export default function CaseDetail() {
       </div>
 
       {/* Phase Stepper */}
-      <Card className="border-none shadow-md overflow-hidden bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+      <Card className="sticky top-0 z-20 print:static border-none shadow-md overflow-hidden bg-gradient-to-r from-slate-900 to-slate-800 text-white" data-testid="case-phase-progress">
         <CardContent className="p-6">
           <div className="overflow-x-auto" role="group" aria-label="Case phases">
             <div className="relative min-w-[740px] md:min-w-0 h-[72px]">
