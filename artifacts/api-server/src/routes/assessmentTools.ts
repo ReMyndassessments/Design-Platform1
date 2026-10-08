@@ -355,7 +355,7 @@ router.post("/assessment-tools/recommend", authMiddleware, async (req, res) => {
   const { caseId, domains, riskLevel } = req.body;
   const allTools = await db.select().from(assessmentToolsTable);
 
-  const recommendations = await recommendToolsWithAI({ domains, riskLevel, allTools });
+  const recommendations = await recommendToolsWithAI({ domains, riskLevel, allTools, grade: typeof req.body.grade === "string" ? req.body.grade : null });
   res.json(recommendations);
 });
 
