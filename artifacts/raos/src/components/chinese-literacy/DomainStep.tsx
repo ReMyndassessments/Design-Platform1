@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ClDomain, ClInput, ClMetadata, DomainEvidence, ItemResponse, SectionDecision } from "./types";
-import { blankEvidence, blankResponse, domainNote, domainStats, gradeExamplesFor, isCore, itemsNeedingEvidence, respMap } from "./logic";
+import { blankEvidence, blankResponse, domainNote, domainStats, gradeExamplesFor, isCore, isParentMeta, itemsNeedingEvidence, respMap } from "./logic";
 import { Banner, Btn, Field, ItemIdPicker, inputCls } from "./ui";
 
 const split = (a: string) => a.split(/\s+[—-]\s+/)[0];
@@ -45,7 +45,8 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
   const m = respMap(input);
   const stats = domainStats(domain, input);
   const ev: DomainEvidence = input.evidence[domain.id] ?? blankEvidence();
-  const examples = gradeExamplesFor(meta, domain, input.context.grade);
+  const parent = isParentMeta(meta);
+  const examples = parent ? [] : gradeExamplesFor(meta, domain, input.context.grade);
   const note = domainNote(domain);
   const ratedIds = useMemo(() => domain.items.filter(i => m.get(i.id)?.status === "rated").map(i => i.id), [domain, m]);
   const needEv = itemsNeedingEvidence(domain, input);
@@ -90,6 +91,7 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
         <p className="text-xs text-slate-500 mt-1">{stats.answered} of {stats.total} items answered; {stats.rated} rated, {stats.no} not observed, {stats.na} not applicable.</p>
       </div>
       {note && <Banner>{note}</Banner>}
+      {parent && <Banner tone="warn" title="Choosing No">If your child has limited Chinese ability, choose No (not observed), not NA. Only observe what happens naturally. Please do not run tests or set tasks for your child.</Banner>}
       {examples.length > 0 && <Banner title={`Examples for Grade ${input.context.grade}`}><ul className="list-disc pl-4">{examples.map((e, i) => <li key={i}>{e}</li>)}</ul></Banner>}
       <AnchorLegend anchors={meta.anchors} />
       <div role="radiogroup" aria-label="Whole section decision" className="flex flex-wrap gap-2 items-center">
@@ -122,13 +124,19 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
             </div>
           ))}
           <Btn variant="ghost" onClick={() => setEv({ examples: [...ev.examples, { text: "", itemIds: [] }] })} data-testid={`button-add-example-${domain.id}`}>Add example</Btn>
+          {parent && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Home setting observed"><input className={inputCls} value={ev.setting ?? ""} placeholder="For example, homework at the kitchen table" onChange={e => setEv({ setting: e.target.value })} data-testid={`input-ev-setting-${domain.id}`} /></Field>
+              <Field label="Language involved"><input className={inputCls} value={ev.language ?? ""} placeholder="For example, Mandarin" onChange={e => setEv({ language: e.target.value })} data-testid={`input-ev-language-${domain.id}`} /></Field>
+            </div>
+          )}
           <Field label="Conditions of success and strengths"><textarea rows={2} className={inputCls} value={ev.strengths} onChange={e => setEv({ strengths: e.target.value })} /></Field>
           <Field label="Supports present"><textarea rows={2} className={inputCls} value={ev.supports} onChange={e => setEv({ supports: e.target.value })} /></Field>
           <Field label="Approximate number of relevant observation opportunities (if known)">
             <input type="number" min={0} className={`${inputCls} max-w-[10rem]`} value={ev.opportunities ?? ""} onChange={e => setEv({ opportunities: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} />
           </Field>
           <div role="radiogroup" aria-label="Classroom impact" className="space-y-1.5">
-            <p className="text-xs font-semibold text-slate-700">Classroom impact (separate from frequency)</p>
+            <p className="text-xs font-semibold text-slate-700">{parent ? "Impact at home (separate from frequency)" : "Classroom impact (separate from frequency)"}</p>
             {[...IMPACT, [null, "Unknown"] as const].map(([v, l]) => (
               <label key={String(v)} className="flex items-start gap-2 text-xs text-slate-700">
                 <input type="radio" name={`impact-${domain.id}`} checked={ev.impact === v} onChange={() => setEv({ impact: v as DomainEvidence["impact"] })} data-testid={`impact-${domain.id}-${v}`} /> {l}

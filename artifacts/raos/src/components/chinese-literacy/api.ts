@@ -1,4 +1,10 @@
 export const INSTRUMENT_ID = "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION";
+export const PARENT_INSTRUMENT_ID = "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION";
+export const isParentKey = (k?: string | null) => k === PARENT_INSTRUMENT_ID;
+let optionalAuth = false;
+/** Parent saves send the staff header when a signed-in staff member enters a paper form. */
+export const setOptionalStaffAuth = (b: boolean) => { optionalAuth = b; };
+export const hasStaffToken = () => !!localStorage.getItem("raos_token");
 const base = () => (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 export class ApiError extends Error {
   status: number; issues: string[]; body: any;
@@ -13,7 +19,7 @@ function staffHeaders(): Record<string, string> {
 export async function clRequest<T>(path: string, opts: { method?: string; body?: unknown; staff?: boolean } = {}): Promise<T> {
   const res = await fetch(`${base()}${path}`, {
     method: opts.method ?? "GET",
-    headers: { ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}), ...(opts.staff ? staffHeaders() : {}) },
+    headers: { ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}), ...(opts.staff || (optionalAuth && hasStaffToken()) ? staffHeaders() : {}) },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     credentials: "include",
   });
@@ -22,6 +28,7 @@ export async function clRequest<T>(path: string, opts: { method?: string; body?:
   return json as T;
 }
 export const formUrl = (token: string) => `/api/external/form/${encodeURIComponent(token)}/chinese-literacy`;
+export const metadataUrl = (instrument: string) => `/api/chinese-literacy/metadata?instrument=${encodeURIComponent(instrument)}`;
 export const caseUrl = (caseId: string) => `/api/cases/${encodeURIComponent(caseId)}/chinese-literacy`;
 export async function downloadExport(caseId: string, assignmentId: string, format: "html" | "doc") {
   const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}`, { headers: staffHeaders() });

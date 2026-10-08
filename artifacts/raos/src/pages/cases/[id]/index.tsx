@@ -30,7 +30,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
-import { assignmentRespondentTypes, missingTeacherAssignments } from "@/lib/assignment-respondents";
+import { toolDisplayName, assignmentRespondentTypes, missingTeacherAssignments } from "@/lib/assignment-respondents";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
@@ -1996,7 +1996,7 @@ export default function CaseDetail() {
                                   </Button>
                                 </Link>
                               ) : (
-                                <Link href={a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION" ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
+                                <Link href={["REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION", "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION"].includes(a.toolId) ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
                                   <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
                                     <Eye size={14} /> View Response
                                   </Button>
@@ -2280,7 +2280,7 @@ export default function CaseDetail() {
                                   <div className="flex items-start justify-between gap-2 mb-1">
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-semibold text-slate-800">{t.name}</span>
+                                        <span className="text-sm font-semibold text-slate-800">{toolDisplayName(t.toolId, t.name)}</span>
                                         <Badge className={`text-xs shrink-0 ${t.priority === 'essential' ? 'bg-red-100 text-red-700 border-red-200' : t.priority === 'recommended' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} variant="outline">
                                           {t.priority}
                                         </Badge>
@@ -2631,7 +2631,7 @@ export default function CaseDetail() {
                 Build Assessment Battery
               </CardTitle>
               <div className="flex gap-2">
-                {(c.assignments ?? []).some((a: any) => a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION") && ["admin", "psychometrician", "school_clinical_coordinator"].includes(role as string) && (
+                {(c.assignments ?? []).some((a: any) => ["REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION", "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION"].includes(a.toolId)) && ["admin", "psychometrician", "school_clinical_coordinator"].includes(role as string) && (
                   <Link href={`/cases/${caseId}/chinese-literacy`}>
                     <Button size="sm" variant="outline" className="border-sky-200 text-sky-700 hover:bg-sky-50 gap-1.5" data-testid="link-chinese-literacy-review">Chinese literacy review</Button>
                   </Link>
@@ -2754,7 +2754,7 @@ export default function CaseDetail() {
                                 </Button>
                               </Link>
                             ) : (
-                              <Link href={a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION" ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
+                              <Link href={["REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION", "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION"].includes(a.toolId) ? `/cases/${caseId}/chinese-literacy` : `/cases/${caseId}/response/${a.id}`}>
                                 <Button size="sm" variant="outline" className="bg-white gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300">
                                   <Eye size={14} /> View Response
                                 </Button>
@@ -3464,7 +3464,7 @@ export default function CaseDetail() {
                               setNewAssignment({ ...newAssignment, toolIds: ids });
                             }}
                           />
-                          <span className="text-sm text-slate-800">{t.name}</span>
+                          <span className="text-sm text-slate-800">{toolDisplayName(t.id, t.name)}</span>
                         </label>
                       );
                     })}

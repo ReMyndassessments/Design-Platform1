@@ -2,7 +2,7 @@ export type ResponseStatus = "rated" | "not_observed" | "not_applicable" | "unan
 export interface ItemResponse { itemId: string; status: ResponseStatus; value: number | null; reason?: string }
 export interface Priority { text: string; itemIds: string[]; strategyId: string; owner: string; indicator: string; reviewDate: string }
 export interface EvidenceExample { text: string; itemIds: string[] }
-export interface DomainEvidence { examples: EvidenceExample[]; strengths: string; supports: string; opportunities?: number | null; impact: 0 | 1 | 2 | 3 | null }
+export interface DomainEvidence { examples: EvidenceExample[]; strengths: string; supports: string; opportunities?: number | null; impact: 0 | 1 | 2 | 3 | null; setting?: string; language?: string }
 export type SectionDecision = "complete" | "not_observed" | "not_applicable";
 export type InterfaceLanguage = "english" | "mandarin" | "korean";
 export interface ClInput {
@@ -19,7 +19,7 @@ export interface ClStrategy { id: string; label: string; type: string; options: 
 export interface ClMetadata {
   key: string; name: string; version: string; scoringVersion: string; introduction: string; limitation: string; reportLimitation: string;
   domains: ClDomain[]; anchors: string[]; strategies: ClStrategy[];
-  translationStatus: { english: string; mandarin: string; korean: string }; gradeExamples?: any;
+  translationStatus: { english: string; mandarin: string; korean: string }; gradeExamples?: any; formName?: string; setting?: string; respondent?: string;
 }
 export interface ClScore {
   id: string; label: string; status: string; totalItems: number; applicableCount: number; validCount: number; notApplicableCount: number;
@@ -30,7 +30,7 @@ export interface ClScore {
 export interface ClAdministration {
   assignmentId: string; caseId: string; instrumentVersion: string; scoringVersion: string; languageVersion: string; status: string; revision: number;
   input: ClInput; scores: ClScore[] | null; baselineId: string | null; selectedDomains: string[] | null; report: any; plan: any; monitoring: any;
-  teacherName?: string; teacherEmail?: string;
+  teacherName?: string; teacherEmail?: string; metadata?: ClMetadata;
 }
 export interface ClEnvelope {
   administration: ClAdministration; metadata: ClMetadata;

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { CHINESE_LITERACY_TOOL_ID } from "@/lib/assignment-respondents";
+import { isChineseLiteracyToolId, toolDisplayName } from "@/lib/assignment-respondents";
 import {
   useListAssessmentTools,
   useUpdateAssessmentTool,
@@ -1123,7 +1123,7 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           respondentTypes: respondents,
           formItems: formItems.length > 0 ? formItems : null,
           productIds: selectedProducts,
-          ...(scoringType === "auto" && tool.id !== CHINESE_LITERACY_TOOL_ID && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
+          ...(scoringType === "auto" && !isChineseLiteracyToolId(tool.id) && { scoringConfig: buildScoringConfig(scoringConfig.max, scoringConfig.thresholds, scoringConfig.domains) }),
         } as Parameters<typeof updateMut.mutate>[0]["data"],
       });
 
@@ -1326,12 +1326,12 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
           <FormItemsEditor items={formItems} onChange={setFormItems} />
 
           {/* Scoring Criteria — only for auto-scored tools */}
-          {tool.id === CHINESE_LITERACY_TOOL_ID && (
+          {isChineseLiteracyToolId(tool.id) && (
             <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
               This tool is descriptive only. It reports per-domain means, coverage and classroom impact, with no norms, thresholds, overall score or risk bands, so there is nothing to configure here.
             </div>
           )}
-          {scoringType === "auto" && tool.id !== CHINESE_LITERACY_TOOL_ID && (
+          {scoringType === "auto" && !isChineseLiteracyToolId(tool.id) && (
             <ScoringCriteriaEditor
               scoringConfig={scoringConfig}
               onChange={setScoringConfig}
@@ -1453,7 +1453,7 @@ function ToolInfoModal({ tool, isAdmin, onClose }: { tool: any; isAdmin: boolean
         <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex-1 min-w-0 pr-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-bold text-slate-900 text-base leading-snug">{tool.name}</h2>
+              <h2 className="font-bold text-slate-900 text-base leading-snug">{toolDisplayName(tool.id, tool.name)}</h2>
               {tool.isRemyndOwned && (
                 <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 text-xs font-medium px-2 py-0.5 rounded-full border border-blue-100 shrink-0">
                   ReMynd
@@ -1581,7 +1581,7 @@ function ToolRow({ tool, onClick }: { tool: any; onClick: () => void }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-slate-800 group-hover:text-primary transition-colors leading-snug">
-            {tool.name}
+            {toolDisplayName(tool.id, tool.name)}
           </span>
           {tool.isRemyndOwned && (
             <span className="inline-flex items-center bg-blue-50 text-blue-600 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-blue-100 shrink-0">

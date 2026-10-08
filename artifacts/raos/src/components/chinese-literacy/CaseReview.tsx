@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { ApiError, caseUrl, clRequest, downloadExport } from "./api";
 import { EvidencePanel, FollowUpPanel, MonitoringPanel, PlanPanel, ReportPanel } from "./ReviewPanels";
+import { PARENT_INSTRUMENT_ID } from "./api";
 import type { ClAdministration, ClMetadata } from "./types";
 import { Banner, Btn, Skeleton } from "./ui";
 
@@ -22,6 +23,9 @@ export default function CaseReview({ caseId }: { caseId: string }) {
   useEffect(load, [load]);
 
   const adm = data?.administrations.find(a => a.assignmentId === sel);
+  const metaOf = (a: ClAdministration): ClMetadata => a.metadata ?? data!.metadata;
+  const isParent = (a: ClAdministration) => metaOf(a).key === PARENT_INSTRUMENT_ID;
+  const who = (a: ClAdministration) => (isParent(a) ? "Parent" : "Teacher");
   const run = async (body: Record<string, unknown>) => {
     if (!adm || !data) return;
     setBusy(true); setActionError(null);
@@ -43,29 +47,29 @@ export default function CaseReview({ caseId }: { caseId: string }) {
       <div>
         <Link href={`/cases/${caseId}`} className="text-xs text-primary underline">Back to case</Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-1">Chinese literacy observation review</h1>
-        <p className="text-xs text-slate-500">Descriptive classroom evidence from the teacher form. Not a diagnosis, screener or risk rating.</p>
+        <p className="text-xs text-slate-500">Descriptive evidence from separate parent and teacher forms. Each is shown on its own; scores are never combined. Not a diagnosis, screener or risk rating.</p>
       </div>
       {error && <div className="space-y-2"><Banner tone="error" title="Could not load">{error}</Banner><Btn onClick={load}>Try again</Btn></div>}
       {!data && !error && <Skeleton />}
-      {data && data.administrations.length === 0 && <Banner title="No administrations yet">Assign the Chinese literacy teacher observation to this case to begin.</Banner>}
+      {data && data.administrations.length === 0 && <Banner title="No administrations yet">Assign a Chinese literacy teacher or parent observation to this case to begin. Either one is enough on its own.</Banner>}
       {data && adm && (
         <>
           <div className="flex flex-wrap items-center gap-2">
             {data.administrations.map(a => (
               <button key={a.assignmentId} type="button" onClick={() => setSel(a.assignmentId)} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${a.assignmentId === sel ? "bg-primary text-white border-primary" : "bg-white text-slate-700 border-slate-300"}`}>
-                {a.teacherName || "Teacher"} {a.baselineId ? "(follow-up)" : ""} <span className="font-normal opacity-80">{a.status.replace(/_/g, " ")}</span>
+                <span className="font-bold">{who(a)}</span>: {a.teacherName || who(a)} {a.baselineId ? "(follow-up)" : ""} <span className="font-normal opacity-80">{a.status.replace(/_/g, " ")}</span>
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-500">{adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
+          <p className="text-xs text-slate-500">{metaOf(adm).formName ?? `${who(adm)} form`} ({who(adm)} record; setting {metaOf(adm).setting ?? "not stated"}). {adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
           {data.integration.portal === "not_configured" && <p className="text-[11px] text-slate-500">Case Portal is not configured. Nothing is synchronised.</p>}
           {actionError && <Banner tone="error" title="Action not completed">{actionError}</Banner>}
           <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
             {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} data-testid={`tab-${k}`} className={`px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 ${tab === k ? "border-primary text-primary" : "border-transparent text-slate-500"}`}>{l}</button>)}
           </div>
-          {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The teacher has not submitted this administration. Review actions open after submission.</Banner> : null}
+          {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
-            const p = { key: adm.assignmentId + adm.revision, adm, meta: data.metadata, run, busy, ai: data.integration.ai, portal: data.integration.portal };
+            const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
             return tab === "evidence" ? <EvidencePanel {...p} /> : tab === "report" ? <ReportPanel {...p} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}

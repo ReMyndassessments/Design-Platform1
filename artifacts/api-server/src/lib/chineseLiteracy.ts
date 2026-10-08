@@ -16,7 +16,7 @@ export const LITERACY_ANCHORS = [
   "NA Not applicable — not relevant to the taught curriculum or task; reason required.",
 ];
 
-function domain(id: string, label: string, requirement: "core" | "contextual" | "optional", text: string) {
+export function domain(id: string, label: string, requirement: "core" | "contextual" | "optional", text: string) {
   return { id, label, requirement, items: text.split("\n").map(line => {
     const split = line.indexOf(" — ");
     return { id: line.slice(0, split), text: line.slice(split + 3), translationKey: `chineseLiteracy.items.${line.slice(0, split)}` };
@@ -129,6 +129,9 @@ export const LITERACY_METADATA = {
 export const LITERACY_FORM_ITEMS = LITERACY_DOMAINS.flatMap(d => d.items.map(item => ({
   id: item.id, text: item.text, type: "likert" as const, domain: d.id, options: LITERACY_ANCHORS, required: true,
 })));
+export type LiteracyMetadata = Omit<typeof LITERACY_METADATA, "gradeExamples"> & {
+  gradeExamples?: Record<string, unknown>; respondent?: string; setting?: string; guidance?: string[];
+};
 
 const responseSchema = z.discriminatedUnion("status", [
   z.object({ itemId: z.string(), status: z.literal("rated"), value: z.number().int().min(1).max(5) }).strict(),
@@ -148,6 +151,7 @@ export const literacyInputSchema = z.object({
     examples: z.array(z.object({ text: z.string().max(8000), itemIds: z.array(z.string()).max(78) }).strict()).max(78),
     strengths: z.string().max(8000), supports: z.string().max(8000), opportunities: z.number().int().nonnegative().nullable().optional(),
     impact: z.number().int().min(0).max(3).nullable(),
+    setting: z.string().max(8000).optional(), language: z.string().max(8000).optional(),
   }).strict()),
   summary: z.object({ strengths: z.string().max(8000), barriers: z.string().max(8000), supportResponse: z.string().max(8000), discussion: z.string().max(8000), priorities: z.array(prioritySchema).max(3) }).strict(),
   interfaceLanguage: z.enum(["english", "mandarin", "korean"]),
@@ -162,12 +166,13 @@ export class LiteracyValidationError extends Error {
   issues: string[];
   constructor(issues: string[]) { super(issues.join(" ")); this.issues = issues; }
 }
-export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_DOMAINS.map(d => d.id), submitted = false): LiteracyInput {
+export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_DOMAINS.map(d => d.id), submitted = false, metadata: LiteracyMetadata = LITERACY_METADATA): LiteracyInput {
   const parsed = literacyInputSchema.safeParse(raw);
   if (!parsed.success) throw new LiteracyValidationError(parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`));
   const input = parsed.data;
-  const selected = validateDomainSelection(selectedDomains);
-  const domains = LITERACY_DOMAINS.filter(d => selected.includes(d.id));
+  const parent = metadata.respondent === "parent";
+  const selected = validateDomainSelection(selectedDomains, metadata);
+  const domains = metadata.domains.filter(d => selected.includes(d.id));
   const expected = new Set(domains.flatMap(d => d.items.map(item => item.id)));
   const seen = new Set<string>();
   const issues: string[] = [];
@@ -187,14 +192,18 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
       if (example.itemIds.some(id => !ids.has(id))) issues.push(`${d.label}: example links must belong to this domain.`);
     }
     if (!submitted) continue;
-    if (!section) issues.push(`${d.label}: make an explicit section decision.`);
+    if (!section && (!parent || d.requirement !== "core")) issues.push(`${d.label}: make an explicit section decision.`);
     if (section?.decision === "not_applicable" && !section.reason?.trim()) issues.push(`${d.label}: section NA requires a reason.`);
     if (responses.length !== d.items.length || responses.some(r => r.status === "unanswered")) issues.push(`${d.label}: review every assigned item with a rating, NO or NA.`);
     if (section?.decision === "not_observed" && responses.some(r => r.status !== "not_observed")) issues.push(`${d.label}: section NO must explicitly populate all items as NO.`);
     if (section?.decision === "not_applicable" && responses.some(r => r.status !== "not_applicable" || r.reason !== section.reason)) issues.push(`${d.label}: section NA reason must apply to all its items.`);
     if (section?.decision === "complete" && !evidence) issues.push(`${d.label}: provide domain evidence and impact (Unknown is allowed).`);
+    if (parent && responses.some(r => r.status === "rated") && (section?.decision === "complete" || (!section && d.requirement === "core"))) {
+      if (!evidence?.setting?.trim() || !evidence?.language?.trim()) issues.push(`${d.label}: record the home observation setting and language.`);
+      if (!evidence?.strengths?.trim() || !evidence?.supports?.trim()) issues.push(`${d.label}: describe strengths and usual support, or explain what was not observed.`);
+    }
     for (const response of responses) {
-      if (response.status === "not_applicable" && !response.reason.trim()) issues.push(`${response.itemId}: provide the teacher's actual NA reason.`);
+      if (response.status === "not_applicable" && !response.reason.trim()) issues.push(`${response.itemId}: provide the respondent's actual NA reason.`);
       if (response.status === "rated" && response.value >= 4 &&
         !(evidence?.examples.some(example => example.text.trim() && example.itemIds.includes(response.itemId)))) {
         issues.push(`${response.itemId}: a concrete linked example is required for ratings 4 or 5.`);
@@ -204,17 +213,32 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
   if (submitted) {
     const grade = Number(input.context.grade);
     if (!Number.isInteger(grade) || grade < 3 || grade > 12) issues.push("Grade must be an integer from 3 through 12.");
-    for (const key of ["teacherRole", "contactFrequency", "setting", "timeTeaching", "observationStart", "observationEnd", "script", "spokenVariety", "instruction", "observationLanguage", "exposureHistory", "curriculum", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation"]) {
+    const contextKeys = parent
+      ? ["relationship", "contactFrequency", "setting", "observationStart", "observationEnd", "completionDate", "homeLanguages", "activities", "script", "spokenVariety", "readingConfidence", "writingConfidence", "observationLanguage", "reason", "strengths", "currentSupports", "exposureHistory", "accessInformation", "unknownInformation", "schoolFeedback", "schoolFeedbackSource", "participationImpact", "questions", "assistanceMode", "parentConfirmed", "confirmationDate"]
+      : ["teacherRole", "contactFrequency", "setting", "timeTeaching", "observationStart", "observationEnd", "script", "spokenVariety", "instruction", "observationLanguage", "exposureHistory", "curriculum", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation"];
+    for (const key of contextKeys) {
       if (typeof input.context[key] !== "string" || !input.context[key]?.trim()) issues.push(`Context ${key}: provide a response or an explicit unknown with explanation.`);
     }
-    for (const key of ["exposureHistory", "curriculum", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation"]) {
+    for (const key of parent ? ["exposureHistory", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation", "schoolFeedback", "schoolFeedbackSource", "participationImpact", "questions"] : ["exposureHistory", "curriculum", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation"]) {
       if (/^(not known|not yet observed|unknown)\s*[:–-]?\s*$/i.test(String(input.context[key]).trim())) issues.push(`Context ${key}: briefly explain the explicit unknown.`);
     }
     const start = Date.parse(String(input.context.observationStart));
     const end = Date.parse(String(input.context.observationEnd));
     if (!Number.isFinite(start) || !Number.isFinite(end) || end < start || end > Date.now() + 86400000) issues.push("Provide valid observation dates in chronological order, not in the future.");
-    for (const [key, options] of Object.entries({ script: ["simplified", "traditional", "both", "other", "unknown"], spokenVariety: ["mandarin", "cantonese", "other", "unknown"], instruction: ["main curriculum", "additional language", "literacy support", "other", "unknown"] })) {
+    const contextOptions: Record<string, string[]> = parent
+      ? { script: ["simplified", "traditional", "both", "other", "unknown"], spokenVariety: ["mandarin", "cantonese", "other", "unknown"], readingConfidence: ["comfortable", "some_limits", "unable_to_judge"], writingConfidence: ["comfortable", "some_limits", "unable_to_judge"], assistanceMode: ["independent", "assessor", "interpreter", "paper"] }
+      : { script: ["simplified", "traditional", "both", "other", "unknown"], spokenVariety: ["mandarin", "cantonese", "other", "unknown"], instruction: ["main curriculum", "additional language", "literacy support", "other", "unknown"] };
+    for (const [key, options] of Object.entries(contextOptions)) {
       if (!options.includes(String(input.context[key]).toLowerCase())) issues.push(`Choose a valid ${key} option.`);
+    }
+    if (parent) {
+      for (const key of ["completionDate", "confirmationDate"]) {
+        const date = Date.parse(String(input.context[key]));
+        if (!Number.isFinite(date) || date < end || date > Date.now() + 86400000) issues.push(`${key}: provide a valid date on or after the observation end, not in the future.`);
+      }
+      if (input.context.parentConfirmed !== "yes") issues.push("The source parent or caregiver must confirm that these are their chosen responses.");
+      if (input.context.assistanceMode !== "independent" && (!String(input.context.assistantIdentity ?? "").trim() || !String(input.context.assistantLanguage ?? "").trim())) issues.push("Record the assistant's identity and language for assisted or paper completion.");
+      if (end - start < 28 * 86400000 && !String(input.context.shortWindowExplanation ?? "").trim()) issues.push("Briefly explain the shorter observation window; it does not prevent support or require more testing.");
     }
     for (const key of ["strengths", "barriers", "supportResponse", "discussion"] as const) {
       if (!input.summary[key].trim()) issues.push(`Summary ${key}: provide a response or an explicit unknown with explanation.`);
@@ -222,14 +246,14 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
     }
     for (const p of input.summary.priorities) {
       if (!p.text.trim() || !p.owner.trim() || !p.indicator.trim() || !Number.isFinite(Date.parse(p.reviewDate))) issues.push("Each proposed priority needs text, an owner, progress indicator and review date.");
-      if (!LITERACY_STRATEGIES.some(s => s.id === p.strategyId) || !p.itemIds.length || p.itemIds.some(id => !expected.has(id))) issues.push("Priorities must reference assigned item IDs and a permitted strategy.");
+      if (!metadata.strategies.some(s => s.id === p.strategyId) || !p.itemIds.length || p.itemIds.some(id => !expected.has(id))) issues.push("Priorities must reference assigned item IDs and a permitted strategy.");
     }
   }
   if (issues.length) throw new LiteracyValidationError(issues);
   return input;
 }
-export function validateDomainSelection(ids: string[]) {
-  if (!Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length || ids.some(id => !LITERACY_DOMAINS.some(d => d.id === id))) throw new LiteracyValidationError(["Choose unique, complete domains from the pinned instrument."]);
+export function validateDomainSelection(ids: string[], metadata: LiteracyMetadata = LITERACY_METADATA) {
+  if (!Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length || ids.some(id => !metadata.domains.some(d => d.id === id))) throw new LiteracyValidationError(["Choose unique, complete domains from the pinned instrument."]);
   return ids;
 }
 export function scoreLiteracyDomain(itemIds: readonly string[], rawResponses: readonly unknown[]) {
@@ -263,9 +287,9 @@ export function scoreLiteracyDomain(itemIds: readonly string[], rawResponses: re
     coverage, requiredValidCount, sum, mean, displayMean: mean === null ? null : mean.toFixed(1),
     frequentDifficultyCount: frequentDifficultyItemIds.length, frequentDifficultyItemIds, scoredItemIds, applicableItemIds };
 }
-export function scoreLiteracy(input: LiteracyInput, selectedDomains = LITERACY_DOMAINS.map(d => d.id)) {
-  validateLiteracyInput(input, selectedDomains);
-  return LITERACY_DOMAINS.map(d => ({
+export function scoreLiteracy(input: LiteracyInput, selectedDomains = LITERACY_DOMAINS.map(d => d.id), metadata: LiteracyMetadata = LITERACY_METADATA) {
+  validateLiteracyInput(input, selectedDomains, false, metadata);
+  return metadata.domains.map(d => ({
     id: d.id, label: d.label,
     ...(selectedDomains.includes(d.id)
       ? scoreLiteracyDomain(d.items.map(i => i.id), input.responses.filter(r => d.items.some(i => i.id === r.itemId)))
@@ -283,15 +307,16 @@ export function compareLiteracy(baseline: any, followup: any) {
     const b = baseline.scores.find((s: any) => s.id === f.id);
     const limitations: string[] = [];
     if (baseline.instrumentVersion !== followup.instrumentVersion || baseline.scoringVersion !== followup.scoringVersion) limitations.push("Instrument wording or scoring version changed.");
-    if (baseline.respondentIdentity !== followup.respondentIdentity) limitations.push("Different teacher; results remain separate.");
+    if (baseline.respondentIdentity !== followup.respondentIdentity) limitations.push("Different respondent; results remain separate.");
+    if (baseline.metadata?.key !== followup.metadata?.key) limitations.push("Instrument version or observation source changed; parent and teacher results are not equivalent.");
     const membership = (ids: string[] = []) => [...ids].sort().join("|");
     if (!b || b.status !== "scored" || f.status !== "scored") limitations.push("Both domains need eligible observations.");
     if (membership(b?.applicableItemIds) !== membership(f.applicableItemIds)) limitations.push("Applicable-item membership changed.");
     if (membership(b?.scoredItemIds) !== membership(f.scoredItemIds)) limitations.push("Scored-item membership changed.");
-    for (const key of ["grade", "script", "spokenVariety", "observationLanguage", "curriculum", "currentSupports", "setting"]) {
+    for (const key of ["grade", "script", "spokenVariety", "observationLanguage", "curriculum", "currentSupports", "setting", "activities", "homeLanguages", "assistanceMode", "assistantLanguage", "relationship", "readingConfidence", "writingConfidence", "assistantIdentity"]) {
       if (baseline.input.context[key] !== followup.input.context[key]) limitations.push(`${key} changed.`);
     }
-    return { domainId: f.id, change: limitations.some(l => l.startsWith("Different teacher") || l.includes("membership") || l.includes("eligible") || l.includes("version")) ? null : f.mean - b.mean,
-      baseline: b ?? null, followup: f, limitations, interpretation: "A lower mean describes less frequent teacher-reported difficulty, not statistical or clinical significance or resolution of a diagnosis." };
+    return { domainId: f.id, change: limitations.some(l => l.startsWith("Different respondent") || l.includes("membership") || l.includes("eligible") || l.includes("version")) ? null : f.mean - b.mean,
+      baseline: b ?? null, followup: f, limitations, interpretation: "A lower mean describes less frequently reported difficulty for this respondent and setting, not statistical or clinical significance or resolution of a diagnosis." };
   });
 }

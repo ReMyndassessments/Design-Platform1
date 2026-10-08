@@ -1,3 +1,4 @@
+import { hasStaffToken, isParentKey } from "./api";
 import type { ClDomain, ClInput, ClMetadata, DomainEvidence, ItemResponse, ValidationIssue } from "./types";
 
 export const CONTEXT_REQUIRED: Array<[string, string]> = [
@@ -9,6 +10,16 @@ export const CONTEXT_REQUIRED: Array<[string, string]> = [
   ["currentSupports", "Current supports and teaching strategies"], ["accessInformation", "Instruction, attendance or access information"],
   ["unknownInformation", "Information that is not known"],
 ];
+export const PARENT_CONTEXT_REQUIRED: Array<[string, string]> = [
+  ["grade", "Grade"], ["relationship", "Relationship to the student"], ["contactFrequency", "How often you see the student"], ["setting", "Home setting"],
+  ["observationStart", "Observation start"], ["observationEnd", "Observation end"], ["completionDate", "Completion date"], ["homeLanguages", "Languages used at home"],
+  ["activities", "Home activities involving reading or writing"], ["spokenVariety", "Spoken variety"], ["script", "Written script"],
+  ["readingConfidence", "Confidence judging reading"], ["writingConfidence", "Confidence judging writing"], ["observationLanguage", "Language used to observe or discuss learning"],
+  ["reason", "Reason for completion"], ["strengths", "Literacy strengths and interests"], ["currentSupports", "Current supports at home"],
+  ["exposureHistory", "Chinese literacy exposure or instruction history"], ["accessInformation", "Instruction, attendance or access information"],
+  ["unknownInformation", "Information that is not known"], ["assistanceMode", "How the form was completed"], ["confirmationDate", "Confirmation date"],
+];
+export const isParentMeta = (meta?: { key?: string } | null) => isParentKey(meta?.key);
 export const NARRATIVE_KEYS = new Set(["exposureHistory", "curriculum", "reason", "strengths", "currentSupports", "accessInformation", "unknownInformation"]);
 export const isCore = (d: ClDomain) => /^(core|required)/i.test(d.requirement);
 export const isOptional = (d: ClDomain) => /optional/i.test(d.requirement);
@@ -79,10 +90,22 @@ export function itemsNeedingEvidence(d: ClDomain, input: ClInput): string[] {
 export function validateInput(input: ClInput, meta: ClMetadata, domains: ClDomain[]): ValidationIssue[] {
   const out: ValidationIssue[] = [];
   const ctx = input.context;
-  CONTEXT_REQUIRED.forEach(([k, label]) => {
+  const parent = isParentMeta(meta);
+  (parent ? PARENT_CONTEXT_REQUIRED : CONTEXT_REQUIRED).forEach(([k, label]) => {
     const v = ctx[k];
     if (NARRATIVE_KEYS.has(k) ? !narrativeFilled(v) : !String(v ?? "").trim()) out.push({ step: "context", message: `${label} is required (use Not known or Not yet observed with a brief explanation where applicable).` });
   });
+  if (parent) {
+    if (ctx.assistanceMode && ctx.assistanceMode !== "independent") {
+      if (!String(ctx.assistantIdentity ?? "").trim()) out.push({ step: "context", message: "Assistant identity is required when someone helped complete the form." });
+      if (!String(ctx.assistantLanguage ?? "").trim()) out.push({ step: "context", message: "Assistant language is required when someone helped complete the form." });
+    }
+    if (ctx.parentConfirmed !== "yes") out.push({ step: "context", message: "Please confirm the form reflects your own observations." });
+    const wd = windowDays(ctx);
+    if (wd != null && wd < 28 && !String(ctx.shortWindowExplanation ?? "").trim()) out.push({ step: "context", message: "Explain the available evidence because the observation window is under 28 days." });
+    if (String(ctx.schoolFeedback ?? "").trim() && !String(ctx.schoolFeedbackSource ?? "").trim()) out.push({ step: "context", message: "Say who the school feedback came from." });
+  }
+  if (parent && ctx.assistanceMode === "paper" && hasStaffToken() && ctx.staffSourceConfirmed !== "yes") out.push({ step: "context", message: "Confirm the paper source before submitting staff-entered responses." });
   const g = parseInt(String(ctx.grade), 10);
   if (ctx.grade && !(g >= 3 && g <= 12)) out.push({ step: "context", message: "Grade must be between 3 and 12 for this instrument." });
   if (ctx.observationStart && ctx.observationEnd && new Date(ctx.observationEnd) < new Date(ctx.observationStart)) out.push({ step: "context", message: "Observation end cannot be before the start." });
@@ -101,6 +124,12 @@ export function validateInput(input: ClInput, meta: ClMetadata, domains: ClDomai
     if (!isCore(d) && !sec) out.push({ step, message: `${d.label}: choose Complete this section, Not observed, or Not applicable.` });
     else if (s.un > 0) out.push({ step, message: `${d.label}: ${s.un} item${s.un === 1 ? "" : "s"} still need a rating, Not observed, or Not applicable.` });
     d.items.forEach(i => { const r = m.get(i.id); if (r?.status === "not_applicable" && !(r.reason ?? "").trim() && !(sec?.decision === "not_applicable" && (sec.reason ?? "").trim())) out.push({ step, message: `${i.id}: a reason is required for Not applicable.` }); });
+    if (parent && s.rated > 0 && sec?.decision !== "not_observed" && sec?.decision !== "not_applicable") {
+      const pe = input.evidence[d.id];
+      if (!String(pe?.setting ?? "").trim()) out.push({ step, message: `${d.label}: say in what home setting this was observed.` });
+      if (!String(pe?.language ?? "").trim()) out.push({ step, message: `${d.label}: say which language was involved.` });
+      if (!String(pe?.strengths ?? "").trim() || !String(pe?.supports ?? "").trim()) out.push({ step, message: `${d.label}: describe strengths and usual support, or explain what was not observed.` });
+    }
     const need = itemsNeedingEvidence(d, input);
     if (need.length) out.push({ step, message: `${d.label}: add a concrete example linked to ${need.join(", ")} (rated 4 or 5).` });
   });
@@ -126,6 +155,6 @@ const NOTES: Record<string, string> = {
   SA: "Wellbeing observations do not explain the cause of literacy difficulty.",
 };
 export function domainNote(d: ClDomain): string | null {
-  const prefix = (d.items[0]?.id ?? "").replace(/\d+$/, "");
+  const prefix = (d.items[0]?.id ?? "").replace(/^P-/, "").replace(/\d+$/, "");
   return NOTES[prefix] ?? null;
 }

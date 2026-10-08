@@ -1,3 +1,14 @@
+export const CHINESE_LITERACY_PARENT_TOOL_ID = "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION";
+export const isChineseLiteracyToolId = (id?: string | null) => id === CHINESE_LITERACY_TOOL_ID || id === CHINESE_LITERACY_PARENT_TOOL_ID;
+
+/** Disambiguates the two Chinese literacy forms that share one catalogue name. */
+export function toolDisplayName(id: string | null | undefined, name: string | null | undefined): string {
+  const n = name ?? "";
+  if (id === CHINESE_LITERACY_PARENT_TOOL_ID) return `${n} (Parent Observation Form)`;
+  if (id === CHINESE_LITERACY_TOOL_ID) return `${n} (Teacher Observation Form)`;
+  return n;
+}
+
 /** Every teacher-rated catalogue form is assigned separately to both teachers. */
 export const CHINESE_LITERACY_TOOL_ID = "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION";
 
@@ -19,7 +30,7 @@ export function missingTeacherAssignments(
   const missing: Array<{ toolId: string; respondentType: "teacher1" | "teacher2" }> = [];
   const assignedToolIds = new Set([...existingKeys].map(key => key.split("\0", 1)[0]));
   for (const tool of tools) {
-    if (tool.id === CHINESE_LITERACY_TOOL_ID) continue;
+    if (isChineseLiteracyToolId(tool.id)) continue;
     if (!assignedToolIds.has(tool.id) || !assignmentRespondentTypes(tool.respondentTypes ?? []).includes("teacher1")) continue;
     const first = existingKeys.has(`${tool.id}\0teacher1`);
     const second = existingKeys.has(`${tool.id}\0teacher2`);

@@ -30,4 +30,4 @@
 - [Execution sandbox constraints](execution-runtime-quirks.md) — generate identifiers in impure scope when needed; batch large SQL results to avoid the ~1 MiB output cap.
 - [Teacher editor scope](teacher-editor-scope.md) — use the existing respondent editor; do not add replacement-package flows or renewed battery approval for contact corrections.
 - [Git revert checkpoint state](git-revert-checkpoints.md) — quit a completed no-commit revert so leftover Git operation state cannot block automatic checkpoints.
-- [Chinese literacy scope](chinese-literacy-scope.md) — one teacher is sufficient; descriptive developmental domains only, with no diagnostic labels or invented missing evidence.
+- [Chinese literacy scope](chinese-literacy-scope.md) — parent-home and teacher-classroom forms are independent; keep sources separate, with descriptive domains and no diagnostic or pooled scores.

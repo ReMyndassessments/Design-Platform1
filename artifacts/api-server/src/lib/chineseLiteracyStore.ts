@@ -2,17 +2,21 @@ import { db } from "@workspace/db";
 import { assessmentToolsTable, assignmentsTable, casesTable } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { CHINESE_LITERACY_KEY, CHINESE_LITERACY_VERSION, CHINESE_LITERACY_SCORING_VERSION, LITERACY_METADATA, LITERACY_FORM_ITEMS, LITERACY_DOMAINS, emptyLiteracyInput, compareLiteracy } from "./chineseLiteracy.js";
+import { CHINESE_LITERACY_PARENT_KEY, PARENT_LITERACY_METADATA, PARENT_LITERACY_FORM_ITEMS } from "./chineseLiteracyParent.js";
+import { literacyMetadata } from "./chineseLiteracyInstruments.js";
+import type { LiteracyMetadata } from "./chineseLiteracy.js";
 
 export type LiteracyDocument = {
   assignmentId: string; caseId: string; revision: number; status: string;
   instrumentVersion: string; scoringVersion: string; languageVersion: string;
   input: ReturnType<typeof emptyLiteracyInput>; selectedDomains: string[]; scores: any[];
-  baselineId: string | null; metadata: typeof LITERACY_METADATA;
+  baselineId: string | null; metadata: LiteracyMetadata;
   contextSnapshot: { caseId: string; studentId: string; grade: string | null; recordedAt: string; age: number | null };
   teacherName: string; teacherEmail: string; respondentIdentity: string;
   report: any; plan: any; monitoring: { entries: any[]; comparison: any[] };
   history: any[]; evidenceStatus?: string; submittedAt?: string; submittedBy?: string;
   submissionBaseRevision?: number; submissionInputHash?: string;
+  enteredBy?: string; sourceConfirmation?: { confirmed: boolean; date: string; relationship: string };
 };
 export const LITERACY_INTEGRATION = { portal: "not_configured", ai: "manual_only", message: "Local scoring, manual reporting and support planning are available. No external Bobby Case Portal connection has been verified; no observations or plans are synchronized or released automatically." };
 
@@ -30,6 +34,20 @@ export async function seedChineseLiteracy() {
     scoringConfig: { max: 5, scoringVersion: CHINESE_LITERACY_SCORING_VERSION, descriptiveOnly: true, minimumRespondents: 1 } as any,
   } });
   await db.execute(sql`UPDATE assessment_tools SET version_id=${CHINESE_LITERACY_VERSION} WHERE id=${CHINESE_LITERACY_KEY}`);
+  await db.insert(assessmentToolsTable).values({
+    id: CHINESE_LITERACY_PARENT_KEY, name: PARENT_LITERACY_METADATA.name, category: "ReMynd Tools",
+    description: `${PARENT_LITERACY_METADATA.formName}. Home observations; one parent or caregiver sufficient. Separate from teacher results. ${PARENT_LITERACY_METADATA.limitation}`,
+    isRemyndOwned: true, respondentTypes: ["parent"], scoringType: "auto",
+    domains: PARENT_LITERACY_METADATA.domains.map(d => d.label), formItems: PARENT_LITERACY_FORM_ITEMS,
+    scoringConfig: { max: 5, scoringVersion: PARENT_LITERACY_METADATA.scoringVersion, descriptiveOnly: true, minimumRespondents: 1 } as any,
+    productIds: [],
+  }).onConflictDoUpdate({ target: assessmentToolsTable.id, set: {
+    name: PARENT_LITERACY_METADATA.name, category: "ReMynd Tools", respondentTypes: ["parent"],
+    description: `${PARENT_LITERACY_METADATA.formName}. Home observations; one parent or caregiver sufficient. ${PARENT_LITERACY_METADATA.limitation}`,
+    domains: PARENT_LITERACY_METADATA.domains.map(d => d.label), formItems: PARENT_LITERACY_FORM_ITEMS,
+    scoringConfig: { max: 5, scoringVersion: PARENT_LITERACY_METADATA.scoringVersion, descriptiveOnly: true, minimumRespondents: 1 } as any,
+  } });
+  await db.execute(sql`UPDATE assessment_tools SET version_id=${PARENT_LITERACY_METADATA.version} WHERE id=${CHINESE_LITERACY_PARENT_KEY}`);
 }
 function ageFromDob(dob: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
@@ -43,13 +61,14 @@ export async function loadLiteracy(assignment: typeof assignmentsTable.$inferSel
   if (!c) throw new Error("Case not found.");
   const grade = c.grade?.match(/(?:^|\D)(\d{1,2})(?:\D|$)/)?.[1] ?? null;
   const now = new Date().toISOString();
+  const metadata = literacyMetadata(assignment.toolId);
   const initial: LiteracyDocument = {
     assignmentId: assignment.id, caseId: assignment.caseId, revision: 0, status: "not_started",
-    instrumentVersion: CHINESE_LITERACY_VERSION, scoringVersion: CHINESE_LITERACY_SCORING_VERSION,
-    languageVersion: "en-0.1.0", metadata: LITERACY_METADATA,
-    input: emptyLiteracyInput(grade), selectedDomains: LITERACY_DOMAINS.map(d => d.id), scores: [],
+    instrumentVersion: metadata.version, scoringVersion: metadata.scoringVersion,
+    languageVersion: "en-0.1.0", metadata,
+    input: emptyLiteracyInput(grade), selectedDomains: metadata.domains.map(d => d.id), scores: [],
     baselineId: null, contextSnapshot: { caseId: c.id, studentId: c.id, grade: c.grade, age: ageFromDob(c.dob), recordedAt: now },
-    teacherName: assignment.assignedToName ?? "Assigned teacher", teacherEmail: assignment.assignedToEmail ?? "",
+    teacherName: assignment.assignedToName ?? (metadata.respondent === "parent" ? "Assigned parent or caregiver" : "Assigned teacher"), teacherEmail: assignment.assignedToEmail ?? "",
     respondentIdentity: assignment.assignedToEmail?.trim().toLowerCase() || assignment.assignedToName?.trim().toLowerCase() || assignment.respondentType,
     report: null, plan: null, monitoring: { entries: [], comparison: [] }, history: [],
   };

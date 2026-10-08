@@ -2,7 +2,8 @@ import type { ClDomain, ClInput, ValidationIssue } from "./types";
 import { domainStats, overallProgress } from "./logic";
 import { Banner, Btn } from "./ui";
 
-export function ReviewStep({ input, domains, issues, goTo, onSubmit, submitting, preview, error, passed }: {
+export function ReviewStep({ input, domains, issues, goTo, onSubmit, submitting, preview, error, passed, parent = false }: {
+  parent?: boolean;
   input: ClInput; domains: ClDomain[]; issues: ValidationIssue[]; goTo: (step: string) => void; onSubmit: () => void; submitting: boolean; preview: boolean; error: string | null; passed: boolean;
 }) {
   const p = overallProgress(input, domains);
@@ -30,6 +31,7 @@ export function ReviewStep({ input, domains, issues, goTo, onSubmit, submitting,
           </button>
         ); })}
       </div>
+      {parent && p.rated === 0 && p.answered === p.total && <Banner tone="info" title="Additional information needed">Answering No to every item can be submitted. It tells the reviewer more information is needed; it is not a risk or diagnostic label.</Banner>}
       {issues.length > 0 ? (
         <Banner tone="warn" title={`${issues.length} item${issues.length === 1 ? "" : "s"} to resolve before submitting`}>
           <ul className="space-y-1 mt-1">{issues.slice(0, 40).map((i, k) => <li key={k}><button type="button" className="underline text-left" onClick={() => goTo(i.step)}>{i.message}</button></li>)}</ul>

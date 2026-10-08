@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClAdministration, ClDomain, ClMetadata, Priority } from "./types";
+import { PARENT_INSTRUMENT_ID } from "./api";
 import { parseNarrative } from "./logic";
 import { PriorityEditor } from "./PriorityEditor";
 import { ScoreList } from "./ScoreList";
@@ -10,7 +11,8 @@ type P = { adm: ClAdministration; meta: ClMetadata; run: RunAction; busy: boolea
 const isApproved = (adm: ClAdministration) => adm.report?.status === "approved" || Boolean(adm.report?.approvedAt);
 const fmt = (d?: string) => (d ? new Date(d).toLocaleString() : "");
 
-export function EvidencePanel({ adm, run, busy }: Pick<P, "adm" | "run" | "busy">) {
+export function EvidencePanel({ adm, meta, run, busy }: Pick<P, "adm" | "meta" | "run" | "busy">) {
+  const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [reason, setReason] = useState("");
   const c = adm.input.context ?? {};
   const s = adm.input.summary;
@@ -19,19 +21,26 @@ export function EvidencePanel({ adm, run, busy }: Pick<P, "adm" | "run" | "busy"
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
         <Btn disabled={busy || adm.status === "in_review"} onClick={() => run({ action: "review" })} data-testid="button-start-review">Mark in review</Btn>
-        <input className={`${inputCls} max-w-xs`} placeholder="Reason for returning to teacher" value={reason} onChange={e => setReason(e.target.value)} />
-        <Btn variant="danger" disabled={busy || !reason.trim()} onClick={() => run({ action: "return", reason }).then(() => setReason(""))} data-testid="button-return">Return to teacher</Btn>
+        <input className={`${inputCls} max-w-xs`} placeholder={`Reason for returning to ${pm ? "parent" : "teacher"}`} value={reason} onChange={e => setReason(e.target.value)} />
+        <Btn variant="danger" disabled={busy || !reason.trim()} onClick={() => run({ action: "return", reason }).then(() => setReason(""))} data-testid="button-return">Return to {pm ? "parent" : "teacher"}</Btn>
       </div>
-      <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">Teacher context</h3>
+      <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">{pm ? "Parent context" : "Teacher context"}</h3>
         <dl className="grid sm:grid-cols-2 gap-3">
-          {[["Grade", c.grade], ["Role or subject", c.teacherRole], ["Contact", c.contactFrequency], ["Setting", c.setting], ["Time teaching", c.timeTeaching], ["Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["Script", c.script], ["Spoken variety", c.spokenVariety], ["Chinese instruction", c.instruction], ["Observation language", c.observationLanguage]].map(([l, v]) => <div key={l as string}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{String(v ?? "Not provided")}</dd></div>)}
+          {(pm ? [["Grade", c.grade], ["Relationship", c.relationship], ["Contact", c.contactFrequency], ["Home setting", c.setting], ["Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["Completed", c.completionDate], ["Home languages", c.homeLanguages], ["Activities", c.activities], ["Script", c.script], ["Spoken variety", c.spokenVariety], ["Reading judgement", c.readingConfidence], ["Writing judgement", c.writingConfidence], ["Observation language", c.observationLanguage], ["Completed how", c.assistanceMode], ["Assistant", [c.assistantIdentity, c.assistantLanguage].filter(Boolean).join(", ") || undefined], ["Parent confirmed", c.parentConfirmed === "yes" ? `Yes, ${c.confirmationDate ?? ""}` : "No"], ["School feedback (not rated)", c.schoolFeedback], ["Feedback source", c.schoolFeedbackSource], ["Participation impact", c.participationImpact], ["Questions", c.questions]] : [["Grade", c.grade], ["Role or subject", c.teacherRole], ["Contact", c.contactFrequency], ["Setting", c.setting], ["Time teaching", c.timeTeaching], ["Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["Script", c.script], ["Spoken variety", c.spokenVariety], ["Chinese instruction", c.instruction], ["Observation language", c.observationLanguage]]).map(([l, v]) => <div key={l as string}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{String(v ?? "Not provided")}</dd></div>)}
           {show("Exposure and instruction history", c.exposureHistory)}{show("Curriculum", c.curriculum)}{show("Reason for completion", c.reason)}{show("Strengths and interests", c.strengths)}
           {show("Current supports", c.currentSupports)}{show("Access information", c.accessInformation)}{show("Not known", c.unknownInformation)}
           {c.shortWindowExplanation ? show("Short window explanation", c.shortWindowExplanation) : null}
         </dl>
       </section>
-      {adm.scores && adm.scores.length ? <ScoreList scores={adm.scores} /> : <Banner>Scores are calculated on the server when the teacher submits.</Banner>}
-      <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">Teacher summary</h3>
+      {pm && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4" data-testid="section-parent-domain-evidence"><h3 className="text-sm font-bold mb-3">Home setting and language by domain</h3>
+          <dl className="grid sm:grid-cols-2 gap-3">
+            {meta.domains.filter(d => adm.input.evidence?.[d.id]?.setting || adm.input.evidence?.[d.id]?.language).map(d => { const e = adm.input.evidence[d.id]; return <div key={d.id}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{d.label}</dt><dd className="text-xs text-slate-700">Setting: {e.setting || "Not provided"}. Language: {e.language || "Not provided"}.</dd></div>; })}
+          </dl>
+        </section>
+      )}
+      {adm.scores && adm.scores.length ? <ScoreList scores={adm.scores} /> : <Banner>Scores are calculated on the server when the {pm ? "parent" : "teacher"} submits.</Banner>}
+      <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">{pm ? "Parent summary" : "Teacher summary"}</h3>
         <dl className="grid gap-3">{show("Strengths", s.strengths)}{show("Barriers", s.barriers)}{show("Support response", s.supportResponse)}{show("Further discussion", s.discussion)}</dl>
         {s.priorities.length > 0 && <ul className="mt-3 text-xs text-slate-700 space-y-1 list-disc pl-4">{s.priorities.map((p, i) => <li key={i}>{p.text} <span className="font-mono text-[10px] text-slate-400">{p.itemIds.join(", ")}</span> (proposed owner: {p.owner || "none"})</li>)}</ul>}
       </section>
@@ -40,13 +49,14 @@ export function EvidencePanel({ adm, run, busy }: Pick<P, "adm" | "run" | "busy"
 }
 
 export function ReportPanel({ adm, meta, run, busy, ai, portal }: P) {
+  const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
   const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
   const approved = isApproved(adm);
   return (
     <div className="space-y-4">
       <Banner title="Manual report, teacher-only evidence">
-        {ai === "manual_only" ? "AI drafting is not enabled; write or edit this narrative yourself. " : ""}This draft uses one teacher's observations only. It is not triangulated, and releasing it to families is a separate step that is never automatic. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
+        {ai === "manual_only" ? "AI drafting is not enabled; write or edit this narrative yourself. " : ""}This draft uses one {pm ? "parent's home" : "teacher's"} observations only. It is not triangulated, and releasing it to families is a separate step that is never automatic. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
       </Banner>
       <Field label="Report narrative (editable draft)"><textarea rows={14} className={inputCls} value={text} onChange={e => setText(e.target.value)} disabled={approved} data-testid="input-report-narrative" /></Field>
       <p className="text-[11px] text-slate-500">Required limitation: {meta.reportLimitation}</p>

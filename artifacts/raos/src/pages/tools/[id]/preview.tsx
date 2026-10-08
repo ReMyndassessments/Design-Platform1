@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import TeacherForm from "@/components/chinese-literacy/TeacherForm";
-import { CHINESE_LITERACY_TOOL_ID } from "@/lib/assignment-respondents";
+import { isChineseLiteracyToolId } from "@/lib/assignment-respondents";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Languages, Pencil, Save, X, Plus, Trash2, GripVertical, Printer } from "lucide-react";
@@ -968,8 +968,8 @@ function GenericFormPreviewPage() {
 export default function FormPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  if (id === CHINESE_LITERACY_TOOL_ID) {
-    return <TeacherForm token="library-preview" preview onBack={() => navigate("/tools")} />;
+  if (isChineseLiteracyToolId(id)) {
+    return <TeacherForm instrument={id} token="library-preview" preview onBack={() => navigate("/tools")} />;
   }
   return <GenericFormPreviewPage />;
 }

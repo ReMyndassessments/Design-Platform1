@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, clRequest, formUrl } from "./api";
+import { ApiError, PARENT_INSTRUMENT_ID, clRequest, formUrl, metadataUrl, setOptionalStaffAuth } from "./api";
+import { ParentContextStep } from "./ParentContextStep";
 import type { ClMetadata } from "./types";
 import { ContextStep } from "./ContextStep";
 import { DomainStep } from "./DomainStep";
@@ -12,7 +13,7 @@ import { useDraftSync } from "./useDraftSync";
 import { Banner, Btn, Skeleton } from "./ui";
 
 export interface TeacherFormProps {
-  token: string; preview?: boolean; onBack?: () => void;
+  token: string; preview?: boolean; instrument?: string; onBack?: () => void;
   /** Preview only: fires after the local validation check runs. Nothing is saved or submitted. */
   onValidated?: (result: { passed: boolean; language: string; input: ClInput; testAnswers: Record<string, string> }) => void;
 }
@@ -31,10 +32,10 @@ export default function TeacherForm(props: TeacherFormProps) {
   useEffect(() => {
     let live = true; setEnv(null); setError(null);
     const load = props.preview
-      ? clRequest<any>("/api/chinese-literacy/metadata", { staff: true }).then((r): ClEnvelope => {
+      ? clRequest<any>(props.instrument ? metadataUrl(props.instrument) : "/api/chinese-literacy/metadata", { staff: true }).then((r): ClEnvelope => {
           const metadata: ClMetadata = r?.metadata ?? r;
           return {
-            metadata, student: { identifier: "Preview student", age: null, grade: null }, teacher: { name: "Preview teacher", email: "" },
+            metadata, student: { identifier: "Preview student", age: null, grade: null }, teacher: { name: props.instrument === PARENT_INSTRUMENT_ID ? "Preview parent" : "Preview teacher", email: "" },
             integration: { portal: "not_configured", ai: "manual_only" },
             administration: { assignmentId: "preview", caseId: "preview", instrumentVersion: metadata.version, scoringVersion: metadata.scoringVersion, languageVersion: "english", status: "draft", revision: 0, input: null as any, scores: null, baselineId: null, selectedDomains: null, report: null, plan: null, monitoring: null },
           };
@@ -42,7 +43,7 @@ export default function TeacherForm(props: TeacherFormProps) {
       : clRequest<ClEnvelope>(formUrl(props.token));
     load.then(e => live && setEnv(e)).catch(e => live && setError(e instanceof ApiError ? e.message : "Could not load the form."));
     return () => { live = false; };
-  }, [props.token, props.preview, attempt]);
+  }, [props.token, props.preview, props.instrument, attempt]);
   if (error) return (
     <div className="max-w-xl mx-auto p-6 space-y-3"><Banner tone="error" title="This form could not be loaded">{error}</Banner>
       <div className="flex gap-2"><Btn onClick={() => setAttempt(a => a + 1)}>Try again</Btn>{props.onBack && <Btn variant="ghost" onClick={props.onBack}>Back to package</Btn>}</div></div>
@@ -52,7 +53,10 @@ export default function TeacherForm(props: TeacherFormProps) {
 }
 
 function FormBody({ env: initial, token, preview = false, onBack, onValidated }: TeacherFormProps & { env: ClEnvelope }) {
-  const { metadata: meta, student, teacher, integration } = initial;
+  const meta = initial.metadata ?? initial.administration.metadata!;
+  const { student, teacher, integration } = initial;
+  const parent = meta.key === PARENT_INSTRUMENT_ID;
+  useEffect(() => { setOptionalStaffAuth(parent); return () => setOptionalStaffAuth(false); }, [parent]);
   const [adm, setAdm] = useState(initial.administration);
   const domains = useMemo(() => activeDomains(meta, adm.selectedDomains), [meta, adm.selectedDomains]);
   const locked = !preview && !["not_started", "in_progress", "returned"].includes(adm.status);
@@ -108,7 +112,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
   if (locked) {
     return (
       <div className="max-w-3xl mx-auto p-4 sm:p-8 space-y-5">
-        <Banner tone="ok" title="Observation submitted">Thank you. This form is now locked. A reviewer will use it to agree classroom support; it does not diagnose or rule out any condition.</Banner>
+        <Banner tone="ok" title="Observation submitted">Thank you. This form is now locked. A reviewer will use it to {parent ? "understand what you see at home alongside any school information;" : "agree classroom support;"} it does not diagnose or rule out any condition.</Banner>
         {adm.scores?.some(score => ["R", "D", "W", "CL"].includes(score.id) && score.status !== "scored" && score.status !== "not_administered") && (
           <Banner tone="warn" title="Additional information needed">The core literacy observations are not sufficient for a descriptive profile yet. Classroom support can continue while the reviewer gathers more observation opportunities. This is not a risk or diagnostic label.</Banner>
         )}
@@ -121,6 +125,8 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
 
   const lang = input.interfaceLanguage;
   const statusText = preview ? "Preview: nothing is saved" : sync.status === "saving" ? "Saving" : sync.status === "pending" ? "Unsaved changes" : sync.status === "error" ? "Not saved" : sync.status === "conflict" ? "Resolving newer revision" : sync.savedAt ? `Saved ${sync.savedAt.toLocaleTimeString()}` : "Draft";
+  const respondentLabel = parent ? "Parent" : "Teacher";
+  void respondentLabel;
   const cur = domains.find(d => `d:${d.id}` === step);
 
   return (
@@ -129,7 +135,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
         <div className="max-w-3xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900 truncate">{meta.name}</p>
-            <p className="text-[11px] text-slate-500">Teacher Form, Grades 3 to 12, v{meta.version}. {student.identifier}</p>
+            <p className="text-[11px] text-slate-500">{meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}, v{meta.version}. {student.identifier}</p>
           </div>
           <div className="flex items-center gap-2">
             <span role="status" data-testid="status-save" className={`text-[11px] font-semibold ${sync.status === "error" ? "text-red-700" : "text-slate-500"}`}>{statusText}</span>
@@ -153,7 +159,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
           </Banner>
         )}
         {sync.status !== "conflict" && sync.message && <Banner tone={sync.status === "error" ? "error" : "warn"}>{sync.message}</Banner>}
-        {lang !== "english" && <Banner title="English wording shown">The {lang === "mandarin" ? "Mandarin" : "Korean"} version is pending bilingual educational review, so the verified English item wording is shown. Switching language never changes your answers.</Banner>}
+        {lang !== "english" && <Banner title="English source wording shown">The {lang === "mandarin" ? "Chinese" : "Korean"} translation is pending bilingual educational review, so the English source wording is shown. Switching language never changes your answers.</Banner>}
         {adm.selectedDomains && adm.selectedDomains.length > 0 && <Banner>This follow-up covers {domains.length} selected domain{domains.length === 1 ? "" : "s"}. Other domains are not administered.</Banner>}
         <nav aria-label="Form steps" className="flex gap-1 overflow-x-auto pb-1">
           {steps.map((s, i) => {
@@ -164,17 +170,19 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
 
         {step === "intro" && (
           <div className="space-y-4">
-            <h1 className="text-2xl font-bold text-slate-900">Chinese literacy observation</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{parent ? "Chinese literacy observation: parent form" : "Chinese literacy observation"}</h1>
             <p className="text-sm text-slate-700 leading-relaxed">{meta.introduction}</p>
             <Banner title="What this form is">{meta.limitation}</Banner>
-            <Banner tone="info" title="Before you start">Use recent observations, ideally from the last 4 to 6 weeks. Nothing is pre-filled with ratings. Your draft saves automatically and you can return to it later. {integration.ai === "manual_only" ? "Reports are written manually by a reviewer." : ""}</Banner>
+            <Banner tone="info" title="Before you start">{parent ? "Use what you have seen at home, ideally over the last 4 to 6 weeks. Please do not test your child or set tasks. If your child has limited Chinese ability, choose No, not NA. One parent or caregiver is enough. " : "Use recent observations, ideally from the last 4 to 6 weeks. "}Nothing is pre-filled with ratings. Your draft saves automatically and you can return to it later. {integration.ai === "manual_only" ? "Reports are written manually by a reviewer." : ""}</Banner>
             <p className="text-xs text-slate-500">Translation status: English {meta.translationStatus.english}; Mandarin {meta.translationStatus.mandarin}; Korean {meta.translationStatus.korean}.</p>
           </div>
         )}
-        {step === "context" && <ContextStep input={input} student={student} teacher={teacher} setContext={(k, v) => update(i => ({ ...i, context: { ...i.context, [k]: v } }))} />}
+        {step === "context" && (parent
+          ? <ParentContextStep input={input} student={student} respondent={teacher} setContext={(k, v) => update(i => ({ ...i, context: { ...i.context, [k]: v } }))} />
+          : <ContextStep input={input} student={student} teacher={teacher} setContext={(k, v) => update(i => ({ ...i, context: { ...i.context, [k]: v } }))} />)}
         {cur && <DomainStep domain={cur} input={input} meta={meta} update={update} />}
-        {step === "summary" && <SummaryStep input={input} meta={meta} update={update} />}
-        {step === "review" && <ReviewStep input={input} domains={domains} issues={issues} goTo={goTo} onSubmit={() => void submit()} submitting={submitting} preview={preview} error={submitError} passed={passed} />}
+        {step === "summary" && <SummaryStep input={input} meta={meta} update={update} parent={parent} />}
+        {step === "review" && <ReviewStep parent={parent} input={input} domains={domains} issues={issues} goTo={goTo} onSubmit={() => void submit()} submitting={submitting} preview={preview} error={submitError} passed={passed} />}
 
         <div className="flex items-center justify-between pt-2">
           <div className="flex gap-2">

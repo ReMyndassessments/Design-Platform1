@@ -198,6 +198,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Menu Button */}
       <button 
         className="md:hidden fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md border"
+        aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
+        aria-expanded={isMobileMenuOpen}
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       >
         {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -206,7 +208,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <div className={cn(
         "no-print fixed inset-y-0 left-0 z-40 w-64 min-h-0 overflow-y-auto bg-slate-900 text-white transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:flex-shrink-0 flex flex-col",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        isMobileMenuOpen ? "translate-x-0" : "hidden md:flex"
       )}>
         <div className="p-6 flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
