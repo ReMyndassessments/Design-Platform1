@@ -1,3 +1,5 @@
+import { useLocalizedView, ClLanguageContext, Verbatim } from "./Localization";
+import { translateLiteracyText } from "./localization";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, PARENT_INSTRUMENT_ID, clRequest, formUrl, metadataUrl, setOptionalStaffAuth } from "./api";
 import { ParentContextStep } from "./ParentContextStep";
@@ -61,6 +63,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
   const domains = useMemo(() => activeDomains(meta, adm.selectedDomains), [meta, adm.selectedDomains]);
   const locked = !preview && !["not_started", "in_progress", "returned"].includes(adm.status);
   const [input, setInput] = useState<ClInput>(() => normalizeInput(preview ? null : adm.input, meta, student.grade));
+  const view = useLocalizedView(input.interfaceLanguage);
   const inputRef = useRef(input);
   const sync = useDraftSync({ token, enabled: !preview && !locked, initialRevision: adm.revision });
   const steps = useMemo(() => ["intro", "context", ...domains.map(d => `d:${d.id}`), "summary", "review"], [domains]);
@@ -81,7 +84,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
 
   const [resolving, setResolving] = useState<string | null>(null);
   const reloadLatest = async () => {
-    if (!window.confirm("Discard your unsaved local edits and load the latest saved version?")) return;
+    if (!window.confirm(translateLiteracyText("Discard your unsaved local edits and load the latest saved version?", input.interfaceLanguage))) return;
     setResolving("reload");
     try {
       const latest = await clRequest<ClEnvelope>(formUrl(token));
@@ -90,7 +93,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
     } catch (e) { setSubmitError((e as Error).message); } finally { setResolving(null); }
   };
   const overwriteLatest = async () => {
-    if (!window.confirm("Overwrite the newer saved version with what is on your screen? Changes saved elsewhere will be replaced.")) return;
+    if (!window.confirm(translateLiteracyText("Overwrite the newer saved version with what is on your screen? Changes saved elsewhere will be replaced.", input.interfaceLanguage))) return;
     setResolving("overwrite");
     try { await sync.overwrite(); } catch (e) { setSubmitError((e as Error).message); } finally { setResolving(null); }
   };
@@ -110,7 +113,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
   };
 
   if (locked) {
-    return (
+    return <ClLanguageContext.Provider value={input.interfaceLanguage}>{view(
       <div className="max-w-3xl mx-auto p-4 sm:p-8 space-y-5">
         <Banner tone="ok" title="Observation submitted">Thank you. This form is now locked. A reviewer will use it to {parent ? "understand what you see at home alongside any school information;" : "agree classroom support;"} it does not diagnose or rule out any condition.</Banner>
         {adm.scores?.some(score => ["R", "D", "W", "CL"].includes(score.id) && score.status !== "scored" && score.status !== "not_administered") && (
@@ -120,7 +123,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
         <p className="text-[11px] text-slate-500">{meta.limitation}</p>
         {onBack && <Btn variant="ghost" onClick={onBack} data-testid="button-back-package">Back to package</Btn>}
       </div>
-    );
+    )}</ClLanguageContext.Provider>;
   }
 
   const lang = input.interfaceLanguage;
@@ -129,19 +132,19 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
   void respondentLabel;
   const cur = domains.find(d => `d:${d.id}` === step);
 
-  return (
+  return <ClLanguageContext.Provider value={input.interfaceLanguage}>{view(
     <div className="min-h-[100dvh] bg-slate-50" ref={topRef}>
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="max-w-3xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900 truncate">{meta.name}</p>
-            <p className="text-[11px] text-slate-500">{meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}, v{meta.version}. {student.identifier}</p>
+            <p className="text-[11px] text-slate-500">{meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}, v{meta.version}. <Verbatim>{student.identifier}</Verbatim></p>
           </div>
           <div className="flex items-center gap-2">
             <span role="status" data-testid="status-save" className={`text-[11px] font-semibold ${sync.status === "error" ? "text-red-700" : "text-slate-500"}`}>{statusText}</span>
             {sync.status === "error" && <Btn variant="ghost" className="!py-1" onClick={() => void sync.flush()}>Retry save</Btn>}
             <select aria-label="Interface language" className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs" value={lang} onChange={e => setLang(e.target.value as InterfaceLanguage)}>
-              <option value="english">English</option><option value="mandarin">Mandarin</option><option value="korean">Korean</option>
+              <option value="english">English / 英文</option><option value="mandarin">中文（简体） / Chinese</option><option value="korean">Korean</option>
             </select>
           </div>
         </div>
@@ -159,7 +162,8 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
           </Banner>
         )}
         {sync.status !== "conflict" && sync.message && <Banner tone={sync.status === "error" ? "error" : "warn"}>{sync.message}</Banner>}
-        {lang !== "english" && <Banner title="English source wording shown">The {lang === "mandarin" ? "Chinese" : "Korean"} translation is pending bilingual educational review, so the English source wording is shown. Switching language never changes your answers.</Banner>}
+        {lang === "mandarin" && <Banner title="Chinese translation">Chinese wording is available throughout this form. Switching language does not change your answers. This translation has not yet had an independent bilingual educational review.</Banner>}
+        {lang === "korean" && <Banner title="English source wording shown">The Korean translation is pending bilingual educational review, so the English source wording is shown. Switching language never changes your answers.</Banner>}
         {adm.selectedDomains && adm.selectedDomains.length > 0 && <Banner>This follow-up covers {domains.length} selected domain{domains.length === 1 ? "" : "s"}. Other domains are not administered.</Banner>}
         <nav aria-label="Form steps" className="flex gap-1 overflow-x-auto pb-1">
           {steps.map((s, i) => {
@@ -174,7 +178,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
             <p className="text-sm text-slate-700 leading-relaxed">{meta.introduction}</p>
             <Banner title="What this form is">{meta.limitation}</Banner>
             <Banner tone="info" title="Before you start">{parent ? "Use what you have seen at home, ideally over the last 4 to 6 weeks. Please do not test your child or set tasks. If your child has limited Chinese ability, choose No, not NA. One parent or caregiver is enough. " : "Use recent observations, ideally from the last 4 to 6 weeks. "}Nothing is pre-filled with ratings. Your draft saves automatically and you can return to it later. {integration.ai === "manual_only" ? "Reports are written manually by a reviewer." : ""}</Banner>
-            <p className="text-xs text-slate-500">Translation status: English {meta.translationStatus.english}; Mandarin {meta.translationStatus.mandarin}; Korean {meta.translationStatus.korean}.</p>
+            <p className="text-xs text-slate-500">English source and Chinese translation are available. Chinese translation is pending independent bilingual educational review.</p>
           </div>
         )}
         {step === "context" && (parent
@@ -194,5 +198,5 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
         <p className="text-[11px] text-slate-400 text-center">{meta.limitation}</p>
       </main>
     </div>
-  );
+  )}</ClLanguageContext.Provider>;
 }

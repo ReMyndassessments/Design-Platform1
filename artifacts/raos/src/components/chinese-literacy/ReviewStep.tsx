@@ -1,3 +1,4 @@
+import { useLocalizedView } from "./Localization";
 import type { ClDomain, ClInput, ValidationIssue } from "./types";
 import { domainStats, overallProgress } from "./logic";
 import { Banner, Btn } from "./ui";
@@ -6,9 +7,10 @@ export function ReviewStep({ input, domains, issues, goTo, onSubmit, submitting,
   parent?: boolean;
   input: ClInput; domains: ClDomain[]; issues: ValidationIssue[]; goTo: (step: string) => void; onSubmit: () => void; submitting: boolean; preview: boolean; error: string | null; passed: boolean;
 }) {
+  const view = useLocalizedView();
   const p = overallProgress(input, domains);
   const pct = (n: number) => `${Math.round(n * 100)}%`;
-  return (
+  return view(
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-slate-900">Review and submit</h2>
       <div className="grid sm:grid-cols-2 gap-3">

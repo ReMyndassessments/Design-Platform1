@@ -1,3 +1,5 @@
+import { useLocalizedView } from "./Localization";
+import { translateLiteracyText } from "./localization";
 import { useMemo } from "react";
 import type { ClDomain, ClInput, ClMetadata, DomainEvidence, ItemResponse, SectionDecision } from "./types";
 import { blankEvidence, blankResponse, domainNote, domainStats, gradeExamplesFor, isCore, isParentMeta, itemsNeedingEvidence, respMap } from "./logic";
@@ -7,7 +9,8 @@ const split = (a: string) => a.split(/\s+[—-]\s+/)[0];
 const IMPACT = [[0, "0 No observed access impact"], [1, "1 Minor additional effort"], [2, "2 Repeated support needed"], [3, "3 Substantial restriction of participation or demonstration of learning"]] as const;
 
 function AnchorLegend({ anchors }: { anchors: string[] }) {
-  return (
+  const view = useLocalizedView();
+  return view(
     <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600" open>
       <summary className="font-semibold text-slate-700 cursor-pointer">Response scale</summary>
       <ul className="mt-2 grid sm:grid-cols-2 gap-x-6 gap-y-1">{anchors.map((a, i) => <li key={i}>{a}</li>)}</ul>
@@ -16,11 +19,12 @@ function AnchorLegend({ anchors }: { anchors: string[] }) {
 }
 
 function ItemRow({ id, text, resp, anchors, onChange }: { id: string; text: string; resp: ItemResponse; anchors: string[]; onChange: (r: ItemResponse) => void }) {
+  const view = useLocalizedView();
   const choices: Array<{ key: string; label: string; r: ItemResponse }> = [1, 2, 3, 4, 5].map(n => ({ key: String(n), label: `${n} ${split(anchors[n - 1] ?? "").replace(/^\d\s*/, "")}`, r: { itemId: id, status: "rated", value: n } }));
   choices.push({ key: "NO", label: split(anchors[5] ?? "Not observed").replace(/^NO\s*/, "NO "), r: { itemId: id, status: "not_observed", value: null } });
   choices.push({ key: "NA", label: split(anchors[6] ?? "Not applicable").replace(/^NA\s*/, "NA "), r: { itemId: id, status: "not_applicable", value: null, reason: resp.reason ?? "" } });
   const cur = resp.status === "rated" ? String(resp.value) : resp.status === "not_observed" ? "NO" : resp.status === "not_applicable" ? "NA" : "";
-  return (
+  return view(
     <li className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`item-${id}`}>
       <p className="text-sm text-slate-800"><span className="font-mono text-[11px] text-slate-400 mr-2">{id}</span>{text}</p>
       <div role="radiogroup" aria-label={`${id} response`} className="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
@@ -40,6 +44,7 @@ function ItemRow({ id, text, resp, anchors, onChange }: { id: string; text: stri
 }
 
 export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; input: ClInput; meta: ClMetadata; update: (fn: (i: ClInput) => ClInput) => void }) {
+  const view = useLocalizedView();
   const core = isCore(domain);
   const sec = input.sections[domain.id];
   const m = respMap(input);
@@ -58,7 +63,7 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
   }));
   const setDecision = (decision: SectionDecision) => {
     const anyRated = stats.rated > 0;
-    if (decision !== "complete" && anyRated && !window.confirm("This replaces existing ratings in this section. Continue?")) return;
+    if (decision !== "complete" && anyRated && !window.confirm(translateLiteracyText("This replaces existing ratings in this section. Continue?", input.interfaceLanguage))) return;
     update(i => {
       const ids = new Set(domain.items.map(x => x.id));
       const reason = i.sections[domain.id]?.reason ?? "";
@@ -83,7 +88,7 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
       className={`rounded-lg border px-3 py-2 text-xs font-semibold ${sec?.decision === d ? "border-primary bg-primary text-white" : "border-slate-300 bg-white text-slate-700 hover:border-primary"}`}>{label}</button>
   );
 
-  return (
+  return view(
     <div className="space-y-4">
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{core ? "Required to review" : /optional/i.test(domain.requirement) ? "Optional" : "Contextual, if observed"}</p>

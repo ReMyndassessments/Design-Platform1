@@ -1,3 +1,4 @@
+import { useLocalizedView } from "./Localization";
 import type { ClScore } from "./types";
 
 const IMPACT: Record<string, string> = { "0": "0 No observed access impact", "1": "1 Minor additional effort", "2": "2 Repeated support needed", "3": "3 Substantial restriction of participation or demonstration of learning" };
@@ -5,7 +6,8 @@ const STATUS: Record<string, string> = { scored: "Descriptive mean available", e
 const pct = (c: number | null) => (c == null ? "n/a" : `${Math.round(c * 1000) / 10}%`);
 
 export function ScoreList({ scores }: { scores: ClScore[] }) {
-  return (
+  const view = useLocalizedView();
+  return view(
     <div className="space-y-3" data-testid="list-scores">
       <p className="text-[11px] text-slate-500">Observed difficulty frequency on a 1 to 5 scale, shown per domain. Domains are never combined. Coverage uses a provisional completeness guide, not a clinical cutoff. Classroom impact is reported separately and is not averaged into frequency.</p>
       {scores.map(s => {

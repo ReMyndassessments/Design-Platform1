@@ -1,3 +1,4 @@
+import { useLocalizedView } from "./Localization";
 import type { ClStrategy, Priority } from "./types";
 import { Btn, Field, ItemIdPicker, inputCls } from "./ui";
 
@@ -6,9 +7,10 @@ export const blankPriority = (): Priority => ({ text: "", itemIds: [], strategyI
 export function PriorityEditor({ priorities, onChange, strategies, itemOptions, max = 3, readOnly = false }: {
   priorities: Priority[]; onChange: (p: Priority[]) => void; strategies: ClStrategy[]; itemOptions: string[]; max?: number; readOnly?: boolean;
 }) {
+  const view = useLocalizedView();
   const set = (i: number, patch: Partial<Priority>) => onChange(priorities.map((p, idx) => idx === i ? { ...p, ...patch } : p));
   const strat = (id: string) => strategies.find(s => s.id === id);
-  return (
+  return view(
     <div className="space-y-3">
       {priorities.map((p, i) => (
         <fieldset key={i} disabled={readOnly} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3" data-testid={`priority-${i}`}>

@@ -1,3 +1,4 @@
+import { useLocalizedView, Verbatim } from "./Localization";
 import type { ClInput } from "./types";
 import { composeNarrative, parseNarrative, windowDays } from "./logic";
 import { hasStaffToken } from "./api";
@@ -10,8 +11,9 @@ const CONF = [["comfortable", "Comfortable judging"], ["some_limits", "Some limi
 const MODES = [["independent", "I completed it myself"], ["assessor", "An assessor helped me"], ["interpreter", "An interpreter helped me"], ["paper", "Paper copy entered by staff"]];
 
 function Narrative({ label, value, onChange, hint }: { label: string; value: unknown; onChange: (v: string) => void; hint?: string }) {
+  const view = useLocalizedView();
   const p = parseNarrative(value);
-  return (
+  return view(
     <Field label={label} hint={hint}>
       <select aria-label={`${label} response type`} className={`${inputCls} mb-1.5`} value={p.mode} onChange={e => onChange(composeNarrative(e.target.value as any, p.text))}>
         <option value="answer">Provide an answer</option><option value="not_known">Not known (explain)</option><option value="not_yet">Not yet observed (explain)</option>
@@ -25,6 +27,7 @@ export function ParentContextStep({ input, setContext, student, respondent }: {
   input: ClInput; setContext: (k: string, v: any) => void;
   student: { identifier: string; age: string | number | null; grade: string | number | null }; respondent: { name: string; email: string };
 }) {
+  const view = useLocalizedView();
   const c = input.context; const days = windowDays(c);
   const txt = (k: string, label: string, ph?: string, hint?: string) => (
     <Field label={label} hint={hint}><input className={inputCls} value={c[k] ?? ""} placeholder={ph} onChange={e => setContext(k, e.target.value)} data-testid={`input-${k}`} /></Field>
@@ -39,12 +42,12 @@ export function ParentContextStep({ input, setContext, student, respondent }: {
   );
   const assisted = !!c.assistanceMode && c.assistanceMode !== "independent";
   const staff = hasStaffToken();
-  return (
+  return view(
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 grid sm:grid-cols-3 gap-2">
-        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Student</span>{student.identifier}</div>
+        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Student</span><Verbatim>{student.identifier}</Verbatim></div>
         <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Age on case</span>{student.age ?? "Not recorded"}</div>
-        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Parent or caregiver</span>{respondent.name || "Not recorded"}</div>
+        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Parent or caregiver</span>{respondent.name ? <Verbatim>{respondent.name}</Verbatim> : "Not recorded"}</div>
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Grade" hint="This instrument covers Grades 3 to 12.">

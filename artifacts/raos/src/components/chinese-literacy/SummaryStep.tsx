@@ -1,11 +1,13 @@
+import { useLocalizedView } from "./Localization";
 import type { ClInput, ClMetadata } from "./types";
 import { composeNarrative, parseNarrative } from "./logic";
 import { PriorityEditor } from "./PriorityEditor";
 import { Field, inputCls } from "./ui";
 
 function Nar({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const view = useLocalizedView();
   const p = parseNarrative(value);
-  return (
+  return view(
     <Field label={label}>
       <select aria-label={`${label} response type`} className={`${inputCls} mb-1.5`} value={p.mode} onChange={e => onChange(composeNarrative(e.target.value as any, p.text))}>
         <option value="answer">Provide an answer</option><option value="not_known">Not known (explain)</option><option value="not_yet">Not yet observed (explain)</option>
@@ -16,10 +18,11 @@ function Nar({ label, value, onChange }: { label: string; value: string; onChang
 }
 
 export function SummaryStep({ input, meta, update, parent = false }: { parent?: boolean; input: ClInput; meta: ClMetadata; update: (fn: (i: ClInput) => ClInput) => void }) {
+  const view = useLocalizedView();
   const s = input.summary;
   const set = (patch: Partial<ClInput["summary"]>) => update(i => ({ ...i, summary: { ...i.summary, ...patch } }));
   const rated = input.responses.filter(r => r.status === "rated").map(r => r.itemId);
-  return (
+  return view(
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-slate-900">Strengths and initial priorities</h2><p className="text-xs text-slate-500 mt-1">Owners you name are proposals until an authorised support plan is agreed.</p></div>
       <Nar label="Main strengths" value={s.strengths} onChange={v => set({ strengths: v })} />

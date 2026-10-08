@@ -7,7 +7,13 @@ The Chinese Literacy Observation Profile has separate teacher-classroom and pare
 
 **Why:** The user supplied a teacher-only specification, then added an independent parent-home specification on 2026-10-09. Both describe contextual difficulty frequency and educational impact; neither is a dyslexia screener or diagnostic assessment. The parent and teacher versions have not been established as equivalent measures.
 
-**How to apply:** Keep descriptive domains and respondent sources separate; never add an overall index, norms, risk categories, diagnostic conclusions, automated support tiers, cross-teacher averages, parent–teacher pooled scores or discrepancy diagnoses. Label home observations as parent-reported and any school feedback as separately sourced. Preserve incomplete drafts without inventing missing evidence or NA reasons. Limited parental Chinese confidence means Not observed, not Not applicable. English is the source language; Mandarin/Korean must remain explicit English fallbacks until human bilingual review. External Case Portal synchronization is a separately verified dependency, not a simulated successful sync.
+**How to apply:** Keep descriptive domains and respondent sources separate; never add an overall index, norms, risk categories, diagnostic conclusions, automated support tiers, cross-teacher averages, parent–teacher pooled scores or discrepancy diagnoses. Label home observations as parent-reported and any school feedback as separately sourced. Preserve incomplete drafts without inventing missing evidence or NA reasons. Limited parental Chinese confidence means Not observed, not Not applicable. External Case Portal synchronization is a separately verified dependency, not a simulated successful sync.
+
+Both parent and teacher forms must offer full English and Simplified Chinese presentation, not a Chinese selector that silently shows English. Keep translation review status honest; Korean remains an English fallback until translated.
+
+**Why:** On 2026-10-09 the user explicitly required English/Chinese availability and objected to the prior English-only fallback. This replaces the earlier decision to withhold Chinese display pending human review.
+
+**How to apply:** Cover instructions, questions, answer anchors, context, evidence, summary and validation. Switching language must preserve answers, IDs, scoring, names and respondent-authored text. NO means insufficient observations, not a negative rating; NA means not applicable and requires a reason.
 
 Both forms must be considered independently by intake analysis and assessment recommendations when Chinese literacy concerns are relevant. Being a Chinese-speaking family alone is not grounds to recommend them.
 

@@ -1,3 +1,4 @@
+import { useLocalizedView, Verbatim } from "./Localization";
 import type { ClInput } from "./types";
 import { composeNarrative, parseNarrative, windowDays } from "./logic";
 import { Banner, Field, inputCls } from "./ui";
@@ -10,8 +11,9 @@ const OPTS = {
 } as const;
 
 function Narrative({ label, value, onChange, hint }: { label: string; value: unknown; onChange: (v: string) => void; hint?: string }) {
+  const view = useLocalizedView();
   const p = parseNarrative(value);
-  return (
+  return view(
     <Field label={label} hint={hint}>
       <select aria-label={`${label} response type`} className={`${inputCls} mb-1.5`} value={p.mode} onChange={e => onChange(composeNarrative(e.target.value as any, p.text))}>
         <option value="answer">Provide an answer</option>
@@ -27,6 +29,7 @@ export function ContextStep({ input, setContext, student, teacher }: {
   input: ClInput; setContext: (k: string, v: any) => void;
   student: { identifier: string; age: string | number | null; grade: string | number | null }; teacher: { name: string; email: string };
 }) {
+  const view = useLocalizedView();
   const c = input.context; const days = windowDays(c);
   const sel = (k: keyof typeof OPTS, label: string) => (
     <Field label={label}>
@@ -36,12 +39,12 @@ export function ContextStep({ input, setContext, student, teacher }: {
       </select>
     </Field>
   );
-  return (
+  return view(
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 grid sm:grid-cols-3 gap-2">
-        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Student</span>{student.identifier}</div>
+        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Student</span><Verbatim>{student.identifier}</Verbatim></div>
         <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Age on case</span>{student.age ?? "Not recorded"}</div>
-        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Teacher</span>{teacher.name}</div>
+        <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Teacher</span><Verbatim>{teacher.name}</Verbatim></div>
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Grade" hint="This instrument covers Grades 3 to 12.">

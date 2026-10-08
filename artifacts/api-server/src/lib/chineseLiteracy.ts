@@ -121,7 +121,7 @@ export const LITERACY_METADATA = {
   limitation: LITERACY_LIMITATION, reportLimitation: LITERACY_REPORT_LIMITATION,
   domains: LITERACY_DOMAINS, anchors: LITERACY_ANCHORS, strategies: LITERACY_STRATEGIES,
   strategyVersion: "0.1.0",
-  translationStatus: { english: "source", mandarin: "pending_bilingual_review", korean: "pending_bilingual_review", traditionalChinese: "pending_bilingual_review" },
+  translationStatus: { english: "source", mandarin: "translated_pending_bilingual_review", korean: "pending_bilingual_review", traditionalChinese: "pending_bilingual_review" },
   gradeExamples: { "3–5": "Use recently taught characters, short curriculum passages and accessible nearby copying models.", "6–8": "Use taught subject vocabulary, curriculum passages and short explanations.", "9–12": "Use age-respectful subject texts, extended explanations and authentic classroom tasks." },
   notes: ["Finger counting or manipulatives are not themselves difficulties.", "Stroke-order differences alone do not establish dyslexia.", "Accent, dialect, code-switching and second-language learning are not themselves disorders.", "Copying difficulties may relate to task accessibility.", "Motor and wellbeing observations do not explain the cause of literacy difficulty.", "Attention items are not an ADHD scale.", "The 80 percent coverage rule is provisional completeness guidance, not a clinical cutoff.", "Audio access is not proof that independent reading improved."],
   translationKeys: ["domains", "anchors", "context", "validation", "reportLimitation"].map(key => `chineseLiteracy.${key}`),
