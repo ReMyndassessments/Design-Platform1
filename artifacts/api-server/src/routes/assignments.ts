@@ -36,6 +36,7 @@ import {
 } from "../lib/batteryTestInvitation.js";
 import { z } from "zod";
 import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib/questionnaireTestHistory.js";
+import { selectReadyInvitationForms } from "../lib/formInvitationReadiness.js";
 
 const router = Router();
 
@@ -1358,13 +1359,14 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
     return;
   }
 
-  const { toEmail, toName, formLink, formNames, studentName, respondentRole } = req.body as {
+  const { toEmail, toName, formLink, formNames, studentName, respondentRole, assignmentIds } = req.body as {
     toEmail: string;
     toName: string;
     formLink: string;
     formNames: string[];
     studentName?: string;
     respondentRole?: string;
+    assignmentIds?: string[];
   };
 
   if (!toEmail || !toName || !formLink || !Array.isArray(formNames)) {
@@ -1380,6 +1382,7 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
       const invitationToken = tokenFromPortalLink(formLink);
       if (!invitationToken) return { kind: "invalid_form_link" as const, belongs: false };
       const [invitationAssignment] = await tx.select({
+        id: assignmentsTable.id,
         toolId: assignmentsTable.toolId,
         uniqueLink: assignmentsTable.uniqueLink,
       }).from(assignmentsTable).where(and(
@@ -1390,13 +1393,19 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
         return { kind: "invalid_form_link" as const, belongs: true };
       }
 
-      if (!INTAKE_TOOL_IDS.has(invitationAssignment.toolId)) {
-        const review = await getBatteryReview(caseId, tx, true);
-        if (!review?.approved) return { kind: "approval_required" as const, review };
-      }
+      const review = !INTAKE_TOOL_IDS.has(invitationAssignment.toolId)
+        ? await getBatteryReview(caseId, tx, true) : null;
+      const recipientRows = await tx.select({
+        id: assignmentsTable.id, toolId: assignmentsTable.toolId, toolName: assignmentsTable.toolName,
+        respondentType: assignmentsTable.respondentType, respondentLabel: assignmentsTable.respondentLabel,
+        assignedToEmail: assignmentsTable.assignedToEmail,
+      }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
+      const readiness = selectReadyInvitationForms(recipientRows, invitationAssignment.id, assignmentIds, review);
+      if ("error" in readiness) return { kind: "form_not_ready" as const, ...readiness };
+      const selectedFormNames = readiness.assignments.map(row => row.toolName);
 
       const resolvedStudentName = studentName ?? caseRow.studentName ?? "the student";
-      const formsListHtml = formNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
+      const formsListHtml = selectedFormNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
       const roleLabel = respondentRole ?? "respondent";
 
       const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#1e293b">
@@ -1409,7 +1418,7 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
     <p style="margin:0 0 12px;font-size:14px;color:#475569">
       As part of the psychoeducational assessment for <strong>${resolvedStudentName}</strong>, we are requesting your input as their <strong>${roleLabel}</strong>.
     </p>
-    <p style="margin:0 0 8px;font-size:14px;color:#475569">Please complete the following form${formNames.length > 1 ? "s" : ""} at the link below:</p>
+    <p style="margin:0 0 8px;font-size:14px;color:#475569">Please complete the following form${selectedFormNames.length > 1 ? "s" : ""} at the link below:</p>
     <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#475569">${formsListHtml}</ul>
     <p style="margin:0 0 24px;font-size:14px;color:#475569">Each form takes just a few minutes. You can return to the same link at any time to continue or review your responses.</p>
     <p style="text-align:center;margin:28px 0">
@@ -1458,11 +1467,10 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
         : { error: "invalid_form_link", message: "The invitation link must belong to an assignment in this case." });
       return;
     }
-    if (sendResult.kind === "approval_required") {
+    if (sendResult.kind === "form_not_ready") {
       res.status(409).json({
-        error: "battery_approval_required",
-        message: "An administrator must review and approve the current assessment battery before invitations can be sent.",
-        review: sendResult.review,
+        error: sendResult.error,
+        message: sendResult.message,
       });
       return;
     }
