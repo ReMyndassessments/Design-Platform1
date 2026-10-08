@@ -13,7 +13,13 @@ Questionnaire-link approval must not block authorized internal examiner assessme
 
 **Why:** The user found examiner forms unavailable because an unrelated BEHAVOBS questionnaire check was outstanding. Approval governs recipient sharing, not internal examiner administration.
 
-**How to apply:** Keep RRFA, RDA, RPPI, RRCA and the other specialized examiner workflows accessible through their existing authorized routes, including from the review list. Preserve approval gates on respondent sharing.
+**How to apply:** Keep RRFA, RDA, RPPI, RRCA and the other specialized examiner workflows accessible through their existing authorized routes, including from the review list. Preserve current staff-review approval gates on invitation emails, not retrieval of existing respondent package links.
+
+Authorized staff must be able to copy an existing respondent package link or display its QR code even when current battery approval is outstanding. Do not resend email, regenerate links, or reset responses merely to recover access to that link.
+
+**Why:** The user explicitly asked to unblock a teacher's existing QR code and link; a case-wide review hold prevented retrieving an already-created package.
+
+**How to apply:** Separate QR/copy controls for canonical existing package links from new invitation-email dispatch. Keep email approval checks and case authorization intact.
 
 Require a current recorded pass covering every questionnaire before admin approval. Identical copies across cases can share one recorded check, with an optional test-again action; opening a preview is not evidence of testing. The pass covers required-answer validation and a human checklist, not scoring accuracy or clinical validity. Test answers may be validated transiently but must not become clinical responses.
 

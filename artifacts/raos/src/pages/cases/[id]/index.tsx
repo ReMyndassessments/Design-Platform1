@@ -2963,7 +2963,7 @@ export default function CaseDetail() {
           <CardContent className="p-0">
             {!reviewApproved && (
               <div role="status" data-testid="status-links-waiting-for-approval" className="px-5 py-3 border-b border-amber-200 bg-amber-50 text-sm text-amber-950">
-                Sharing assessment links from this staff screen is held until an admin approves the staff review. Links already sent to respondents continue to work. Intake/referral links are unchanged.
+                Existing respondent links can be copied or shown as QR codes. Sending invitation emails is held until an admin approves the staff review. Links already sent to respondents continue to work. Intake/referral links are unchanged.
               </div>
             )}
             {hasSplitUnnamedParentPackages && (role === "admin" || role === "psychometrician" || role === "school_clinical_coordinator") && (
@@ -3061,11 +3061,11 @@ export default function CaseDetail() {
                             <FlaskConical size={14} /> Send test package
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Show QR Code"}
+                        <Button variant="outline" size="sm" className="bg-white" title="Show QR Code for existing respondent link" aria-label={`Show QR code for ${group.name ?? group.label}`}
                           onClick={() => { setActiveQr(group.link); setQrModalOpen(true); }}>
                           <QrCode size={15} />
                         </Button>
-                        <Button variant="outline" size="sm" className="bg-white" disabled={!reviewApproved} title={!reviewApproved ? "Admin approval is required before sharing from this staff screen." : "Copy link"}
+                        <Button variant="outline" size="sm" className="bg-white" title="Copy existing respondent link" aria-label={`Copy link for ${group.name ?? group.label}`}
                           onClick={() => copyLink(group.link)}>
                           <Copy size={15} />
                         </Button>

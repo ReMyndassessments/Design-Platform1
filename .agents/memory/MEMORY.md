@@ -27,6 +27,6 @@
 - [RAOS parent assessment link policy](raos-parent-assessment-link-policy.md) — one shared parent-facing assessment link; retire split entry URLs without touching completed intake or internal form tokens.
 - [RAOS battery review policy](raos-battery-review-policy.md) — admin approves sends; staff dry runs cover questionnaires, not separate examiner workflows; test-package links never save answers.
 - [RAOS Drizzle schema drift](raos-drizzle-schema-drift.md) — broad schema push may propose renaming unrelated legacy tables; inspect and reject ambiguous changes.
-- [Execution sandbox uniqueness](execution-runtime-quirks.md) — if notebook crypto/time APIs are unavailable, generate unique validation identifiers inside an impure function.
+- [Execution sandbox constraints](execution-runtime-quirks.md) — generate identifiers in impure scope when needed; batch large SQL results to avoid the ~1 MiB output cap.
 - [Teacher editor scope](teacher-editor-scope.md) — use the existing respondent editor; do not add replacement-package flows or renewed battery approval for contact corrections.
 - [Git revert checkpoint state](git-revert-checkpoints.md) — quit a completed no-commit revert so leftover Git operation state cannot block automatic checkpoints.
