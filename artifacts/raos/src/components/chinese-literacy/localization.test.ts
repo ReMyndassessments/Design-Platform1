@@ -14,6 +14,7 @@ import { SummaryStep } from "./SummaryStep";
 import { ReviewStep } from "./ReviewStep";
 import { normalizeInput, validateInput } from "./logic";
 import type { ClMetadata } from "./types";
+import { BrandedHeader } from "./BrandedHeader";
 
 // tsx's standalone test runner uses classic JSX; Vite uses the automatic runtime.
 Reflect.set(globalThis, "React", React);
@@ -87,4 +88,28 @@ test("dynamic validation, dates and Chinese NO/NA are distinct", () => {
   assert.equal(t("NO Not observed", "mandarin"), "NO 未观察到");
   assert.equal(t("NA Not applicable", "mandarin"), "NA 不适用");
   assert.match(t("1 Never or almost never", "mandarin"), /从不/);
+});
+
+test("branded header translates both form versions and preserves language controls and identity", () => {
+  for (const meta of [LITERACY_METADATA, PARENT_LITERACY_METADATA]) {
+    const html = renderToStaticMarkup(createElement(BrandedHeader, {
+      title: meta.name,
+      formName: meta.formName,
+      version: meta.version,
+      studentIdentifier: createElement(Verbatim, null, "Reading"),
+      language: "mandarin",
+      setLang: () => {},
+      progress: 0.52,
+      status: createElement("span", { "data-testid": "status-save" }, "Draft"),
+    }));
+    assert.ok(html.includes(t(meta.name, "mandarin")));
+    assert.ok(html.includes(t(meta.formName, "mandarin")));
+    assert.ok(html.includes(t("Language", "mandarin")));
+    assert.ok(html.includes("Reading"), "Student identity remains verbatim");
+    assert.match(html, /<option[^>]*value="mandarin"[^>]*selected=""/);
+    assert.ok(html.includes("中文（简体） / Mandarin"));
+    assert.ok(html.includes('data-testid="status-save"'));
+    assert.ok(html.includes("width:52%"));
+    assert.ok(html.includes('alt="ReMynd"'));
+  }
 });

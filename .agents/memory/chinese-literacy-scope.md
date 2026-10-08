@@ -15,6 +15,12 @@ Both parent and teacher forms must offer full English and Simplified Chinese pre
 
 **How to apply:** Cover instructions, questions, answer anchors, context, evidence, summary and validation. Switching language must preserve answers, IDs, scoring, names and respondent-authored text. NO means insufficient observations, not a negative rating; NA means not applicable and requires a reason.
 
+Both Chinese literacy forms must match the established ReMynd assessment branding, including the branded header and a readable, accessible language selector.
+
+**Why:** The user explicitly objected to these forms having a bare heading and inferior language control compared with the other assessment forms on 2026-10-09.
+
+**How to apply:** Reuse the existing assessment brand presentation for both respondent versions, including completed states, rather than treating specialized tools as visually separate products.
+
 Both forms must be considered independently by intake analysis and assessment recommendations when Chinese literacy concerns are relevant. Being a Chinese-speaking family alone is not grounds to recommend them.
 
 **Why:** The user explicitly requested on 2026-10-09 that both instruments participate in AI intake analysis and form recommendations, not only manual library assignment.

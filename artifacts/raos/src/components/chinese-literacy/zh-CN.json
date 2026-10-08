@@ -553,5 +553,12 @@
   "day": "天",
   "s": "",
   "English source wording shown": "显示英文原文",
-  "Grade {0}": "{0}年级"
+  "Grade {0}": "{0}年级",
+  "Language": "语言",
+  "Retry save": "重试保存",
+  "Student Services": "学生服务",
+  "Teacher Form, Grades 3 to 12": "3至12年级教师表",
+  "Chinese literacy observation: teacher form": "中文读写能力观察：教师表",
+  "Student:": "学生：",
+  "Observation submitted": "观察已提交"
 }

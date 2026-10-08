@@ -1,0 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+.cl-header-preview {
+  --background: 210 33% 99%;
+  --foreground: 222 47% 11%;
+  --primary: 201 96% 32%;
+  --border: 214.3 31.8% 91.4%;
+  --ring: 201 96% 32%;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.cl-header-preview .font-display {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}

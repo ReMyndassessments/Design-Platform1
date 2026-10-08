@@ -13,6 +13,7 @@ import { activeDomains, normalizeInput, overallProgress, validateInput } from ".
 import type { ClEnvelope, ClInput, InterfaceLanguage } from "./types";
 import { useDraftSync } from "./useDraftSync";
 import { Banner, Btn, Skeleton } from "./ui";
+import { BrandedHeader } from "./BrandedHeader";
 
 export interface TeacherFormProps {
   token: string; preview?: boolean; instrument?: string; onBack?: () => void;
@@ -98,6 +99,11 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
     try { await sync.overwrite(); } catch (e) { setSubmitError((e as Error).message); } finally { setResolving(null); }
   };
   const setLang = (l: InterfaceLanguage) => update(i => ({ ...i, interfaceLanguage: l }));
+  const setReadOnlyLang = (l: InterfaceLanguage) => {
+    const next = { ...inputRef.current, interfaceLanguage: l };
+    inputRef.current = next;
+    setInput(next);
+  };
   const submit = async () => {
     setSubmitError(null);
     if (preview) { const ok = issues.length === 0; setPassed(ok); onValidated?.({ passed: ok, language: input.interfaceLanguage, input, testAnswers: toTestAnswers(input) }); return; }
@@ -114,42 +120,47 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
 
   if (locked) {
     return <ClLanguageContext.Provider value={input.interfaceLanguage}>{view(
-      <div className="max-w-3xl mx-auto p-4 sm:p-8 space-y-5">
-        <Banner tone="ok" title="Observation submitted">Thank you. This form is now locked. A reviewer will use it to {parent ? "understand what you see at home alongside any school information;" : "agree classroom support;"} it does not diagnose or rule out any condition.</Banner>
-        {adm.scores?.some(score => ["R", "D", "W", "CL"].includes(score.id) && score.status !== "scored" && score.status !== "not_administered") && (
-          <Banner tone="warn" title="Additional information needed">The core literacy observations are not sufficient for a descriptive profile yet. Classroom support can continue while the reviewer gathers more observation opportunities. This is not a risk or diagnostic label.</Banner>
-        )}
-        {adm.scores && adm.scores.length > 0 && <ScoreList scores={adm.scores} />}
-        <p className="text-[11px] text-slate-500">{meta.limitation}</p>
-        {onBack && <Btn variant="ghost" onClick={onBack} data-testid="button-back-package">Back to package</Btn>}
+      <div className="min-h-[100dvh] bg-slate-50">
+        <BrandedHeader
+          title={meta.name}
+          formName={meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}
+          version={meta.version}
+          studentIdentifier={<Verbatim>{student.identifier}</Verbatim>}
+          language={input.interfaceLanguage}
+          setLang={setReadOnlyLang}
+          progress={progress.completion}
+        />
+        <main className="max-w-3xl mx-auto p-4 sm:p-8 space-y-5">
+          <Banner tone="ok" title="Observation submitted">Thank you. This form is now locked. A reviewer will use it to {parent ? "understand what you see at home alongside any school information;" : "agree classroom support;"} it does not diagnose or rule out any condition.</Banner>
+          {adm.scores?.some(score => ["R", "D", "W", "CL"].includes(score.id) && score.status !== "scored" && score.status !== "not_administered") && (
+            <Banner tone="warn" title="Additional information needed">The core literacy observations are not sufficient for a descriptive profile yet. Classroom support can continue while the reviewer gathers more observation opportunities. This is not a risk or diagnostic label.</Banner>
+          )}
+          {adm.scores && adm.scores.length > 0 && <ScoreList scores={adm.scores} />}
+          <p className="text-[11px] text-slate-500">{meta.limitation}</p>
+          {onBack && <Btn variant="ghost" onClick={onBack} data-testid="button-back-package">Back to package</Btn>}
+        </main>
       </div>
     )}</ClLanguageContext.Provider>;
   }
 
   const lang = input.interfaceLanguage;
   const statusText = preview ? "Preview: nothing is saved" : sync.status === "saving" ? "Saving" : sync.status === "pending" ? "Unsaved changes" : sync.status === "error" ? "Not saved" : sync.status === "conflict" ? "Resolving newer revision" : sync.savedAt ? `Saved ${sync.savedAt.toLocaleTimeString()}` : "Draft";
-  const respondentLabel = parent ? "Parent" : "Teacher";
-  void respondentLabel;
   const cur = domains.find(d => `d:${d.id}` === step);
 
   return <ClLanguageContext.Provider value={input.interfaceLanguage}>{view(
     <div className="min-h-[100dvh] bg-slate-50" ref={topRef}>
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{meta.name}</p>
-            <p className="text-[11px] text-slate-500">{meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}, v{meta.version}. <Verbatim>{student.identifier}</Verbatim></p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span role="status" data-testid="status-save" className={`text-[11px] font-semibold ${sync.status === "error" ? "text-red-700" : "text-slate-500"}`}>{statusText}</span>
-            {sync.status === "error" && <Btn variant="ghost" className="!py-1" onClick={() => void sync.flush()}>Retry save</Btn>}
-            <select aria-label="Interface language" className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs" value={lang} onChange={e => setLang(e.target.value as InterfaceLanguage)}>
-              <option value="english">English / 英文</option><option value="mandarin">中文（简体） / Chinese</option><option value="korean">Korean</option>
-            </select>
-          </div>
-        </div>
-        <div className="h-1 bg-slate-100"><div className="h-1 bg-primary transition-all" style={{ width: `${Math.round(progress.completion * 100)}%` }} /></div>
-      </header>
+      <BrandedHeader
+        title={meta.name}
+        formName={meta.formName ?? (parent ? "Parent Observation Form for Grades 3–12" : "Teacher Form, Grades 3 to 12")}
+        version={meta.version}
+        studentIdentifier={<Verbatim>{student.identifier}</Verbatim>}
+        language={lang}
+        setLang={setLang}
+        progress={progress.completion}
+        status={<span role="status" data-testid="status-save">{statusText}</span>}
+        onRetrySave={sync.status === "error" ? () => void sync.flush() : undefined}
+        saveError={sync.status === "error"}
+      />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         {preview && <Banner tone="warn" title="Staff preview, safe test mode">Answers stay in this browser. Nothing is saved, submitted or written to live data.</Banner>}
         {sync.status === "conflict" && (
