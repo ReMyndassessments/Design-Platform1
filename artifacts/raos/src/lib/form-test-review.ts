@@ -15,6 +15,8 @@ export type PreviewCheck = {
   passed: boolean;
   language: string;
   answers: Record<string, string | string[]>;
+  automatic?: boolean;
+  message?: string;
 };
 
 export function normalizeTestLanguage(language: string): string {

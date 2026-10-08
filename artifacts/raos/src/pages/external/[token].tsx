@@ -1,7 +1,8 @@
 import { IntakeQuestionCards, type PortalQuestionRequest } from "@/components/IntakeQuestionCards";
 import TeacherForm from "@/components/chinese-literacy/TeacherForm";
 import { isChineseLiteracyToolId } from "@/lib/assignment-respondents";
-import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { sampleQuestionnaireAnswers } from "@/lib/form-test-samples";
 import type { PreviewCheck, QuestionnaireTestResult } from "@/lib/form-test-review";
 import { useParams, useLocation } from "wouter";
 import { getGetExternalFormQueryKey, useGetExternalForm, useSubmitExternalForm } from "@workspace/api-client-react";
@@ -2757,6 +2758,7 @@ export function FormView({
   previewBackLabel = "Back to case",
   onPreviewCheck,
   previewReviewPanel,
+  quickTestRequest = 0,
 }: {
   activeToken: string;
   language: string;
@@ -2770,6 +2772,7 @@ export function FormView({
   previewBackLabel?: string;
   onPreviewCheck?: (check: PreviewCheck) => void;
   previewReviewPanel?: ReactNode;
+  quickTestRequest?: number;
 }) {
   const liveFormQuery = useGetExternalForm(activeToken, {
     query: {
@@ -2787,6 +2790,8 @@ export function FormView({
   const [submitted, setSubmitted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [previewChecked, setPreviewChecked] = useState(false);
+  const lastQuickTest = useRef(0);
+  const pendingQuickTest = useRef(false);
 
   useEffect(() => {
     if (!previewMode) return;
@@ -2851,7 +2856,7 @@ export function FormView({
     if (previewMode) {
       setPreviewChecked(true);
       setValidationError(null);
-      onPreviewCheck?.({ passed: true, language, answers });
+      onPreviewCheck?.({ passed: true, language, answers, automatic: pendingQuickTest.current });
       return;
     }
     const serialized: Record<string, string> = {};
@@ -2862,6 +2867,24 @@ export function FormView({
       },
     });
   };
+
+  useEffect(() => {
+    if (!previewMode || !form || !quickTestRequest || quickTestRequest === lastQuickTest.current || isChineseLiteracyToolId(form.toolId)) return;
+    lastQuickTest.current = quickTestRequest;
+    try {
+      const sample = sampleQuestionnaireAnswers(form.questions ?? []);
+      pendingQuickTest.current = true;
+      setAnswers(sample);
+    } catch (cause) {
+      onPreviewCheck?.({ passed: false, language, answers: {}, automatic: true, message: cause instanceof Error ? cause.message : "Sample test could not run." });
+    }
+  }, [quickTestRequest, previewMode, form, language, onPreviewCheck]);
+
+  useEffect(() => {
+    if (!pendingQuickTest.current || !previewMode) return;
+    handleSubmit();
+    pendingQuickTest.current = false;
+  }, [answers]);
 
   const ReMyndFooter = () => (
     <div className="mt-10 pt-6 border-t border-slate-100 flex items-center justify-center">
@@ -2929,8 +2952,9 @@ export function FormView({
           token={activeToken}
           instrument={(form as any).toolId}
           preview={previewMode}
+          quickTestRequest={previewMode ? quickTestRequest : 0}
           onBack={onBack}
-          onValidated={previewMode ? (r) => onPreviewCheck?.({ passed: r.passed, language: r.language, answers: { ...r.testAnswers, __chineseLiteracy: r.input } } as any) : undefined}
+          onValidated={previewMode ? (r) => onPreviewCheck?.({ passed: r.passed, language: r.language, automatic: r.automatic, message: r.message, answers: { ...r.testAnswers, __chineseLiteracy: r.input } } as any) : undefined}
         />
         {previewMode && previewReviewPanel}
       </>

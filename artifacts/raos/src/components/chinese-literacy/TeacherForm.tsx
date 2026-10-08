@@ -14,11 +14,13 @@ import type { ClEnvelope, ClInput, InterfaceLanguage } from "./types";
 import { useDraftSync } from "./useDraftSync";
 import { Banner, Btn, Skeleton } from "./ui";
 import { BrandedHeader } from "./BrandedHeader";
+import { literacyTestSample } from "./testSamples";
 
 export interface TeacherFormProps {
   token: string; preview?: boolean; instrument?: string; onBack?: () => void;
+  quickTestRequest?: number;
   /** Preview only: fires after the local validation check runs. Nothing is saved or submitted. */
-  onValidated?: (result: { passed: boolean; language: string; input: ClInput; testAnswers: Record<string, string> }) => void;
+  onValidated?: (result: { passed: boolean; language: string; input: ClInput; testAnswers: Record<string, string>; automatic?: boolean; message?: string }) => void;
 }
 
 /** Flattened map for the generic questionnaire test endpoint: item id to "1".."5" for rated items, "NO"/"NA" otherwise (unanswered omitted). */
@@ -55,7 +57,7 @@ export default function TeacherForm(props: TeacherFormProps) {
   return <FormBody key={props.token} env={env} {...props} />;
 }
 
-function FormBody({ env: initial, token, preview = false, onBack, onValidated }: TeacherFormProps & { env: ClEnvelope }) {
+function FormBody({ env: initial, token, preview = false, onBack, onValidated, quickTestRequest = 0 }: TeacherFormProps & { env: ClEnvelope }) {
   const meta = initial.metadata ?? initial.administration.metadata!;
   const { student, teacher, integration } = initial;
   const parent = meta.key === PARENT_INSTRUMENT_ID;
@@ -77,7 +79,24 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated }:
 
   const update = useCallback((fn: (i: ClInput) => ClInput) => {
     const next = fn(inputRef.current); inputRef.current = next; setInput(next); setPassed(false); setSubmitError(null); sync.markDirty(next);
-  }, [sync.markDirty]);
+    if (preview) onValidated?.({ passed: false, language: next.interfaceLanguage, input: next, testAnswers: toTestAnswers(next) });
+  }, [sync.markDirty, preview, onValidated]);
+
+  const lastQuickTest = useRef(0);
+  useEffect(() => {
+    if (!preview || !quickTestRequest || quickTestRequest === lastQuickTest.current) return;
+    lastQuickTest.current = quickTestRequest;
+    const sample = literacyTestSample(meta, inputRef.current.interfaceLanguage);
+    const missingCheck = validateInput(normalizeInput(null, meta), meta, domains);
+    const issues = validateInput(sample, meta, domains);
+    const ok = missingCheck.length > 0 && issues.length === 0;
+    update(() => sample);
+    setPassed(ok);
+    onValidated?.({
+      passed: ok, language: sample.interfaceLanguage, input: sample, testAnswers: toTestAnswers(sample),
+      automatic: true, message: ok ? "Sample answers pass; incomplete answers are rejected." : issues.map(issue => issue.message).join(" ") || "Incomplete answers were not rejected.",
+    });
+  }, [quickTestRequest, preview, meta, domains, update, onValidated]);
   const goTo = (s: string) => { setStep(s); if (!preview) sessionStorage.setItem(stepKey, s); topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const issues = useMemo(() => validateInput(input, meta, domains), [input, meta, domains]);
   const progress = overallProgress(input, domains);

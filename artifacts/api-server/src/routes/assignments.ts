@@ -232,6 +232,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
   const body = z.object({
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/i),
     result: z.enum(["passed", "failed"]),
+    mode: z.enum(["manual", "automatic"]).optional(),
     language: z.string().trim().min(1).max(40),
     notes: z.string().max(4000).optional(),
     checklist: z.object({
@@ -246,12 +247,14 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     res.status(400).json({ error: "invalid_request", message: "The staff test result is invalid." });
     return;
   }
-  const notes = body.data.notes?.trim() || null;
+  const notes = body.data.mode === "automatic" && body.data.result === "passed"
+    ? "Automatic synthetic-answer validation. No human visual, language-quality or clinical review is certified."
+    : body.data.notes?.trim() || null;
   if (body.data.result === "failed" && (!notes || notes.length < 10)) {
     res.status(400).json({ error: "notes_required", message: "A meaningful note of at least 10 characters is required for a failed test." });
     return;
   }
-  if (body.data.result === "passed" && !checklistIsComplete(body.data.checklist)) {
+  if (body.data.result === "passed" && body.data.mode !== "automatic" && !checklistIsComplete(body.data.checklist)) {
     res.status(400).json({ error: "checklist_incomplete", message: "All four staff-test checklist items must be confirmed before recording a pass." });
     return;
   }
@@ -298,13 +301,25 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     }
     if (body.data.result === "passed") {
       if (isChineseLiteracy(assignment.toolId)) {
-        try { validateLiteracyInput(body.data.answers?.__chineseLiteracy, undefined, true, literacyMetadata(assignment.toolId)); }
+        try {
+          if (body.data.mode === "automatic") {
+            let rejectsIncomplete = false;
+            try { validateLiteracyInput({}, undefined, true, literacyMetadata(assignment.toolId)); }
+            catch { rejectsIncomplete = true; }
+            if (!rejectsIncomplete) return { kind: "answers_incomplete" as const };
+          }
+          validateLiteracyInput(body.data.answers?.__chineseLiteracy, undefined, true, literacyMetadata(assignment.toolId));
+        }
         catch { return { kind: "answers_incomplete" as const }; }
       } else {
       const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
       const questions = snapshotQuestions ? withBehavobsDetails(snapshotQuestions, assignment.toolId) : null;
       if (!questions) return { kind: "missing_snapshot" as const };
       const validation = validateStaffTestAnswers(questions, body.data.answers ?? {}, assignment.toolId);
+      if (body.data.mode === "automatic" && questions.some(question => question.required && question.type !== "section_header" && !question.conditionalOn && !question.conditionalType) &&
+          validateStaffTestAnswers(questions, {}, assignment.toolId).valid) {
+        return { kind: "answers_incomplete" as const };
+      }
       if (!validation.valid) {
         return { kind: "answers_incomplete" as const };
       }
@@ -325,6 +340,10 @@ router.post("/cases/:caseId/assignments/:assignmentId/staff-test-result", authMi
     await lockQuestionnaireTestForms([currentForm], tx);
     const checklist: StaffTestChecklist = {
       ...(body.data.checklist ?? { correctForm: false, contentLanguage: false, controls: false, safeTesting: false }),
+      ...(body.data.mode === "automatic" ? {
+        correctForm: true, contentLanguage: false, controls: false, safeTesting: true,
+      } : {}),
+      mode: body.data.mode ?? "manual",
       formKey,
     };
     await tx.execute(sql`

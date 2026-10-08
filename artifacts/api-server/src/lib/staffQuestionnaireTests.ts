@@ -12,6 +12,7 @@ export type StaffTestChecklist = {
   safeTesting: boolean;
   // Server-owned content identity, stored with the review (never test answers).
   formKey?: string | null;
+  mode?: "manual" | "automatic";
 };
 
 export type QuestionnaireTestAssignment = {

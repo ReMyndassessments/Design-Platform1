@@ -13,7 +13,7 @@ const CHECKLIST = [
 ] as const;
 
 export function QuestionnaireTestResultPanel({
-  caseId, assignmentId, fingerprint, assignedLanguage, validation, result, onSaved, onStale,
+  caseId, assignmentId, fingerprint, assignedLanguage, validation, result, onSaved, onStale, onQuickTest,
 }: {
   caseId: string;
   assignmentId: string;
@@ -23,6 +23,7 @@ export function QuestionnaireTestResultPanel({
   result?: QuestionnaireTestResult;
   onSaved: (result: QuestionnaireTestResult) => void;
   onStale: () => void;
+  onQuickTest?: () => void;
 }) {
   const queryClient = useQueryClient();
   const [checklist, setChecklist] = useState({ correctForm: false, contentLanguage: false, controls: false, safeTesting: false });
@@ -36,7 +37,7 @@ export function QuestionnaireTestResultPanel({
   const [rechecking, setRechecking] = useState(false);
   const autoSaveAttempt = useRef<string | null>(null);
   const hasPassed = result?.status === "passed";
-  const remainingConfirmations = CHECKLIST.filter(item => !checklist[item.key]).length;
+  const remainingConfirmations = validation?.automatic ? 0 : CHECKLIST.filter(item => !checklist[item.key]).length;
   const passBlockers = questionnairePassBlockers(validation, assignedLanguage, remainingConfirmations);
   const canPass = passBlockers.length === 0;
 
@@ -64,6 +65,7 @@ export function QuestionnaireTestResultPanel({
         body: JSON.stringify({
           fingerprint,
           result: outcome,
+          mode: validation?.automatic ? "automatic" : "manual",
           language: validation?.language || assignedLanguage,
           notes: notes.trim(),
           checklist,
@@ -122,7 +124,7 @@ export function QuestionnaireTestResultPanel({
   return (
     <section className="mt-6 space-y-4 rounded-xl border border-violet-200 bg-violet-50/50 p-4" aria-label="Record questionnaire test result">
       <div>
-        <h2 className="font-semibold text-slate-900">Record questionnaire test result</h2>
+        <h2 className="font-semibold text-slate-900">{onQuickTest ? "Quick form test" : "Record questionnaire test result"}</h2>
         <p className="mt-1 text-xs text-slate-600">
           Version {fingerprint.slice(0, 12)} · Staff test: {normalizeTestLanguage(validation?.language ?? "english")} · Respondent language: {normalizeTestLanguage(assignedLanguage)}.
           You can test in English; the respondent’s language is unchanged.
@@ -140,9 +142,35 @@ export function QuestionnaireTestResultPanel({
             setChecklist({ correctForm: false, contentLanguage: false, controls: false, safeTesting: false });
             autoSaveAttempt.current = null;
             setRechecking(true);
+            onQuickTest?.();
           }}>
             Test again
           </Button>
+        </div>
+      ) : (
+      <>
+      {onQuickTest ? (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            One click fills synthetic sample answers and checks required-answer validation.
+            A successful test is saved automatically and the form is ready to send. No questionnaires or checklists to complete.
+          </p>
+          <Button type="button" data-testid="button-run-automatic-test" disabled={Boolean(saving)} onClick={() => {
+            autoSaveAttempt.current = null;
+            setError(null);
+            onQuickTest();
+          }}>
+            {saving ? "Saving test result…" : "Run automatic test"}
+          </Button>
+          {validation?.automatic && (
+            <p role={validation.passed ? "status" : "alert"} data-testid="status-automatic-test" className={`text-sm ${validation.passed ? "text-emerald-800" : "text-red-700"}`}>
+              {validation.message ?? (validation.passed ? "Sample-answer validation passed." : "Automatic check did not pass.")}
+            </p>
+          )}
+          <p className="text-xs text-slate-500">
+            Sample answers are never saved to the case and no email is sent. This checks form validation, not every control, translation quality, scoring accuracy or clinical validity.
+            You can still inspect and try the preview below.
+          </p>
         </div>
       ) : (
       <>
@@ -177,13 +205,20 @@ export function QuestionnaireTestResultPanel({
       <p className={`text-xs font-medium ${validation?.passed ? "text-emerald-800" : "text-slate-600"}`}>
         {validation?.passed ? "Required-answer check passed for the current test answers." : "Required-answer check has not passed for the current test answers."}
       </p>
+      </>
+      )}
+      {onQuickTest && error && canPass && (
+        <Button type="button" data-testid="button-retry-automatic-test-save" disabled={Boolean(saving)} onClick={() => recordResult("passed")}>Retry saving test result</Button>
+      )}
+      {error && <p role="alert" data-testid="status-test-save-error" className="text-sm text-red-700">{error}</p>}
+      <details>
+      <summary className="cursor-pointer text-xs font-semibold text-slate-600">{onQuickTest ? "Report a problem" : "Report a problem or record a manual review"}</summary>
       <div className="space-y-2">
         <label htmlFor="questionnaire-test-notes" className="text-sm font-medium text-slate-800">Notes <span className="font-normal text-slate-500">(at least 10 characters for a failed test)</span></label>
         <Textarea id="questionnaire-test-notes" data-testid="input-test-notes" value={notes} maxLength={4000}
           disabled={Boolean(saving)} onChange={event => { setNotes(event.target.value); setSaved(false); }}
           placeholder="Describe any missing content, incorrect language, or form-control problems. Do not enter student details or test answers." />
       </div>
-      {error && <p role="alert" data-testid="status-test-save-error" className="text-sm text-red-700">{error}</p>}
       {saved && <p role="status" data-testid="status-test-result-saved" className="text-sm font-medium text-emerald-800">
         {coveredCount > 1
           ? savedOutcome === "passed"
@@ -192,16 +227,17 @@ export function QuestionnaireTestResultPanel({
           : "Test result saved. It will remain visible after leaving this page."}
       </p>}
       <div className="flex flex-wrap gap-3">
-        <Button type="button" data-testid="button-record-test-pass" disabled={Boolean(saving)}
+        {!onQuickTest && <Button type="button" data-testid="button-record-test-pass" disabled={Boolean(saving)}
           aria-describedby={passBlockers.length > 0 ? `test-pass-steps-${assignmentId}` : undefined}
           onClick={() => recordResult("passed")}>
           {saving === "passed" ? "Saving test pass…" : error && canPass ? "Retry saving questionnaire pass" : "Record questionnaire pass"}
-        </Button>
+        </Button>}
         <Button type="button" variant="outline" data-testid="button-record-test-fail" disabled={notes.trim().length < 10 || Boolean(saving)} onClick={() => recordResult("failed")}>
           {saving === "failed" ? "Recording…" : "Record failed test"}
         </Button>
       </div>
       <p className="text-xs text-slate-500">Only the result, checklist, reviewer, date, language, and notes are stored. On recording a pass, test answers are sent for a transient server check and are not stored.</p>
+      </details>
       </>
       )}
     </section>
