@@ -26,3 +26,9 @@ Both forms must be considered independently by intake analysis and assessment re
 **Why:** The user explicitly requested on 2026-10-09 that both instruments participate in AI intake analysis and form recommendations, not only manual library assignment.
 
 **How to apply:** Distinguish parent-home and Chinese-language teacher-classroom purposes and IDs in recommendation guidance and visible results. Respect Grades 3–12, verify unknown grades, and do not force a paired battery or automatically send forms. Existing saved analyses require intentional regeneration to change recommendations.
+
+Chinese literacy forms are respondent self-completion questionnaires, not staff-guided or examiner-administered assessments. Parent invitations should use the parent's existing shared assessment portal.
+
+**Why:** On 2026-10-09 the user objected to "Launch Guided" and explicitly requested link sharing, QR codes, or resending the parent portal containing the form.
+
+**How to apply:** Provide parent portal QR/copy/open controls and normal invitation sending. Keep teacher invitations available externally. Do not merge unrelated parents or infer recipient ownership from the parent role alone.

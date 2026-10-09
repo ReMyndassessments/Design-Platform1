@@ -45,3 +45,23 @@ export function consolidatedParentPortalToken(
   });
   return marker ? tokenFromPortalLink(marker.uniqueLink) : null;
 }
+
+/** Resolve the invitation against the recipient contact update performed by sending. */
+export function parentPortalLinkAfterRecipientUpdate(
+  anchor: ParentPortalAssignment,
+  candidates: readonly ParentPortalAssignment[],
+  recipientEmail: string,
+): string | null {
+  const updated = candidates.map(candidate => {
+    const receivesUpdate = anchor.assignedToEmail
+      ? candidate.assignedToEmail === anchor.assignedToEmail
+      : !candidate.assignedToEmail && candidate.respondentLabel === anchor.respondentLabel;
+    return receivesUpdate ? { ...candidate, assignedToEmail: recipientEmail } : candidate;
+  });
+  const canonicalToken = consolidatedParentPortalToken(
+    { ...anchor, assignedToEmail: recipientEmail }, updated,
+  );
+  return canonicalToken
+    ? updated.find(candidate => candidate.uniqueToken === canonicalToken)?.uniqueLink ?? null
+    : anchor.uniqueLink;
+}

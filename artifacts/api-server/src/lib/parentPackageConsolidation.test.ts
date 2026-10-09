@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { consolidatedParentPortalToken, planParentPackageConsolidation, tokenFromPortalLink } from "./parentPackageConsolidation.ts";
+import { consolidatedParentPortalToken, planParentPackageConsolidation, tokenFromPortalLink, parentPortalLinkAfterRecipientUpdate } from "./parentPackageConsolidation.ts";
 
 const source = { id: "first", respondentLabel: "Parent", assignedToName: null, assignedToEmail: null };
 const target = { id: "second", respondentLabel: "Parent Assessment Package", assignedToName: null, assignedToEmail: null };
@@ -37,4 +37,26 @@ test("different parent recipients cannot inherit another parent's canonical link
   const marker = { ...canonical, uniqueToken: "old" };
   const otherParent = { uniqueToken: "second", uniqueLink: "/external/second", respondentLabel: "Second Parent / Guardian", assignedToEmail: "two@example.org" };
   assert.equal(consolidatedParentPortalToken(otherParent, [canonical, marker, otherParent]), null);
+});
+
+test("sending a newly assigned parent form uses the established portal after contact entry", () => {
+  const canonical = { uniqueToken: "main", uniqueLink: "/external/main", respondentLabel: "Existing parent", assignedToEmail: "parent@example.org" };
+  const marker = { ...canonical, uniqueToken: "old-form" };
+  const added = { uniqueToken: "chinese-parent", uniqueLink: "/external/chinese-parent", respondentLabel: "Parent Assessment Package", assignedToEmail: null };
+  const rows = [canonical, marker, added];
+  const before = structuredClone(rows);
+  assert.equal(parentPortalLinkAfterRecipientUpdate(added, rows, "parent@example.org"), "/external/main");
+  assert.deepEqual(rows, before, "resolving a link must not modify stored contact data");
+});
+
+test("sending to a different parent with the same package label keeps their own portal", () => {
+  const canonical = { uniqueToken: "main", uniqueLink: "/external/main", respondentLabel: "Parent Assessment Package", assignedToEmail: "first@example.org" };
+  const marker = { ...canonical, uniqueToken: "old-form" };
+  const second = { uniqueToken: "second", uniqueLink: "/external/second", respondentLabel: "Parent Assessment Package", assignedToEmail: null };
+  assert.equal(parentPortalLinkAfterRecipientUpdate(second, [canonical, marker, second], "second@example.org"), "/external/second");
+});
+
+test("a missing canonical invitation is rejected rather than emailing a retired link", () => {
+  const marker = { uniqueToken: "old-form", uniqueLink: "/external/main", respondentLabel: "Parent Assessment Package", assignedToEmail: "parent@example.org" };
+  assert.equal(parentPortalLinkAfterRecipientUpdate(marker, [marker], "parent@example.org"), null);
 });

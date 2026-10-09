@@ -15,7 +15,7 @@ import { writeAudit } from "../lib/audit.js";
 import { normalizeAssignmentRespondentType } from "../lib/assignmentRespondent.js";
 import { canAssignObservation, visibleObservationAssignments } from "../lib/observationAssignment.js";
 import { withBehavobsDetails } from "../lib/behavobsDetails.js";
-import { planParentPackageConsolidation, tokenFromPortalLink } from "../lib/parentPackageConsolidation.js";
+import { planParentPackageConsolidation, tokenFromPortalLink, parentPortalLinkAfterRecipientUpdate } from "../lib/parentPackageConsolidation.js";
 import { buildBatteryReviewState, INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
@@ -1404,6 +1404,10 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
         id: assignmentsTable.id,
         toolId: assignmentsTable.toolId,
         uniqueLink: assignmentsTable.uniqueLink,
+        uniqueToken: assignmentsTable.uniqueToken,
+        respondentType: assignmentsTable.respondentType,
+        respondentLabel: assignmentsTable.respondentLabel,
+        assignedToEmail: assignmentsTable.assignedToEmail,
       }).from(assignmentsTable).where(and(
         eq(assignmentsTable.caseId, caseId),
         eq(assignmentsTable.uniqueToken, invitationToken),
@@ -1418,10 +1422,16 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
         id: assignmentsTable.id, toolId: assignmentsTable.toolId, toolName: assignmentsTable.toolName,
         respondentType: assignmentsTable.respondentType, respondentLabel: assignmentsTable.respondentLabel,
         assignedToEmail: assignmentsTable.assignedToEmail,
+        uniqueToken: assignmentsTable.uniqueToken, uniqueLink: assignmentsTable.uniqueLink,
       }).from(assignmentsTable).where(eq(assignmentsTable.caseId, caseId));
       const readiness = selectReadyInvitationForms(recipientRows, invitationAssignment.id, assignmentIds, review);
       if ("error" in readiness) return { kind: "form_not_ready" as const, ...readiness };
       const selectedFormNames = readiness.assignments.map(row => row.toolName);
+      const invitationLink = invitationAssignment.respondentType === "parent" && !INTAKE_TOOL_IDS.has(invitationAssignment.toolId)
+        ? parentPortalLinkAfterRecipientUpdate(invitationAssignment, recipientRows.filter(row =>
+          row.respondentType === "parent" && !INTAKE_TOOL_IDS.has(row.toolId)), toEmail)
+        : formLink;
+      if (!invitationLink) return { kind: "invalid_form_link" as const, belongs: true };
 
       const resolvedStudentName = studentName ?? caseRow.studentName ?? "the student";
       const formsListHtml = selectedFormNames.map(f => `<li style="margin-bottom:4px">${f}</li>`).join("");
@@ -1441,7 +1451,7 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
     <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#475569">${formsListHtml}</ul>
     <p style="margin:0 0 24px;font-size:14px;color:#475569">Each form takes just a few minutes. You can return to the same link at any time to continue or review your responses.</p>
     <p style="text-align:center;margin:28px 0">
-      <a href="${formLink}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open My Forms ↗</a>
+      <a href="${invitationLink}" style="background:#1d4ed8;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open My Forms ↗</a>
     </p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
     <p style="font-size:12px;color:#94a3b8;text-align:center">ReMynd Student Services · Confidential<br/>This invitation was sent by our assessment team. Please do not share this link.</p>
@@ -1465,7 +1475,8 @@ router.post("/cases/:caseId/send-respondent-email", authMiddleware, async (req, 
           ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
               .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.assignedToEmail, anchor[0].assignedToEmail!)))
           : await tx.select({ id: assignmentsTable.id }).from(assignmentsTable)
-              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? "")));
+              .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.respondentLabel, anchor[0].respondentLabel ?? ""),
+                sql`COALESCE(${assignmentsTable.assignedToEmail}, '') = ''`));
 
         if (siblings.length > 0) {
           await tx.update(assignmentsTable)

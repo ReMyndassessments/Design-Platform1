@@ -31,6 +31,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { ASSESSMENT_PRODUCTS, ALL_PRODUCTS_BY_MARKET } from "@/lib/products";
 import { toolDisplayName, assignmentRespondentTypes, missingTeacherAssignments } from "@/lib/assignment-respondents";
+import { assignmentInvitationLink, respondentInvitationGroupKey } from "@/lib/assignment-invitation-links";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { ReportAccessPanel } from "@/components/ReportAccessPanel";
 import { ApprenticeAssignmentPanel } from "@/components/apprentice-assignment-panel";
@@ -784,9 +785,7 @@ export default function CaseDetail() {
       // RASR is psychometrician-administered internally — skip it here
       if (a.respondentType === "self" && a.respondentLabel === "Psychometrician") continue;
       // Keep the invigilator's observation invitation separate from student forms.
-      const key = (a.respondentType === "self" || a.respondentType === "invigilator")
-        ? `type:${a.respondentType}`
-        : (a.assignedToEmail ? `email:${a.assignedToEmail}` : `type:${a.respondentType}:${a.respondentLabel ?? ""}`);
+      const key = respondentInvitationGroupKey(a);
       if (!groups.has(key)) {
         const isSelf = a.respondentType === "self";
         groups.set(key, {
@@ -2711,7 +2710,10 @@ export default function CaseDetail() {
                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{group.label}</span>
                         <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{group.items.length} form{group.items.length !== 1 ? "s" : ""}</span>
                       </div>,
-                      ...group.items.map(a => (
+                      ...group.items.map(a => {
+                        const invitationLink = assignmentInvitationLink(a, dispatchGroups);
+                        const ambiguousParent = hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package");
+                        return (
                     <div key={a.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
@@ -2791,21 +2793,17 @@ export default function CaseDetail() {
                           ) : null;
                         })() ?? (
                           <>
-                            {a.respondentType !== "parent" && (
-                              <>
-                                <Button variant="outline" size="sm" onClick={() => { setActiveQr(a.uniqueLink); setQrModalOpen(true); }} className="bg-white" disabled={!a.uniqueLink} data-testid={`button-assignment-qr-${a.id}`} title="Show existing form QR code">
+                                <Button variant="outline" size="sm" onClick={() => { setActiveQr(invitationLink); setQrModalOpen(true); }} className="bg-white" disabled={!invitationLink || ambiguousParent} data-testid={`button-assignment-qr-${a.id}`} aria-label={a.respondentType === "parent" ? "Show parent portal QR code" : "Show form QR code"} title={a.respondentType === "parent" ? "Show existing parent portal QR code" : "Show existing form QR code"}>
                                   <QrCode size={16} />
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => copyLink(a.uniqueLink)} className="bg-white" disabled={!a.uniqueLink} data-testid={`button-assignment-copy-${a.id}`} title="Copy existing form link">
+                                <Button variant="outline" size="sm" onClick={() => copyLink(invitationLink)} className="bg-white" disabled={!invitationLink || ambiguousParent} data-testid={`button-assignment-copy-${a.id}`} aria-label={a.respondentType === "parent" ? "Copy parent portal link" : "Copy form link"} title={a.respondentType === "parent" ? "Copy existing parent portal link" : "Copy existing form link"}>
                                   <Copy size={16} />
                                 </Button>
-                              </>
-                            )}
                             <Button variant="outline" size="sm" className="bg-white"
-                              disabled={!a.uniqueLink || hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                              disabled={!invitationLink || ambiguousParent}
                               data-testid={`button-assignment-open-${a.id}`}
                               title={a.respondentType === "parent" ? "Open Parent Portal" : "Open Form"}
-                              onClick={() => setFormModalUrl(a.respondentType === "parent" ? a.uniqueLink : `${BASE_URL}/external/${a.uniqueToken}`)}>
+                              onClick={() => setFormModalUrl(a.respondentType === "parent" ? invitationLink : `${BASE_URL}/external/${a.uniqueToken}`)}>
                               <ExternalLink size={16} />
                             </Button>
                           </>
@@ -2814,11 +2812,12 @@ export default function CaseDetail() {
                           <Button
                             size="sm"
                             className="bg-indigo-600 hover:bg-indigo-700"
-                            disabled={!a.uniqueLink || hasSplitUnnamedParentPackages && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
-                            title="Open existing parent assessment"
-                            onClick={() => setFormModalUrl(a.uniqueLink)}
+                            disabled={!invitationLink || ambiguousParent}
+                            title="Open the parent's self-completion portal"
+                            data-testid={`button-parent-portal-${a.id}`}
+                            onClick={() => setFormModalUrl(invitationLink)}
                           >
-                            <Play size={14} className="mr-1" /> Launch Guided
+                            <ExternalLink size={14} className="mr-1" /> Open Parent Portal
                           </Button>
                         )}
                         {a.respondentType === 'self' && a.status !== 'completed' && (
@@ -2834,7 +2833,7 @@ export default function CaseDetail() {
                             title={batteryReviewQuery.data?.testResults?.[a.id]?.status === "passed" ? "Send this tested form now — no battery approval required" : "Complete this form's staff test to send it"}
                             onClick={() => {
                               setSendEmailError(null);
-                              setSendEmailTarget({ groupKey: `assignment:${a.id}`, label: a.toolName, name: a.assignedToName ?? "", email: a.assignedToEmail ?? "", link: a.uniqueLink, formNames: [a.toolName], respondentRole: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, assignmentIds: [a.id], requiresFormTest: true });
+                              setSendEmailTarget({ groupKey: `assignment:${a.id}`, label: a.toolName, name: a.assignedToName ?? "", email: a.assignedToEmail ?? "", link: invitationLink, formNames: [a.toolName], respondentRole: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, assignmentIds: [a.id], requiresFormTest: true });
                               setSendEmailForm({ name: a.assignedToName ?? "", email: a.assignedToEmail ?? "" });
                             }}>
                             <Send size={14} /> Send form
@@ -2852,7 +2851,8 @@ export default function CaseDetail() {
                         )}
                       </div>
                     </div>
-                  ))
+                        );
+                      })
                     ])}
                 </div>
               )}
