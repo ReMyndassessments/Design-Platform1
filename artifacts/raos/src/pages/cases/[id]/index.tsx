@@ -9,6 +9,9 @@ import {
   useUpdateCase,
   useGetCurrentUser,
   useListUsers,
+  customFetch,
+  getGetCaseQueryKey,
+  type CaseDetail as CaseDetailResponse,
   type CreateAssignmentRequestRespondentType 
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -262,19 +265,26 @@ export default function CaseDetail() {
   });
 
   const dismissToolMut = useMutation({
-    mutationFn: async (toolId: string) => {
-      const r = await fetch(`${BASE_URL}/api/cases/${caseId}/dismiss-recommended-tool`, {
+    mutationFn: (toolId: string) =>
+      customFetch<CaseDetailResponse>(`${BASE_URL}/api/cases/${caseId}/dismiss-recommended-tool`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toolId }),
         credentials: "include",
-      });
-      if (!r.ok) throw new Error("Failed to dismiss tool");
-      return r.json();
+      }),
+    onMutate: () => queryClient.cancelQueries({ queryKey: getGetCaseQueryKey(caseId) }),
+    onSuccess: (updatedCase) => {
+      // This endpoint returns the case row, not its assignments. Keep the battery
+      // intact while applying the saved dismissal immediately.
+      queryClient.setQueryData<CaseDetailResponse>(getGetCaseQueryKey(caseId), current =>
+        current ? { ...current, intakeAnalysis: updatedCase.intakeAnalysis } : current);
+      queryClient.invalidateQueries({ queryKey: getGetCaseQueryKey(caseId) });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
-    },
+    onError: () => toast({
+      title: "Could not dismiss assessment",
+      description: "The recommendation has been kept. Please try again.",
+      variant: "destructive",
+    }),
   });
 
   const unassignToolMut = useMutation({
@@ -2318,7 +2328,8 @@ export default function CaseDetail() {
                                         size="sm"
                                         variant="outline"
                                         className="h-7 text-xs text-slate-500 hover:text-red-600 hover:border-red-200"
-                                        disabled={dismissToolMut.isPending && dismissToolMut.variables === t.toolId}
+                                        disabled={dismissToolMut.isPending}
+                                        data-testid={`button-dismiss-recommendation-${t.toolId}`}
                                         onClick={() => dismissToolMut.mutate(t.toolId)}
                                       >
                                         Dismiss
