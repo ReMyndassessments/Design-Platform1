@@ -130,8 +130,6 @@ export function validateInput(input: ClInput, meta: ClMetadata, domains: ClDomai
       if (!String(pe?.language ?? "").trim()) out.push({ step, message: `${d.label}: say which language was involved.` });
       if (!String(pe?.strengths ?? "").trim() || !String(pe?.supports ?? "").trim()) out.push({ step, message: `${d.label}: describe strengths and usual support, or explain what was not observed.` });
     }
-    const need = itemsNeedingEvidence(d, input);
-    if (need.length) out.push({ step, message: `${d.label}: add a concrete example linked to ${need.join(", ")} (rated 4 or 5).` });
   });
   return out;
 }

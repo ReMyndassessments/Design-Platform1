@@ -2,7 +2,7 @@ import { useLocalizedView } from "./Localization";
 import { translateLiteracyText } from "./localization";
 import { useMemo } from "react";
 import type { ClDomain, ClInput, ClMetadata, DomainEvidence, ItemResponse, SectionDecision } from "./types";
-import { blankEvidence, blankResponse, domainNote, domainStats, gradeExamplesFor, isCore, isParentMeta, itemsNeedingEvidence, respMap } from "./logic";
+import { blankEvidence, blankResponse, domainNote, domainStats, gradeExamplesFor, isCore, isParentMeta, respMap } from "./logic";
 import { Banner, Btn, Field, ItemIdPicker, inputCls } from "./ui";
 
 const split = (a: string) => a.split(/\s+[—-]\s+/)[0];
@@ -54,7 +54,6 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
   const examples = parent ? [] : gradeExamplesFor(meta, domain, input.context.grade);
   const note = domainNote(domain);
   const ratedIds = useMemo(() => domain.items.filter(i => m.get(i.id)?.status === "rated").map(i => i.id), [domain, m]);
-  const needEv = itemsNeedingEvidence(domain, input);
   const hasContent = stats.rated > 0 || sec?.decision === "complete";
 
   const setResp = (r: ItemResponse) => update(i => ({
@@ -115,12 +114,7 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
       {hasContent && (
         <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4" aria-label="Evidence and impact">
           <h3 className="text-sm font-bold text-slate-800">Evidence and classroom impact</h3>
-          {needEv.length > 0 && (
-            <Banner tone="warn" title="Examples needed before submission">
-              Items rated 4 or 5 need a concrete linked example: {needEv.join(", ")}.
-              <div className="mt-2"><Btn variant="ghost" onClick={() => setEv({ examples: [...ev.examples, { text: "", itemIds: needEv }] })}>Add example for these items</Btn></div>
-            </Banner>
-          )}
+          <p className="text-xs text-slate-600">Examples are optional. You can submit this form without adding an example.</p>
           {ev.examples.map((ex, idx) => (
             <div key={idx} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2" data-testid={`example-${domain.id}-${idx}`}>
               <Field label={`Concrete example ${idx + 1}`}><textarea rows={2} className={inputCls} value={ex.text} onChange={e => setEv({ examples: ev.examples.map((x, k) => k === idx ? { ...x, text: e.target.value } : x) })} /></Field>

@@ -32,3 +32,9 @@ Chinese literacy forms are respondent self-completion questionnaires, not staff-
 **Why:** On 2026-10-09 the user objected to "Launch Guided" and explicitly requested link sharing, QR codes, or resending the parent portal containing the form.
 
 **How to apply:** Provide parent portal QR/copy/open controls and normal invitation sending. Keep teacher invitations available externally. Do not merge unrelated parents or infer recipient ownership from the parent role alone.
+
+Concrete examples are optional in both parent and teacher forms, including for ratings of 4 or 5. Do not prevent submission because an example is missing.
+
+**Why:** The user explicitly requested removing this submission barrier for the parent and teacher on 2026-10-12, without making respondents redo completed work.
+
+**How to apply:** Keep client and server validation consistent and label optional examples clearly in English and Chinese. Preserve examples already entered.

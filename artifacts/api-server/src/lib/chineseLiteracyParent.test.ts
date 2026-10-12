@@ -54,12 +54,14 @@ test("strict parent bank rejects teacher IDs, duplicates, invalid ratings and cl
   assert.throws(()=>validateLiteracyInput({...fixture(),responses:[no("P-R1"),no("P-R1")]},undefined,false,meta));
   assert.throws(()=>validateLiteracyInput({...fixture(),mean:5},undefined,false,meta));
 });
-test("draft incomplete evidence is preserved; submission requires linked examples and real NA reasons", () => {
+test("parent submission permits high ratings without examples but still requires real NA reasons", () => {
   const input=fixture();input.sections.R={decision:"complete"};
   input.responses=input.responses.map(r=>r.itemId==="P-R1"||r.itemId==="P-R2"?rated(r.itemId,4):r);
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,false,meta));
   assert.throws(()=>validateLiteracyInput(input,undefined,true,meta));
   input.evidence.R={examples:[{text:"Two home reading examples",itemIds:["P-R1","P-R2"]}],strengths:"Understands shared reading",supports:"Read aloud",impact:2,setting:"Shared reading at home",language:"Mandarin"};
+  assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true,meta));
+  input.evidence.R.examples=[];
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true,meta));
   input.responses=input.responses.map(r=>r.itemId==="P-R3"?{itemId:r.itemId,status:"not_applicable",value:null,reason:""}:r);
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,false,meta));assert.throws(()=>validateLiteracyInput(input,undefined,true,meta));

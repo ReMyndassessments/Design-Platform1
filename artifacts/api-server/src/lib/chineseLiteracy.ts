@@ -204,10 +204,6 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
     }
     for (const response of responses) {
       if (response.status === "not_applicable" && !response.reason.trim()) issues.push(`${response.itemId}: provide the respondent's actual NA reason.`);
-      if (response.status === "rated" && response.value >= 4 &&
-        !(evidence?.examples.some(example => example.text.trim() && example.itemIds.includes(response.itemId)))) {
-        issues.push(`${response.itemId}: a concrete linked example is required for ratings 4 or 5.`);
-      }
     }
   }
   if (submitted) {

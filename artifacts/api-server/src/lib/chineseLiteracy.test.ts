@@ -57,11 +57,13 @@ test("unanswered remains applicable; whole section NO is not an unvisited sectio
 test("duplicates, unknowns, fractional/string/out-of-range values and NA without reasons fail", () => {
   for(const values of [[rated("R1",3),rated("R1",4)],[rated("FAKE",3)],[rated("R1",0)],[rated("R1",6)],[rated("R1",1.5)],[{...rated("R1",3),value:"3"}],[{...no("R1"),value:0}],[{...na("R1"),reason:""}]]) assert.throws(()=>scoreLiteracyDomain(ids("R"),values));
 });
-test("draft saves without evidence, submission requires examples for every 4/5 item", () => {
+test("teacher submission permits high ratings without examples and preserves supplied examples", () => {
   const input=fixture(); input.sections.R={decision:"complete"}; input.responses=input.responses.map(r=>r.itemId==="R1"||r.itemId==="R2"?rated(r.itemId,4) as any:r);
   assert.doesNotThrow(()=>validateLiteracyInput(input));
   assert.throws(()=>validateLiteracyInput(input,undefined,true));
   input.evidence.R={ examples:[{text:"In two taught reading passages the same characters were not recognized.",itemIds:["R1","R2"]}], strengths:"Responds successfully with audio support", supports:"Accessible text",impact:2 };
+  assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true));
+  input.evidence.R.examples=[];
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true));
 });
 test("incomplete NA drafts save without invented reasons; submission and scoring reject them", () => {

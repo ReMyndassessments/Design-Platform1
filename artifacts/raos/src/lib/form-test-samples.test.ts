@@ -21,6 +21,19 @@ for (const meta of [LITERACY_METADATA, PARENT_LITERACY_METADATA]) {
   });
 }
 
+test("parent and teacher high ratings submit without examples in both languages", () => {
+  for (const language of ["english", "mandarin"] as const) {
+    for (const meta of [PARENT_LITERACY_METADATA, LITERACY_METADATA]) {
+      const sample = literacyTestSample(meta, language);
+      sample.responses = sample.responses.map(response => ({ ...response, status: "rated", value: 5 }));
+      Object.values(sample.evidence).forEach(evidence => { evidence.examples = []; });
+      const issues = validateInput(sample, meta, meta.domains);
+      assert.deepEqual(issues, []);
+      assert.doesNotThrow(() => validateLiteracyInput(sample, undefined, true, meta));
+    }
+  }
+});
+
 test("automatic samples fill choices, dates, multi-select and frequency-grid rows without mutating the questionnaire", () => {
   const questions = [
     { id: "heading", text: "Section", type: "section_header", domain: "test" },
