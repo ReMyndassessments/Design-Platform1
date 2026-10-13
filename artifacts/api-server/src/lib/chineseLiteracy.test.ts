@@ -73,6 +73,11 @@ test("incomplete NA drafts save without invented reasons; submission and scoring
   assert.throws(()=>validateLiteracyInput(input,undefined,true));
   assert.throws(()=>scoreLiteracyDomain(ids("R"),[{itemId:"R1",status:"not_applicable",value:null,reason:""}]));
 });
+test("support-plan approval draft accepts blank priority details and review date", () => {
+  const input=fixture();
+  input.summary.priorities=[{text:"",itemIds:[],strategyId:"",owner:"",indicator:"",reviewDate:""}];
+  assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,false));
+});
 test("one teacher, short observation window and all-NO core can submit without other tasks", () => {
   const input=fixture(); validateLiteracyInput(input,undefined,true); assert.equal(literacyEvidenceStatus(scoreLiteracy(input)),"Additional information needed");
   const scores=scoreLiteracy(input); assert(!("total" in scores)); assert(scores.every(s=>!("normalizedScores" in s)));

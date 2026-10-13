@@ -459,13 +459,13 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/action", authMiddlewa
       return persistLiteracy(tx, current, { monitoring: { ...current.monitoring, entries: [...current.monitoring.entries, entry] } });
     }
     if (action === "plan") {
-      if (!current.report?.approvedAt) throw new AccessError(409, "Approve the observation report before agreeing its support plan.");
       const plan = req.body.plan;
-      if (!plan || typeof plan.rationale !== "string" || !plan.rationale.trim() || !["classroom_support_review", "targeted_support_planning", "comprehensive_assessment_discussion", "additional_information_needed", "wellbeing_pathway"].includes(plan.pathway)) throw new AccessError(422, "Select a pathway and explain the professional rationale.");
-      const draftInput = { ...current.input, summary: { ...current.input.summary, priorities: plan.priorities } };
-      const validated = validateLiteracyInput(draftInput, current.selectedDomains, true, current.metadata);
-      if (!validated.summary.priorities.length) throw new AccessError(422, "Agree at least one evidence-linked priority.");
-      return persistLiteracy(tx, current, { plan: { rationale: plan.rationale.slice(0,8000), pathway: plan.pathway,
+      if (!plan || typeof plan !== "object") throw new AccessError(422, "Provide the support-plan draft to approve.");
+      const priorities = Array.isArray(plan.priorities) ? plan.priorities : [];
+      const draftInput = { ...current.input, summary: { ...current.input.summary, priorities } };
+      const validated = validateLiteracyInput(draftInput, current.selectedDomains, false, current.metadata);
+      return persistLiteracy(tx, current, { plan: { rationale: typeof plan.rationale === "string" ? plan.rationale.slice(0,8000) : "",
+        pathway: typeof plan.pathway === "string" ? plan.pathway.slice(0,100) : "",
         priorities: validated.summary.priorities, approvedBy: req.userId, approvedAt: new Date().toISOString(), inputRevision: current.report.inputRevision, portalSync: "not_configured", strategyVersion: current.metadata.strategyVersion } });
     }
     if (!["submitted", "under_review"].includes(current.status)) throw new AccessError(409, "Submit the respondent record before professional review; approved reports cannot be edited without a new revision.");

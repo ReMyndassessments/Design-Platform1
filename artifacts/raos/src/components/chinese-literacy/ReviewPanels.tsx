@@ -65,7 +65,6 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
   const approved = isApproved(adm);
   const hasUnsavedEdits = text !== (adm.report?.narrative ?? "");
   const restorePreviousApproved = adm.report?.supersedesApprovedReport === true && !adm.report?.recommendationsAddedAt && !approved;
@@ -168,11 +167,6 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       </div>
       {exportError && <Banner tone="error" title="Report not downloaded">{exportError}</Banner>}
       {!approved && (adm.report?.narrative ?? "") !== text && <p className="text-[11px] text-amber-700">Save the draft before approving so approval covers this exact text.</p>}
-      {versions.length > 0 && (
-        <section><h3 className="text-sm font-bold mb-2">Historical versions</h3>
-          <ul className="space-y-2">{versions.map((v, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-[11px] text-slate-500">Version {v.version ?? versions.length - i} {fmt(v.approvedAt ?? v.createdAt ?? v.savedAt)} {v.status ?? ""}</p><p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{translate(`report.versions.${i}.narrative`, v.narrative)}</p></li>)}</ul>
-        </section>
-      )}
     </div>
   );
 }
@@ -190,15 +184,11 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
   const [pathway, setPathway] = useState<string>(adm.plan?.pathway ?? "");
   const [pri, setPri] = useState<Priority[]>(adm.plan?.priorities ?? adm.input.summary.priorities ?? []);
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const items = Array.from(new Set(adm.input.responses.filter(r => r.status === "rated").map(r => r.itemId)));
   const approved = isApproved(adm);
-  const ready = rationale.trim() && pathway && pri.length > 0 && pri.length <= 3 && pri.every(p =>
-    p.text.trim() && p.itemIds.length && p.strategyId && p.owner.trim() && p.indicator.trim() && Number.isFinite(Date.parse(p.reviewDate)),
-  );
   const generate = async () => {
     if ((rationale.trim() || pathway || pri.some(p => p.text.trim())) && !window.confirm("Replace the current support-plan fields with a new AI-generated draft? Nothing has been saved yet.")) return;
     setGenerating(true);
@@ -208,7 +198,6 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
       setPathway(draft.pathway);
       setRationale(draft.rationale);
       setPri(draft.priorities);
-      setGenerated(true);
     } catch (error) {
       setGenerateError((error as Error).message || "Could not generate the support-plan draft.");
     } finally {
@@ -229,15 +218,7 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
   const finalReportReady = Boolean(adm.report?.approvedAt && adm.plan?.approvedAt);
   return (
     <div className="space-y-4">
-      {!approved && <Banner tone="warn" title="Approve the report before generating a support plan">
-        <span>A support plan needs an approved report first. </span>
-        <button type="button" className="font-semibold underline" onClick={onOpenReport} data-testid="button-open-report-for-plan">Open the Report tab</button>
-        <span> to review and approve it.</span>
-      </Banner>}
-      {adm.plan?.reviewRequiredBecauseReportChanged && <Banner tone="warn" title="Review the saved support plan after approving the updated report">
-        Its previous approval was cleared because the report changed. The plan text and priorities are preserved; review and approve them again after approving the updated report.
-      </Banner>}
-      <Banner>The generated plan is a suggestion for professional review—not a score-based or diagnostic decision. Parent and teacher evidence stay separate; support and further assessment can proceed in parallel.</Banner>
+      <Banner>Approving saves this plan as shown. Review dates and other priority details may be left blank and completed later. Parent and teacher evidence stay separate; this is not a score-based or diagnostic decision.</Banner>
       <div className="flex flex-wrap items-center gap-2">
         <Btn variant="ghost" disabled={!approved || busy || generating || englishView} onClick={() => void generate()} data-testid="button-generate-support-plan">
           {generating ? "Generating support-plan draft…" : "Generate support plan with DeepSeek"}
@@ -245,13 +226,12 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
         <span className="text-[11px] text-slate-500">Only this respondent’s submitted form and approved report are sent to your configured DeepSeek API. Charges follow your DeepSeek account; the draft is not saved until you approve it.</span>
       </div>
       {generateError && <Banner tone="error" title="Support plan not generated">{generateError}</Banner>}
-      {generated && <Banner tone="warn" title="AI-generated suggestion — review before approval">Confirm the pathway, evidence links, proposed owner and progress indicator. Choose a review date after agreeing when support starts.</Banner>}
       <Field label="Suggested pathway — confirm or change"><select className={inputCls} value={pathway} onChange={e => setPathway(e.target.value)} disabled={englishView} data-testid="select-pathway"><option value="">Choose a pathway</option>{PATHWAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
       <Field label="Rationale"><textarea rows={4} className={inputCls} value={englishView ? translate("plan.rationale", rationale) : rationale} onChange={e => setRationale(e.target.value)} readOnly={englishView} /></Field>
       <PriorityEditor priorities={pri} onChange={setPri} strategies={meta.strategies} itemOptions={items} max={3} readOnly={englishView || generating} englishView={englishView} translate={translate} />
       <p className="text-[11px] text-slate-500">Keep accommodations and skill instruction separately labelled. Audio access to content is not proof that independent reading improved.</p>
-      <p className="text-[11px] text-slate-500">Each priority needs an evidence link, proposed owner, observable progress indicator and review date.</p>
-      <Btn disabled={busy || generating || englishView || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
+      <Btn disabled={busy || generating} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
+      {(busy || generating) && <p className="text-xs text-slate-500" role="status">Wait for the current save or generation to finish.</p>}
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-bold">Print final report</h3>
         <p className="text-xs text-slate-500">Includes the saved professional report, agreed support plan, monitoring entries, and any linked follow-up results and comparison. This export keeps parent and teacher records separate and uses the saved source wording.</p>

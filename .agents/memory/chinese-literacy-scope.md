@@ -80,3 +80,9 @@ Monitoring and follow-up recommendations must be added to an existing report wit
 **Why:** On 2026-10-13 a full report regeneration replaced a working approved report when the user had only asked for two recommendations. The prior approved report must remain recoverable.
 
 **How to apply:** Use DeepSeek for only two narrative paragraphs; append them to the exact existing report and preserve all domain results. Archive the previous approved version and require review/approval of the addition. Keep actual-entry and repeat-form tools optional; do not fabricate delivered support, dates, or outcomes.
+
+Do not show historical report versions in the Chinese Literacy review UI. Keep stored versions intact unless the user explicitly asks to delete them.
+
+**Why:** The user asked to remove the Historical versions display and did not request deletion of archived report data.
+
+**How to apply:** Omit the version-history panel from the staff report page while preserving the backend archive and any restore safeguards.
