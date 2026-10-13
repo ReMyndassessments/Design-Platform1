@@ -113,7 +113,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
                 {translationBusy ? "Translating…" : englishView ? "View original Chinese" : "View in English"}
               </Btn>
               {englishView && <span className="text-[11px] text-slate-500">Translated for review; saved responses are unchanged.</span>}
-              {!englishView && <span className="text-[11px] text-slate-500">AI report generation and translation use Replit credits.</span>}
+              {!englishView && <span className="text-[11px] text-slate-500">Chinese Literacy report drafting and translation use your configured DeepSeek API.</span>}
             </div>
             {translationError && <Banner tone="error" title="Translation unavailable">{translationError}</Banner>}
           </>}

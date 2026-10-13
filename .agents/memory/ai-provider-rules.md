@@ -30,6 +30,13 @@ Use DeepSeek for both intake analysis and the assessment lead's intake follow-up
 
 **How to apply:** Keep this preference scoped to intake text. Vision work remains under the vision rule above unless the user explicitly changes it.
 
+## Chinese Literacy reports and translations → DeepSeek
+Use the project's configured DeepSeek API for Chinese Literacy report drafting and English translation. Do not route these text tasks through Replit-managed Gemini or other Replit AI integrations.
+
+**Why:** The user explicitly required DeepSeek for these Chinese Literacy AI features on 2026-10-13.
+
+**How to apply:** Call the existing DeepSeek helper for both operations; never expose or ask for the credential in chat.
+
 ## OpenRouter → forbidden without asking
 Never provision or use Replit OpenRouter AI integration without checking with the user first — it bills Replit credits directly.
 

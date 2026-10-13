@@ -73,7 +73,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
         <Btn variant="ghost" disabled={busy || generating || approved || englishView || hasUnsavedEdits} onClick={() => void generate()} data-testid="button-generate-literacy-report">
           {generating ? "Generating report draft…" : adm.report?.narrative ? "Regenerate draft" : "Generate report draft"}
         </Btn>
-        <span className="text-[11px] text-slate-500">The selected respondent’s form is sent to Replit AI (Gemini) to draft. Uses Replit credits; staff review and approval are required.</span>
+        <span className="text-[11px] text-slate-500">The selected respondent’s form is sent to DeepSeek using your configured API. Charges follow your DeepSeek account; staff review and approval are required.</span>
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your current edits before generating a replacement.</span>}
       </div>
       {generateError && <Banner tone="error" title="Report draft not generated">{generateError}</Banner>}
