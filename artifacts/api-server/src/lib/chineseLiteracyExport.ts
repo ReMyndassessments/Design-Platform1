@@ -175,9 +175,9 @@ function exportScoreValue(value: any) {
 }
 
 function linkedFollowupHtml(followups: LiteracyDocument[]) {
-  if (!followups.length) return '<p>No linked follow-up has been created. Follow-up is optional and is not needed to complete the baseline report.</p>';
-  return followups.map((followup, index) => {
-    const submitted = Boolean(followup.scores?.length);
+  const submittedFollowups = followups.filter(followup => Boolean(followup.scores?.length));
+  if (!submittedFollowups.length) return "";
+  return `<section><h2>Completed repeat-observation results</h2>${submittedFollowups.map((followup, index) => {
     const comparisons = followup.monitoring?.comparison ?? [];
     const comparisonHtml = comparisons.length
       ? `<h4>Baseline and follow-up comparison</h4><table><thead><tr><th>Domain</th><th>Baseline</th><th>Follow-up</th><th>Descriptive change</th><th>Conditions / limitations</th></tr></thead><tbody>${comparisons.map((row: any) => `<tr>
@@ -185,12 +185,11 @@ function linkedFollowupHtml(followups: LiteracyDocument[]) {
           <td>${row.change == null ? "Not calculated" : esc(`${row.change > 0 ? "+" : ""}${Number(row.change).toFixed(1)}`)}</td>
           <td>${esc((row.limitations ?? []).join("; ") || "Coverage conditions met")}</td>
         </tr>`).join("")}</tbody></table><p class="meta">Differences are descriptive only; they are not statistical significance or a clinical effect.</p>`
-      : `<p>${submitted ? "A comparable baseline and follow-up rating set is not available for this record." : "This linked form has not been submitted, so follow-up results are not available yet."}</p>`;
-    return `<section><h3>Linked follow-up ${index + 1}: ${esc(followup.metadata.formName)}</h3>
-      <p>Status: ${esc(followup.status.replace(/_/g, " "))}${followup.submittedAt ? ` · Submitted ${esc(followup.submittedAt)}` : ""}</p>
-      ${submitted ? exportScoreTable(followup.scores) : "<p>No follow-up scores are included until the form is submitted.</p>"}
+      : "<p>A comparable baseline and follow-up rating set is not available for this record.</p>";
+    return `<section><h3>${esc(followup.metadata.formName)} — submitted ${esc(followup.submittedAt ?? "")}</h3>
+      ${exportScoreTable(followup.scores)}
       ${comparisonHtml}</section>`;
-  }).join("");
+  }).join("")}</section>`;
 }
 
 export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: LiteracyDocument[] }) {
@@ -212,8 +211,8 @@ export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: Liter
     : `<p>No separate support plan has been saved. This optional step is not required to complete the report.</p>${priorities ? `<ul>${priorities}</ul>` : ""}`;
   const monitoringEntries = doc.monitoring?.entries ?? [];
   const monitoringHtml = monitoringEntries.length
-    ? `<ul>${monitoringEntries.map(e => `<li><strong>${esc(e.date)}:</strong> ${esc(e.supportDelivered)}. Participation: ${esc(e.participation || "not recorded")}.${e.note ? ` ${esc(e.note)}` : ""}</li>`).join("")}</ul>`
-    : "<p>No progress-monitoring entries are recorded. Monitoring is optional and is not required before further assessment.</p>";
+    ? `<section><h2>Recorded monitoring activity</h2><ul>${monitoringEntries.map(e => `<li><strong>${esc(e.date)}:</strong> ${esc(e.supportDelivered)}. Participation: ${esc(e.participation || "not recorded")}.${e.note ? ` ${esc(e.note)}` : ""}</li>`).join("")}</ul></section>`
+    : "";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Chinese Literacy ${source} report and follow-up record</title><style>
     @page{margin:18mm}*{box-sizing:border-box}
     body{font:11pt Arial,sans-serif;color:#17253b;margin:0;line-height:1.5}
@@ -244,8 +243,7 @@ export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: Liter
   <p>The 80% rule is provisional data completeness guidance, not a psychometric or clinical cutoff. NA excludes items only with reasons; NO and unanswered items remain in the applicable denominator. No total, norm or risk category is calculated.</p>
   <h2>Professional report — ${esc(reportStatus)}</h2><main class="report-body">${reportHtml}</main>
   <h2>Support plan</h2>${planHtml}
-  <h2>Monitoring (optional)</h2>${monitoringHtml}
-  <h2>Follow-up (optional)</h2>${linkedFollowupHtml(followups)}
+  ${monitoringHtml}${linkedFollowupHtml(followups)}
   ${evidence}<h2>Limitations</h2><p>${esc(doc.metadata.reportLimitation)}</p>
   <p>Reviewer ${esc(doc.report?.approvedBy ?? "Not approved")}; approval ${esc(doc.report?.approvedAt ?? "Pending")}. External Case Portal synchronization: not configured. No draft or raw comment is automatically released.</p><footer>ReMynd Assessment Operating System — confidential educational observation record.</footer></body></html>`;
 }

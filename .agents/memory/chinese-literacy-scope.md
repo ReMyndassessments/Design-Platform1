@@ -69,8 +69,8 @@ Report approval must remain available in any translated display language; approv
 
 **How to apply:** Do not disable approval in read-only translation views. Keep editing and saving tied to the canonical saved narrative; clearly tell staff which saved report is being approved.
 
-Monitoring and follow-up belong inside the Report page, not as separate top-level tabs. The final printable/exportable report is also available from Support plan and includes the approved report, plan, monitoring entries, and linked follow-up results.
+The AI-generated report narrative must include recommended monitoring and follow-up plans in cautious prose. Actual delivery logs and completed repeat-form results are separate optional records, not substitutes for recommendations.
 
-**Why:** The user explicitly requested this report flow on 2026-10-13 so optional progress and repeat-assessment information can be read and printed as one report.
+**Why:** On 2026-10-13 the user clarified that they want DeepSeek to recommend monitoring and follow-up in the report, not append blank/manual entry screens as the plan.
 
-**How to apply:** Keep monitoring and repeat administrations optional, preserve parent/teacher separation, and assemble current structured entries at export time without rewriting the approved narrative.
+**How to apply:** Keep actual-entry and repeat-form tools outside the report narrative and clearly optional. Do not fabricate dates, delivered support, or outcomes; recommend same-respondent descriptive follow-up where suitable. Include actual logs/results in final exports only when they exist. If an approved report is regenerated from unchanged respondent answers, archive the old approved version, preserve its plan as an unapproved draft, and require review/approval again.

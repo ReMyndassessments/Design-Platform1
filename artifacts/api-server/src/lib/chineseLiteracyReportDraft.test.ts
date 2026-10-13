@@ -28,10 +28,17 @@ test("parent draft prompt is limited to one parent's source and forbids cross-so
   assert.match(prompt, /Source and scope; Context; Strengths and current supports/);
   assert.match(prompt, /Do not write an Observations by domain section/);
   assert.match(prompt, /rating-distribution chart and a factual narrative for every selected domain/);
+  assert.match(prompt, /Recommended monitoring plan/);
+  assert.match(prompt, /Recommended follow-up plan/);
+  assert.match(prompt, /concise narrative paragraphs/);
+  assert.match(prompt, /not a record that support was delivered or progress occurred/);
+  assert.match(prompt, /same respondent, setting and applicable domains/);
+  assert.match(prompt, /6–8 weeks/);
 });
 
 test("teacher draft prompt uses teacher-only source and descriptive scoring safeguards", () => {
   const prompt = buildChineseLiteracyReportPrompt(document("teacher"));
   assert.match(prompt, /One teacher's observations in the classroom or teaching setting only/);
   assert.match(prompt, /not norm-referenced, diagnostic, validated screening, risk, or clinical severity scores/);
+  assert.match(prompt, /Do not combine or compare parent and teacher evidence/);
 });

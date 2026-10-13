@@ -177,8 +177,13 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
   )).limit(1);
   if (!assignment) throw new AccessError(404, "Respondent administration not found in this case.");
   const doc = await loadLiteracy(assignment);
-  if (!["submitted", "under_review"].includes(doc.status)) throw new AccessError(409, "Submit the respondent form before generating a report draft.");
-  if (doc.report?.status === "approved" || doc.report?.approvedAt) throw new AccessError(409, "Approved reports cannot be replaced. Create a new respondent revision first.");
+  const reopenApproved = req.body?.reopenApproved === true;
+  const hasApprovedReport = doc.report?.status === "approved" || Boolean(doc.report?.approvedAt);
+  if (!["submitted", "under_review", "approved"].includes(doc.status) || (doc.status === "approved" && !hasApprovedReport)) {
+    throw new AccessError(409, "Submit the respondent form before generating a report draft.");
+  }
+  if (hasApprovedReport && !reopenApproved) throw new AccessError(409, "This report is already approved. Confirm that you want to create an updated draft.");
+  if (reopenApproved && !hasApprovedReport) throw new AccessError(409, "This report is not approved; reload it before generating a draft.");
   const narrative = (await callDeepSeek(
     buildChineseLiteracyReportPrompt(doc),
     8192,
@@ -188,8 +193,11 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
   const saved = await db.transaction(async tx => {
     const current = await loadLiteracy(assignment, tx, true);
     if (current.revision !== doc.revision) throw new AccessError(409, "The respondent record changed while the report was being generated. Reload it and try again.");
-    if (!["submitted", "under_review"].includes(current.status) || current.report?.status === "approved" || current.report?.approvedAt) {
-      throw new AccessError(409, "This respondent record is no longer available for report generation.");
+    const currentHasApprovedReport = current.report?.status === "approved" || Boolean(current.report?.approvedAt);
+    if (!["submitted", "under_review", "approved"].includes(current.status)
+      || currentHasApprovedReport !== reopenApproved
+      || (current.status === "approved" && !currentHasApprovedReport)) {
+      throw new AccessError(409, "The report changed while the draft was being generated. Reload the record and try again.");
     }
     const classroom = isParentLiteracy(assignment.toolId)
       ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable).where(and(
@@ -200,10 +208,20 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
       : [];
     return persistLiteracy(tx, current, {
       status: "under_review",
+      ...(current.plan ? {
+        plan: {
+          ...current.plan,
+          status: "review_required",
+          approvedBy: undefined,
+          approvedAt: undefined,
+          reviewRequiredBecauseReportChanged: true,
+        },
+      } : {}),
       report: {
         narrative, status: "draft", sourceRevision: current.revision,
         inputRevision: current.submissionBaseRevision! + 1,
         generatedBy: req.userId, generatedAt: new Date().toISOString(),
+        supersedesApprovedReport: currentHasApprovedReport,
         limitation: current.metadata.reportLimitation,
         evidenceSource: isParentLiteracy(assignment.toolId)
           ? "Parent-reported observations in the home setting. One named parent or caregiver; no teacher observations, student interviews or direct tests are included in this administration."
@@ -217,7 +235,7 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
       },
     });
   });
-  audit(req, saved, "report_generated");
+  audit(req, saved, reopenApproved ? "report_regenerated" : "report_generated");
   res.json(await literacyEnvelope(saved));
 }));
 

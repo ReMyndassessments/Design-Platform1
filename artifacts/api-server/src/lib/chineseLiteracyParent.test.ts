@@ -97,7 +97,7 @@ test("full snapshot includes the report, agreed plan, monitoring and linked foll
     contextSnapshot: { studentId: "synthetic-case" }, teacherName: "SYNTHETIC Parent", instrumentVersion: meta.version,
     scoringVersion: meta.scoringVersion, languageVersion: "en-0.1.0", revision: 3, status: "approved",
     submittedAt: "2026-10-02", sourceConfirmation: { confirmed: true, date: "2026-10-02" },
-    report: { narrative: "# Observation report\n\n## Observations by Domain\nThis section is generated from the selected respondent.", approvedAt: "2026-10-10", approvedBy: "Synthetic reviewer" },
+    report: { narrative: "# Observation report\n\n## Observations by Domain\nThis section is generated from the selected respondent.\n\n## Recommended monitoring plan\nReview shared reading participation after support starts.\n\n## Recommended follow-up plan\nConsider repeating the same respondent form after six to eight weeks.", approvedAt: "2026-10-10", approvedBy: "Synthetic reviewer" },
     plan: { pathway: "classroom_support_review", rationale: "Continue supported shared reading.", approvedAt: "2026-10-11",
       priorities: [{ text: "Shared reading", itemIds: ["P-R1"], strategyId: "shared-reading", owner: "Teacher", indicator: "Reads a short passage", reviewDate: "2026-11-20" }] },
     monitoring: { entries: [{ date: "2026-10-12", supportDelivered: "Shared reading", participation: "Joined for ten minutes", note: "Synthetic note." }] },
@@ -111,10 +111,14 @@ test("full snapshot includes the report, agreed plan, monitoring and linked foll
       change: 1, limitations: ["Same respondent and item set"] }] },
   };
   const html = literacyExport({ ...baseline, linkedFollowups: [followup] });
-  for (const text of ["Professional report", "Support plan", "Continue supported shared reading", "Monitoring (optional)",
-    "Shared reading", "Follow-up (optional)", "Baseline and follow-up comparison", "Same respondent and item set", "Differences are descriptive only"]) {
+  for (const text of ["Professional report", "Support plan", "Continue supported shared reading", "Recommended monitoring plan",
+    "Review shared reading participation", "Recommended follow-up plan", "same respondent form", "Recorded monitoring activity",
+    "Completed repeat-observation results", "Baseline and follow-up comparison", "Same respondent and item set", "Differences are descriptive only"]) {
     assert(html.includes(text), `expected full report export to contain: ${text}`);
   }
   assert(!html.includes("<pre>"), "the report narrative should be formatted as a professional report, not raw Markdown");
-  assert(literacyExport(baseline).includes("No linked follow-up has been created"), "follow-up must remain optional in a baseline export");
+  const followupWithoutComparison = literacyExport({ ...baseline, linkedFollowups: [{ ...followup, monitoring: { entries: [], comparison: [] } }] });
+  assert(followupWithoutComparison.includes("A comparable baseline and follow-up rating set is not available"), "completed repeat forms without a comparable baseline must still export safely");
+  const reportOnly = literacyExport({ ...baseline, monitoring: { entries: [] }, linkedFollowups: [] });
+  assert(!reportOnly.includes("Recorded monitoring activity") && !reportOnly.includes("Completed repeat-observation results"), "empty operational logs must not replace the narrative recommendations with blank sections");
 });

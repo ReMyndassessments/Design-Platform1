@@ -54,7 +54,7 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
 export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onExport, onOpenSupportPlan }: P & {
   translate?: Translate;
   englishView?: boolean;
-  onGenerate: () => Promise<void>;
+  onGenerate: (reopenApproved?: boolean) => Promise<void>;
   onExport: (format: "html" | "doc") => Promise<void>;
   onOpenSupportPlan: () => void;
 }) {
@@ -78,9 +78,12 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
     finally { setExporting(false); }
   };
   const generate = async () => {
-    if (adm.report?.narrative && !window.confirm("Replace the current saved report draft with a newly generated draft?")) return;
+    if (approved) {
+      const confirmed = window.confirm("Create a new AI report draft from the same respondent answers? The current approved report remains in version history. Its support plan, if any, will be kept as a draft and must be reviewed again. The respondent's answers will not change.");
+      if (!confirmed) return;
+    } else if (adm.report?.narrative && !window.confirm("Replace the current saved report draft with a newly generated draft?")) return;
     setGenerating(true); setGenerateError(null);
-    try { await onGenerate(); }
+    try { await onGenerate(approved); }
     catch (error) { setGenerateError((error as Error).message || "Could not generate a report draft."); }
     finally { setGenerating(false); }
   };
@@ -89,9 +92,12 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       <Banner title="AI-assisted editable draft; professional review required">
         Generate a draft from this {pm ? "parent's home" : "teacher's"} submission only. It will not combine respondents, diagnose, or be released automatically. Review and edit it before approval. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
       </Banner>
+      {adm.report?.supersedesApprovedReport && !approved && <Banner tone="warn" title="Updated report draft needs review">
+        The previous approved report is preserved in version history. This draft adds AI-recommended monitoring and follow-up based on the same submitted responses. Review and approve it before relying on the updated report; the existing support plan is retained as a draft for review.
+      </Banner>}
       <div className="flex flex-wrap items-center gap-2">
-        <Btn variant="ghost" disabled={busy || generating || approved || englishView || hasUnsavedEdits} onClick={() => void generate()} data-testid="button-generate-literacy-report">
-          {generating ? "Generating report draft…" : adm.report?.narrative ? "Regenerate draft" : "Generate report draft"}
+        <Btn variant="ghost" disabled={busy || generating || englishView || hasUnsavedEdits} onClick={() => void generate()} data-testid="button-generate-literacy-report">
+          {generating ? "Generating report draft…" : approved ? "Create updated report draft" : adm.report?.narrative ? "Regenerate draft" : "Generate report draft"}
         </Btn>
         <span className="text-[11px] text-slate-500">The selected respondent’s form is sent to DeepSeek using your configured API. Charges follow your DeepSeek account; staff review and approval are required.</span>
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your current edits before generating a replacement.</span>}
@@ -140,7 +146,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
         <Btn variant="ghost" disabled={!canPrint} onClick={() => void exportReport("html")} data-testid="button-print-literacy-report">
           Open printable full report
         </Btn>
-        <span className="text-[11px] text-slate-500">The full export includes this report, the support plan when available, monitoring, and linked follow-up results.</span>
+        <span className="text-[11px] text-slate-500">The report narrative includes AI-recommended monitoring and follow-up. The full export adds an approved support plan and any actual monitoring or completed repeat-form results when available.</span>
         {!adm.report?.narrative && <span className="text-[11px] text-slate-500">Generate and save a report draft before downloading or printing.</span>}
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your edits first so the download and printout match the saved report.</span>}
         {editing && !englishView && adm.report?.narrative && !hasUnsavedEdits && <span className="text-[11px] text-slate-500">Preview the formatted report before printing.</span>}
@@ -213,6 +219,9 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, onEx
         <button type="button" className="font-semibold underline" onClick={onOpenReport} data-testid="button-open-report-for-plan">Open the Report tab</button>
         <span> to review and approve it.</span>
       </Banner>}
+      {adm.plan?.reviewRequiredBecauseReportChanged && <Banner tone="warn" title="Review the saved support plan after approving the updated report">
+        Its previous approval was cleared because the report changed. The plan text and priorities are preserved; review and approve them again after approving the updated report.
+      </Banner>}
       <Banner>The generated plan is a suggestion for professional review—not a score-based or diagnostic decision. Parent and teacher evidence stay separate; support and further assessment can proceed in parallel.</Banner>
       <div className="flex flex-wrap items-center gap-2">
         <Btn variant="ghost" disabled={!approved || busy || generating || englishView} onClick={() => void generate()} data-testid="button-generate-support-plan">
@@ -242,6 +251,20 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, onEx
           : "Approve the report and support plan to enable the final report export."}</p>}
         {exportError && <Banner tone="error" title="Final report not prepared">{exportError}</Banner>}
       </section>
+      <details className="rounded-xl border border-slate-200 bg-white p-4">
+        <summary className="cursor-pointer text-sm font-bold text-slate-800">Record actual progress or create a repeat form (optional)</summary>
+        <p className="mt-2 text-xs text-slate-500">These are operational recordkeeping tools, not AI recommendations. The report narrative contains the suggested monitoring and follow-up plan. Only enter progress that has actually been observed or support that has actually been delivered.</p>
+        <div className="mt-4 space-y-6">
+          <section className="border-t border-slate-200 pt-4">
+            <h3 className="mb-3 text-sm font-bold">Record actual progress</h3>
+            <MonitoringPanel adm={adm} meta={meta} run={run} busy={busy} translate={translate} />
+          </section>
+          <section className="border-t border-slate-200 pt-4">
+            <h3 className="mb-3 text-sm font-bold">Create an optional repeat administration</h3>
+            <FollowUpPanel adm={adm} meta={meta} run={run} busy={busy} />
+          </section>
+        </div>
+      </details>
     </div>
   );
 }

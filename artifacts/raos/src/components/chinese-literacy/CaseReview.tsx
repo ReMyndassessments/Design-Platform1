@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { ApiError, caseUrl, clRequest, downloadExport } from "./api";
-import { EvidencePanel, FollowUpPanel, MonitoringPanel, PlanPanel, ReportPanel } from "./ReviewPanels";
+import { EvidencePanel, PlanPanel, ReportPanel } from "./ReviewPanels";
 import { PARENT_INSTRUMENT_ID } from "./api";
 import type { ClAdministration, ClMetadata, SupportPlanDraft } from "./types";
 import { Banner, Btn, Skeleton } from "./ui";
@@ -54,11 +54,11 @@ export default function CaseReview({ caseId }: { caseId: string }) {
       setTranslationBusy(false);
     }
   };
-  const generateReport = async () => {
+  const generateReport = async (reopenApproved = false) => {
     if (!adm) throw new Error("Select a submitted parent or teacher form first.");
     const result = await clRequest<any>(
       `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/generate-report`,
-      { method: "POST", staff: true },
+      { method: "POST", staff: true, body: { reopenApproved } },
     );
     if (!result?.administration) throw new Error("The report draft could not be saved. Reload the case before trying again.");
     setEnglishView(false);
@@ -140,17 +140,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
                if (tab === "evidence") return <EvidencePanel {...p} translate={translate} />;
                if (tab === "report") return (
-                 <div className="space-y-5">
-                   <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format)} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} />
-                   <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="literacy-monitoring-heading">
-                     <div><h2 id="literacy-monitoring-heading" className="text-lg font-bold text-slate-900">Monitoring</h2><p className="text-xs text-slate-500">Optional progress notes and any available baseline-to-follow-up comparison.</p></div>
-                     <MonitoringPanel {...p} translate={translate} />
-                   </section>
-                   <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="literacy-followup-heading">
-                     <div><h2 id="literacy-followup-heading" className="text-lg font-bold text-slate-900">Follow-up</h2><p className="text-xs text-slate-500">Optional repeat administration. It does not send an email automatically.</p></div>
-                     <FollowUpPanel {...p} />
-                   </section>
-                 </div>
+                 <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format)} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} />
                );
                if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={format => downloadExport(caseId, adm.assignmentId, format)} />;
                return null;
