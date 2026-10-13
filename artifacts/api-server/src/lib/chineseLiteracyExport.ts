@@ -79,9 +79,12 @@ function domainObservationHtml(doc: LiteracyDocument) {
   return `<section class="domain-results"><h2>Observations by Domain</h2>${content}</section>`;
 }
 
-function reportNextStepsHtml() {
+function reportNextStepsHtml(finalCombined = false) {
+  const description = finalCombined
+    ? "The recommendations above include suggested monitoring and follow-up. The agreed Support Plan follows below; these are professional planning recommendations, not diagnostic conclusions. Parent and teacher evidence remains separate."
+    : "These observations inform a separate, staff-reviewed support plan. After this report is approved, the plan is developed and approved separately before it is included in the final combined report. Parent and teacher evidence remains separate.";
   return `<section class="report-next-steps"><h2>Recommendations and next steps</h2>
-    <p>These observations inform a separate, staff-reviewed support plan. After this report is approved, the plan is developed and approved separately before it is included in the final combined report. Parent and teacher evidence remains separate.</p>
+    <p>${description}</p>
   </section>`;
 }
 
@@ -122,7 +125,7 @@ function markdownReportHtml(markdown: string, domainHtml: string) {
 }
 
 /** A clean report-only export: formatted narrative plus per-domain charts and evidence summaries. */
-export function literacyReportExport(doc: LiteracyDocument) {
+export function literacyReportExport(doc: LiteracyDocument, options: { finalCombined?: boolean } = {}) {
   const parent = doc.metadata.respondent === "parent";
   const source = parent ? "Parent-reported · home setting" : "Teacher-reported · teaching setting";
   const status = doc.report?.approvedAt ? "Approved report" : "Draft · staff review required";
@@ -132,12 +135,18 @@ export function literacyReportExport(doc: LiteracyDocument) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Chinese Literacy Observation Report</title>
     <style>
       @page{margin:18mm}*{box-sizing:border-box}body{font:11pt Arial,sans-serif;color:#17253b;margin:0;line-height:1.55}
-      header{border-bottom:3px solid #1379a8;padding:0 0 12pt;margin-bottom:16pt}h1{font-size:23pt;line-height:1.2;margin:0 0 7pt}
+      header{background:#f8fafc;border:1px solid #d8e1e8;border-bottom:3px solid #1f74ad;border-radius:9pt;padding:14pt 18pt;margin-bottom:16pt}
+      .brand{font-size:8pt;font-weight:bold;letter-spacing:1.2pt;text-transform:uppercase;color:#1f74ad;margin:0 0 5pt}
+      h1{font-size:23pt;line-height:1.2;margin:0 0 7pt}
       h2{font-size:16pt;border-bottom:1px solid #d8e1e8;padding-bottom:5pt;margin:22pt 0 10pt;break-after:avoid}
       h3{font-size:13pt;margin:0 0 10pt;break-after:avoid}h4{font-size:10pt;margin:12pt 0 4pt;break-after:avoid}
       p{margin:6pt 0}ul,ol{padding-left:20pt;margin:6pt 0}li{margin:3pt 0}code{font-family:monospace;font-size:9pt}
       .meta{font-size:9pt;color:#53657a}.status{display:inline-block;padding:3pt 8pt;border-radius:10pt;background:#fff4d4;color:#805700;font-size:8pt;font-weight:bold}
+      table{border-collapse:collapse;width:100%;font-size:9pt;margin:12pt 0}td,th{border:1px solid #d8e1e8;padding:6pt;vertical-align:top;text-align:left;overflow-wrap:anywhere}
+      thead{display:table-header-group}tr{break-inside:avoid}
        .report-body{margin-top:16pt}.domain-results{margin:22pt 0}.domain-card{border:1px solid #d8e1e8;border-radius:8pt;padding:12pt;margin:12pt 0;break-inside:auto}
+      .plan-card{border:1px solid #d8e1e8;border-radius:8pt;background:#f8fafc;padding:12pt 14pt;margin:12pt 0}
+      .plan-priorities li{margin:9pt 0}.plan-priorities p{font-size:9pt;color:#53657a}
       .rating-chart{background:#f6f9fb;border:1px solid #e4ebf0;border-radius:6pt;padding:10pt 12pt;margin:10pt 0}
       figcaption{font-size:9pt;font-weight:bold;margin-bottom:7pt}.bar-row{display:grid;grid-template-columns:155pt 1fr 20pt;gap:7pt;align-items:center;margin:4pt 0;font-size:8pt}
       .bar-track{height:7pt;background:#e2e8ee;border-radius:5pt;overflow:hidden}.bar-fill{display:block;height:100%;background:#1f74ad;border-radius:5pt}.bar-count{text-align:right;font-weight:bold}
@@ -145,11 +154,12 @@ export function literacyReportExport(doc: LiteracyDocument) {
         .interpretation h4,.planning-recommendation h4{margin-top:0}.report-next-steps{border-top:1px solid #d8e1e8;margin-top:18pt;padding-top:8pt}
        .caution,.empty-chart{font-size:8pt;color:#58697c}.item-ids{color:#64748b}
       .domain-card li,.domain-card p{overflow-wrap:anywhere}footer{border-top:1px solid #d8e1e8;margin-top:22pt;padding-top:8pt;font-size:8pt;color:#58697c}
-       @media print{.domain-card,.report-next-steps{break-inside:avoid}figure{break-inside:avoid}}
-    </style></head><body><header><h1>Chinese Literacy Observation Report</h1>
-      <p class="meta">${esc(doc.metadata.formName)} · ${esc(source)} · ${esc(status)}</p>
+        @media print{.domain-card,.report-next-steps,.plan-card{break-inside:avoid}figure{break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+     </style></head><body><header>
+       <p class="brand">ReMynd · Assessment Report</p><h1>Chinese Literacy Observation Report</h1>
+       <p class="meta">${esc(doc.metadata.formName)} · ${esc(source)} · <span class="status">${esc(status)}</span></p>
        <p class="meta">Submitted ${esc(doc.submittedAt ?? "date not recorded")} · This report describes only the selected respondent’s record; parent and teacher records are not combined.</p></header>
-       <main class="report-body">${narrativeHtml}${reportNextStepsHtml()}</main>
+        <main class="report-body">${narrativeHtml}${reportNextStepsHtml(options.finalCombined)}</main>
       <footer>${esc(doc.metadata.reportLimitation)}<br>ReMynd Assessment Operating System · Confidential educational record.</footer>
     </body></html>`;
 }
@@ -189,57 +199,34 @@ function linkedFollowupHtml(followups: LiteracyDocument[]) {
 }
 
 export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: LiteracyDocument[] }) {
-  const parent = doc.metadata.respondent === "parent";
-  const source = parent ? "parent or caregiver" : "teacher";
-  const heading = parent ? "Parent-reported observations in the home setting" : "Teaching and observation context";
-  const rows = doc.scores.map(s => `<tr><th scope="row">${esc(s.label)}</th><td>${esc(s.status === "scored" ? `${s.displayMean} of 5 — observed difficulty frequency` : s.presentationLabel ?? s.status)}</td><td>${esc(s.validCount ?? "—")} / ${esc(s.applicableCount ?? "—")} applicable; ${esc(s.totalItems ?? "—")} original</td><td>${s.coverage == null ? "—" : esc((s.coverage * 100).toFixed(1) + "%")}</td><td>NO ${esc(s.notObservedCount ?? "—")}; NA ${esc(s.notApplicableCount ?? "—")}; unanswered ${esc(s.unansweredCount ?? "—")}</td><td>${esc(s.impact ?? "Unknown")}</td></tr>`).join("");
-  const evidence = doc.metadata.domains.filter(d => doc.selectedDomains.includes(d.id)).map(d => `<section><h2>${esc(d.label)}</h2><p>Strengths: ${esc(doc.input.evidence[d.id]?.strengths || "Not recorded")}</p><p>Supports: ${esc(doc.input.evidence[d.id]?.supports || "Not recorded")}</p>${parent ? `<p>Home setting: ${esc(doc.input.evidence[d.id]?.setting || "Not observed")}; observation language: ${esc(doc.input.evidence[d.id]?.language || "Not observed")}.</p>` : ""}${(doc.input.evidence[d.id]?.examples ?? []).map(e => `<p>${esc(e.itemIds.join(", "))}: ${esc(e.text)}</p>`).join("")}<table><thead><tr><th>Item</th><th>Exact observation wording</th><th>Response / reason</th></tr></thead><tbody>${d.items.map(i => { const r = doc.input.responses.find(r => r.itemId === i.id); return `<tr><td>${esc(i.id)}</td><td>${esc(i.text)}</td><td>${esc(r?.status === "rated" ? r.value : r?.status ?? "unanswered")}${r?.status === "not_applicable" ? ` — ${esc(r.reason)}` : ""}</td></tr>`; }).join("")}</tbody></table></section>`).join("");
-  const priorities = (doc.plan?.priorities ?? doc.input.summary.priorities).map((p: any) => `<li>${esc(p.text)} (${esc(p.itemIds.join(", "))}; strategy ${esc(p.strategyId)}). Owner ${esc(p.owner)}; progress ${esc(p.indicator)}; review ${esc(p.reviewDate)}.</li>`).join("");
-  const followups = doc.linkedFollowups ?? [];
-  const reportStatus = doc.report?.approvedAt ? "Approved" : doc.report?.narrative ? "Draft — professional review required" : "Not written";
-  const reportHtml = doc.report?.narrative
-    ? markdownReportHtml(String(doc.report.narrative), domainObservationHtml(doc)) + reportNextStepsHtml()
-    : "<p>No professional report has been saved for this record.</p>";
+  const priorities = Array.isArray(doc.plan?.priorities) ? doc.plan.priorities : [];
   const planHtml = doc.plan
-    ? `<p><strong>Pathway:</strong> ${esc(String(doc.plan.pathway ?? "Not selected").replace(/_/g, " "))}</p>
-       <p><strong>Status:</strong> ${doc.plan.approvedAt ? `Agreed · ${esc(doc.plan.approvedAt)}` : "Draft / not agreed"}</p>
-       <p><strong>Rationale:</strong> ${esc(doc.plan.rationale || "Not recorded")}</p><ul>${priorities || "<li>No linked priorities recorded.</li>"}</ul>`
-    : `<p>No separate support plan has been saved. This optional step is not required to complete the report.</p>${priorities ? `<ul>${priorities}</ul>` : ""}`;
+    ? `<section class="final-plan"><h2>Support plan</h2>
+        <div class="plan-card">
+          <p><strong>Pathway:</strong> ${esc(String(doc.plan.pathway || "Not selected").replace(/_/g, " ").replace(/\b\w/g, letter => letter.toUpperCase()))}</p>
+          <p><strong>Rationale:</strong> ${esc(doc.plan.rationale || "Not recorded.")}</p>
+          ${priorities.length
+            ? `<h3>Agreed priorities</h3><ol class="plan-priorities">${priorities.map((priority: any, index: number) => {
+              const details = [
+                Array.isArray(priority.itemIds) && priority.itemIds.length ? `Evidence items: ${priority.itemIds.join(", ")}` : "",
+                priority.strategyId ? `Suggested strategy: ${String(priority.strategyId).replace(/_/g, " ")}` : "",
+                priority.owner ? `Owner: ${priority.owner}` : "",
+                priority.indicator ? `Progress indicator: ${priority.indicator}` : "",
+                priority.reviewDate ? `Review date: ${priority.reviewDate}` : "",
+              ].filter(Boolean);
+              return `<li><strong>Priority ${index + 1}: ${esc(priority.text || "Not recorded")}</strong>${details.length ? `<p>${details.map(esc).join(" · ")}</p>` : ""}</li>`;
+            }).join("")}</ol>`
+            : "<p>No separate priorities were recorded in the agreed plan.</p>"}
+        </div>
+      </section>`
+    : `<section class="final-plan"><h2>Support plan</h2><div class="plan-card"><p>No support plan has been recorded for this export.</p></div></section>`;
   const monitoringEntries = doc.monitoring?.entries ?? [];
   const monitoringHtml = monitoringEntries.length
-    ? `<section><h2>Recorded monitoring activity</h2><ul>${monitoringEntries.map(e => `<li><strong>${esc(e.date)}:</strong> ${esc(e.supportDelivered)}. Participation: ${esc(e.participation || "not recorded")}.${e.note ? ` ${esc(e.note)}` : ""}</li>`).join("")}</ul></section>`
+    ? `<section class="recorded-monitoring"><h2>Progress recorded</h2><p class="meta">These are staff-entered records of delivered support, not AI recommendations.</p><ul>${monitoringEntries.map(entry => `<li><strong>${esc(entry.date)}:</strong> ${esc(entry.supportDelivered)}. Participation: ${esc(entry.participation || "Not recorded")}.${entry.note ? ` ${esc(entry.note)}` : ""}</li>`).join("")}</ul></section>`
     : "";
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Chinese Literacy ${source} report and follow-up record</title><style>
-    @page{margin:18mm}*{box-sizing:border-box}
-    body{font:11pt Arial,sans-serif;color:#17253b;margin:0;line-height:1.5}
-    h1{font-size:23pt;line-height:1.2;margin:0 0 7pt}h2{font-size:16pt;border-bottom:1px solid #d8e1e8;padding-bottom:5pt;margin:22pt 0 10pt;break-after:avoid}
-    h3{font-size:12pt;margin:10pt 0 6pt;break-after:avoid}h4{font-size:10pt;margin:12pt 0 4pt;break-after:avoid}
-    p{margin:6pt 0}ul,ol{padding-left:20pt;margin:6pt 0}li{margin:3pt 0}
-    header{border-bottom:3px solid #1379a8;padding-bottom:12pt;margin-bottom:18pt}
-    table{border-collapse:collapse;width:100%;font-size:9pt;margin:12pt 0}td,th{border:1px solid #aab7c5;padding:6pt;vertical-align:top;text-align:left;overflow-wrap:anywhere}
-    thead{display:table-header-group}tr{break-inside:avoid}.meta,.caution,.empty-chart{font-size:9pt;color:#53657a}
-    .domain-card{border:1px solid #d8e1e8;border-radius:8pt;padding:10pt;margin:12pt 0;break-inside:auto}
-    .rating-chart{background:#f6f9fb;border:1px solid #e4ebf0;border-radius:6pt;padding:10pt 12pt;margin:10pt 0}
-    .bar-row{display:grid;grid-template-columns:155pt 1fr 20pt;gap:7pt;align-items:center;margin:4pt 0;font-size:8pt}
-    .bar-track{height:7pt;background:#e2e8ee;border-radius:5pt;overflow:hidden}.bar-fill{display:block;height:100%;background:#1f74ad;border-radius:5pt}
-    .interpretation{background:#eef7fb;border-left:3pt solid #1f74ad;padding:8pt 10pt;margin:10pt 0}
-    .planning-recommendation{background:#f6f9fb;border:1px solid #d8e1e8;border-radius:5pt;padding:8pt 10pt;margin:10pt 0}
-    .report-next-steps{border-top:1px solid #d8e1e8;margin-top:18pt;padding-top:8pt}
-    footer{border-top:1px solid #d8e1e8;margin-top:22pt;padding-top:8pt;font-size:8pt;color:#58697c}
-    @media print{@page{margin:18mm;@bottom-right{content:"Page " counter(page)}}.rating-chart,.domain-card,.report-next-steps{break-inside:avoid}}
-    </style></head><body><header>
-  <h1>${esc(doc.metadata.name)}</h1><p class="meta">${esc(doc.metadata.formName)} — professional report: ${esc(reportStatus)}</p>
-  <p>Instrument ${esc(doc.instrumentVersion)}; scoring ${esc(doc.scoringVersion)}; language ${esc(doc.languageVersion)}; input revision ${esc(doc.report?.inputRevision ?? doc.revision)}; record revision ${doc.revision}; ${esc(doc.submittedAt)}</p>
-  <p class="meta">Student identifier ${esc(doc.contextSnapshot.studentId)}; ${source} ${esc(doc.teacherName)}. This record contains one ${source}’s perspective in ${parent ? "the home setting" : "the classroom"}.</p>
-  <p class="meta">This snapshot includes saved report, support plan, monitoring and linked follow-up records available at export time. Parent and teacher records are not combined.</p></header>
-  <h2>${heading}</h2><p>${esc(doc.report?.classroomAvailabilityNote ?? "")}</p><dl>${Object.entries(doc.input.context).map(([key,value])=>`<dt>${esc(key.replace(/([a-z])([A-Z])/g, "$1 $2"))}</dt><dd>${esc(value)}</dd>`).join("")}</dl>
-  ${parent ? `<p>Source-parent confirmation: ${esc(doc.sourceConfirmation?.confirmed ? "Confirmed" : "Pending")}; date ${esc(doc.sourceConfirmation?.date ?? "")}; entered by ${esc(doc.enteredBy ?? "Assigned parent or caregiver")}.</p>` : ""}
-  <h2>Strengths and observations</h2><p>${esc(doc.input.summary.strengths)}</p><p>${esc(doc.input.summary.barriers)}</p><p>${esc(doc.input.summary.supportResponse)}</p><p>${esc(doc.input.summary.discussion)}</p><p>${esc(doc.evidenceStatus)}</p>
-  <table><thead><tr><th>Domain</th><th>Difficulty frequency</th><th>Rated / applicable</th><th>Coverage</th><th>Missingness</th><th>Separate impact</th></tr></thead><tbody>${rows}</tbody></table>
-  <p>The 80% rule is provisional data completeness guidance, not a psychometric or clinical cutoff. NA excludes items only with reasons; NO and unanswered items remain in the applicable denominator. No total, norm or risk category is calculated.</p>
-  <h2>Professional report — ${esc(reportStatus)}</h2><main class="report-body">${reportHtml}</main>
-  <h2>Support plan</h2>${planHtml}
-  ${monitoringHtml}${linkedFollowupHtml(followups)}
-  ${evidence}<h2>Limitations</h2><p>${esc(doc.metadata.reportLimitation)}</p>
-  <p>Reviewer ${esc(doc.report?.approvedBy ?? "Not approved")}; approval ${esc(doc.report?.approvedAt ?? "Pending")}. External Case Portal synchronization: not configured. No draft or raw comment is automatically released.</p><footer>ReMynd Assessment Operating System — confidential educational observation record.</footer></body></html>`;
+  const followupHtml = linkedFollowupHtml(doc.linkedFollowups ?? []);
+  const additions = `${planHtml}${monitoringHtml}${followupHtml}`;
+  return literacyReportExport(doc, { finalCombined: true })
+    .replace("<title>Chinese Literacy Observation Report</title>", "<title>Chinese Literacy Final Report</title>")
+    .replace("</main>", `${additions}</main>`);
 }

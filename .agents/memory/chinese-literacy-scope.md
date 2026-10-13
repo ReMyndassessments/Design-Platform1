@@ -43,7 +43,7 @@ The staff Chinese literacy review needs an English-view translation toggle for C
 
 **Why:** The user requested an English view of the Chinese literacy review on 2026-10-13.
 
-**How to apply:** Show the English/original toggle on every review tab; translate respondent text, report, plan, and monitoring notes on demand, preserve source wording for edits/exports, and show failures clearly.
+**How to apply:** Show the English/original toggle on every review tab; translate respondent text, report, plan, and monitoring notes for review and English export copies, preserve saved source data, and show failures clearly.
 
 Staff may generate an AI-assisted editable report draft from one submitted Chinese literacy respondent form at a time. Keep parent and teacher evidence separate; never diagnose or release the draft without professional approval.
 
@@ -68,6 +68,12 @@ Each Chinese literacy report must show a rating-distribution chart, interpretati
 **Why:** The user requested per-domain charts and explanations plus downloadable and printable reports on 2026-10-13.
 
 **How to apply:** Derive domain results from the selected respondent only; show NO, NA, and unanswered separately; state source/setting scope once, not in every domain. Keep parent and teacher sources separate and non-diagnostic. Point recommendations to the Support plan and keep print/export professionally formatted.
+
+All Chinese Literacy report exports must be in English and printable as PDFs using the same branded report hierarchy. Translate Chinese evidence and any Chinese report, plan, monitoring, or follow-up text with configured DeepSeek in a temporary export copy; never replace saved source wording.
+
+**Why:** The user explicitly required English reports and rejected an export that looked like a broken Word document rather than the report page.
+
+**How to apply:** Skip translation when no Chinese text is present; fail visibly rather than silently exporting Chinese if DeepSeek translation fails. Open a print-formatted page with a clear Print / Save as PDF action and preserve the source records.
 
 Report approval must remain available in any translated display language; approval applies to the saved source-language report, not transient translated text.
 

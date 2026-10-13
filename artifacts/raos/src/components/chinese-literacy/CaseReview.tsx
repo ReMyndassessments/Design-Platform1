@@ -153,9 +153,9 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
                if (tab === "evidence") return <EvidencePanel {...p} translate={translate} />;
                if (tab === "report") return (
-                   <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onAddRecommendations={addReportRecommendations} onExport={format => downloadExport(caseId, adm.assignmentId, format, "report")} />
+                    <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onAddRecommendations={addReportRecommendations} onExport={() => downloadExport(caseId, adm.assignmentId, "report")} />
                );
-                if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={format => downloadExport(caseId, adm.assignmentId, format, "record")} />;
+                 if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={() => downloadExport(caseId, adm.assignmentId, "record")} />;
                return null;
           })()}
         </>

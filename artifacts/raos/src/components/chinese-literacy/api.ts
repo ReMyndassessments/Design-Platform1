@@ -30,18 +30,33 @@ export async function clRequest<T>(path: string, opts: { method?: string; body?:
 export const formUrl = (token: string) => `/api/external/form/${encodeURIComponent(token)}/chinese-literacy`;
 export const metadataUrl = (instrument: string) => `/api/chinese-literacy/metadata?instrument=${encodeURIComponent(instrument)}`;
 export const caseUrl = (caseId: string) => `/api/cases/${encodeURIComponent(caseId)}/chinese-literacy`;
-export async function downloadExport(caseId: string, assignmentId: string, format: "html" | "doc", scope: "record" | "report" = "record") {
-  const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}&scope=${scope}`, { headers: staffHeaders(), credentials: "include" });
-  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  if (format === "html" && scope === "record") {
-    window.open(url, "_blank", "noopener");
-  } else {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = scope === "report" ? `chinese-literacy-report.${format}` : `chinese-literacy-${assignmentId}.doc`;
-    document.body.appendChild(a); a.click(); a.remove();
+export async function downloadExport(caseId: string, assignmentId: string, scope: "record" | "report" = "record") {
+  const printWindow = window.open("about:blank", "_blank");
+  if (!printWindow) throw new Error("The print window was blocked. Allow pop-ups for RAOS, then try again.");
+  printWindow.document.write("<!doctype html><html><head><title>Preparing English report…</title></head><body style='font:16px Arial,sans-serif;padding:2rem;color:#334155'>Preparing the English report for printing…</body></html>");
+  printWindow.document.close();
+  let res: Response;
+  try {
+    res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=html&scope=${scope}`, { headers: staffHeaders(), credentials: "include" });
+  } catch (error) {
+    printWindow.close();
+    throw error;
   }
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  if (!res.ok) {
+    printWindow.close();
+    throw new ApiError(res.status, await res.json().catch(() => null));
+  }
+  const html = await res.text();
+  const toolbar = `<style>.raos-print-toolbar{position:sticky;top:0;z-index:99;display:flex;align-items:center;gap:12px;padding:12px 20px;background:#f1f5f9;border-bottom:1px solid #cbd5e1;font:14px Arial,sans-serif;color:#334155}.raos-print-toolbar button{border:0;border-radius:7px;background:#0879a8;color:#fff;padding:10px 16px;font-weight:700;cursor:pointer}.raos-print-toolbar span{font-size:12px}@media print{.raos-print-toolbar{display:none!important}}</style>`;
+  const printAction = `<div class="raos-print-toolbar"><button type="button" onclick="window.print()">Print / Save as PDF</button><span>Choose “Save as PDF” in the print dialog. This export is in English; saved responses remain unchanged.</span></div>`;
+  const printHtml = html
+    .replace(/<head>/i, `<head>${toolbar}`)
+    .replace(/<body([^>]*)>/i, `<body$1>${printAction}`);
+  printWindow.document.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => {
+    if (!printWindow.closed) printWindow.print();
+  }, 400);
 }

@@ -56,7 +56,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
   englishView?: boolean;
   onGenerate: () => Promise<void>;
   onAddRecommendations: () => Promise<void>;
-  onExport: (format: "html" | "doc") => Promise<void>;
+  onExport: () => Promise<void>;
 }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
@@ -72,9 +72,9 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
   const domainObservations = Array.isArray(adm.report?.domainObservations) ? adm.report.domainObservations as ClDomainObservation[] : [];
   const canExport = Boolean(adm.report?.narrative) && !hasUnsavedEdits && !exporting && !busy;
   const canPrint = canExport && (!editing || englishView);
-  const exportReport = async (format: "html" | "doc") => {
+  const exportReport = async () => {
     setExporting(true); setExportError(null);
-    try { await onExport(format); }
+    try { await onExport(); }
     catch (error) { setExportError((error as Error).message || "Could not export the report."); }
     finally { setExporting(false); }
   };
@@ -154,18 +154,15 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
         <Btn disabled={busy || approved || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
-        <Btn variant="ghost" disabled={!canExport} onClick={() => void exportReport("doc")} data-testid="button-download-literacy-report">
-          {exporting ? "Preparing report…" : "Download report (Word)"}
+        <Btn variant="ghost" disabled={!canPrint || exporting} onClick={() => void exportReport()} data-testid="button-print-literacy-report">
+          {exporting ? "Preparing English report…" : "Print / Save report as PDF"}
         </Btn>
-        <Btn variant="ghost" disabled={!canPrint} onClick={() => void exportReport("html")} data-testid="button-print-literacy-report">
-          Open printable report
-        </Btn>
-        <span className="text-[11px] text-slate-500">These controls export only the report and domain results. After approving a support plan on the next tab, print or download the final combined report there.</span>
+        <span className="text-[11px] text-slate-500">Opens the report and print dialog; choose Save as PDF. The final combined report is available from the Support plan tab.</span>
         {!adm.report?.narrative && <span className="text-[11px] text-slate-500">Generate and save a report draft before downloading or printing.</span>}
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your edits first so the download and printout match the saved report.</span>}
         {editing && !englishView && adm.report?.narrative && !hasUnsavedEdits && <span className="text-[11px] text-slate-500">Preview the formatted report before printing.</span>}
       </div>
-      {exportError && <Banner tone="error" title="Report not downloaded">{exportError}</Banner>}
+      {exportError && <Banner tone="error" title="Report not prepared">{exportError}</Banner>}
       {!approved && (adm.report?.narrative ?? "") !== text && <p className="text-[11px] text-amber-700">Save the draft before approving so approval covers this exact text.</p>}
     </div>
   );
@@ -176,7 +173,7 @@ const PATHWAYS: Array<[string, string]> = [["classroom_support_review", "Classro
 export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpenReport, onExportFinal, translate = (_path, value) => String(value ?? ""), englishView = false }: P & {
   onGenerate: () => Promise<SupportPlanDraft>;
   onOpenReport: () => void;
-  onExportFinal: (format: "html" | "doc") => Promise<void>;
+  onExportFinal: () => Promise<void>;
   translate?: Translate;
   englishView?: boolean;
 }) {
@@ -204,11 +201,11 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
       setGenerating(false);
     }
   };
-  const exportFinal = async (format: "html" | "doc") => {
+  const exportFinal = async () => {
     setExporting(true);
     setExportError(null);
     try {
-      await onExportFinal(format);
+      await onExportFinal();
     } catch (error) {
       setExportError((error as Error).message || "Could not prepare the final report.");
     } finally {
@@ -234,12 +231,11 @@ export function PlanPanel({ adm, meta, run, busy, ai, portal, onGenerate, onOpen
       {(busy || generating) && <p className="text-xs text-slate-500" role="status">Wait for the current save or generation to finish.</p>}
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-bold">Print final report</h3>
-        <p className="text-xs text-slate-500">Includes the saved professional report, agreed support plan, monitoring entries, and any linked follow-up results and comparison. This export keeps parent and teacher records separate and uses the saved source wording.</p>
+        <p className="text-xs text-slate-500">Includes the saved report, support plan, monitoring entries, and linked follow-up results. The printable copy is translated into English with DeepSeek when needed; saved responses are unchanged. Choose Save as PDF in the print dialog.</p>
         <div className="flex flex-wrap gap-2">
-          <Btn variant="ghost" disabled={!finalReportReady || exporting || busy} onClick={() => void exportFinal("html")} data-testid="button-print-final-report">
-            {exporting ? "Preparing final report…" : "Open printable final report"}
+          <Btn variant="ghost" disabled={!finalReportReady || exporting || busy} onClick={() => void exportFinal()} data-testid="button-print-final-report">
+            {exporting ? "Preparing English final report…" : "Print / Save final report as PDF"}
           </Btn>
-          <Btn variant="ghost" disabled={!finalReportReady || exporting || busy} onClick={() => void exportFinal("doc")} data-testid="button-download-final-report-word">Download final report (Word)</Btn>
         </div>
         {!finalReportReady && <p className="text-[11px] text-amber-700">{adm.baselineId
           ? "Select the approved baseline administration to print the final report; its export will include this linked follow-up."
