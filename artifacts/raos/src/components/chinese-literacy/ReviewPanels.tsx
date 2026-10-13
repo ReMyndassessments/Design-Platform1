@@ -97,7 +97,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your current edits before generating a replacement.</span>}
       </div>
       {generateError && <Banner tone="error" title="Report draft not generated">{generateError}</Banner>}
-      {englishView && <Banner>English view is a translation for review. Switch back to the original to edit or approve the source narrative.</Banner>}
+      {englishView && <Banner>Translated view is for review. You may approve while viewing it; approval applies to the saved source-language report. Switch back to the original to edit the source narrative.</Banner>}
       {text.trim() && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold text-slate-700">{englishView ? "English report preview" : editing ? "Editing report draft" : "Formatted report preview"}</p>
@@ -131,7 +131,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       {approved && <Banner tone="ok">Approved {fmt(adm.report?.approvedAt)}{adm.report?.approvedBy ? ` by ${adm.report.approvedBy}` : ""}.</Banner>}
       <div className="flex flex-wrap gap-2">
         <Btn variant="ghost" disabled={busy || approved || englishView || !text.trim()} onClick={() => run({ action: "report", report: { narrative: text } })} data-testid="button-save-report">Save draft</Btn>
-        <Btn disabled={busy || approved || englishView || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
+        <Btn disabled={busy || approved || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
         <Btn variant="ghost" disabled={!canExport} onClick={() => void exportReport("doc")} data-testid="button-download-literacy-report">

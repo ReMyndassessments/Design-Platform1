@@ -62,3 +62,9 @@ Each Chinese literacy report must show a rating-distribution chart, interpretati
 **Why:** The user requested per-domain charts and explanations plus downloadable and printable reports on 2026-10-13.
 
 **How to apply:** Derive domain results from the selected respondent only; show NO, NA, and unanswered separately; state source/setting scope once, not in every domain. Keep parent and teacher sources separate and non-diagnostic. Point recommendations to the Support plan and keep print/export professionally formatted.
+
+Report approval must remain available in any translated display language; approval applies to the saved source-language report, not transient translated text.
+
+**Why:** The user explicitly requested staff be able to approve reports regardless of the language currently displayed on 2026-10-13.
+
+**How to apply:** Do not disable approval in read-only translation views. Keep editing and saving tied to the canonical saved narrative; clearly tell staff which saved report is being approved.
