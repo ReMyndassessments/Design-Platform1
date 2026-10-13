@@ -4,6 +4,7 @@ import { PARENT_INSTRUMENT_ID } from "./api";
 import { parseNarrative } from "./logic";
 import { PriorityEditor } from "./PriorityEditor";
 import { ScoreList } from "./ScoreList";
+import { ReportDocument } from "./ReportDocument";
 import { Banner, Btn, Field, inputCls } from "./ui";
 
 export type RunAction = (body: Record<string, unknown>) => Promise<any>;
@@ -52,6 +53,7 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
 export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate }: P & { translate?: Translate; englishView?: boolean; onGenerate: () => Promise<void> }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
+  const [editing, setEditing] = useState(!adm.report?.narrative);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
@@ -78,7 +80,32 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       </div>
       {generateError && <Banner tone="error" title="Report draft not generated">{generateError}</Banner>}
       {englishView && <Banner>English view is a translation for review. Switch back to the original to edit or approve the source narrative.</Banner>}
-      <Field label={englishView ? "Report narrative (English translation)" : "Report narrative (editable draft)"}><textarea rows={14} className={inputCls} value={englishView ? translate("report.narrative", text) : text} onChange={e => setText(e.target.value)} disabled={approved || englishView} data-testid="input-report-narrative" /></Field>
+      {text.trim() && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-slate-700">{englishView ? "English report preview" : editing ? "Editing report draft" : "Formatted report preview"}</p>
+          {!englishView && (
+            <Btn variant="ghost" disabled={approved} onClick={() => setEditing(value => !value)} data-testid="button-toggle-report-editor">
+              {editing ? "Preview formatted report" : "Edit report"}
+            </Btn>
+          )}
+        </div>
+      )}
+      {editing && !englishView ? (
+        <Field label="Edit report text" hint="Use headings and lists as needed. The preview formats them as a professional report.">
+          <textarea rows={18} className={`${inputCls} font-mono text-xs leading-6`} value={text} onChange={e => setText(e.target.value)} disabled={approved} data-testid="input-report-narrative" />
+        </Field>
+      ) : text.trim() ? (
+        <ReportDocument
+          content={englishView ? translate("report.narrative", text) : text}
+          source={pm ? "Parent-reported · home setting" : "Teacher-reported · teaching setting"}
+          formName={meta.formName ?? "Chinese Literacy Observation Profile"}
+          approved={approved}
+        />
+      ) : (
+        <Field label="Report text">
+          <textarea rows={18} className={`${inputCls} font-mono text-xs leading-6`} value={text} onChange={e => setText(e.target.value)} disabled={approved} data-testid="input-report-narrative" />
+        </Field>
+      )}
       <p className="text-[11px] text-slate-500">Required limitation: {meta.reportLimitation}</p>
       {approved && <Banner tone="ok">Approved {fmt(adm.report?.approvedAt)}{adm.report?.approvedBy ? ` by ${adm.report.approvedBy}` : ""}.</Banner>}
       <div className="flex flex-wrap gap-2">
