@@ -15,7 +15,7 @@ import {
   LiteracyValidationError, validateLiteracyInput, validateDomainSelection, scoreLiteracy, literacyEvidenceStatus,
 } from "../lib/chineseLiteracy.js";
 import { loadLiteracy, persistLiteracy, literacyEnvelope, LITERACY_INTEGRATION, type LiteracyDocument } from "../lib/chineseLiteracyStore.js";
-import { literacyExport } from "../lib/chineseLiteracyExport.js";
+import { literacyExport, literacyReportExport } from "../lib/chineseLiteracyExport.js";
 import { CHINESE_LITERACY_KEYS, isChineseLiteracy, isParentLiteracy, literacyMetadata } from "../lib/chineseLiteracyInstruments.js";
 
 const router = Router();
@@ -387,9 +387,11 @@ router.get("/cases/:caseId/chinese-literacy/:assignmentId/export", authMiddlewar
   }
   if (!doc.scores.length) throw new AccessError(409, "Submit observations before exporting their score snapshot.");
   const word = req.query.format === "doc";
-  audit(req, doc, "exported");
+  const reportOnly = req.query.scope === "report";
+  if (reportOnly && !doc.report?.narrative) throw new AccessError(409, "Save a report draft before downloading it.");
+  audit(req, doc, reportOnly ? "report_exported" : "exported");
   res.setHeader("Content-Type", word ? "application/msword; charset=utf-8" : "text/html; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="chinese-literacy-${doc.revision}.${word ? "doc" : "html"}"`);
-  res.send(literacyExport(doc));
+  res.setHeader("Content-Disposition", `attachment; filename="${reportOnly ? "chinese-literacy-report" : `chinese-literacy-${doc.revision}`}.${word ? "doc" : "html"}"`);
+  res.send(reportOnly ? literacyReportExport(doc) : literacyExport(doc));
 }));
 export default router;

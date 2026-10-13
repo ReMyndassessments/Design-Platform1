@@ -36,7 +36,7 @@ Source rules:
 - Domain means and item ratings are descriptive observations for this respondent only; they are not norm-referenced, diagnostic, validated screening, risk, or clinical severity scores. Do not label results normal, abnormal, elevated, or at-risk.
 - Summarize the respondent's own strengths, concerns, current supports, context, and reported impact. Do not create recommendations unsupported by the record. Any educational considerations must be framed as discussion points for professional review.
 - State the instrument limitation exactly as supplied. Do not diagnose or rule out dyslexia or any other condition.
-- Use concise, plain professional language and these headings: Source and scope; Context; Observations by domain; Strengths and current supports; Limitations and points for review. Omit details not provided. Do not mention AI.
+- Use concise, plain professional language and these headings: Source and scope; Context; Strengths and current supports; Limitations and points for review. Do not write an Observations by domain section: the system adds a rating-distribution chart and a factual narrative for every selected domain. Do not invent or imply a threshold, diagnosis, or comparison with norms. Omit details not provided. Do not mention AI.
 
 Submitted record:
 ${JSON.stringify(reportData)}`;

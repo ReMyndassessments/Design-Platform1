@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ClAdministration, ClDomain, ClMetadata, Priority } from "./types";
+import type { ClAdministration, ClDomain, ClMetadata, Priority, ClDomainObservation } from "./types";
 import { PARENT_INSTRUMENT_ID } from "./api";
 import { parseNarrative } from "./logic";
 import { PriorityEditor } from "./PriorityEditor";
@@ -51,15 +51,31 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate }: P & { translate?: Translate; englishView?: boolean; onGenerate: () => Promise<void> }) {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onExport }: P & {
+  translate?: Translate;
+  englishView?: boolean;
+  onGenerate: () => Promise<void>;
+  onExport: (format: "html" | "doc") => Promise<void>;
+}) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
   const [editing, setEditing] = useState(!adm.report?.narrative);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
   const approved = isApproved(adm);
   const hasUnsavedEdits = text !== (adm.report?.narrative ?? "");
+  const domainObservations = Array.isArray(adm.report?.domainObservations) ? adm.report.domainObservations as ClDomainObservation[] : [];
+  const canExport = Boolean(adm.report?.narrative) && !hasUnsavedEdits && !exporting && !busy;
+  const canPrint = canExport && (!editing || englishView);
+  const exportReport = async (format: "html" | "doc") => {
+    setExporting(true); setExportError(null);
+    try { await onExport(format); }
+    catch (error) { setExportError((error as Error).message || "Could not export the report."); }
+    finally { setExporting(false); }
+  };
   const generate = async () => {
     if (adm.report?.narrative && !window.confirm("Replace the current saved report draft with a newly generated draft?")) return;
     setGenerating(true); setGenerateError(null);
@@ -101,6 +117,8 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
           source={pm ? "Parent-reported · home setting" : "Teacher-reported · teaching setting"}
           formName={meta.formName ?? "Chinese Literacy Observation Profile"}
           approved={approved}
+          domainObservations={domainObservations}
+          translate={translate}
         />
       ) : (
         <Field label="Report text">
@@ -113,6 +131,18 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
         <Btn variant="ghost" disabled={busy || approved || englishView || !text.trim()} onClick={() => run({ action: "report", report: { narrative: text } })} data-testid="button-save-report">Save draft</Btn>
         <Btn disabled={busy || approved || englishView || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
       </div>
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+        <Btn variant="ghost" disabled={!canExport} onClick={() => void exportReport("doc")} data-testid="button-download-literacy-report">
+          {exporting ? "Preparing report…" : "Download Word report"}
+        </Btn>
+        <Btn variant="ghost" disabled={!canPrint} onClick={() => window.print()} data-testid="button-print-literacy-report">
+          Print / Save as PDF
+        </Btn>
+        {!adm.report?.narrative && <span className="text-[11px] text-slate-500">Generate and save a report draft before downloading or printing.</span>}
+        {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your edits first so the download and printout match the saved report.</span>}
+        {editing && !englishView && adm.report?.narrative && !hasUnsavedEdits && <span className="text-[11px] text-slate-500">Preview the formatted report before printing.</span>}
+      </div>
+      {exportError && <Banner tone="error" title="Report not downloaded">{exportError}</Banner>}
       {!approved && (adm.report?.narrative ?? "") !== text && <p className="text-[11px] text-amber-700">Save the draft before approving so approval covers this exact text.</p>}
       {versions.length > 0 && (
         <section><h3 className="text-sm font-bold mb-2">Historical versions</h3>

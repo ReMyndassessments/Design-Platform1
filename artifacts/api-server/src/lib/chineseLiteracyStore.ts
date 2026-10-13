@@ -5,6 +5,7 @@ import { CHINESE_LITERACY_KEY, CHINESE_LITERACY_VERSION, CHINESE_LITERACY_SCORIN
 import { CHINESE_LITERACY_PARENT_KEY, PARENT_LITERACY_METADATA, PARENT_LITERACY_FORM_ITEMS } from "./chineseLiteracyParent.js";
 import { literacyMetadata } from "./chineseLiteracyInstruments.js";
 import type { LiteracyMetadata } from "./chineseLiteracy.js";
+import { buildChineseLiteracyDomainObservations } from "./chineseLiteracyDomainReport.js";
 
 export type LiteracyDocument = {
   assignmentId: string; caseId: string; revision: number; status: string;
@@ -96,7 +97,10 @@ export async function literacyEnvelope(doc: LiteracyDocument) {
     const baseline = (doc as any).baselineSnapshot ?? result.rows[0]?.document as LiteracyDocument | undefined;
     if (baseline?.scores.length) comparison = compareLiteracy(baseline, doc);
   }
-  return { administration: { ...doc, monitoring: { ...doc.monitoring, comparison } },
+  const report = doc.report
+    ? { ...doc.report, domainObservations: buildChineseLiteracyDomainObservations(doc) }
+    : doc.report;
+  return { administration: { ...doc, report, monitoring: { ...doc.monitoring, comparison } },
     metadata: doc.metadata, student: { identifier: doc.contextSnapshot.studentId, age: doc.contextSnapshot.age, grade: doc.contextSnapshot.grade },
     teacher: { name: doc.teacherName, email: doc.teacherEmail }, integration: LITERACY_INTEGRATION };
 }

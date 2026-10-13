@@ -138,7 +138,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-             return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} /> : tab === "monitor" ? <MonitoringPanel {...p} translate={translate} />
+              return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format, "report")} /> : tab === "plan" ? <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} /> : tab === "monitor" ? <MonitoringPanel {...p} translate={translate} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}
         </>

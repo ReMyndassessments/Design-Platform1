@@ -30,16 +30,18 @@ export async function clRequest<T>(path: string, opts: { method?: string; body?:
 export const formUrl = (token: string) => `/api/external/form/${encodeURIComponent(token)}/chinese-literacy`;
 export const metadataUrl = (instrument: string) => `/api/chinese-literacy/metadata?instrument=${encodeURIComponent(instrument)}`;
 export const caseUrl = (caseId: string) => `/api/cases/${encodeURIComponent(caseId)}/chinese-literacy`;
-export async function downloadExport(caseId: string, assignmentId: string, format: "html" | "doc") {
-  const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}`, { headers: staffHeaders() });
+export async function downloadExport(caseId: string, assignmentId: string, format: "html" | "doc", scope: "record" | "report" = "record") {
+  const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}&scope=${scope}`, { headers: staffHeaders() });
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  if (format === "html") {
+  if (format === "html" && scope === "record") {
     window.open(url, "_blank", "noopener");
   } else {
     const a = document.createElement("a");
-    a.href = url; a.download = `chinese-literacy-${assignmentId}.doc`; document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = scope === "report" ? `chinese-literacy-report.${format}` : `chinese-literacy-${assignmentId}.doc`;
+    document.body.appendChild(a); a.click(); a.remove();
   }
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }

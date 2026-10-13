@@ -25,7 +25,9 @@ test("parent draft prompt is limited to one parent's source and forbids cross-so
   assert.match(prompt, /Do not include, infer, merge, or compare another respondent's record/);
   assert.match(prompt, /Do not diagnose or rule out dyslexia/);
   assert.match(prompt, /Chinese source text/);
-  assert.match(prompt, /Source and scope; Context; Observations by domain/);
+  assert.match(prompt, /Source and scope; Context; Strengths and current supports/);
+  assert.match(prompt, /Do not write an Observations by domain section/);
+  assert.match(prompt, /rating-distribution chart and a factual narrative for every selected domain/);
 });
 
 test("teacher draft prompt uses teacher-only source and descriptive scoring safeguards", () => {
