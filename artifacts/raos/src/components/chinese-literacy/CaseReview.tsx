@@ -54,17 +54,30 @@ export default function CaseReview({ caseId }: { caseId: string }) {
       setTranslationBusy(false);
     }
   };
-  const generateReport = async (reopenApproved = false) => {
+  const generateReport = async () => {
     if (!adm) throw new Error("Select a submitted parent or teacher form first.");
     const result = await clRequest<any>(
       `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/generate-report`,
-      { method: "POST", staff: true, body: { reopenApproved } },
+      { method: "POST", staff: true },
     );
     if (!result?.administration) throw new Error("The report draft could not be saved. Reload the case before trying again.");
     setEnglishView(false);
     setTranslations(null);
     const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...result.administration };
     setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
+  };
+  const addReportRecommendations = async () => {
+    if (!adm) throw new Error("Select a submitted parent or teacher form first.");
+    const result = await clRequest<any>(
+      `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/add-recommendations`,
+      { method: "POST", staff: true, body: { revision: adm.revision } },
+    );
+    if (!result?.administration) throw new Error("The recommendations could not be added. Reload the case before trying again.");
+    setEnglishView(false);
+    setTranslations(null);
+    const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...result.administration };
+    setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
+    load();
   };
   const generateSupportPlan = async (): Promise<SupportPlanDraft> => {
     if (!adm) throw new Error("Select a submitted parent or teacher form first.");
@@ -140,7 +153,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
                if (tab === "evidence") return <EvidencePanel {...p} translate={translate} />;
                if (tab === "report") return (
-                 <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format)} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} />
+                  <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onAddRecommendations={addReportRecommendations} onExport={format => downloadExport(caseId, adm.assignmentId, format)} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} />
                );
                if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={format => downloadExport(caseId, adm.assignmentId, format)} />;
                return null;

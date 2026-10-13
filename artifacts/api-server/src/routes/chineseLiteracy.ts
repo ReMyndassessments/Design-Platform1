@@ -8,7 +8,10 @@ import { authMiddleware, tryAuthenticate } from "../middlewares/authMiddleware.j
 import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { writeAudit } from "../lib/audit.js";
 import { callDeepSeek } from "../lib/ai.js";
-import { buildChineseLiteracyReportPrompt } from "../lib/chineseLiteracyReportDraft.js";
+import {
+  appendChineseLiteracyRecommendationSections, buildChineseLiteracyReportPrompt, buildChineseLiteracyRecommendationPrompt,
+  parseChineseLiteracyRecommendationSections,
+} from "../lib/chineseLiteracyReportDraft.js";
 import { buildChineseLiteracySupportPlanPrompt, parseChineseLiteracySupportPlanDraft } from "../lib/chineseLiteracySupportPlan.js";
 import {
   CHINESE_LITERACY_KEY, LITERACY_METADATA, LITERACY_DOMAINS, LITERACY_STRATEGIES,
@@ -24,6 +27,14 @@ const teacherTypes = new Set(["teacher1", "teacher2", "special_needs_teacher"]);
 function revision(value: unknown) {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw new AccessError(400, "Provide the current integer revision.");
   return value;
+}
+function sameSubmittedLiteracyData(a: LiteracyDocument, b: LiteracyDocument) {
+  const fingerprint = (doc: LiteracyDocument) => createHash("sha256")
+    .update(JSON.stringify({ input: doc.input, selectedDomains: [...doc.selectedDomains].sort() }))
+    .digest("hex");
+  return a.assignmentId === b.assignmentId && a.caseId === b.caseId
+    && a.instrumentVersion === b.instrumentVersion && a.scoringVersion === b.scoringVersion
+    && fingerprint(a) === fingerprint(b);
 }
 function editable(doc: LiteracyDocument) { return ["not_started", "in_progress", "returned"].includes(doc.status); }
 function pinnedVersion(doc: LiteracyDocument, body: any) {
@@ -177,13 +188,10 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
   )).limit(1);
   if (!assignment) throw new AccessError(404, "Respondent administration not found in this case.");
   const doc = await loadLiteracy(assignment);
-  const reopenApproved = req.body?.reopenApproved === true;
-  const hasApprovedReport = doc.report?.status === "approved" || Boolean(doc.report?.approvedAt);
-  if (!["submitted", "under_review", "approved"].includes(doc.status) || (doc.status === "approved" && !hasApprovedReport)) {
-    throw new AccessError(409, "Submit the respondent form before generating a report draft.");
+  if (!["submitted", "under_review"].includes(doc.status)) throw new AccessError(409, "Submit the respondent form before generating a report draft.");
+  if (doc.report?.narrative || doc.report?.status === "approved" || doc.report?.approvedAt) {
+    throw new AccessError(409, "A report already exists. Use the add-recommendations action to preserve it.");
   }
-  if (hasApprovedReport && !reopenApproved) throw new AccessError(409, "This report is already approved. Confirm that you want to create an updated draft.");
-  if (reopenApproved && !hasApprovedReport) throw new AccessError(409, "This report is not approved; reload it before generating a draft.");
   const narrative = (await callDeepSeek(
     buildChineseLiteracyReportPrompt(doc),
     8192,
@@ -193,11 +201,8 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
   const saved = await db.transaction(async tx => {
     const current = await loadLiteracy(assignment, tx, true);
     if (current.revision !== doc.revision) throw new AccessError(409, "The respondent record changed while the report was being generated. Reload it and try again.");
-    const currentHasApprovedReport = current.report?.status === "approved" || Boolean(current.report?.approvedAt);
-    if (!["submitted", "under_review", "approved"].includes(current.status)
-      || currentHasApprovedReport !== reopenApproved
-      || (current.status === "approved" && !currentHasApprovedReport)) {
-      throw new AccessError(409, "The report changed while the draft was being generated. Reload the record and try again.");
+    if (!["submitted", "under_review"].includes(current.status) || current.report?.narrative || current.report?.approvedAt) {
+      throw new AccessError(409, "A report was saved while this draft was being generated. Reload it before continuing.");
     }
     const classroom = isParentLiteracy(assignment.toolId)
       ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable).where(and(
@@ -221,7 +226,6 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
         narrative, status: "draft", sourceRevision: current.revision,
         inputRevision: current.submissionBaseRevision! + 1,
         generatedBy: req.userId, generatedAt: new Date().toISOString(),
-        supersedesApprovedReport: currentHasApprovedReport,
         limitation: current.metadata.reportLimitation,
         evidenceSource: isParentLiteracy(assignment.toolId)
           ? "Parent-reported observations in the home setting. One named parent or caregiver; no teacher observations, student interviews or direct tests are included in this administration."
@@ -235,7 +239,104 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", aut
       },
     });
   });
-  audit(req, saved, reopenApproved ? "report_regenerated" : "report_generated");
+  audit(req, saved, "report_generated");
+  res.json(await literacyEnvelope(saved));
+}));
+
+router.post("/cases/:caseId/chinese-literacy/:assignmentId/add-recommendations", authMiddleware, safe(async (req, res) => {
+  const c = await staffCase(req);
+  const [assignment] = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.id, String(req.params.assignmentId)),
+    eq(assignmentsTable.caseId, String(req.params.caseId)),
+    inArray(assignmentsTable.toolId, CHINESE_LITERACY_KEYS),
+  )).limit(1);
+  if (!assignment) throw new AccessError(404, "Respondent administration not found in this case.");
+  const expected = revision(req.body.revision);
+  const doc = await loadLiteracy(assignment);
+  if (doc.revision !== expected) throw new AccessError(409, "This report changed. Reload it before adding recommendations.");
+  if (!["submitted", "under_review", "approved"].includes(doc.status) || !doc.report?.narrative) {
+    throw new AccessError(409, "Save a report before adding recommendations.");
+  }
+  if (doc.report.recommendationsAddedAt) throw new AccessError(409, "Monitoring and follow-up recommendations have already been added to this report.");
+
+  const restoringAccidentallyReplacedReport = doc.report.supersedesApprovedReport === true;
+  let sourceDoc = doc;
+  let restoreRevision: number | string | null = null;
+  if (restoringAccidentallyReplacedReport) {
+    const archived = await db.execute(sql`SELECT revision,document FROM chinese_literacy_revisions
+      WHERE assignment_id=${assignment.id} AND document->>'status'='approved'
+        AND document #>> '{report,status}'='approved'
+      ORDER BY revision DESC LIMIT 1`);
+    if (!archived.rows[0]) throw new AccessError(409, "The previous approved report could not be found in revision history.");
+    sourceDoc = archived.rows[0].document as LiteracyDocument;
+    restoreRevision = archived.rows[0].revision as number | string;
+    if (!sameSubmittedLiteracyData(sourceDoc, doc)) {
+      throw new AccessError(409, "The archived report belongs to different respondent answers. It was not restored.");
+    }
+  }
+  if (!sourceDoc.report?.narrative) throw new AccessError(409, "The saved report text is unavailable.");
+  if (/(^|\n)#{1,3}\s+recommended (monitoring|follow-up) plan\b/im.test(sourceDoc.report.narrative)) {
+    throw new AccessError(409, "This report already contains a recommendation section. Its existing content was left unchanged.");
+  }
+
+  const raw = await callDeepSeek(
+    buildChineseLiteracyRecommendationPrompt(sourceDoc),
+    4096,
+    "Return only valid JSON with one concise narrative monitoring recommendation and one concise narrative follow-up recommendation. Do not rewrite or replace the existing report.",
+  );
+  const sections = parseChineseLiteracyRecommendationSections(raw);
+  const narrative = appendChineseLiteracyRecommendationSections(sourceDoc.report.narrative, sections);
+  if (narrative.length > 50000) throw new Error("The recommendations would exceed the report length limit.");
+
+  const saved = await db.transaction(async tx => {
+    const current = await loadLiteracy(assignment, tx, true);
+    if (current.revision !== expected) throw new AccessError(409, "The report changed while recommendations were being generated. Reload and try again.");
+    if (Boolean(current.report?.supersedesApprovedReport) !== restoringAccidentallyReplacedReport
+      || !["submitted", "under_review", "approved"].includes(current.status)) {
+      throw new AccessError(409, "The report state changed while recommendations were being generated. Reload and try again.");
+    }
+
+    let currentSource = current;
+    if (restoreRevision !== null) {
+      const archived = await tx.execute(sql`SELECT document FROM chinese_literacy_revisions
+        WHERE assignment_id=${assignment.id} AND revision=${restoreRevision}`);
+      if (!archived.rows[0]) throw new AccessError(409, "The previous approved report is no longer available.");
+      currentSource = archived.rows[0].document as LiteracyDocument;
+      if (!sameSubmittedLiteracyData(currentSource, current)) {
+        throw new AccessError(409, "The archived report no longer matches the submitted responses.");
+      }
+    }
+    if (currentSource.report?.narrative !== sourceDoc.report?.narrative) {
+      throw new AccessError(409, "The source report changed while recommendations were being generated.");
+    }
+
+    const now = new Date().toISOString();
+    const planSource = current.plan ?? currentSource.plan;
+    const plan = planSource ? {
+      ...planSource,
+      status: "review_required",
+      approvedBy: undefined,
+      approvedAt: undefined,
+      reviewRequiredBecauseReportChanged: true,
+    } : planSource;
+    const report = {
+      ...currentSource.report,
+      narrative,
+      status: "draft",
+      approvedBy: undefined,
+      approvedAt: undefined,
+      approvalBaseRevision: undefined,
+      recommendationsAddedAt: now,
+      recommendationsGeneratedBy: req.userId,
+      recommendationsGeneratedAt: now,
+      supersedesApprovedReport: restoreRevision !== null
+        || sourceDoc.report.status === "approved"
+        || Boolean(sourceDoc.report.approvedAt),
+      ...(restoreRevision !== null ? { restoredFromApprovedRevision: restoreRevision } : {}),
+    };
+    return persistLiteracy(tx, current, { status: "under_review", report, plan });
+  });
+  audit(req, saved, restoringAccidentallyReplacedReport ? "report_restored_with_recommendations" : "report_recommendations_added");
   res.json(await literacyEnvelope(saved));
 }));
 

@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildChineseLiteracyReportPrompt } from "./chineseLiteracyReportDraft.ts";
+import {
+  appendChineseLiteracyRecommendationSections,
+  buildChineseLiteracyReportPrompt, buildChineseLiteracyRecommendationPrompt,
+  parseChineseLiteracyRecommendationSections,
+} from "./chineseLiteracyReportDraft.ts";
 
 function document(respondent: "parent" | "teacher") {
   const metadata = {
@@ -41,4 +45,31 @@ test("teacher draft prompt uses teacher-only source and descriptive scoring safe
   assert.match(prompt, /One teacher's observations in the classroom or teaching setting only/);
   assert.match(prompt, /not norm-referenced, diagnostic, validated screening, risk, or clinical severity scores/);
   assert.match(prompt, /Do not combine or compare parent and teacher evidence/);
+});
+
+test("recommendation prompt asks DeepSeek for only two additive narratives and preserves the existing report", () => {
+  const prompt = buildChineseLiteracyRecommendationPrompt(document("parent"));
+  assert.match(prompt, /Do not rewrite, summarize, replace, or reproduce any part of the existing report/);
+  assert.match(prompt, /One parent's or caregiver's home observations only/);
+  assert.match(prompt, /Return valid JSON only, exactly/);
+  assert.match(prompt, /6–8 weeks/);
+  assert.match(prompt, /never assign school teaching duties to the parent/);
+  assert.deepEqual(parseChineseLiteracyRecommendationSections(
+    '{"monitoring":"Review observable reading and writing participation after agreed support begins.","followUp":"Consider a repeat home observation in 6–8 weeks if useful."}',
+  ), {
+    monitoring: "Review observable reading and writing participation after agreed support begins.",
+    followUp: "Consider a repeat home observation in 6–8 weeks if useful.",
+  });
+  assert.throws(() => parseChineseLiteracyRecommendationSections('{"monitoring":"Only one section."}'), /incomplete/);
+});
+
+test("appending recommendations preserves every byte of the existing report before the new sections", () => {
+  const original = "# Existing report\n\n## Observations by domain\nOriginal domain findings and data.";
+  const result = appendChineseLiteracyRecommendationSections(original, {
+    monitoring: "Review the reported indicators after support starts.",
+    followUp: "Consider a repeat observation in 6–8 weeks if useful.",
+  });
+  assert.equal(result.slice(0, original.length), original);
+  assert.match(result, /## Observations by domain\nOriginal domain findings and data\.\n\n## Recommended monitoring plan/);
+  assert.match(result, /## Recommended follow-up plan/);
 });

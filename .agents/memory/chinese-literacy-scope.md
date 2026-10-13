@@ -69,8 +69,8 @@ Report approval must remain available in any translated display language; approv
 
 **How to apply:** Do not disable approval in read-only translation views. Keep editing and saving tied to the canonical saved narrative; clearly tell staff which saved report is being approved.
 
-The AI-generated report narrative must include recommended monitoring and follow-up plans in cautious prose. Actual delivery logs and completed repeat-form results are separate optional records, not substitutes for recommendations.
+Monitoring and follow-up recommendations must be added to an existing report without rewriting its saved narrative or domain results. Actual delivery logs and completed repeat-form results are separate optional records.
 
-**Why:** On 2026-10-13 the user clarified that they want DeepSeek to recommend monitoring and follow-up in the report, not append blank/manual entry screens as the plan.
+**Why:** On 2026-10-13 a full report regeneration replaced a working approved report when the user had only asked for two recommendations. The prior approved report must remain recoverable.
 
-**How to apply:** Keep actual-entry and repeat-form tools outside the report narrative and clearly optional. Do not fabricate dates, delivered support, or outcomes; recommend same-respondent descriptive follow-up where suitable. Include actual logs/results in final exports only when they exist. If an approved report is regenerated from unchanged respondent answers, archive the old approved version, preserve its plan as an unapproved draft, and require review/approval again.
+**How to apply:** Use DeepSeek for only two narrative paragraphs; append them to the exact existing report and preserve all domain results. Archive the previous approved version and require review/approval of the addition. Keep actual-entry and repeat-form tools optional; do not fabricate delivered support, dates, or outcomes.
