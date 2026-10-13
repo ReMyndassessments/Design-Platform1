@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { ApiError, caseUrl, clRequest, downloadExport } from "./api";
 import { EvidencePanel, FollowUpPanel, MonitoringPanel, PlanPanel, ReportPanel } from "./ReviewPanels";
 import { PARENT_INSTRUMENT_ID } from "./api";
-import type { ClAdministration, ClMetadata } from "./types";
+import type { ClAdministration, ClMetadata, SupportPlanDraft } from "./types";
 import { Banner, Btn, Skeleton } from "./ui";
 
 interface Listing { administrations: ClAdministration[]; metadata: ClMetadata; integration: { portal: string; ai: string } }
@@ -66,6 +66,15 @@ export default function CaseReview({ caseId }: { caseId: string }) {
     const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...result.administration };
     setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
   };
+  const generateSupportPlan = async (): Promise<SupportPlanDraft> => {
+    if (!adm) throw new Error("Select a submitted parent or teacher form first.");
+    const result = await clRequest<{ planDraft: SupportPlanDraft }>(
+      `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/generate-support-plan`,
+      { method: "POST", staff: true },
+    );
+    if (!result?.planDraft) throw new Error("The support-plan draft could not be generated. Reload the case before trying again.");
+    return result.planDraft;
+  };
   const translate = (path: string, value: unknown) => typeof value === "string" && englishView
     ? translations?.[path] ?? value
     : String(value ?? "");
@@ -125,7 +134,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
+            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} onGenerate={generateSupportPlan} /> : tab === "monitor" ? <MonitoringPanel {...p} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}
         </>

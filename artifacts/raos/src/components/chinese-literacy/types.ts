@@ -1,6 +1,7 @@
 export type ResponseStatus = "rated" | "not_observed" | "not_applicable" | "unanswered";
 export interface ItemResponse { itemId: string; status: ResponseStatus; value: number | null; reason?: string }
 export interface Priority { text: string; itemIds: string[]; strategyId: string; owner: string; indicator: string; reviewDate: string }
+export interface SupportPlanDraft { pathway: string; rationale: string; priorities: Priority[] }
 export interface EvidenceExample { text: string; itemIds: string[] }
 export interface DomainEvidence { examples: EvidenceExample[]; strengths: string; supports: string; opportunities?: number | null; impact: 0 | 1 | 2 | 3 | null; setting?: string; language?: string }
 export type SectionDecision = "complete" | "not_observed" | "not_applicable";

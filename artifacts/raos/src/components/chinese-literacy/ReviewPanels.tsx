@@ -5,6 +5,7 @@ import { parseNarrative } from "./logic";
 import { PriorityEditor } from "./PriorityEditor";
 import { ScoreList } from "./ScoreList";
 import { ReportDocument } from "./ReportDocument";
+import type { SupportPlanDraft } from "./types";
 import { Banner, Btn, Field, inputCls } from "./ui";
 
 export type RunAction = (body: Record<string, unknown>) => Promise<any>;
@@ -124,22 +125,52 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
 
 const PATHWAYS: Array<[string, string]> = [["classroom_support_review", "Classroom support and review"], ["targeted_support_planning", "Targeted support planning"], ["comprehensive_assessment_discussion", "Comprehensive assessment discussion"], ["additional_information_needed", "Additional information needed"], ["wellbeing_pathway", "Existing wellbeing pathway"]];
 
-export function PlanPanel({ adm, meta, run, busy }: P) {
+export function PlanPanel({ adm, meta, run, busy, onGenerate }: P & { onGenerate: () => Promise<SupportPlanDraft> }) {
   const [rationale, setRationale] = useState<string>(adm.plan?.rationale ?? "");
   const [pathway, setPathway] = useState<string>(adm.plan?.pathway ?? "");
   const [pri, setPri] = useState<Priority[]>(adm.plan?.priorities ?? adm.input.summary.priorities ?? []);
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const items = Array.from(new Set(adm.input.responses.filter(r => r.status === "rated").map(r => r.itemId)));
   const approved = isApproved(adm);
-  const ready = rationale.trim() && pathway && pri.length > 0 && pri.every(p => p.text.trim() && p.itemIds.length && p.strategyId);
+  const ready = rationale.trim() && pathway && pri.length > 0 && pri.length <= 3 && pri.every(p =>
+    p.text.trim() && p.itemIds.length && p.strategyId && p.owner.trim() && p.indicator.trim() && Number.isFinite(Date.parse(p.reviewDate)),
+  );
+  const generate = async () => {
+    if ((rationale.trim() || pathway || pri.some(p => p.text.trim())) && !window.confirm("Replace the current support-plan fields with a new AI-generated draft? Nothing has been saved yet.")) return;
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      const draft = await onGenerate();
+      setPathway(draft.pathway);
+      setRationale(draft.rationale);
+      setPri(draft.priorities);
+      setGenerated(true);
+    } catch (error) {
+      setGenerateError((error as Error).message || "Could not generate the support-plan draft.");
+    } finally {
+      setGenerating(false);
+    }
+  };
   return (
     <div className="space-y-4">
       {!approved && <Banner tone="warn">A support plan needs an approved report first.</Banner>}
-      <Banner>The pathway is a professional choice with a rationale. It is not calculated from scores, and school-defined tiers are preserved. Support and further assessment can proceed in parallel.</Banner>
-      <Field label="Pathway"><select className={inputCls} value={pathway} onChange={e => setPathway(e.target.value)} data-testid="select-pathway"><option value="">Choose a pathway</option>{PATHWAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+      <Banner>The generated plan is a suggestion for professional review—not a score-based or diagnostic decision. Parent and teacher evidence stay separate; support and further assessment can proceed in parallel.</Banner>
+      <div className="flex flex-wrap items-center gap-2">
+        <Btn variant="ghost" disabled={!approved || busy || generating} onClick={() => void generate()} data-testid="button-generate-support-plan">
+          {generating ? "Generating support-plan draft…" : "Generate support plan with DeepSeek"}
+        </Btn>
+        <span className="text-[11px] text-slate-500">Only this respondent’s submitted form and approved report are sent to your configured DeepSeek API. Charges follow your DeepSeek account; the draft is not saved until you approve it.</span>
+      </div>
+      {generateError && <Banner tone="error" title="Support plan not generated">{generateError}</Banner>}
+      {generated && <Banner tone="warn" title="AI-generated suggestion — review before approval">Confirm the pathway, evidence links, proposed owner and progress indicator. Choose a review date after agreeing when support starts.</Banner>}
+      <Field label="Suggested pathway — confirm or change"><select className={inputCls} value={pathway} onChange={e => setPathway(e.target.value)} data-testid="select-pathway"><option value="">Choose a pathway</option>{PATHWAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
       <Field label="Rationale"><textarea rows={4} className={inputCls} value={rationale} onChange={e => setRationale(e.target.value)} /></Field>
-      <PriorityEditor priorities={pri} onChange={setPri} strategies={meta.strategies} itemOptions={items} max={10} />
+      <PriorityEditor priorities={pri} onChange={setPri} strategies={meta.strategies} itemOptions={items} max={3} />
       <p className="text-[11px] text-slate-500">Keep accommodations and skill instruction separately labelled. Audio access to content is not proof that independent reading improved.</p>
-      <Btn disabled={busy || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Save support plan</Btn>
+      <p className="text-[11px] text-slate-500">Each priority needs an evidence link, proposed owner, observable progress indicator and review date.</p>
+      <Btn disabled={busy || generating || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
     </div>
   );
 }

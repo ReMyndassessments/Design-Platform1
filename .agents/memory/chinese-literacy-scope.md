@@ -50,3 +50,9 @@ Staff may generate an AI-assisted editable report draft from one submitted Chine
 **Why:** The user asked for the Report tab to generate a report from the submitted form on 2026-10-13.
 
 **How to apply:** Generate only from the selected respondent's submitted record, save it as an unapproved draft, preserve the descriptive/non-diagnostic limitations, and require staff review and approval before release.
+
+AI-assisted Chinese Literacy support plans are drafts from one selected respondent's submitted record and its approved report. They do not combine parent and teacher sources or make automatic clinical/pathway decisions; staff must review before approval.
+
+**Why:** The user requested AI-generated support plans in addition to reports on 2026-10-13.
+
+**How to apply:** Use DeepSeek; keep parent-home and teacher-classroom evidence separate, validate suggestions against the respondent's rated item IDs and permitted strategies, and require staff to select a review date before approving the plan.
