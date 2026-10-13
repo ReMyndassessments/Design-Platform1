@@ -1413,6 +1413,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/CdpProfile"
 
+  /cases/{caseId}/chinese-literacy/dashboard:
+    get:
+      operationId: getChineseLiteracyDashboard
+      tags: [chinese-literacy]
+      summary: Get source-separated Chinese Literacy submissions and latest comparison draft
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Parent and teacher submissions, with the latest saved source comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChineseLiteracyDashboardResponse"
+        "403":
+          description: Not authorized for this case
+        "404":
+          description: Case not found
+    post:
+      operationId: generateChineseLiteracyDashboardComparison
+      tags: [chinese-literacy]
+      summary: Generate and save a DeepSeek comparison draft from one parent and one teacher submission
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChineseLiteracyDashboardComparisonInput"
+      responses:
+        "200":
+          description: Saved comparison draft tied to the selected source revisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChineseLiteracyDashboardComparison"
+        "400":
+          description: Invalid source selection
+        "403":
+          description: Not authorized for this case
+        "409":
+          description: One or both respondent submissions changed during generation
+        "422":
+          description: Both selected source forms must be submitted
+        "502":
+          description: DeepSeek could not produce a valid comparison
+
 components:
   schemas:
     HealthStatus:
@@ -2681,3 +2737,176 @@ components:
       required:
         - caseId
         - forms
+
+    ChineseLiteracyDashboardComparisonInput:
+      type: object
+      properties:
+        parentAssignmentId:
+          type: string
+          minLength: 1
+        teacherAssignmentId:
+          type: string
+          minLength: 1
+      required: [parentAssignmentId, teacherAssignmentId]
+
+    ChineseLiteracyDashboardDomainScore:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        mean:
+          type: ["number", "null"]
+        coverage:
+          type: ["number", "null"]
+        validCount:
+          type: integer
+        applicableCount:
+          type: integer
+        notObservedCount:
+          type: integer
+        notApplicableCount:
+          type: integer
+        unansweredCount:
+          type: integer
+        ratingCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        evidence:
+          $ref: "#/components/schemas/ChineseLiteracyDashboardDomainEvidence"
+        itemResponses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChineseLiteracyDashboardItemResponse"
+      required: [id, name, status, mean, coverage, validCount, applicableCount, notObservedCount, notApplicableCount, unansweredCount, ratingCounts, evidence, itemResponses]
+
+    ChineseLiteracyDashboardDomainEvidence:
+      type: object
+      properties:
+        impact:
+          type: ["integer", "null"]
+        examples:
+          type: array
+          items:
+            type: string
+        strengths:
+          type: string
+        supports:
+          type: string
+      required: [impact, examples, strengths, supports]
+
+    ChineseLiteracyDashboardItemResponse:
+      type: object
+      properties:
+        itemId:
+          type: string
+        wording:
+          type: string
+        status:
+          type: string
+          enum: [rated, not_observed, not_applicable, unanswered]
+        value:
+          type: ["integer", "null"]
+        reason:
+          type: ["string", "null"]
+      required: [itemId, wording, status, value, reason]
+
+    ChineseLiteracyDashboardAdministration:
+      type: object
+      properties:
+        assignmentId:
+          type: string
+        instrumentKey:
+          type: string
+        formName:
+          type: string
+        setting:
+          type: string
+        respondentType:
+          type: string
+        respondentLabel:
+          type: string
+        status:
+          type: string
+        assignmentStatus:
+          type: string
+        revision:
+          type: integer
+        submittedAt:
+          type: ["string", "null"]
+        baselineId:
+          type: ["string", "null"]
+        instrumentVersion:
+          type: string
+        scoringVersion:
+          type: string
+        selectedDomains:
+          type: array
+          items:
+            type: string
+        context:
+          type: object
+          additionalProperties: true
+        domains:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChineseLiteracyDashboardDomainScore"
+      required: [assignmentId, instrumentKey, formName, setting, respondentType, respondentLabel, status, assignmentStatus, revision, submittedAt, baselineId, instrumentVersion, scoringVersion, selectedDomains, context, domains]
+
+    ChineseLiteracyDashboardComparisonContent:
+      type: object
+      properties:
+        parentHome:
+          type: string
+        teacherClassroom:
+          type: string
+        crossSetting:
+          type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        limitations:
+          type: string
+      required: [parentHome, teacherClassroom, crossSetting, recommendations, limitations]
+
+    ChineseLiteracyDashboardComparison:
+      type: object
+      properties:
+        caseId:
+          type: string
+        parentAssignmentId:
+          type: string
+        teacherAssignmentId:
+          type: string
+        parentRevision:
+          type: integer
+        teacherRevision:
+          type: integer
+        generatedAt:
+          type: string
+          format: date-time
+        content:
+          $ref: "#/components/schemas/ChineseLiteracyDashboardComparisonContent"
+        stale:
+          type: boolean
+      required: [caseId, parentAssignmentId, teacherAssignmentId, parentRevision, teacherRevision, generatedAt, content, stale]
+
+    ChineseLiteracyDashboardResponse:
+      type: object
+      properties:
+        caseId:
+          type: string
+        administrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChineseLiteracyDashboardAdministration"
+        comparison:
+          anyOf:
+            - $ref: "#/components/schemas/ChineseLiteracyDashboardComparison"
+            - type: "null"
+      required: [caseId, administrations, comparison]

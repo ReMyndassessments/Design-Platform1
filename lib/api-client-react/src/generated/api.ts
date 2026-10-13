@@ -33,6 +33,9 @@ import type {
   CaseDetail,
   CasePhaseReturnInput,
   CdpProfile,
+  ChineseLiteracyDashboardComparison,
+  ChineseLiteracyDashboardComparisonInput,
+  ChineseLiteracyDashboardResponse,
   CompletedAssignmentResetResult,
   CreateAssessmentToolRequest,
   CreateAssignmentRequest,
@@ -5215,3 +5218,199 @@ export function useGetCdpProfile<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get source-separated Chinese Literacy submissions and latest comparison draft
+ */
+export const getGetChineseLiteracyDashboardUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/chinese-literacy/dashboard`;
+};
+
+export const getChineseLiteracyDashboard = async (
+  caseId: string,
+  options?: RequestInit,
+): Promise<ChineseLiteracyDashboardResponse> => {
+  return customFetch<ChineseLiteracyDashboardResponse>(
+    getGetChineseLiteracyDashboardUrl(caseId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetChineseLiteracyDashboardQueryKey = (caseId: string) => {
+  return [`/api/cases/${caseId}/chinese-literacy/dashboard`] as const;
+};
+
+export const getGetChineseLiteracyDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getChineseLiteracyDashboard>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getChineseLiteracyDashboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetChineseLiteracyDashboardQueryKey(caseId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getChineseLiteracyDashboard>>
+  > = ({ signal }) =>
+    getChineseLiteracyDashboard(caseId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!caseId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getChineseLiteracyDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetChineseLiteracyDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getChineseLiteracyDashboard>>
+>;
+export type GetChineseLiteracyDashboardQueryError = ErrorType<void>;
+
+/**
+ * @summary Get source-separated Chinese Literacy submissions and latest comparison draft
+ */
+
+export function useGetChineseLiteracyDashboard<
+  TData = Awaited<ReturnType<typeof getChineseLiteracyDashboard>>,
+  TError = ErrorType<void>,
+>(
+  caseId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getChineseLiteracyDashboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetChineseLiteracyDashboardQueryOptions(
+    caseId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate and save a DeepSeek comparison draft from one parent and one teacher submission
+ */
+export const getGenerateChineseLiteracyDashboardComparisonUrl = (
+  caseId: string,
+) => {
+  return `/api/cases/${caseId}/chinese-literacy/dashboard`;
+};
+
+export const generateChineseLiteracyDashboardComparison = async (
+  caseId: string,
+  chineseLiteracyDashboardComparisonInput: ChineseLiteracyDashboardComparisonInput,
+  options?: RequestInit,
+): Promise<ChineseLiteracyDashboardComparison> => {
+  return customFetch<ChineseLiteracyDashboardComparison>(
+    getGenerateChineseLiteracyDashboardComparisonUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(chineseLiteracyDashboardComparisonInput),
+    },
+  );
+};
+
+export const getGenerateChineseLiteracyDashboardComparisonMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>,
+    TError,
+    { caseId: string; data: BodyType<ChineseLiteracyDashboardComparisonInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>,
+  TError,
+  { caseId: string; data: BodyType<ChineseLiteracyDashboardComparisonInput> },
+  TContext
+> => {
+  const mutationKey = ["generateChineseLiteracyDashboardComparison"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>,
+    { caseId: string; data: BodyType<ChineseLiteracyDashboardComparisonInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return generateChineseLiteracyDashboardComparison(
+      caseId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateChineseLiteracyDashboardComparisonMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>
+  >;
+export type GenerateChineseLiteracyDashboardComparisonMutationBody =
+  BodyType<ChineseLiteracyDashboardComparisonInput>;
+export type GenerateChineseLiteracyDashboardComparisonMutationError =
+  ErrorType<void>;
+
+/**
+ * @summary Generate and save a DeepSeek comparison draft from one parent and one teacher submission
+ */
+export const useGenerateChineseLiteracyDashboardComparison = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>,
+    TError,
+    { caseId: string; data: BodyType<ChineseLiteracyDashboardComparisonInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateChineseLiteracyDashboardComparison>>,
+  TError,
+  { caseId: string; data: BodyType<ChineseLiteracyDashboardComparisonInput> },
+  TContext
+> => {
+  return useMutation(
+    getGenerateChineseLiteracyDashboardComparisonMutationOptions(options),
+  );
+};

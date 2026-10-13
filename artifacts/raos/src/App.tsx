@@ -118,6 +118,7 @@ const RamriUploadPage = React.lazy(() => import("@/pages/ramri-upload/[token]"))
 const LiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/literacy-dashboard"));
 const RemyndDashboardPage = React.lazy(() => import("@/pages/cases/[id]/remynd-dashboard"));
 const ChineseLiteracyPage = React.lazy(() => import("@/pages/cases/[id]/chinese-literacy"));
+const ChineseLiteracyDashboardPage = React.lazy(() => import("@/pages/cases/[id]/chinese-literacy-dashboard"));
 const DashboardsHub = React.lazy(() => import("@/pages/cases/[id]/dashboards"));
 const ProductDashboard = React.lazy(() => import("@/pages/cases/[id]/product-dashboard"));
 const RdaStudentView = React.lazy(() => import("@/pages/student-view/rda"));
@@ -322,6 +323,9 @@ function Router() {
         </Route>
         <Route path="/cases/:id/dashboards">
           {() => <ProtectedRoute component={DashboardsHub} allowApprentice />}
+        </Route>
+        <Route path="/cases/:id/chinese-literacy-dashboard">
+          {() => <ProtectedRoute component={ChineseLiteracyDashboardPage} />}
         </Route>
         <Route path="/cases/:id/product-dashboard">
           {() => <ProtectedRoute component={ProductDashboard} allowApprentice />}

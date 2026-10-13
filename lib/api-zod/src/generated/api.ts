@@ -1669,3 +1669,116 @@ export const GetCdpProfileResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Get source-separated Chinese Literacy submissions and latest comparison draft
+ */
+export const GetChineseLiteracyDashboardParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const GetChineseLiteracyDashboardResponse = zod.object({
+  caseId: zod.string(),
+  administrations: zod.array(
+    zod.object({
+      assignmentId: zod.string(),
+      instrumentKey: zod.string(),
+      formName: zod.string(),
+      setting: zod.string(),
+      respondentType: zod.string(),
+      respondentLabel: zod.string(),
+      status: zod.string(),
+      assignmentStatus: zod.string(),
+      revision: zod.number(),
+      submittedAt: zod.string().nullable(),
+      baselineId: zod.string().nullable(),
+      instrumentVersion: zod.string(),
+      scoringVersion: zod.string(),
+      selectedDomains: zod.array(zod.string()),
+      context: zod.record(zod.string(), zod.unknown()),
+      domains: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          status: zod.string(),
+          mean: zod.number().nullable(),
+          coverage: zod.number().nullable(),
+          validCount: zod.number(),
+          applicableCount: zod.number(),
+          notObservedCount: zod.number(),
+          notApplicableCount: zod.number(),
+          unansweredCount: zod.number(),
+          ratingCounts: zod.record(zod.string(), zod.number()),
+          evidence: zod.object({
+            impact: zod.number().nullable(),
+            examples: zod.array(zod.string()),
+            strengths: zod.string(),
+            supports: zod.string(),
+          }),
+          itemResponses: zod.array(
+            zod.object({
+              itemId: zod.string(),
+              wording: zod.string(),
+              status: zod.enum([
+                "rated",
+                "not_observed",
+                "not_applicable",
+                "unanswered",
+              ]),
+              value: zod.number().nullable(),
+              reason: zod.string().nullable(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  ),
+  comparison: zod.union([
+    zod.object({
+      caseId: zod.string(),
+      parentAssignmentId: zod.string(),
+      teacherAssignmentId: zod.string(),
+      parentRevision: zod.number(),
+      teacherRevision: zod.number(),
+      generatedAt: zod.date(),
+      content: zod.object({
+        parentHome: zod.string(),
+        teacherClassroom: zod.string(),
+        crossSetting: zod.string(),
+        recommendations: zod.array(zod.string()),
+        limitations: zod.string(),
+      }),
+      stale: zod.boolean(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Generate and save a DeepSeek comparison draft from one parent and one teacher submission
+ */
+export const GenerateChineseLiteracyDashboardComparisonParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const GenerateChineseLiteracyDashboardComparisonBody = zod.object({
+  parentAssignmentId: zod.string().min(1),
+  teacherAssignmentId: zod.string().min(1),
+});
+
+export const GenerateChineseLiteracyDashboardComparisonResponse = zod.object({
+  caseId: zod.string(),
+  parentAssignmentId: zod.string(),
+  teacherAssignmentId: zod.string(),
+  parentRevision: zod.number(),
+  teacherRevision: zod.number(),
+  generatedAt: zod.date(),
+  content: zod.object({
+    parentHome: zod.string(),
+    teacherClassroom: zod.string(),
+    crossSetting: zod.string(),
+    recommendations: zod.array(zod.string()),
+    limitations: zod.string(),
+  }),
+  stale: zod.boolean(),
+});

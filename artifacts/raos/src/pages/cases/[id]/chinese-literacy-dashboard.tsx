@@ -1,0 +1,562 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertCircle,
+  ArrowLeft,
+  BookOpenText,
+  Check,
+  ChevronDown,
+  ClipboardList,
+  Download,
+  FileText,
+  Home,
+  Info,
+  LoaderCircle,
+  Moon,
+  Printer,
+  RefreshCw,
+  School,
+  Sparkles,
+  Sun,
+} from "lucide-react";
+import {
+  getGetChineseLiteracyDashboardQueryKey,
+  useGenerateChineseLiteracyDashboardComparison,
+  useGetChineseLiteracyDashboard,
+  type ChineseLiteracyDashboardAdministration,
+  type ChineseLiteracyDashboardDomainScore,
+} from "@workspace/api-client-react";
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Not submitted";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function isParentHome(record: ChineseLiteracyDashboardAdministration) {
+  const setting = record.setting.toLowerCase();
+  return record.respondentType.toLowerCase() === "parent" && (setting.includes("home") || setting.includes("parent"));
+}
+
+function isTeacherClassroom(record: ChineseLiteracyDashboardAdministration) {
+  const setting = record.setting.toLowerCase();
+    return record.respondentType.toLowerCase().includes("teacher") && (setting.includes("classroom") || setting.includes("school"));
+}
+
+function statusLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
+
+function csvCell(value: string | number | null) {
+  const text = value === null ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+const AUTO_REFRESH_OPTIONS = [
+  { label: "Off", value: null },
+  { label: "Every 5 min", value: 5 * 60 * 1000 },
+  { label: "Every 15 min", value: 15 * 60 * 1000 },
+  { label: "Every 1 hour", value: 60 * 60 * 1000 },
+] as const;
+
+export default function ChineseLiteracyDashboardPage() {
+  const { id: routeCaseId = "" } = useParams<{ id: string }>();
+  const caseId = routeCaseId;
+  const queryClient = useQueryClient();
+  const queryKey = getGetChineseLiteracyDashboardQueryKey(caseId);
+  const { data, isLoading, isError, error, refetch, isFetching } = useGetChineseLiteracyDashboard(caseId, {
+    query: { queryKey, enabled: Boolean(caseId), staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false },
+  });
+  const comparisonMutation = useGenerateChineseLiteracyDashboardComparison();
+  const [parentId, setParentId] = useState("");
+  const [teacherId, setTeacherId] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
+  const [autoRefreshMs, setAutoRefreshMs] = useState<number | null>(null);
+  const [refreshMenuOpen, setRefreshMenuOpen] = useState(false);
+  const refreshMenuRef = useRef<HTMLDivElement>(null);
+
+  const administrations = data?.administrations ?? [];
+  const parentRecords = useMemo(() => administrations.filter(isParentHome), [administrations]);
+  const teacherRecords = useMemo(() => administrations.filter(isTeacherClassroom), [administrations]);
+
+  useEffect(() => {
+    if (!parentRecords.some((record) => record.assignmentId === parentId)) {
+      setParentId(parentRecords[0]?.assignmentId ?? "");
+    }
+    if (!teacherRecords.some((record) => record.assignmentId === teacherId)) {
+      setTeacherId(teacherRecords[0]?.assignmentId ?? "");
+    }
+  }, [parentRecords, teacherRecords, parentId, teacherId]);
+
+  const parent = parentRecords.find((record) => record.assignmentId === parentId);
+  const teacher = teacherRecords.find((record) => record.assignmentId === teacherId);
+  const sharedDomains = useMemo(() => {
+    if (!parent || !teacher) return [];
+    return parent.domains.flatMap((parentDomain) => {
+      const teacherDomain = teacher.domains.find((domain) => domain.id === parentDomain.id && domain.name.trim() === parentDomain.name.trim());
+      return teacherDomain ? [{ name: parentDomain.name, parentDomain, teacherDomain }] : [];
+    });
+  }, [parent, teacher]);
+
+  useEffect(() => {
+    if (!autoRefreshMs) return;
+    const timer = window.setInterval(() => { void refetch(); }, autoRefreshMs);
+    return () => window.clearInterval(timer);
+  }, [autoRefreshMs, refetch]);
+
+  useEffect(() => {
+    const closeOutside = (event: MouseEvent) => {
+      if (refreshMenuRef.current && !refreshMenuRef.current.contains(event.target as Node)) setRefreshMenuOpen(false);
+    };
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
+  }, []);
+
+  const savedComparison = data?.comparison ?? null;
+  const snapshotMatchesCurrent = Boolean(
+    savedComparison &&
+    parent &&
+    teacher &&
+    savedComparison.parentAssignmentId === parent.assignmentId &&
+    savedComparison.teacherAssignmentId === teacher.assignmentId &&
+    savedComparison.parentRevision === parent.revision &&
+    savedComparison.teacherRevision === teacher.revision,
+  );
+  const comparisonIsStale = Boolean(savedComparison && (savedComparison.stale || !snapshotMatchesCurrent));
+  const canGenerate = Boolean(
+    parent &&
+    teacher &&
+    ["submitted", "under_review"].includes(parent.status.toLowerCase()) &&
+    ["submitted", "under_review"].includes(teacher.status.toLowerCase()) &&
+    parent.submittedAt &&
+    teacher.submittedAt &&
+    sharedDomains.length > 0 &&
+    !comparisonMutation.isPending,
+  );
+
+  const handleGenerate = () => {
+    if (!parent || !teacher || !canGenerate) return;
+    comparisonMutation.mutate(
+      { caseId, data: { parentAssignmentId: parent.assignmentId, teacherAssignmentId: teacher.assignmentId } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey }) },
+    );
+  };
+
+  const exportCsv = () => {
+    if (!sharedDomains.length) return;
+    const rows = [
+      ["Domain", "Parent / home mean", "Teacher / classroom mean", "Parent status", "Teacher status"],
+      ...sharedDomains.map(({ name, parentDomain, teacherDomain }) => [
+        name,
+        parentDomain.mean,
+        teacherDomain.mean,
+        parentDomain.status,
+        teacherDomain.status,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `chinese-literacy-${caseId}-comparison.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const pageClass = darkMode
+    ? "min-h-[100dvh] bg-[#142321] text-[#e7eee8]"
+    : "min-h-[100dvh] bg-[#f3f6f2] text-[#20312e]";
+  const panelClass = darkMode
+    ? "border border-[#304743] bg-[#1d302c] shadow-[0_10px_30px_rgba(4,15,13,.18)]"
+    : "border border-[#dce5df] bg-[#fffefa] shadow-[0_10px_30px_rgba(25,57,47,.045)]";
+  const softText = darkMode ? "text-[#aabbb4]" : "text-[#687b73]";
+  const subtlePanel = darkMode ? "bg-[#243934] border-[#38524b]" : "bg-[#f4f7f2] border-[#e1e8e1]";
+  const parentInk = darkMode ? "#79b5a3" : "#286e60";
+  const teacherInk = darkMode ? "#e0b76f" : "#a46b19";
+
+  const renderSourceDetails = (
+    title: string,
+    record: ChineseLiteracyDashboardAdministration | undefined,
+    domain: ChineseLiteracyDashboardDomainScore,
+    source: "parent" | "teacher",
+  ) => {
+    const sourceLabel = source === "parent" ? "Parent / home" : "Teacher / classroom";
+    return (
+      <div className={`rounded-xl border p-4 ${subtlePanel}`} data-testid={`source-detail-${source}-${domain.id}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {source === "parent" ? <Home size={15} /> : <School size={15} />}
+            <h4 className="text-sm font-semibold">{sourceLabel}</h4>
+          </div>
+          <span className="font-mono text-sm font-semibold" style={{ color: source === "parent" ? parentInk : teacherInk }}>
+            {domain.mean === null ? "—" : domain.mean.toFixed(2)}
+          </span>
+        </div>
+        <p className={`mt-1 text-xs ${softText}`}>{record?.respondentLabel || title} · {record?.formName || "Chinese literacy form"}</p>
+        <div className={`mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4 ${softText}`}>
+          <span>Valid <b className="font-mono">{domain.validCount}</b></span>
+          <span>Not observed <b className="font-mono">{domain.notObservedCount}</b></span>
+          <span>Not applicable <b className="font-mono">{domain.notApplicableCount}</b></span>
+          <span>Unanswered <b className="font-mono">{domain.unansweredCount}</b></span>
+        </div>
+        {(domain.evidence.strengths || domain.evidence.supports || domain.evidence.examples.length > 0) && (
+          <div className="mt-4 space-y-3 border-t border-current/10 pt-3">
+            {domain.evidence.strengths && <p className="text-sm leading-relaxed"><strong>Strengths:</strong> {domain.evidence.strengths}</p>}
+            {domain.evidence.supports && <p className="text-sm leading-relaxed"><strong>Supports noted:</strong> {domain.evidence.supports}</p>}
+            {domain.evidence.examples.length > 0 && (
+              <div>
+                <p className={`mb-1 text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>Examples from this source</p>
+                <ul className="space-y-1.5 text-sm leading-relaxed">
+                  {domain.evidence.examples.map((example, index) => <li key={`${domain.id}-${source}-example-${index}`} className="flex gap-2"><span aria-hidden="true">—</span><span>{example}</span></li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        <details className="group mt-4 border-t border-current/10 pt-3">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+            <span className="flex items-center gap-2"><ClipboardList size={14} /> Item-level responses ({domain.itemResponses.length})</span>
+            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-3 space-y-2">
+            {domain.itemResponses.length === 0 ? (
+              <p className={`text-xs ${softText}`}>No item responses are available for this domain.</p>
+            ) : domain.itemResponses.map((item) => (
+              <div key={`${source}-${item.itemId}`} className={`rounded-lg border p-3 ${darkMode ? "border-[#3b554e] bg-[#1b2b28]" : "border-[#e3e9e3] bg-white"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 text-sm leading-relaxed">{item.wording}</p>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${item.status === "rated" ? "bg-[#e1efe9] text-[#286e60]" : darkMode ? "bg-[#344943] text-[#c0cec8]" : "bg-[#edf0ec] text-[#63716a]"}`}>
+                    {statusLabel(item.status)}
+                  </span>
+                </div>
+                <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs ${softText}`}>
+                  <span>Response: <b className="font-mono">{item.value === null ? "—" : item.value}</b></span>
+                  {item.reason && <span>Reason: {item.reason}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-6 p-4 py-8 sm:p-8" aria-label="Loading Chinese literacy dashboard">
+        <div className="h-7 w-48 animate-pulse rounded bg-[#dfe8e1]" />
+        <div className="h-32 animate-pulse rounded-2xl bg-[#e7eee8]" />
+        <div className="h-72 animate-pulse rounded-2xl bg-[#e7eee8]" />
+        <div className="grid gap-4 md:grid-cols-2"><div className="h-36 animate-pulse rounded-xl bg-[#e7eee8]" /><div className="h-36 animate-pulse rounded-xl bg-[#e7eee8]" /></div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20">
+        <div className="rounded-2xl border border-[#e7c6b9] bg-[#fff8f3] p-7 text-[#603b30]">
+          <AlertCircle size={22} />
+          <h1 className="mt-3 font-semibold">Dashboard could not be loaded</h1>
+          <p className="mt-1 text-sm">{error instanceof Error ? error.message : "Check your connection, then try again."}</p>
+          <button type="button" onClick={() => refetch()} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#286e60] px-4 py-2 text-sm font-semibold text-white" data-testid="button-retry-dashboard">
+            <RefreshCw size={15} /> Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const comparison = savedComparison && !comparisonIsStale ? savedComparison : null;
+  const maxMean = Math.max(1, ...sharedDomains.flatMap(({ parentDomain, teacherDomain }) => [parentDomain.mean ?? 0, teacherDomain.mean ?? 0]));
+
+  return (
+    <div className={`${pageClass} transition-colors duration-200`}>
+      <main className="mx-auto max-w-[1440px] px-4 pb-16 pt-5 sm:px-7 lg:px-10">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
+          <Link href={`/cases/${caseId}/dashboards`} className={`inline-flex items-center gap-2 text-sm font-semibold ${softText}`} data-testid="link-back-dashboards">
+            <ArrowLeft size={16} /> Case dashboards
+          </Link>
+          <div className="flex items-center gap-2">
+            <div ref={refreshMenuRef} className="relative inline-flex">
+              <button type="button" onClick={() => refetch()} disabled={isFetching} className={`inline-flex items-center gap-2 rounded-l-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-refresh-dashboard">
+                <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} /> Refresh
+              </button>
+              <button type="button" aria-label="Automatic refresh settings" aria-expanded={refreshMenuOpen} onClick={() => setRefreshMenuOpen((open) => !open)} className={`inline-flex items-center rounded-r-lg border border-l-0 px-2 ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`}>
+                <ChevronDown size={14} />
+              </button>
+              {refreshMenuOpen && (
+                <div role="menu" className={`absolute right-0 top-full z-30 mt-2 w-44 rounded-xl border p-2 shadow-xl ${darkMode ? "border-[#3a514c] bg-[#1d302c]" : "border-[#d7e1da] bg-white"}`}>
+                  <p className={`px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[.12em] ${softText}`}>Auto refresh</p>
+                  {AUTO_REFRESH_OPTIONS.map((option) => {
+                    const selected = autoRefreshMs === option.value;
+                    return (
+                      <button key={option.label} type="button" role="menuitemradio" aria-checked={selected} onClick={() => { setAutoRefreshMs(option.value); setRefreshMenuOpen(false); }} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-xs ${darkMode ? "hover:bg-white/5" : "hover:bg-[#f3f6f2]"}`}>
+                        {option.label}{selected && <Check size={14} className={softText} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <button type="button" onClick={() => window.print()} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-print-dashboard">
+              <Printer size={14} /> Print
+            </button>
+            <button type="button" onClick={() => setDarkMode((value) => !value)} aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${darkMode ? "border-[#3a514c] bg-[#20332f]" : "border-[#d7e1da] bg-white"}`} data-testid="button-toggle-theme">
+              {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+          </div>
+        </header>
+
+        <section className={`${panelClass} overflow-hidden rounded-2xl`}>
+          <div className={`border-b px-5 py-6 sm:px-8 sm:py-8 ${darkMode ? "border-[#304743] bg-[linear-gradient(110deg,#203832,#1d302c_54%,#26352d)]" : "border-[#e0e8df] bg-[linear-gradient(110deg,#e8f1e9,#fffefa_58%,#f4edda)]"}`}>
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="max-w-3xl">
+                <div className={`mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] ${darkMode ? "border-[#47655d] bg-[#233c35] text-[#b9d4c9]" : "border-[#cfded1] bg-[#f8fbf6] text-[#477264]"}`}>
+                  <BookOpenText size={13} /> ReMynd · staff case review
+                </div>
+                <h1 className={`font-display text-3xl font-bold tracking-tight sm:text-[38px] ${darkMode ? "text-[#eef4ee]" : "text-[#1c332d]"}`}>Chinese Literacy</h1>
+                <p className={`mt-2 max-w-2xl text-sm leading-relaxed sm:text-base ${softText}`}>
+                  Keep home and classroom observations distinct. Review shared patterns across sources without turning them into a single score.
+                </p>
+              </div>
+              <div className={`rounded-xl border px-4 py-3 ${darkMode ? "border-[#405951] bg-[#20352f]" : "border-[#d7e2d8] bg-[#fffefa]/80"}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>Case reference</p>
+                <p className="mt-1 font-mono text-sm font-semibold" data-testid="text-case-reference">{caseId || "—"}</p>
+                <p className={`mt-1 text-xs ${softText}`}>{administrations.length} source record{administrations.length === 1 ? "" : "s"}</p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#41635a] bg-[#1e352f]" : "border-[#cddfd6] bg-[#f7fbf7]"}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#dcece4] text-[#286e60]"><Home size={17} /></span>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: parentInk }}>Source A · parent / home</p><p className={`mt-0.5 text-xs ${softText}`}>One parent record selected at a time</p></div>
+              </div>
+              <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#6b5940] bg-[#393428]" : "border-[#e9dcc1] bg-[#fdf9ef]"}`}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f4e8cb] text-[#95651e]"><School size={17} /></span>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>Source B · teacher / classroom</p><p className={`mt-0.5 text-xs ${softText}`}>Select one teacher; records are never combined</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(250px,.72fr)_minmax(0,1.5fr)] lg:p-7">
+            <section className="space-y-4">
+              <div>
+                <p className={`mb-2 text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Select source records</p>
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${darkMode ? "text-[#c7d5ce]" : "text-[#3c5149]"}`}><Home size={14} style={{ color: parentInk }} /> Parent / home observation</span>
+                    <select value={parentId} onChange={(event) => setParentId(event.target.value)} className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#78aa98] ${darkMode ? "border-[#405851] bg-[#192a26] text-[#edf3ed]" : "border-[#d6e0d8] bg-white text-[#263b34]"}`} data-testid="select-parent-record">
+                      {parentRecords.length === 0 && <option value="">No parent/home record</option>}
+                      {parentRecords.map((record) => <option key={record.assignmentId} value={record.assignmentId}>{record.respondentLabel} · {record.formName} · rev {record.revision}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className={`mb-1.5 flex items-center gap-2 text-xs font-semibold ${darkMode ? "text-[#c7d5ce]" : "text-[#3c5149]"}`}><School size={14} style={{ color: teacherInk }} /> Teacher / classroom observation</span>
+                    <select value={teacherId} onChange={(event) => setTeacherId(event.target.value)} className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#d2ac65] ${darkMode ? "border-[#514b3b] bg-[#2b2922] text-[#edf3ed]" : "border-[#e4dbc7] bg-white text-[#263b34]"}`} data-testid="select-teacher-record">
+                      {teacherRecords.length === 0 && <option value="">No teacher/classroom record</option>}
+                      {teacherRecords.map((record) => <option key={record.assignmentId} value={record.assignmentId}>{record.respondentLabel} · {record.formName} · rev {record.revision}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className={`rounded-xl border p-4 ${subtlePanel}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className={`text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>Source record status</p>
+                    <p className="mt-1 text-sm font-semibold">Two separate perspectives</p>
+                  </div>
+                  <Info size={16} className={softText} />
+                </div>
+                <div className="mt-4 space-y-3">
+                  {[{ label: "Parent / home", record: parent, color: parentInk }, { label: "Teacher / classroom", record: teacher, color: teacherInk }].map(({ label, record, color }) => (
+                    <div key={label} className="flex items-start justify-between gap-3 border-t border-current/10 pt-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold" style={{ color }}>{label}</p>
+                        <p className={`mt-1 truncate text-xs ${softText}`}>{record?.respondentLabel || "No matching record"}</p>
+                        <p className={`mt-1 text-[10px] ${softText}`}>{record ? `Revision ${record.revision} · submitted ${formatDate(record.submittedAt)}` : "A source record is required to compare."}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${record?.status.toLowerCase() === "submitted" ? "bg-[#e2eee6] text-[#286e60]" : darkMode ? "bg-[#3b4035] text-[#d2c7a5]" : "bg-[#f4ead0] text-[#805d20]"}`}>
+                        {record ? statusLabel(record.status) : "missing"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`rounded-xl border p-4 ${darkMode ? "border-[#496257] bg-[#20352f]" : "border-[#cdded2] bg-[#f5faf5]"}`}>
+                <div className="flex items-start gap-3">
+                  <Sparkles size={17} className="mt-0.5 shrink-0 text-[#6d9d82]" />
+                  <div>
+                    <p className="text-sm font-semibold">Generate a comparison snapshot</p>
+                    <p className={`mt-1 text-xs leading-relaxed ${softText}`}>On-click only. Creates a latest saved, case-level comparison for these exact records and revisions.</p>
+                  </div>
+                </div>
+                <button type="button" onClick={handleGenerate} disabled={!canGenerate} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#286e60] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#205b50] disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-generate-comparison">
+                  {comparisonMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={15} />}
+                  {comparisonMutation.isPending ? "Generating snapshot…" : "Generate comparison"}
+                </button>
+                {!canGenerate && (
+                  <p className={`mt-2 text-[11px] leading-relaxed ${softText}`}>
+                    {!parent || !teacher ? "Select one parent/home and one teacher/classroom record." :
+                      parent.status.toLowerCase() !== "submitted" || teacher.status.toLowerCase() !== "submitted" || !parent.submittedAt || !teacher.submittedAt ? "Both selected records must be submitted with a submission date." :
+                        "No shared domain labels are available for this selection."}
+                  </p>
+                )}
+                {comparisonMutation.isError && <p className="mt-2 text-xs text-[#a34f3c]">Comparison could not be generated. Try again.</p>}
+              </div>
+            </section>
+
+            <section className="min-w-0 space-y-5">
+              <div className={`rounded-xl border p-4 sm:p-5 ${darkMode ? "border-[#3c554e] bg-[#1a2c28]" : "border-[#dce5dd] bg-[#fffefa]"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Shared domains · descriptive only</div>
+                    <h2 className="mt-1 text-lg font-semibold">Home and classroom, side by side</h2>
+                    <p className={`mt-1 text-xs ${softText}`}>{sharedDomains.length} shared domain{sharedDomains.length === 1 ? "" : "s"} with identical labels · means remain source-specific</p>
+                  </div>
+                  <button type="button" onClick={exportCsv} disabled={sharedDomains.length === 0} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${darkMode ? "border-[#3a514b] bg-[#223631]" : "border-[#d9e3da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-export-chart-csv">
+                    <Download size={14} /> Export chart CSV
+                  </button>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px]">
+                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#5b9d87]" /> Parent / home mean</span>
+                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#c99442]" /> Teacher / classroom mean</span>
+                  <span className={`${softText}`}>Scale is descriptive; bars are not a combined score.</span>
+                </div>
+                {sharedDomains.length > 0 ? (
+                  <div className="mt-5 space-y-4">
+                    {sharedDomains.map(({ name, parentDomain, teacherDomain }) => (
+                      <div key={name} className="grid gap-2 sm:grid-cols-[minmax(130px,.75fr)_minmax(0,2fr)] sm:items-center" data-testid={`chart-domain-${parentDomain.id}`}>
+                        <span className="text-xs font-semibold leading-snug">{name}</span>
+                        <div className="space-y-1.5">
+                          {[{ source: "Parent / home", domain: parentDomain, color: "#5b9d87" }, { source: "Teacher / classroom", domain: teacherDomain, color: "#c99442" }].map(({ source, domain, color }) => (
+                            <div key={`${name}-${source}`} className="flex items-center gap-2">
+                              <span className={`w-[92px] shrink-0 text-[10px] ${softText}`}>{source}</span>
+                              <div className={`h-3 flex-1 overflow-hidden rounded-sm ${darkMode ? "bg-[#2b413b]" : "bg-[#e9eee9]"}`}>
+                                {domain.mean !== null && <div className="h-full rounded-sm transition-[width] duration-500" style={{ width: `${Math.max(0, Math.min(100, (domain.mean / maxMean) * 100))}%`, backgroundColor: color }} />}
+                              </div>
+                              <span className="w-10 text-right font-mono text-xs font-semibold">{domain.mean === null ? "—" : domain.mean.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <div className={`flex justify-between border-t border-current/10 pt-3 text-[10px] ${softText}`}><span>Bars scaled to the largest displayed mean in this selection</span><span>Missing means are not plotted</span></div>
+                  </div>
+                ) : (
+                  <div className={`mt-5 rounded-xl border border-dashed p-8 text-center ${darkMode ? "border-[#42574f]" : "border-[#d9e2da]"}`}>
+                    <BookOpenText size={21} className={`mx-auto ${softText}`} />
+                    <p className="mt-2 text-sm font-semibold">No shared domains to chart</p>
+                    <p className={`mx-auto mt-1 max-w-md text-xs leading-relaxed ${softText}`}>Choose one parent/home and one teacher/classroom record. A domain appears only when its source labels match exactly.</p>
+                  </div>
+                )}
+              </div>
+
+              {comparisonIsStale && savedComparison && (
+                <div className={`rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-stale-snapshot">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={17} className="mt-0.5 shrink-0 text-[#a77827]" />
+                    <div>
+                      <p className="text-sm font-semibold">Saved comparison is stale</p>
+                      <p className={`mt-1 text-xs leading-relaxed ${softText}`}>The saved snapshot does not match the selected record IDs or revisions, so it is not shown as current. Generate a new snapshot when both selected records are submitted.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {comparison && (
+                <div className={`${panelClass} rounded-xl p-5`} data-testid="card-generated-comparison">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-[#3d826e]"><Check size={15} /><span className="text-[10px] font-bold uppercase tracking-[.15em]">Current saved snapshot</span></div>
+                      <h2 className="mt-1 text-lg font-semibold">Source-aware review</h2>
+                    </div>
+                    <span className={`text-xs ${softText}`}>Generated {formatDate(comparison.generatedAt)}</span>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: parentInk }}>
+                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>Parent / home</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.parentHome}</p>
+                    </article>
+                    <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: teacherInk }}>
+                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: teacherInk }}>Teacher / classroom</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.teacherClassroom}</p>
+                    </article>
+                    <article className={`rounded-lg border p-4 md:col-span-2 ${subtlePanel}`}>
+                      <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>Cross-setting observations</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.crossSetting}</p>
+                    </article>
+                  </div>
+                  {comparison.content.recommendations.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em]"><FileText size={14} /> Recommendations</h3>
+                      <ol className="mt-2 space-y-2">
+                        {comparison.content.recommendations.map((recommendation, index) => <li key={`recommendation-${index}`} className={`flex gap-3 rounded-lg border p-3 text-sm leading-relaxed ${subtlePanel}`}><span className="font-mono text-xs font-bold text-[#4e8b76]">{String(index + 1).padStart(2, "0")}</span><span>{recommendation}</span></li>)}
+                      </ol>
+                    </div>
+                  )}
+                  {comparison.content.limitations && <p className={`mt-4 border-t border-current/10 pt-3 text-xs leading-relaxed ${softText}`}><strong>Snapshot limitations:</strong> {comparison.content.limitations}</p>}
+                </div>
+              )}
+            </section>
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Inspect the source</p>
+              <h2 className="mt-1 text-xl font-semibold">Evidence by shared domain</h2>
+            </div>
+            <p className={`hidden text-xs sm:block ${softText}`}>Expand item responses for the selected source records.</p>
+          </div>
+          {sharedDomains.length ? (
+            <div className="space-y-3">
+              {sharedDomains.map(({ name, parentDomain, teacherDomain }) => (
+                <details key={`evidence-${name}`} className={`${panelClass} group rounded-xl`} data-testid={`details-domain-${parentDomain.id}`}>
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${darkMode ? "bg-[#29443b] text-[#b8d6c8]" : "bg-[#e6f0e8] text-[#42735d]"}`}>{String(parentDomain.id).slice(0, 1).toUpperCase()}</span>
+                      <div><h3 className="text-sm font-semibold">{name}</h3><p className={`mt-0.5 text-[10px] ${softText}`}>Parent {parentDomain.itemResponses.length} items · Teacher {teacherDomain.itemResponses.length} items</p></div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-3 font-mono text-xs">
+                        <span style={{ color: parentInk }}>P {parentDomain.mean === null ? "—" : parentDomain.mean.toFixed(2)}</span>
+                        <span style={{ color: teacherInk }}>T {teacherDomain.mean === null ? "—" : teacherDomain.mean.toFixed(2)}</span>
+                      </div>
+                      <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
+                    </div>
+                  </summary>
+                  <div className="grid gap-3 border-t border-current/10 p-3 sm:p-4 lg:grid-cols-2">
+                    {renderSourceDetails(parent?.respondentLabel || "Parent", parent, parentDomain, "parent")}
+                    {renderSourceDetails(teacher?.respondentLabel || "Teacher", teacher, teacherDomain, "teacher")}
+                  </div>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <div className={`${panelClass} rounded-xl p-6 text-center`}>
+              <p className="text-sm font-semibold">Source details will appear when matching records are selected</p>
+              <p className={`mt-1 text-xs ${softText}`}>Home and classroom data remain separate throughout this review.</p>
+            </div>
+          )}
+        </section>
+
+        <footer className={`mt-6 rounded-xl border p-4 ${darkMode ? "border-[#3e554d] bg-[#1c302b]" : "border-[#dbe4db] bg-[#edf3ed]"}`}>
+          <div className="flex items-start gap-3">
+            <Info size={16} className={`mt-0.5 shrink-0 ${softText}`} />
+            <div>
+              <p className="text-xs font-semibold">Interpretation and response accounting</p>
+              <p className={`mt-1 text-xs leading-relaxed ${softText}`}>
+                These tools have not been established as equivalent measures. Means are descriptive only and should not be interpreted diagnostically or as a difference score. Not applicable, not observed, and unanswered responses remain distinct; none are treated as a rating. Parent/home and teacher/classroom observations are separate sources.
+              </p>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </div>
+  );
+}

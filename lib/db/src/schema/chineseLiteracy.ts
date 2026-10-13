@@ -17,3 +17,16 @@ export const chineseLiteracyRevisionsTable = pgTable("chinese_literacy_revisions
   document: jsonb("document").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, table => [primaryKey({ columns: [table.assignmentId, table.revision] })]);
+
+// One current, case-level comparison draft. Regeneration replaces this snapshot;
+// parent and teacher source documents remain independent and unchanged.
+export const chineseLiteracyDashboardComparisonsTable = pgTable("chinese_literacy_dashboard_comparisons", {
+  caseId: text("case_id").primaryKey(),
+  parentAssignmentId: text("parent_assignment_id").notNull(),
+  teacherAssignmentId: text("teacher_assignment_id").notNull(),
+  parentRevision: integer("parent_revision").notNull(),
+  teacherRevision: integer("teacher_revision").notNull(),
+  content: jsonb("content").notNull(),
+  generatedBy: text("generated_by").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+});

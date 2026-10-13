@@ -1,5 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useGetCurrentUser } from "@workspace/api-client-react";
 import { ArrowLeft, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2, Zap, Activity, Cpu, Users, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,10 @@ function authHeaders() {
 const REMYND_AUTO_PREFIXES = ["RCS-80","RASR","RCEP","REFI","RERMS","RSCP","RARPS","RFII","RSSC","RSCA","RARI","EFA"];
 const CDP_TOOL_IDS    = new Set(["CDP-CL","CDP-SI","CDP-SR","CDP-CI"]);
 const LITERACY_TOOL_IDS = new Set(["RRCA","RRFA","RPPI","RDA"]);
+const CHINESE_LITERACY_TOOL_IDS = new Set([
+  "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION",
+  "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION",
+]);
 
 // Battery tiles — appear automatically when any of their forms are assigned
 const BATTERY_TILE_DEFS: Array<{
@@ -103,6 +108,8 @@ interface DashTile {
 
 export default function DashboardsHub() {
   const { id: caseId } = useParams();
+  const { data: currentUser } = useGetCurrentUser();
+  const canUseChineseLiteracyDashboard = ["admin", "psychometrician", "school_clinical_coordinator"].includes(currentUser?.role ?? "");
 
   const { data: c, isLoading, isError } = useQuery({
     queryKey: [`/api/cases/${caseId}`],
@@ -129,6 +136,15 @@ export default function DashboardsHub() {
 
   const assignments: any[] = c.assignments ?? [];
   const productIds: string[] = (c.productIds as string[]) ?? [];
+  const chineseLiteracyAssignments = assignments.filter((a: any) => CHINESE_LITERACY_TOOL_IDS.has(a.toolId ?? ""));
+  const chineseLiteracyCompletion = {
+    matched: 2,
+    completed: (
+      chineseLiteracyAssignments.some((a: any) => a.toolId === "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION" && a.status === "completed") ? 1 : 0
+    ) + (
+      chineseLiteracyAssignments.some((a: any) => a.toolId === "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION" && a.status === "completed") ? 1 : 0
+    ),
+  };
 
   // Build the set of tool IDs that belong to any assigned product
   const productToolSet = new Set<string>();
@@ -204,6 +220,17 @@ export default function DashboardsHub() {
       icon: <BookOpen size={22} className="text-sky-600" />,
       href: `/cases/${caseId}/literacy-dashboard`,
       ...literacyCompletion,
+    } : null,
+
+    chineseLiteracyAssignments.length > 0 && canUseChineseLiteracyDashboard ? {
+      id: "chinese-literacy",
+      title: "Chinese Literacy Dashboard",
+      subtitle: "Parent home and teacher classroom observations, shown separately",
+      tag: "Chinese Literacy",
+      tagColor: "bg-emerald-100 text-emerald-700",
+      icon: <BookOpen size={22} className="text-emerald-600" />,
+      href: `/cases/${caseId}/chinese-literacy-dashboard`,
+      ...chineseLiteracyCompletion,
     } : null,
   ];
 

@@ -1025,6 +1025,113 @@ export interface CdpProfile {
   forms: CdpFormResult[];
 }
 
+export interface ChineseLiteracyDashboardComparisonInput {
+  /** @minLength 1 */
+  parentAssignmentId: string;
+  /** @minLength 1 */
+  teacherAssignmentId: string;
+}
+
+export type ChineseLiteracyDashboardDomainScoreRatingCounts = {
+  [key: string]: number;
+};
+
+export interface ChineseLiteracyDashboardDomainEvidence {
+  /** @nullable */
+  impact: number | null;
+  examples: string[];
+  strengths: string;
+  supports: string;
+}
+
+export type ChineseLiteracyDashboardItemResponseStatus =
+  (typeof ChineseLiteracyDashboardItemResponseStatus)[keyof typeof ChineseLiteracyDashboardItemResponseStatus];
+
+export const ChineseLiteracyDashboardItemResponseStatus = {
+  rated: "rated",
+  not_observed: "not_observed",
+  not_applicable: "not_applicable",
+  unanswered: "unanswered",
+} as const;
+
+export interface ChineseLiteracyDashboardItemResponse {
+  itemId: string;
+  wording: string;
+  status: ChineseLiteracyDashboardItemResponseStatus;
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface ChineseLiteracyDashboardDomainScore {
+  id: string;
+  name: string;
+  status: string;
+  /** @nullable */
+  mean: number | null;
+  /** @nullable */
+  coverage: number | null;
+  validCount: number;
+  applicableCount: number;
+  notObservedCount: number;
+  notApplicableCount: number;
+  unansweredCount: number;
+  ratingCounts: ChineseLiteracyDashboardDomainScoreRatingCounts;
+  evidence: ChineseLiteracyDashboardDomainEvidence;
+  itemResponses: ChineseLiteracyDashboardItemResponse[];
+}
+
+export type ChineseLiteracyDashboardAdministrationContext = {
+  [key: string]: unknown;
+};
+
+export interface ChineseLiteracyDashboardAdministration {
+  assignmentId: string;
+  instrumentKey: string;
+  formName: string;
+  setting: string;
+  respondentType: string;
+  respondentLabel: string;
+  status: string;
+  assignmentStatus: string;
+  revision: number;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  baselineId: string | null;
+  instrumentVersion: string;
+  scoringVersion: string;
+  selectedDomains: string[];
+  context: ChineseLiteracyDashboardAdministrationContext;
+  domains: ChineseLiteracyDashboardDomainScore[];
+}
+
+export interface ChineseLiteracyDashboardComparisonContent {
+  parentHome: string;
+  teacherClassroom: string;
+  crossSetting: string;
+  recommendations: string[];
+  limitations: string;
+}
+
+export interface ChineseLiteracyDashboardComparison {
+  caseId: string;
+  parentAssignmentId: string;
+  teacherAssignmentId: string;
+  parentRevision: number;
+  teacherRevision: number;
+  generatedAt: string;
+  content: ChineseLiteracyDashboardComparisonContent;
+  stale: boolean;
+}
+
+export interface ChineseLiteracyDashboardResponse {
+  caseId: string;
+  administrations: ChineseLiteracyDashboardAdministration[];
+  comparison: ChineseLiteracyDashboardComparison | null;
+}
+
 export type ListCasesParams = {
   status?: string;
   phase?: string;
