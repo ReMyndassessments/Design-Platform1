@@ -8,15 +8,16 @@ import { Banner, Btn, Field, inputCls } from "./ui";
 
 export type RunAction = (body: Record<string, unknown>) => Promise<any>;
 type P = { adm: ClAdministration; meta: ClMetadata; run: RunAction; busy: boolean; ai: string; portal: string };
+type Translate = (path: string, value: unknown) => string;
 const isApproved = (adm: ClAdministration) => adm.report?.status === "approved" || Boolean(adm.report?.approvedAt);
 const fmt = (d?: string) => (d ? new Date(d).toLocaleString() : "");
 
-export function EvidencePanel({ adm, meta, run, busy }: Pick<P, "adm" | "meta" | "run" | "busy">) {
+export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value) => String(value ?? "") }: Pick<P, "adm" | "meta" | "run" | "busy"> & { translate?: Translate }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [reason, setReason] = useState("");
   const c = adm.input.context ?? {};
   const s = adm.input.summary;
-  const show = (l: string, v: unknown) => { const p = parseNarrative(v); return <div><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{p.mode === "answer" ? (p.text || "Not provided") : <><span className="font-semibold">{p.mode === "not_known" ? "Not known" : "Not yet observed"}:</span> {p.text}</>}</dd></div>; };
+  const show = (path: string, l: string, v: unknown) => { const p = parseNarrative(translate(path, String(v ?? ""))); return <div><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{p.mode === "answer" ? (p.text || "Not provided") : <><span className="font-semibold">{p.mode === "not_known" ? "Not known" : "Not yet observed"}:</span> {p.text}</>}</dd></div>; };
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
@@ -26,29 +27,29 @@ export function EvidencePanel({ adm, meta, run, busy }: Pick<P, "adm" | "meta" |
       </div>
       <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">{pm ? "Parent context" : "Teacher context"}</h3>
         <dl className="grid sm:grid-cols-2 gap-3">
-          {(pm ? [["Grade", c.grade], ["Relationship", c.relationship], ["Contact", c.contactFrequency], ["Home setting", c.setting], ["Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["Completed", c.completionDate], ["Home languages", c.homeLanguages], ["Activities", c.activities], ["Script", c.script], ["Spoken variety", c.spokenVariety], ["Reading judgement", c.readingConfidence], ["Writing judgement", c.writingConfidence], ["Observation language", c.observationLanguage], ["Completed how", c.assistanceMode], ["Assistant", [c.assistantIdentity, c.assistantLanguage].filter(Boolean).join(", ") || undefined], ["Parent confirmed", c.parentConfirmed === "yes" ? `Yes, ${c.confirmationDate ?? ""}` : "No"], ["School feedback (not rated)", c.schoolFeedback], ["Feedback source", c.schoolFeedbackSource], ["Participation impact", c.participationImpact], ["Questions", c.questions]] : [["Grade", c.grade], ["Role or subject", c.teacherRole], ["Contact", c.contactFrequency], ["Setting", c.setting], ["Time teaching", c.timeTeaching], ["Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["Script", c.script], ["Spoken variety", c.spokenVariety], ["Chinese instruction", c.instruction], ["Observation language", c.observationLanguage]]).map(([l, v]) => <div key={l as string}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{String(v ?? "Not provided")}</dd></div>)}
-          {show("Exposure and instruction history", c.exposureHistory)}{show("Curriculum", c.curriculum)}{show("Reason for completion", c.reason)}{show("Strengths and interests", c.strengths)}
-          {show("Current supports", c.currentSupports)}{show("Access information", c.accessInformation)}{show("Not known", c.unknownInformation)}
-          {c.shortWindowExplanation ? show("Short window explanation", c.shortWindowExplanation) : null}
+          {(pm ? [["grade", "Grade", c.grade], ["relationship", "Relationship", c.relationship], ["contactFrequency", "Contact", c.contactFrequency], ["setting", "Home setting", c.setting], ["observation", "Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["completionDate", "Completed", c.completionDate], ["homeLanguages", "Home languages", c.homeLanguages], ["activities", "Activities", c.activities], ["script", "Script", c.script], ["spokenVariety", "Spoken variety", c.spokenVariety], ["readingConfidence", "Reading judgement", c.readingConfidence], ["writingConfidence", "Writing judgement", c.writingConfidence], ["observationLanguage", "Observation language", c.observationLanguage], ["assistanceMode", "Completed how", c.assistanceMode], ["assistantCombined", "Assistant", [c.assistantIdentity, c.assistantLanguage].filter(Boolean).join(", ") || undefined], ["parentConfirmed", "Parent confirmed", c.parentConfirmed === "yes" ? `Yes, ${c.confirmationDate ?? ""}` : "No"], ["schoolFeedback", "School feedback (not rated)", c.schoolFeedback], ["schoolFeedbackSource", "Feedback source", c.schoolFeedbackSource], ["participationImpact", "Participation impact", c.participationImpact], ["questions", "Questions", c.questions]] : [["grade", "Grade", c.grade], ["teacherRole", "Role or subject", c.teacherRole], ["contactFrequency", "Contact", c.contactFrequency], ["setting", "Setting", c.setting], ["timeTeaching", "Time teaching", c.timeTeaching], ["observation", "Observation", `${c.observationStart ?? "?"} to ${c.observationEnd ?? "?"}`], ["script", "Script", c.script], ["spokenVariety", "Spoken variety", c.spokenVariety], ["instruction", "Chinese instruction", c.instruction], ["observationLanguage", "Observation language", c.observationLanguage]]).map(([key, l, v]) => <div key={l as string}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{l}</dt><dd className="text-xs text-slate-700">{translate(`input.context.${key}`, v)}</dd></div>)}
+          {show("input.context.exposureHistory", "Exposure and instruction history", c.exposureHistory)}{show("input.context.curriculum", "Curriculum", c.curriculum)}{show("input.context.reason", "Reason for completion", c.reason)}{show("input.context.strengths", "Strengths and interests", c.strengths)}
+          {show("input.context.currentSupports", "Current supports", c.currentSupports)}{show("input.context.accessInformation", "Access information", c.accessInformation)}{show("input.context.unknownInformation", "Not known", c.unknownInformation)}
+          {c.shortWindowExplanation ? show("input.context.shortWindowExplanation", "Short window explanation", c.shortWindowExplanation) : null}
         </dl>
       </section>
       {pm && (
         <section className="rounded-xl border border-slate-200 bg-white p-4" data-testid="section-parent-domain-evidence"><h3 className="text-sm font-bold mb-3">Home setting and language by domain</h3>
           <dl className="grid sm:grid-cols-2 gap-3">
-            {meta.domains.filter(d => adm.input.evidence?.[d.id]?.setting || adm.input.evidence?.[d.id]?.language).map(d => { const e = adm.input.evidence[d.id]; return <div key={d.id}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{d.label}</dt><dd className="text-xs text-slate-700">Setting: {e.setting || "Not provided"}. Language: {e.language || "Not provided"}.</dd></div>; })}
+            {meta.domains.filter(d => adm.input.evidence?.[d.id]?.setting || adm.input.evidence?.[d.id]?.language).map(d => { const e = adm.input.evidence[d.id]; return <div key={d.id}><dt className="text-[10px] uppercase tracking-wide text-slate-400">{d.label}</dt><dd className="text-xs text-slate-700">Setting: {translate(`input.evidence.${d.id}.setting`, e.setting || "Not provided")}. Language: {translate(`input.evidence.${d.id}.language`, e.language || "Not provided")}.</dd></div>; })}
           </dl>
         </section>
       )}
-      {adm.scores && adm.scores.length ? <ScoreList scores={adm.scores} /> : <Banner>Scores are calculated on the server when the {pm ? "parent" : "teacher"} submits.</Banner>}
+      {adm.scores && adm.scores.length ? <ScoreList scores={adm.scores} translate={translate} /> : <Banner>Scores are calculated on the server when the {pm ? "parent" : "teacher"} submits.</Banner>}
       <section className="rounded-xl border border-slate-200 bg-white p-4"><h3 className="text-sm font-bold mb-3">{pm ? "Parent summary" : "Teacher summary"}</h3>
-        <dl className="grid gap-3">{show("Strengths", s.strengths)}{show("Barriers", s.barriers)}{show("Support response", s.supportResponse)}{show("Further discussion", s.discussion)}</dl>
-        {s.priorities.length > 0 && <ul className="mt-3 text-xs text-slate-700 space-y-1 list-disc pl-4">{s.priorities.map((p, i) => <li key={i}>{p.text} <span className="font-mono text-[10px] text-slate-400">{p.itemIds.join(", ")}</span> (proposed owner: {p.owner || "none"})</li>)}</ul>}
+        <dl className="grid gap-3">{show("input.summary.strengths", "Strengths", s.strengths)}{show("input.summary.barriers", "Barriers", s.barriers)}{show("input.summary.supportResponse", "Support response", s.supportResponse)}{show("input.summary.discussion", "Further discussion", s.discussion)}</dl>
+        {s.priorities.length > 0 && <ul className="mt-3 text-xs text-slate-700 space-y-1 list-disc pl-4">{s.priorities.map((p, i) => <li key={i}>{translate(`input.summary.priorities.${i}.text`, p.text)} <span className="font-mono text-[10px] text-slate-400">{p.itemIds.join(", ")}</span> (proposed owner: {translate(`input.summary.priorities.${i}.owner`, p.owner || "none")})</li>)}</ul>}
       </section>
     </div>
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal }: P) {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false }: P & { translate?: Translate; englishView?: boolean }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
   const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
@@ -58,7 +59,8 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal }: P) {
       <Banner title="Manual report, teacher-only evidence">
         {ai === "manual_only" ? "AI drafting is not enabled; write or edit this narrative yourself. " : ""}This draft uses one {pm ? "parent's home" : "teacher's"} observations only. It is not triangulated, and releasing it to families is a separate step that is never automatic. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
       </Banner>
-      <Field label="Report narrative (editable draft)"><textarea rows={14} className={inputCls} value={text} onChange={e => setText(e.target.value)} disabled={approved} data-testid="input-report-narrative" /></Field>
+      {englishView && <Banner>English view is a translation for review. Switch back to the original to edit or approve the source narrative.</Banner>}
+      <Field label={englishView ? "Report narrative (English translation)" : "Report narrative (editable draft)"}><textarea rows={14} className={inputCls} value={englishView ? translate("report.narrative", text) : text} onChange={e => setText(e.target.value)} disabled={approved || englishView} data-testid="input-report-narrative" /></Field>
       <p className="text-[11px] text-slate-500">Required limitation: {meta.reportLimitation}</p>
       {approved && <Banner tone="ok">Approved {fmt(adm.report?.approvedAt)}{adm.report?.approvedBy ? ` by ${adm.report.approvedBy}` : ""}.</Banner>}
       <div className="flex flex-wrap gap-2">
@@ -68,7 +70,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal }: P) {
       {!approved && (adm.report?.narrative ?? "") !== text && <p className="text-[11px] text-amber-700">Save the draft before approving so approval covers this exact text.</p>}
       {versions.length > 0 && (
         <section><h3 className="text-sm font-bold mb-2">Historical versions</h3>
-          <ul className="space-y-2">{versions.map((v, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-[11px] text-slate-500">Version {v.version ?? versions.length - i} {fmt(v.approvedAt ?? v.createdAt ?? v.savedAt)} {v.status ?? ""}</p><p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{v.narrative}</p></li>)}</ul>
+          <ul className="space-y-2">{versions.map((v, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-[11px] text-slate-500">Version {v.version ?? versions.length - i} {fmt(v.approvedAt ?? v.createdAt ?? v.savedAt)} {v.status ?? ""}</p><p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap">{translate(`report.versions.${i}.narrative`, v.narrative)}</p></li>)}</ul>
         </section>
       )}
     </div>

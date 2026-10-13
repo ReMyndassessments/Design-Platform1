@@ -16,6 +16,10 @@ export default function CaseReview({ caseId }: { caseId: string }) {
   const [sel, setSel] = useState<string | null>(null);
   const [tab, setTab] = useState<(typeof TABS)[number][0]>("evidence");
   const [busy, setBusy] = useState(false);
+  const [englishView, setEnglishView] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, string> | null>(null);
+  const [translationBusy, setTranslationBusy] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
   const load = useCallback(() => {
     setError(null);
     clRequest<Listing>(caseUrl(caseId), { staff: true }).then(d => { setData(d); setSel(s => s ?? d.administrations[0]?.assignmentId ?? null); }).catch(e => setError(e instanceof ApiError ? e.message : "Could not load."));
@@ -26,12 +30,41 @@ export default function CaseReview({ caseId }: { caseId: string }) {
   const metaOf = (a: ClAdministration): ClMetadata => a.metadata ?? data!.metadata;
   const isParent = (a: ClAdministration) => metaOf(a).key === PARENT_INSTRUMENT_ID;
   const who = (a: ClAdministration) => (isParent(a) ? "Parent" : "Teacher");
+  useEffect(() => {
+    setEnglishView(false);
+    setTranslations(null);
+    setTranslationError(null);
+  }, [sel]);
+  const toggleEnglish = async () => {
+    if (englishView) { setEnglishView(false); return; }
+    if (translations) { setEnglishView(true); return; }
+    if (!adm) return;
+    setTranslationBusy(true);
+    setTranslationError(null);
+    try {
+      const result = await clRequest<{ translations: Record<string, string> }>(
+        `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/translate`,
+        { method: "POST", staff: true },
+      );
+      setTranslations(result.translations);
+      setEnglishView(true);
+    } catch (e) {
+      setTranslationError(e instanceof ApiError ? e.message : "Could not translate this report. Please try again.");
+    } finally {
+      setTranslationBusy(false);
+    }
+  };
+  const translate = (path: string, value: unknown) => typeof value === "string" && englishView
+    ? translations?.[path] ?? value
+    : String(value ?? "");
   const run = async (body: Record<string, unknown>) => {
     if (!adm || !data) return;
     setBusy(true); setActionError(null);
     try {
       const res = await clRequest<any>(`${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/action`, { method: "POST", staff: true, body: { ...body, revision: adm.revision } });
       if (res.administration) {
+        setEnglishView(false);
+        setTranslations(null);
         const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...res.administration };
         setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
       }
@@ -62,6 +95,16 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             ))}
           </div>
           <p className="text-xs text-slate-500">{metaOf(adm).formName ?? `${who(adm)} form`} ({who(adm)} record; setting {metaOf(adm).setting ?? "not stated"}). {adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
+          {(tab === "evidence" || tab === "report") && <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Btn variant="ghost" disabled={translationBusy} onClick={() => void toggleEnglish()} data-testid="button-translate-report">
+                {translationBusy ? "Translating…" : englishView ? "View original Chinese" : "View in English"}
+              </Btn>
+              {englishView && <span className="text-[11px] text-slate-500">Translated for review; saved responses are unchanged.</span>}
+              {!englishView && <span className="text-[11px] text-slate-500">AI translation uses Replit credits.</span>}
+            </div>
+            {translationError && <Banner tone="error" title="Translation unavailable">{translationError}</Banner>}
+          </>}
           {data.integration.portal === "not_configured" && <p className="text-[11px] text-slate-500">Case Portal is not configured. Nothing is synchronised.</p>}
           {actionError && <Banner tone="error" title="Action not completed">{actionError}</Banner>}
           <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
@@ -70,7 +113,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-            return tab === "evidence" ? <EvidencePanel {...p} /> : tab === "report" ? <ReportPanel {...p} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
+            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}
         </>

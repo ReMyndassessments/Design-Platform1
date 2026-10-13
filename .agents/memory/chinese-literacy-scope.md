@@ -38,3 +38,9 @@ Concrete examples are optional in both parent and teacher forms, including for r
 **Why:** The user explicitly requested removing this submission barrier for the parent and teacher on 2026-10-12, without making respondents redo completed work.
 
 **How to apply:** Keep client and server validation consistent and label optional examples clearly in English and Chinese. Preserve examples already entered.
+
+The staff Chinese literacy review needs an English-view translation toggle for Chinese respondent-authored text; translations are read-only and never replace saved responses.
+
+**Why:** The user requested an English view of the Chinese literacy review on 2026-10-13.
+
+**How to apply:** Translate on demand, preserve source wording for edits/exports, show failures clearly, and disclose Replit-credit use for AI translation.

@@ -5,7 +5,7 @@ const IMPACT: Record<string, string> = { "0": "0 No observed access impact", "1"
 const STATUS: Record<string, string> = { scored: "Descriptive mean available", eligible: "Descriptive mean available", insufficient_observations: "Insufficient observations", not_applicable: "Not applicable", not_administered: "Not administered", not_observed: "Not observed" };
 const pct = (c: number | null) => (c == null ? "n/a" : `${Math.round(c * 1000) / 10}%`);
 
-export function ScoreList({ scores }: { scores: ClScore[] }) {
+export function ScoreList({ scores, translate = (_path, value) => String(value ?? "") }: { scores: ClScore[]; translate?: (path: string, value: unknown) => string }) {
   const view = useLocalizedView();
   return view(
     <div className="space-y-3" data-testid="list-scores">
@@ -32,7 +32,7 @@ export function ScoreList({ scores }: { scores: ClScore[] }) {
             {s.frequentDifficultyCount > 0 && <p className="text-[11px] text-slate-500 mt-1">Review aid, items rated 4 or 5: {s.frequentDifficultyItemIds.join(", ")}. Not a diagnostic cutoff.</p>}
             {s.examples?.length > 0 && (
               <ul className="mt-2 space-y-1 text-xs text-slate-600 list-disc pl-4">
-                {s.examples.map((e, i) => <li key={i}>{e.text} <span className="font-mono text-[10px] text-slate-400">{e.itemIds.join(", ")}</span></li>)}
+                {s.examples.map((e, i) => <li key={i}>{translate(`input.evidence.${s.id}.examples.${i}.text`, e.text)} <span className="font-mono text-[10px] text-slate-400">{e.itemIds.join(", ")}</span></li>)}
               </ul>
             )}
           </div>
