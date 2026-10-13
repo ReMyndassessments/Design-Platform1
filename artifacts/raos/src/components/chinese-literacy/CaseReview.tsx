@@ -7,7 +7,7 @@ import type { ClAdministration, ClMetadata, SupportPlanDraft } from "./types";
 import { Banner, Btn, Skeleton } from "./ui";
 
 interface Listing { administrations: ClAdministration[]; metadata: ClMetadata; integration: { portal: string; ai: string } }
-const TABS = [["evidence", "Evidence"], ["report", "Report"], ["plan", "Support plan"], ["monitor", "Monitoring"], ["follow", "Follow-up and export"]] as const;
+const TABS = [["evidence", "Evidence"], ["report", "Report"], ["plan", "Support plan"]] as const;
 
 export default function CaseReview({ caseId }: { caseId: string }) {
   const [data, setData] = useState<Listing | null>(null);
@@ -138,8 +138,22 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-               return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format, "report")} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} /> : tab === "plan" ? <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} /> : tab === "monitor" ? <MonitoringPanel {...p} translate={translate} />
-              : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
+               if (tab === "evidence") return <EvidencePanel {...p} translate={translate} />;
+               if (tab === "report") return (
+                 <div className="space-y-5">
+                   <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onExport={format => downloadExport(caseId, adm.assignmentId, format)} onOpenSupportPlan={() => { setEnglishView(false); setTab("plan"); }} />
+                   <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="literacy-monitoring-heading">
+                     <div><h2 id="literacy-monitoring-heading" className="text-lg font-bold text-slate-900">Monitoring</h2><p className="text-xs text-slate-500">Optional progress notes and any available baseline-to-follow-up comparison.</p></div>
+                     <MonitoringPanel {...p} translate={translate} />
+                   </section>
+                   <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="literacy-followup-heading">
+                     <div><h2 id="literacy-followup-heading" className="text-lg font-bold text-slate-900">Follow-up</h2><p className="text-xs text-slate-500">Optional repeat administration. It does not send an email automatically.</p></div>
+                     <FollowUpPanel {...p} />
+                   </section>
+                 </div>
+               );
+               if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={format => downloadExport(caseId, adm.assignmentId, format)} />;
+               return null;
           })()}
         </>
       )}

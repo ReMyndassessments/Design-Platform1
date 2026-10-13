@@ -374,7 +374,7 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/action", authMiddlewa
   res.json(await literacyEnvelope(result as LiteracyDocument));
 }));
 router.get("/cases/:caseId/chinese-literacy/:assignmentId/export", authMiddleware, safe(async (req, res) => {
-  await staffCase(req);
+  const c = await staffCase(req);
   const [assignment] = await db.select().from(assignmentsTable).where(and(eq(assignmentsTable.id, String(req.params.assignmentId)), eq(assignmentsTable.caseId, String(req.params.caseId)), inArray(assignmentsTable.toolId, CHINESE_LITERACY_KEYS))).limit(1);
   if (!assignment) throw new AccessError(404, "Respondent administration not found.");
   let doc = await loadLiteracy(assignment);
@@ -392,6 +392,31 @@ router.get("/cases/:caseId/chinese-literacy/:assignmentId/export", authMiddlewar
   audit(req, doc, reportOnly ? "report_exported" : "exported");
   res.setHeader("Content-Type", word ? "application/msword; charset=utf-8" : "text/html; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${reportOnly ? "chinese-literacy-report" : `chinese-literacy-${doc.revision}`}.${word ? "doc" : "html"}"`);
-  res.send(reportOnly ? literacyReportExport(doc) : literacyExport(doc));
+  if (reportOnly) {
+    res.send(literacyReportExport(doc));
+    return;
+  }
+
+  let baselineDoc = doc;
+  let followupDocs: LiteracyDocument[] = [];
+  if (doc.baselineId) {
+    const baselineResult = await db.execute(sql`SELECT document FROM chinese_literacy_administrations WHERE assignment_id=${doc.baselineId} AND case_id=${c.id}`);
+    baselineDoc = (baselineResult.rows[0]?.document as LiteracyDocument | undefined)
+      ?? (doc as LiteracyDocument & { baselineSnapshot?: LiteracyDocument }).baselineSnapshot
+      ?? doc;
+    followupDocs = [doc];
+  } else {
+    const linked = await db.execute(sql`SELECT document FROM chinese_literacy_administrations
+      WHERE case_id=${c.id} AND document->>'baselineId'=${doc.assignmentId}`);
+    followupDocs = linked.rows
+      .map(row => row.document as LiteracyDocument)
+      .filter(followup => followup.baselineId === doc.assignmentId && followup.assignmentId !== doc.assignmentId);
+  }
+  const baselineEnvelope = await literacyEnvelope(baselineDoc);
+  const followupEnvelopes = await Promise.all(followupDocs.map(followup => literacyEnvelope(followup)));
+  res.send(literacyExport({
+    ...baselineEnvelope.administration,
+    linkedFollowups: followupEnvelopes.map(envelope => envelope.administration),
+  }));
 }));
 export default router;

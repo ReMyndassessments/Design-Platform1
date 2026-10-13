@@ -90,3 +90,31 @@ test("parent exports show home source, confirmation, exact P- wording and safe H
   const html=literacyExport(doc);assert(html.includes("Parent-reported observations in the home setting"));assert(html.includes("P-R1"));assert(html.includes(meta.reportLimitation));
   assert(html.includes("Classroom observations were not available"));assert(html.includes("Source-parent confirmation: Confirmed"));assert(!html.includes("<script>"));assert(!html.includes("one teacher’s perspective"));
 });
+test("full snapshot includes the report, agreed plan, monitoring and linked follow-up comparison", () => {
+  const input = fixture();
+  const baseline: any = {
+    metadata: meta, input, selectedDomains: domains.map(d => d.id), scores: scoreLiteracy(input, undefined, meta),
+    contextSnapshot: { studentId: "synthetic-case" }, teacherName: "SYNTHETIC Parent", instrumentVersion: meta.version,
+    scoringVersion: meta.scoringVersion, languageVersion: "en-0.1.0", revision: 3, status: "approved",
+    submittedAt: "2026-10-02", sourceConfirmation: { confirmed: true, date: "2026-10-02" },
+    report: { narrative: "# Observation report\n\n## Observations by Domain\nThis section is generated from the selected respondent.", approvedAt: "2026-10-10", approvedBy: "Synthetic reviewer" },
+    plan: { pathway: "classroom_support_review", rationale: "Continue supported shared reading.", approvedAt: "2026-10-11",
+      priorities: [{ text: "Shared reading", itemIds: ["P-R1"], strategyId: "shared-reading", owner: "Teacher", indicator: "Reads a short passage", reviewDate: "2026-11-20" }] },
+    monitoring: { entries: [{ date: "2026-10-12", supportDelivered: "Shared reading", participation: "Joined for ten minutes", note: "Synthetic note." }] },
+  };
+  const followup: any = {
+    ...baseline, assignmentId: "synthetic-followup", baselineId: "synthetic-baseline", status: "submitted", revision: 1,
+    report: null, plan: null, submittedAt: "2026-11-20",
+    monitoring: { entries: [], comparison: [{ domainId: "R",
+      baseline: { displayMean: "2.0", validCount: 5, applicableCount: 5, coverage: 1 },
+      followup: { displayMean: "3.0", validCount: 5, applicableCount: 5, coverage: 1 },
+      change: 1, limitations: ["Same respondent and item set"] }] },
+  };
+  const html = literacyExport({ ...baseline, linkedFollowups: [followup] });
+  for (const text of ["Professional report", "Support plan", "Continue supported shared reading", "Monitoring (optional)",
+    "Shared reading", "Follow-up (optional)", "Baseline and follow-up comparison", "Same respondent and item set", "Differences are descriptive only"]) {
+    assert(html.includes(text), `expected full report export to contain: ${text}`);
+  }
+  assert(!html.includes("<pre>"), "the report narrative should be formatted as a professional report, not raw Markdown");
+  assert(literacyExport(baseline).includes("No linked follow-up has been created"), "follow-up must remain optional in a baseline export");
+});

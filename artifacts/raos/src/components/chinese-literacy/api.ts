@@ -31,7 +31,7 @@ export const formUrl = (token: string) => `/api/external/form/${encodeURICompone
 export const metadataUrl = (instrument: string) => `/api/chinese-literacy/metadata?instrument=${encodeURIComponent(instrument)}`;
 export const caseUrl = (caseId: string) => `/api/cases/${encodeURIComponent(caseId)}/chinese-literacy`;
 export async function downloadExport(caseId: string, assignmentId: string, format: "html" | "doc", scope: "record" | "report" = "record") {
-  const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}&scope=${scope}`, { headers: staffHeaders() });
+  const res = await fetch(`${base()}${caseUrl(caseId)}/${encodeURIComponent(assignmentId)}/export?format=${format}&scope=${scope}`, { headers: staffHeaders(), credentials: "include" });
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

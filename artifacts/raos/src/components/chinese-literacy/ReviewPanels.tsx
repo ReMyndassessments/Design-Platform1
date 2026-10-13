@@ -135,11 +135,12 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
         <Btn variant="ghost" disabled={!canExport} onClick={() => void exportReport("doc")} data-testid="button-download-literacy-report">
-          {exporting ? "Preparing report…" : "Download Word report"}
+          {exporting ? "Preparing full report…" : "Download full report (Word)"}
         </Btn>
-        <Btn variant="ghost" disabled={!canPrint} onClick={() => window.print()} data-testid="button-print-literacy-report">
-          Print / Save as PDF
+        <Btn variant="ghost" disabled={!canPrint} onClick={() => void exportReport("html")} data-testid="button-print-literacy-report">
+          Open printable full report
         </Btn>
+        <span className="text-[11px] text-slate-500">The full export includes this report, the support plan when available, monitoring, and linked follow-up results.</span>
         {!adm.report?.narrative && <span className="text-[11px] text-slate-500">Generate and save a report draft before downloading or printing.</span>}
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your edits first so the download and printout match the saved report.</span>}
         {editing && !englishView && adm.report?.narrative && !hasUnsavedEdits && <span className="text-[11px] text-slate-500">Preview the formatted report before printing.</span>}
@@ -157,9 +158,10 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
 
 const PATHWAYS: Array<[string, string]> = [["classroom_support_review", "Classroom support and review"], ["targeted_support_planning", "Targeted support planning"], ["comprehensive_assessment_discussion", "Comprehensive assessment discussion"], ["additional_information_needed", "Additional information needed"], ["wellbeing_pathway", "Existing wellbeing pathway"]];
 
-export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, translate = (_path, value) => String(value ?? ""), englishView = false }: P & {
+export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, onExportFinal, translate = (_path, value) => String(value ?? ""), englishView = false }: P & {
   onGenerate: () => Promise<SupportPlanDraft>;
   onOpenReport: () => void;
+  onExportFinal: (format: "html" | "doc") => Promise<void>;
   translate?: Translate;
   englishView?: boolean;
 }) {
@@ -169,6 +171,8 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, tran
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const items = Array.from(new Set(adm.input.responses.filter(r => r.status === "rated").map(r => r.itemId)));
   const approved = isApproved(adm);
   const ready = rationale.trim() && pathway && pri.length > 0 && pri.length <= 3 && pri.every(p =>
@@ -190,6 +194,18 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, tran
       setGenerating(false);
     }
   };
+  const exportFinal = async (format: "html" | "doc") => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      await onExportFinal(format);
+    } catch (error) {
+      setExportError((error as Error).message || "Could not prepare the final report.");
+    } finally {
+      setExporting(false);
+    }
+  };
+  const finalReportReady = Boolean(adm.report?.approvedAt && adm.plan?.approvedAt);
   return (
     <div className="space-y-4">
       {!approved && <Banner tone="warn" title="Approve the report before generating a support plan">
@@ -212,6 +228,20 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, tran
       <p className="text-[11px] text-slate-500">Keep accommodations and skill instruction separately labelled. Audio access to content is not proof that independent reading improved.</p>
       <p className="text-[11px] text-slate-500">Each priority needs an evidence link, proposed owner, observable progress indicator and review date.</p>
       <Btn disabled={busy || generating || englishView || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="text-sm font-bold">Print final report</h3>
+        <p className="text-xs text-slate-500">Includes the saved professional report, agreed support plan, monitoring entries, and any linked follow-up results and comparison. This export keeps parent and teacher records separate and uses the saved source wording.</p>
+        <div className="flex flex-wrap gap-2">
+          <Btn variant="ghost" disabled={!finalReportReady || exporting || busy} onClick={() => void exportFinal("html")} data-testid="button-print-final-report">
+            {exporting ? "Preparing final report…" : "Open printable final report"}
+          </Btn>
+          <Btn variant="ghost" disabled={!finalReportReady || exporting || busy} onClick={() => void exportFinal("doc")} data-testid="button-download-final-report-word">Download final report (Word)</Btn>
+        </div>
+        {!finalReportReady && <p className="text-[11px] text-amber-700">{adm.baselineId
+          ? "Select the approved baseline administration to print the final report; its export will include this linked follow-up."
+          : "Approve the report and support plan to enable the final report export."}</p>}
+        {exportError && <Banner tone="error" title="Final report not prepared">{exportError}</Banner>}
+      </section>
     </div>
   );
 }
@@ -222,6 +252,9 @@ export function MonitoringPanel({ adm, run, busy, translate = (_path, value) => 
   const comparison: any[] = adm.monitoring?.comparison ?? adm.monitoring?.comparisons ?? [];
   return (
     <div className="space-y-5">
+      <Banner title="Optional progress tracking">
+        Record support delivery and participation here only if you want to monitor an agreed plan. Monitoring is not required to complete the report or proceed with further assessment; entries are available after the support plan is approved.
+      </Banner>
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-bold">Manual progress entry</h3>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -230,7 +263,7 @@ export function MonitoringPanel({ adm, run, busy, translate = (_path, value) => 
         </div>
         <Field label="Classroom participation"><input className={inputCls} value={e.participation} onChange={x => setE({ ...e, participation: x.target.value })} /></Field>
         <Field label="Note"><textarea rows={2} className={inputCls} value={e.note} onChange={x => setE({ ...e, note: x.target.value })} /></Field>
-        <Btn disabled={busy || !e.date || !e.supportDelivered.trim()} onClick={() => run({ action: "monitor", entry: e }).then(() => setE({ date: "", supportDelivered: "", participation: "", note: "" }))} data-testid="button-add-entry">Add entry</Btn>
+        <Btn disabled={busy || !adm.plan?.approvedAt || !e.date || !e.supportDelivered.trim()} onClick={() => run({ action: "monitor", entry: e }).then(() => setE({ date: "", supportDelivered: "", participation: "", note: "" }))} data-testid="button-add-entry">Add entry</Btn>
       </section>
          {entries.length === 0 ? <Banner>No progress entries yet. A review roughly 6 to 8 weeks after support starts is suggested, but it is not required for further assessment.</Banner> : (
          <ul className="space-y-2">{entries.map((x, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700"><span className="font-semibold">{x.date}</span>: {translate(`monitoring.entries.${i}.supportDelivered`, x.supportDelivered)}. Participation: {translate(`monitoring.entries.${i}.participation`, x.participation || "not recorded")}. {translate(`monitoring.entries.${i}.note`, x.note)}</li>)}</ul>
@@ -248,30 +281,23 @@ export function MonitoringPanel({ adm, run, busy, translate = (_path, value) => 
   );
 }
 
-export function FollowUpPanel({ adm, meta, run, busy, onExport }: P & { onExport: (f: "html" | "doc") => Promise<void> }) {
+export function FollowUpPanel({ adm, meta, run, busy }: P) {
   const [whole, setWhole] = useState(true);
   const [sel, setSel] = useState<string[]>([]);
   const [link, setLink] = useState<string | null>(null);
-  const [exp, setExp] = useState<string | null>(null);
   const domains: ClDomain[] = meta.domains;
   const go = async () => { const r = await run({ action: "followup", ...(whole ? {} : { domains: sel }) }); if (r?.link) setLink(r.link); };
-  const doExport = async (f: "html" | "doc") => { setExp(null); try { await onExport(f); } catch (e) { setExp((e as Error).message); } };
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-bold">Create linked follow-up</h3>
-        <p className="text-xs text-slate-500">The follow-up is linked to this baseline. Domains left out are recorded as not administered. No email is sent; share the link yourself.</p>
+        <h3 className="text-sm font-bold">Create linked follow-up (optional)</h3>
+        <p className="text-xs text-slate-500">Use this only if you want the same respondent to complete this form again later. The baseline must be approved first. Domains left out are recorded as not administered. No email is sent; share the link yourself.</p>
         <label className="flex items-center gap-2 text-xs"><input type="radio" checked={whole} onChange={() => setWhole(true)} /> Whole form</label>
         <label className="flex items-center gap-2 text-xs"><input type="radio" checked={!whole} onChange={() => setWhole(false)} /> Selected full domains</label>
         {!whole && <div className="grid sm:grid-cols-2 gap-1">{domains.map(d => <label key={d.id} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={sel.includes(d.id)} onChange={() => setSel(sel.includes(d.id) ? sel.filter(x => x !== d.id) : [...sel, d.id])} /> {d.label}</label>)}</div>}
-        <Btn disabled={busy || (!whole && sel.length === 0)} onClick={go} data-testid="button-followup">Create follow-up</Btn>
+        <Btn disabled={busy || adm.status !== "approved" || (!whole && sel.length === 0)} onClick={go} data-testid="button-followup">Create follow-up</Btn>
+        {adm.status !== "approved" && <p className="text-[11px] text-amber-700">Approve the baseline record before creating a follow-up. This is not required for the report.</p>}
         {link && <Banner tone="ok" title="Follow-up created"><input readOnly className={inputCls} value={link} onFocus={e => e.currentTarget.select()} data-testid="text-followup-link" /></Banner>}
-      </section>
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-bold">Export frozen snapshot</h3>
-        <p className="text-xs text-slate-500">Printable HTML supports browser Save as PDF. The Word document is editable.</p>
-        <div className="flex gap-2"><Btn variant="ghost" onClick={() => doExport("html")} data-testid="button-export-html">Printable HTML</Btn><Btn variant="ghost" onClick={() => doExport("doc")} data-testid="button-export-doc">Word document</Btn></div>
-        {exp && <Banner tone="error">{exp}</Banner>}
       </section>
     </div>
   );

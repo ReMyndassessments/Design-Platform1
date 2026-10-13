@@ -68,3 +68,9 @@ Report approval must remain available in any translated display language; approv
 **Why:** The user explicitly requested staff be able to approve reports regardless of the language currently displayed on 2026-10-13.
 
 **How to apply:** Do not disable approval in read-only translation views. Keep editing and saving tied to the canonical saved narrative; clearly tell staff which saved report is being approved.
+
+Monitoring and follow-up belong inside the Report page, not as separate top-level tabs. The final printable/exportable report is also available from Support plan and includes the approved report, plan, monitoring entries, and linked follow-up results.
+
+**Why:** The user explicitly requested this report flow on 2026-10-13 so optional progress and repeat-assessment information can be read and printed as one report.
+
+**How to apply:** Keep monitoring and repeat administrations optional, preserve parent/teacher separation, and assemble current structured entries at export time without rewriting the approved narrative.
