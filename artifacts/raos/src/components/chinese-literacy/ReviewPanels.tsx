@@ -110,8 +110,8 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       <p className="text-[11px] text-slate-500">Required limitation: {meta.reportLimitation}</p>
       {approved && <Banner tone="ok">Approved {fmt(adm.report?.approvedAt)}{adm.report?.approvedBy ? ` by ${adm.report.approvedBy}` : ""}.</Banner>}
       <div className="flex flex-wrap gap-2">
-        <Btn variant="ghost" disabled={busy || approved || !text.trim()} onClick={() => run({ action: "report", report: { narrative: text } })} data-testid="button-save-report">Save draft</Btn>
-        <Btn disabled={busy || approved || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
+        <Btn variant="ghost" disabled={busy || approved || englishView || !text.trim()} onClick={() => run({ action: "report", report: { narrative: text } })} data-testid="button-save-report">Save draft</Btn>
+        <Btn disabled={busy || approved || englishView || !text.trim() || (adm.report?.narrative ?? "") !== text} onClick={() => run({ action: "approve" })} data-testid="button-approve">Approve report</Btn>
       </div>
       {!approved && (adm.report?.narrative ?? "") !== text && <p className="text-[11px] text-amber-700">Save the draft before approving so approval covers this exact text.</p>}
       {versions.length > 0 && (
@@ -125,7 +125,12 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
 
 const PATHWAYS: Array<[string, string]> = [["classroom_support_review", "Classroom support and review"], ["targeted_support_planning", "Targeted support planning"], ["comprehensive_assessment_discussion", "Comprehensive assessment discussion"], ["additional_information_needed", "Additional information needed"], ["wellbeing_pathway", "Existing wellbeing pathway"]];
 
-export function PlanPanel({ adm, meta, run, busy, onGenerate }: P & { onGenerate: () => Promise<SupportPlanDraft> }) {
+export function PlanPanel({ adm, meta, run, busy, onGenerate, onOpenReport, translate = (_path, value) => String(value ?? ""), englishView = false }: P & {
+  onGenerate: () => Promise<SupportPlanDraft>;
+  onOpenReport: () => void;
+  translate?: Translate;
+  englishView?: boolean;
+}) {
   const [rationale, setRationale] = useState<string>(adm.plan?.rationale ?? "");
   const [pathway, setPathway] = useState<string>(adm.plan?.pathway ?? "");
   const [pri, setPri] = useState<Priority[]>(adm.plan?.priorities ?? adm.input.summary.priorities ?? []);
@@ -155,27 +160,31 @@ export function PlanPanel({ adm, meta, run, busy, onGenerate }: P & { onGenerate
   };
   return (
     <div className="space-y-4">
-      {!approved && <Banner tone="warn">A support plan needs an approved report first.</Banner>}
+      {!approved && <Banner tone="warn" title="Approve the report before generating a support plan">
+        <span>A support plan needs an approved report first. </span>
+        <button type="button" className="font-semibold underline" onClick={onOpenReport} data-testid="button-open-report-for-plan">Open the Report tab</button>
+        <span> to review and approve it.</span>
+      </Banner>}
       <Banner>The generated plan is a suggestion for professional review—not a score-based or diagnostic decision. Parent and teacher evidence stay separate; support and further assessment can proceed in parallel.</Banner>
       <div className="flex flex-wrap items-center gap-2">
-        <Btn variant="ghost" disabled={!approved || busy || generating} onClick={() => void generate()} data-testid="button-generate-support-plan">
+        <Btn variant="ghost" disabled={!approved || busy || generating || englishView} onClick={() => void generate()} data-testid="button-generate-support-plan">
           {generating ? "Generating support-plan draft…" : "Generate support plan with DeepSeek"}
         </Btn>
         <span className="text-[11px] text-slate-500">Only this respondent’s submitted form and approved report are sent to your configured DeepSeek API. Charges follow your DeepSeek account; the draft is not saved until you approve it.</span>
       </div>
       {generateError && <Banner tone="error" title="Support plan not generated">{generateError}</Banner>}
       {generated && <Banner tone="warn" title="AI-generated suggestion — review before approval">Confirm the pathway, evidence links, proposed owner and progress indicator. Choose a review date after agreeing when support starts.</Banner>}
-      <Field label="Suggested pathway — confirm or change"><select className={inputCls} value={pathway} onChange={e => setPathway(e.target.value)} data-testid="select-pathway"><option value="">Choose a pathway</option>{PATHWAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
-      <Field label="Rationale"><textarea rows={4} className={inputCls} value={rationale} onChange={e => setRationale(e.target.value)} /></Field>
-      <PriorityEditor priorities={pri} onChange={setPri} strategies={meta.strategies} itemOptions={items} max={3} />
+      <Field label="Suggested pathway — confirm or change"><select className={inputCls} value={pathway} onChange={e => setPathway(e.target.value)} disabled={englishView} data-testid="select-pathway"><option value="">Choose a pathway</option>{PATHWAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+      <Field label="Rationale"><textarea rows={4} className={inputCls} value={englishView ? translate("plan.rationale", rationale) : rationale} onChange={e => setRationale(e.target.value)} readOnly={englishView} /></Field>
+      <PriorityEditor priorities={pri} onChange={setPri} strategies={meta.strategies} itemOptions={items} max={3} readOnly={englishView || generating} englishView={englishView} translate={translate} />
       <p className="text-[11px] text-slate-500">Keep accommodations and skill instruction separately labelled. Audio access to content is not proof that independent reading improved.</p>
       <p className="text-[11px] text-slate-500">Each priority needs an evidence link, proposed owner, observable progress indicator and review date.</p>
-      <Btn disabled={busy || generating || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
+      <Btn disabled={busy || generating || englishView || !approved || !ready} onClick={() => run({ action: "plan", plan: { rationale, pathway, priorities: pri } })} data-testid="button-save-plan">Approve support plan</Btn>
     </div>
   );
 }
 
-export function MonitoringPanel({ adm, run, busy }: P) {
+export function MonitoringPanel({ adm, run, busy, translate = (_path, value) => String(value ?? "") }: P & { translate?: Translate }) {
   const [e, setE] = useState({ date: "", supportDelivered: "", participation: "", note: "" });
   const entries: any[] = adm.monitoring?.entries ?? [];
   const comparison: any[] = adm.monitoring?.comparison ?? adm.monitoring?.comparisons ?? [];
@@ -191,15 +200,15 @@ export function MonitoringPanel({ adm, run, busy }: P) {
         <Field label="Note"><textarea rows={2} className={inputCls} value={e.note} onChange={x => setE({ ...e, note: x.target.value })} /></Field>
         <Btn disabled={busy || !e.date || !e.supportDelivered.trim()} onClick={() => run({ action: "monitor", entry: e }).then(() => setE({ date: "", supportDelivered: "", participation: "", note: "" }))} data-testid="button-add-entry">Add entry</Btn>
       </section>
-      {entries.length === 0 ? <Banner>No progress entries yet. A review roughly 6 to 8 weeks after support starts is suggested, but it is not required for further assessment.</Banner> : (
-        <ul className="space-y-2">{entries.map((x, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700"><span className="font-semibold">{x.date}</span>: {x.supportDelivered}. Participation: {x.participation || "not recorded"}. {x.note}</li>)}</ul>
+         {entries.length === 0 ? <Banner>No progress entries yet. A review roughly 6 to 8 weeks after support starts is suggested, but it is not required for further assessment.</Banner> : (
+         <ul className="space-y-2">{entries.map((x, i) => <li key={i} className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700"><span className="font-semibold">{x.date}</span>: {translate(`monitoring.entries.${i}.supportDelivered`, x.supportDelivered)}. Participation: {translate(`monitoring.entries.${i}.participation`, x.participation || "not recorded")}. {translate(`monitoring.entries.${i}.note`, x.note)}</li>)}</ul>
       )}
       <section><h3 className="text-sm font-bold mb-2">Baseline and follow-up comparison</h3>
         {comparison.length === 0 ? <p className="text-xs text-slate-500">No linked follow-up has been submitted.</p> : (
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white"><table className="w-full text-xs"><thead className="bg-slate-50 text-left text-slate-500"><tr><th className="p-2">Domain</th><th className="p-2">Baseline</th><th className="p-2">Follow-up</th><th className="p-2">Change</th><th className="p-2">Conditions</th></tr></thead>
             <tbody>{comparison.map((r, i) => { const cv = (x: any) => x ? `${x.displayMean ?? "no mean"} (${x.validCount ?? "?"}/${x.applicableCount ?? "?"} rated, ${x.coverage != null ? Math.round(x.coverage * 100) + "%" : "n/a"})` : "Not administered";
               return <tr key={i} className="border-t border-slate-100 align-top"><td className="p-2 font-semibold">{r.domainId}</td><td className="p-2">{cv(r.baseline)}</td><td className="p-2">{cv(r.followup)}</td>
-                <td className="p-2 tabular-nums">{r.change == null ? "Not calculated" : (r.change > 0 ? "+" : "") + Number(r.change).toFixed(1)}</td><td className="p-2 text-slate-500">{(r.limitations ?? []).join("; ") || "Coverage conditions met"}</td></tr>; })}</tbody></table></div>
+                <td className="p-2 tabular-nums">{r.change == null ? "Not calculated" : (r.change > 0 ? "+" : "") + Number(r.change).toFixed(1)}</td><td className="p-2 text-slate-500">{(r.limitations ?? []).map((limitation: string, j: number) => translate(`monitoring.comparison.${i}.limitations.${j}`, limitation)).join("; ") || "Coverage conditions met"}</td></tr>; })}</tbody></table></div>
         )}
         <p className="text-[11px] text-slate-500 mt-2">A lower frequency may reflect changing support or conditions and is not shown as a significant effect. A change is only calculated when both administrations meet coverage conditions.</p>
       </section>

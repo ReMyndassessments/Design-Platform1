@@ -43,7 +43,7 @@ The staff Chinese literacy review needs an English-view translation toggle for C
 
 **Why:** The user requested an English view of the Chinese literacy review on 2026-10-13.
 
-**How to apply:** Translate on demand, preserve source wording for edits/exports, show failures clearly, and disclose Replit-credit use for AI translation and report drafting.
+**How to apply:** Show the English/original toggle on every review tab; translate respondent text, report, plan, and monitoring notes on demand, preserve source wording for edits/exports, and show failures clearly.
 
 Staff may generate an AI-assisted editable report draft from one submitted Chinese literacy respondent form at a time. Keep parent and teacher evidence separate; never diagnose or release the draft without professional approval.
 
@@ -55,4 +55,4 @@ AI-assisted Chinese Literacy support plans are drafts from one selected responde
 
 **Why:** The user requested AI-generated support plans in addition to reports on 2026-10-13.
 
-**How to apply:** Use DeepSeek; keep parent-home and teacher-classroom evidence separate, validate suggestions against the respondent's rated item IDs and permitted strategies, and require staff to select a review date before approving the plan.
+**How to apply:** Use DeepSeek; keep parent-home and teacher-classroom evidence separate, validate suggestions against the respondent's rated item IDs and permitted strategies, and require staff to select a review date before approving the plan. Keep the generator entry point visible across review tabs and link directly to the report approval gate when needed.

@@ -116,16 +116,20 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             ))}
           </div>
           <p className="text-xs text-slate-500">{metaOf(adm).formName ?? `${who(adm)} form`} ({who(adm)} record; setting {metaOf(adm).setting ?? "not stated"}). {adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
-          {(tab === "evidence" || tab === "report") && <>
-            <div className="flex flex-wrap items-center gap-2">
-              <Btn variant="ghost" disabled={translationBusy} onClick={() => void toggleEnglish()} data-testid="button-translate-report">
-                {translationBusy ? "Translating…" : englishView ? "View original Chinese" : "View in English"}
-              </Btn>
-              {englishView && <span className="text-[11px] text-slate-500">Translated for review; saved responses are unchanged.</span>}
-              {!englishView && <span className="text-[11px] text-slate-500">Chinese Literacy report drafting and translation use your configured DeepSeek API.</span>}
-            </div>
-            {translationError && <Banner tone="error" title="Translation unavailable">{translationError}</Banner>}
-          </>}
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn variant="ghost" disabled={translationBusy} onClick={() => void toggleEnglish()} data-testid="button-translate-report">
+              {translationBusy ? "Translating…" : englishView ? "View original Chinese" : "View in English"}
+            </Btn>
+            <span className="text-[11px] text-slate-500">
+              {englishView
+                ? "English translation for review only; saved responses and report text are unchanged."
+                : "Translate respondent evidence and any Chinese report, plan, or monitoring notes for review. Uses your configured DeepSeek API."}
+            </span>
+            <Btn variant="ghost" onClick={() => { setEnglishView(false); setTab("plan"); }} data-testid="button-open-support-plan">
+              Open support-plan generator
+            </Btn>
+          </div>
+          {translationError && <Banner tone="error" title="Translation unavailable">{translationError}</Banner>}
           {data.integration.portal === "not_configured" && <p className="text-[11px] text-slate-500">Case Portal is not configured. Nothing is synchronised.</p>}
           {actionError && <Banner tone="error" title="Action not completed">{actionError}</Banner>}
           <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200">
@@ -134,7 +138,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} onGenerate={generateSupportPlan} /> : tab === "monitor" ? <MonitoringPanel {...p} />
+             return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} /> : tab === "monitor" ? <MonitoringPanel {...p} translate={translate} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}
         </>

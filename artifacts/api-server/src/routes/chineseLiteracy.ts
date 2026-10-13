@@ -257,7 +257,7 @@ router.post("/cases/:caseId/chinese-literacy/:assignmentId/translate", authMiddl
   )).limit(1);
   if (!assignment) throw new AccessError(404, "Respondent administration not found in this case.");
   const doc = await loadLiteracy(assignment);
-  const source = { input: doc.input, report: doc.report };
+  const source = { input: doc.input, report: doc.report, plan: doc.plan, monitoring: doc.monitoring };
   const entries: Array<{ path: string; text: string }> = [];
   const collect = (value: unknown, path: string[] = []) => {
     if (typeof value === "string") {
