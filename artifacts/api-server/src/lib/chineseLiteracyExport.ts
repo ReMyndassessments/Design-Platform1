@@ -60,16 +60,33 @@ function domainObservationHtml(doc: LiteracyDocument) {
         ? `<h4>Respondent examples (original wording)</h4><ul>${observation.examples.map(example => `<li>${esc(example.text)} <span class="item-ids">(${esc(example.itemIds.join(", "))})</span></li>`).join("")}</ul>`
         : "",
     ].join("");
+    const planningItems = observation.itemsForDiscussion.length
+      ? `<h4>Items to review in support planning</h4><ul>${observation.itemsForDiscussion.map(item => `<li><code>${esc(item.id)}</code> — ${esc(item.text)} <strong>(${item.value}/5 · ${esc(observation.distribution.find(row => row.value === item.value)?.label)})</strong></li>`).join("")}</ul>`
+      : "";
     return `<section class="domain-card"><h3>${esc(observation.label)}</h3>
       <figure class="rating-chart" role="img" aria-label="${esc(`${observation.label} item rating distribution. ${chartLabel}`)}">
         <figcaption>Distribution of observed-frequency ratings · number of items</figcaption>${rows}
         ${observation.validCount ? "" : '<p class="empty-chart">No numeric ratings are available for this domain.</p>'}
       </figure>
-      <p class="domain-narrative">${esc(observation.narrative)}</p>${frequentItems}${evidence}
+      <p class="domain-narrative">${esc(observation.narrative)}</p>
+      <div class="interpretation"><h4>Interpretation</h4><p>${esc(observation.interpretation)}</p></div>
+      ${planningItems}
+      <div class="planning-recommendation"><h4>Recommendation for support planning</h4><p>${esc(observation.planningRecommendation)}</p></div>
+      ${frequentItems}${evidence}
       <p class="caution">Rating counts include numeric responses only. Not observed, not applicable, and unanswered responses are reported separately; no norm or diagnostic cutoff is applied.</p>
     </section>`;
   }).join("");
-  return `<section class="domain-results"><h2>Observations by Domain</h2>${content}</section>`;
+  return `<section class="domain-results"><h2>Observations by Domain</h2>${content}
+    <section class="report-recommendations"><h2>Recommendations and next steps</h2>
+      <p>Review each domain’s interpretation alongside its exact item wording, respondent examples, current supports, and separately recorded access impact. Carry forward only priorities staff confirm are relevant to participation or learning.</p>
+      <ol>
+        <li>In the Support plan, link any agreed priority to specific item IDs and contextual evidence.</li>
+        <li>Choose a suitable strategy, proposed owner, observable progress indicator, and review date.</li>
+        <li>Keep parent and teacher observations separate. Do not treat low frequency ratings as proof that another setting has no need.</li>
+      </ol>
+      <p>These are planning prompts, not automatic interventions. Support-plan decisions remain a separate professional-review step.</p>
+    </section>
+  </section>`;
 }
 
 function markdownReportHtml(markdown: string, domainHtml: string) {
@@ -124,16 +141,18 @@ export function literacyReportExport(doc: LiteracyDocument) {
       h3{font-size:13pt;margin:0 0 10pt;break-after:avoid}h4{font-size:10pt;margin:12pt 0 4pt;break-after:avoid}
       p{margin:6pt 0}ul,ol{padding-left:20pt;margin:6pt 0}li{margin:3pt 0}code{font-family:monospace;font-size:9pt}
       .meta{font-size:9pt;color:#53657a}.status{display:inline-block;padding:3pt 8pt;border-radius:10pt;background:#fff4d4;color:#805700;font-size:8pt;font-weight:bold}
-      .report-body{margin-top:16pt}.domain-results{margin:22pt 0}.domain-card{border:1px solid #d8e1e8;border-radius:8pt;padding:12pt;margin:12pt 0;break-inside:avoid}
+       .report-body{margin-top:16pt}.domain-results{margin:22pt 0}.domain-card{border:1px solid #d8e1e8;border-radius:8pt;padding:12pt;margin:12pt 0;break-inside:auto}
       .rating-chart{background:#f6f9fb;border:1px solid #e4ebf0;border-radius:6pt;padding:10pt 12pt;margin:10pt 0}
       figcaption{font-size:9pt;font-weight:bold;margin-bottom:7pt}.bar-row{display:grid;grid-template-columns:155pt 1fr 20pt;gap:7pt;align-items:center;margin:4pt 0;font-size:8pt}
       .bar-track{height:7pt;background:#e2e8ee;border-radius:5pt;overflow:hidden}.bar-fill{display:block;height:100%;background:#1f74ad;border-radius:5pt}.bar-count{text-align:right;font-weight:bold}
-      .domain-narrative{font-size:9.5pt}.caution,.empty-chart{font-size:8pt;color:#58697c}.item-ids{color:#64748b}
+       .domain-narrative{font-size:9.5pt}.interpretation{background:#eef7fb;border-left:3pt solid #1f74ad;padding:8pt 10pt;margin:10pt 0}.planning-recommendation{background:#f6f9fb;border:1px solid #d8e1e8;border-radius:5pt;padding:8pt 10pt;margin:10pt 0}
+       .interpretation h4,.planning-recommendation h4{margin-top:0}.report-recommendations{border:1px solid #c9dceb;background:#f4f9fc;border-radius:8pt;padding:12pt;margin-top:18pt;break-inside:avoid}
+       .caution,.empty-chart{font-size:8pt;color:#58697c}.item-ids{color:#64748b}
       .domain-card li,.domain-card p{overflow-wrap:anywhere}footer{border-top:1px solid #d8e1e8;margin-top:22pt;padding-top:8pt;font-size:8pt;color:#58697c}
       @media print{.domain-card{break-inside:avoid}figure{break-inside:avoid}}
     </style></head><body><header><h1>Chinese Literacy Observation Report</h1>
       <p class="meta">${esc(doc.metadata.formName)} · ${esc(source)} · ${esc(status)}</p>
-      <p class="meta">Submitted ${esc(doc.submittedAt ?? "date not recorded")} · This report describes one respondent's record only.</p></header>
+       <p class="meta">Submitted ${esc(doc.submittedAt ?? "date not recorded")} · This report describes only the selected respondent’s record; parent and teacher records are not combined.</p></header>
       <main class="report-body">${narrativeHtml}</main>
       <footer>${esc(doc.metadata.reportLimitation)}<br>ReMynd Assessment Operating System · Confidential educational record.</footer>
     </body></html>`;

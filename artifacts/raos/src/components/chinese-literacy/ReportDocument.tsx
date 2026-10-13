@@ -71,7 +71,11 @@ function isBlockStart(line: string) {
     || /^(-{3,}|_{3,}|\*{3,})$/.test(line.trim());
 }
 
-function DomainObservationSection({ observations, translate }: { observations: ClDomainObservation[]; translate: Translate }) {
+function DomainObservationSection({ observations, translate, onOpenSupportPlan }: {
+  observations: ClDomainObservation[];
+  translate: Translate;
+  onOpenSupportPlan?: () => void;
+}) {
   const cards = observations.map(observation => {
     const maxCount = Math.max(1, ...observation.distribution.map(row => row.count));
     const chartLabel = observation.distribution.map(row => `${row.value} ${row.label}: ${row.count}`).join("; ");
@@ -94,6 +98,22 @@ function DomainObservationSection({ observations, translate }: { observations: C
           {!observation.validCount && <p className="mt-2 text-[11px] text-slate-500">No numeric ratings are available for this domain.</p>}
         </figure>
         <p className="mt-4 text-sm leading-6 text-slate-700">{observation.narrative}</p>
+        <div className="mt-4 rounded-lg border-l-4 border-[#1F74AD] bg-sky-50 px-4 py-3">
+          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-800">Interpretation</h4>
+          <p className="mt-1 text-sm leading-6 text-slate-700">{observation.interpretation}</p>
+        </div>
+        {observation.itemsForDiscussion.length > 0 && (
+          <div className="mt-3">
+            <h4 className="text-xs font-semibold text-slate-800">Items to review in support planning</h4>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
+              {observation.itemsForDiscussion.map(item => <li key={item.id}><span className="font-mono text-slate-500">{item.id}</span> · {item.text} <span className="font-semibold">({item.value}/5 · {observation.distribution.find(row => row.value === item.value)?.label})</span></li>)}
+            </ul>
+          </div>
+        )}
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <h4 className="text-xs font-bold text-slate-800">Recommendation for support planning</h4>
+          <p className="mt-1 text-sm leading-6 text-slate-700">{observation.planningRecommendation}</p>
+        </div>
         {observation.itemsWithFrequentRatings.length > 0 && (
           <div className="mt-3">
             <h4 className="text-xs font-semibold text-slate-800">Items rated often or almost always</h4>
@@ -126,11 +146,26 @@ function DomainObservationSection({ observations, translate }: { observations: C
     <section className="my-6 space-y-4" aria-label="Observations by domain">
       <h2 className="border-b border-slate-100 pb-2 text-lg font-bold text-slate-900">Observations by Domain</h2>
       {cards}
+      <section className="rounded-xl border border-[#c9dceb] bg-[#f4f9fc] p-4 sm:p-5" aria-labelledby="report-recommendations-heading">
+        <h2 id="report-recommendations-heading" className="text-lg font-bold text-slate-900">Recommendations and next steps</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-700">Review each domain’s interpretation alongside its exact item wording, respondent examples, current supports, and separately recorded access impact. In the Support plan, carry forward only priorities that staff confirm are relevant to participation or learning. Link each priority to its evidence, then agree a suitable strategy, owner, observable progress indicator, and review date. Do not combine parent and teacher ratings or treat low frequency ratings as proof that another setting has no need.</p>
+        {onOpenSupportPlan && (
+          <button
+            type="button"
+            className="no-print mt-3 inline-flex rounded-lg bg-[#1479a8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#10658e]"
+            onClick={onOpenSupportPlan}
+            data-testid="button-report-open-support-plan"
+          >
+            Open Support plan
+          </button>
+        )}
+        <p className="no-print mt-2 text-xs text-slate-500">Support-plan generation requires an approved report and remains a separate staff-reviewed step.</p>
+      </section>
     </section>
   );
 }
 
-function markdownBlocks(markdown: string, observations: ClDomainObservation[], translate: Translate): ReactNode[] {
+function markdownBlocks(markdown: string, observations: ClDomainObservation[], translate: Translate, onOpenSupportPlan?: () => void): ReactNode[] {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -139,7 +174,7 @@ function markdownBlocks(markdown: string, observations: ClDomainObservation[], t
     const line = lines[i].trim();
     if (!line) { i += 1; continue; }
     if (line === DOMAIN_MARKER) {
-      blocks.push(<DomainObservationSection key={`domain-observations-${i}`} observations={observations} translate={translate} />);
+      blocks.push(<DomainObservationSection key={`domain-observations-${i}`} observations={observations} translate={translate} onOpenSupportPlan={onOpenSupportPlan} />);
       i += 1;
       continue;
     }
@@ -205,13 +240,14 @@ function markdownBlocks(markdown: string, observations: ClDomainObservation[], t
   return blocks;
 }
 
-export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? "") }: {
+export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? ""), onOpenSupportPlan }: {
   content: string;
   source: string;
   formName: string;
   approved: boolean;
   domainObservations?: ClDomainObservation[];
   translate?: Translate;
+  onOpenSupportPlan?: () => void;
 }) {
   const hasTitle = /^#\s+.+/m.test(content);
   return (
@@ -228,8 +264,9 @@ export function ReportDocument({ content, source, formName, approved, domainObse
             background: white !important;
           }
           #cl-report-print-target article { max-width: none !important; padding: 0 !important; }
-          #cl-report-print-target .cl-domain-observation { break-inside: avoid; box-shadow: none !important; }
+          #cl-report-print-target .cl-domain-observation { break-inside: auto; box-shadow: none !important; }
           #cl-report-print-target figure { break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+          #cl-report-print-target .no-print { display: none !important; }
         }
       `}</style>
     <div id="cl-report-print-target" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-testid="report-document">
@@ -237,6 +274,7 @@ export function ReportDocument({ content, source, formName, approved, domainObse
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">ReMynd · Assessment Report</p>
           <p className="mt-1 text-xs text-slate-500">{formName} <span className="mx-1.5 text-slate-300">|</span> {source}</p>
+          <p className="mt-2 max-w-2xl text-[11px] leading-5 text-slate-500">Scope: This report uses the selected {source.toLowerCase()} record only. Parent and teacher observations are reviewed separately, not combined.</p>
         </div>
         <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${approved ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
           {approved ? "Approved report" : "Draft · staff review"}
@@ -244,7 +282,7 @@ export function ReportDocument({ content, source, formName, approved, domainObse
       </header>
       <article className="mx-auto max-w-4xl px-6 py-7 sm:px-9 sm:py-9" aria-label="Formatted assessment report">
         {!hasTitle && <h1 className="mb-5 border-b border-slate-200 pb-4 text-2xl font-bold tracking-tight text-slate-950">Educational Observation Report</h1>}
-        <div className="break-words text-sm leading-7 [&_a]:break-all [&_li]:leading-7">{markdownBlocks(reportWithDomainMarker(content), domainObservations, translate)}</div>
+        <div className="break-words text-sm leading-7 [&_a]:break-all [&_li]:leading-7">{markdownBlocks(reportWithDomainMarker(content), domainObservations, translate, onOpenSupportPlan)}</div>
       </article>
     </div>
     </>

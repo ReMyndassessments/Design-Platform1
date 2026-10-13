@@ -30,8 +30,25 @@ test("domain report derives a five-level distribution and a descriptive, non-dia
     [1, 1], [2, 0], [3, 1], [4, 2], [5, 0],
   ]);
   assert.match(reading.narrative, /The descriptive mean is 3.0 of 5/);
-  assert.match(reading.narrative, /not norm-referenced, diagnostic, or clinical severity scores/);
+  assert.doesNotMatch(reading.narrative, /parent's home-setting record only|teacher's teaching-setting record only/);
+  assert.match(reading.interpretation, /Often|Almost always/);
+  assert.match(reading.planningRecommendation, /Support plan/);
   assert.equal(reading.itemsWithFrequentRatings.length, 2);
+  assert.equal(reading.itemsForDiscussion.length, 3);
+});
+
+test("interpretation explains occasional-to-sometimes patterns and separates reported impact", () => {
+  const doc = document("parent", [2, 2, 2, 3, 3]);
+  doc.scores[0].displayMean = "2.4";
+  doc.scores[0].frequentDifficultyCount = 0;
+  doc.scores[0].frequentDifficultyItemIds = [];
+  doc.scores[0].impact = 3;
+  const [reading] = buildChineseLiteracyDomainObservations(doc);
+  assert.match(reading.interpretation, /Occasionally/);
+  assert.match(reading.interpretation, /Sometimes/);
+  assert.match(reading.interpretation, /Substantial restriction of participation/);
+  assert.match(reading.planningRecommendation, /R4, R5/);
+  assert.match(reading.planningRecommendation, /Support plan/);
 });
 
 test("domain report shows missing coverage without inventing a mean", () => {
@@ -46,6 +63,7 @@ test("domain report shows missing coverage without inventing a mean", () => {
   const [reading] = buildChineseLiteracyDomainObservations(doc);
   assert.equal(reading.mean, null);
   assert.match(reading.narrative, /A domain mean is not reported/);
-  assert.match(reading.narrative, /parent's home-setting record only/);
+  assert.match(reading.interpretation, /no numeric frequency ratings to interpret/);
+  assert.match(reading.planningRecommendation, /incomplete ratings/);
 });
 

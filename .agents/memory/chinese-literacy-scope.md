@@ -57,8 +57,8 @@ AI-assisted Chinese Literacy support plans are drafts from one selected responde
 
 **How to apply:** Use DeepSeek; keep parent-home and teacher-classroom evidence separate, validate suggestions against the respondent's rated item IDs and permitted strategies, and require staff to select a review date before approving the plan. Keep the generator entry point visible across review tabs and link directly to the report approval gate when needed.
 
-Each Chinese literacy report must show a rating-distribution chart and a factual narrative for every selected domain, and support report download and printing.
+Each Chinese literacy report must show a rating-distribution chart, interpretation, and support-planning recommendation per selected domain, plus a report-level next-steps section, download, and print.
 
 **Why:** The user requested per-domain charts and explanations plus downloadable and printable reports on 2026-10-13.
 
-**How to apply:** Derive domain results from the single selected respondent's record; show NO, NA, and unanswered separately; keep parent and teacher sources separate; do not imply norms, diagnosis, or clinical cutoffs. Keep print and export content readable and professionally formatted.
+**How to apply:** Derive domain results from the selected respondent only; show NO, NA, and unanswered separately; state source/setting scope once, not in every domain. Keep parent and teacher sources separate and non-diagnostic. Point recommendations to the Support plan and keep print/export professionally formatted.

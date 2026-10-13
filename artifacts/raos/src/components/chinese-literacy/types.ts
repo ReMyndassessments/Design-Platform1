@@ -21,6 +21,9 @@ export interface ClDomainObservation {
   supports: string;
   examples: Array<{ text: string; itemIds: string[] }>;
   narrative: string;
+  interpretation: string;
+  planningRecommendation: string;
+  itemsForDiscussion: Array<{ id: string; text: string; value: number }>;
   itemsWithFrequentRatings: Array<{ id: string; text: string; value: number }>;
 }
 export interface EvidenceExample { text: string; itemIds: string[] }

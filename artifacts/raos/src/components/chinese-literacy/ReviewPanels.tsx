@@ -51,11 +51,12 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onExport }: P & {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onExport, onOpenSupportPlan }: P & {
   translate?: Translate;
   englishView?: boolean;
   onGenerate: () => Promise<void>;
   onExport: (format: "html" | "doc") => Promise<void>;
+  onOpenSupportPlan: () => void;
 }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
@@ -119,6 +120,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
           approved={approved}
           domainObservations={domainObservations}
           translate={translate}
+          onOpenSupportPlan={onOpenSupportPlan}
         />
       ) : (
         <Field label="Report text">
