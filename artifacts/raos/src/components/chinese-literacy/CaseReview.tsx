@@ -54,6 +54,18 @@ export default function CaseReview({ caseId }: { caseId: string }) {
       setTranslationBusy(false);
     }
   };
+  const generateReport = async () => {
+    if (!adm) throw new Error("Select a submitted parent or teacher form first.");
+    const result = await clRequest<any>(
+      `${caseUrl(caseId)}/${encodeURIComponent(adm.assignmentId)}/generate-report`,
+      { method: "POST", staff: true },
+    );
+    if (!result?.administration) throw new Error("The report draft could not be saved. Reload the case before trying again.");
+    setEnglishView(false);
+    setTranslations(null);
+    const merged = { teacherName: adm.teacherName, teacherEmail: adm.teacherEmail, ...result.administration };
+    setData(d => d && { ...d, administrations: d.administrations.map(a => a.assignmentId === merged.assignmentId ? merged : a) });
+  };
   const translate = (path: string, value: unknown) => typeof value === "string" && englishView
     ? translations?.[path] ?? value
     : String(value ?? "");
@@ -101,7 +113,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
                 {translationBusy ? "Translating…" : englishView ? "View original Chinese" : "View in English"}
               </Btn>
               {englishView && <span className="text-[11px] text-slate-500">Translated for review; saved responses are unchanged.</span>}
-              {!englishView && <span className="text-[11px] text-slate-500">AI translation uses Replit credits.</span>}
+              {!englishView && <span className="text-[11px] text-slate-500">AI report generation and translation use Replit credits.</span>}
             </div>
             {translationError && <Banner tone="error" title="Translation unavailable">{translationError}</Banner>}
           </>}
@@ -113,7 +125,7 @@ export default function CaseReview({ caseId }: { caseId: string }) {
           {adm.status === "draft" || adm.status === "not_started" || adm.status === "in_progress" ? <Banner>The {who(adm).toLowerCase()} has not submitted this administration. Review actions open after submission.</Banner> : null}
           {(() => {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
-            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
+            return tab === "evidence" ? <EvidencePanel {...p} translate={translate} /> : tab === "report" ? <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} /> : tab === "plan" ? <PlanPanel {...p} /> : tab === "monitor" ? <MonitoringPanel {...p} />
               : <FollowUpPanel {...p} onExport={f => downloadExport(caseId, adm.assignmentId, f)} />;
           })()}
         </>

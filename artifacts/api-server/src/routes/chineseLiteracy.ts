@@ -8,6 +8,7 @@ import { authMiddleware, tryAuthenticate } from "../middlewares/authMiddleware.j
 import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { writeAudit } from "../lib/audit.js";
 import { ai } from "@workspace/integrations-gemini-ai";
+import { buildChineseLiteracyReportPrompt } from "../lib/chineseLiteracyReportDraft.js";
 import {
   CHINESE_LITERACY_KEY, LITERACY_METADATA, LITERACY_DOMAINS, LITERACY_STRATEGIES,
   LiteracyValidationError, validateLiteracyInput, validateDomainSelection, scoreLiteracy, literacyEvidenceStatus,
@@ -164,6 +165,60 @@ router.get("/cases/:caseId/chinese-literacy", authMiddleware, safe(async (req, r
     administrations.push((await literacyEnvelope(doc)).administration);
   }
   res.json({ administrations, metadata: LITERACY_METADATA, integration: LITERACY_INTEGRATION });
+}));
+
+router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", authMiddleware, safe(async (req, res) => {
+  const c = await staffCase(req);
+  const [assignment] = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.id, String(req.params.assignmentId)),
+    eq(assignmentsTable.caseId, String(req.params.caseId)),
+    inArray(assignmentsTable.toolId, CHINESE_LITERACY_KEYS),
+  )).limit(1);
+  if (!assignment) throw new AccessError(404, "Respondent administration not found in this case.");
+  const doc = await loadLiteracy(assignment);
+  if (!["submitted", "under_review"].includes(doc.status)) throw new AccessError(409, "Submit the respondent form before generating a report draft.");
+  if (doc.report?.status === "approved" || doc.report?.approvedAt) throw new AccessError(409, "Approved reports cannot be replaced. Create a new respondent revision first.");
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: buildChineseLiteracyReportPrompt(doc),
+    config: { maxOutputTokens: 8192, temperature: 0.2 },
+  });
+  const narrative = response.text?.trim();
+  if (!narrative || narrative.length > 50000) throw new Error("The report draft was empty or exceeded the allowed length.");
+  const saved = await db.transaction(async tx => {
+    const current = await loadLiteracy(assignment, tx, true);
+    if (current.revision !== doc.revision) throw new AccessError(409, "The respondent record changed while the report was being generated. Reload it and try again.");
+    if (!["submitted", "under_review"].includes(current.status) || current.report?.status === "approved" || current.report?.approvedAt) {
+      throw new AccessError(409, "This respondent record is no longer available for report generation.");
+    }
+    const classroom = isParentLiteracy(assignment.toolId)
+      ? await tx.select({ id: assignmentsTable.id }).from(assignmentsTable).where(and(
+          eq(assignmentsTable.caseId, c.id),
+          eq(assignmentsTable.toolId, CHINESE_LITERACY_KEY),
+          eq(assignmentsTable.status, "completed"),
+        )).limit(1)
+      : [];
+    return persistLiteracy(tx, current, {
+      status: "under_review",
+      report: {
+        narrative, status: "draft", sourceRevision: current.revision,
+        inputRevision: current.submissionBaseRevision! + 1,
+        generatedBy: req.userId, generatedAt: new Date().toISOString(),
+        limitation: current.metadata.reportLimitation,
+        evidenceSource: isParentLiteracy(assignment.toolId)
+          ? "Parent-reported observations in the home setting. One named parent or caregiver; no teacher observations, student interviews or direct tests are included in this administration."
+          : "One named teacher; no parent, student or individually administered test evidence is included.",
+        ...(isParentLiteracy(assignment.toolId) ? {
+          classroomObservationsAvailable: classroom.length > 0,
+          classroomAvailabilityNote: classroom.length
+            ? "Classroom records are separate sources and are not included in this parent administration."
+            : "Classroom observations were not available for this profile.",
+        } : {}),
+      },
+    });
+  });
+  audit(req, saved, "report_generated");
+  res.json(await literacyEnvelope(saved));
 }));
 
 router.post("/cases/:caseId/chinese-literacy/:assignmentId/translate", authMiddleware, safe(async (req, res) => {

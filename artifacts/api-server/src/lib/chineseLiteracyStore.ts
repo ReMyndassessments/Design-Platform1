@@ -18,7 +18,7 @@ export type LiteracyDocument = {
   submissionBaseRevision?: number; submissionInputHash?: string;
   enteredBy?: string; sourceConfirmation?: { confirmed: boolean; date: string; relationship: string };
 };
-export const LITERACY_INTEGRATION = { portal: "not_configured", ai: "manual_only", message: "Local scoring, manual reporting and support planning are available. No external Bobby Case Portal connection has been verified; no observations or plans are synchronized or released automatically." };
+export const LITERACY_INTEGRATION = { portal: "not_configured", ai: "on_demand_draft", message: "AI-assisted editable report drafts are available on demand. Staff review and approval are required. No external Bobby Case Portal connection has been verified; nothing is automatically released or synchronized." };
 
 export async function seedChineseLiteracy() {
   await db.insert(assessmentToolsTable).values({

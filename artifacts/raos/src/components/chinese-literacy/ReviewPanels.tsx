@@ -49,16 +49,34 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false }: P & { translate?: Translate; englishView?: boolean }) {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate }: P & { translate?: Translate; englishView?: boolean; onGenerate: () => Promise<void> }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const versions: any[] = Array.isArray(adm.report?.versions) ? adm.report.versions : [];
   const approved = isApproved(adm);
+  const hasUnsavedEdits = text !== (adm.report?.narrative ?? "");
+  const generate = async () => {
+    if (adm.report?.narrative && !window.confirm("Replace the current saved report draft with a newly generated draft?")) return;
+    setGenerating(true); setGenerateError(null);
+    try { await onGenerate(); }
+    catch (error) { setGenerateError((error as Error).message || "Could not generate a report draft."); }
+    finally { setGenerating(false); }
+  };
   return (
     <div className="space-y-4">
-      <Banner title="Manual report, teacher-only evidence">
-        {ai === "manual_only" ? "AI drafting is not enabled; write or edit this narrative yourself. " : ""}This draft uses one {pm ? "parent's home" : "teacher's"} observations only. It is not triangulated, and releasing it to families is a separate step that is never automatic. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
+      <Banner title="AI-assisted editable draft; professional review required">
+        Generate a draft from this {pm ? "parent's home" : "teacher's"} submission only. It will not combine respondents, diagnose, or be released automatically. Review and edit it before approval. {portal === "not_configured" ? "Case Portal is not configured, so nothing is synchronised." : ""}
       </Banner>
+      <div className="flex flex-wrap items-center gap-2">
+        <Btn variant="ghost" disabled={busy || generating || approved || englishView || hasUnsavedEdits} onClick={() => void generate()} data-testid="button-generate-literacy-report">
+          {generating ? "Generating report draft…" : adm.report?.narrative ? "Regenerate draft" : "Generate report draft"}
+        </Btn>
+        <span className="text-[11px] text-slate-500">The selected respondent’s form is sent to Replit AI (Gemini) to draft. Uses Replit credits; staff review and approval are required.</span>
+        {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your current edits before generating a replacement.</span>}
+      </div>
+      {generateError && <Banner tone="error" title="Report draft not generated">{generateError}</Banner>}
       {englishView && <Banner>English view is a translation for review. Switch back to the original to edit or approve the source narrative.</Banner>}
       <Field label={englishView ? "Report narrative (English translation)" : "Report narrative (editable draft)"}><textarea rows={14} className={inputCls} value={englishView ? translate("report.narrative", text) : text} onChange={e => setText(e.target.value)} disabled={approved || englishView} data-testid="input-report-narrative" /></Field>
       <p className="text-[11px] text-slate-500">Required limitation: {meta.reportLimitation}</p>
