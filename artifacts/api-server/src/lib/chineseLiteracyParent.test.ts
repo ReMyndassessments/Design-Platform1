@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PARENT_LITERACY_DOMAINS as domains, PARENT_LITERACY_FORM_ITEMS as items, PARENT_LITERACY_METADATA as meta } from "./chineseLiteracyParent.js";
 import { emptyLiteracyInput, validateLiteracyInput, scoreLiteracyDomain, scoreLiteracy, literacyEvidenceStatus, compareLiteracy, LITERACY_METADATA } from "./chineseLiteracy.js";
-import { literacyExport } from "./chineseLiteracyExport.js";
+import { literacyExport, literacyReportExport } from "./chineseLiteracyExport.js";
 
 const ids = (id: string) => domains.find(d => d.id === id)!.items.map(i => i.id);
 const rated = (itemId: string, value: number) => ({ itemId, status: "rated" as const, value });
@@ -89,6 +89,10 @@ test("parent exports show home source, confirmation, exact P- wording and safe H
   const doc:any={metadata:meta,input:fixture(),selectedDomains:domains.map(d=>d.id),scores:scoreLiteracy(fixture(),undefined,meta),contextSnapshot:{studentId:"synthetic"},teacherName:"SYNTHETIC Parent",instrumentVersion:meta.version,scoringVersion:meta.scoringVersion,languageVersion:"en-0.1.0",revision:2,monitoring:{entries:[]},sourceConfirmation:{confirmed:true,date:"2026-10-02"},report:{narrative:"<script>do not execute</script>",classroomAvailabilityNote:"Classroom observations were not available for this profile."}};
   const html=literacyExport(doc);assert(html.includes("Parent-reported observations in the home setting"));assert(html.includes("P-R1"));assert(html.includes(meta.reportLimitation));
   assert(html.includes("Classroom observations were not available"));assert(html.includes("Source-parent confirmation: Confirmed"));assert(!html.includes("<script>"));assert(!html.includes("one teacher’s perspective"));
+  assert(!html.includes("Open Support plan"), "the report body must not embed a support-plan action");
+  const reportOnly = literacyReportExport(doc);
+  assert(reportOnly.includes("Recommendations and next steps"));
+  assert(!reportOnly.includes("Open Support plan"), "the printable report must not embed a support-plan action");
 });
 test("full snapshot includes the report, agreed plan, monitoring and linked follow-up comparison", () => {
   const input = fixture();
@@ -116,6 +120,7 @@ test("full snapshot includes the report, agreed plan, monitoring and linked foll
     "Completed repeat-observation results", "Baseline and follow-up comparison", "Same respondent and item set", "Differences are descriptive only"]) {
     assert(html.includes(text), `expected full report export to contain: ${text}`);
   }
+  assert(html.indexOf("<h2>Recommendations and next steps</h2>") < html.indexOf("<h2>Support plan</h2>"), "the report recommendations must conclude the report before the separate support-plan section");
   assert(!html.includes("<pre>"), "the report narrative should be formatted as a professional report, not raw Markdown");
   const followupWithoutComparison = literacyExport({ ...baseline, linkedFollowups: [{ ...followup, monitoring: { entries: [], comparison: [] } }] });
   assert(followupWithoutComparison.includes("A comparable baseline and follow-up rating set is not available"), "completed repeat forms without a comparable baseline must still export safely");

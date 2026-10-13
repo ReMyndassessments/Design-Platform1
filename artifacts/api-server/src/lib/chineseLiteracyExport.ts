@@ -76,16 +76,12 @@ function domainObservationHtml(doc: LiteracyDocument) {
       <p class="caution">Rating counts include numeric responses only. Not observed, not applicable, and unanswered responses are reported separately; no norm or diagnostic cutoff is applied.</p>
     </section>`;
   }).join("");
-  return `<section class="domain-results"><h2>Observations by Domain</h2>${content}
-    <section class="report-recommendations"><h2>Recommendations and next steps</h2>
-      <p>Review each domain’s interpretation alongside its exact item wording, respondent examples, current supports, and separately recorded access impact. Carry forward only priorities staff confirm are relevant to participation or learning.</p>
-      <ol>
-        <li>In the Support plan, link any agreed priority to specific item IDs and contextual evidence.</li>
-        <li>Choose a suitable strategy, proposed owner, observable progress indicator, and review date.</li>
-        <li>Keep parent and teacher observations separate. Do not treat low frequency ratings as proof that another setting has no need.</li>
-      </ol>
-      <p>These are planning prompts, not automatic interventions. Support-plan decisions remain a separate professional-review step.</p>
-    </section>
+  return `<section class="domain-results"><h2>Observations by Domain</h2>${content}</section>`;
+}
+
+function reportNextStepsHtml() {
+  return `<section class="report-next-steps"><h2>Recommendations and next steps</h2>
+    <p>These observations inform a separate, staff-reviewed support plan. After this report is approved, the plan is developed and approved separately before it is included in the final combined report. Parent and teacher evidence remains separate.</p>
   </section>`;
 }
 
@@ -146,14 +142,14 @@ export function literacyReportExport(doc: LiteracyDocument) {
       figcaption{font-size:9pt;font-weight:bold;margin-bottom:7pt}.bar-row{display:grid;grid-template-columns:155pt 1fr 20pt;gap:7pt;align-items:center;margin:4pt 0;font-size:8pt}
       .bar-track{height:7pt;background:#e2e8ee;border-radius:5pt;overflow:hidden}.bar-fill{display:block;height:100%;background:#1f74ad;border-radius:5pt}.bar-count{text-align:right;font-weight:bold}
        .domain-narrative{font-size:9.5pt}.interpretation{background:#eef7fb;border-left:3pt solid #1f74ad;padding:8pt 10pt;margin:10pt 0}.planning-recommendation{background:#f6f9fb;border:1px solid #d8e1e8;border-radius:5pt;padding:8pt 10pt;margin:10pt 0}
-       .interpretation h4,.planning-recommendation h4{margin-top:0}.report-recommendations{border:1px solid #c9dceb;background:#f4f9fc;border-radius:8pt;padding:12pt;margin-top:18pt;break-inside:avoid}
+        .interpretation h4,.planning-recommendation h4{margin-top:0}.report-next-steps{border-top:1px solid #d8e1e8;margin-top:18pt;padding-top:8pt}
        .caution,.empty-chart{font-size:8pt;color:#58697c}.item-ids{color:#64748b}
       .domain-card li,.domain-card p{overflow-wrap:anywhere}footer{border-top:1px solid #d8e1e8;margin-top:22pt;padding-top:8pt;font-size:8pt;color:#58697c}
-      @media print{.domain-card{break-inside:avoid}figure{break-inside:avoid}}
+       @media print{.domain-card,.report-next-steps{break-inside:avoid}figure{break-inside:avoid}}
     </style></head><body><header><h1>Chinese Literacy Observation Report</h1>
       <p class="meta">${esc(doc.metadata.formName)} · ${esc(source)} · ${esc(status)}</p>
        <p class="meta">Submitted ${esc(doc.submittedAt ?? "date not recorded")} · This report describes only the selected respondent’s record; parent and teacher records are not combined.</p></header>
-      <main class="report-body">${narrativeHtml}</main>
+       <main class="report-body">${narrativeHtml}${reportNextStepsHtml()}</main>
       <footer>${esc(doc.metadata.reportLimitation)}<br>ReMynd Assessment Operating System · Confidential educational record.</footer>
     </body></html>`;
 }
@@ -202,7 +198,7 @@ export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: Liter
   const followups = doc.linkedFollowups ?? [];
   const reportStatus = doc.report?.approvedAt ? "Approved" : doc.report?.narrative ? "Draft — professional review required" : "Not written";
   const reportHtml = doc.report?.narrative
-    ? markdownReportHtml(String(doc.report.narrative), domainObservationHtml(doc))
+    ? markdownReportHtml(String(doc.report.narrative), domainObservationHtml(doc)) + reportNextStepsHtml()
     : "<p>No professional report has been saved for this record.</p>";
   const planHtml = doc.plan
     ? `<p><strong>Pathway:</strong> ${esc(String(doc.plan.pathway ?? "Not selected").replace(/_/g, " "))}</p>
@@ -228,9 +224,9 @@ export function literacyExport(doc: LiteracyDocument & { linkedFollowups?: Liter
     .bar-track{height:7pt;background:#e2e8ee;border-radius:5pt;overflow:hidden}.bar-fill{display:block;height:100%;background:#1f74ad;border-radius:5pt}
     .interpretation{background:#eef7fb;border-left:3pt solid #1f74ad;padding:8pt 10pt;margin:10pt 0}
     .planning-recommendation{background:#f6f9fb;border:1px solid #d8e1e8;border-radius:5pt;padding:8pt 10pt;margin:10pt 0}
-    .report-recommendations{border:1px solid #c9dceb;background:#f4f9fc;border-radius:8pt;padding:12pt;margin-top:18pt}
+    .report-next-steps{border-top:1px solid #d8e1e8;margin-top:18pt;padding-top:8pt}
     footer{border-top:1px solid #d8e1e8;margin-top:22pt;padding-top:8pt;font-size:8pt;color:#58697c}
-    @media print{@page{margin:18mm;@bottom-right{content:"Page " counter(page)}}.rating-chart,.domain-card,.report-recommendations{break-inside:avoid}}
+    @media print{@page{margin:18mm;@bottom-right{content:"Page " counter(page)}}.rating-chart,.domain-card,.report-next-steps{break-inside:avoid}}
     </style></head><body><header>
   <h1>${esc(doc.metadata.name)}</h1><p class="meta">${esc(doc.metadata.formName)} — professional report: ${esc(reportStatus)}</p>
   <p>Instrument ${esc(doc.instrumentVersion)}; scoring ${esc(doc.scoringVersion)}; language ${esc(doc.languageVersion)}; input revision ${esc(doc.report?.inputRevision ?? doc.revision)}; record revision ${doc.revision}; ${esc(doc.submittedAt)}</p>

@@ -51,13 +51,12 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onAddRecommendations, onExport, onOpenSupportPlan }: P & {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onAddRecommendations, onExport }: P & {
   translate?: Translate;
   englishView?: boolean;
   onGenerate: () => Promise<void>;
   onAddRecommendations: () => Promise<void>;
   onExport: (format: "html" | "doc") => Promise<void>;
-  onOpenSupportPlan: () => void;
 }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
@@ -143,7 +142,6 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
           approved={approved}
           domainObservations={domainObservations}
           translate={translate}
-          onOpenSupportPlan={onOpenSupportPlan}
         />
       ) : (
         <Field label="Report text">
@@ -158,12 +156,12 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
         <Btn variant="ghost" disabled={!canExport} onClick={() => void exportReport("doc")} data-testid="button-download-literacy-report">
-          {exporting ? "Preparing full report…" : "Download full report (Word)"}
+          {exporting ? "Preparing report…" : "Download report (Word)"}
         </Btn>
         <Btn variant="ghost" disabled={!canPrint} onClick={() => void exportReport("html")} data-testid="button-print-literacy-report">
-          Open printable full report
+          Open printable report
         </Btn>
-        <span className="text-[11px] text-slate-500">The full export includes the saved report and domain results, an approved support plan, and any actual monitoring or completed repeat-form results when available.</span>
+        <span className="text-[11px] text-slate-500">These controls export only the report and domain results. After approving a support plan on the next tab, print or download the final combined report there.</span>
         {!adm.report?.narrative && <span className="text-[11px] text-slate-500">Generate and save a report draft before downloading or printing.</span>}
         {hasUnsavedEdits && <span className="text-[11px] text-amber-700">Save your edits first so the download and printout match the saved report.</span>}
         {editing && !englishView && adm.report?.narrative && !hasUnsavedEdits && <span className="text-[11px] text-slate-500">Preview the formatted report before printing.</span>}

@@ -71,10 +71,9 @@ function isBlockStart(line: string) {
     || /^(-{3,}|_{3,}|\*{3,})$/.test(line.trim());
 }
 
-function DomainObservationSection({ observations, translate, onOpenSupportPlan }: {
+function DomainObservationSection({ observations, translate }: {
   observations: ClDomainObservation[];
   translate: Translate;
-  onOpenSupportPlan?: () => void;
 }) {
   const cards = observations.map(observation => {
     const maxCount = Math.max(1, ...observation.distribution.map(row => row.count));
@@ -146,26 +145,11 @@ function DomainObservationSection({ observations, translate, onOpenSupportPlan }
     <section className="my-6 space-y-4" aria-label="Observations by domain">
       <h2 className="border-b border-slate-100 pb-2 text-lg font-bold text-slate-900">Observations by Domain</h2>
       {cards}
-      <section className="rounded-xl border border-[#c9dceb] bg-[#f4f9fc] p-4 sm:p-5" aria-labelledby="report-recommendations-heading">
-        <h2 id="report-recommendations-heading" className="text-lg font-bold text-slate-900">Recommendations and next steps</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-700">Review each domain’s interpretation alongside its exact item wording, respondent examples, current supports, and separately recorded access impact. In the Support plan, carry forward only priorities that staff confirm are relevant to participation or learning. Link each priority to its evidence, then agree a suitable strategy, owner, observable progress indicator, and review date. Do not combine parent and teacher ratings or treat low frequency ratings as proof that another setting has no need.</p>
-        {onOpenSupportPlan && (
-          <button
-            type="button"
-            className="no-print mt-3 inline-flex rounded-lg bg-[#1479a8] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#10658e]"
-            onClick={onOpenSupportPlan}
-            data-testid="button-report-open-support-plan"
-          >
-            Open Support plan
-          </button>
-        )}
-        <p className="no-print mt-2 text-xs text-slate-500">Support-plan generation requires an approved report and remains a separate staff-reviewed step.</p>
-      </section>
     </section>
   );
 }
 
-function markdownBlocks(markdown: string, observations: ClDomainObservation[], translate: Translate, onOpenSupportPlan?: () => void): ReactNode[] {
+function markdownBlocks(markdown: string, observations: ClDomainObservation[], translate: Translate): ReactNode[] {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -174,7 +158,7 @@ function markdownBlocks(markdown: string, observations: ClDomainObservation[], t
     const line = lines[i].trim();
     if (!line) { i += 1; continue; }
     if (line === DOMAIN_MARKER) {
-      blocks.push(<DomainObservationSection key={`domain-observations-${i}`} observations={observations} translate={translate} onOpenSupportPlan={onOpenSupportPlan} />);
+      blocks.push(<DomainObservationSection key={`domain-observations-${i}`} observations={observations} translate={translate} />);
       i += 1;
       continue;
     }
@@ -240,14 +224,13 @@ function markdownBlocks(markdown: string, observations: ClDomainObservation[], t
   return blocks;
 }
 
-export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? ""), onOpenSupportPlan }: {
+export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? "") }: {
   content: string;
   source: string;
   formName: string;
   approved: boolean;
   domainObservations?: ClDomainObservation[];
   translate?: Translate;
-  onOpenSupportPlan?: () => void;
 }) {
   const hasTitle = /^#\s+.+/m.test(content);
   return (
@@ -282,7 +265,11 @@ export function ReportDocument({ content, source, formName, approved, domainObse
       </header>
       <article className="mx-auto max-w-4xl px-6 py-7 sm:px-9 sm:py-9" aria-label="Formatted assessment report">
         {!hasTitle && <h1 className="mb-5 border-b border-slate-200 pb-4 text-2xl font-bold tracking-tight text-slate-950">Educational Observation Report</h1>}
-        <div className="break-words text-sm leading-7 [&_a]:break-all [&_li]:leading-7">{markdownBlocks(reportWithDomainMarker(content), domainObservations, translate, onOpenSupportPlan)}</div>
+        <div className="break-words text-sm leading-7 [&_a]:break-all [&_li]:leading-7">{markdownBlocks(reportWithDomainMarker(content), domainObservations, translate)}</div>
+        <section className="mt-8 border-t border-slate-200 pt-5" aria-labelledby="report-next-steps-heading">
+          <h2 id="report-next-steps-heading" className="text-lg font-bold text-slate-900">Recommendations and next steps</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-700">These observations inform a separate, staff-reviewed support plan. After this report is approved, the plan is developed and approved separately before it is included in the final combined report. Parent and teacher evidence remains separate.</p>
+        </section>
       </article>
     </div>
     </>
