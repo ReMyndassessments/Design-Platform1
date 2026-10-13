@@ -1,6 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useGetCurrentUser } from "@workspace/api-client-react";
+import { hasChineseLiteracyDashboardAccess } from "@/lib/chinese-literacy-dashboard-model";
 import { ArrowLeft, Brain, BookOpen, Baby, Layers, LayoutGrid, Loader2, AlertTriangle, CheckCircle2, Zap, Activity, Cpu, Users, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,7 +110,7 @@ interface DashTile {
 export default function DashboardsHub() {
   const { id: caseId } = useParams();
   const { data: currentUser } = useGetCurrentUser();
-  const canUseChineseLiteracyDashboard = ["admin", "psychometrician", "school_clinical_coordinator"].includes(currentUser?.role ?? "");
+  const canUseChineseLiteracyDashboard = hasChineseLiteracyDashboardAccess(currentUser?.role);
 
   const { data: c, isLoading, isError } = useQuery({
     queryKey: [`/api/cases/${caseId}`],

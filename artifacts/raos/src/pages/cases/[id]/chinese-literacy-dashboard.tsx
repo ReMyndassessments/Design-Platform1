@@ -27,6 +27,15 @@ import {
   type ChineseLiteracyDashboardAdministration,
   type ChineseLiteracyDashboardDomainScore,
 } from "@workspace/api-client-react";
+import {
+  AUTO_REFRESH_OPTIONS,
+  canGenerateComparison,
+  createComparisonCsv,
+  isParentHome,
+  isTeacherClassroom,
+  sharedDomainPairs,
+  snapshotMatchesSelection,
+} from "@/lib/chinese-literacy-dashboard-model";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Not submitted";
@@ -35,31 +44,9 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-function isParentHome(record: ChineseLiteracyDashboardAdministration) {
-  const setting = record.setting.toLowerCase();
-  return record.respondentType.toLowerCase() === "parent" && (setting.includes("home") || setting.includes("parent"));
-}
-
-function isTeacherClassroom(record: ChineseLiteracyDashboardAdministration) {
-  const setting = record.setting.toLowerCase();
-    return record.respondentType.toLowerCase().includes("teacher") && (setting.includes("classroom") || setting.includes("school"));
-}
-
 function statusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
-
-function csvCell(value: string | number | null) {
-  const text = value === null ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
-}
-
-const AUTO_REFRESH_OPTIONS = [
-  { label: "Off", value: null },
-  { label: "Every 5 min", value: 5 * 60 * 1000 },
-  { label: "Every 15 min", value: 15 * 60 * 1000 },
-  { label: "Every 1 hour", value: 60 * 60 * 1000 },
-] as const;
 
 export default function ChineseLiteracyDashboardPage() {
   const { id: routeCaseId = "" } = useParams<{ id: string }>();
@@ -93,11 +80,7 @@ export default function ChineseLiteracyDashboardPage() {
   const parent = parentRecords.find((record) => record.assignmentId === parentId);
   const teacher = teacherRecords.find((record) => record.assignmentId === teacherId);
   const sharedDomains = useMemo(() => {
-    if (!parent || !teacher) return [];
-    return parent.domains.flatMap((parentDomain) => {
-      const teacherDomain = teacher.domains.find((domain) => domain.id === parentDomain.id && domain.name.trim() === parentDomain.name.trim());
-      return teacherDomain ? [{ name: parentDomain.name, parentDomain, teacherDomain }] : [];
-    });
+    return sharedDomainPairs(parent, teacher);
   }, [parent, teacher]);
 
   useEffect(() => {
@@ -115,26 +98,9 @@ export default function ChineseLiteracyDashboardPage() {
   }, []);
 
   const savedComparison = data?.comparison ?? null;
-  const snapshotMatchesCurrent = Boolean(
-    savedComparison &&
-    parent &&
-    teacher &&
-    savedComparison.parentAssignmentId === parent.assignmentId &&
-    savedComparison.teacherAssignmentId === teacher.assignmentId &&
-    savedComparison.parentRevision === parent.revision &&
-    savedComparison.teacherRevision === teacher.revision,
-  );
+  const snapshotMatchesCurrent = snapshotMatchesSelection(savedComparison, parent, teacher);
   const comparisonIsStale = Boolean(savedComparison && (savedComparison.stale || !snapshotMatchesCurrent));
-  const canGenerate = Boolean(
-    parent &&
-    teacher &&
-    ["submitted", "under_review"].includes(parent.status.toLowerCase()) &&
-    ["submitted", "under_review"].includes(teacher.status.toLowerCase()) &&
-    parent.submittedAt &&
-    teacher.submittedAt &&
-    sharedDomains.length > 0 &&
-    !comparisonMutation.isPending,
-  );
+  const canGenerate = canGenerateComparison(parent, teacher, sharedDomains.length, comparisonMutation.isPending);
 
   const handleGenerate = () => {
     if (!parent || !teacher || !canGenerate) return;
@@ -146,17 +112,7 @@ export default function ChineseLiteracyDashboardPage() {
 
   const exportCsv = () => {
     if (!sharedDomains.length) return;
-    const rows = [
-      ["Domain", "Parent / home mean", "Teacher / classroom mean", "Parent status", "Teacher status"],
-      ...sharedDomains.map(({ name, parentDomain, teacherDomain }) => [
-        name,
-        parentDomain.mean,
-        teacherDomain.mean,
-        parentDomain.status,
-        teacherDomain.status,
-      ]),
-    ];
-    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const csv = createComparisonCsv(sharedDomains);
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
     anchor.href = url;

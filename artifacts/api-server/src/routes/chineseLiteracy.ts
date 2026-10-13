@@ -27,6 +27,10 @@ import { loadLiteracy, persistLiteracy, literacyEnvelope, LITERACY_INTEGRATION, 
 import { literacyExport, literacyReportExport } from "../lib/chineseLiteracyExport.js";
 import { translateChineseFields } from "../lib/chineseLiteracyExportTranslation.js";
 import { CHINESE_LITERACY_KEYS, isChineseLiteracy, isParentLiteracy, literacyMetadata } from "../lib/chineseLiteracyInstruments.js";
+import {
+  alignChineseLiteracyDomains, canReviewChineseLiteracyDashboard, collectPrivateValues, isChineseLiteracySnapshotStale,
+  redactPrivateValues, validateChineseLiteracyPairEligibility,
+} from "../lib/chineseLiteracyDashboard.js";
 
 const router = Router();
 class AccessError extends Error { constructor(public status: number, message: string) { super(message); } }
@@ -62,7 +66,7 @@ async function tokenAssignment(token: string) {
   return assignment;
 }
 async function staffCase(req: Request, caseId = String(req.params.caseId)) {
-  if (!req.userId || !["admin", "psychometrician", "school_clinical_coordinator"].includes(req.userRole ?? "")) throw new AccessError(403, "Authorized professional review is required.");
+  if (!req.userId || !canReviewChineseLiteracyDashboard(req.userRole)) throw new AccessError(403, "Authorized professional review is required.");
   const [c] = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!c) throw new AccessError(404, "Case not found.");
   if (req.userRole === "psychometrician" && c.assignedPsychId !== req.userId && c.assignedLeadId !== req.userId) throw new AccessError(403, "You are not assigned to this case.");
@@ -170,31 +174,6 @@ function removePersonalContext(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value as Record<string, unknown>)
     .filter(([key]) => !privateKey.test(key))
     .map(([key, child]) => [key, removePersonalContext(child)]));
-}
-function collectPrivateValues(value: unknown, into: string[] = []): string[] {
-  if (Array.isArray(value)) {
-    for (const item of value) collectPrivateValues(item, into);
-    return into;
-  }
-  if (!value || typeof value !== "object") return into;
-  const privateKey = /(name|email|phone|address|dob|birth|case.?id|token)/i;
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (privateKey.test(key) && typeof child === "string" && child.trim().length >= 2) into.push(child.trim());
-    collectPrivateValues(child, into);
-  }
-  return into;
-}
-function redactPrivateValues(value: unknown, privateValues: string[]): unknown {
-  if (Array.isArray(value)) return value.map(item => redactPrivateValues(item, privateValues));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-      .map(([key, child]) => [key, redactPrivateValues(child, privateValues)]));
-  }
-  if (typeof value !== "string") return value;
-  return [...privateValues].sort((a, b) => b.length - a.length).reduce((text, item) => {
-    if (/^(unknown|none|n\/a|not provided)$/i.test(item)) return text;
-    return text.replace(new RegExp(item.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "giu"), "[REDACTED]");
-  }, value);
 }
 function comparisonPrompt(parent: ReturnType<typeof dashboardAdministration>, teacher: ReturnType<typeof dashboardAdministration>, privateValues: string[]) {
   const toAiRecord = (record: ReturnType<typeof dashboardAdministration>) => ({
@@ -356,8 +335,7 @@ router.get("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(asy
       teacherRevision: saved.teacherRevision,
       generatedAt: saved.generatedAt.toISOString(),
       content: comparisonDraftSchema.parse(saved.content),
-      stale: !parent || !teacher || parent.revision !== saved.parentRevision || teacher.revision !== saved.teacherRevision
-        || !parent.submittedAt || !teacher.submittedAt,
+      stale: isChineseLiteracySnapshotStale(saved, parent, teacher),
     };
   }
   res.json(GetChineseLiteracyDashboardResponse.parse({ caseId: c.id, administrations, comparison }));
@@ -385,19 +363,27 @@ router.post("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(as
     loadLiteracy(parentAssignment),
     loadLiteracy(teacherAssignment),
   ]);
-  if (parentDoc.baselineId || teacherDoc.baselineId) throw new AccessError(400, "Choose the original parent and teacher forms, not a follow-up.");
-  if (!parentDoc.submittedAt || !teacherDoc.submittedAt || !parentDoc.scores.length || !teacherDoc.scores.length) {
-    throw new AccessError(422, "Both selected Chinese Literacy forms must be submitted before a comparison can be generated.");
-  }
+  const eligibility = validateChineseLiteracyPairEligibility({
+    parentIsParentForm: isParentLiteracy(parentAssignment.toolId),
+    teacherIsParentForm: isParentLiteracy(teacherAssignment.toolId),
+    parentBaselineId: parentDoc.baselineId,
+    teacherBaselineId: teacherDoc.baselineId,
+    parentSubmittedAt: parentDoc.submittedAt,
+    teacherSubmittedAt: teacherDoc.submittedAt,
+    parentScoreCount: parentDoc.scores.length,
+    teacherScoreCount: teacherDoc.scores.length,
+  });
+  if (!eligibility.eligible) throw new AccessError(eligibility.status, eligibility.message);
   const parent = dashboardAdministration(parentAssignment, parentDoc);
   const teacher = dashboardAdministration(teacherAssignment, teacherDoc);
   const parentMetadata = literacyMetadata(parentAssignment.toolId);
   const teacherMetadata = literacyMetadata(teacherAssignment.toolId);
-  const alignedDomains = teacherMetadata.domains
-    .filter(td => parentMetadata.domains.some(pd => pd.id === td.id && pd.label === td.label))
-    .map(domain => ({ id: domain.id, name: domain.label }));
-  const selectedAlignedDomains = alignedDomains.filter(domain =>
-    parent.selectedDomains.includes(domain.id) && teacher.selectedDomains.includes(domain.id));
+  const selectedAlignedDomains = alignChineseLiteracyDomains(
+    parentMetadata.domains,
+    teacherMetadata.domains,
+    parent.selectedDomains,
+    teacher.selectedDomains,
+  );
   if (!selectedAlignedDomains.length) throw new AccessError(422, "The selected records have no administered domains in common to compare.");
 
   let content: z.infer<typeof comparisonDraftSchema>;
