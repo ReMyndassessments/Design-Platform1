@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
 import { prepareEmailOctopusAudience, getCommunicationsMailer, getEmailOctopusCampaignReport, getEmailOctopusListUnsubscribes, renderBrandedEmail, renderEmail, sanitizeEmailHtml, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
-import { isCommunicationBlocked, isPermanentOperationalEmailFailure, isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
+import { collectPermanentlyFailedEmails, isCommunicationBlocked, isPermanentOperationalEmailFailure, isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
 import { ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
 
@@ -42,6 +42,7 @@ const ready = (async () => {
   await db.execute(sql`CREATE TABLE IF NOT EXISTS communication_operational_contacts (email text PRIMARY KEY, name text, active boolean NOT NULL DEFAULT true, failure_reason text, created_at timestamptz NOT NULL DEFAULT NOW(), updated_at timestamptz NOT NULL DEFAULT NOW())`);
   await db.execute(sql`UPDATE communication_operational_contacts SET active=true,updated_at=NOW() WHERE active=false AND failure_reason ~* '(^|[^0-9])4[0-9]{2}([^0-9]|$)'`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS communication_campaign_due_idx ON communication_campaigns(status, scheduled_at)`);
+  await backfillPermanentOperationalFailures();
 })();
 async function ensureReady() { await ready; }
 async function getSuppressionKind(email: string): Promise<string | undefined> {
@@ -59,6 +60,30 @@ async function applySuppression(email: string, kind: "hard" | "unsubscribe", rea
   await db.execute(sql`UPDATE communication_recipients r SET status='unsubscribed',unsubscribed_at=NOW()
     FROM communication_campaigns c WHERE r.campaign_id=c.id AND lower(r.email)=${email}
     AND r.status IN ('pending','queued','failed') AND (${kind}='hard' OR c.kind='promotional')`);
+}
+async function suppressPermanentlyInvalidAddress(email: string, reason: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  await db.execute(sql`INSERT INTO communication_suppressions(email,kind,reason)
+    VALUES(${normalizedEmail},'hard',${reason})
+    ON CONFLICT(email) DO UPDATE SET
+      kind='hard',
+      reason=CASE WHEN communication_suppressions.kind='hard' THEN communication_suppressions.reason ELSE EXCLUDED.reason END`);
+  await db.execute(sql`DELETE FROM communication_operational_contacts WHERE lower(email)=${normalizedEmail}`);
+}
+async function backfillPermanentOperationalFailures(): Promise<void> {
+  const result = await db.execute(sql`
+    SELECT lower(r.email) AS email, r.error
+    FROM communication_recipients r
+    JOIN communication_campaigns c ON c.id=r.campaign_id
+    WHERE c.kind='operational' AND c.provider='gmail'
+      AND c.is_test IS NOT TRUE AND r.source_type <> 'test'
+      AND r.status='failed' AND r.error IS NOT NULL
+  `);
+  const permanentFailures = collectPermanentlyFailedEmails(result.rows as Array<{ email: string; error: string | null }>);
+  for (const { email } of permanentFailures) {
+    await suppressPermanentlyInvalidAddress(email, "Permanent recipient-address failure");
+  }
+  if (permanentFailures.length) logger.info({ count: permanentFailures.length }, "Previously failed permanent addresses excluded from future campaigns");
 }
 function requestOrigin(req: Request): string {
   const protocol = String(req.headers["x-forwarded-proto"] ?? req.protocol).split(",")[0].trim();
@@ -360,14 +385,15 @@ async function deliver(campaignId: string, retry = false) {
         },
         markFailed: async (recipient, error) => {
           await db.execute(sql`UPDATE communication_recipients SET status = 'failed', attempts = attempts + 1, error = ${error.message.slice(0, 1000)} WHERE id = ${recipient.id}`);
-           if (recipient.source_type === "manual" || recipient.source_type === "operational_saved") {
-             const permanent = isPermanentOperationalEmailFailure(error);
+            if (isPermanentOperationalEmailFailure(error)) {
+              await suppressPermanentlyInvalidAddress(recipient.email, "Permanent recipient-address failure");
+            } else if (recipient.source_type === "manual" || recipient.source_type === "operational_saved") {
               await db.execute(sql`INSERT INTO communication_operational_contacts(email,name,active,failure_reason)
-                SELECT ${recipient.email},${recipient.name ?? null},${!permanent},${error.message.slice(0, 1000)}
+                SELECT ${recipient.email},${recipient.name ?? null},true,${error.message.slice(0, 1000)}
                 WHERE NOT EXISTS (SELECT 1 FROM communication_suppressions WHERE lower(email)=lower(${recipient.email}) AND kind='hard')
-                ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=EXCLUDED.active,failure_reason=EXCLUDED.failure_reason,updated_at=NOW()
+                ON CONFLICT(email) DO UPDATE SET name=COALESCE(EXCLUDED.name,communication_operational_contacts.name),active=true,failure_reason=EXCLUDED.failure_reason,updated_at=NOW()
                 WHERE NOT EXISTS (SELECT 1 FROM communication_suppressions WHERE lower(email)=lower(${recipient.email}) AND kind='hard')`);
-           }
+            }
         },
       });
       const totals = await db.execute(sql`SELECT COUNT(*) FILTER (WHERE status = 'failed')::int AS failed FROM communication_recipients WHERE campaign_id = ${campaignId}`);

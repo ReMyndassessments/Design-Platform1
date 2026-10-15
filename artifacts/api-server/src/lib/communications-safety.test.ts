@@ -4,6 +4,7 @@ import {
   resolveEligibleContacts,
   isCommunicationBlocked,
   isPermanentOperationalEmailFailure,
+  collectPermanentlyFailedEmails,
   runWithCampaignLock,
   sendGmailGroup,
   sendGmailTest,
@@ -126,8 +127,23 @@ test("Gmail groups process large approved lists in consecutive batches of 50 wit
 
 test("operational email failures distinguish temporary provider errors from permanent bad addresses", () => {
   assert.equal(isPermanentOperationalEmailFailure(new Error("421 4.3.0 Temporary System Problem")), false);
+  assert.equal(isPermanentOperationalEmailFailure(new Error("454 4.7.0 Too many login attempts")), false);
   assert.equal(isPermanentOperationalEmailFailure(new Error("550 5.1.1 User unknown")), true);
+  assert.equal(isPermanentOperationalEmailFailure(new Error("553 Mailbox name not allowed")), true);
+  assert.equal(isPermanentOperationalEmailFailure(new Error("550 5.7.1 Sender policy rejection")), false);
   assert.equal(isPermanentOperationalEmailFailure(new Error("Connection timed out")), false);
+});
+
+test("historical failure backfill selects only permanently invalid, valid addresses", () => {
+  assert.deepEqual(collectPermanentlyFailedEmails([
+    { email: "temp@example.com", error: "421 4.3.0 Temporary System Problem" },
+    { email: "unknown@example.com", error: "550 5.1.1 User unknown" },
+    { email: "UNKNOWN@example.com", error: "Connection timed out" },
+    { email: "bad address", error: "550 5.1.1 User unknown" },
+    { email: "policy@example.com", error: "550 5.7.1 Sender policy rejection" },
+  ]), [
+    { email: "unknown@example.com", error: "550 5.1.1 User unknown" },
+  ]);
 });
 
 test("Gmail groups isolate failures so a retry can target only failed recipients", async () => {

@@ -129,7 +129,19 @@ export async function sendGmailGroup(options: {
 
 export function isPermanentOperationalEmailFailure(error: Error): boolean {
   const message = error.message;
-  return /\b(550|551|553)\b|user unknown|no such (user|recipient)|recipient address rejected|mailbox (does not exist|not found)/i.test(message);
+  return /\b5\.1\.(?:1|2|3|6|10)\b/i.test(message) ||
+    /user unknown|no such (user|recipient)|mailbox (does not exist|not found)|mailbox name not allowed|invalid (recipient|mailbox|email)( address)?|bad destination mailbox address/i.test(message);
+}
+
+export function collectPermanentlyFailedEmails(rows: readonly { email: unknown; error: unknown }[]) {
+  const result = new Map<string, string>();
+  for (const row of rows) {
+    const email = normalizeCommunicationEmail(row.email);
+    const error = String(row.error || "");
+    if (!isValidCommunicationEmail(email) || result.has(email) || !isPermanentOperationalEmailFailure(new Error(error))) continue;
+    result.set(email, error);
+  }
+  return [...result].map(([email, error]) => ({ email, error }));
 }
 
 export async function sendGmailTest(options: {
