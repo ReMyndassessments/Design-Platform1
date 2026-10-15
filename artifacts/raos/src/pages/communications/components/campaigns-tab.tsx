@@ -262,6 +262,7 @@ function CampaignDetailModal({ id, onClose }: { id: string; onClose: () => void 
   const { data, isLoading } = useCampaignDetail(id);
   const syncMutation = useSyncCampaignResults();
   const deleteMutation = useDeleteCampaign();
+  const [showEmailContent, setShowEmailContent] = useState(false);
   
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
@@ -303,6 +304,51 @@ function CampaignDetailModal({ id, onClose }: { id: string; onClose: () => void 
                   {deleteMutation.isPending ? "Deleting..." : "Permanently Delete Record"}
                 </button>
               </div>
+
+              <section className="mb-6 rounded-xl border border-slate-200 bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Saved email content</h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      The stored campaign body. Recipient personalization and the final branded email wrapper may vary.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid={`button-toggle-campaign-email-content-${id}`}
+                    aria-expanded={showEmailContent}
+                    aria-controls={`campaign-email-content-preview-${id}`}
+                    onClick={() => setShowEmailContent(value => !value)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Eye size={15} />
+                    {showEmailContent ? "Hide email content" : "View email content"}
+                  </button>
+                </div>
+                {showEmailContent && (
+                  <div
+                    id={`campaign-email-content-preview-${id}`}
+                    data-testid={`preview-campaign-email-content-${id}`}
+                    className="border-t border-slate-200 p-3"
+                  >
+                    {typeof data.campaign.html === "string" && data.campaign.html.trim() ? (
+                      <iframe
+                        title={`Saved email content: ${data.campaign.subject || data.campaign.name}`}
+                        srcDoc={data.campaign.html}
+                        sandbox=""
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        className="h-[28rem] w-full rounded-lg border border-slate-200 bg-white"
+                        data-testid={`frame-campaign-email-content-${id}`}
+                      />
+                    ) : (
+                      <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
+                        No saved email body is available for this campaign.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </section>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
                 {(["queued", "sent", "delivered", "bounced", "complained", "unsubscribed", "failed"] as const).map(status => (
