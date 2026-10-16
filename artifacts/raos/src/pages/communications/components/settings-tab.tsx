@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useBrandSettings, useUpdateBrandSettings, useAddSuppression, useSuppressions, useRemoveSuppression } from "@/hooks/use-communications";
-import { Save, ShieldAlert, Check, Trash2 } from "lucide-react";
+import { useBrandSettings, useUpdateBrandSettings, useAddSuppression, useSuppressions, useRemoveSuppression, useBulkHardBlockSuppressions } from "@/hooks/use-communications";
+import { Save, ShieldAlert, Check, Trash2, UserRoundX } from "lucide-react";
 import { format } from "date-fns";
 
 export function SettingsTab() {
@@ -10,6 +10,7 @@ export function SettingsTab() {
   const updateSettings = useUpdateBrandSettings();
   const addSuppression = useAddSuppression();
   const removeSuppression = useRemoveSuppression();
+  const bulkHardBlock = useBulkHardBlockSuppressions();
 
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
@@ -20,6 +21,17 @@ export function SettingsTab() {
   const [suppressKind, setSuppressKind] = useState<"unsubscribe" | "hard">("unsubscribe");
   const [suppressReason, setSuppressReason] = useState("");
   const [suppressSaved, setSuppressSaved] = useState(false);
+  const [bulkEmailsText, setBulkEmailsText] = useState("");
+  const [bulkResult, setBulkResult] = useState<{
+    addresses_processed: number;
+    saved_contacts_removed: number;
+    unsent_recipients_disabled: number;
+  } | null>(null);
+  const [bulkError, setBulkError] = useState("");
+
+  const parseBulkEmails = () => [...new Set(
+    bulkEmailsText.split(/[\s,;]+/).map(email => email.trim().toLowerCase()).filter(Boolean)
+  )];
 
   useEffect(() => {
     if (brandData?.settings) {
@@ -48,6 +60,24 @@ export function SettingsTab() {
         setSuppressSaved(true);
         setTimeout(() => setSuppressSaved(false), 2000);
       }
+    });
+  };
+
+  const handleBulkHardBlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const emails = parseBulkEmails();
+    if (!emails.length) return;
+    if (!window.confirm(
+      `Hard-block ${emails.length} unique addresses from all future RAOS Communications Center email. This removes saved contacts and disables pending, queued, or failed recipients. Sent history is retained. Continue?`
+    )) return;
+    setBulkError("");
+    setBulkResult(null);
+    bulkHardBlock.mutate(emails, {
+      onSuccess: result => {
+        setBulkResult(result);
+        setBulkEmailsText("");
+      },
+      onError: error => setBulkError(error instanceof Error ? error.message : "Bulk removal failed. No addresses were changed."),
     });
   };
 
@@ -112,6 +142,40 @@ export function SettingsTab() {
           <ShieldAlert size={20} className="text-slate-400" />
           Suppression List
         </h2>
+        <form onSubmit={handleBulkHardBlock} className="space-y-3 bg-rose-50 p-5 rounded-xl border border-rose-200 mb-6">
+          <div className="flex items-center gap-2 text-sm font-semibold text-rose-900">
+            <UserRoundX size={17} />
+            Remove multiple addresses
+          </div>
+          <p className="text-sm text-rose-800">
+            Paste email addresses separated by new lines, commas, or semicolons. This hard-blocks them from future RAOS communications and removes them from the saved contact list. Sent history stays for audit purposes.
+          </p>
+          <textarea
+            value={bulkEmailsText}
+            onChange={event => { setBulkEmailsText(event.target.value); setBulkError(""); setBulkResult(null); }}
+            rows={5}
+            maxLength={100000}
+            aria-label="Email addresses to remove"
+            placeholder={"name@example.com\nanother@example.com"}
+            className="w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-rose-400"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-slate-500">{parseBulkEmails().length} unique address(es) ready</span>
+            <button
+              type="submit"
+              disabled={!parseBulkEmails().length || bulkHardBlock.isPending}
+              className="px-4 py-2 rounded-lg bg-rose-700 text-white text-sm font-medium hover:bg-rose-800 disabled:opacity-50"
+            >
+              {bulkHardBlock.isPending ? "Removing..." : "Hard-block and remove"}
+            </button>
+          </div>
+          {bulkError && <p role="alert" className="text-sm text-red-700">{bulkError}</p>}
+          {bulkResult && (
+            <p role="status" className="text-sm text-emerald-800">
+              Processed {bulkResult.addresses_processed} addresses; removed {bulkResult.saved_contacts_removed} saved contacts and disabled {bulkResult.unsent_recipients_disabled} unsent recipients. Sent history was retained.
+            </p>
+          )}
+        </form>
         <form onSubmit={handleAddSuppression} className="space-y-4 max-w-md bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6">
           <p className="text-sm text-slate-600 mb-4">
             Manually add an email to the suppression list. They will be excluded from future campaigns based on the type.

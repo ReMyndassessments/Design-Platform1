@@ -689,6 +689,66 @@ router.post("/communications/suppressions", async (req, res): Promise<void> => {
   await writeAudit({ eventType: "communications.suppression.added", actorId: req.userId, actorRole: req.userRole, metadata: { kind } });
   res.status(201).json({ ok: true });
 });
+router.post("/communications/suppressions/bulk-hard-block", async (req, res): Promise<void> => {
+  if (!Array.isArray(req.body?.emails) || req.body.emails.length === 0 || req.body.emails.length > 500) {
+    res.status(400).json({ error: "Provide between 1 and 500 email addresses" }); return;
+  }
+  if (req.body.emails.some((email: unknown) => typeof email !== "string")) {
+    res.status(400).json({ error: "Every entry must be an email address" }); return;
+  }
+  const emails = [...new Set((req.body.emails as string[]).map(email => email.trim().toLowerCase()).filter(Boolean))];
+  if (!emails.length || emails.some(email => !validEmail.test(email))) {
+    res.status(400).json({ error: "One or more email addresses are invalid; nothing was changed" }); return;
+  }
+  const reason = "Administrator-requested removal from RAOS Communications lists";
+  const result = await db.execute(sql`
+    WITH input AS MATERIALIZED (
+      SELECT DISTINCT lower(trim(email)) AS email
+      FROM jsonb_array_elements_text(${JSON.stringify(emails)}::jsonb) AS supplied(email)
+    ),
+    blocked AS (
+      INSERT INTO communication_suppressions(email,kind,reason)
+      SELECT email,'hard',${reason} FROM input
+      ON CONFLICT(email) DO UPDATE SET
+        kind='hard',
+        reason=CASE WHEN communication_suppressions.kind='hard'
+          THEN communication_suppressions.reason ELSE EXCLUDED.reason END
+      RETURNING email
+    ),
+    removed_contacts AS (
+      DELETE FROM communication_operational_contacts contact
+      USING input
+      WHERE lower(contact.email)=input.email
+      RETURNING contact.email
+    ),
+    disabled_recipients AS (
+      UPDATE communication_recipients recipient
+      SET status='unsubscribed',unsubscribed_at=NOW()
+      FROM input
+      WHERE lower(recipient.email)=input.email
+        AND recipient.status IN ('pending','queued','failed')
+      RETURNING recipient.id
+    )
+    SELECT
+      (SELECT count(*)::int FROM input) AS addresses_processed,
+      (SELECT count(*)::int FROM blocked) AS hard_blocked,
+      (SELECT count(*)::int FROM removed_contacts) AS saved_contacts_removed,
+      (SELECT count(*)::int FROM disabled_recipients) AS unsent_recipients_disabled
+  `);
+  const counts = result.rows[0] as {
+    addresses_processed: number;
+    hard_blocked: number;
+    saved_contacts_removed: number;
+    unsent_recipients_disabled: number;
+  };
+  await writeAudit({
+    eventType: "communications.suppression.bulk_hard_blocked",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    metadata: { count: counts.addresses_processed, savedContactsRemoved: counts.saved_contacts_removed },
+  });
+  res.status(201).json({ ok: true, ...counts, sentHistoryRetained: true });
+});
 router.get("/communications/suppressions", async(_req,res)=>{const r=await db.execute(sql`SELECT email,kind,reason,created_at FROM communication_suppressions ORDER BY created_at DESC`);res.json({suppressions:r.rows});});
 router.delete("/communications/suppressions/:email", async(req,res)=>{await db.execute(sql`DELETE FROM communication_suppressions WHERE email=${String(req.params.email).toLowerCase()}`);res.json({ok:true});});
 const maxAssetBytes = Number(process.env.COMMUNICATIONS_MAX_ASSET_BYTES || 25 * 1024 * 1024);

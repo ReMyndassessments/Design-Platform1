@@ -344,6 +344,29 @@ export function useAddSuppression() {
   });
 }
 
+export function useBulkHardBlockSuppressions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (emails: string[]) =>
+      customFetch("/api/communications/suppressions/bulk-hard-block", {
+        method: "POST",
+        body: JSON.stringify({ emails }),
+        headers: { "Content-Type": "application/json" },
+      }) as Promise<{
+        addresses_processed: number;
+        hard_blocked: number;
+        saved_contacts_removed: number;
+        unsent_recipients_disabled: number;
+        sentHistoryRetained: boolean;
+      }>,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["communications-suppressions"] });
+      qc.invalidateQueries({ queryKey: ["communications-contacts"] });
+      qc.invalidateQueries({ queryKey: ["communications-campaigns"] });
+    },
+  });
+}
+
 export function useRemoveSuppression() {
   const qc = useQueryClient();
   return useMutation({
