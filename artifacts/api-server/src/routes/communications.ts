@@ -43,6 +43,7 @@ const ready = (async () => {
   await db.execute(sql`UPDATE communication_operational_contacts SET active=true,updated_at=NOW() WHERE active=false AND failure_reason ~* '(^|[^0-9])4[0-9]{2}([^0-9]|$)'`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS communication_campaign_due_idx ON communication_campaigns(status, scheduled_at)`);
   await backfillPermanentOperationalFailures();
+  await backfillConfirmedCampaignRecipientBlock();
 })();
 async function ensureReady() { await ready; }
 async function getSuppressionKind(email: string): Promise<string | undefined> {
@@ -84,6 +85,46 @@ async function backfillPermanentOperationalFailures(): Promise<void> {
     await suppressPermanentlyInvalidAddress(email, "Permanent recipient-address failure");
   }
   if (permanentFailures.length) logger.info({ count: permanentFailures.length }, "Previously failed permanent addresses excluded from future campaigns");
+}
+async function backfillConfirmedCampaignRecipientBlock(): Promise<void> {
+  const campaignId = "ZDaSMnmaPF338gSRfLFrL";
+  const reason = `Admin-requested hard block after repeated Gmail quota failures for campaign ${campaignId}`;
+  const result = await db.execute(sql`
+    WITH already_applied AS (
+      SELECT EXISTS (
+        SELECT 1 FROM communication_suppressions WHERE reason=${reason}
+      ) AS done
+    ),
+    target_emails AS MATERIALIZED (
+      SELECT DISTINCT lower(r.email) AS email
+      FROM communication_recipients r
+      JOIN communication_campaigns c ON c.id=r.campaign_id
+      WHERE c.id=${campaignId}
+        AND c.name='Workshop 3 This Wednesday!'
+        AND c.subject='Workshop 3 Recording - New Leadership Series'
+        AND c.kind='operational' AND c.provider='gmail' AND c.is_test IS NOT TRUE
+        AND r.source_type <> 'test' AND r.status='failed' AND r.attempts >= 2
+        AND r.error ~* '(^|[^0-9])550([^0-9]|$)' AND r.error ~* '5[.]4[.]5'
+        AND (SELECT done FROM already_applied)=false
+    ),
+    inserted AS (
+      INSERT INTO communication_suppressions(email,kind,reason)
+      SELECT email,'hard',${reason} FROM target_emails
+      ON CONFLICT(email) DO UPDATE SET
+        kind='hard',
+        reason=CASE WHEN communication_suppressions.kind='hard' THEN communication_suppressions.reason ELSE EXCLUDED.reason END
+      RETURNING email
+    ),
+    removed_saved_contacts AS (
+      DELETE FROM communication_operational_contacts oc
+      USING target_emails t
+      WHERE lower(oc.email)=t.email
+      RETURNING oc.email
+    )
+    SELECT COUNT(*)::int AS blocked FROM inserted
+  `);
+  const blocked = Number((result.rows[0] as { blocked?: number } | undefined)?.blocked ?? 0);
+  if (blocked) logger.info({ count: blocked, campaignId }, "Applied requested block for repeatedly failed campaign recipients");
 }
 function requestOrigin(req: Request): string {
   const protocol = String(req.headers["x-forwarded-proto"] ?? req.protocol).split(",")[0].trim();
