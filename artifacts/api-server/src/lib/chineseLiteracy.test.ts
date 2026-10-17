@@ -52,6 +52,7 @@ test("all NA, all NO and reduced denominator are explicit", () => {
 test("unanswered remains applicable; whole section NO is not an unvisited section", () => {
   const s=scoreLiteracyDomain(ids("R"),[rated("R1",3)]); assert.equal(s.unansweredCount,9); assert.equal(s.applicableCount,10); assert.equal(s.mean,null);
   const input=fixture(); assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true)); delete input.sections.M;
+  input.responses=input.responses.map(r=>r.itemId==="M1"?{itemId:"M1",status:"unanswered",value:null} as any:r);
   assert.throws(()=>validateLiteracyInput(input,undefined,true));
 });
 test("duplicates, unknowns, fractional/string/out-of-range values and NA without reasons fail", () => {
@@ -65,6 +66,14 @@ test("teacher submission permits high ratings without examples and preserves sup
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true));
   input.evidence.R.examples=[];
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,true));
+});
+test("fully answered item-by-item teacher sections infer completion for older drafts", () => {
+  const input=fixture();
+  delete input.sections.R;
+  input.responses=input.responses.map(r=>r.itemId==="R1"||r.itemId==="R2"?rated(r.itemId,4) as any:r);
+  input.evidence.R={examples:[],strengths:"Strengths recorded.",supports:"Classroom support recorded.",impact:null};
+  const validated=validateLiteracyInput(input,undefined,true);
+  assert.deepEqual(validated.sections.R,{decision:"complete"});
 });
 test("incomplete NA drafts save without invented reasons; submission and scoring reject them", () => {
   const input=fixture(); input.responses=input.responses.map(r=>r.itemId==="R1"?{itemId:"R1",status:"not_applicable",value:null,reason:""}:r);

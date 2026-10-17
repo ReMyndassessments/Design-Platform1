@@ -183,6 +183,16 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
   for (const id of [...Object.keys(input.sections), ...Object.keys(input.evidence)]) {
     if (!selected.includes(id)) issues.push(`Domain ${id} was not assigned.`);
   }
+  const responseById = new Map(input.responses.map(response => [response.itemId, response]));
+  for (const d of domains) {
+    if (input.sections[d.id]) continue;
+    const sectionResponses = d.items.map(item => responseById.get(item.id));
+    if (sectionResponses.length > 0 && sectionResponses.every(response => response && response.status !== "unanswered")) {
+      // Older/client forms allowed every item to be answered without the separate section-level button.
+      // A fully answered set is an explicit item-by-item completion, not an unvisited section.
+      input.sections[d.id] = { decision: "complete" };
+    }
+  }
   for (const d of domains) {
     const section = input.sections[d.id];
     const responses = input.responses.filter(r => d.items.some(item => item.id === r.itemId));

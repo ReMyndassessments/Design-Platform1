@@ -58,7 +58,9 @@ export function DomainStep({ domain, input, meta, update }: { domain: ClDomain; 
 
   const setResp = (r: ItemResponse) => update(i => ({
     ...i, responses: i.responses.map(x => x.itemId === r.itemId ? r : x),
-    sections: (!core && !i.sections[domain.id]) || (i.sections[domain.id] && i.sections[domain.id].decision !== "complete") ? { ...i.sections, [domain.id]: { decision: "complete" } } : i.sections,
+    sections: i.sections[domain.id]?.decision === "complete"
+      ? i.sections
+      : { ...i.sections, [domain.id]: { decision: "complete" } },
   }));
   const setDecision = (decision: SectionDecision) => {
     const anyRated = stats.rated > 0;

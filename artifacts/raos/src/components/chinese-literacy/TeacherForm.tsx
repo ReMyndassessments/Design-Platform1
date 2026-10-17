@@ -167,7 +167,10 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated, q
       const res = await clRequest<ClEnvelope>(`${formUrl(token)}/submit`, { method: "POST", body: { revision: sync.revisionRef.current, input: inputRef.current } });
       setAdm(res.administration); sessionStorage.removeItem(stepKey);
     } catch (e) {
-      setSubmitError(e instanceof ApiError && e.issues.length ? `${e.message} ${e.issues.join(" ")}` : (e as Error).message);
+      const language = inputRef.current.interfaceLanguage;
+      setSubmitError(e instanceof ApiError && e.issues.length
+        ? `${translateLiteracyText(e.message, language)} ${e.issues.map(issue => translateLiteracyText(issue, language)).join(" ")}`
+        : translateLiteracyText((e as Error).message, language));
     } finally { setSubmitting(false); }
   };
 

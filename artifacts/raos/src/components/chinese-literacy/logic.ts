@@ -36,12 +36,22 @@ export function parseGrade(g: unknown): string {
 export function normalizeInput(raw: Partial<ClInput> | null | undefined, meta: ClMetadata, studentGrade?: unknown): ClInput {
   const byId = new Map((raw?.responses ?? []).map(r => [r.itemId, r]));
   const responses = meta.domains.flatMap(d => d.items.map(i => byId.get(i.id) ?? blankResponse(i.id)));
+  const sections = { ...(raw?.sections ?? {}) };
+  for (const d of meta.domains) {
+    if (sections[d.id]) continue;
+    const sectionResponses = d.items.map(item => byId.get(item.id));
+    if (sectionResponses.length > 0 && sectionResponses.every(response => response && response.status !== "unanswered")) {
+      // Older drafts allowed item-by-item decisions without a separate section-level click.
+      // A fully answered section is therefore an explicit item-level completion.
+      sections[d.id] = { decision: "complete" };
+    }
+  }
   const evidence: Record<string, DomainEvidence> = {};
   meta.domains.forEach(d => { evidence[d.id] = { ...blankEvidence(), ...(raw?.evidence?.[d.id] ?? {}) }; });
   const context = { ...(raw?.context ?? {}) };
   if (!context.grade) { const g = parseGrade(studentGrade); if (g) context.grade = g; }
   return {
-    context, responses, sections: { ...(raw?.sections ?? {}) }, evidence,
+    context, responses, sections, evidence,
     summary: { strengths: "", barriers: "", supportResponse: "", discussion: "", priorities: [], ...(raw?.summary ?? {}) },
     interfaceLanguage: raw?.interfaceLanguage ?? "english",
   };

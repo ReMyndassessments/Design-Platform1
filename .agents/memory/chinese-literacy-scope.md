@@ -39,6 +39,12 @@ Concrete examples are optional in both parent and teacher forms, including for r
 
 **How to apply:** Keep client and server validation consistent and label optional examples clearly in English and Chinese. Preserve examples already entered.
 
+If every item in a selected section has an item-level response, treat the section as completed even when the separate section-decision control was not selected. Do not require a redundant click or reject a fully answered section.
+
+**Why:** On 2026-10-17 the teacher form showed all items complete, but the server rejected the saved answers because it expected an additional section decision.
+
+**How to apply:** Keep client and server inference aligned for existing and new drafts. Infer completion only when every item is answered; leave genuinely incomplete sections subject to the explicit section decision.
+
 Long parent and teacher Chinese Literacy forms must preserve entered responses across browser refreshes. A refresh must not silently discard an in-progress response; if a browser recovery copy and a newer server draft conflict, let the respondent choose explicitly.
 
 **Why:** On 2026-10-17 the user emphasized that respondents must not have to repeat work in these comprehensive forms after a refresh.
