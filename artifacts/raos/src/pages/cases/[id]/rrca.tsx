@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ExaminerInstructions } from "@/components/examiner-instructions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, BookOpen, Eye, Share2, Copy, Mail, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, BookOpen, Eye, Share2, Copy, Mail, MessageCircle, X, Languages } from "lucide-react";
 
 interface RrcaQuestion {
   id: string;
@@ -27,6 +27,25 @@ interface RrcaAnswers {
   passageWordCount: number;
   questions: RrcaQuestion[];
   generalNotes: string;
+  responseLanguage: string;
+  phaseOutcome: "completed" | "stopped_early";
+  questionsReached: number | null;
+  phaseNotes: string;
+  languageTrials: RrcaLanguageTrial[];
+  activeLanguageTrialIndex: number;
+}
+
+interface RrcaLanguageTrial {
+  passageLanguage: string;
+  responseLanguage: string;
+  passage: string;
+  passageDifficulty: string;
+  passageTopic: string;
+  passageWordCount: number;
+  questions: RrcaQuestion[];
+  outcome: "completed" | "stopped_early";
+  questionsReached: number | null;
+  notes: string;
 }
 
 function calcAge(dob: string) {
@@ -39,7 +58,7 @@ function calcAge(dob: string) {
 }
 
 function riskLabel(level: string) {
-  return level === "low" ? "Low Concern" : level === "mild" ? "Mild Concern" : level === "moderate" ? "Moderate Concern" : "Significant Concern";
+  return level === "low" ? "High passage accuracy" : level === "mild" ? "Some incorrect/partial answers" : level === "moderate" ? "Mixed passage accuracy" : "Low passage accuracy";
 }
 
 function riskColor(level: string) {
@@ -51,17 +70,49 @@ function riskColor(level: string) {
 
 function computeScores(questions: RrcaQuestion[]) {
   let literal = 0, inferential = 0, vocabulary = 0, max = 0;
+  let literalItemsScored = 0, inferentialItemsScored = 0, vocabularyItemsScored = 0;
   for (const q of questions) {
-    if (q.score === null) continue;
+    if (typeof q.score !== "number") continue;
     max++;
-    if (q.type === "literal") literal += q.score;
-    else if (q.type === "inferential") inferential += q.score;
-    else if (q.type === "vocabulary") vocabulary += q.score;
+    if (q.type === "literal") {
+      literal += q.score;
+      literalItemsScored++;
+    } else if (q.type === "inferential") {
+      inferential += q.score;
+      inferentialItemsScored++;
+    } else if (q.type === "vocabulary") {
+      vocabulary += q.score;
+      vocabularyItemsScored++;
+    }
   }
   const raw = literal + inferential + vocabulary;
   const pct = max > 0 ? Math.round((raw / max) * 100) : 0;
   const risk = pct >= 85 ? "low" : pct >= 70 ? "mild" : pct >= 50 ? "moderate" : "significant";
-  return { literal, inferential, vocabulary, raw, max, pct, risk };
+  return { literal, inferential, vocabulary, literalItemsScored, inferentialItemsScored, vocabularyItemsScored, raw, max, pct, risk };
+}
+
+function detectPassageScript(text: string) {
+  const hasHan = /[\u3400-\u4DBF\u4E00-\u9FFF]/.test(text);
+  const hasHangul = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/.test(text);
+  const hasLatin = /[A-Za-z]/.test(text);
+  if ([hasHan, hasHangul, hasLatin].filter(Boolean).length > 1) return "Mixed scripts";
+  if (hasHan) return "Chinese characters";
+  if (hasHangul) return "Hangul";
+  if (hasLatin) return "Latin script";
+  return "Unclear";
+}
+
+function scriptMatchesLanguage(language: string, script: string) {
+  if (script === "Mixed scripts" || script === "Unclear") return true;
+  if (language === "mandarin" || language === "cantonese") return script === "Chinese characters";
+  if (language === "korean") return script === "Hangul";
+  return script === "Latin script";
+}
+
+function languageLabel(language?: string) {
+  if (!language || language === "not_recorded") return "Not recorded";
+  if (language === "other") return "Other language";
+  return LANGUAGES.find(item => item.value === language)?.label ?? language;
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -101,6 +152,11 @@ export default function RrcaAdminPage() {
   const [passageWordCount, setPassageWordCount] = useState(0);
   const [questions, setQuestions] = useState<RrcaQuestion[]>([]);
   const [generalNotes, setGeneralNotes] = useState("");
+  const [languageTrials, setLanguageTrials] = useState<RrcaLanguageTrial[]>([]);
+  const [responseLanguage, setResponseLanguage] = useState("not_recorded");
+  const [phaseOutcome, setPhaseOutcome] = useState<"completed" | "stopped_early">("completed");
+  const [questionsReached, setQuestionsReached] = useState("");
+  const [phaseNotes, setPhaseNotes] = useState("");
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -125,22 +181,55 @@ export default function RrcaAdminPage() {
     if (!data || initialized) return;
     const source = data.existingAnswers ?? data.draft;
     if (source) {
+      const savedTrials = Array.isArray(source.languageTrials) ? source.languageTrials as RrcaLanguageTrial[] : [];
+      const activeIndex = typeof source.activeLanguageTrialIndex === "number"
+        ? source.activeLanguageTrialIndex
+        : Math.max(0, savedTrials.length - 1);
+      const activeTrial = savedTrials[activeIndex];
+      setLanguageTrials(savedTrials.filter((_, index) => index !== activeIndex));
       setMode(source.mode ?? "In-Person");
-      setPassage(source.passage ?? "");
-      setPassageLanguage(source.passageLanguage ?? "english");
-      setPassageDifficulty(source.passageDifficulty ?? "expected");
-      setPassageTopic(source.passageTopic ?? "General Knowledge");
-      setPassageWordCount(source.passageWordCount ?? 0);
-      setQuestions(source.questions ?? []);
+      setPassage(activeTrial?.passage ?? source.passage ?? "");
+      setPassageLanguage(activeTrial?.passageLanguage ?? source.passageLanguage ?? "english");
+      setPassageDifficulty(activeTrial?.passageDifficulty ?? source.passageDifficulty ?? "expected");
+      setPassageTopic(activeTrial?.passageTopic ?? source.passageTopic ?? "General Knowledge");
+      setPassageWordCount(activeTrial?.passageWordCount ?? source.passageWordCount ?? 0);
+      setQuestions(activeTrial?.questions ?? source.questions ?? []);
       setGeneralNotes(source.generalNotes ?? "");
+      setResponseLanguage(activeTrial?.responseLanguage ?? source.responseLanguage ?? "not_recorded");
+      setPhaseOutcome(activeTrial?.outcome ?? source.phaseOutcome ?? "completed");
+      const reached = activeTrial?.questionsReached ?? source.questionsReached;
+      setQuestionsReached(reached == null ? "" : String(reached));
+      setPhaseNotes(activeTrial?.notes ?? source.phaseNotes ?? "");
     }
     if (data.summary) setSummary(data.summary);
     setInitialized(true);
   }, [data, initialized]);
 
-  const buildAnswers = useCallback((): RrcaAnswers => ({
+  const buildAnswers = useCallback((): RrcaAnswers => {
+    const activeTrial: RrcaLanguageTrial = {
+      passageLanguage,
+      responseLanguage,
+      passage,
+      passageDifficulty,
+      passageTopic,
+      passageWordCount,
+      questions,
+      outcome: phaseOutcome,
+      questionsReached: questionsReached === ""
+        ? (phaseOutcome === "completed" ? questions.length : null)
+        : Number(questionsReached),
+      notes: phaseNotes,
+    };
+    return {
+      mode, passage, passageLanguage, passageDifficulty, passageTopic, passageWordCount, questions, generalNotes,
+      responseLanguage, phaseOutcome, questionsReached: activeTrial.questionsReached, phaseNotes,
+      languageTrials: [...languageTrials, activeTrial],
+      activeLanguageTrialIndex: languageTrials.length,
+    };
+  }, [
     mode, passage, passageLanguage, passageDifficulty, passageTopic, passageWordCount, questions, generalNotes,
-  }), [mode, passage, passageLanguage, passageDifficulty, passageTopic, passageWordCount, questions, generalNotes]);
+    responseLanguage, phaseOutcome, questionsReached, phaseNotes, languageTrials,
+  ]);
 
   const saveDraft = useCallback(async () => {
     setSaving(true);
@@ -164,9 +253,20 @@ export default function RrcaAdminPage() {
     if (!initialized || isCompleted) return;
     const t = setTimeout(() => saveDraft(), 2000);
     return () => clearTimeout(t);
-  }, [passage, questions, mode, generalNotes, initialized]);
+  }, [
+    passage, passageLanguage, passageDifficulty, passageTopic, passageWordCount, questions, mode, generalNotes,
+    responseLanguage, phaseOutcome, questionsReached, phaseNotes, languageTrials, initialized,
+  ]);
 
   const handleGeneratePassage = async () => {
+    if (passage && questions.some(question => question.score !== null || question.notes.trim())) {
+      toast({
+        title: "Save this phase before replacing it",
+        description: "Use “Save phase & add another language” first so the current passage, notes, and scores are preserved.",
+        variant: "destructive",
+      });
+      return;
+    }
     const caseData = data?.case;
     const age = caseData?.dob ? calcAge(caseData.dob) : 12;
     const grade = data?.case?.grade ?? "";
@@ -190,9 +290,79 @@ export default function RrcaAdminPage() {
     }
   };
 
+  const handleAddLanguageTrial = async () => {
+    if (!passage || questions.length === 0) {
+      toast({ title: "Generate a passage first", description: "Save the current passage and its scores before starting another language phase.", variant: "destructive" });
+      return;
+    }
+    if (phaseOutcome === "stopped_early" && questionsReached === "") {
+      toast({ title: "Record the stopping point", description: "Enter the last question reached, or change the phase outcome to Completed.", variant: "destructive" });
+      return;
+    }
+    const activeTrial = buildAnswers().languageTrials[languageTrials.length];
+    const savedTrials = [...languageTrials, activeTrial];
+    const nextLanguage = LANGUAGES.find(item => item.value !== passageLanguage)?.value ?? passageLanguage;
+    const blankActiveTrial: RrcaLanguageTrial = {
+      passageLanguage: nextLanguage,
+      responseLanguage: "not_recorded",
+      passage: "",
+      passageDifficulty,
+      passageTopic,
+      passageWordCount: 0,
+      questions: [],
+      outcome: "completed",
+      questionsReached: null,
+      notes: "",
+    };
+    const draftAnswers: RrcaAnswers = {
+      mode,
+      passage: "",
+      passageLanguage: nextLanguage,
+      passageDifficulty,
+      passageTopic,
+      passageWordCount: 0,
+      questions: [],
+      generalNotes,
+      responseLanguage: "not_recorded",
+      phaseOutcome: "completed",
+      questionsReached: null,
+      phaseNotes: "",
+      languageTrials: [...savedTrials, blankActiveTrial],
+      activeLanguageTrialIndex: savedTrials.length,
+    };
+    setSaving(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments/${assignmentId}/rrca/draft`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("raos_token")}` },
+        body: JSON.stringify(draftAnswers),
+      });
+      if (!response.ok) throw new Error(await response.text());
+    } catch (error) {
+      toast({ title: "Could not save this language phase", description: String(error), variant: "destructive" });
+      return;
+    } finally {
+      setSaving(false);
+    }
+    setLanguageTrials(savedTrials);
+    setPassage("");
+    setPassageWordCount(0);
+    setQuestions([]);
+    setResponseLanguage("not_recorded");
+    setPhaseOutcome("completed");
+    setQuestionsReached("");
+    setPhaseNotes("");
+    setPassageLanguage(nextLanguage);
+    toast({ title: "Language phase saved", description: "Its passage and scores are saved. Choose the next language and generate another passage." });
+  };
+
   const handleSubmit = async () => {
     if (!passage) {
       toast({ title: "No passage", description: "Generate a passage before submitting.", variant: "destructive" });
+      return;
+    }
+    if (phaseOutcome === "stopped_early" && questionsReached === "") {
+      toast({ title: "Record the stopping point", description: "Enter the last question reached, or change the phase outcome to Completed.", variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -239,6 +409,7 @@ export default function RrcaAdminPage() {
   };
 
   const scores = computeScores(questions);
+  const allLanguageTrials = buildAnswers().languageTrials;
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 text-sm">Failed to load RRCA session.</div>;
@@ -321,6 +492,61 @@ export default function RrcaAdminPage() {
           </div>
         )}
 
+        {(isCompleted || languageTrials.length > 0) && (
+          <section className="mb-6 rounded-xl border border-indigo-200 bg-white p-5">
+            <div className="flex items-start gap-3">
+              <Languages size={17} className="mt-0.5 text-indigo-600" />
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold text-slate-800">Language administration record</h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  Passage and question scripts are checked automatically; confirm the language used with the student. Response language is recorded separately. Scores from different languages or passages are never combined.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {allLanguageTrials.map((trial, index) => {
+                const trialScores = computeScores(trial.questions ?? []);
+                const reached = trial.questionsReached ?? (trial.outcome === "completed" ? trial.questions.length : null);
+                const passageScript = detectPassageScript(trial.passage ?? "");
+                const questionScript = detectPassageScript((trial.questions ?? []).map(question => question.text).join("\n"));
+                const stoppedEarly = trial.outcome === "stopped_early";
+                const statusText = stoppedEarly
+                  ? `Stopped early${reached === null ? "" : ` after question ${reached}`}`
+                  : "Completed";
+                return (
+                  <article key={`${trial.passageLanguage}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-800">Phase {index + 1}: {languageLabel(trial.passageLanguage)}</span>
+                      <Badge variant="outline" className={stoppedEarly ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}>{statusText}</Badge>
+                      <span className="ml-auto text-xs font-medium text-slate-700">
+                        {trialScores.max > 0 ? `${trialScores.raw}/${trialScores.max} scored (${trialScores.pct}%)` : "No numeric score recorded"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Response language: {trial.responseLanguage === "same_as_passage" ? `${languageLabel(trial.passageLanguage)} (same as passage)` : languageLabel(trial.responseLanguage)}
+                      {" · "}Passage script: {passageScript}
+                      {" · "}Question script: {questionScript}
+                      {" · "}{trialScores.max} item{trialScores.max === 1 ? "" : "s"} scored
+                    </p>
+                    {trial.notes && <p className="mt-2 whitespace-pre-wrap text-xs text-slate-600">{trial.notes}</p>}
+                    {index < allLanguageTrials.length - 1 && (
+                      <details className="mt-2 text-xs text-slate-600">
+                        <summary className="cursor-pointer font-medium text-indigo-700">Review this phase’s passage and item scores</summary>
+                        <p className="mt-2 whitespace-pre-wrap leading-relaxed">{trial.passage || "No passage text was saved for this phase."}</p>
+                        <ul className="mt-2 space-y-1">
+                          {(trial.questions ?? []).map((question, questionIndex) => (
+                            <li key={question.id}>{questionIndex + 1}. {question.text} — {question.score == null ? "not scored" : question.score === 0.5 ? "partial" : question.score === 1 ? "correct" : "incorrect"}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         <div className="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-amber-900 text-xs">
           <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
           <span>These assessments are non-diagnostic educational decision-support tools. Results should be interpreted alongside developmental history, academic achievement, classroom performance, and other assessment findings.</span>
@@ -366,8 +592,18 @@ export default function RrcaAdminPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">Language</label>
-                <Select value={passageLanguage} onValueChange={setPassageLanguage}>
+                <label className="text-xs text-slate-500 mb-1.5 block">Passage language</label>
+                <Select value={passageLanguage} onValueChange={value => {
+                  if (passage && value !== passageLanguage) {
+                    toast({
+                      title: "Save this phase before changing language",
+                      description: "Use “Save phase & add another language” to preserve the current passage and scores.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setPassageLanguage(value);
+                }}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {LANGUAGES.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
@@ -379,9 +615,83 @@ export default function RrcaAdminPage() {
               {generatingPassage ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : <><Sparkles size={13} /> {passage ? "Regenerate Passage" : "Generate Passage"}</>}
             </Button>
             {passage && (
-              <p className="text-xs text-slate-400 mt-2">Passage generated · {passageWordCount} words · {questions.length} questions · Regenerating will reset all scores</p>
+              <p className="text-xs text-slate-400 mt-2">Passage generated · {passageWordCount} words · {questions.length} questions · Regenerating will reset scores for this passage</p>
             )}
           </div>
+        )}
+
+        {passage && (
+          <section className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50/50 p-5">
+            <div className="flex items-center gap-2">
+              <Languages size={15} className="text-indigo-600" />
+              <h2 className="text-sm font-semibold text-slate-800">Language used in this phase</h2>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Passage language: <strong>{languageLabel(passageLanguage)}</strong> · Detected passage script: <strong>{detectPassageScript(passage)}</strong> · Detected question script: <strong>{detectPassageScript(questions.map(question => question.text).join("\n"))}</strong>
+            </p>
+            {!scriptMatchesLanguage(passageLanguage, detectPassageScript(passage)) && (
+              <p role="alert" className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                The detected character script does not match the selected passage language. Confirm the language label before continuing.
+              </p>
+            )}
+            <p className="mt-1 text-xs text-slate-500">Character-script detection cannot identify spoken language or distinguish Mandarin from Cantonese. Confirm the language actually used.</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs text-slate-600">Student’s response language</label>
+                <Select value={responseLanguage} onValueChange={setResponseLanguage} disabled={isCompleted}>
+                  <SelectTrigger className="h-9 bg-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="same_as_passage">Same as passage</SelectItem>
+                    {LANGUAGES.map(language => <SelectItem key={language.value} value={language.value}>{language.label}</SelectItem>)}
+                    <SelectItem value="other">Other language</SelectItem>
+                    <SelectItem value="not_recorded">Not recorded</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs text-slate-600">Phase outcome</label>
+                <Select value={phaseOutcome} onValueChange={value => setPhaseOutcome(value as "completed" | "stopped_early")} disabled={isCompleted}>
+                  <SelectTrigger className="h-9 bg-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="completed">Completed this passage</SelectItem>
+                    <SelectItem value="stopped_early">Stopped before completion</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {phaseOutcome === "stopped_early" && (
+                <div>
+                  <label className="mb-1.5 block text-xs text-slate-600">Last question reached (0–{questions.length})</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={questions.length}
+                    value={questionsReached}
+                    onChange={event => setQuestionsReached(event.target.value)}
+                    disabled={isCompleted}
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm disabled:bg-slate-100"
+                  />
+                </div>
+              )}
+              <div className={phaseOutcome === "stopped_early" ? "" : "sm:col-span-2"}>
+                <label className="mb-1.5 block text-xs text-slate-600">Notes about this language phase</label>
+                <Textarea
+                  value={phaseNotes}
+                  onChange={event => setPhaseNotes(event.target.value)}
+                  disabled={isCompleted}
+                  placeholder="For example: unable to proceed past the first question in English."
+                  className="min-h-[70px] bg-white text-sm"
+                />
+              </div>
+            </div>
+            {!isCompleted && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button variant="outline" onClick={handleAddLanguageTrial} disabled={saving} className="gap-1.5 border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50">
+                  <Languages size={14} /> Save phase & add another language
+                </Button>
+                <span className="text-xs text-slate-500">The current passage and scores are preserved as a separate phase.</span>
+              </div>
+            )}
+          </section>
         )}
 
         {/* Passage display */}
@@ -446,25 +756,29 @@ export default function RrcaAdminPage() {
         {/* Score Summary */}
         {questions.length > 0 && (
           <div className="mb-6 bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">Score Summary</h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-2">{languageTrials.length > 0 ? `Score Summary · ${languageLabel(passageLanguage)} phase only` : "Score Summary"}</h2>
+            {languageTrials.length > 0 && <p className="mb-4 text-xs text-slate-500">This score applies only to the current passage; scores from separate language phases are not combined.</p>}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-slate-50 rounded-lg p-3 text-center">
                 <div className="text-2xl font-bold text-slate-800">{scores.raw}<span className="text-sm font-normal text-slate-400">/{scores.max}</span></div>
-                <div className="text-xs text-slate-500 mt-0.5">Total ({scores.pct}%)</div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  {scores.max === 0 ? "No scored items" : `${scores.max}/${questions.length} items scored · ${scores.pct}% of scored items`}
+                </div>
               </div>
               <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <div className="text-xl font-bold text-blue-700">{scores.literal}<span className="text-sm font-normal text-blue-400">/5</span></div>
-                <div className="text-xs text-blue-500 mt-0.5">Literal</div>
+                <div className="text-xl font-bold text-blue-700">{scores.literal}<span className="text-sm font-normal text-blue-400">/{scores.literalItemsScored}</span></div>
+                <div className="text-xs text-blue-500 mt-0.5">Literal · {scores.literalItemsScored}/5 scored</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-3 text-center">
-                <div className="text-xl font-bold text-purple-700">{scores.inferential}<span className="text-sm font-normal text-purple-400">/3</span></div>
-                <div className="text-xs text-purple-500 mt-0.5">Inferential</div>
+                <div className="text-xl font-bold text-purple-700">{scores.inferential}<span className="text-sm font-normal text-purple-400">/{scores.inferentialItemsScored}</span></div>
+                <div className="text-xs text-purple-500 mt-0.5">Inferential · {scores.inferentialItemsScored}/3 scored</div>
               </div>
               <div className={`rounded-lg p-3 text-center border ${scores.max > 0 ? riskColor(scores.risk) : "bg-slate-50 text-slate-400 border-slate-200"}`}>
-                <div className="text-sm font-bold">{scores.max > 0 ? riskLabel(scores.risk) : "–"}</div>
-                <div className="text-xs mt-0.5 opacity-70">Risk Level</div>
+                <div className="text-sm font-bold">{scores.max === 0 ? "–" : scores.max < questions.length ? "Partial results" : riskLabel(scores.risk)}</div>
+                <div className="text-xs mt-0.5 opacity-70">Passage descriptor</div>
               </div>
             </div>
+            <p className="mt-3 text-xs text-slate-500">This descriptive result applies only to the administered passage. It is not age-normed and cannot establish or rule out a reading difficulty.</p>
           </div>
         )}
 

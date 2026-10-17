@@ -4,7 +4,7 @@ import { assignmentsTable, responsesTable, scoresTable, casesTable } from "@work
 import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { calculateRrcaScores } from "../lib/rrca.js";
+import { calculateRrcaScores, getRrcaLanguageTrialResults } from "../lib/rrca.js";
 import type { RrcaAnswers } from "../lib/rrca.js";
 import { generateRrcaPassage } from "../lib/ai.js";
 import { logger } from "../lib/logger.js";
@@ -218,6 +218,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/rrca/submit", authMiddlewa
       passageLanguage: answers.passageLanguage,
       passageWordCount: answers.passageWordCount,
       generalNotes: answers.generalNotes,
+      languageTrials: getRrcaLanguageTrialResults(answers),
     });
 
     if (existingScore) {

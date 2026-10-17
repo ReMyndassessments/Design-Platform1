@@ -18,6 +18,8 @@ import { withBehavobsDetails } from "../lib/behavobsDetails.js";
 import { planParentPackageConsolidation, tokenFromPortalLink, parentPortalLinkAfterRecipientUpdate } from "../lib/parentPackageConsolidation.js";
 import { buildBatteryReviewState, INTAKE_TOOL_IDS, isSpecializedExaminerAssignment } from "../lib/batteryReview.js";
 import type { BatteryApproval } from "../lib/batteryReview.js";
+import { getRrcaLanguageTrialResults } from "../lib/rrca.js";
+import type { RrcaAnswers } from "../lib/rrca.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
 import {
   buildQuestionnaireTestFingerprint,
@@ -1123,22 +1125,29 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
       .limit(1);
     const sn = (rrcaScore?.notes ? JSON.parse(rrcaScore.notes as string) : {}) as Record<string, unknown>;
     const ans = responseRows[0].answers as Record<string, unknown>;
+    const languageTrials = getRrcaLanguageTrialResults(ans as unknown as RrcaAnswers);
+    const currentTrial = languageTrials[languageTrials.length - 1];
+    const maxScore = currentTrial?.maxScore ?? (sn.maxScore as number) ?? 10;
     summary = await generateRrcaSummary({
       studentName: commonParams.studentName,
       school: commonParams.school,
       grade: commonParams.grade,
-      rawScore: (sn.rawScore as number) ?? 0,
-      maxScore: (sn.maxScore as number) ?? 10,
-      percentage: (sn.percentage as number) ?? 0,
-      riskLevel: (sn.riskLevel as string) ?? "low",
-      literalScore: (sn.literalScore as number) ?? 0,
-      inferentialScore: (sn.inferentialScore as number) ?? 0,
-      vocabularyScore: (sn.vocabularyScore as number) ?? 0,
+      rawScore: currentTrial?.rawScore ?? (sn.rawScore as number) ?? 0,
+      maxScore,
+      percentage: maxScore > 0 ? currentTrial?.percentage ?? (sn.percentage as number) ?? 0 : null,
+      riskLevel: maxScore > 0 ? (sn.riskLevel as string) ?? "low" : "unscored",
+      literalScore: currentTrial?.literalScore ?? (sn.literalScore as number) ?? 0,
+      inferentialScore: currentTrial?.inferentialScore ?? (sn.inferentialScore as number) ?? 0,
+      vocabularyScore: currentTrial?.vocabularyScore ?? (sn.vocabularyScore as number) ?? 0,
+      literalItemsScored: currentTrial?.literalItemsScored ?? 0,
+      inferentialItemsScored: currentTrial?.inferentialItemsScored ?? 0,
+      vocabularyItemsScored: currentTrial?.vocabularyItemsScored ?? 0,
       passageTopic: (sn.passageTopic as string) ?? (ans.passageTopic as string) ?? "",
       passageDifficulty: (sn.passageDifficulty as string) ?? (ans.passageDifficulty as string) ?? "expected",
       interpretationText: (sn.interpretationText as string) ?? "",
       mode: (sn.mode as string) ?? (ans.mode as string) ?? "Unknown",
       generalNotes: (sn.generalNotes as string) ?? (ans.generalNotes as string) ?? "",
+      languageTrials,
     });
   } else {
     const formItems = (toolRows[0]?.formItems as Array<{ id: string; text: string; type: string; options?: string[]; rows?: Array<{ id: string; text: string }> }>) ?? [];
