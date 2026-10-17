@@ -1742,6 +1742,7 @@ export const GetChineseLiteracyDashboardResponse = zod.object({
       teacherRevision: zod.number(),
       generatedAt: zod.date(),
       content: zod.object({
+        overallSummary: zod.string(),
         parentHome: zod.string(),
         teacherClassroom: zod.string(),
         crossSetting: zod.string(),
@@ -1774,6 +1775,7 @@ export const GenerateChineseLiteracyDashboardComparisonResponse = zod.object({
   teacherRevision: zod.number(),
   generatedAt: zod.date(),
   content: zod.object({
+    overallSummary: zod.string(),
     parentHome: zod.string(),
     teacherClassroom: zod.string(),
     crossSetting: zod.string(),

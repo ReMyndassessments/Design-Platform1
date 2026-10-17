@@ -100,6 +100,7 @@ export default function ChineseLiteracyDashboardPage() {
   const savedComparison = data?.comparison ?? null;
   const snapshotMatchesCurrent = snapshotMatchesSelection(savedComparison, parent, teacher);
   const comparisonIsStale = Boolean(savedComparison && (savedComparison.stale || !snapshotMatchesCurrent));
+  const comparisonNeedsRefresh = Boolean(savedComparison && !savedComparison.content.overallSummary?.trim() && !comparisonIsStale);
   const canGenerate = canGenerateComparison(parent, teacher, sharedDomains.length, comparisonMutation.isPending);
 
   const handleGenerate = () => {
@@ -258,7 +259,7 @@ export default function ChineseLiteracyDashboardPage() {
               )}
             </div>
             <button type="button" onClick={() => window.print()} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-print-dashboard">
-              <Printer size={14} /> Print
+              <Printer size={14} /> Print combined report
             </button>
             <button type="button" onClick={() => setDarkMode((value) => !value)} aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${darkMode ? "border-[#3a514c] bg-[#20332f]" : "border-[#d7e1da] bg-white"}`} data-testid="button-toggle-theme">
               {darkMode ? <Sun size={15} /> : <Moon size={15} />}
@@ -274,6 +275,7 @@ export default function ChineseLiteracyDashboardPage() {
                   <BookOpenText size={13} /> ReMynd · staff case review
                 </div>
                 <h1 className={`font-display text-3xl font-bold tracking-tight sm:text-[38px] ${darkMode ? "text-[#eef4ee]" : "text-[#1c332d]"}`}>Chinese Literacy</h1>
+                <p className="print-only mt-1 text-xs font-semibold uppercase tracking-wide">Final combined report · Parent/home and teacher/classroom</p>
                 <p className={`mt-2 max-w-2xl text-sm leading-relaxed sm:text-base ${softText}`}>
                   Keep home and classroom observations distinct. Review shared patterns across sources without turning them into a single score.
                 </p>
@@ -294,10 +296,14 @@ export default function ChineseLiteracyDashboardPage() {
                 <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>Source B · teacher / classroom</p><p className={`mt-0.5 text-xs ${softText}`}>Select one teacher; records are never combined</p></div>
               </div>
             </div>
+            <div className="print-only mt-5 rounded-lg border border-[#d8e0d8] bg-white p-3 text-xs text-[#364a42]">
+              <p><strong>Parent / home source:</strong> {parent?.respondentLabel || "Not selected"} · {parent?.formName || "No form"} · revision {parent?.revision ?? "—"} · submitted {formatDate(parent?.submittedAt)}</p>
+              <p className="mt-1"><strong>Teacher / classroom source:</strong> {teacher?.respondentLabel || "Not selected"} · {teacher?.formName || "No form"} · revision {teacher?.revision ?? "—"} · submitted {formatDate(teacher?.submittedAt)}</p>
+            </div>
           </div>
 
           <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(250px,.72fr)_minmax(0,1.5fr)] lg:p-7">
-            <section className="space-y-4">
+            <section className="no-print space-y-4">
               <div>
                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Select source records</p>
                 <div className="space-y-3">
@@ -346,13 +352,13 @@ export default function ChineseLiteracyDashboardPage() {
                 <div className="flex items-start gap-3">
                   <Sparkles size={17} className="mt-0.5 shrink-0 text-[#6d9d82]" />
                   <div>
-                    <p className="text-sm font-semibold">Generate a comparison snapshot</p>
-                    <p className={`mt-1 text-xs leading-relaxed ${softText}`}>On-click only. Creates a latest saved, case-level comparison for these exact records and revisions.</p>
+                    <p className="text-sm font-semibold">Generate the combined report</p>
+                    <p className={`mt-1 text-xs leading-relaxed ${softText}`}>Uses the full set of responses to create separate home and classroom summaries, a clear comparison interpretation, and student-focused recommendations. Source-specific scores remain separate.</p>
                   </div>
                 </div>
                 <button type="button" onClick={handleGenerate} disabled={!canGenerate} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#286e60] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#205b50] disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-generate-comparison">
                   {comparisonMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={15} />}
-                  {comparisonMutation.isPending ? "Generating snapshot…" : "Generate comparison"}
+                  {comparisonMutation.isPending ? "Generating report…" : "Generate combined report"}
                 </button>
                 {!canGenerate && (
                   <p className={`mt-2 text-[11px] leading-relaxed ${softText}`}>
@@ -423,15 +429,31 @@ export default function ChineseLiteracyDashboardPage() {
                 </div>
               )}
 
+              {comparisonNeedsRefresh && (
+                <div className={`rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-comparison-needs-refresh">
+                  <p className="text-sm font-semibold">Regenerate this comparison for the complete report</p>
+                  <p className={`mt-1 text-xs leading-relaxed ${softText}`}>This saved snapshot predates the overall student summary. Generate a new comparison to include a whole-response summary and recommendations based on both respondents.</p>
+                </div>
+              )}
+
               {comparison && (
                 <div className={`${panelClass} rounded-xl p-5`} data-testid="card-generated-comparison">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 pb-4">
                     <div>
-                      <div className="flex items-center gap-2 text-[#3d826e]"><Check size={15} /><span className="text-[10px] font-bold uppercase tracking-[.15em]">Current saved snapshot</span></div>
-                      <h2 className="mt-1 text-lg font-semibold">Source-aware review</h2>
+                      <div className="flex items-center gap-2 text-[#3d826e]"><Check size={15} /><span className="text-[10px] font-bold uppercase tracking-[.15em]">Current combined report</span></div>
+                      <h2 className="mt-1 text-lg font-semibold">Chinese Literacy cross-setting report</h2>
                     </div>
                     <span className={`text-xs ${softText}`}>Generated {formatDate(comparison.generatedAt)}</span>
                   </div>
+                  <p className={`mt-3 text-xs leading-relaxed ${softText}`}>
+                    AI-assisted synthesis of the selected submissions for staff review. It is descriptive, not diagnostic, and does not combine the respondents' scores.
+                  </p>
+                  <article className={`mt-4 rounded-lg border p-4 ${subtlePanel}`} data-testid="report-overall-summary">
+                    <h3 className="text-xs font-bold uppercase tracking-[.12em]">Overall student summary</h3>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+                      {comparison.content.overallSummary?.trim() || "Regenerate this saved comparison to add an overall summary based on both respondents' full responses."}
+                    </p>
+                  </article>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: parentInk }}>
                       <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>Parent / home</h3>
@@ -442,13 +464,13 @@ export default function ChineseLiteracyDashboardPage() {
                       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.teacherClassroom}</p>
                     </article>
                     <article className={`rounded-lg border p-4 md:col-span-2 ${subtlePanel}`}>
-                      <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>Cross-setting observations</h3>
+                      <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>Comparison interpretation across settings</h3>
                       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.crossSetting}</p>
                     </article>
                   </div>
                   {comparison.content.recommendations.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em]"><FileText size={14} /> Recommendations</h3>
+                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em]"><FileText size={14} /> Student-focused recommendations from both respondents</h3>
                       <ol className="mt-2 space-y-2">
                         {comparison.content.recommendations.map((recommendation, index) => <li key={`recommendation-${index}`} className={`flex gap-3 rounded-lg border p-3 text-sm leading-relaxed ${subtlePanel}`}><span className="font-mono text-xs font-bold text-[#4e8b76]">{String(index + 1).padStart(2, "0")}</span><span>{recommendation}</span></li>)}
                       </ol>

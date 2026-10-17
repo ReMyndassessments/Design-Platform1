@@ -7,6 +7,7 @@
  */
 
 export interface ChineseLiteracyDashboardComparisonContent {
+  overallSummary: string;
   parentHome: string;
   teacherClassroom: string;
   crossSetting: string;
