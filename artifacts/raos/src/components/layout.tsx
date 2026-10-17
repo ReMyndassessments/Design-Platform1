@@ -197,7 +197,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="app-shell flex h-dvh min-h-0 overflow-hidden bg-background text-foreground">
       {/* Mobile Menu Button */}
       <button 
-        className="md:hidden fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md border"
+        className="no-print md:hidden fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md border"
         aria-label={isMobileMenuOpen ? "Close navigation" : "Open navigation"}
         aria-expanded={isMobileMenuOpen}
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
