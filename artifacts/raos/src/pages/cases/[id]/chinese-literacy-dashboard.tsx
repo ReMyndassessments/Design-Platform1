@@ -57,8 +57,8 @@ export default function ChineseLiteracyDashboardPage() {
     query: { queryKey, enabled: Boolean(caseId), staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false },
   });
   const comparisonMutation = useGenerateChineseLiteracyDashboardComparison();
-  const [parentId, setParentId] = useState("");
-  const [teacherId, setTeacherId] = useState("");
+  const [parentId, setParentId] = useState(() => new URLSearchParams(window.location.search).get("parentAssignmentId") ?? "");
+  const [teacherId, setTeacherId] = useState(() => new URLSearchParams(window.location.search).get("teacherAssignmentId") ?? "");
   const [darkMode, setDarkMode] = useState(false);
   const [autoRefreshMs, setAutoRefreshMs] = useState<number | null>(null);
   const [refreshMenuOpen, setRefreshMenuOpen] = useState(false);
@@ -69,13 +69,14 @@ export default function ChineseLiteracyDashboardPage() {
   const teacherRecords = useMemo(() => administrations.filter(isTeacherClassroom), [administrations]);
 
   useEffect(() => {
+    if (!data) return;
     if (!parentRecords.some((record) => record.assignmentId === parentId)) {
       setParentId(parentRecords[0]?.assignmentId ?? "");
     }
     if (!teacherRecords.some((record) => record.assignmentId === teacherId)) {
       setTeacherId(teacherRecords[0]?.assignmentId ?? "");
     }
-  }, [parentRecords, teacherRecords, parentId, teacherId]);
+  }, [data, parentRecords, teacherRecords, parentId, teacherId]);
 
   const parent = parentRecords.find((record) => record.assignmentId === parentId);
   const teacher = teacherRecords.find((record) => record.assignmentId === teacherId);
@@ -289,11 +290,11 @@ export default function ChineseLiteracyDashboardPage() {
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#41635a] bg-[#1e352f]" : "border-[#cddfd6] bg-[#f7fbf7]"}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#dcece4] text-[#286e60]"><Home size={17} /></span>
-                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: parentInk }}>Source A · parent / home</p><p className={`mt-0.5 text-xs ${softText}`}>One parent record selected at a time</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: parentInk }}>Source A · parent / home</p><p className={`mt-0.5 text-xs ${softText}`}>Included with one selected teacher record</p></div>
               </div>
               <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#6b5940] bg-[#393428]" : "border-[#e9dcc1] bg-[#fdf9ef]"}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f4e8cb] text-[#95651e]"><School size={17} /></span>
-                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>Source B · teacher / classroom</p><p className={`mt-0.5 text-xs ${softText}`}>Select one teacher; records are never combined</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>Source B · teacher / classroom</p><p className={`mt-0.5 text-xs ${softText}`}>Both perspectives appear; scores stay separate</p></div>
               </div>
             </div>
             <div className="print-only mt-5 rounded-lg border border-[#d8e0d8] bg-white p-3 text-xs text-[#364a42]">

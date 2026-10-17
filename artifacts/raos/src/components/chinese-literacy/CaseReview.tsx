@@ -30,6 +30,10 @@ export default function CaseReview({ caseId }: { caseId: string }) {
   const metaOf = (a: ClAdministration): ClMetadata => a.metadata ?? data!.metadata;
   const isParent = (a: ClAdministration) => metaOf(a).key === PARENT_INSTRUMENT_ID;
   const who = (a: ClAdministration) => (isParent(a) ? "Parent" : "Teacher");
+  const combinedDashboardHref = (a: ClAdministration) => {
+    const sourceParam = isParent(a) ? "parentAssignmentId" : "teacherAssignmentId";
+    return `/cases/${caseId}/chinese-literacy-dashboard?${sourceParam}=${encodeURIComponent(a.assignmentId)}`;
+  };
   useEffect(() => {
     setEnglishView(false);
     setTranslations(null);
@@ -127,6 +131,18 @@ export default function CaseReview({ caseId }: { caseId: string }) {
                 <span className="font-bold">{who(a)}</span>: {a.teacherName || who(a)} {a.baselineId ? "(follow-up)" : ""} <span className="font-normal opacity-80">{a.status.replace(/_/g, " ")}</span>
               </button>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+            <p className="max-w-2xl text-xs leading-relaxed text-slate-600">
+              These buttons switch between individual reports. To compare both sources together, open the combined parent + teacher report.
+            </p>
+            <Link
+              href={combinedDashboardHref(adm)}
+              className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+              data-testid="link-combined-literacy-report"
+            >
+              Open combined report
+            </Link>
           </div>
           <p className="text-xs text-slate-500">{metaOf(adm).formName ?? `${who(adm)} form`} ({who(adm)} record; setting {metaOf(adm).setting ?? "not stated"}). {adm.teacherName} {adm.teacherEmail}. Status {adm.status.replace(/_/g, " ")}, revision {adm.revision}. Instrument v{adm.instrumentVersion}, scoring {adm.scoringVersion}, language {adm.languageVersion}.{adm.selectedDomains?.length ? ` Follow-up domains: ${adm.selectedDomains.join(", ")}.` : ""}</p>
           <div className="flex flex-wrap items-center gap-2">
