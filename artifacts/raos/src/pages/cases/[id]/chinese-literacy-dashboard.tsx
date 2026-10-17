@@ -279,11 +279,10 @@ export default function ChineseLiteracyDashboardPage() {
             )}
           </div>
         )}
-        <details className="group mt-4 border-t border-current/10 pt-3">
-          <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-            <span className="flex items-center gap-2"><ClipboardList size={14} /> {copy.itemResponses(domain.itemResponses.length)}</span>
-            <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
-          </summary>
+        <div className="mt-4 border-t border-current/10 pt-3">
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <ClipboardList size={14} /> {copy.itemResponses(domain.itemResponses.length)}
+          </div>
           <div className="mt-3 space-y-2">
             {domain.itemResponses.length === 0 ? (
               <p className={`text-xs ${softText}`}>{copy.noItemResponses}</p>
@@ -302,7 +301,7 @@ export default function ChineseLiteracyDashboardPage() {
               </div>
             ))}
           </div>
-        </details>
+        </div>
       </div>
     );
   };
@@ -339,6 +338,18 @@ export default function ChineseLiteracyDashboardPage() {
     name,
     reportText(`domainNames.${parentDomain.id}`, name),
   ]);
+  comparisonDomainLabels.push(
+    ...comparisonDomainLabels.flatMap((label) => {
+      const firstPhrase = label.split(/\s+(?:and|&)\s+/i)[0];
+      return firstPhrase.length >= 10 && firstPhrase !== label ? [firstPhrase] : [];
+    }),
+  );
+  if (
+    sharedDomains.some(({ name }) => /attention/i.test(name))
+    && sharedDomains.some(({ name }) => /memory/i.test(name))
+  ) {
+    comparisonDomainLabels.push(reportLanguage === "zh" ? "注意力与记忆" : "Attention and memory");
+  }
 
   const canPrintReport = Boolean(comparison && comparison.content.overallSummary?.trim() && parent && teacher && translationKey);
   const handlePrintReport = (targetLanguage: ChineseLiteracyReportLanguage) => {
@@ -635,11 +646,11 @@ export default function ChineseLiteracyDashboardPage() {
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: parentInk }}>
                       <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>{copy.parentHome}</h3>
-                      <div className="mt-2"><FormattedReportText text={reportText("comparison.parentHome", comparison.content.parentHome)} /></div>
+                      <div className="mt-2"><FormattedReportText text={reportText("comparison.parentHome", comparison.content.parentHome)} domainLabels={comparisonDomainLabels} /></div>
                     </article>
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: teacherInk }}>
                       <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: teacherInk }}>{copy.teacherClassroom}</h3>
-                      <div className="mt-2"><FormattedReportText text={reportText("comparison.teacherClassroom", comparison.content.teacherClassroom)} /></div>
+                      <div className="mt-2"><FormattedReportText text={reportText("comparison.teacherClassroom", comparison.content.teacherClassroom)} domainLabels={comparisonDomainLabels} /></div>
                     </article>
                     <article className={`rounded-lg border p-4 md:col-span-2 ${subtlePanel}`}>
                       <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>{copy.comparisonInterpretation}</h3>
@@ -684,8 +695,8 @@ export default function ChineseLiteracyDashboardPage() {
           {sharedDomains.length ? (
             <div className="space-y-3">
               {sharedDomains.map(({ name, parentDomain, teacherDomain }) => (
-                <details key={`evidence-${name}`} className={`${panelClass} group rounded-xl`} data-testid={`details-domain-${parentDomain.id}`}>
-                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
+                <section key={`evidence-${name}`} className={`${panelClass} rounded-xl`} data-testid={`section-domain-${parentDomain.id}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
                     <div className="flex items-center gap-3">
                       <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${darkMode ? "bg-[#29443b] text-[#b8d6c8]" : "bg-[#e6f0e8] text-[#42735d]"}`}>{reportLanguage === "zh" ? "域" : String(parentDomain.id).slice(0, 1).toUpperCase()}</span>
                       <div><h3 className="text-sm font-semibold">{reportText(`domainNames.${parentDomain.id}`, name)}</h3><p className={`mt-0.5 text-[10px] ${softText}`}>{copy.parentItems(parentDomain.itemResponses.length)} · {copy.teacherItems(teacherDomain.itemResponses.length)}</p></div>
@@ -695,14 +706,13 @@ export default function ChineseLiteracyDashboardPage() {
                         <span style={{ color: parentInk }}>{copy.parentShort} {parentDomain.mean === null ? "—" : parentDomain.mean.toFixed(2)}</span>
                         <span style={{ color: teacherInk }}>{copy.teacherShort} {teacherDomain.mean === null ? "—" : teacherDomain.mean.toFixed(2)}</span>
                       </div>
-                      <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
                     </div>
-                  </summary>
+                  </div>
                   <div className="grid gap-3 border-t border-current/10 p-3 sm:p-4 lg:grid-cols-2">
                     {renderSourceDetails(parentDomain, "parent")}
                     {renderSourceDetails(teacherDomain, "teacher")}
                   </div>
-                </details>
+                </section>
               ))}
             </div>
           ) : (

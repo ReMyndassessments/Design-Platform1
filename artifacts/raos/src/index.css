@@ -171,25 +171,6 @@
   /* Show print-only elements */
   .print-only { display: block !important; }
 
-  /* Chinese Literacy reports print as complete documents, regardless of
-     which evidence accordions are open in the interactive dashboard. */
-  .chinese-literacy-dashboard-print details {
-    display: block !important;
-  }
-  .chinese-literacy-dashboard-print details:not([open]) > :not(summary) {
-    display: block !important;
-  }
-  .chinese-literacy-dashboard-print details > summary {
-    cursor: default !important;
-    list-style: none !important;
-  }
-  .chinese-literacy-dashboard-print details > summary::-webkit-details-marker {
-    display: none !important;
-  }
-  .chinese-literacy-dashboard-print details > summary > svg {
-    display: none !important;
-  }
-
   /* Justify narrative text in the report while keeping headings and compact
      chart labels in their existing alignment. The lang attribute lets the
      browser choose appropriate word/character justification for each export. */

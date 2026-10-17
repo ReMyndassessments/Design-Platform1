@@ -1,10 +1,39 @@
 export type ChineseLiteracyReportTextBlock =
-  | { type: "paragraph" | "heading"; text: string }
-  | { type: "unordered-list" | "ordered-list"; items: string[] };
+  | { type: "paragraph"; text: string }
+  | { type: "heading"; text: string }
+  | { type: "unordered-list"; items: string[] }
+  | { type: "ordered-list"; items: string[] };
 
 export interface ChineseLiteracyDomainNarrative {
   label: string | null;
   text: string;
+}
+
+function separateInlineNumberedSections(value: string) {
+  return value.replace(/\r\n?/g, "\n").split("\n").flatMap((line) => {
+    const markers = [...line.matchAll(/(?:^|\s)(\d{1,2})\s*[.)、．]\s+/gu)];
+    const numbers = markers.map((marker) => Number(marker[1]));
+    const isSequentialList = numbers.length >= 2
+      && numbers[0] === 1
+      && numbers.every((number, index) => number === index + 1);
+    const bullets = [...line.matchAll(/(?:^|\s)([•])\s+/gu)];
+    if (!isSequentialList && bullets.length < 2) return [line];
+
+    const activeMarkers = isSequentialList ? markers : bullets;
+    const firstMarkerStart = (activeMarkers[0].index ?? 0) + activeMarkers[0][0].search(isSequentialList ? /\d/ : /•/);
+    const prefix = line.slice(0, firstMarkerStart).trim();
+    const result = prefix ? [prefix] : [];
+    activeMarkers.forEach((marker, index) => {
+      const start = (marker.index ?? 0) + marker[0].length;
+      const nextMarker = activeMarkers[index + 1];
+      const end = nextMarker
+        ? (nextMarker.index ?? line.length) + nextMarker[0].search(isSequentialList ? /\d/ : /•/)
+        : line.length;
+      const item = line.slice(start, end).trim();
+      if (item) result.push(isSequentialList ? `${numbers[index]}. ${item}` : `• ${item}`);
+    });
+    return result;
+  }).join("\n");
 }
 
 export function parseChineseLiteracyReportText(value: string): ChineseLiteracyReportTextBlock[] {
@@ -30,7 +59,7 @@ export function parseChineseLiteracyReportText(value: string): ChineseLiteracyRe
     listItems.push(item.trim());
   };
 
-  for (const line of value.replace(/\r\n?/g, "\n").split("\n")) {
+  for (const line of separateInlineNumberedSections(value).split("\n")) {
     if (!line.trim()) {
       flushParagraph();
       flushList();
@@ -83,7 +112,7 @@ export function splitChineseLiteracyComparisonByDomain(
   const escapedLabels = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const labelPattern = escapedLabels.join("|");
   const headingPattern = new RegExp(
-    `(^|[.!?]\\s+|[。！？]\\s*|\\n\\s*)(${labelPattern})\\s*[:：]\\s*`,
+    `(^|[.!?]\\s+|[。！？]\\s*|\\)\\.?\\s+|\\n\\s*)(?:(In|For|Across)\\s+)?(${labelPattern})(\\s*[:：,，]\\s*|\\s+(?=(?:both|shows?|is|are|was|were|has|have|reports?|describes?|notes?|indicates|remains|includes|appears)\\b))`,
     "giu",
   );
   const matches = [...value.matchAll(headingPattern)];
@@ -97,7 +126,7 @@ export function splitChineseLiteracyComparisonByDomain(
 
   matches.forEach((match, index) => {
     const matchStart = match.index ?? 0;
-    const headingLabel = match[2]?.trim();
+    const headingLabel = match[3]?.trim();
     const bodyStart = matchStart + match[0].length;
     const nextMatch = matches[index + 1];
     const bodyEnd = nextMatch
