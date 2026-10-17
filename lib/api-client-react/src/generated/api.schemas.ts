@@ -1032,6 +1032,30 @@ export interface ChineseLiteracyDashboardComparisonInput {
   teacherAssignmentId: string;
 }
 
+export type ChineseLiteracyDashboardTranslationInputTargetLanguage =
+  (typeof ChineseLiteracyDashboardTranslationInputTargetLanguage)[keyof typeof ChineseLiteracyDashboardTranslationInputTargetLanguage];
+
+export const ChineseLiteracyDashboardTranslationInputTargetLanguage = {
+  en: "en",
+  zh: "zh",
+} as const;
+
+export interface ChineseLiteracyDashboardTranslationInput {
+  /** @minLength 1 */
+  parentAssignmentId: string;
+  /** @minLength 1 */
+  teacherAssignmentId: string;
+  targetLanguage: ChineseLiteracyDashboardTranslationInputTargetLanguage;
+}
+
+export type ChineseLiteracyDashboardTranslationResponseTranslations = {
+  [key: string]: string;
+};
+
+export interface ChineseLiteracyDashboardTranslationResponse {
+  translations: ChineseLiteracyDashboardTranslationResponseTranslations;
+}
+
 export type ChineseLiteracyDashboardDomainScoreRatingCounts = {
   [key: string]: number;
 };

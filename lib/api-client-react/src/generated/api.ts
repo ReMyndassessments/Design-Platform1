@@ -36,6 +36,8 @@ import type {
   ChineseLiteracyDashboardComparison,
   ChineseLiteracyDashboardComparisonInput,
   ChineseLiteracyDashboardResponse,
+  ChineseLiteracyDashboardTranslationInput,
+  ChineseLiteracyDashboardTranslationResponse,
   CompletedAssignmentResetResult,
   CreateAssessmentToolRequest,
   CreateAssignmentRequest,
@@ -5412,5 +5414,104 @@ export const useGenerateChineseLiteracyDashboardComparison = <
 > => {
   return useMutation(
     getGenerateChineseLiteracyDashboardComparisonMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Translate a current combined report for single-language printing
+ */
+export const getTranslateChineseLiteracyDashboardUrl = (caseId: string) => {
+  return `/api/cases/${caseId}/chinese-literacy/dashboard/translate`;
+};
+
+export const translateChineseLiteracyDashboard = async (
+  caseId: string,
+  chineseLiteracyDashboardTranslationInput: ChineseLiteracyDashboardTranslationInput,
+  options?: RequestInit,
+): Promise<ChineseLiteracyDashboardTranslationResponse> => {
+  return customFetch<ChineseLiteracyDashboardTranslationResponse>(
+    getTranslateChineseLiteracyDashboardUrl(caseId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(chineseLiteracyDashboardTranslationInput),
+    },
+  );
+};
+
+export const getTranslateChineseLiteracyDashboardMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>,
+    TError,
+    {
+      caseId: string;
+      data: BodyType<ChineseLiteracyDashboardTranslationInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>,
+  TError,
+  { caseId: string; data: BodyType<ChineseLiteracyDashboardTranslationInput> },
+  TContext
+> => {
+  const mutationKey = ["translateChineseLiteracyDashboard"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>,
+    { caseId: string; data: BodyType<ChineseLiteracyDashboardTranslationInput> }
+  > = (props) => {
+    const { caseId, data } = props ?? {};
+
+    return translateChineseLiteracyDashboard(caseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TranslateChineseLiteracyDashboardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>
+>;
+export type TranslateChineseLiteracyDashboardMutationBody =
+  BodyType<ChineseLiteracyDashboardTranslationInput>;
+export type TranslateChineseLiteracyDashboardMutationError = ErrorType<void>;
+
+/**
+ * @summary Translate a current combined report for single-language printing
+ */
+export const useTranslateChineseLiteracyDashboard = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>,
+    TError,
+    {
+      caseId: string;
+      data: BodyType<ChineseLiteracyDashboardTranslationInput>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof translateChineseLiteracyDashboard>>,
+  TError,
+  { caseId: string; data: BodyType<ChineseLiteracyDashboardTranslationInput> },
+  TContext
+> => {
+  return useMutation(
+    getTranslateChineseLiteracyDashboardMutationOptions(options),
   );
 };

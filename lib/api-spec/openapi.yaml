@@ -1469,6 +1469,41 @@ paths:
         "502":
           description: DeepSeek could not produce a valid comparison
 
+  /cases/{caseId}/chinese-literacy/dashboard/translate:
+    post:
+      operationId: translateChineseLiteracyDashboard
+      tags: [chinese-literacy]
+      summary: Translate a current combined report for single-language printing
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChineseLiteracyDashboardTranslationInput"
+      responses:
+        "200":
+          description: Temporary translations for the selected report language
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChineseLiteracyDashboardTranslationResponse"
+        "400":
+          description: Invalid source selection
+        "403":
+          description: Not authorized for this case
+        "409":
+          description: Generate a current combined report before printing
+        "422":
+          description: Both selected source forms must be submitted
+        "502":
+          description: DeepSeek could not complete the translation
+
 components:
   schemas:
     HealthStatus:
@@ -2748,6 +2783,29 @@ components:
           type: string
           minLength: 1
       required: [parentAssignmentId, teacherAssignmentId]
+
+    ChineseLiteracyDashboardTranslationInput:
+      type: object
+      properties:
+        parentAssignmentId:
+          type: string
+          minLength: 1
+        teacherAssignmentId:
+          type: string
+          minLength: 1
+        targetLanguage:
+          type: string
+          enum: [en, zh]
+      required: [parentAssignmentId, teacherAssignmentId, targetLanguage]
+
+    ChineseLiteracyDashboardTranslationResponse:
+      type: object
+      properties:
+        translations:
+          type: object
+          additionalProperties:
+            type: string
+      required: [translations]
 
     ChineseLiteracyDashboardDomainScore:
       type: object

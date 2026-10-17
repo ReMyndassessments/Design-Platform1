@@ -24,9 +24,14 @@ import {
   getGetChineseLiteracyDashboardQueryKey,
   useGenerateChineseLiteracyDashboardComparison,
   useGetChineseLiteracyDashboard,
-  type ChineseLiteracyDashboardAdministration,
+  useTranslateChineseLiteracyDashboard,
   type ChineseLiteracyDashboardDomainScore,
 } from "@workspace/api-client-react";
+import {
+  CHINESE_LITERACY_DASHBOARD_PRINT_COPY,
+  chineseLiteracyStatusLabel,
+  type ChineseLiteracyReportLanguage,
+} from "@/lib/chinese-literacy-dashboard-print-copy";
 import {
   AUTO_REFRESH_OPTIONS,
   canGenerateComparison,
@@ -37,15 +42,15 @@ import {
   snapshotMatchesSelection,
 } from "@/lib/chinese-literacy-dashboard-model";
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "Not submitted";
+function formatDate(value: string | null | undefined, language: ChineseLiteracyReportLanguage = "en") {
+  if (!value) return CHINESE_LITERACY_DASHBOARD_PRINT_COPY[language].notSubmitted;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-function statusLabel(status: string) {
-  return status.replaceAll("_", " ");
+function statusLabel(status: string, language: ChineseLiteracyReportLanguage = "en") {
+  return chineseLiteracyStatusLabel(status, language);
 }
 
 export default function ChineseLiteracyDashboardPage() {
@@ -57,8 +62,17 @@ export default function ChineseLiteracyDashboardPage() {
     query: { queryKey, enabled: Boolean(caseId), staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false },
   });
   const comparisonMutation = useGenerateChineseLiteracyDashboardComparison();
+  const translationMutation = useTranslateChineseLiteracyDashboard();
   const [parentId, setParentId] = useState(() => new URLSearchParams(window.location.search).get("parentAssignmentId") ?? "");
   const [teacherId, setTeacherId] = useState(() => new URLSearchParams(window.location.search).get("teacherAssignmentId") ?? "");
+  const [reportLanguage, setReportLanguage] = useState<ChineseLiteracyReportLanguage>("en");
+  const [translationCache, setTranslationCache] = useState<{
+    key: string;
+    byLanguage: Partial<Record<ChineseLiteracyReportLanguage, Record<string, string>>>;
+  }>({ key: "", byLanguage: {} });
+  const [preparingLanguage, setPreparingLanguage] = useState<ChineseLiteracyReportLanguage | null>(null);
+  const [requestedPrintLanguage, setRequestedPrintLanguage] = useState<ChineseLiteracyReportLanguage | null>(null);
+  const [translationError, setTranslationError] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const [autoRefreshMs, setAutoRefreshMs] = useState<number | null>(null);
   const [refreshMenuOpen, setRefreshMenuOpen] = useState(false);
@@ -80,6 +94,7 @@ export default function ChineseLiteracyDashboardPage() {
 
   const parent = parentRecords.find((record) => record.assignmentId === parentId);
   const teacher = teacherRecords.find((record) => record.assignmentId === teacherId);
+  const copy = CHINESE_LITERACY_DASHBOARD_PRINT_COPY[reportLanguage];
   const sharedDomains = useMemo(() => {
     return sharedDomainPairs(parent, teacher);
   }, [parent, teacher]);
@@ -100,6 +115,14 @@ export default function ChineseLiteracyDashboardPage() {
 
   const savedComparison = data?.comparison ?? null;
   const snapshotMatchesCurrent = snapshotMatchesSelection(savedComparison, parent, teacher);
+  const translationKey = parent && teacher && savedComparison && snapshotMatchesCurrent && !savedComparison.stale
+    ? `${parent.assignmentId}:${parent.revision}|${teacher.assignmentId}:${teacher.revision}|${savedComparison.generatedAt}`
+    : "";
+  const currentTranslations = translationCache.key === translationKey
+    ? translationCache.byLanguage[reportLanguage] ?? {}
+    : {};
+  const reportText = (path: string, original: string) => (currentTranslations[path] ?? original)
+    .replaceAll("[REDACTED]", reportLanguage === "en" ? "[withheld]" : "[已隐去]");
   const comparisonIsStale = Boolean(savedComparison && (savedComparison.stale || !snapshotMatchesCurrent));
   const comparisonNeedsRefresh = Boolean(savedComparison && !savedComparison.content.overallSummary?.trim() && !comparisonIsStale);
   const canGenerate = canGenerateComparison(parent, teacher, sharedDomains.length, comparisonMutation.isPending);
@@ -135,12 +158,11 @@ export default function ChineseLiteracyDashboardPage() {
   const teacherInk = darkMode ? "#e0b76f" : "#a46b19";
 
   const renderSourceDetails = (
-    title: string,
-    record: ChineseLiteracyDashboardAdministration | undefined,
     domain: ChineseLiteracyDashboardDomainScore,
     source: "parent" | "teacher",
   ) => {
-    const sourceLabel = source === "parent" ? "Parent / home" : "Teacher / classroom";
+    const sourceLabel = source === "parent" ? copy.parentHome : copy.teacherClassroom;
+    const domainPath = `${source === "parent" ? "parentDomains" : "teacherDomains"}.${domain.id}`;
     return (
       <div className={`rounded-xl border p-4 ${subtlePanel}`} data-testid={`source-detail-${source}-${domain.id}`}>
         <div className="flex items-center justify-between gap-3">
@@ -152,22 +174,22 @@ export default function ChineseLiteracyDashboardPage() {
             {domain.mean === null ? "—" : domain.mean.toFixed(2)}
           </span>
         </div>
-        <p className={`mt-1 text-xs ${softText}`}>{record?.respondentLabel || title} · {record?.formName || "Chinese literacy form"}</p>
+        <p className={`mt-1 text-xs ${softText}`}>{source === "parent" ? copy.parentObservation : copy.teacherObservation} · {copy.instrumentName}</p>
         <div className={`mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4 ${softText}`}>
-          <span>Valid <b className="font-mono">{domain.validCount}</b></span>
-          <span>Not observed <b className="font-mono">{domain.notObservedCount}</b></span>
-          <span>Not applicable <b className="font-mono">{domain.notApplicableCount}</b></span>
-          <span>Unanswered <b className="font-mono">{domain.unansweredCount}</b></span>
+          <span>{copy.valid} <b className="font-mono">{domain.validCount}</b></span>
+          <span>{copy.notObserved} <b className="font-mono">{domain.notObservedCount}</b></span>
+          <span>{copy.notApplicable} <b className="font-mono">{domain.notApplicableCount}</b></span>
+          <span>{copy.unanswered} <b className="font-mono">{domain.unansweredCount}</b></span>
         </div>
         {(domain.evidence.strengths || domain.evidence.supports || domain.evidence.examples.length > 0) && (
           <div className="mt-4 space-y-3 border-t border-current/10 pt-3">
-            {domain.evidence.strengths && <p className="text-sm leading-relaxed"><strong>Strengths:</strong> {domain.evidence.strengths}</p>}
-            {domain.evidence.supports && <p className="text-sm leading-relaxed"><strong>Supports noted:</strong> {domain.evidence.supports}</p>}
+            {domain.evidence.strengths && <p className="text-sm leading-relaxed"><strong>{copy.strengths}</strong> {reportText(`${domainPath}.strengths`, domain.evidence.strengths)}</p>}
+            {domain.evidence.supports && <p className="text-sm leading-relaxed"><strong>{copy.supportsNoted}</strong> {reportText(`${domainPath}.supports`, domain.evidence.supports)}</p>}
             {domain.evidence.examples.length > 0 && (
               <div>
-                <p className={`mb-1 text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>Examples from this source</p>
+                <p className={`mb-1 text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>{copy.examples}</p>
                 <ul className="space-y-1.5 text-sm leading-relaxed">
-                  {domain.evidence.examples.map((example, index) => <li key={`${domain.id}-${source}-example-${index}`} className="flex gap-2"><span aria-hidden="true">—</span><span>{example}</span></li>)}
+                  {domain.evidence.examples.map((example, index) => <li key={`${domain.id}-${source}-example-${index}`} className="flex gap-2"><span aria-hidden="true">—</span><span>{reportText(`${domainPath}.examples.${index}`, example)}</span></li>)}
                 </ul>
               </div>
             )}
@@ -175,23 +197,23 @@ export default function ChineseLiteracyDashboardPage() {
         )}
         <details className="group mt-4 border-t border-current/10 pt-3">
           <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-            <span className="flex items-center gap-2"><ClipboardList size={14} /> Item-level responses ({domain.itemResponses.length})</span>
+            <span className="flex items-center gap-2"><ClipboardList size={14} /> {copy.itemResponses(domain.itemResponses.length)}</span>
             <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
           </summary>
           <div className="mt-3 space-y-2">
             {domain.itemResponses.length === 0 ? (
-              <p className={`text-xs ${softText}`}>No item responses are available for this domain.</p>
-            ) : domain.itemResponses.map((item) => (
+              <p className={`text-xs ${softText}`}>{copy.noItemResponses}</p>
+            ) : domain.itemResponses.map((item, itemIndex) => (
               <div key={`${source}-${item.itemId}`} className={`rounded-lg border p-3 ${darkMode ? "border-[#3b554e] bg-[#1b2b28]" : "border-[#e3e9e3] bg-white"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 text-sm leading-relaxed">{item.wording}</p>
+                  <p className="min-w-0 flex-1 text-sm leading-relaxed">{reportText(`${domainPath}.items.${itemIndex}.wording`, item.wording)}</p>
                   <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${item.status === "rated" ? "bg-[#e1efe9] text-[#286e60]" : darkMode ? "bg-[#344943] text-[#c0cec8]" : "bg-[#edf0ec] text-[#63716a]"}`}>
-                    {statusLabel(item.status)}
+                    {statusLabel(item.status, reportLanguage)}
                   </span>
                 </div>
                 <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs ${softText}`}>
-                  <span>Response: <b className="font-mono">{item.value === null ? "—" : item.value}</b></span>
-                  {item.reason && <span>Reason: {item.reason}</span>}
+                  <span>{copy.response} <b className="font-mono">{item.value === null ? "—" : item.value}</b></span>
+                  {item.reason && <span>{copy.reason} {reportText(`${domainPath}.items.${itemIndex}.reason`, item.reason)}</span>}
                 </div>
               </div>
             ))}
@@ -230,6 +252,67 @@ export default function ChineseLiteracyDashboardPage() {
   const comparison = savedComparison && !comparisonIsStale ? savedComparison : null;
   const maxMean = Math.max(1, ...sharedDomains.flatMap(({ parentDomain, teacherDomain }) => [parentDomain.mean ?? 0, teacherDomain.mean ?? 0]));
 
+  const canPrintReport = Boolean(comparison && parent && teacher && translationKey);
+  const handlePrintReport = (targetLanguage: ChineseLiteracyReportLanguage) => {
+    if (!parent || !teacher || !comparison || !translationKey) return;
+    setTranslationError("");
+    const cached = translationCache.key === translationKey ? translationCache.byLanguage[targetLanguage] : undefined;
+    if (cached) {
+      setPreparingLanguage(null);
+      setReportLanguage(targetLanguage);
+      setRequestedPrintLanguage(targetLanguage);
+      return;
+    }
+    setRequestedPrintLanguage(null);
+    setPreparingLanguage(targetLanguage);
+    translationMutation.mutate(
+      {
+        caseId,
+        data: {
+          parentAssignmentId: parent.assignmentId,
+          teacherAssignmentId: teacher.assignmentId,
+          targetLanguage,
+        },
+      },
+      {
+        onSuccess: ({ translations }) => {
+          setPreparingLanguage(null);
+          setTranslationCache(current => ({
+            key: translationKey,
+            byLanguage: {
+              ...(current.key === translationKey ? current.byLanguage : {}),
+              [targetLanguage]: translations,
+            },
+          }));
+          setReportLanguage(targetLanguage);
+          setRequestedPrintLanguage(targetLanguage);
+        },
+        onError: () => {
+          setPreparingLanguage(null);
+          setRequestedPrintLanguage(null);
+          setTranslationError(`Could not prepare the ${targetLanguage === "en" ? "English" : "Chinese"} report. No print was started; the saved report and responses are unchanged.`);
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    if (!requestedPrintLanguage) return;
+    const previousTitle = document.title;
+    const restoreTitle = () => { document.title = previousTitle; };
+    const timer = window.setTimeout(() => {
+      document.title = CHINESE_LITERACY_DASHBOARD_PRINT_COPY[reportLanguage].reportTitle;
+      window.addEventListener("afterprint", restoreTitle, { once: true });
+      window.print();
+      setRequestedPrintLanguage(null);
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("afterprint", restoreTitle);
+      restoreTitle();
+    };
+  }, [requestedPrintLanguage, reportLanguage, currentTranslations]);
+
   return (
     <div className={`${pageClass} transition-colors duration-200`}>
       <main className="mx-auto max-w-[1440px] px-4 pb-16 pt-5 sm:px-7 lg:px-10">
@@ -259,47 +342,58 @@ export default function ChineseLiteracyDashboardPage() {
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => window.print()} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-print-dashboard">
-              <Printer size={14} /> Print combined report
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => handlePrintReport("en")} disabled={!canPrintReport || translationMutation.isPending} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-print-dashboard-en">
+                {translationMutation.isPending && preparingLanguage === "en" ? <LoaderCircle size={14} className="animate-spin" /> : <Printer size={14} />}
+                {translationMutation.isPending && preparingLanguage === "en" ? "Preparing English…" : "Print English report"}
+              </button>
+              <button type="button" onClick={() => handlePrintReport("zh")} disabled={!canPrintReport || translationMutation.isPending} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${darkMode ? "border-[#3a514c] bg-[#20332f] hover:bg-[#29413b]" : "border-[#d7e1da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-print-dashboard-zh">
+                {translationMutation.isPending && preparingLanguage === "zh" ? <LoaderCircle size={14} className="animate-spin" /> : <Printer size={14} />}
+                {translationMutation.isPending && preparingLanguage === "zh" ? "Preparing Chinese…" : "Print Chinese report"}
+              </button>
+            </div>
             <button type="button" onClick={() => setDarkMode((value) => !value)} aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${darkMode ? "border-[#3a514c] bg-[#20332f]" : "border-[#d7e1da] bg-white"}`} data-testid="button-toggle-theme">
               {darkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           </div>
         </header>
+        <div className="no-print mb-4 text-right">
+          <p className={`text-[11px] ${softText}`}>Each print is one language only. DeepSeek translates any needed text on demand; saved responses are not changed.</p>
+          {translationError && <p role="alert" className="mt-1 text-xs text-[#a34f3c]">{translationError}</p>}
+        </div>
 
         <section className={`${panelClass} overflow-hidden rounded-2xl`}>
           <div className={`border-b px-5 py-6 sm:px-8 sm:py-8 ${darkMode ? "border-[#304743] bg-[linear-gradient(110deg,#203832,#1d302c_54%,#26352d)]" : "border-[#e0e8df] bg-[linear-gradient(110deg,#e8f1e9,#fffefa_58%,#f4edda)]"}`}>
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="max-w-3xl">
                 <div className={`mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] ${darkMode ? "border-[#47655d] bg-[#233c35] text-[#b9d4c9]" : "border-[#cfded1] bg-[#f8fbf6] text-[#477264]"}`}>
-                  <BookOpenText size={13} /> ReMynd · staff case review
+                  <BookOpenText size={13} /> {copy.staffReview}
                 </div>
-                <h1 className={`font-display text-3xl font-bold tracking-tight sm:text-[38px] ${darkMode ? "text-[#eef4ee]" : "text-[#1c332d]"}`}>Chinese Literacy</h1>
-                <p className="print-only mt-1 text-xs font-semibold uppercase tracking-wide">Final combined report · Parent/home and teacher/classroom</p>
+                <h1 className={`font-display text-3xl font-bold tracking-tight sm:text-[38px] ${darkMode ? "text-[#eef4ee]" : "text-[#1c332d]"}`}>{copy.title}</h1>
+                <p className="print-only mt-1 text-xs font-semibold uppercase tracking-wide">{copy.finalReport}</p>
                 <p className={`mt-2 max-w-2xl text-sm leading-relaxed sm:text-base ${softText}`}>
-                  Keep home and classroom observations distinct. Review shared patterns across sources without turning them into a single score.
+                  {copy.reportScope}
                 </p>
               </div>
               <div className={`rounded-xl border px-4 py-3 ${darkMode ? "border-[#405951] bg-[#20352f]" : "border-[#d7e2d8] bg-[#fffefa]/80"}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>Case reference</p>
+                <p className={`text-[10px] font-bold uppercase tracking-[.14em] ${softText}`}>{copy.caseReference}</p>
                 <p className="mt-1 font-mono text-sm font-semibold" data-testid="text-case-reference">{caseId || "—"}</p>
-                <p className={`mt-1 text-xs ${softText}`}>{administrations.length} source record{administrations.length === 1 ? "" : "s"}</p>
+                <p className={`mt-1 text-xs ${softText}`}>{copy.sourceCount(administrations.length)}</p>
               </div>
             </div>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#41635a] bg-[#1e352f]" : "border-[#cddfd6] bg-[#f7fbf7]"}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#dcece4] text-[#286e60]"><Home size={17} /></span>
-                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: parentInk }}>Source A · parent / home</p><p className={`mt-0.5 text-xs ${softText}`}>Included with one selected teacher record</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: parentInk }}>{copy.parentSource}</p><p className={`mt-0.5 text-xs ${softText}`}>{copy.parentObservation}</p></div>
               </div>
               <div className={`flex items-center gap-3 rounded-xl border p-3 ${darkMode ? "border-[#6b5940] bg-[#393428]" : "border-[#e9dcc1] bg-[#fdf9ef]"}`}>
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#f4e8cb] text-[#95651e]"><School size={17} /></span>
-                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>Source B · teacher / classroom</p><p className={`mt-0.5 text-xs ${softText}`}>Both perspectives appear; scores stay separate</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-[.13em]" style={{ color: teacherInk }}>{copy.teacherSource}</p><p className={`mt-0.5 text-xs ${softText}`}>{copy.teacherObservation}</p></div>
               </div>
             </div>
             <div className="print-only mt-5 rounded-lg border border-[#d8e0d8] bg-white p-3 text-xs text-[#364a42]">
-              <p><strong>Parent / home source:</strong> {parent?.respondentLabel || "Not selected"} · {parent?.formName || "No form"} · revision {parent?.revision ?? "—"} · submitted {formatDate(parent?.submittedAt)}</p>
-              <p className="mt-1"><strong>Teacher / classroom source:</strong> {teacher?.respondentLabel || "Not selected"} · {teacher?.formName || "No form"} · revision {teacher?.revision ?? "—"} · submitted {formatDate(teacher?.submittedAt)}</p>
+              <p><strong>{copy.parentSource}:</strong> {copy.revision} {parent?.revision ?? "—"} · {copy.submitted} {formatDate(parent?.submittedAt, reportLanguage)}</p>
+              <p className="mt-1"><strong>{copy.teacherSource}:</strong> {copy.revision} {teacher?.revision ?? "—"} · {copy.submitted} {formatDate(teacher?.submittedAt, reportLanguage)}</p>
             </div>
           </div>
 
@@ -376,26 +470,26 @@ export default function ChineseLiteracyDashboardPage() {
               <div className={`rounded-xl border p-4 sm:p-5 ${darkMode ? "border-[#3c554e] bg-[#1a2c28]" : "border-[#dce5dd] bg-[#fffefa]"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Shared domains · descriptive only</div>
-                    <h2 className="mt-1 text-lg font-semibold">Home and classroom, side by side</h2>
-                    <p className={`mt-1 text-xs ${softText}`}>{sharedDomains.length} shared domain{sharedDomains.length === 1 ? "" : "s"} with identical labels · means remain source-specific</p>
+                  <div className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>{copy.sharedDomains}</div>
+                    <h2 className="mt-1 text-lg font-semibold">{copy.domainsSideBySide}</h2>
+                    <p className={`mt-1 text-xs ${softText}`}>{copy.sharedDomainCount(sharedDomains.length)}</p>
                   </div>
-                  <button type="button" onClick={exportCsv} disabled={sharedDomains.length === 0} className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${darkMode ? "border-[#3a514b] bg-[#223631]" : "border-[#d9e3da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-export-chart-csv">
+                  <button type="button" onClick={exportCsv} disabled={sharedDomains.length === 0} className={`no-print inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${darkMode ? "border-[#3a514b] bg-[#223631]" : "border-[#d9e3da] bg-white hover:bg-[#f5f8f4]"}`} data-testid="button-export-chart-csv">
                     <Download size={14} /> Export chart CSV
                   </button>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px]">
-                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#5b9d87]" /> Parent / home mean</span>
-                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#c99442]" /> Teacher / classroom mean</span>
-                  <span className={`${softText}`}>Scale is descriptive; bars are not a combined score.</span>
+                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#5b9d87]" /> {copy.parentMean}</span>
+                  <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[#c99442]" /> {copy.teacherMean}</span>
+                  <span className={`${softText}`}>{copy.descriptiveScale}</span>
                 </div>
                 {sharedDomains.length > 0 ? (
                   <div className="mt-5 space-y-4">
                     {sharedDomains.map(({ name, parentDomain, teacherDomain }) => (
                       <div key={name} className="grid gap-2 sm:grid-cols-[minmax(130px,.75fr)_minmax(0,2fr)] sm:items-center" data-testid={`chart-domain-${parentDomain.id}`}>
-                        <span className="text-xs font-semibold leading-snug">{name}</span>
+                        <span className="text-xs font-semibold leading-snug">{reportText(`domainNames.${parentDomain.id}`, name)}</span>
                         <div className="space-y-1.5">
-                          {[{ source: "Parent / home", domain: parentDomain, color: "#5b9d87" }, { source: "Teacher / classroom", domain: teacherDomain, color: "#c99442" }].map(({ source, domain, color }) => (
+                          {[{ source: copy.parentHome, domain: parentDomain, color: "#5b9d87" }, { source: copy.teacherClassroom, domain: teacherDomain, color: "#c99442" }].map(({ source, domain, color }) => (
                             <div key={`${name}-${source}`} className="flex items-center gap-2">
                               <span className={`w-[92px] shrink-0 text-[10px] ${softText}`}>{source}</span>
                               <div className={`h-3 flex-1 overflow-hidden rounded-sm ${darkMode ? "bg-[#2b413b]" : "bg-[#e9eee9]"}`}>
@@ -407,19 +501,19 @@ export default function ChineseLiteracyDashboardPage() {
                         </div>
                       </div>
                     ))}
-                    <div className={`flex justify-between border-t border-current/10 pt-3 text-[10px] ${softText}`}><span>Bars scaled to the largest displayed mean in this selection</span><span>Missing means are not plotted</span></div>
+                    <div className={`flex justify-between border-t border-current/10 pt-3 text-[10px] ${softText}`}><span>{copy.scaledBars}</span><span>{copy.missingMeans}</span></div>
                   </div>
                 ) : (
                   <div className={`mt-5 rounded-xl border border-dashed p-8 text-center ${darkMode ? "border-[#42574f]" : "border-[#d9e2da]"}`}>
                     <BookOpenText size={21} className={`mx-auto ${softText}`} />
-                    <p className="mt-2 text-sm font-semibold">No shared domains to chart</p>
-                    <p className={`mx-auto mt-1 max-w-md text-xs leading-relaxed ${softText}`}>Choose one parent/home and one teacher/classroom record. A domain appears only when its source labels match exactly.</p>
+                    <p className="mt-2 text-sm font-semibold">{copy.noSharedDomains}</p>
+                    <p className={`mx-auto mt-1 max-w-md text-xs leading-relaxed ${softText}`}>{copy.chooseMatchingRecords}</p>
                   </div>
                 )}
               </div>
 
               {comparisonIsStale && savedComparison && (
-                <div className={`rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-stale-snapshot">
+                  <div className={`no-print rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-stale-snapshot">
                   <div className="flex items-start gap-3">
                     <AlertCircle size={17} className="mt-0.5 shrink-0 text-[#a77827]" />
                     <div>
@@ -431,7 +525,7 @@ export default function ChineseLiteracyDashboardPage() {
               )}
 
               {comparisonNeedsRefresh && (
-                <div className={`rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-comparison-needs-refresh">
+                <div className={`no-print rounded-xl border p-4 ${darkMode ? "border-[#765f3d] bg-[#393327]" : "border-[#e7d7b5] bg-[#fcf7e9]"}`} data-testid="status-comparison-needs-refresh">
                   <p className="text-sm font-semibold">Regenerate this comparison for the complete report</p>
                   <p className={`mt-1 text-xs leading-relaxed ${softText}`}>This saved snapshot predates the overall student summary. Generate a new comparison to include a whole-response summary and recommendations based on both respondents.</p>
                 </div>
@@ -441,43 +535,43 @@ export default function ChineseLiteracyDashboardPage() {
                 <div className={`${panelClass} rounded-xl p-5`} data-testid="card-generated-comparison">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 pb-4">
                     <div>
-                      <div className="flex items-center gap-2 text-[#3d826e]"><Check size={15} /><span className="text-[10px] font-bold uppercase tracking-[.15em]">Current combined report</span></div>
-                      <h2 className="mt-1 text-lg font-semibold">Chinese Literacy cross-setting report</h2>
+                      <div className="flex items-center gap-2 text-[#3d826e]"><Check size={15} /><span className="text-[10px] font-bold uppercase tracking-[.15em]">{copy.currentReport}</span></div>
+                      <h2 className="mt-1 text-lg font-semibold">{copy.reportTitle}</h2>
                     </div>
-                    <span className={`text-xs ${softText}`}>Generated {formatDate(comparison.generatedAt)}</span>
+                    <span className={`text-xs ${softText}`}>{copy.generated} {formatDate(comparison.generatedAt, reportLanguage)}</span>
                   </div>
                   <p className={`mt-3 text-xs leading-relaxed ${softText}`}>
-                    AI-assisted synthesis of the selected submissions for staff review. It is descriptive, not diagnostic, and does not combine the respondents' scores.
+                    {copy.aiDisclosure}
                   </p>
                   <article className={`mt-4 rounded-lg border p-4 ${subtlePanel}`} data-testid="report-overall-summary">
-                    <h3 className="text-xs font-bold uppercase tracking-[.12em]">Overall student summary</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-[.12em]">{copy.overallSummary}</h3>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                      {comparison.content.overallSummary?.trim() || "Regenerate this saved comparison to add an overall summary based on both respondents' full responses."}
+                      {reportText("comparison.overallSummary", comparison.content.overallSummary?.trim() || copy.regenerateSummary)}
                     </p>
                   </article>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: parentInk }}>
-                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>Parent / home</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.parentHome}</p>
+                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>{copy.parentHome}</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.parentHome", comparison.content.parentHome)}</p>
                     </article>
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: teacherInk }}>
-                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: teacherInk }}>Teacher / classroom</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.teacherClassroom}</p>
+                      <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: teacherInk }}>{copy.teacherClassroom}</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.teacherClassroom", comparison.content.teacherClassroom)}</p>
                     </article>
                     <article className={`rounded-lg border p-4 md:col-span-2 ${subtlePanel}`}>
-                      <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>Comparison interpretation across settings</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{comparison.content.crossSetting}</p>
+                      <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>{copy.comparisonInterpretation}</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.crossSetting", comparison.content.crossSetting)}</p>
                     </article>
                   </div>
                   {comparison.content.recommendations.length > 0 && (
                     <div className="mt-4">
-                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em]"><FileText size={14} /> Student-focused recommendations from both respondents</h3>
+                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em]"><FileText size={14} /> {copy.recommendations}</h3>
                       <ol className="mt-2 space-y-2">
-                        {comparison.content.recommendations.map((recommendation, index) => <li key={`recommendation-${index}`} className={`flex gap-3 rounded-lg border p-3 text-sm leading-relaxed ${subtlePanel}`}><span className="font-mono text-xs font-bold text-[#4e8b76]">{String(index + 1).padStart(2, "0")}</span><span>{recommendation}</span></li>)}
+                        {comparison.content.recommendations.map((recommendation, index) => <li key={`recommendation-${index}`} className={`flex gap-3 rounded-lg border p-3 text-sm leading-relaxed ${subtlePanel}`}><span className="font-mono text-xs font-bold text-[#4e8b76]">{String(index + 1).padStart(2, "0")}</span><span>{reportText(`comparison.recommendations.${index}`, recommendation)}</span></li>)}
                       </ol>
                     </div>
                   )}
-                  {comparison.content.limitations && <p className={`mt-4 border-t border-current/10 pt-3 text-xs leading-relaxed ${softText}`}><strong>Snapshot limitations:</strong> {comparison.content.limitations}</p>}
+                  {comparison.content.limitations && <p className={`mt-4 border-t border-current/10 pt-3 text-xs leading-relaxed ${softText}`}><strong>{copy.limitations}</strong> {reportText("comparison.limitations", comparison.content.limitations)}</p>}
                 </div>
               )}
             </section>
@@ -487,10 +581,10 @@ export default function ChineseLiteracyDashboardPage() {
         <section className="mt-6">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <p className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>Inspect the source</p>
-              <h2 className="mt-1 text-xl font-semibold">Evidence by shared domain</h2>
+              <p className={`text-[10px] font-bold uppercase tracking-[.16em] ${softText}`}>{copy.inspectSource}</p>
+              <h2 className="mt-1 text-xl font-semibold">{copy.evidenceByDomain}</h2>
             </div>
-            <p className={`hidden text-xs sm:block ${softText}`}>Expand item responses for the selected source records.</p>
+            <p className={`hidden text-xs sm:block ${softText}`}>{copy.expandItems}</p>
           </div>
           {sharedDomains.length ? (
             <div className="space-y-3">
@@ -498,28 +592,28 @@ export default function ChineseLiteracyDashboardPage() {
                 <details key={`evidence-${name}`} className={`${panelClass} group rounded-xl`} data-testid={`details-domain-${parentDomain.id}`}>
                   <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
                     <div className="flex items-center gap-3">
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${darkMode ? "bg-[#29443b] text-[#b8d6c8]" : "bg-[#e6f0e8] text-[#42735d]"}`}>{String(parentDomain.id).slice(0, 1).toUpperCase()}</span>
-                      <div><h3 className="text-sm font-semibold">{name}</h3><p className={`mt-0.5 text-[10px] ${softText}`}>Parent {parentDomain.itemResponses.length} items · Teacher {teacherDomain.itemResponses.length} items</p></div>
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${darkMode ? "bg-[#29443b] text-[#b8d6c8]" : "bg-[#e6f0e8] text-[#42735d]"}`}>{reportLanguage === "zh" ? "域" : String(parentDomain.id).slice(0, 1).toUpperCase()}</span>
+                      <div><h3 className="text-sm font-semibold">{reportText(`domainNames.${parentDomain.id}`, name)}</h3><p className={`mt-0.5 text-[10px] ${softText}`}>{copy.parentItems(parentDomain.itemResponses.length)} · {copy.teacherItems(teacherDomain.itemResponses.length)}</p></div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex gap-3 font-mono text-xs">
-                        <span style={{ color: parentInk }}>P {parentDomain.mean === null ? "—" : parentDomain.mean.toFixed(2)}</span>
-                        <span style={{ color: teacherInk }}>T {teacherDomain.mean === null ? "—" : teacherDomain.mean.toFixed(2)}</span>
+                        <span style={{ color: parentInk }}>{copy.parentShort} {parentDomain.mean === null ? "—" : parentDomain.mean.toFixed(2)}</span>
+                        <span style={{ color: teacherInk }}>{copy.teacherShort} {teacherDomain.mean === null ? "—" : teacherDomain.mean.toFixed(2)}</span>
                       </div>
                       <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
                     </div>
                   </summary>
                   <div className="grid gap-3 border-t border-current/10 p-3 sm:p-4 lg:grid-cols-2">
-                    {renderSourceDetails(parent?.respondentLabel || "Parent", parent, parentDomain, "parent")}
-                    {renderSourceDetails(teacher?.respondentLabel || "Teacher", teacher, teacherDomain, "teacher")}
+                    {renderSourceDetails(parentDomain, "parent")}
+                    {renderSourceDetails(teacherDomain, "teacher")}
                   </div>
                 </details>
               ))}
             </div>
           ) : (
             <div className={`${panelClass} rounded-xl p-6 text-center`}>
-              <p className="text-sm font-semibold">Source details will appear when matching records are selected</p>
-              <p className={`mt-1 text-xs ${softText}`}>Home and classroom data remain separate throughout this review.</p>
+              <p className="text-sm font-semibold">{copy.noSourceDetails}</p>
+              <p className={`mt-1 text-xs ${softText}`}>{copy.separateSources}</p>
             </div>
           )}
         </section>
@@ -528,9 +622,9 @@ export default function ChineseLiteracyDashboardPage() {
           <div className="flex items-start gap-3">
             <Info size={16} className={`mt-0.5 shrink-0 ${softText}`} />
             <div>
-              <p className="text-xs font-semibold">Interpretation and response accounting</p>
+              <p className="text-xs font-semibold">{copy.accountingTitle}</p>
               <p className={`mt-1 text-xs leading-relaxed ${softText}`}>
-                These tools have not been established as equivalent measures. Means are descriptive only and should not be interpreted diagnostically or as a difference score. Not applicable, not observed, and unanswered responses remain distinct; none are treated as a rating. Parent/home and teacher/classroom observations are separate sources.
+                {copy.accounting}
               </p>
             </div>
           </div>

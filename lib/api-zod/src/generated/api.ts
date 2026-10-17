@@ -1784,3 +1784,20 @@ export const GenerateChineseLiteracyDashboardComparisonResponse = zod.object({
   }),
   stale: zod.boolean(),
 });
+
+/**
+ * @summary Translate a current combined report for single-language printing
+ */
+export const TranslateChineseLiteracyDashboardParams = zod.object({
+  caseId: zod.coerce.string(),
+});
+
+export const TranslateChineseLiteracyDashboardBody = zod.object({
+  parentAssignmentId: zod.string().min(1),
+  teacherAssignmentId: zod.string().min(1),
+  targetLanguage: zod.enum(["en", "zh"]),
+});
+
+export const TranslateChineseLiteracyDashboardResponse = zod.object({
+  translations: zod.record(zod.string(), zod.string()),
+});

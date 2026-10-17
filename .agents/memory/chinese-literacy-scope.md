@@ -87,6 +87,12 @@ All Chinese Literacy report exports must be in English and printable as PDFs usi
 
 **How to apply:** Skip translation when no Chinese text is present; fail visibly rather than silently exporting Chinese if DeepSeek translation fails. Open a print-formatted page with a clear Print / Save as PDF action and preserve the source records.
 
+Combined Chinese Literacy comparison printouts must be in one selected language only: English or Simplified Chinese, never a bilingual mix. Translate only the temporary display/export copy with configured DeepSeek, and never overwrite respondent answers or saved report text.
+
+**Why:** On 2026-10-17 the user explicitly asked for English and Chinese print options, then clarified that any final report must be in one language, not both.
+
+**How to apply:** Offer separate English and Chinese print actions, translate only fields not already in the selected language, cache translations only for the exact selected source revisions and comparison snapshot, and stop printing if translation fails.
+
 Report approval must remain available in any translated display language; approval applies to the saved source-language report, not transient translated text.
 
 **Why:** The user explicitly requested staff be able to approve reports regardless of the language currently displayed on 2026-10-13.

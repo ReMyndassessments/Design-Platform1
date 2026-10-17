@@ -5,6 +5,8 @@ import {
   GenerateChineseLiteracyDashboardComparisonBody,
   GenerateChineseLiteracyDashboardComparisonResponse,
   GetChineseLiteracyDashboardResponse,
+  TranslateChineseLiteracyDashboardBody,
+  TranslateChineseLiteracyDashboardResponse,
 } from "@workspace/api-zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -25,7 +27,7 @@ import {
 } from "../lib/chineseLiteracy.js";
 import { loadLiteracy, persistLiteracy, literacyEnvelope, LITERACY_INTEGRATION, type LiteracyDocument } from "../lib/chineseLiteracyStore.js";
 import { literacyExport, literacyReportExport } from "../lib/chineseLiteracyExport.js";
-import { translateChineseFields } from "../lib/chineseLiteracyExportTranslation.js";
+import { translateChineseFields, translateFieldsForLanguage } from "../lib/chineseLiteracyExportTranslation.js";
 import { CHINESE_LITERACY_KEYS, isChineseLiteracy, isParentLiteracy, literacyMetadata } from "../lib/chineseLiteracyInstruments.js";
 import {
   alignChineseLiteracyDomains, canReviewChineseLiteracyDashboard, collectPrivateValues, isChineseLiteracySnapshotStale,
@@ -445,6 +447,115 @@ router.post("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(as
     content,
     stale: false,
   }));
+}));
+
+router.post("/cases/:caseId/chinese-literacy/dashboard/translate", authMiddleware, safe(async (req, res) => {
+  const c = await staffCase(req);
+  const parsed = TranslateChineseLiteracyDashboardBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const ids = [parsed.data.parentAssignmentId, parsed.data.teacherAssignmentId];
+  const assignments = await db.select().from(assignmentsTable).where(and(
+    eq(assignmentsTable.caseId, c.id),
+    inArray(assignmentsTable.id, ids),
+    inArray(assignmentsTable.toolId, CHINESE_LITERACY_KEYS),
+  ));
+  const parentAssignment = assignments.find(a => a.id === parsed.data.parentAssignmentId);
+  const teacherAssignment = assignments.find(a => a.id === parsed.data.teacherAssignmentId);
+  if (!parentAssignment || !isParentLiteracy(parentAssignment.toolId) || !teacherAssignment || isParentLiteracy(teacherAssignment.toolId)) {
+    throw new AccessError(400, "Choose one parent form and one teacher form from this case.");
+  }
+  const [parentDoc, teacherDoc] = await Promise.all([
+    loadLiteracy(parentAssignment),
+    loadLiteracy(teacherAssignment),
+  ]);
+  const eligibility = validateChineseLiteracyPairEligibility({
+    parentIsParentForm: isParentLiteracy(parentAssignment.toolId),
+    teacherIsParentForm: isParentLiteracy(teacherAssignment.toolId),
+    parentBaselineId: parentDoc.baselineId,
+    teacherBaselineId: teacherDoc.baselineId,
+    parentSubmittedAt: parentDoc.submittedAt,
+    teacherSubmittedAt: teacherDoc.submittedAt,
+    parentScoreCount: parentDoc.scores.length,
+    teacherScoreCount: teacherDoc.scores.length,
+  });
+  if (!eligibility.eligible) throw new AccessError(eligibility.status, eligibility.message);
+
+  const parent = dashboardAdministration(parentAssignment, parentDoc);
+  const teacher = dashboardAdministration(teacherAssignment, teacherDoc);
+  const [saved] = await db.select().from(chineseLiteracyDashboardComparisonsTable)
+    .where(eq(chineseLiteracyDashboardComparisonsTable.caseId, c.id)).limit(1);
+  if (!saved
+    || saved.parentAssignmentId !== parent.assignmentId
+    || saved.teacherAssignmentId !== teacher.assignmentId
+    || isChineseLiteracySnapshotStale(saved, parent, teacher)) {
+    throw new AccessError(409, "Generate a current combined report for these selected forms before printing.");
+  }
+
+  const content = savedComparisonDraftSchema.parse(saved.content);
+  if (!content.overallSummary.trim()) {
+    throw new AccessError(409, "Regenerate the combined report before printing it in either language.");
+  }
+  const alignedDomains = alignChineseLiteracyDomains(
+    literacyMetadata(parentAssignment.toolId).domains,
+    literacyMetadata(teacherAssignment.toolId).domains,
+    parent.selectedDomains,
+    teacher.selectedDomains,
+  );
+  if (!alignedDomains.length) throw new AccessError(422, "The selected records have no shared domains to include in the report.");
+
+  const sourceForTranslation = {
+    comparison: {
+      overallSummary: content.overallSummary,
+      parentHome: content.parentHome,
+      teacherClassroom: content.teacherClassroom,
+      crossSetting: content.crossSetting,
+      recommendations: content.recommendations,
+      limitations: content.limitations,
+    },
+    domainNames: Object.fromEntries(alignedDomains.map(domain => [domain.id, domain.name])),
+    parentDomains: Object.fromEntries(alignedDomains.map(({ id }) => {
+      const domain = parent.domains.find(candidate => candidate.id === id)!;
+      return [id, {
+        strengths: domain.evidence.strengths,
+        supports: domain.evidence.supports,
+        examples: domain.evidence.examples,
+        items: domain.itemResponses.map(item => ({ wording: item.wording, reason: item.reason ?? "" })),
+      }];
+    })),
+    teacherDomains: Object.fromEntries(alignedDomains.map(({ id }) => {
+      const domain = teacher.domains.find(candidate => candidate.id === id)!;
+      return [id, {
+        strengths: domain.evidence.strengths,
+        supports: domain.evidence.supports,
+        examples: domain.evidence.examples,
+        items: domain.itemResponses.map(item => ({ wording: item.wording, reason: item.reason ?? "" })),
+      }];
+    })),
+  };
+  const privateValues = [...new Set([
+    ...collectPrivateValues(c),
+    ...collectPrivateValues(parentAssignment),
+    ...collectPrivateValues(teacherAssignment),
+    ...collectPrivateValues(parentDoc.input),
+    ...collectPrivateValues(teacherDoc.input),
+    String(c.id),
+  ])];
+  const redactedSource = redactPrivateValues(sourceForTranslation, privateValues);
+  let translations: Record<string, string>;
+  try {
+    ({ translations } = await translateFieldsForLanguage(redactedSource, parsed.data.targetLanguage));
+  } catch {
+    throw new AccessError(502, "DeepSeek could not complete the report translation. No source responses or saved report were changed.");
+  }
+  const withheldLabel = parsed.data.targetLanguage === "en" ? "[withheld]" : "[已隐去]";
+  translations = Object.fromEntries(Object.entries(translations)
+    .map(([path, value]) => [path, value.replaceAll("[REDACTED]", withheldLabel)]));
+  audit(req, parentDoc, "dashboard_report_translated");
+  audit(req, teacherDoc, "dashboard_report_translated");
+  res.json(TranslateChineseLiteracyDashboardResponse.parse({ translations }));
 }));
 
 router.post("/cases/:caseId/chinese-literacy/:assignmentId/generate-report", authMiddleware, safe(async (req, res) => {
