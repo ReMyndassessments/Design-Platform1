@@ -41,6 +41,69 @@ import {
   sharedDomainPairs,
   snapshotMatchesSelection,
 } from "@/lib/chinese-literacy-dashboard-model";
+import {
+  parseChineseLiteracyReportText,
+  splitChineseLiteracyComparisonByDomain,
+} from "@/lib/chinese-literacy-report-format";
+
+function renderInlineReportText(text: string) {
+  return text.split(/(\*\*.+?\*\*|__.+?__)/g).map((part, index) => {
+    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
+function ReportTextBlocks({ text }: { text: string }) {
+  const blocks = parseChineseLiteracyReportText(text);
+  return (
+    <div className="space-y-3 text-sm leading-relaxed">
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          return <h4 key={`heading-${index}`} className="font-semibold">{renderInlineReportText(block.text)}</h4>;
+        }
+        if (block.type === "unordered-list") {
+          return (
+            <ul key={`unordered-${index}`} className="list-disc space-y-1 pl-5">
+              {block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`} className="text-justify">{renderInlineReportText(item)}</li>)}
+            </ul>
+          );
+        }
+        if (block.type === "ordered-list") {
+          return (
+            <ol key={`ordered-${index}`} className="list-decimal space-y-1 pl-5">
+              {block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`} className="text-justify">{renderInlineReportText(item)}</li>)}
+            </ol>
+          );
+        }
+        return <p key={`paragraph-${index}`} className="whitespace-pre-wrap text-justify">{renderInlineReportText(block.text)}</p>;
+      })}
+    </div>
+  );
+}
+
+function FormattedReportText({
+  text,
+  domainLabels = [],
+}: {
+  text: string;
+  domainLabels?: string[];
+}) {
+  const domainSections = splitChineseLiteracyComparisonByDomain(text, domainLabels);
+  if (!domainSections) return <ReportTextBlocks text={text} />;
+
+  return (
+    <div className="space-y-4">
+      {domainSections.map((section, index) => (
+        <section key={`domain-narrative-${index}`} className={section.label ? "space-y-1.5 border-t border-current/10 pt-3 first:border-0 first:pt-0" : ""}>
+          {section.label && <h4 className="text-sm font-semibold">{section.label}</h4>}
+          {section.text && <ReportTextBlocks text={section.text} />}
+        </section>
+      ))}
+    </div>
+  );
+}
 
 function formatDate(value: string | null | undefined, language: ChineseLiteracyReportLanguage = "en") {
   if (!value) return CHINESE_LITERACY_DASHBOARD_PRINT_COPY[language].notSubmitted;
@@ -272,6 +335,10 @@ export default function ChineseLiteracyDashboardPage() {
 
   const comparison = savedComparison && !comparisonIsStale ? savedComparison : null;
   const maxMean = Math.max(1, ...sharedDomains.flatMap(({ parentDomain, teacherDomain }) => [parentDomain.mean ?? 0, teacherDomain.mean ?? 0]));
+  const comparisonDomainLabels = sharedDomains.flatMap(({ name, parentDomain }) => [
+    name,
+    reportText(`domainNames.${parentDomain.id}`, name),
+  ]);
 
   const canPrintReport = Boolean(comparison && comparison.content.overallSummary?.trim() && parent && teacher && translationKey);
   const handlePrintReport = (targetLanguage: ChineseLiteracyReportLanguage) => {
@@ -318,7 +385,10 @@ export default function ChineseLiteracyDashboardPage() {
   };
 
   return (
-    <div className={`${pageClass} transition-colors duration-200`}>
+    <div
+      lang={reportLanguage === "zh" ? "zh-CN" : "en"}
+      className={`${pageClass} chinese-literacy-dashboard-print transition-colors duration-200`}
+    >
       <main className="mx-auto max-w-[1440px] px-4 pb-16 pt-5 sm:px-7 lg:px-10">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
           <Link href={`/cases/${caseId}/dashboards`} className={`inline-flex items-center gap-2 text-sm font-semibold ${softText}`} data-testid="link-back-dashboards">
@@ -558,22 +628,27 @@ export default function ChineseLiteracyDashboardPage() {
                   </p>
                   <article className={`mt-4 rounded-lg border p-4 ${subtlePanel}`} data-testid="report-overall-summary">
                     <h3 className="text-xs font-bold uppercase tracking-[.12em]">{copy.overallSummary}</h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                      {reportText("comparison.overallSummary", comparison.content.overallSummary?.trim() || copy.regenerateSummary)}
-                    </p>
+                    <div className="mt-2">
+                      <FormattedReportText text={reportText("comparison.overallSummary", comparison.content.overallSummary?.trim() || copy.regenerateSummary)} />
+                    </div>
                   </article>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: parentInk }}>
                       <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: parentInk }}>{copy.parentHome}</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.parentHome", comparison.content.parentHome)}</p>
+                      <div className="mt-2"><FormattedReportText text={reportText("comparison.parentHome", comparison.content.parentHome)} /></div>
                     </article>
                     <article className={`rounded-lg border-l-[3px] p-4 ${subtlePanel}`} style={{ borderLeftColor: teacherInk }}>
                       <h3 className="text-xs font-bold uppercase tracking-[.12em]" style={{ color: teacherInk }}>{copy.teacherClassroom}</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.teacherClassroom", comparison.content.teacherClassroom)}</p>
+                      <div className="mt-2"><FormattedReportText text={reportText("comparison.teacherClassroom", comparison.content.teacherClassroom)} /></div>
                     </article>
                     <article className={`rounded-lg border p-4 md:col-span-2 ${subtlePanel}`}>
                       <h3 className={`text-xs font-bold uppercase tracking-[.12em] ${softText}`}>{copy.comparisonInterpretation}</h3>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{reportText("comparison.crossSetting", comparison.content.crossSetting)}</p>
+                      <div className="mt-2">
+                        <FormattedReportText
+                          text={reportText("comparison.crossSetting", comparison.content.crossSetting)}
+                          domainLabels={comparisonDomainLabels}
+                        />
+                      </div>
                     </article>
                   </div>
                   {comparison.content.recommendations.length > 0 && (
@@ -584,7 +659,14 @@ export default function ChineseLiteracyDashboardPage() {
                       </ol>
                     </div>
                   )}
-                  {comparison.content.limitations && <p className={`mt-4 border-t border-current/10 pt-3 text-xs leading-relaxed ${softText}`}><strong>{copy.limitations}</strong> {reportText("comparison.limitations", comparison.content.limitations)}</p>}
+                  {comparison.content.limitations && (
+                    <div className={`mt-4 border-t border-current/10 pt-3 text-xs leading-relaxed ${softText}`}>
+                      <strong>{copy.limitations}</strong>
+                      <div className="mt-1">
+                        <FormattedReportText text={reportText("comparison.limitations", comparison.content.limitations)} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
