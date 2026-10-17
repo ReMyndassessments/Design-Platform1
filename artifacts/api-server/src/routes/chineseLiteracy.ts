@@ -330,7 +330,9 @@ router.get("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(asy
       teacherAssignmentId: saved.teacherAssignmentId,
       parentRevision: saved.parentRevision,
       teacherRevision: saved.teacherRevision,
-      generatedAt: saved.generatedAt.toISOString(),
+      // The generated response schema represents OpenAPI date-time values as Date.
+      // Express serializes this Date back to ISO JSON after validation.
+      generatedAt: saved.generatedAt,
       content: savedComparisonDraftSchema.parse(saved.content),
       stale: isChineseLiteracySnapshotStale(saved, parent, teacher),
     };
@@ -404,6 +406,16 @@ router.post("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(as
   }
 
   const generatedAt = new Date();
+  const responseBody = GenerateChineseLiteracyDashboardComparisonResponse.parse({
+    caseId: c.id,
+    parentAssignmentId: parentAssignment.id,
+    teacherAssignmentId: teacherAssignment.id,
+    parentRevision: parentDoc.revision,
+    teacherRevision: teacherDoc.revision,
+    generatedAt,
+    content,
+    stale: false,
+  });
   await db.transaction(async tx => {
     const [currentParent, currentTeacher] = await Promise.all([
       loadLiteracy(parentAssignment, tx, true),
@@ -437,16 +449,7 @@ router.post("/cases/:caseId/chinese-literacy/dashboard", authMiddleware, safe(as
   });
   audit(req, parentDoc, "dashboard_comparison_generated");
   audit(req, teacherDoc, "dashboard_comparison_generated");
-  res.json(GenerateChineseLiteracyDashboardComparisonResponse.parse({
-    caseId: c.id,
-    parentAssignmentId: parentAssignment.id,
-    teacherAssignmentId: teacherAssignment.id,
-    parentRevision: parentDoc.revision,
-    teacherRevision: teacherDoc.revision,
-    generatedAt: generatedAt.toISOString(),
-    content,
-    stale: false,
-  }));
+  res.json(responseBody);
 }));
 
 router.post("/cases/:caseId/chinese-literacy/dashboard/translate", authMiddleware, safe(async (req, res) => {

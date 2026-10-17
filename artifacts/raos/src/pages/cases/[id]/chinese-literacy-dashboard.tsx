@@ -147,7 +147,12 @@ export default function ChineseLiteracyDashboardPage() {
     if (!parent || !teacher || !canGenerate) return;
     comparisonMutation.mutate(
       { caseId, data: { parentAssignmentId: parent.assignmentId, teacherAssignmentId: teacher.assignmentId } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey }) },
+      {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        // A response can fail after the server has saved the generated snapshot.
+        // Refresh it before offering another paid generation attempt.
+        onError: () => queryClient.invalidateQueries({ queryKey }),
+      },
     );
   };
 
@@ -470,7 +475,7 @@ export default function ChineseLiteracyDashboardPage() {
                         "No shared domain labels are available for this selection."}
                   </p>
                 )}
-                {comparisonMutation.isError && <p className="mt-2 text-xs text-[#a34f3c]">Comparison could not be generated. Try again.</p>}
+                {comparisonMutation.isError && !comparison && <p className="mt-2 text-xs text-[#a34f3c]">The response failed after generation. Refresh the dashboard before retrying; a saved comparison may already exist, and another generation may use DeepSeek again.</p>}
               </div>
             </section>
 
