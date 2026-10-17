@@ -123,6 +123,22 @@ export default function ChineseLiteracyDashboardPage() {
     : {};
   const reportText = (path: string, original: string) => (currentTranslations[path] ?? original)
     .replaceAll("[REDACTED]", reportLanguage === "en" ? "[withheld]" : "[已隐去]");
+  useEffect(() => {
+    if (!requestedPrintLanguage) return;
+    const previousTitle = document.title;
+    const restoreTitle = () => { document.title = previousTitle; };
+    const timer = window.setTimeout(() => {
+      document.title = CHINESE_LITERACY_DASHBOARD_PRINT_COPY[reportLanguage].reportTitle;
+      window.addEventListener("afterprint", restoreTitle, { once: true });
+      window.print();
+      setRequestedPrintLanguage(null);
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("afterprint", restoreTitle);
+      restoreTitle();
+    };
+  }, [requestedPrintLanguage, reportLanguage, currentTranslations]);
   const comparisonIsStale = Boolean(savedComparison && (savedComparison.stale || !snapshotMatchesCurrent));
   const comparisonNeedsRefresh = Boolean(savedComparison && !savedComparison.content.overallSummary?.trim() && !comparisonIsStale);
   const canGenerate = canGenerateComparison(parent, teacher, sharedDomains.length, comparisonMutation.isPending);
@@ -295,23 +311,6 @@ export default function ChineseLiteracyDashboardPage() {
       },
     );
   };
-
-  useEffect(() => {
-    if (!requestedPrintLanguage) return;
-    const previousTitle = document.title;
-    const restoreTitle = () => { document.title = previousTitle; };
-    const timer = window.setTimeout(() => {
-      document.title = CHINESE_LITERACY_DASHBOARD_PRINT_COPY[reportLanguage].reportTitle;
-      window.addEventListener("afterprint", restoreTitle, { once: true });
-      window.print();
-      setRequestedPrintLanguage(null);
-    }, 250);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", restoreTitle);
-      restoreTitle();
-    };
-  }, [requestedPrintLanguage, reportLanguage, currentTranslations]);
 
   return (
     <div className={`${pageClass} transition-colors duration-200`}>
