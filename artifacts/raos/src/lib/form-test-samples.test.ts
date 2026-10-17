@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { sampleQuestionnaireAnswers } from "./form-test-samples";
 import { literacyTestSample } from "../components/chinese-literacy/testSamples";
 import { validateInput } from "../components/chinese-literacy/logic";
-import { LITERACY_METADATA, validateLiteracyInput } from "../../../api-server/src/lib/chineseLiteracy";
+import { LITERACY_METADATA, literacyEvidenceStatus, scoreLiteracy, validateLiteracyInput } from "../../../api-server/src/lib/chineseLiteracy";
 import { PARENT_LITERACY_METADATA } from "../../../api-server/src/lib/chineseLiteracyParent";
 import { validateStaffTestAnswers } from "../../../api-server/src/lib/staffQuestionnaireTests";
 
@@ -31,6 +31,43 @@ test("parent and teacher high ratings submit without examples in both languages"
       assert.deepEqual(issues, []);
       assert.doesNotThrow(() => validateLiteracyInput(sample, undefined, true, meta));
     }
+  }
+});
+
+test("optional further discussion does not block parent or teacher submission", () => {
+  for (const language of ["english", "mandarin"] as const) {
+    for (const meta of [LITERACY_METADATA, PARENT_LITERACY_METADATA]) {
+      const sample = literacyTestSample(meta, language);
+      sample.summary.discussion = "";
+      assert.deepEqual(validateInput(sample, meta, meta.domains), []);
+      assert.doesNotThrow(() => validateLiteracyInput(sample, undefined, true, meta));
+    }
+  }
+});
+
+test("teacher can submit a historical no-contact record without inventing classroom ratings or examples", () => {
+  for (const language of ["english", "mandarin"] as const) {
+    const sample = literacyTestSample(LITERACY_METADATA, language);
+    sample.context.contactFrequency = "No longer in contact";
+    sample.context.timeTeaching = "Previously taught the student; no contact since 2023.";
+    sample.context.setting = "Chinese classroom during the actual observation period; no current contact.";
+    sample.context.observationStart = "2022-09-01";
+    sample.context.observationEnd = "2023-06-30";
+    sample.responses = sample.responses.map(response => ({ itemId: response.itemId, status: "not_observed", value: null }));
+    sample.sections = Object.fromEntries(LITERACY_METADATA.domains.map(domain => [domain.id, { decision: "not_observed" }]));
+    sample.evidence = {};
+    sample.summary = {
+      strengths: "Not known: I have not observed the student since 2023.",
+      barriers: "Not known: I cannot verify current classroom literacy needs.",
+      supportResponse: "Not known: I have not provided support since 2023.",
+      discussion: "",
+      priorities: [],
+    };
+    assert.deepEqual(validateInput(sample, LITERACY_METADATA, LITERACY_METADATA.domains), []);
+    assert.doesNotThrow(() => validateLiteracyInput(sample, undefined, true, LITERACY_METADATA));
+    const scores = scoreLiteracy(sample, undefined, LITERACY_METADATA);
+    assert.ok(scores.filter(score => score.status !== "not_administered").every(score => score.status === "insufficient_observations"));
+    assert.equal(literacyEvidenceStatus(scores), "Additional information needed");
   }
 });
 

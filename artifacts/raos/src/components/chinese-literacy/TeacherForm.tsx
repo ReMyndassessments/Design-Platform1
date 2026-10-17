@@ -11,7 +11,7 @@ import { ScoreList } from "./ScoreList";
 import { SummaryStep } from "./SummaryStep";
 import { activeDomains, normalizeInput, overallProgress, validateInput } from "./logic";
 import type { ClEnvelope, ClInput, InterfaceLanguage } from "./types";
-import { useDraftSync } from "./useDraftSync";
+import { clearDraftRecovery, readDraftRecovery, useDraftSync } from "./useDraftSync";
 import { Banner, Btn, Skeleton } from "./ui";
 import { BrandedHeader } from "./BrandedHeader";
 import { literacyTestSample } from "./testSamples";
@@ -61,14 +61,31 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated, q
   const meta = initial.metadata ?? initial.administration.metadata!;
   const { student, teacher, integration } = initial;
   const parent = meta.key === PARENT_INSTRUMENT_ID;
+  const initialRevision = initial.administration.revision;
+  const canEditInitialDraft = ["not_started", "in_progress", "returned"].includes(initial.administration.status);
+  const [localBackup] = useState(() => preview ? null : readDraftRecovery(token));
+  const restoreLocalOnLoad = !!localBackup && canEditInitialDraft && localBackup.baseRevision === initialRevision;
+  const [recovery, setRecovery] = useState(() =>
+    localBackup && canEditInitialDraft && localBackup.baseRevision !== initialRevision ? localBackup : null
+  );
   useEffect(() => { setOptionalStaffAuth(parent); return () => setOptionalStaffAuth(false); }, [parent]);
   const [adm, setAdm] = useState(initial.administration);
   const domains = useMemo(() => activeDomains(meta, adm.selectedDomains), [meta, adm.selectedDomains]);
   const locked = !preview && !["not_started", "in_progress", "returned"].includes(adm.status);
-  const [input, setInput] = useState<ClInput>(() => normalizeInput(preview ? null : adm.input, meta, student.grade));
+  const [input, setInput] = useState<ClInput>(() => normalizeInput(
+    restoreLocalOnLoad ? localBackup!.input : preview ? null : adm.input, meta, student.grade
+  ));
   const view = useLocalizedView(input.interfaceLanguage);
   const inputRef = useRef(input);
   const sync = useDraftSync({ token, enabled: !preview && !locked, initialRevision: adm.revision });
+  useEffect(() => {
+    if (restoreLocalOnLoad && !locked) {
+      sync.markDirty(inputRef.current);
+      void sync.flush();
+    } else if (!canEditInitialDraft && localBackup) {
+      clearDraftRecovery(token);
+    }
+  }, [restoreLocalOnLoad, locked, canEditInitialDraft, localBackup, token, sync.markDirty, sync.flush]);
   const steps = useMemo(() => ["intro", "context", ...domains.map(d => `d:${d.id}`), "summary", "review"], [domains]);
   const stepKey = `cl-step-${token}`;
   const [step, setStep] = useState(() => { const s = preview ? "intro" : sessionStorage.getItem(stepKey); return s && steps.includes(s) ? s : "intro"; });
@@ -103,14 +120,31 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated, q
   const idx = steps.indexOf(step);
 
   const [resolving, setResolving] = useState<string | null>(null);
-  const reloadLatest = async () => {
-    if (!window.confirm(translateLiteracyText("Discard your unsaved local edits and load the latest saved version?", input.interfaceLanguage))) return;
+  const reloadLatest = async (confirmDiscard = true) => {
+    if (confirmDiscard && !window.confirm(translateLiteracyText("Discard your unsaved local edits and load the latest saved version?", input.interfaceLanguage))) return;
     setResolving("reload");
     try {
       const latest = await clRequest<ClEnvelope>(formUrl(token));
       const next = normalizeInput(latest.administration.input, meta, student.grade);
       inputRef.current = next; setInput(next); setAdm(latest.administration); sync.resolveReload(latest.administration.revision);
+      setRecovery(null);
     } catch (e) { setSubmitError((e as Error).message); } finally { setResolving(null); }
+  };
+  const restoreRecovery = async () => {
+    if (!recovery) return;
+    setResolving("restore");
+    const next = normalizeInput(recovery.input, meta, student.grade);
+    inputRef.current = next; setInput(next); setPassed(false); setSubmitError(null);
+    sync.markDirty(next);
+    try {
+      const saved = await sync.overwrite();
+      if (!saved) throw new Error("The recovered draft could not be saved yet. Your browser copy is still available; retry the save before refreshing.");
+      setRecovery(null);
+    } catch (e) {
+      setSubmitError((e as Error).message);
+    } finally {
+      setResolving(null);
+    }
   };
   const overwriteLatest = async () => {
     if (!window.confirm(translateLiteracyText("Overwrite the newer saved version with what is on your screen? Changes saved elsewhere will be replaced.", input.interfaceLanguage))) return;
@@ -184,6 +218,16 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated, q
       />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         {preview && <Banner tone="warn" title="Staff preview, safe test mode">Answers stay in this browser. Nothing is saved, submitted or written to live data.</Banner>}
+        {recovery && (
+          <Banner tone="warn" title="Unsaved responses were recovered from this browser">
+            The server has a saved draft and this browser has a newer local copy from before the refresh. Choose which version to keep. Restoring your browser copy will replace the server draft.
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Btn disabled={!!resolving} onClick={() => void restoreRecovery()} data-testid="button-restore-browser-draft">Restore my responses and save</Btn>
+              <Btn variant="ghost" disabled={!!resolving} onClick={() => void reloadLatest(false)} data-testid="button-keep-server-draft">Keep the server-saved draft</Btn>
+            </div>
+          </Banner>
+        )}
+        <fieldset disabled={!!recovery} className="min-w-0 space-y-5 border-0 p-0 m-0">
         {sync.status === "conflict" && (
           <Banner tone="error" title="This form was changed somewhere else">
             Autosave is paused and your edits are still on screen, unsaved. {sync.message}
@@ -228,6 +272,7 @@ function FormBody({ env: initial, token, preview = false, onBack, onValidated, q
           <Btn disabled={idx >= steps.length - 1} onClick={() => goTo(steps[idx + 1])} data-testid="button-next">Next</Btn>
         </div>
         <p className="text-[11px] text-slate-400 text-center">{meta.limitation}</p>
+        </fieldset>
       </main>
     </div>
   )}</ClLanguageContext.Provider>;

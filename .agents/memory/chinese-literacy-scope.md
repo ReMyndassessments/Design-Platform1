@@ -39,6 +39,12 @@ Concrete examples are optional in both parent and teacher forms, including for r
 
 **How to apply:** Keep client and server validation consistent and label optional examples clearly in English and Chinese. Preserve examples already entered.
 
+Long parent and teacher Chinese Literacy forms must preserve entered responses across browser refreshes. A refresh must not silently discard an in-progress response; if a browser recovery copy and a newer server draft conflict, let the respondent choose explicitly.
+
+**Why:** On 2026-10-17 the user emphasized that respondents must not have to repeat work in these comprehensive forms after a refresh.
+
+**How to apply:** Keep the server draft as canonical, provide a recoverable in-session copy for edits not yet confirmed saved, and never silently overwrite a newer revision.
+
 The staff Chinese literacy review needs an English-view translation toggle for Chinese respondent-authored text; translations are read-only and never replace saved responses.
 
 **Why:** The user requested an English view of the Chinese literacy review on 2026-10-13.

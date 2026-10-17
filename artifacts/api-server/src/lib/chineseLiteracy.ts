@@ -236,7 +236,7 @@ export function validateLiteracyInput(raw: unknown, selectedDomains = LITERACY_D
       if (input.context.assistanceMode !== "independent" && (!String(input.context.assistantIdentity ?? "").trim() || !String(input.context.assistantLanguage ?? "").trim())) issues.push("Record the assistant's identity and language for assisted or paper completion.");
       if (end - start < 28 * 86400000 && !String(input.context.shortWindowExplanation ?? "").trim()) issues.push("Briefly explain the shorter observation window; it does not prevent support or require more testing.");
     }
-    for (const key of ["strengths", "barriers", "supportResponse", "discussion"] as const) {
+    for (const key of ["strengths", "barriers", "supportResponse"] as const) {
       if (!input.summary[key].trim()) issues.push(`Summary ${key}: provide a response or an explicit unknown with explanation.`);
       if (/^(not known|not yet observed|unknown)\s*[:–-]?\s*$/i.test(input.summary[key].trim())) issues.push(`Summary ${key}: briefly explain the explicit unknown.`);
     }

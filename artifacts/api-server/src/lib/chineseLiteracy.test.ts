@@ -78,8 +78,15 @@ test("support-plan approval draft accepts blank priority details and review date
   input.summary.priorities=[{text:"",itemIds:[],strategyId:"",owner:"",indicator:"",reviewDate:""}];
   assert.doesNotThrow(()=>validateLiteracyInput(input,undefined,false));
 });
-test("one teacher, short observation window and all-NO core can submit without other tasks", () => {
-  const input=fixture(); validateLiteracyInput(input,undefined,true); assert.equal(literacyEvidenceStatus(scoreLiteracy(input)),"Additional information needed");
+test("teacher with no current contact can submit historical all-NO observations without examples or optional discussion", () => {
+  const input=fixture();
+  input.context.contactFrequency="No longer in contact";
+  input.context.timeTeaching="Previously taught during a two-week period; no contact in over two years.";
+  input.context.setting="Chinese classroom during the historical observation period.";
+  input.context.observationStart="2024-10-01";
+  input.context.observationEnd="2024-10-14";
+  input.summary.discussion="";
+  validateLiteracyInput(input,undefined,true); assert.equal(literacyEvidenceStatus(scoreLiteracy(input)),"Additional information needed");
   const scores=scoreLiteracy(input); assert(!("total" in scores)); assert(scores.every(s=>!("normalizedScores" in s)));
 });
 test("client score fields cannot override deterministic results", () => {

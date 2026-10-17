@@ -109,7 +109,7 @@ export function validateInput(input: ClInput, meta: ClMetadata, domains: ClDomai
   const g = parseInt(String(ctx.grade), 10);
   if (ctx.grade && !(g >= 3 && g <= 12)) out.push({ step: "context", message: "Grade must be between 3 and 12 for this instrument." });
   if (ctx.observationStart && ctx.observationEnd && new Date(ctx.observationEnd) < new Date(ctx.observationStart)) out.push({ step: "context", message: "Observation end cannot be before the start." });
-  (["strengths", "barriers", "supportResponse", "discussion"] as const).forEach(k => {
+  (["strengths", "barriers", "supportResponse"] as const).forEach(k => {
     if (!narrativeFilled(input.summary[k])) out.push({ step: "summary", message: `Summary ${k}: provide a response or an explicit Not known with explanation.` });
   });
   input.summary.priorities.forEach((p, n) => {

@@ -4,7 +4,7 @@ import { composeNarrative, parseNarrative, windowDays } from "./logic";
 import { Banner, Field, inputCls } from "./ui";
 
 const OPTS = {
-  contactFrequency: ["Daily", "Several times a week", "Weekly", "Less than weekly", "Unknown"],
+  contactFrequency: ["Daily", "Several times a week", "Weekly", "Less than weekly", "No longer in contact", "Unknown"],
   script: [["simplified", "Simplified"], ["traditional", "Traditional"], ["both", "Both"], ["other", "Other"], ["unknown", "Unknown"]],
   spokenVariety: [["mandarin", "Mandarin"], ["cantonese", "Cantonese"], ["other", "Other"], ["unknown", "Unknown"]],
   instruction: [["main curriculum", "Main curriculum"], ["additional language", "Additional language"], ["literacy support", "Literacy support"], ["other", "Other"], ["unknown", "Unknown"]],
@@ -46,6 +46,9 @@ export function ContextStep({ input, setContext, student, teacher }: {
         <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Age on case</span>{student.age ?? "Not recorded"}</div>
         <div><span className="block text-[10px] uppercase tracking-wide text-slate-400">Teacher</span><Verbatim>{teacher.name}</Verbatim></div>
       </div>
+      <Banner tone="info" title="If you are no longer in contact">
+        Choose No longer in contact, enter dates from your last actual observation period, and mark each domain you could not observe as Not observed. This records insufficient current evidence, not a low rating. Do not guess or invent examples; examples are optional, and you may still submit.
+      </Banner>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Grade" hint="This instrument covers Grades 3 to 12.">
           <select className={inputCls} value={c.grade ?? ""} onChange={e => setContext("grade", e.target.value)} data-testid="select-grade">
