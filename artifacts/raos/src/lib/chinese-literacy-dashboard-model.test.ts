@@ -61,10 +61,16 @@ test("shared chart domains require identical IDs and labels in both selected rec
   assert.deepEqual(sharedDomainPairs(undefined, teacher), []);
 });
 
-test("comparison generation requires two submitted records and at least one matched domain", () => {
+test("comparison generation accepts submitted, under-review, and approved records with a matched domain", () => {
   const parent = source();
   const teacher = source({ respondentType: "teacher1", setting: "Classroom", assignmentId: "teacher-1", status: "under_review" });
   assert.equal(canGenerateComparison(parent, teacher, 1, false), true);
+  assert.equal(canGenerateComparison(source({ status: "approved" }), source({
+    respondentType: "teacher1",
+    setting: "Classroom",
+    assignmentId: "teacher-1",
+    status: "approved",
+  }), 1, false), true);
   assert.equal(canGenerateComparison(parent, source({ submittedAt: null }), 1, false), false);
   assert.equal(canGenerateComparison(parent, source({ status: "in_progress" }), 1, false), false);
   assert.equal(canGenerateComparison(parent, teacher, 0, false), false);

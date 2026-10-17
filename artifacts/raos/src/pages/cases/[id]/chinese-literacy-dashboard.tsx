@@ -268,7 +268,7 @@ export default function ChineseLiteracyDashboardPage() {
   const comparison = savedComparison && !comparisonIsStale ? savedComparison : null;
   const maxMean = Math.max(1, ...sharedDomains.flatMap(({ parentDomain, teacherDomain }) => [parentDomain.mean ?? 0, teacherDomain.mean ?? 0]));
 
-  const canPrintReport = Boolean(comparison && parent && teacher && translationKey);
+  const canPrintReport = Boolean(comparison && comparison.content.overallSummary?.trim() && parent && teacher && translationKey);
   const handlePrintReport = (targetLanguage: ChineseLiteracyReportLanguage) => {
     if (!parent || !teacher || !comparison || !translationKey) return;
     setTranslationError("");
@@ -359,6 +359,15 @@ export default function ChineseLiteracyDashboardPage() {
         <div className="no-print mb-4 text-right">
           <p className={`text-[11px] ${softText}`}>Each print is one language only. DeepSeek translates any needed text on demand; saved responses are not changed.</p>
           {translationError && <p role="alert" className="mt-1 text-xs text-[#a34f3c]">{translationError}</p>}
+          {!canPrintReport && !translationMutation.isPending && (
+            <p role="status" className={`mt-1 text-xs ${softText}`}>
+              {!parent || !teacher
+                ? "Select one parent/home and one teacher/classroom record below."
+                : !comparison
+                  ? "Generate or regenerate the combined report below. Printing becomes available when it matches these selected records."
+                  : "Regenerate the combined report below so it includes an overall summary before printing."}
+            </p>
+          )}
         </div>
 
         <section className={`${panelClass} overflow-hidden rounded-2xl`}>
@@ -457,7 +466,7 @@ export default function ChineseLiteracyDashboardPage() {
                 {!canGenerate && (
                   <p className={`mt-2 text-[11px] leading-relaxed ${softText}`}>
                     {!parent || !teacher ? "Select one parent/home and one teacher/classroom record." :
-                      parent.status.toLowerCase() !== "submitted" || teacher.status.toLowerCase() !== "submitted" || !parent.submittedAt || !teacher.submittedAt ? "Both selected records must be submitted with a submission date." :
+                      !["submitted", "under_review", "approved"].includes(parent.status.toLowerCase()) || !["submitted", "under_review", "approved"].includes(teacher.status.toLowerCase()) || !parent.submittedAt || !teacher.submittedAt ? "Both selected records must be submitted, under review, or approved, with a submission date." :
                         "No shared domain labels are available for this selection."}
                   </p>
                 )}

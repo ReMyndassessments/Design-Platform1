@@ -78,8 +78,8 @@ export function canGenerateComparison(
   isPending: boolean,
 ) {
   return Boolean(parent && teacher
-    && ["submitted", "under_review"].includes(parent.status.toLowerCase())
-    && ["submitted", "under_review"].includes(teacher.status.toLowerCase())
+    && ["submitted", "under_review", "approved"].includes(parent.status.toLowerCase())
+    && ["submitted", "under_review", "approved"].includes(teacher.status.toLowerCase())
     && parent.submittedAt && teacher.submittedAt
     && sharedDomainCount > 0 && !isPending);
 }
