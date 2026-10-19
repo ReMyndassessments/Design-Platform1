@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { buildMultiInformantReport, buildMultiInformantSources } from "@/lib/multi-informant-report";
 
 // ── Tools that score higher = better (strengths-based) ───────────────────────
 const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
@@ -434,18 +435,6 @@ function getOverallNarrative(avgScore: number, studentName: string, higherIsBett
   return `Overall, the assessment profile for ${studentName} reflects scores in the Elevated range, indicating significant concerns across multiple functional domains. This pattern suggests the student may be experiencing substantial difficulties that require immediate attention, comprehensive evaluation, and the implementation of intensive, individualized supports.`;
 }
 
-function getCrossInformantNarrative(scores: any[], studentName: string): string {
-  const types = Array.from(new Set(scores.map(s => s.respondentType)));
-  if (types.length <= 1) {
-    return `This assessment was completed by a single informant. While the results provide valuable information, cross-setting comparisons are not available. To gain a more complete picture of ${studentName}'s functioning, additional ratings from other informants (e.g., parents, other teachers) are recommended.`;
-  }
-  const hasDiscrepancy = scores.some(s => s.hasHighDiscrepancy);
-  if (hasDiscrepancy) {
-    return `Scores were collected from multiple informants, and a high degree of discrepancy was detected between raters. This pattern may reflect genuine behavioral differences across settings, differences in respondent thresholds, or variation in the student's presentation depending on environmental demands, relationship dynamics, or task structure. These discrepancies should be explored directly with each informant during the debriefing process.`;
-  }
-  return `Scores were collected from multiple informants, and there is reasonable agreement across raters. This consistency suggests that the patterns identified in this profile are likely to be observed across settings, increasing confidence in the results.`;
-}
-
 function getRecommendationsNarrative(domains: string[], scores: any[], higherIsBetter: boolean): string {
   const allNormalizedByDomain: Record<string, number[]> = {};
   for (const s of scores) {
@@ -489,6 +478,10 @@ function ToolScoreSection({ toolScores, studentName, today }: {
   const toolId = toolScores[0]?.toolId ?? "";
   const toolName = toolScores[0]?.toolName ?? toolId;
   const higherIsBetter = HIGHER_IS_BETTER_TOOLS.has(toolId);
+  const respondentSources = buildMultiInformantSources(toolScores);
+  const multiInformantReport = toolScores.length > 1
+    ? buildMultiInformantReport(toolScores, { studentName, higherIsBetter, domainLabels: DOMAIN_LABELS })
+    : null;
 
   const domains = new Set<string>();
   toolScores.forEach(s =>
@@ -499,11 +492,11 @@ function ToolScoreSection({ toolScores, studentName, today }: {
 
   const radarData = Array.from(domains).map(domain => {
     const pt: any = { subject: formatDomainLabel(domain) };
-    toolScores.forEach(s => { pt[s.respondentType] = ((s.normalizedScores ?? {}) as Record<string, number>)[domain] || 0; });
+    toolScores.forEach((s, index) => { pt[respondentSources[index].key] = ((s.normalizedScores ?? {}) as Record<string, number>)[domain] || 0; });
     return pt;
   });
 
-  const respondentTypes = Array.from(new Set(toolScores.map(s => s.respondentType)));
+  const respondentTypes = respondentSources.map(source => source.key);
 
   // Bar chart: remove all-zero domains, sort by average desc, cap at 15
   const barData = radarData
@@ -602,8 +595,8 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8' }} />
                   <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Legend />
-                  {respondentTypes.map((type, i) => (
-                    <Radar key={type} name={type.toUpperCase()} dataKey={type} stroke={colors[i % colors.length]} fill={colors[i % colors.length]} fillOpacity={0.3} />
+                  {respondentSources.map((source, i) => (
+                    <Radar key={source.key} name={source.label} dataKey={source.key} stroke={colors[i % colors.length]} fill={colors[i % colors.length]} fillOpacity={0.3} />
                   ))}
                 </RadarChart>
               </ResponsiveContainer>
@@ -639,8 +632,8 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                     formatter={(value: number, name: string) => [`${value} / 100`, name.toUpperCase()]}
                   />
                   <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '8px' }} />
-                  {respondentTypes.map((type, i) => (
-                    <Bar key={type} dataKey={type} name={type.toUpperCase()} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
+                    {respondentSources.map((source, i) => (
+                      <Bar key={source.key} dataKey={source.key} name={source.label} fill={colors[i % colors.length]} radius={[4, 4, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -661,8 +654,8 @@ function ToolScoreSection({ toolScores, studentName, today }: {
         )}
       </div>
 
-      {/* Overall Summary */}
-      <Card className={`shadow-sm border ${overallBand.borderColor} ${overallBand.bgColor}`}>
+      {/* Single-respondent summary only: multi-informant scores are never pooled into one profile. */}
+      {toolScores.length === 1 && <Card className={`shadow-sm border ${overallBand.borderColor} ${overallBand.bgColor}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-slate-800">
@@ -679,10 +672,10 @@ function ToolScoreSection({ toolScores, studentName, today }: {
             {getOverallNarrative(overallAvg, studentName, higherIsBetter)}
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Domain-by-Domain */}
-      <Card className="shadow-sm border-none">
+      {toolScores.length === 1 && <Card className="shadow-sm border-none">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-slate-800">
             <ClipboardList size={18} />
@@ -717,28 +710,63 @@ function ToolScoreSection({ toolScores, studentName, today }: {
             );
           })}
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Cross-Informant */}
-      {toolScores.length > 1 && (
+      {multiInformantReport && (
         <Card className="shadow-sm border-none">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-slate-800">
               <Users size={18} />
-              Cross-Informant Analysis
+              Comparative Interpretation Across Respondents
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-slate-700 leading-relaxed text-sm">
-              {getCrossInformantNarrative(toolScores, studentName)}
-            </p>
-            <div className="mt-4 overflow-x-auto">
+          <CardContent className="space-y-4">
+            <p className="text-slate-700 leading-relaxed text-sm">{multiInformantReport.summary}</p>
+            {multiInformantReport.domainFindings.length > 0 ? (
+              <div className="space-y-3">
+                {multiInformantReport.domainFindings.map(finding => (
+                  <section key={finding.domain} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="font-semibold text-slate-800 text-sm">{finding.label}</h4>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-700">{finding.interpretation}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {finding.ratings.map(rating => (
+                        <span key={rating.sourceKey} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
+                          <strong>{rating.sourceLabel}:</strong> {rating.value}/100 · {rating.band}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+                The selected forms do not share any domain scores across respondents. Each profile is shown separately; do not compare unlike domains.
+              </p>
+            )}
+            {multiInformantReport.singleSourceDomains.length > 0 && (
+              <section className="rounded-lg border border-slate-200 p-4">
+                <h4 className="font-semibold text-slate-800 text-sm">Domains reported by one respondent</h4>
+                <ul className="mt-2 space-y-2">
+                  {multiInformantReport.singleSourceDomains.map(finding => (
+                    <li key={finding.domain} className="text-sm leading-relaxed text-slate-700">
+                      <strong>{finding.label} — {finding.rating.sourceLabel}:</strong>{" "}
+                      {finding.rating.value}/100 ({finding.rating.band}). This domain was not rated by another selected respondent, so it is not directly compared.
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            <p className="text-xs leading-relaxed text-slate-500">{multiInformantReport.coverageNote}</p>
+            <p className="text-xs leading-relaxed text-slate-500">{multiInformantReport.limitations}</p>
+            <div className="overflow-x-auto">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Respondent ratings by domain</p>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200">
                     <th className="text-left py-2 pr-4 text-slate-600 font-semibold">Domain</th>
-                    {respondentTypes.map(type => (
-                      <th key={type} className="text-center py-2 px-3 text-slate-600 font-semibold capitalize">{type}</th>
+                    {respondentSources.map(source => (
+                      <th key={source.key} className="text-center py-2 px-3 text-slate-600 font-semibold">{source.label}</th>
                     ))}
                   </tr>
                 </thead>
@@ -746,12 +774,11 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                   {Array.from(domains).map(domain => (
                     <tr key={domain} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-2 pr-4 text-slate-700">{formatDomainLabel(domain)}</td>
-                      {respondentTypes.map(type => {
-                        const score = toolScores.find(s => s.respondentType === type);
-                        const val = score ? ((score.normalizedScores ?? {}) as Record<string, number>)[domain] ?? "—" : "—";
+                      {respondentSources.map(source => {
+                        const val = ((source.score.normalizedScores ?? {}) as Record<string, number>)[domain] ?? "—";
                         const band = typeof val === "number" ? getBand(val, higherIsBetter) : null;
                         return (
-                          <td key={type} className="text-center py-2 px-3">
+                          <td key={source.key} className="text-center py-2 px-3">
                             {band ? (
                               <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${band.color} ${band.bgColor}`}>
                                 {val}
@@ -770,7 +797,26 @@ function ToolScoreSection({ toolScores, studentName, today }: {
       )}
 
       {/* Recommendations */}
-      <Card className="shadow-sm border-none bg-primary/5 border-primary/20">
+      {multiInformantReport ? (
+        <Card className="shadow-sm border border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-slate-800">
+              <ClipboardList size={18} />
+              Recommendations Based on the Combined Comparison
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-slate-700">
+              {multiInformantReport.recommendations.map((recommendation, index) => (
+                <li key={`multi-recommendation-${index}`} className="pl-1">{recommendation}</li>
+              ))}
+            </ol>
+            <p className="text-xs text-slate-500 mt-4 italic">
+              These are educational next steps based on the separate respondent profiles. Confirm them with the student and relevant team; they do not replace professional judgment or the assessment's scoring guidance.
+            </p>
+          </CardContent>
+        </Card>
+      ) : <Card className="shadow-sm border-none bg-primary/5 border-primary/20">
         <CardHeader className="pb-2">
           <CardTitle className="text-slate-800">
             {higherIsBetter ? "Coaching Recommendations & Next Steps" : "Clinical Considerations & Recommended Next Steps"}
@@ -784,7 +830,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
             This interpretive report was generated automatically based on scored assessment data and is intended to support — not replace — clinical judgment. All findings should be interpreted by a qualified professional in the context of a comprehensive evaluation.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }
