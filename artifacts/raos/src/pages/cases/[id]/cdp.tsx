@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, CheckCircle2, Clock, CircleDashed, Info, Printer, Users } from "lucide-react";
 import { buildMultiInformantReport } from "@/lib/multi-informant-report";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 const CDP_ORDER = ["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"];
 
@@ -119,6 +120,15 @@ export default function CdpProfilePage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <PrintReportIdentity
+          reportTitle="Child Development Profile"
+          studentName={caseData?.studentName}
+          dob={caseData?.dob}
+          grade={caseData?.grade}
+          school={caseData?.school}
+          languagePreference={caseData?.languagePreference}
+          caseId={caseId}
+        />
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>

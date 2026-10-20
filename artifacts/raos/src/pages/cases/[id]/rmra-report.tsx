@@ -14,6 +14,7 @@ import {
   Loader2, Calendar, User, Activity, Printer,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -547,12 +548,22 @@ export function RmraReportPanel({
   session,
   isStandalone = false,
   examinerToken = "",
+  studentName,
+  dob,
+  grade,
+  school,
+  languagePreference,
 }: {
   sessionId: string;
   caseId: string;
   session: RmraReportSession;
   isStandalone?: boolean;
   examinerToken?: string;
+  studentName?: string | null;
+  dob?: string | null;
+  grade?: string | null;
+  school?: string | null;
+  languagePreference?: string | null;
 }) {
   const { toast } = useToast();
   const authHeader = () =>
@@ -734,6 +745,16 @@ export function RmraReportPanel({
 
   return (
     <div className="space-y-6">
+      <PrintReportIdentity
+        reportTitle="ReMynd Math Reasoning Assessment (RMRA)"
+        studentName={studentName}
+        dob={dob}
+        grade={grade}
+        school={school}
+        languagePreference={languagePreference}
+        caseId={caseId}
+        assessmentDate={session.completedAt}
+      />
       {/* Status banner */}
       <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-emerald-800 text-sm">
         <CheckCircle2 size={16} className="shrink-0" />

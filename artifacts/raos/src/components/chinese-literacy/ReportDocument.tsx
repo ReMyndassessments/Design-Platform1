@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import type { ClDomainObservation } from "./types";
+import { PrintReportIdentity, type PrintReportIdentityProps } from "@/components/PrintReportIdentity";
 
 const DOMAIN_MARKER = "[[REMYND_DOMAIN_OBSERVATIONS]]";
 type Translate = (path: string, value: unknown) => string;
@@ -224,13 +225,14 @@ function markdownBlocks(markdown: string, observations: ClDomainObservation[], t
   return blocks;
 }
 
-export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? "") }: {
+export function ReportDocument({ content, source, formName, approved, domainObservations = [], translate = (_path, value) => String(value ?? ""), identity }: {
   content: string;
   source: string;
   formName: string;
   approved: boolean;
   domainObservations?: ClDomainObservation[];
   translate?: Translate;
+  identity?: Omit<PrintReportIdentityProps, "reportTitle">;
 }) {
   const hasTitle = /^#\s+.+/m.test(content);
   return (
@@ -253,6 +255,11 @@ export function ReportDocument({ content, source, formName, approved, domainObse
         }
       `}</style>
     <div id="cl-report-print-target" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-testid="report-document">
+      <PrintReportIdentity
+        {...identity}
+        reportTitle="Chinese Literacy Assessment Report"
+        language={identity?.language ?? "en"}
+      />
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">ReMynd · Assessment Report</p>

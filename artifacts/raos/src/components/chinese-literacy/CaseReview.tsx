@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
+import { useGetCase } from "@workspace/api-client-react";
 import { ApiError, caseUrl, clRequest, downloadExport } from "./api";
 import { EvidencePanel, PlanPanel, ReportPanel } from "./ReviewPanels";
 import { PARENT_INSTRUMENT_ID } from "./api";
@@ -10,6 +11,7 @@ interface Listing { administrations: ClAdministration[]; metadata: ClMetadata; i
 const TABS = [["evidence", "Evidence"], ["report", "Report"], ["plan", "Support plan"]] as const;
 
 export default function CaseReview({ caseId }: { caseId: string }) {
+  const { data: caseData } = useGetCase(caseId);
   const [data, setData] = useState<Listing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -169,7 +171,22 @@ export default function CaseReview({ caseId }: { caseId: string }) {
             const p = { key: adm.assignmentId + adm.revision, adm, meta: metaOf(adm), run, busy, ai: data.integration.ai, portal: data.integration.portal };
                if (tab === "evidence") return <EvidencePanel {...p} translate={translate} />;
                if (tab === "report") return (
-                    <ReportPanel {...p} translate={translate} englishView={englishView} onGenerate={generateReport} onAddRecommendations={addReportRecommendations} onExport={() => downloadExport(caseId, adm.assignmentId, "report")} />
+                    <ReportPanel
+                      {...p}
+                      translate={translate}
+                      englishView={englishView}
+                      studentIdentity={{
+                        studentName: caseData?.studentName,
+                        dob: caseData?.dob,
+                        grade: caseData?.grade,
+                        school: caseData?.school,
+                        languagePreference: caseData?.languagePreference,
+                        caseId,
+                      }}
+                      onGenerate={generateReport}
+                      onAddRecommendations={addReportRecommendations}
+                      onExport={() => downloadExport(caseId, adm.assignmentId, "report")}
+                    />
                );
                  if (tab === "plan") return <PlanPanel {...p} translate={translate} englishView={englishView} onGenerate={generateSupportPlan} onOpenReport={() => { setEnglishView(false); setTab("report"); }} onExportFinal={() => downloadExport(caseId, adm.assignmentId, "record")} />;
                return null;

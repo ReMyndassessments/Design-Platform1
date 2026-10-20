@@ -4,6 +4,7 @@ const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, AlertTriangle, BookOpen, Printer, BarChart3 } from "lucide-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 function calcAge(dob: string) {
   const d = new Date(dob);
@@ -237,11 +238,25 @@ export default function LiteracyDashboardPage() {
 
   const studentName = caseData?.studentName ?? caseData?.case?.studentName ?? "";
   const dob = caseData?.dob ?? caseData?.case?.dob ?? "";
+  const grade = caseData?.grade ?? caseData?.case?.grade ?? "";
+  const school = caseData?.school ?? caseData?.case?.school ?? "";
+  const languagePreference = caseData?.languagePreference ?? caseData?.case?.languagePreference ?? "";
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>;
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <div className="max-w-4xl mx-auto px-4 pt-6">
+        <PrintReportIdentity
+          reportTitle="Literacy Performance Dashboard"
+          studentName={studentName}
+          dob={dob}
+          grade={grade}
+          school={school}
+          languagePreference={languagePreference}
+          caseId={caseId}
+        />
+      </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 print:hidden">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">

@@ -23,10 +23,12 @@ import {
 import {
   getGetChineseLiteracyDashboardQueryKey,
   useGenerateChineseLiteracyDashboardComparison,
+  useGetCase,
   useGetChineseLiteracyDashboard,
   useTranslateChineseLiteracyDashboard,
   type ChineseLiteracyDashboardDomainScore,
 } from "@workspace/api-client-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 import {
   CHINESE_LITERACY_DASHBOARD_PRINT_COPY,
   chineseLiteracyStatusLabel,
@@ -120,6 +122,7 @@ export default function ChineseLiteracyDashboardPage() {
   const { id: routeCaseId = "" } = useParams<{ id: string }>();
   const caseId = routeCaseId;
   const queryClient = useQueryClient();
+  const { data: caseData } = useGetCase(caseId);
   const queryKey = getGetChineseLiteracyDashboardQueryKey(caseId);
   const { data, isLoading, isError, error, refetch, isFetching } = useGetChineseLiteracyDashboard(caseId, {
     query: { queryKey, enabled: Boolean(caseId), staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false },
@@ -401,6 +404,16 @@ export default function ChineseLiteracyDashboardPage() {
       className={`${pageClass} chinese-literacy-dashboard-print transition-colors duration-200`}
     >
       <main className="mx-auto max-w-[1440px] px-4 pb-16 pt-5 sm:px-7 lg:px-10">
+        <PrintReportIdentity
+          reportTitle={copy.title}
+          studentName={caseData?.studentName}
+          dob={caseData?.dob}
+          grade={caseData?.grade}
+          school={caseData?.school}
+          languagePreference={caseData?.languagePreference}
+          caseId={caseId}
+          language={reportLanguage}
+        />
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
           <Link href={`/cases/${caseId}/dashboards`} className={`inline-flex items-center gap-2 text-sm font-semibold ${softText}`} data-testid="link-back-dashboards">
             <ArrowLeft size={16} /> Case dashboards

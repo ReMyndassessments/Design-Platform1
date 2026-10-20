@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshCw, BarChart2, TrendingUp, ClipboardList, ChevronDown, ChevronUp, Languages, AlertTriangle } from "lucide-react";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
+import { useGetCase } from "@workspace/api-client-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 interface FormQuestion {
   id: string;
@@ -407,6 +409,7 @@ export default function ResponseViewer() {
   const params = useParams();
   const caseId = params.id as string;
   const assignmentId = params.assignmentId as string;
+  const { data: caseDemographics } = useGetCase(caseId);
 
   const { data, isLoading, isError, error } = useQuery<ResponseData, Error>({
     queryKey: ["assignment-response", caseId, assignmentId],
@@ -747,6 +750,18 @@ export default function ResponseViewer() {
             </Button>
           </div>
         </div>
+
+        <PrintReportIdentity
+          reportTitle={assignment.toolName}
+          studentName={studentName}
+          dob={caseDemographics?.dob}
+          grade={grade || caseDemographics?.grade}
+          school={school || caseDemographics?.school}
+          languagePreference={caseDemographics?.languagePreference}
+          caseId={caseId}
+          respondent={assignment.respondentLabel}
+          assessmentDate={response.submittedAt}
+        />
 
         {/* Report Card */}
         {/* BASC Historical Response Scale Correction Disclosure */}

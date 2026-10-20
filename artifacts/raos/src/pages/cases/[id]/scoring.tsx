@@ -13,6 +13,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { buildMultiInformantReport, buildMultiInformantSources } from "@/lib/multi-informant-report";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 // ── Tools that score higher = better (strengths-based) ───────────────────────
 const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
@@ -950,17 +951,15 @@ export default function ScoringView() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
-      {/* Print-only header */}
-      <div className="print-only mb-6 pb-4 border-b-2 border-slate-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">ReMynd Assessment Operating System</p>
-            <h1 className="text-2xl font-bold text-slate-900">Scoring &amp; Analysis Report</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Case: {studentName} · Generated {today}</p>
-          </div>
-          <img src="/images/remynd-logo-new.png" alt="ReMynd" className="h-10 w-10 object-contain" />
-        </div>
-      </div>
+      <PrintReportIdentity
+        reportTitle={batteryFilter?.label ?? "Scoring & Analysis Report"}
+        studentName={caseData?.studentName}
+        dob={caseData?.dob}
+        grade={caseData?.grade}
+        school={caseData?.school}
+        languagePreference={caseData?.languagePreference}
+        caseId={caseId}
+      />
 
       {/* Screen-only page header */}
       <div className="flex items-center justify-between mb-4 no-print">

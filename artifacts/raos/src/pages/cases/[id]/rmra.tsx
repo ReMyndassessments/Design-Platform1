@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link } from "wouter";
+import { useGetCase } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -227,12 +228,13 @@ function domainShort(d: string) {
 
 export default function RmraAdminPage() {
   const { id: caseId, assignmentId } = useParams<{ id: string; assignmentId: string }>();
+  const { data: caseDemographics } = useGetCase(caseId);
   const { toast } = useToast();
 
   // Session + items
   const [session, setSession] = useState<RmraSession | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [caseInfo, setCaseInfo] = useState<{ studentName?: string; dob?: string; grade?: string } | null>(null);
+  const [caseInfo, setCaseInfo] = useState<{ studentName?: string; dob?: string; grade?: string; school?: string; languagePreference?: string } | null>(null);
   const [items, setItems] = useState<RmraItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -938,9 +940,14 @@ export default function RmraAdminPage() {
         {header}
         <div className="max-w-5xl mx-auto px-4 py-6">
           <RmraReportPanel
-            sessionId={sessionId}
-            caseId={caseId}
+            sessionId={sessionId ?? session.id}
+            caseId={caseId ?? ""}
             session={session as any}
+            studentName={caseDemographics?.studentName ?? caseInfo?.studentName}
+            dob={caseDemographics?.dob ?? caseInfo?.dob}
+            grade={caseDemographics?.grade ?? caseInfo?.grade}
+            school={caseDemographics?.school ?? caseInfo?.school}
+            languagePreference={caseDemographics?.languagePreference ?? caseInfo?.languagePreference}
           />
         </div>
       </div>

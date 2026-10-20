@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ArrowLeft, Loader2, AlertTriangle, BarChart3, Brain, Printer, Sparkles, RefreshCw, TrendingUp, Settings2, Save } from "lucide-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
@@ -1278,22 +1279,15 @@ export default function RemyndDashboardPage() {
           />
         )}
 
-        {/* Print-only header */}
-        <div className="print-header mb-6 border-b pb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <img
-              src="/images/remynd-logo-new.png"
-              alt="ReMynd"
-              className="h-5 object-contain"
-              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
-            <span className="text-sm font-semibold text-slate-700">ReMynd Assessment Operating System</span>
-          </div>
-          <h1 className="text-lg font-bold text-slate-900">ReMynd Scoring Dashboard</h1>
-          <p className="text-sm text-slate-500">
-            {studentName} · {school} · Case ID: {caseId} · Generated {today}
-          </p>
-        </div>
+        <PrintReportIdentity
+          reportTitle="ReMynd Scoring Dashboard"
+          studentName={studentName}
+          dob={caseData?.dob}
+          grade={caseData?.grade}
+          school={school}
+          languagePreference={caseData?.languagePreference}
+          caseId={caseId}
+        />
 
         {/* Screen header */}
         <div className="mb-6 no-print">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useGetCase } from "@workspace/api-client-react";
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExaminerInstructions } from "@/components/examiner-instructions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, Save, Send, Sparkles, Printer, RefreshCw, BookOpen, Eye, Share2, Copy, Mail, MessageCircle, X, Languages } from "lucide-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 interface RrcaQuestion {
   id: string;
@@ -142,6 +144,7 @@ const LANGUAGES = [
 
 export default function RrcaAdminPage() {
   const { id: caseId, assignmentId } = useParams<{ id: string; assignmentId: string }>();
+  const { data: caseDemographics } = useGetCase(caseId);
   const { toast } = useToast();
 
   const [mode, setMode] = useState("In-Person");
@@ -416,6 +419,18 @@ export default function RrcaAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <div className="max-w-5xl mx-auto px-4 pt-5">
+        <PrintReportIdentity
+          reportTitle="ReMynd Reading Comprehension Assessment (RRCA)"
+          studentName={caseDemographics?.studentName ?? data?.case?.studentName}
+          dob={caseDemographics?.dob ?? data?.case?.dob}
+          grade={caseDemographics?.grade ?? data?.case?.grade}
+          school={caseDemographics?.school ?? data?.case?.school}
+          languagePreference={caseDemographics?.languagePreference ?? data?.case?.languagePreference}
+          caseId={caseId}
+          assessmentDate={data?.assignment?.submittedAt}
+        />
+      </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 print:hidden">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">

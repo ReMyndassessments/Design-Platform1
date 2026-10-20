@@ -13,6 +13,7 @@ import {
   Mic, Hash, BookOpen, Info, Loader2, FileCheck, Play, Square, RotateCcw,
   Sparkles, Printer, RefreshCw
 } from "lucide-react";
+import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -51,7 +52,7 @@ interface FormItem {
 
 interface RppiSession {
   assignment: { id: string; status: string; toolName: string; submittedAt?: string; createdAt?: string };
-  case: { studentName: string; dob?: string; id: string } | null;
+  case: { studentName: string; dob?: string; school?: string; grade?: string; languagePreference?: string; id: string } | null;
   formItems: FormItem[];
   draft: RppiAnswers | null;
   existingAnswers: RppiAnswers | null;
@@ -808,6 +809,18 @@ export default function RppiAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <div className="max-w-6xl mx-auto px-4 pt-5">
+        <PrintReportIdentity
+          reportTitle="ReMynd Phonological Processing Inventory (RPPI)"
+          studentName={data?.case?.studentName}
+          dob={data?.case?.dob}
+          grade={data?.case?.grade}
+          school={data?.case?.school}
+          languagePreference={data?.case?.languagePreference}
+          caseId={caseId}
+          assessmentDate={data?.assignment?.submittedAt}
+        />
+      </div>
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">

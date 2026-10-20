@@ -7,6 +7,7 @@ import { ScoreList } from "./ScoreList";
 import { ReportDocument } from "./ReportDocument";
 import type { SupportPlanDraft } from "./types";
 import { Banner, Btn, Field, inputCls } from "./ui";
+import type { PrintReportIdentityProps } from "@/components/PrintReportIdentity";
 
 export type RunAction = (body: Record<string, unknown>) => Promise<any>;
 type P = { adm: ClAdministration; meta: ClMetadata; run: RunAction; busy: boolean; ai: string; portal: string };
@@ -51,12 +52,13 @@ export function EvidencePanel({ adm, meta, run, busy, translate = (_path, value)
   );
 }
 
-export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onAddRecommendations, onExport }: P & {
+export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_path, value) => String(value ?? ""), englishView = false, onGenerate, onAddRecommendations, onExport, studentIdentity }: P & {
   translate?: Translate;
   englishView?: boolean;
   onGenerate: () => Promise<void>;
   onAddRecommendations: () => Promise<void>;
   onExport: () => Promise<void>;
+  studentIdentity?: Omit<PrintReportIdentityProps, "reportTitle">;
 }) {
   const pm = meta.key === PARENT_INSTRUMENT_ID;
   const [text, setText] = useState<string>(adm.report?.narrative ?? "");
@@ -141,6 +143,7 @@ export function ReportPanel({ adm, meta, run, busy, ai, portal, translate = (_pa
           approved={approved}
           domainObservations={domainObservations}
           translate={translate}
+          identity={{ ...studentIdentity, language: englishView ? "en" : "zh" }}
         />
       ) : (
         <Field label="Report text">
