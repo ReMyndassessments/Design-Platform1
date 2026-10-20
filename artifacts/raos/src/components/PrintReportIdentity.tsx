@@ -121,11 +121,11 @@ export function PrintReportIdentity(props: PrintReportIdentityProps) {
     >
       <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">ReMynd · {props.reportTitle}</p>
       <h1 className="mb-3 text-2xl font-bold">{labels.student}: {printableStudentName(props.studentName, labels.notRecorded)}</h1>
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs sm:grid-cols-4">
         {rows.map(([label, value]) => (
-          <div key={label} className="flex gap-1">
-            <dt className="font-semibold">{label}:</dt>
-            <dd>{value}</dd>
+          <div key={label} className="min-w-0">
+            <dt className="font-semibold">{label}</dt>
+            <dd className={`min-w-0 ${label === labels.case ? "break-all" : "break-words"}`}>{value}</dd>
           </div>
         ))}
       </dl>
@@ -148,7 +148,10 @@ export function createPrintReportIdentityHtml(props: PrintReportIdentityProps): 
   const language = props.language ?? "en";
   const labels = LABELS[language];
   const rows = identityRows(props)
-    .map(([label, value]) => `<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`)
+    .map(([label, value]) => {
+      const wrapStyle = label === labels.case ? "word-break:break-all" : "overflow-wrap:anywhere";
+      return `<div style="min-width:0"><strong style="display:block;margin-bottom:2px">${escapeHtml(label)}</strong><span style="display:block;${wrapStyle}">${escapeHtml(value)}</span></div>`;
+    })
     .join("");
   return `<section lang="${language === "zh" ? "zh-CN" : "en"}" style="margin:0 0 24px;padding:0 0 16px;border-bottom:2px solid #cbd5e1;color:#0f172a;font-family:Arial,sans-serif">
     <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748b">ReMynd · ${escapeHtml(props.reportTitle)}</p>
