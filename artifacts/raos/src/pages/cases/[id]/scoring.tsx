@@ -17,6 +17,7 @@ import { PrintReportIdentity } from "@/components/PrintReportIdentity";
 
 // ── Tools that score higher = better (strengths-based) ───────────────────────
 const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
+const RFII_THRESHOLDS = { low: 15, mild: 50, moderate: 85 };
 
 // ── Non-clinical domains to exclude from all charts ───────────────────────────
 const NON_CLINICAL_DOMAINS = new Set(["admin", "referral", "demographic", "admin_info", "instructions", "general_info", "identifying_info"]);
@@ -88,6 +89,12 @@ const DOMAIN_LABELS: Record<string, string> = {
   social_communication: "Social Reciprocity & Communication",
   academic_persistence: "Academic Persistence",
   functional_impact: "Functional Impact",
+  academic_functioning: "Academic Functioning",
+  behavioral_functioning: "Behavioral Functioning",
+  emotional_functioning: "Emotional Functioning",
+  social_functioning: "Social Functioning",
+  daily_functioning: "Daily Functioning",
+  school_participation: "School Participation",
   general: "General",
   // BASC-3 TRS/PRS subscales
   hyperactivity: "Hyperactivity",
@@ -403,10 +410,10 @@ const EFA_DOMAIN_DESCRIPTIONS: Record<string, { low: string; mild: string; moder
 type BandKey = "low" | "mild" | "moderate" | "elevated";
 type Band = { label: string; color: string; bgColor: string; borderColor: string; barColor: string; key: BandKey };
 
-function getDeficitBand(score: number): Band {
-  if (score <= 25) return { label: "Low", color: "text-emerald-700", bgColor: "bg-emerald-50", borderColor: "border-emerald-200", barColor: "bg-emerald-500", key: "low" };
-  if (score <= 50) return { label: "Mild", color: "text-sky-700", bgColor: "bg-sky-50", borderColor: "border-sky-200", barColor: "bg-sky-500", key: "mild" };
-  if (score <= 65) return { label: "Moderate", color: "text-amber-700", bgColor: "bg-amber-50", borderColor: "border-amber-200", barColor: "bg-amber-500", key: "moderate" };
+function getDeficitBand(score: number, thresholds = { low: 25, mild: 50, moderate: 65 }): Band {
+  if (score <= thresholds.low) return { label: "Low", color: "text-emerald-700", bgColor: "bg-emerald-50", borderColor: "border-emerald-200", barColor: "bg-emerald-500", key: "low" };
+  if (score <= thresholds.mild) return { label: "Mild", color: "text-sky-700", bgColor: "bg-sky-50", borderColor: "border-sky-200", barColor: "bg-sky-500", key: "mild" };
+  if (score <= thresholds.moderate) return { label: "Moderate", color: "text-amber-700", bgColor: "bg-amber-50", borderColor: "border-amber-200", barColor: "bg-amber-500", key: "moderate" };
   return { label: "Elevated", color: "text-red-700", bgColor: "bg-red-50", borderColor: "border-red-200", barColor: "bg-red-500", key: "elevated" };
 }
 
@@ -419,25 +426,26 @@ function getEFABand(score: number): Band {
   return { label: "High Risk", color: "text-red-700", bgColor: "bg-red-50", borderColor: "border-red-200", barColor: "bg-red-500", key: "low" };
 }
 
-function getBand(score: number, higherIsBetter: boolean): Band {
-  return higherIsBetter ? getEFABand(score) : getDeficitBand(score);
+function getBand(score: number, higherIsBetter: boolean, toolId?: string): Band {
+  return higherIsBetter ? getEFABand(score) : getDeficitBand(score, toolId === "RFII" ? RFII_THRESHOLDS : undefined);
 }
 
 // ── Narratives ────────────────────────────────────────────────────────────────
-function getOverallNarrative(avgScore: number, studentName: string, higherIsBetter: boolean): string {
+function getOverallNarrative(avgScore: number, studentName: string, higherIsBetter: boolean, toolId?: string): string {
   if (higherIsBetter) {
     if (avgScore >= 80) return `Overall, ${studentName}'s self-reported executive functioning profile reflects strong skills across most domains. The pattern of responses indicates that the student has well-developed executive functioning strategies that they apply consistently in daily life. These strengths provide an excellent foundation for continued growth and academic success.`;
     if (avgScore >= 60) return `Overall, ${studentName}'s self-reported executive functioning profile reflects developing skills across most domains. The student demonstrates a reasonable foundation in executive functioning, with clear areas of strength and some domains that would benefit from continued coaching and strategy development.`;
     if (avgScore >= 40) return `Overall, ${studentName}'s self-reported executive functioning profile reflects emerging skills. While some strategies are beginning to develop, there are meaningful areas where coaching support could help the student build more consistent and effective executive functioning habits.`;
     return `Overall, ${studentName}'s self-reported executive functioning profile reflects significant areas of need across multiple domains. The pattern of responses suggests that the student may be experiencing notable challenges with self-regulation, planning, and organization. A structured executive functioning coaching program is strongly recommended to address these areas.`;
   }
-  if (avgScore <= 25) return `Overall, the assessment profile for ${studentName} reflects scores in the Low range across most domains. The pattern of responses does not indicate widespread areas of concern at this time. While continued monitoring is always appropriate, these results suggest the student is generally meeting developmental and behavioral expectations as rated by the responding informant(s).`;
-  if (avgScore <= 50) return `Overall, the assessment profile for ${studentName} reflects scores primarily in the Mild range. The pattern suggests some areas of emerging concern that may benefit from additional attention, targeted skill-building, or classroom accommodations. A follow-up conversation with the educational team is recommended to determine whether a more formal evaluation or tiered support plan is warranted.`;
-  if (avgScore <= 65) return `Overall, the assessment profile for ${studentName} reflects scores in the Moderate range across multiple domains. This pattern of results suggests that the student is experiencing meaningful challenges that are likely impacting their daily functioning in school. A comprehensive evaluation and the development of a structured support plan are strongly recommended.`;
+  const thresholds = toolId === "RFII" ? RFII_THRESHOLDS : { low: 25, mild: 50, moderate: 65 };
+  if (avgScore <= thresholds.low) return `Overall, the assessment profile for ${studentName} reflects scores in the Low range across most domains. The pattern of responses does not indicate widespread areas of concern at this time. While continued monitoring is always appropriate, these results suggest the student is generally meeting developmental and behavioral expectations as rated by the responding informant(s).`;
+  if (avgScore <= thresholds.mild) return `Overall, the assessment profile for ${studentName} reflects scores primarily in the Mild range. The pattern suggests some areas of emerging concern that may benefit from additional attention, targeted skill-building, or classroom accommodations. A follow-up conversation with the educational team is recommended to determine whether a more formal evaluation or tiered support plan is warranted.`;
+  if (avgScore <= thresholds.moderate) return `Overall, the assessment profile for ${studentName} reflects scores in the Moderate range across multiple domains. This pattern of results suggests that the student is experiencing meaningful challenges that are likely impacting their daily functioning in school. A comprehensive evaluation and the development of a structured support plan are strongly recommended.`;
   return `Overall, the assessment profile for ${studentName} reflects scores in the Elevated range, indicating significant concerns across multiple functional domains. This pattern suggests the student may be experiencing substantial difficulties that require immediate attention, comprehensive evaluation, and the implementation of intensive, individualized supports.`;
 }
 
-function getRecommendationsNarrative(domains: string[], scores: any[], higherIsBetter: boolean): string {
+function getRecommendationsNarrative(domains: string[], scores: any[], higherIsBetter: boolean, toolId?: string): string {
   const allNormalizedByDomain: Record<string, number[]> = {};
   for (const s of scores) {
     for (const [domain, val] of Object.entries((s.normalizedScores ?? {}) as Record<string, number>)) {
@@ -461,8 +469,9 @@ function getRecommendationsNarrative(domains: string[], scores: any[], higherIsB
     lines.push("Executive functioning coaching is most effective when it is personalized, consistent, and embedded in the student's daily routines. Results from this self-report measure should be discussed collaboratively with the student to build self-awareness and motivation.");
     lines.push("Follow-up administration of this measure post-coaching will allow for meaningful comparison of pre- and post-intervention scores across all 11 domains.");
   } else {
-    const elevated = Object.entries(avgByDomain).filter(([, v]) => v > 65).map(([k]) => DOMAIN_LABELS[k] ?? k);
-    const moderate = Object.entries(avgByDomain).filter(([, v]) => v > 50 && v <= 65).map(([k]) => DOMAIN_LABELS[k] ?? k);
+    const thresholds = toolId === "RFII" ? RFII_THRESHOLDS : { low: 25, mild: 50, moderate: 65 };
+    const elevated = Object.entries(avgByDomain).filter(([, v]) => v > thresholds.moderate).map(([k]) => DOMAIN_LABELS[k] ?? k);
+    const moderate = Object.entries(avgByDomain).filter(([, v]) => v > thresholds.mild && v <= thresholds.moderate).map(([k]) => DOMAIN_LABELS[k] ?? k);
     if (elevated.length > 0) lines.push(`Priority areas for evaluation and intervention include: ${elevated.join(", ")}. These domains show Elevated scores and may require the most immediate attention in planning.`);
     if (moderate.length > 0) lines.push(`Areas showing Moderate concern — including ${moderate.join(", ")} — should also be addressed through targeted monitoring and structured supports.`);
     lines.push("All findings should be interpreted within the broader context of the student's educational history, developmental background, and existing supports. This screening profile is not a diagnostic instrument and should be used as one component of a comprehensive evaluation process.");
@@ -532,7 +541,27 @@ function ToolScoreSection({ toolScores, studentName, today }: {
     avgByDomain[domain] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
 
-  const overallBand = getBand(overallAvg, higherIsBetter);
+  const overallBand = getBand(overallAvg, higherIsBetter, toolId);
+  const bandLegendItems = higherIsBetter
+    ? [
+        { label: "High Risk (0–39)", color: "bg-red-500" },
+        { label: "Emerging (40–59)", color: "bg-amber-500" },
+        { label: "Developing (60–79)", color: "bg-sky-500" },
+        { label: "Strength (80–100)", color: "bg-emerald-500" },
+      ]
+    : toolId === "RFII"
+      ? [
+          { label: "Low (0–15)", color: "bg-emerald-500" },
+          { label: "Mild (16–50)", color: "bg-sky-500" },
+          { label: "Moderate (51–85)", color: "bg-amber-500" },
+          { label: "Elevated (86–100)", color: "bg-red-500" },
+        ]
+      : [
+          { label: "Low (0–25)", color: "bg-emerald-500" },
+          { label: "Mild (26–50)", color: "bg-sky-500" },
+          { label: "Moderate (51–65)", color: "bg-amber-500" },
+          { label: "Elevated (66+)", color: "bg-red-500" },
+        ];
 
   return (
     <div className="space-y-6">
@@ -548,7 +577,8 @@ function ToolScoreSection({ toolScores, studentName, today }: {
         <p className="text-slate-500 text-sm ml-9">
           Generated {today} · {toolScores.length} informant{toolScores.length !== 1 ? "s" : ""}
           {higherIsBetter && " · Higher scores indicate stronger skills"}
-          {!higherIsBetter && " · Higher scores indicate greater frequency of reported challenges"}
+          {toolId === "RFII" && " · 0 = no reported difficulty; higher scores indicate greater reported impact"}
+          {!higherIsBetter && toolId !== "RFII" && " · Higher scores indicate greater frequency of reported challenges"}
         </p>
       </div>
 
@@ -559,22 +589,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
             <span className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
               {higherIsBetter ? "Skill Level:" : "Severity:"}
             </span>
-            {higherIsBetter ? [
-              { label: "High Risk (0–39)", color: "bg-red-500" },
-              { label: "Emerging (40–59)", color: "bg-amber-500" },
-              { label: "Developing (60–79)", color: "bg-sky-500" },
-              { label: "Strength (80–100)", color: "bg-emerald-500" },
-            ].map(b => (
-              <div key={b.label} className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${b.color}`} />
-                <span className="text-sm text-slate-600">{b.label}</span>
-              </div>
-            )) : [
-              { label: "Low (0–25)", color: "bg-emerald-500" },
-              { label: "Mild (26–50)", color: "bg-sky-500" },
-              { label: "Moderate (51–65)", color: "bg-amber-500" },
-              { label: "Elevated (66+)", color: "bg-red-500" },
-            ].map(b => (
+            {bandLegendItems.map(b => (
               <div key={b.label} className="flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${b.color}`} />
                 <span className="text-sm text-slate-600">{b.label}</span>
@@ -671,7 +686,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
         </CardHeader>
         <CardContent>
           <p className="text-slate-700 leading-relaxed text-sm">
-            {getOverallNarrative(overallAvg, studentName, higherIsBetter)}
+            {getOverallNarrative(overallAvg, studentName, higherIsBetter, toolId)}
           </p>
         </CardContent>
       </Card>}
@@ -691,7 +706,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
         </CardHeader>
         <CardContent className="space-y-4">
           {Object.entries(avgByDomain).map(([domain, avg]) => {
-            const band = getBand(avg, higherIsBetter);
+            const band = getBand(avg, higherIsBetter, toolId);
             const label = DOMAIN_LABELS[domain] ?? domain;
             const descriptions = higherIsBetter
               ? (EFA_DOMAIN_DESCRIPTIONS[domain] ?? EFA_DOMAIN_DESCRIPTIONS.self_monitoring)
@@ -782,7 +797,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
                       <td className="py-2 pr-4 text-slate-700">{formatDomainLabel(domain)}</td>
                       {respondentSources.map(source => {
                         const val = ((source.score.normalizedScores ?? {}) as Record<string, number>)[domain] ?? "—";
-                        const band = typeof val === "number" ? getBand(val, higherIsBetter) : null;
+                        const band = typeof val === "number" ? getBand(val, higherIsBetter, toolId) : null;
                         return (
                           <td key={source.key} className="text-center py-2 px-3">
                             {band ? (
@@ -830,7 +845,7 @@ function ToolScoreSection({ toolScores, studentName, today }: {
         </CardHeader>
         <CardContent>
           <p className="text-slate-700 leading-relaxed text-sm">
-            {getRecommendationsNarrative(Array.from(domains), toolScores, higherIsBetter)}
+            {getRecommendationsNarrative(Array.from(domains), toolScores, higherIsBetter, toolId)}
           </p>
           <p className="text-xs text-slate-400 mt-4 italic">
             This interpretive report was generated automatically based on scored assessment data and is intended to support — not replace — clinical judgment. All findings should be interpreted by a qualified professional in the context of a comprehensive evaluation.

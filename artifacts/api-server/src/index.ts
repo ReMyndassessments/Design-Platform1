@@ -1361,14 +1361,14 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     id: "RFII",
     name: "ReMynd Functional Impact Index (RFII)",
     category: "adaptive",
-    description: "Multi-informant rating scale measuring functional impact across six domains: Academic Functioning, Behavioral Functioning, Emotional Functioning, Social Functioning, Daily Functioning, and School Participation. 24 items on a 4-point scale. Parent and self-report versions. Used to quantify severity and guide intervention priority.",
+    description: "Multi-informant rating scale measuring functional impact across six domains: Academic Functioning, Behavioral Functioning, Emotional Functioning, Social Functioning, Daily Functioning, and School Participation. Parent and student forms use a 0–3 difficulty scale (0 = no difficulty; 3 = severe difficulty); higher scores indicate greater reported impact.",
     isRemyndOwned: true,
     respondentTypes: ["parent", "self"],
     scoringType: "auto",
     domains: ["academic_functioning", "behavioral_functioning", "emotional_functioning", "social_functioning", "daily_functioning", "school_participation"],
     scoringConfig: {
-      max: 4,
-      thresholds: { low: 20, mild: 45, moderate: 70 },
+      max: 3,
+      thresholds: { low: 15, mild: 50, moderate: 85 },
       domains: {
         academic_functioning: { label: "Academic Functioning", shortLabel: "Academic", narratives: { low: "Minimal impact on academic functioning; performing within expectations.", mild: "Mild academic impact; some additional support may benefit performance.", moderate: "Moderate academic impact; targeted accommodations and support are recommended.", elevated: "Significant academic impact requiring formal accommodations and specialist involvement." } },
         behavioral_functioning: { label: "Behavioral Functioning", shortLabel: "Behavioral", narratives: { low: "Behavior is well-regulated across settings.", mild: "Generally appropriate behavior with occasional difficulties.", moderate: "Behavioral challenges impacting daily functioning; support recommended.", elevated: "Significant behavioral difficulties requiring structured intervention." } },

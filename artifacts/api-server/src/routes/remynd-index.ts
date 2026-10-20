@@ -8,6 +8,7 @@ import { buildDomainMap, computeDomainScores, normalizeScores } from "../lib/sco
 import { nanoid } from "nanoid";
 
 const router = Router();
+const REMYND_INSIGHTS_VERSION = 2;
 
 const REMYND_AUTO_TOOL_IDS = new Set([
   "RCS-80", "RASR", "RARI", "REFI", "RERMS", "RSCP", "RARPS", "RFII", "RCEP",
@@ -39,6 +40,11 @@ function canAccessCase(role: string, c: { school?: string | null }, userSchool?:
     return !!userSchool && c.school === userSchool;
   }
   return true;
+}
+
+function singleRouteParam(value: string | string[] | undefined): string | null {
+  const param = Array.isArray(value) ? value[0] : value;
+  return param || null;
 }
 
 type ToolThresholds = { low: number; mild: number; moderate: number };
@@ -126,15 +132,21 @@ async function getDashboardConfig(caseId: string): Promise<{ excludedToolIds: st
   }
 }
 
-async function getCachedInsights(caseId: string): Promise<string | null> {
+async function getCachedInsights(caseId: string): Promise<{ text: string | null; version: number }> {
   try {
     const result = await db.execute(sql`
-      SELECT intake_analysis->>'remyndInsights' AS insights
+      SELECT
+        intake_analysis->>'remyndInsights' AS insights,
+        intake_analysis->>'remyndInsightsVersion' AS version
       FROM cases WHERE id = ${caseId}
     `);
-    return (result.rows?.[0] as Record<string, unknown>)?.insights as string ?? null;
+    const row = result.rows?.[0] as Record<string, unknown> | undefined;
+    return {
+      text: typeof row?.insights === "string" ? row.insights : null,
+      version: Number(row?.version ?? 0) || 0,
+    };
   } catch {
-    return null;
+    return { text: null, version: 0 };
   }
 }
 
@@ -142,7 +154,10 @@ async function setCachedInsights(caseId: string, insights: string): Promise<void
   try {
     await db.execute(sql`
       UPDATE cases
-      SET intake_analysis = COALESCE(intake_analysis, '{}'::jsonb) || jsonb_build_object('remyndInsights', ${insights}::text)
+      SET intake_analysis = COALESCE(intake_analysis, '{}'::jsonb) || jsonb_build_object(
+        'remyndInsights', ${insights}::text,
+        'remyndInsightsVersion', ${REMYND_INSIGHTS_VERSION}
+      )
       WHERE id = ${caseId}
     `);
   } catch {
@@ -185,9 +200,23 @@ async function buildIndexData(caseId: string) {
     const keys = Object.keys((score.domainScores ?? {}) as Record<string, number>);
     return keys.length === 1 && keys[0] === "general";
   };
+  const normalizedScoresMatch = (actual: unknown, expected: Record<string, number>) => {
+    const current = (actual && typeof actual === "object" ? actual : {}) as Record<string, unknown>;
+    const expectedKeys = Object.keys(expected);
+    const currentKeys = Object.keys(current);
+    return expectedKeys.length === currentKeys.length &&
+      expectedKeys.every(key => Number(current[key]) === expected[key]);
+  };
   const unscored = remyndAssignments.filter(a => {
     const existing = scoreMap.get(`${a.toolId}::${a.respondentType ?? ""}`);
-    return !existing || isGeneralOnly(existing);
+    if (!existing || isGeneralOnly(existing)) return true;
+    if (a.toolId !== "RFII" || existing.isManual) return false;
+    const scaleMax = toolConfigMap.get(a.toolId)?.scaleMax ?? 5;
+    const expected = normalizeScores(
+      (existing.domainScores ?? {}) as Record<string, number>,
+      scaleMax,
+    );
+    return !normalizedScoresMatch(existing.normalizedScores, expected);
   });
 
   if (unscored.length > 0) {
@@ -235,8 +264,8 @@ async function buildIndexData(caseId: string) {
         const existingBad = scoreMap.get(key);
         let saved: typeof allScoreRows[0] | undefined;
 
-        if (existingBad && isGeneralOnly(existingBad)) {
-          // Update the bad "general-only" record in place with correct domain scores
+        if (existingBad && (isGeneralOnly(existingBad) || (assignment.toolId === "RFII" && !existingBad.isManual))) {
+          // Refresh a legacy general-only record or RFII normalization in place.
           const rows = await db.update(scoresTable)
             .set({ rawScore, domainScores: rawDomainScores, normalizedScores: normalized })
             .where(eq(scoresTable.id, existingBad.id))
@@ -356,6 +385,7 @@ async function buildIndexData(caseId: string) {
     total: number;
     count: number;
     sources: string[];
+    minLow: number;
     minMild: number;
     minModerate: number;
   }>();
@@ -367,6 +397,7 @@ async function buildIndexData(caseId: string) {
         if (!domainAcc.has(domain)) {
           domainAcc.set(domain, {
             total: 0, count: 0, sources: [],
+            minLow: tool.thresholds.low,
             minMild: tool.thresholds.mild,
             minModerate: tool.thresholds.moderate,
           });
@@ -375,6 +406,7 @@ async function buildIndexData(caseId: string) {
         entry.total += score;
         entry.count++;
         entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minLow = Math.min(entry.minLow, tool.thresholds.low);
         entry.minMild = Math.min(entry.minMild, tool.thresholds.mild);
         entry.minModerate = Math.min(entry.minModerate, tool.thresholds.moderate);
       }
@@ -382,10 +414,10 @@ async function buildIndexData(caseId: string) {
   }
 
   const index: Record<string, { average: number; sources: string[]; riskBand: string }> = {};
-  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
+  for (const [domain, { total, count, sources, minLow, minMild, minModerate }] of domainAcc) {
     const average = Math.round(total / count);
     // Use the most conservative thresholds from contributing tools so risk is not under-reported
-    const indexThresholds: ToolThresholds = { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate };
+    const indexThresholds: ToolThresholds = { low: minLow, mild: minMild, moderate: minModerate };
     index[domain] = { average, sources, riskBand: getRiskBandForThresholds(average, indexThresholds) };
   }
 
@@ -394,7 +426,8 @@ async function buildIndexData(caseId: string) {
 
 // GET /cases/:caseId/remynd-index
 router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = singleRouteParam(req.params.caseId);
+  if (!caseId) { res.status(400).json({ error: "invalid_case_id" }); return; }
 
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
@@ -404,18 +437,26 @@ router.get("/cases/:caseId/remynd-index", authMiddleware, async (req, res) => {
     return;
   }
 
-  const [{ tools, index }, cachedInsights, dashboardConfig] = await Promise.all([
+  const [{ tools, index }, cachedInsightState, dashboardConfig] = await Promise.all([
     buildIndexData(caseId),
     getCachedInsights(caseId),
     getDashboardConfig(caseId),
   ]);
 
-  res.json({ tools, index, cachedInsights, dashboardConfig });
+  const rfiiNarrativeIsStale = tools.some(tool => tool.toolId === "RFII") &&
+    cachedInsightState.version < REMYND_INSIGHTS_VERSION;
+  res.json({
+    tools,
+    index,
+    cachedInsights: rfiiNarrativeIsStale ? null : cachedInsightState.text,
+    dashboardConfig,
+  });
 });
 
 // PATCH /cases/:caseId/remynd-dashboard-config
 router.patch("/cases/:caseId/remynd-dashboard-config", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = singleRouteParam(req.params.caseId);
+  if (!caseId) { res.status(400).json({ error: "invalid_case_id" }); return; }
   const { excludedToolIds, hiddenSections } = req.body as {
     excludedToolIds: string[];
     hiddenSections: string[];
@@ -454,7 +495,8 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
     return;
   }
 
-  const { caseId } = req.params;
+  const caseId = singleRouteParam(req.params.caseId);
+  if (!caseId) { res.status(400).json({ error: "invalid_case_id" }); return; }
 
   const caseRows = await db.select().from(casesTable).where(eq(casesTable.id, caseId)).limit(1);
   if (!caseRows[0]) { res.status(404).json({ error: "not_found" }); return; }
@@ -482,23 +524,24 @@ router.post("/cases/:caseId/remynd-index/insights", authMiddleware, async (req, 
   }
 
   // Recompute index from filtered tools (mirrors backend buildIndexData logic)
-  const domainAcc = new Map<string, { total: number; count: number; sources: string[]; minMild: number; minModerate: number }>();
+  const domainAcc = new Map<string, { total: number; count: number; sources: string[]; minLow: number; minMild: number; minModerate: number }>();
   for (const tool of tools) {
     for (const respondent of tool.respondents) {
       for (const [domain, score] of Object.entries(respondent.normalizedScores as Record<string, number>)) {
-        if (!domainAcc.has(domain)) domainAcc.set(domain, { total: 0, count: 0, sources: [], minMild: tool.thresholds.mild, minModerate: tool.thresholds.moderate });
+        if (!domainAcc.has(domain)) domainAcc.set(domain, { total: 0, count: 0, sources: [], minLow: tool.thresholds.low, minMild: tool.thresholds.mild, minModerate: tool.thresholds.moderate });
         const entry = domainAcc.get(domain)!;
         entry.total += score; entry.count++;
         entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minLow = Math.min(entry.minLow, tool.thresholds.low);
         entry.minMild = Math.min(entry.minMild, tool.thresholds.mild);
         entry.minModerate = Math.min(entry.minModerate, tool.thresholds.moderate);
       }
     }
   }
   const filteredIndex: Record<string, { average: number; sources: string[]; riskBand: string }> = {};
-  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
+  for (const [domain, { total, count, sources, minLow, minMild, minModerate }] of domainAcc) {
     const average = Math.round(total / count);
-    filteredIndex[domain] = { average, sources, riskBand: getRiskBandForThresholds(average, { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate }) };
+    filteredIndex[domain] = { average, sources, riskBand: getRiskBandForThresholds(average, { low: minLow, mild: minMild, moderate: minModerate }) };
   }
 
   const toolsForAI = tools.map(t => ({

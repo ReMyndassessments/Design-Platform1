@@ -1486,6 +1486,12 @@ const DOMAIN_LABELS_AI: Record<string, string> = {
   organization: "Organization",
   internalizing: "Internalizing",
   externalizing: "Externalizing",
+  academic_functioning: "Academic Functioning",
+  behavioral_functioning: "Behavioral Functioning",
+  emotional_functioning: "Emotional Functioning",
+  social_functioning: "Social Functioning",
+  daily_functioning: "Daily Functioning",
+  school_participation: "School Participation",
 };
 
 const RESPONDENT_LABEL_AI: Record<string, string> = {
@@ -1517,7 +1523,10 @@ export async function generateRemyndIndexInsights(
         .join("\n");
       return `  ${label}:\n${domainLines}`;
     }).join("\n");
-    return `${tool.toolName}:\n${respLines}`;
+    const scaleNote = /RFII|Functional Impact Index/i.test(tool.toolName)
+      ? "Scale direction: 0 = no difficulty/impact; 1 = mild; 2 = moderate; 3 = severe. Scores are normalized to 0–100, and higher scores mean greater reported difficulty/functional impact. Domain names describe areas of functioning; do not interpret low scores as poor functioning or as evidence of difficulty.\n"
+      : "";
+    return `${tool.toolName}:\n${scaleNote}${respLines}`;
   }).join("\n\n");
 
   const indexSummary = indexData && Object.keys(indexData).length > 0

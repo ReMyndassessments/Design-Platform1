@@ -692,7 +692,7 @@ function LikertField({ q, language, value, onChange }: { q: Question; language: 
           const srcVal = srcOpts[i] ?? opt;
           const numericVal = String(i);
           const selected = value === numericVal || value === srcVal;
-          const score = LIKERT_SCORE_LABELS[i] ?? String(i + 1);
+          const score = q.id.startsWith("rfii_") ? String(i) : LIKERT_SCORE_LABELS[i] ?? String(i + 1);
           return (
             <button
               key={srcVal}

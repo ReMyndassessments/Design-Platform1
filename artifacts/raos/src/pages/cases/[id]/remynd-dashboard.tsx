@@ -115,12 +115,7 @@ const RISK_META: Record<RiskBand, { label: string; bg: string; text: string; bor
   elevated: { label: "Elevated", bg: "bg-red-50",     text: "text-red-800",     border: "border-red-200",     hex: "#ef4444", tailwindBg: "#fef2f2" },
 };
 
-const RISK_BAND_LEGEND = [
-  { band: "low" as RiskBand, range: "0–25" },
-  { band: "mild" as RiskBand, range: "26–50" },
-  { band: "moderate" as RiskBand, range: "51–65" },
-  { band: "elevated" as RiskBand, range: "66–100" },
-];
+const RISK_BAND_LEGEND: RiskBand[] = ["low", "mild", "moderate", "elevated"];
 
 type ToolThresholds = { low: number; mild: number; moderate: number };
 const DEFAULT_THRESHOLDS: ToolThresholds = { low: 25, mild: 50, moderate: 65 };
@@ -130,6 +125,15 @@ function getRiskBand(score: number, t: ToolThresholds = DEFAULT_THRESHOLDS): Ris
   if (score <= t.mild) return "mild";
   if (score <= t.moderate) return "moderate";
   return "elevated";
+}
+
+function getRiskBandLegend(t: ToolThresholds) {
+  return [
+    { band: "low" as RiskBand, range: `0–${t.low}` },
+    { band: "mild" as RiskBand, range: `${t.low + 1}–${t.mild}` },
+    { band: "moderate" as RiskBand, range: `${t.mild + 1}–${t.moderate}` },
+    { band: "elevated" as RiskBand, range: `${t.moderate + 1}–100` },
+  ];
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -179,28 +183,29 @@ interface RemyndIndexResponse {
 function computeFilteredIndex(tools: ToolData[]): Record<string, IndexEntry> {
   const domainAcc = new Map<string, {
     total: number; count: number; sources: string[];
-    minMild: number; minModerate: number;
+    minLow: number; minMild: number; minModerate: number;
   }>();
   for (const tool of tools) {
     const t = tool.thresholds ?? DEFAULT_THRESHOLDS;
     for (const respondent of tool.respondents) {
       for (const [domain, score] of Object.entries(respondent.normalizedScores ?? {})) {
         if (!domainAcc.has(domain)) {
-          domainAcc.set(domain, { total: 0, count: 0, sources: [], minMild: t.mild, minModerate: t.moderate });
+          domainAcc.set(domain, { total: 0, count: 0, sources: [], minLow: t.low, minMild: t.mild, minModerate: t.moderate });
         }
         const entry = domainAcc.get(domain)!;
         entry.total += score;
         entry.count++;
         entry.sources.push(`${tool.toolName} (${respondent.respondentLabel})`);
+        entry.minLow = Math.min(entry.minLow, t.low);
         entry.minMild = Math.min(entry.minMild, t.mild);
         entry.minModerate = Math.min(entry.minModerate, t.moderate);
       }
     }
   }
   const result: Record<string, IndexEntry> = {};
-  for (const [domain, { total, count, sources, minMild, minModerate }] of domainAcc) {
+  for (const [domain, { total, count, sources, minLow, minMild, minModerate }] of domainAcc) {
     const average = Math.round(total / count);
-    const thresholds: ToolThresholds = { low: DEFAULT_THRESHOLDS.low, mild: minMild, moderate: minModerate };
+    const thresholds: ToolThresholds = { low: minLow, mild: minMild, moderate: minModerate };
     result[domain] = { average, sources, riskBand: getRiskBand(average, thresholds) };
   }
   return result;
@@ -330,6 +335,8 @@ function MultiRespondentChart({ tool }: { tool: ToolData }) {
 function ToolComparisonCard({ tool, instrumentSummary }: { tool: ToolData; instrumentSummary?: string }) {
   const isSingle = tool.respondents.length === 1;
   const highDiscrepDomains = tool.discrepancies.filter(d => d.isHigh);
+  const thresholds = tool.thresholds ?? DEFAULT_THRESHOLDS;
+  const riskBandLegend = getRiskBandLegend(thresholds);
 
   return (
     <Card className="overflow-hidden">
@@ -353,13 +360,18 @@ function ToolComparisonCard({ tool, instrumentSummary }: { tool: ToolData; instr
 
         {/* Risk band legend */}
         <div className="flex items-center gap-3 mt-3 flex-wrap">
-          {RISK_BAND_LEGEND.map(({ band, range }) => (
+          {riskBandLegend.map(({ band, range }) => (
             <span key={band} className="flex items-center gap-1 text-[10px] text-slate-500">
               <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
               {RISK_META[band].label} ({range})
             </span>
           ))}
         </div>
+        {tool.toolId === "RFII" && (
+          <p className="mt-2 text-xs text-slate-500">
+            RFII scores reflect reported difficulty: 0 means no difficulty, and higher scores mean greater functional impact.
+          </p>
+        )}
 
         {highDiscrepDomains.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -569,13 +581,14 @@ function CrossToolHeatmap({ tools }: { tools: ToolData[] }) {
 
         {/* Legend + tool key */}
         <div className="flex items-center gap-3 mt-2 flex-wrap" style={{ fontSize: "8px", color: "#64748b" }}>
-          {RISK_BAND_LEGEND.map(({ band, range }) => (
+          {RISK_BAND_LEGEND.map(band => (
             <span key={band} className="flex items-center gap-1">
               <span className="inline-block rounded-sm" style={{ width: 9, height: 9, backgroundColor: RISK_META[band].hex }} />
-              {RISK_META[band].label} ({range})
+              {RISK_META[band].label}
             </span>
           ))}
           <span style={{ color: "#94a3b8" }}>blank = not assessed</span>
+          <span style={{ color: "#94a3b8" }}>Band cutoffs follow each instrument&apos;s scoring guidance.</span>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
           {toolGroups.map(g => (
@@ -639,15 +652,14 @@ function RemyndIndexSection({ index, tools, hiddenCharts }: {
                   />
                   <Tooltip
                     formatter={(v: number) => {
-                      const band = getRiskBand(v);
-                      return [`${v}/100 — ${RISK_META[band].label}`, "Cross-Tool Avg"];
+                      return [`${v}/100`, "Cross-Tool Avg"];
                     }}
                     contentStyle={{ fontSize: 11, borderRadius: 6 }}
                   />
                 </RadarChart>
               </ResponsiveContainer>
               <p className="text-center text-[10px] text-slate-400 mt-1">
-                Larger area = higher cross-informant concern
+                Larger area = higher cross-informant concern. Interpret bands using each contributing assessment&apos;s scoring guidance.
               </p>
             </CardContent>
           </Card>
@@ -684,13 +696,16 @@ function RemyndIndexSection({ index, tools, hiddenCharts }: {
                 })}
               </div>
               <div className="flex items-center gap-3 mt-4 flex-wrap">
-                {RISK_BAND_LEGEND.map(({ band, range }) => (
+                {RISK_BAND_LEGEND.map(band => (
                   <span key={band} className="flex items-center gap-1 text-[10px] text-slate-400">
                     <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: RISK_META[band].hex }} />
-                    {RISK_META[band].label} ({range})
+                    {RISK_META[band].label}
                   </span>
                 ))}
               </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                Band cutoffs follow the contributing instrument&apos;s scoring guidance.
+              </p>
             </CardContent>
           </Card>
         )}

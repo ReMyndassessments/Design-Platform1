@@ -28,6 +28,9 @@ const LABEL_TO_NUMBER: Record<string, number> = {
   "not at all": 0, "just a little": 1, "pretty much": 2, "very much": 3,
   "not true": 0, "somewhat true": 1, "certainly true": 2,
   "never/rarely": 0, "occasionally": 1, "frequently": 2, "almost/always": 3,
+  "no difficulty": 0, "mild difficulty": 1, "moderate difficulty": 2, "severe difficulty": 3,
+  "没有困难": 0, "轻度困难": 1, "中度困难": 2, "严重困难": 3,
+  "어려움 없음": 0, "약간의 어려움": 1, "중간 정도의 어려움": 2, "심각한 어려움": 3,
 };
 
 function labelToNum(value: unknown): number | null {
