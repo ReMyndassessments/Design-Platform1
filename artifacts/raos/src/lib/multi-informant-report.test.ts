@@ -84,9 +84,56 @@ test("CDP interpretation uses its displayed percentage bands and preserves named
     domainLabels: { cognition: "Cognition & Learning", communication: "Communication & Interaction" },
   });
 
-  assert.match(report.domainFindings[0].interpretation, /Parent \/ Guardian: Su-Su: 74\/100 \(Mild concern\)/);
-  assert.match(report.domainFindings[0].interpretation, /Class Teacher: Tim: 70\/100 \(Mild concern\)/);
-  assert.match(report.domainFindings[1].interpretation, /Typical range/);
+  assert.deepEqual(report.domainFindings[0].ratings.map(({ sourceLabel, value, band }) => ({ sourceLabel, value, band })), [
+    { sourceLabel: "Parent / Guardian: Su-Su", value: 74, band: "Mild concern" },
+    { sourceLabel: "Class Teacher: Tim", value: 70, band: "Mild concern" },
+  ]);
+  assert.match(report.domainFindings[0].interpretation, /This domain concerns/);
+  assert.match(report.domainFindings[1].interpretation, /relative capability/);
   assert.ok(report.recommendations.some((text) => text.includes("Cognition & Learning")));
   assert.ok(report.recommendations.some((text) => text.includes("Communication & Interaction")));
+});
+
+test("CDP narrative explains functional meaning, identifies assets, and gives tailored actions", () => {
+  const report = buildMultiInformantReport([
+    {
+      respondentType: "parent",
+      sourceLabel: "Parent / Guardian",
+      normalizedScores: {
+        "CDP-CL:organization_planning": 30,
+        "CDP-CL:working_memory": 84,
+        "CDP-SR:coping_with_change": 32,
+      },
+    },
+    {
+      respondentType: "teacher1",
+      sourceLabel: "Class Teacher",
+      normalizedScores: {
+        "CDP-CL:organization_planning": 38,
+        "CDP-CL:working_memory": 80,
+        "CDP-SR:coping_with_change": 78,
+      },
+    },
+  ], {
+    studentName: "Student",
+    higherIsBetter: true,
+    profile: "cdp",
+    domainLabels: {
+      "CDP-CL:organization_planning": "Cognition & Learning — Organization, Planning & Task Initiation",
+      "CDP-CL:working_memory": "Cognition & Learning — Working Memory, Attention & Processing",
+      "CDP-SR:coping_with_change": "Self-Regulation — Coping with Change",
+    },
+  });
+
+  assert.match(report.summary, /Child Development Profile/);
+  assert.match(report.summary, /clearest shared areas for support/);
+  assert.match(report.summary, /Potential assets/);
+  assert.match(report.domainFindings[0].interpretation, /organizing materials, choosing a first step/);
+  assert.match(report.domainFindings[0].supportIdea ?? "", /visual plan or checklist/);
+  assert.match(report.domainFindings[2].interpretation, /ratings differ meaningfully/);
+  assert.ok(report.strengths.some((strength) => strength.sourceLabel === "Parent / Guardian" && strength.value === 84));
+  assert.ok(report.recommendations.some((text) => text.includes("visual plan or checklist")));
+  assert.ok(report.recommendations.some((text) => text.includes("compare recent examples from each setting")));
+  assert.match(report.limitations, /not age-based standard scores/);
+  assert.doesNotMatch(report.summary, /average[d]?|pooled score/i);
 });

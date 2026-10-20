@@ -67,9 +67,9 @@ export default function CdpProfilePage() {
   const completedCount = profile?.forms.filter(f => f.status === "completed").length ?? 0;
   const totalCount = 4;
 
-  // Aggregate the CDP domain ratings across every scored informant record.
-  const allDomainSeverities = { typical: 0, mild: 0, moderate: 0, significant: 0 };
-  let respondentRecordCount = 0;
+  // Count coverage without pooling ratings across unlike domains or respondents.
+  const respondentsWithScores = new Set<string>();
+  let scoredFormResponseCount = 0;
   if (profile) {
     for (const form of profile.forms) {
       const rows = (form as any).respondentScores?.length
@@ -77,18 +77,13 @@ export default function CdpProfilePage() {
         : form.score?.normalizedScores ? [form.score] : [];
       for (const score of rows) {
         if (!score.normalizedScores) continue;
-        respondentRecordCount++;
-        for (const pct of Object.values(score.normalizedScores) as number[]) {
-          if (pct >= 75) allDomainSeverities.typical++;
-          else if (pct >= 50) allDomainSeverities.mild++;
-          else if (pct >= 25) allDomainSeverities.moderate++;
-          else allDomainSeverities.significant++;
-        }
+        scoredFormResponseCount++;
+        respondentsWithScores.add(`${score.respondentType ?? "respondent"}\u0000${score.sourceLabel ?? ""}`);
       }
     }
   }
 
-  const caseName = caseData ? `${caseData.firstName ?? ""} ${caseData.lastName ?? ""}`.trim() || "Unnamed" : "Loading...";
+  const caseName = caseData ? caseData.studentName?.trim() || "Unnamed" : "Loading...";
   const cdpComparison = (() => {
     const sourceMap = new Map<string, { respondentType: string; sourceLabel: string; normalizedScores: Record<string, number> }>();
     const domainLabels: Record<string, string> = {};
@@ -150,27 +145,17 @@ export default function CdpProfilePage() {
           <div className="text-center py-16 text-slate-400">Loading CDP profile...</div>
         ) : (
           <>
-            {/* Summary Banner */}
+            {/* Evidence coverage stays separate from descriptive scores; no cross-domain totals. */}
             {completedCount > 0 && (
               <Card className="mb-6 border-violet-100 bg-violet-50/40">
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Info size={15} className="text-violet-500 flex-shrink-0" />
-                    <span className="text-sm font-semibold text-violet-800">Domain Summary — {completedCount} completed form{completedCount > 1 ? "s" : ""}; {respondentRecordCount} respondent-form score{respondentRecordCount !== 1 ? "s" : ""}</span>
+                    <span className="text-sm font-semibold text-violet-800">Evidence coverage</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {[
-                      { label: "Typical",            count: allDomainSeverities.typical,     color: "bg-emerald-100 border-emerald-200 text-emerald-800" },
-                      { label: "Mild Concern",        count: allDomainSeverities.mild,        color: "bg-yellow-100 border-yellow-200 text-yellow-800" },
-                      { label: "Moderate Concern",    count: allDomainSeverities.moderate,    color: "bg-orange-100 border-orange-200 text-orange-800" },
-                      { label: "Significant Concern", count: allDomainSeverities.significant, color: "bg-red-100 border-red-200 text-red-800" },
-                    ].map(item => (
-                      <div key={item.label} className={`rounded-lg border p-3 text-center ${item.color}`}>
-                        <p className="text-2xl font-bold">{item.count}</p>
-                        <p className="text-[11px] font-medium mt-0.5">{item.label}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm leading-relaxed text-slate-700">
+                    {completedCount} of {totalCount} CDP forms are complete, representing {respondentsWithScores.size} respondent{respondentsWithScores.size === 1 ? "" : "s"} across {scoredFormResponseCount} scored form response{scoredFormResponseCount === 1 ? "" : "s"}. The report keeps each respondent and developmental domain distinct; it does not total concern labels across unlike areas.
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -196,17 +181,50 @@ export default function CdpProfilePage() {
                   {cdpComparison ? (
                     <>
                       <section className="rounded-lg border bg-violet-50/50 p-4">
-                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Overall summary</h3>
-                        <p className="text-sm leading-relaxed text-slate-700">{cdpComparison.summary}</p>
+                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Integrated descriptive narrative</h3>
+                        <div className="space-y-3 text-sm leading-relaxed text-slate-700">
+                          {cdpComparison.summary.split("\n\n").map((paragraph, index) => (
+                            <p key={index}>{paragraph}</p>
+                          ))}
+                        </div>
                       </section>
+                      {cdpComparison.strengths.length > 0 && (
+                        <section className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">
+                          <h3 className="mb-2 text-sm font-semibold text-slate-900">Reported capabilities to build on</h3>
+                          <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
+                            {cdpComparison.strengths.map((strength, index) => (
+                              <li key={`${strength.domain}-${strength.sourceLabel}-${index}`}>
+                                <strong>{strength.label} — {strength.sourceLabel} ({strength.value}%):</strong> {strength.interpretation}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
                       <section>
-                        <h3 className="mb-3 text-sm font-semibold text-slate-900">Comparative interpretation by domain</h3>
+                        <h3 className="mb-3 text-sm font-semibold text-slate-900">Interpretation and practical meaning by domain</h3>
                         {cdpComparison.domainFindings.length > 0 ? (
                           <div className="space-y-3">
                             {cdpComparison.domainFindings.map(finding => (
                               <article key={finding.domain} className="rounded-lg border border-slate-200 p-4">
-                                <h4 className="text-sm font-semibold text-slate-800">{finding.label}</h4>
-                                <p className="mt-1 text-sm leading-relaxed text-slate-700">{finding.interpretation}</p>
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <h4 className="text-sm font-semibold text-slate-800">{finding.label}</h4>
+                                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${finding.pattern === "similar" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                                    {finding.pattern === "similar" ? "Similar reports" : "Different reports"}
+                                  </span>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {finding.ratings.map(rating => (
+                                    <span key={rating.sourceKey} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                                      <strong>{rating.sourceLabel}:</strong> {rating.value}% · {rating.band}
+                                    </span>
+                                  ))}
+                                </div>
+                                <p className="mt-3 text-sm leading-relaxed text-slate-700">{finding.interpretation}</p>
+                                {finding.supportIdea && (
+                                  <p className="mt-3 border-l-2 border-violet-300 pl-3 text-sm leading-relaxed text-slate-700">
+                                    <strong>Practical support to consider:</strong> {finding.supportIdea}
+                                  </p>
+                                )}
                               </article>
                             ))}
                           </div>
@@ -219,10 +237,10 @@ export default function CdpProfilePage() {
                       {cdpComparison.singleSourceDomains.length > 0 && (
                         <section className="rounded-lg border border-slate-200 p-4">
                           <h3 className="text-sm font-semibold text-slate-800">Domains reported by one source only</h3>
-                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
                             {cdpComparison.singleSourceDomains.map(item => (
                               <li key={item.domain}>
-                                <strong>{item.label} — {item.rating.sourceLabel}:</strong> {item.rating.value}% ({item.rating.band}); no second respondent rating is available for comparison.
+                                <strong>{item.label} — {item.rating.sourceLabel}:</strong> {item.rating.value}% ({item.rating.band}). This is an individual report, not evidence of a shared pattern. Seek an additional observation or the learner's perspective if the area will guide planning.
                               </li>
                             ))}
                           </ul>
