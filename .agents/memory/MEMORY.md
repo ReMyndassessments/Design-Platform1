@@ -34,3 +34,4 @@
 - [Chinese literacy scope](chinese-literacy-scope.md) — parent-home and teacher-classroom forms are independent; keep sources separate, with descriptive domains and no diagnostic or pooled scores.
 - [Case page scrolling](case-page-scrolling.md) — case header and progress scroll with content; sidebar remains visible and does not move with the page.
 - [RRCA cross-language interpretation](rrca-cross-language.md) — keep language phases separate; stopped phases are incomplete, and AI passages are not matched or normed.
+- [Multi-respondent report coverage](multi-respondent-report-coverage.md) — every multi-respondent dashboard needs a full comparison narrative, domain interpretations, recommendations, and separate source scores.

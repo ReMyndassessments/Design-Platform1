@@ -757,7 +757,7 @@ function DiscrepancySection({ tools }: { tools: ToolData[] }) {
 
 // ── Insights helpers ─────────────────────────────────────────────────────────
 
-type InsightSection = { label: string; body: string; isSynthesis: boolean };
+type InsightSection = { label: string; body: string; isSynthesis: boolean; isRecommendations: boolean };
 
 /** Parses the structured ##INSTRUMENT: Name## / ##SYNTHESIS## markers → array of sections */
 function parseInsightsSections(text: string): InsightSection[] {
@@ -767,12 +767,16 @@ function parseInsightsSections(text: string): InsightSection[] {
   for (const line of lines) {
     const instrMatch = line.match(/^##INSTRUMENT:\s*(.+?)##\s*$/);
     const synthMatch = /^##SYNTHESIS##\s*$/.test(line);
+    const recommendationsMatch = /^##RECOMMENDATIONS##\s*$/.test(line);
     if (instrMatch) {
       if (current) sections.push(current);
-      current = { label: instrMatch[1].trim(), body: "", isSynthesis: false };
+      current = { label: instrMatch[1].trim(), body: "", isSynthesis: false, isRecommendations: false };
     } else if (synthMatch) {
       if (current) sections.push(current);
-      current = { label: "Cross-Instrument Clinical Summary", body: "", isSynthesis: true };
+      current = { label: "Cross-Instrument Clinical Summary", body: "", isSynthesis: true, isRecommendations: false };
+    } else if (recommendationsMatch) {
+      if (current) sections.push(current);
+      current = { label: "Recommendations", body: "", isSynthesis: false, isRecommendations: true };
     } else if (current) {
       current.body += (current.body ? "\n" : "") + line;
     }
@@ -832,20 +836,39 @@ function InsightsSections({
   }
 
   // New-format: when used in the bottom summary card, show only the synthesis section
-  const sections = synthesisOnly ? allSections.filter(s => s.isSynthesis) : allSections;
+  const sections = synthesisOnly ? allSections.filter(s => s.isSynthesis || s.isRecommendations) : allSections;
 
   if (sections.length === 0) return null;
 
   return (
     <div className="space-y-5">
+      {synthesisOnly && !allSections.some(s => s.isRecommendations) && (
+        <div className="flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2.5 no-print">
+          <span className="text-xs text-amber-800">This saved report does not have a separate recommendations section yet.</span>
+          <button
+            onClick={onRegenerate}
+            disabled={isPending}
+            className="shrink-0 flex items-center gap-1.5 rounded bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            <RefreshCw size={11} className={isPending ? "animate-spin" : ""} />
+            {isPending ? "Generating…" : "Regenerate report"}
+          </button>
+        </div>
+      )}
       {sections.map((s, i) => (
         <div key={i}>
-          <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${s.isSynthesis ? "text-violet-600" : "text-slate-500"}`}>
+          <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${s.isSynthesis || s.isRecommendations ? "text-violet-600" : "text-slate-500"}`}>
             {s.isSynthesis ? "⬡ " : ""}{s.label}
           </div>
-          {s.isSynthesis && <div className="border-t border-violet-100 mb-2" />}
-          {s.body.trim().split(/\n\n+/).map((para, j) => (
-            <p key={j} className="text-sm text-slate-700 leading-relaxed mb-3 last:mb-0">{para.trim()}</p>
+          {(s.isSynthesis || s.isRecommendations) && <div className="border-t border-violet-100 mb-2" />}
+          {s.isRecommendations ? (
+            <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
+              {s.body.split("\n").map(line => line.trim()).filter(Boolean).map((line, j) => (
+                <li key={j}>{line.replace(/^\d+[\).]\s*/, "")}</li>
+              ))}
+            </ol>
+          ) : s.body.trim().split(/\n\n+/).map((para, j) => (
+            <p key={j} className="mb-3 text-sm leading-relaxed text-slate-700 last:mb-0">{para.trim()}</p>
           ))}
         </div>
       ))}

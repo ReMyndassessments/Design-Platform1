@@ -1,5 +1,6 @@
 export interface MultiInformantScore {
   respondentType: string;
+  sourceLabel?: string;
   toolId?: string;
   toolName?: string;
   normalizedScores?: Record<string, unknown> | null;
@@ -82,7 +83,7 @@ export function buildMultiInformantSources(scores: MultiInformantScore[]): Multi
   return scores.map((score, index) => {
     const ordinal = (seen.get(score.respondentType) ?? 0) + 1;
     seen.set(score.respondentType, ordinal);
-    const baseLabel = readableRespondentType(score.respondentType || "respondent");
+    const baseLabel = score.sourceLabel || readableRespondentType(score.respondentType || "respondent");
     const repeated = (counts.get(score.respondentType) ?? 0) > 1;
     const label = repeated
       ? `${baseLabel} · Record ${ordinal}${score.toolName ? ` (${score.toolName})` : ""}`
@@ -97,7 +98,13 @@ export function buildMultiInformantSources(scores: MultiInformantScore[]): Multi
   });
 }
 
-function getRatingBand(value: number, higherIsBetter: boolean): string {
+function getRatingBand(value: number, higherIsBetter: boolean, profile?: "cdp"): string {
+  if (profile === "cdp") {
+    if (value < 25) return "Significant concern";
+    if (value < 50) return "Moderate concern";
+    if (value < 75) return "Mild concern";
+    return "Typical range";
+  }
   if (higherIsBetter) {
     if (value < 40) return "High support need";
     if (value < 60) return "Emerging";
@@ -110,7 +117,8 @@ function getRatingBand(value: number, higherIsBetter: boolean): string {
   return "Elevated";
 }
 
-function hasConcern(value: number, higherIsBetter: boolean): boolean {
+function hasConcern(value: number, higherIsBetter: boolean, profile?: "cdp"): boolean {
+  if (profile === "cdp") return value < 75;
   return higherIsBetter ? value < 60 : value > 50;
 }
 
@@ -138,6 +146,7 @@ export function buildMultiInformantReport(
     studentName: string;
     higherIsBetter: boolean;
     domainLabels?: Record<string, string>;
+    profile?: "cdp";
   },
 ): MultiInformantReport {
   const sources = buildMultiInformantSources(scores);
@@ -152,7 +161,7 @@ export function buildMultiInformantReport(
         sourceKey: key,
         sourceLabel: label,
         value,
-        band: getRatingBand(value, options.higherIsBetter),
+        band: getRatingBand(value, options.higherIsBetter, options.profile),
       }];
     });
     if (ratings.length < 2) continue;
@@ -202,7 +211,7 @@ export function buildMultiInformantReport(
         sourceKey: source.key,
         sourceLabel: source.label,
         value,
-        band: getRatingBand(value, options.higherIsBetter),
+        band: getRatingBand(value, options.higherIsBetter, options.profile),
       };
       return [{
         domain,
@@ -216,15 +225,15 @@ export function buildMultiInformantReport(
 
   const recommendations: string[] = [];
   const sharedConcerns = domainFindings.filter(
-    (finding) => finding.ratings.filter((rating) => hasConcern(rating.value, options.higherIsBetter)).length >= 2,
+    (finding) => finding.ratings.filter((rating) => hasConcern(rating.value, options.higherIsBetter, options.profile)).length >= 2,
   );
   const contextSpecificConcerns = domainFindings.filter((finding) => {
-    const concernedCount = finding.ratings.filter((rating) => hasConcern(rating.value, options.higherIsBetter)).length;
+    const concernedCount = finding.ratings.filter((rating) => hasConcern(rating.value, options.higherIsBetter, options.profile)).length;
     return concernedCount > 0 && concernedCount < finding.ratings.length;
   });
   const differingDomains = domainFindings.filter((finding) => finding.pattern === "different");
   const singleSourceConcerns = singleSourceDomains.filter((finding) =>
-    hasConcern(finding.rating.value, options.higherIsBetter),
+    hasConcern(finding.rating.value, options.higherIsBetter, options.profile),
   );
   const sharedNames = sharedConcerns.map((finding) => finding.label);
 
@@ -253,7 +262,9 @@ export function buildMultiInformantReport(
   }
 
   const strengthsOrLowerConcern = domainFindings.filter((finding) =>
-    finding.ratings.some((rating) => options.higherIsBetter ? rating.value >= 80 : rating.value <= 25),
+    finding.ratings.some((rating) => options.profile === "cdp"
+      ? rating.value >= 75
+      : options.higherIsBetter ? rating.value >= 80 : rating.value <= 25),
   );
   if (strengthsOrLowerConcern.length > 0) {
     recommendations.push(

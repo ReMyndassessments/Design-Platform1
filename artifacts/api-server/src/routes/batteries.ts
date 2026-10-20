@@ -103,51 +103,74 @@ router.get("/cases/:caseId/cdp/profile", authMiddleware, async (req, res) => {
   const result: any[] = [];
   for (const tid of CDP_TOOL_IDS) {
     const form = forms[tid];
-    // Find the most recent completed assignment
-    const completedAssignment = form.assignments
+    // Preserve each completed informant's score; the dashboard report compares
+    // informants within each CDP domain and must not silently select one record.
+    const latestCompleted = form.assignments
       .filter((a: any) => a.status === "completed")
       .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+    const existingScores = await db.select().from(scoresTable)
+      .where(and(
+        eq(scoresTable.caseId, caseId),
+        eq(scoresTable.toolId, tid),
+      ))
+      .orderBy(desc(scoresTable.generatedAt));
+    const scoreByRespondent = new Map<string, typeof existingScores[number]>();
+    for (const score of existingScores) {
+      if (!scoreByRespondent.has(score.respondentType)) scoreByRespondent.set(score.respondentType, score);
+    }
 
-    let scoreData = null;
+    const respondentScores: Array<{
+      respondentType: string;
+      sourceLabel: string;
+      rawScore: number | null;
+      domainScores: Record<string, number>;
+      normalizedScores: Record<string, number>;
+      scoredAt: Date | null;
+    }> = [];
+    let scoreData: {
+      rawScore: number | null;
+      domainScores: Record<string, number>;
+      normalizedScores: Record<string, number>;
+      scoredAt: Date | null;
+    } | null = null;
 
-    if (completedAssignment) {
-      // Try to find an existing score
-      const existingScores = await db.select().from(scoresTable)
-        .where(and(
-          eq(scoresTable.caseId, caseId),
-          eq(scoresTable.toolId, tid),
-        ))
-        .orderBy(desc(scoresTable.generatedAt))
-        .limit(1);
+    for (const assignment of form.assignments.filter((a: any) => a.status === "completed")) {
+      const stored = scoreByRespondent.get(assignment.respondentType);
+      let respondentScore = stored ? {
+        rawScore: stored.rawScore,
+        domainScores: (stored.domainScores as Record<string, number>) ?? {},
+        normalizedScores: (stored.normalizedScores as Record<string, number>) ?? {},
+        scoredAt: stored.generatedAt,
+      } : null;
 
-      if (existingScores[0]) {
-        const s = existingScores[0];
-        scoreData = {
-          rawScore: s.rawScore,
-          domainScores: s.domainScores as Record<string, number>,
-          normalizedScores: s.normalizedScores as Record<string, number>,
-          scoredAt: s.generatedAt,
-        };
-      } else {
-        // Calculate on the fly from the latest response
-        const answers = await getLatestAnswers(completedAssignment.id);
+      if (!respondentScore) {
+        const answers = await getLatestAnswers(assignment.id);
         if (answers) {
           const domainMap = await buildDomainMap(tid);
           const scaleMax = await getScaleMax(tid);
           const domainScores = computeDomainScores(answers, domainMap);
-          const normalized = normalizeScores(domainScores, scaleMax);
+          const normalizedScores = normalizeScores(domainScores, scaleMax);
           const domainVals = Object.values(domainScores);
-          const rawScore = domainVals.length > 0
-            ? domainVals.reduce((a, b) => a + b, 0) / domainVals.length
-            : 0;
-          scoreData = {
-            rawScore,
+          respondentScore = {
+            rawScore: domainVals.length > 0 ? domainVals.reduce((a, b) => a + b, 0) / domainVals.length : 0,
             domainScores,
-            normalizedScores: normalized,
+            normalizedScores,
             scoredAt: null,
           };
         }
       }
+
+      if (!respondentScore) continue;
+      const respondentLabel = assignment.assignedToName
+        ? `${assignment.respondentLabel || assignment.respondentType}: ${assignment.assignedToName}`
+        : assignment.respondentLabel || assignment.respondentType;
+      respondentScores.push({
+        respondentType: assignment.respondentType,
+        sourceLabel: respondentLabel,
+        ...respondentScore,
+      });
+
+      if (assignment.id === latestCompleted?.id) scoreData = respondentScore;
     }
 
     const assignmentSummaries = form.assignments.map((a: any) => ({
@@ -165,6 +188,7 @@ router.get("/cases/:caseId/cdp/profile", authMiddleware, async (req, res) => {
       status: form.status as "not_assigned" | "pending" | "completed",
       assignments: assignmentSummaries,
       score: scoreData,
+      respondentScores,
       scoringConfig: form.scoringConfig,
     });
   }

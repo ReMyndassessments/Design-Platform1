@@ -2,7 +2,8 @@ import { useParams, Link } from "wouter";
 import { useGetCase, useGetCdpProfile } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle2, Clock, CircleDashed, Info } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, CircleDashed, Info, Printer, Users } from "lucide-react";
+import { buildMultiInformantReport } from "@/lib/multi-informant-report";
 
 const CDP_ORDER = ["CDP-CL", "CDP-SI", "CDP-SR", "CDP-CI"];
 
@@ -66,21 +67,59 @@ export default function CdpProfilePage() {
   const completedCount = profile?.forms.filter(f => f.status === "completed").length ?? 0;
   const totalCount = 4;
 
-  // Aggregate severity counts across all completed domains
+  // Aggregate the CDP domain ratings across every scored informant record.
   const allDomainSeverities = { typical: 0, mild: 0, moderate: 0, significant: 0 };
+  let respondentRecordCount = 0;
   if (profile) {
     for (const form of profile.forms) {
-      if (!form.score?.normalizedScores) continue;
-      for (const pct of Object.values(form.score.normalizedScores)) {
-        if (pct >= 75) allDomainSeverities.typical++;
-        else if (pct >= 50) allDomainSeverities.mild++;
-        else if (pct >= 25) allDomainSeverities.moderate++;
-        else allDomainSeverities.significant++;
+      const rows = (form as any).respondentScores?.length
+        ? (form as any).respondentScores
+        : form.score?.normalizedScores ? [form.score] : [];
+      for (const score of rows) {
+        if (!score.normalizedScores) continue;
+        respondentRecordCount++;
+        for (const pct of Object.values(score.normalizedScores) as number[]) {
+          if (pct >= 75) allDomainSeverities.typical++;
+          else if (pct >= 50) allDomainSeverities.mild++;
+          else if (pct >= 25) allDomainSeverities.moderate++;
+          else allDomainSeverities.significant++;
+        }
       }
     }
   }
 
   const caseName = caseData ? `${caseData.firstName ?? ""} ${caseData.lastName ?? ""}`.trim() || "Unnamed" : "Loading...";
+  const cdpComparison = (() => {
+    const sourceMap = new Map<string, { respondentType: string; sourceLabel: string; normalizedScores: Record<string, number> }>();
+    const domainLabels: Record<string, string> = {};
+    for (const form of (profile?.forms ?? []) as any[]) {
+      const configDomains = form.scoringConfig?.domains ?? {};
+      for (const respondentScore of form.respondentScores ?? []) {
+        const sourceLabel = respondentScore.sourceLabel || RESPONDENT_LABELS[respondentScore.respondentType] || respondentScore.respondentType;
+        const sourceKey = `${respondentScore.respondentType}\u0000${sourceLabel}`;
+        if (!sourceMap.has(sourceKey)) {
+          sourceMap.set(sourceKey, { respondentType: respondentScore.respondentType, sourceLabel, normalizedScores: {} });
+        }
+        const source = sourceMap.get(sourceKey)!;
+        for (const [domain, value] of Object.entries(respondentScore.normalizedScores ?? {})) {
+          if (domain === "general" || typeof value !== "number" || !Number.isFinite(value)) continue;
+          const reportDomain = `${form.toolId}:${domain}`;
+          const domainLabel = configDomains[domain]?.label ?? domain.replace(/_/g, " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase());
+          domainLabels[reportDomain] = `${CDP_FORM_LABELS[form.toolId]?.short ?? form.toolName} — ${domainLabel}`;
+          source.normalizedScores[reportDomain] = value;
+        }
+      }
+    }
+    const scores = Array.from(sourceMap.values());
+    return scores.length > 0
+      ? buildMultiInformantReport(scores, {
+          studentName: caseName,
+          higherIsBetter: true,
+          profile: "cdp",
+          domainLabels,
+        })
+      : null;
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -117,7 +156,7 @@ export default function CdpProfilePage() {
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-3 mb-3">
                     <Info size={15} className="text-violet-500 flex-shrink-0" />
-                    <span className="text-sm font-semibold text-violet-800">Domain Summary — {completedCount} form{completedCount > 1 ? "s" : ""} scored</span>
+                    <span className="text-sm font-semibold text-violet-800">Domain Summary — {completedCount} completed form{completedCount > 1 ? "s" : ""}; {respondentRecordCount} respondent-form score{respondentRecordCount !== 1 ? "s" : ""}</span>
                   </div>
                   <div className="grid grid-cols-4 gap-3">
                     {[
@@ -136,6 +175,78 @@ export default function CdpProfilePage() {
               </Card>
             )}
 
+            {/* Combined comparative report: each informant remains a separate source. */}
+            {completedCount > 0 && (
+              <Card className="mb-6 border-violet-200" data-testid="cdp-comparative-report">
+                <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+                      <Users size={17} className="text-violet-600" />
+                      Combined Respondent Narrative and Recommendations
+                    </CardTitle>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Parent, teacher, and other completed CDP records are compared by matching domains. Their scores remain separate and are never averaged.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="shrink-0 gap-1.5 print:hidden" onClick={() => window.print()}>
+                    <Printer size={14} /> Print report
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {cdpComparison ? (
+                    <>
+                      <section className="rounded-lg border bg-violet-50/50 p-4">
+                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Overall summary</h3>
+                        <p className="text-sm leading-relaxed text-slate-700">{cdpComparison.summary}</p>
+                      </section>
+                      <section>
+                        <h3 className="mb-3 text-sm font-semibold text-slate-900">Comparative interpretation by domain</h3>
+                        {cdpComparison.domainFindings.length > 0 ? (
+                          <div className="space-y-3">
+                            {cdpComparison.domainFindings.map(finding => (
+                              <article key={finding.domain} className="rounded-lg border border-slate-200 p-4">
+                                <h4 className="text-sm font-semibold text-slate-800">{finding.label}</h4>
+                                <p className="mt-1 text-sm leading-relaxed text-slate-700">{finding.interpretation}</p>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="rounded-lg bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+                            The completed records do not share matching domains for direct comparison. Each respondent’s available scores are retained separately.
+                          </p>
+                        )}
+                      </section>
+                      {cdpComparison.singleSourceDomains.length > 0 && (
+                        <section className="rounded-lg border border-slate-200 p-4">
+                          <h3 className="text-sm font-semibold text-slate-800">Domains reported by one source only</h3>
+                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+                            {cdpComparison.singleSourceDomains.map(item => (
+                              <li key={item.domain}>
+                                <strong>{item.label} — {item.rating.sourceLabel}:</strong> {item.rating.value}% ({item.rating.band}); no second respondent rating is available for comparison.
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                      <section className="rounded-lg border border-violet-200 bg-violet-50/40 p-4">
+                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Recommendations</h3>
+                        <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
+                          {cdpComparison.recommendations.map((recommendation, index) => <li key={index}>{recommendation}</li>)}
+                        </ol>
+                      </section>
+                      <p className="text-xs leading-relaxed text-slate-500">
+                        {cdpComparison.coverageNote} {cdpComparison.limitations} CDP percentages describe performance on this form and are not diagnostic conclusions.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm leading-relaxed text-slate-600">
+                      A comparative narrative will appear when scored responses from at least two separate respondents are available. Completed responses are kept independently; no source is substituted for another.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Form Cards */}
             <div className="space-y-4">
               {CDP_ORDER.map(toolId => {
@@ -145,8 +256,10 @@ export default function CdpProfilePage() {
                 const domainLabels: Record<string, string> = cfg?.domains
                   ? Object.fromEntries(Object.entries(cfg.domains).map(([k, v]: [string, any]) => [k, v.label ?? k]))
                   : {};
-                const normalizedScores = form?.score?.normalizedScores ?? {};
-                const hasDomains = Object.keys(normalizedScores).length > 0;
+                const scoreRows = (form as any)?.respondentScores?.length
+                  ? (form as any).respondentScores
+                  : form?.score?.normalizedScores ? [{ ...form.score, sourceLabel: "Most recent scored record" }] : [];
+                const hasDomains = scoreRows.some((score: any) => Object.keys(score.normalizedScores ?? {}).length > 0);
 
                 return (
                   <Card key={toolId} className="overflow-hidden">
@@ -186,19 +299,26 @@ export default function CdpProfilePage() {
                       ) : form?.status === "pending" ? (
                         <p className="text-sm text-slate-400 italic">Waiting for respondent to complete this form.</p>
                       ) : hasDomains ? (
-                        <div>
-                          <div className="border-t border-slate-100 pt-3">
-                            {Object.entries(normalizedScores)
-                              .filter(([k]) => k !== "general")
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([domain, pct]) => (
-                                <DomainBar
-                                  key={domain}
-                                  label={domainLabels[domain] ?? domain.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-                                  pct={pct as number}
-                                />
-                              ))}
-                          </div>
+                        <div className="space-y-4 border-t border-slate-100 pt-3">
+                          {scoreRows.map((score: any, index: number) => {
+                            const sourceName = score.sourceLabel || RESPONDENT_LABELS[score.respondentType] || `Respondent ${index + 1}`;
+                            const entries = Object.entries(score.normalizedScores ?? {})
+                              .filter(([key]) => key !== "general")
+                              .sort((a, b) => (b[1] as number) - (a[1] as number));
+                            if (!entries.length) return null;
+                            return (
+                              <section key={`${sourceName}-${index}`} className="rounded-lg bg-slate-50 p-3">
+                                <h3 className="mb-2 text-xs font-semibold text-slate-700">{sourceName}</h3>
+                                {entries.map(([domain, pct]) => (
+                                  <DomainBar
+                                    key={domain}
+                                    label={domainLabels[domain] ?? domain.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                                    pct={pct as number}
+                                  />
+                                ))}
+                              </section>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-sm text-slate-400 italic">Form completed — score not yet calculated.</p>

@@ -72,3 +72,21 @@ test("uses low skill ratings as priorities when higher scores indicate better sk
   assert.ok(report.recommendations.some((text) => text.includes("Planning")));
   assert.ok(report.recommendations.some((text) => text.includes("Initiation")));
 });
+
+test("CDP interpretation uses its displayed percentage bands and preserves named respondents", () => {
+  const report = buildMultiInformantReport([
+    { respondentType: "parent", sourceLabel: "Parent / Guardian: Su-Su", normalizedScores: { cognition: 74, communication: 82 } },
+    { respondentType: "teacher1", sourceLabel: "Class Teacher: Tim", normalizedScores: { cognition: 70, communication: 90 } },
+  ], {
+    studentName: "Student",
+    higherIsBetter: true,
+    profile: "cdp",
+    domainLabels: { cognition: "Cognition & Learning", communication: "Communication & Interaction" },
+  });
+
+  assert.match(report.domainFindings[0].interpretation, /Parent \/ Guardian: Su-Su: 74\/100 \(Mild concern\)/);
+  assert.match(report.domainFindings[0].interpretation, /Class Teacher: Tim: 70\/100 \(Mild concern\)/);
+  assert.match(report.domainFindings[1].interpretation, /Typical range/);
+  assert.ok(report.recommendations.some((text) => text.includes("Cognition & Learning")));
+  assert.ok(report.recommendations.some((text) => text.includes("Communication & Interaction")));
+});

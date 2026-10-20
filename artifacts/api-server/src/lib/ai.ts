@@ -1554,12 +1554,17 @@ After all instruments, output:
   2. Identify convergent themes: where multiple instruments and multiple informants are pointing to the same area of difficulty, and what that convergence tells us clinically.
   3. Identify significant divergences: where instruments or informants disagree, and what those discrepancies may indicate (e.g., setting-specific behaviour, rater bias, inconsistent presentation).
   4. Integrate the ReMynd Index cross-tool averages to name the most impactful domains globally, explaining what these elevations mean in terms of ${firstName}'s daily academic, social, and emotional functioning.
-  5. Close with clear, data-grounded clinical recommendations — next assessment steps, priority support areas, and any diagnostic hypotheses warranted by the profile.
+  5. Keep the synthesis interpretive and data-grounded; do not put recommendations in this section.
 Each paragraph should be substantive and clinically rich. Do not summarise the instruments again — the synthesis should add interpretive depth that goes beyond what each individual instrument section already stated.>
+
+After the synthesis, output:
+##RECOMMENDATIONS##
+<Provide 4–8 numbered, specific, practical recommendations based on the combined data. Include the priority need, the setting or responsible team where clear, an observable indicator of progress, and an appropriate review point. Separate each numbered recommendation onto its own line. Distinguish shared patterns from setting-specific or single-informant findings. Do not diagnose, invent data, or treat a score as proof of impairment.>
 
 Rules:
 - Use the exact markers ##INSTRUMENT: ...## and ##SYNTHESIS## — nothing else on those lines
-- Within each section write multiple flowing paragraphs separated by blank lines — no bullet points, no sub-headers
+- Within instrument and synthesis sections write multiple flowing paragraphs separated by blank lines
+- In the recommendations section, put each numbered recommendation on its own line
 - Write in formal, professional psychoeducational language suitable for a school psychological report
 - Use ${firstName}'s first name after the initial introduction in each section
 - Do not invent data not present in the scores
@@ -1569,7 +1574,7 @@ Rules:
 You will output a series of clearly delimited sections using these exact markers on their own lines:
   ##INSTRUMENT: <Full Instrument Name>##
   ##SYNTHESIS##
-Each section marker must appear on its own line with no other text. The narrative paragraph follows immediately after each marker. Do not add headers, bullets, or any other formatting. Write each section as a single flowing paragraph.`;
+Each section marker must appear on its own line with no other text. Instrument and synthesis sections use flowing paragraphs. Recommendations are a numbered list with each item on its own line.`;
 
   try {
     const narrative = await callDeepSeek(prompt, 3600, systemMessage);
@@ -1656,8 +1661,14 @@ Findings by Domain
 Cross-Informant Comparison
 [If multiple respondents reported scores on the same or related instruments, describe convergence or discrepancy. If only one respondent type is present, note this briefly and omit this section.]
 
-Summary & Recommendations
-[Synthesise key findings into a clinically meaningful profile. Frame recommendations based on the pattern of results. Use appropriate hedging — do not diagnose. Recommend next steps for intervention, further assessment, or support.]
+Overall Summary & Interpretation
+[Provide a comprehensive synthesis of the student's profile across all completed packages, highlighting strengths, needs, convergent findings, meaningful differences, and the limits of available evidence. Keep each respondent's results distinct; never average or merge respondent scores.]
+
+Recommendations
+[Provide practical, prioritised recommendations based on the combined evidence. For each recommendation, state the relevant skill or need, the setting/team that could implement it when clear, an observable way to monitor progress, and a suitable review point. Separate recommendations supported by multiple respondents from those requiring confirmation in one setting. Do not diagnose.]
+
+Limitations
+[State which packages or respondent forms are incomplete and any relevant limits in comparability. Clarify that findings support educational planning and do not establish a diagnosis.]
 
 Write in formal, professional psychoeducational language suitable for a school or clinical report. Refer to the client as "${firstName}" after the initial introduction. Base ALL score interpretation solely on the data provided — never fabricate score values. Use third-person throughout.`;
 
