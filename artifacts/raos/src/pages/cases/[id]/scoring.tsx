@@ -723,7 +723,11 @@ function ToolScoreSection({ toolScores, studentName, today }: {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-slate-700 leading-relaxed text-sm">{multiInformantReport.summary}</p>
+            <div className="space-y-3 text-sm leading-relaxed text-slate-700">
+              {multiInformantReport.summary.split(/\n{2,}/).filter(Boolean).map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
             {multiInformantReport.domainFindings.length > 0 ? (
               <div className="space-y-3">
                 {multiInformantReport.domainFindings.map(finding => (

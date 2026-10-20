@@ -329,18 +329,23 @@ function buildCdpSummary(
     (finding) => finding.ratings.filter((rating) => rating.value < 50).length === 1,
   );
   const sharedNames = sharedPriorities.slice(0, 4).map((finding) => finding.label);
-  const individualNames = individualPriorities.slice(0, 4).map((finding) => finding.label);
+  const individualDetails = individualPriorities.slice(0, 4).map((finding) => {
+    const source = finding.ratings.find((rating) => rating.value < 50)?.sourceLabel;
+    return source ? `${finding.label} (${source})` : finding.label;
+  });
   const strengthNames = Array.from(new Set(strengths.slice(0, 5).map((strength) => strength.label)));
 
   const opening = `${studentName}'s Child Development Profile brings together separate reports from ${respondentNames.join(", ")}. The forms describe skills across learning, communication, social participation, and self-regulation. Results are interpreted by respondent and domain; they are not combined into a single student score.`;
   const comparison = findings.length > 0
     ? `Across ${findings.length} domain areas rated by more than one respondent, ${similarCount} show numerically close ratings and ${differentCount} show meaningful differences. Similarity suggests convergence in how the skill is described on this form, while differences can point to the settings, task demands, supports, or observation opportunities that need closer review.`
     : "The available records do not share domains that can be compared directly. Each respondent's profile should therefore be considered on its own, with context gathered before drawing conclusions across settings.";
+  const scoreContext = "On the CDP's descriptive 0–100 scale, a rating below 50 falls in the moderate or significant concern bands. This is not a percent-correct score, diagnosis, or proof that the student cannot do the skill; it indicates where the team should look more closely.";
+  const interventionGuidance = "To plan support, open the item-level responses and use recent examples to identify the specific task and routine that are difficult. Start with one or two goals, not one goal for every domain. Make each goal observable by stating what the student will do, where or when they will do it, and how much help is allowed. Then agree on a matching support, who will provide it, how progress will be noted, and when the team will review it.";
   const priorities = sharedNames.length > 0
-    ? `The clearest shared areas for support are ${sharedNames.join(", ")}: at least two respondents rated each below 50%. These are practical starting points for selecting a small number of observable goals and agreeing on supports in the relevant routines.${individualNames.length > 0 ? ` Separately, ${individualNames.join(", ")} include a below-50% rating from one respondent and warrant follow-up in that setting.` : ""}`
-    : individualNames.length > 0
-      ? `No matched domain is rated below 50% by two or more respondents. However, ${individualNames.join(", ")} each include a rating below 50% from one respondent; follow up in that respondent's setting before deciding whether the concern generalizes.`
-      : "No matched domain has ratings below 50% from multiple respondents. Continue to monitor areas rated in the 50–74% band and confirm how those skills affect participation in everyday activities.";
+    ? `Start by reviewing these shared priority areas: ${sharedNames.join(", ")}. At least two respondents rated each below 50%, so the concern is reported by more than one respondent. ${scoreContext}\n\n${interventionGuidance}${individualDetails.length > 0 ? `\n\nAlso follow up on ${individualDetails.join(", ")}. Only one respondent rated each below 50%, so first check that person's recent examples and compare with another respondent's observations before treating it as a need across settings.` : ""}`
+    : individualDetails.length > 0
+      ? `No matched domain was rated below 50% by two or more respondents. The areas flagged by one respondent are ${individualDetails.join(", ")}. Treat each as a concern to investigate in that respondent's setting, not as a confirmed difficulty everywhere. ${scoreContext}\n\n${interventionGuidance}`
+      : `No matched domain has ratings below 50% from multiple respondents. Continue to review item-level responses and areas in the 50–74% band to see whether they affect participation in everyday activities. ${scoreContext}\n\n${interventionGuidance}`;
   const strengthsText = strengthNames.length > 0
     ? `Potential assets are also present: ratings of 75% or higher were reported in ${strengthNames.join(", ")}. These are relative strengths within the available CDP records—not proof of mastery in every situation—and can provide useful entry points for teaching and participation.`
     : "The current records do not identify a domain with a rating of 75% or higher. Strengths may still be evident in item responses, the student's perspective, interests, or direct observation and should be documented alongside support needs.";

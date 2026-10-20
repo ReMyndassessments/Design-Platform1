@@ -126,7 +126,11 @@ test("CDP narrative explains functional meaning, identifies assets, and gives ta
   });
 
   assert.match(report.summary, /Child Development Profile/);
-  assert.match(report.summary, /clearest shared areas for support/);
+  assert.match(report.summary, /Start by reviewing these shared priority areas/);
+  assert.match(report.summary, /not a percent-correct score/);
+  assert.match(report.summary, /Start with one or two goals/);
+  assert.match(report.summary, /what the student will do, where or when they will do it/);
+  assert.match(report.summary, /Self-Regulation — Coping with Change \(Parent \/ Guardian\)/);
   assert.match(report.summary, /Potential assets/);
   assert.match(report.domainFindings[0].interpretation, /organizing materials, choosing a first step/);
   assert.match(report.domainFindings[0].supportIdea ?? "", /visual plan or checklist/);
