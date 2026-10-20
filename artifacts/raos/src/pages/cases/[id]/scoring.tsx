@@ -33,6 +33,7 @@ const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = 
   brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
   sdq:        { label: "SDQ Dashboard",         ids: new Set(["SDQ-11", "SDQ-4"]) },
   vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
+  dyslexia:   { label: "Dyslexia Screening Tool Dashboard", ids: new Set(["DYSRISK"]) },
 };
 
 // ── Battery definitions — tools that share a common norm group / scale ────────
@@ -964,6 +965,17 @@ export default function ScoringView() {
         languagePreference={caseData?.languagePreference}
         caseId={caseId}
       />
+
+      {batteryParam === "dyslexia" && (
+        <section className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-900">
+          <h2 className="mb-1 font-semibold">Using the Dyslexia Screening Tool results</h2>
+          <p>
+            This screening tool does not diagnose or rule out dyslexia. Review each respondent's results separately,
+            compare shared and setting-specific patterns, and consider them alongside reading and spelling work,
+            direct observation, educational history, and other assessment evidence.
+          </p>
+        </section>
+      )}
 
       {/* Screen-only page header */}
       <div className="flex items-center justify-between mb-4 no-print">

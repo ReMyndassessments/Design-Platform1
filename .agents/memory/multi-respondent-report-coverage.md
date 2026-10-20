@@ -8,3 +8,9 @@ Every RAOS report, whether single- or multi-respondent, must print with the stud
 **Why:** The user explicitly requires professional comparative narratives for every multi-respondent assessment and wants educators to understand how to turn findings into an intervention, not just read a list of domains or scores. Every printed report must also identify the student and available demographics when separated from the case system. CDP is multi-respondent and has its own dashboard/data path.
 
 **How to apply:** Add a print-only identity header to every report/export path with student name, DOB/age, grade, school, primary language, case ID, and any relevant respondent/assessment date. In comparative narratives, explain the scale in plain language, distinguish shared from single-setting signals, and guide staff to review item evidence, choose a small number of observable goals, match supports to routines, assign responsibility, and set a progress check. Audit every dashboard/report path and verify content in both screen and print views.
+
+The Dyslexia Screening Tool (DYSRISK) is used with multiple respondents and should be available as its own case-dashboard tile, with each respondent's scores kept separate and compared only on matching domains.
+
+**Why:** The user explicitly identified this tool as multi-respondent; it was not included among the existing dashboard tiles.
+
+**How to apply:** Link the case tile to the filtered score dashboard, preserve distinct respondent records, and include comparative interpretations and screening-specific non-diagnostic language.

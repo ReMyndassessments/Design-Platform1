@@ -17,6 +17,7 @@ function authHeaders() {
 const REMYND_AUTO_PREFIXES = ["RCS-80","RASR","RCEP","REFI","RERMS","RSCP","RARPS","RFII","RSSC","RSCA","RARI","EFA"];
 const CDP_TOOL_IDS    = new Set(["CDP-CL","CDP-SI","CDP-SR","CDP-CI"]);
 const LITERACY_TOOL_IDS = new Set(["RRCA","RRFA","RPPI","RDA"]);
+const DYSLEXIA_TOOL_ID = "DYSRISK";
 const CHINESE_LITERACY_TOOL_IDS = new Set([
   "REMYND_CHINESE_LITERACY_PARENT_OBSERVATION",
   "REMYND_CHINESE_LITERACY_TEACHER_OBSERVATION",
@@ -137,6 +138,11 @@ export default function DashboardsHub() {
 
   const assignments: any[] = c.assignments ?? [];
   const productIds: string[] = (c.productIds as string[]) ?? [];
+  const dyslexiaAssignments = assignments.filter((a: any) => a.toolId === DYSLEXIA_TOOL_ID);
+  const dyslexiaCompletion = {
+    matched: dyslexiaAssignments.length,
+    completed: dyslexiaAssignments.filter((a: any) => a.status === "completed").length,
+  };
   const chineseLiteracyAssignments = assignments.filter((a: any) => CHINESE_LITERACY_TOOL_IDS.has(a.toolId ?? ""));
   const chineseLiteracyCompletion = {
     matched: 2,
@@ -221,6 +227,17 @@ export default function DashboardsHub() {
       icon: <BookOpen size={22} className="text-sky-600" />,
       href: `/cases/${caseId}/literacy-dashboard`,
       ...literacyCompletion,
+    } : null,
+
+    dyslexiaAssignments.length > 0 ? {
+      id: "dyslexia-screening",
+      title: "Dyslexia Screening Tool Dashboard",
+      subtitle: "Separate respondent results, comparison narrative, and support recommendations",
+      tag: "Dyslexia Screening",
+      tagColor: "bg-amber-100 text-amber-700",
+      icon: <BookOpen size={22} className="text-amber-600" />,
+      href: `/cases/${caseId}/scoring?battery=dyslexia`,
+      ...dyslexiaCompletion,
     } : null,
 
     chineseLiteracyAssignments.length > 0 && canUseChineseLiteracyDashboard ? {
