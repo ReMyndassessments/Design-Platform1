@@ -360,6 +360,7 @@ router.post("/cases/:caseId/rmra/sessions/:sessionId/complete", authMiddleware, 
       hintDependency: number;
       productiveStruggle: number;
       confidence: number;
+      calibrationDelta: number;
       tasksAdministered: number;
       tasksDiscontinued: number;
       level: "strength" | "developing" | "vulnerable" | "high_concern";

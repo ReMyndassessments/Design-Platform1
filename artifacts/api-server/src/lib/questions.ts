@@ -3,7 +3,7 @@ export interface FormQuestion {
   text: string;
   textChinese?: string;
   textKorean?: string;
-  type: "likert" | "yes_no" | "text" | "textarea" | "scale" | "checkbox_group" | "select" | "date" | "signature" | "radio_group" | "section_header" | "number" | "frequency_grid";
+  type: "likert" | "yes_no" | "text" | "textarea" | "scale" | "checkbox" | "checkbox_group" | "select" | "date" | "signature" | "radio" | "radio_group" | "section_header" | "number" | "frequency_grid";
   options?: string[];
   optionsChinese?: string[];
   optionsKorean?: string[];

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -40,6 +40,7 @@ export const assignmentsTable = pgTable("assignments", {
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   formItemsSnapshot: text("form_items_snapshot"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
 });
 
 export const insertAssignmentSchema = createInsertSchema(assignmentsTable).omit({

@@ -1587,7 +1587,7 @@ router.get("/assignments/my-pending", authMiddleware, async (req, res) => {
     status: a.status,
     uniqueLink: a.uniqueLink,
     respondentType: a.respondentType,
-    updatedAt: a.updatedAt,
+    updatedAt: a.submittedAt ?? a.createdAt,
   }));
 
   res.json(result);

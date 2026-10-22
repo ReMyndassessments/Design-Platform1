@@ -128,6 +128,28 @@ export class ObjectStorageService {
     });
   }
 
+  async uploadObjectEntity(
+    objectKey: string,
+    contents: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    const normalizedKey = objectKey.replace(/^\/+/, "");
+    if (
+      !normalizedKey ||
+      normalizedKey.split("/").some((segment) => !segment || segment === "." || segment === "..")
+    ) {
+      throw new Error("Invalid object key");
+    }
+
+    const privateDir = this.getPrivateObjectDir().replace(/\/+$/, "");
+    const { bucketName, objectName } = parseObjectPath(`${privateDir}/${normalizedKey}`);
+    const file = objectStorageClient.bucket(bucketName).file(objectName);
+    await file.save(contents, {
+      resumable: false,
+      metadata: { contentType },
+    });
+  }
+
   async getObjectEntityFile(objectPath: string): Promise<File> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
@@ -270,6 +292,9 @@ async function signObjectURL({
     );
   }
 
-  const { signed_url: signedURL } = await response.json();
-  return signedURL;
+  const payload = (await response.json()) as { signed_url?: unknown };
+  if (typeof payload.signed_url !== "string" || payload.signed_url.length === 0) {
+    throw new Error("Object storage returned an invalid signed URL");
+  }
+  return payload.signed_url;
 }

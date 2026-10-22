@@ -155,7 +155,7 @@ router.get("/cases/:caseId/cdp/profile", authMiddleware, async (req, res) => {
             rawScore: domainVals.length > 0 ? domainVals.reduce((a, b) => a + b, 0) / domainVals.length : 0,
             domainScores,
             normalizedScores,
-            scoredAt: null,
+            scoredAt: new Date(),
           };
         }
       }

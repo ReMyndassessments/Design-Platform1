@@ -9,19 +9,44 @@ export type FormItem = {
   text: string;
   textChinese?: string;
   textKorean?: string;
-  type: "likert" | "text" | "checkbox" | "radio" | "multiple_choice" | "scale" | "textarea" | "section_header" | "checkbox_group";
+  type:
+    | "likert"
+    | "text"
+    | "checkbox"
+    | "radio"
+    | "multiple_choice"
+    | "scale"
+    | "textarea"
+    | "section_header"
+    | "checkbox_group"
+    | "yes_no"
+    | "select"
+    | "date"
+    | "signature"
+    | "radio_group"
+    | "number"
+    | "frequency_grid";
   options?: string[];
   optionsChinese?: string[];
   optionsKorean?: string[];
   domain?: string;
   required?: boolean;
   reversed?: boolean;
+  rows?: FormItem[];
+  conditionalOn?: string;
+  conditionalValue?: string;
+  conditionalType?: string;
+  note?: string;
+  noteChinese?: string;
+  noteKorean?: string;
+  links?: Array<{ text: string; url: string }>;
 };
 
 export type ScoringConfig = {
   max: number;
-  thresholds: { low: number; mild: number; moderate: number };
-  domains: Record<string, {
+  higherIsBetter?: boolean;
+  thresholds?: { low: number; mild: number; moderate: number };
+  domains?: Record<string, {
     label: string;
     shortLabel: string;
     narratives: { low: string; mild: string; moderate: string; elevated: string };

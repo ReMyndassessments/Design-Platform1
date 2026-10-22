@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import type { RequestHandler } from "express";
 import { getUserIdFromToken, getUserById } from "../lib/auth.js";
 
 declare global {
@@ -13,11 +13,7 @@ declare global {
   }
 }
 
-export async function authMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
+export const authMiddleware: RequestHandler<any> = async (req, res, next): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "unauthorized", message: "No token provided" });
@@ -42,7 +38,7 @@ export async function authMiddleware(
   req.userRole = user.role;
   req.userSchool = user.schoolName ?? undefined;
   next();
-}
+};
 
 /**
  * Like authMiddleware, but never sends a 401 itself. If a valid token is
@@ -58,11 +54,7 @@ export async function authMiddleware(
  * must never be the one to reject an anonymous request that some other
  * route down the chain would have served without auth.
  */
-export async function tryAuthenticate(
-  req: Request,
-  _res: Response,
-  next: NextFunction
-): Promise<void> {
+export const tryAuthenticate: RequestHandler<any> = async (req, _res, next): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     next();
@@ -86,4 +78,4 @@ export async function tryAuthenticate(
   req.userRole = user.role;
   req.userSchool = user.schoolName ?? undefined;
   next();
-}
+};

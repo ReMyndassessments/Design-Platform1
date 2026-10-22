@@ -30,7 +30,7 @@ app.use(cors());
 app.use(express.json({
   limit: "20mb",
   verify: (req, _res, buffer) => {
-    if (req.originalUrl === "/api/external/payments/webhook") {
+    if (req.url?.split("?")[0] === "/api/external/payments/webhook") {
       (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
     }
   },

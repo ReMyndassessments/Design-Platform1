@@ -281,7 +281,7 @@ router.get("/cases", authMiddleware, async (req, res) => {
       if (!stats.has(row.caseId)) stats.set(row.caseId, { total: 0, done: 0 });
       const s = stats.get(row.caseId)!;
       s.total++;
-      if (row.status === "completed" || row.status === "scored") s.done++;
+      if (row.status === "completed") s.done++;
     }
     for (const [caseId, s] of stats) {
       if (s.total > 0) productCompletionMap.set(caseId, Math.round((s.done / s.total) * 100));
@@ -926,11 +926,11 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   const referralAnswers: Record<string, unknown> | null = (() => {
     const items = assignments
       .filter(a => REFERRAL_IDS.includes(a.toolId))
-      .map(a => {
+      .flatMap(a => {
         const response = responses.find(r => r.assignmentId === a.id);
-        return response ? { type: a.respondentType ?? "respondent", answers: response.answers } : null;
+        return response ? [{ type: a.respondentType ?? "respondent", answers: response.answers }] : [];
       })
-      .filter((x): x is { type: string; answers: unknown } => x !== null);
+      ;
     if (items.length === 0) return null;
     if (items.length === 1) return items[0].answers as Record<string, unknown>;
     return Object.fromEntries(items.map(item => [`${item.type}_referral`, item.answers]));
@@ -939,11 +939,11 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   const intakeAnswers: Record<string, unknown> | null = (() => {
     const items = assignments
       .filter(a => a.toolId === "INTAKE")
-      .map(a => {
+      .flatMap(a => {
         const response = responses.find(r => r.assignmentId === a.id);
-        return response ? { type: a.respondentType ?? "respondent", answers: response.answers } : null;
+        return response ? [{ type: a.respondentType ?? "respondent", answers: response.answers }] : [];
       })
-      .filter((x): x is { type: string; answers: unknown } => x !== null);
+      ;
     if (items.length === 0) return null;
     if (items.length === 1) return items[0].answers as Record<string, unknown>;
     return Object.fromEntries(items.map(item => [`${item.type}_intake`, item.answers]));

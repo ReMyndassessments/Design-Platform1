@@ -4,7 +4,7 @@ import { seedChineseLiteracy } from "./lib/chineseLiteracyStore.js";
 import { setupWatchAlong } from "./lib/watchAlong.js";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
-import type { ScoringConfig } from "@workspace/db/schema";
+import type { FormItem, ScoringConfig } from "@workspace/db/schema";
 import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM, CONSENT_FORM_V2 } from "./lib/questions.js";
 import { RPPI_FORM_ITEMS, RPPI_SCORING_CONFIG } from "./lib/rppi.js";
 import { RDA_SCORING_CONFIG } from "./lib/rda.js";
@@ -1834,7 +1834,7 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     scoringType: "manual",
     domains: ["rhyming", "blending", "segmentation", "deletion", "substitution", "nonword", "pa_composite"],
     scoringConfig: RPPI_SCORING_CONFIG as unknown as ScoringConfig,
-    formItems: RPPI_FORM_ITEMS,
+    formItems: RPPI_FORM_ITEMS as FormItem[],
   },
   {
     id: "RDA",
@@ -2355,7 +2355,7 @@ async function reviseHIQForm() {
 
     await db
       .update(assessmentToolsTable)
-      .set({ formItems: newItems })
+      .set({ formItems: newItems as FormItem[] })
       .where(eq(assessmentToolsTable.id, "HIQ"));
 
     logger.info("Revised HIQ form options and instructions");
@@ -2451,7 +2451,7 @@ async function reviseDYSRISKTalents() {
     ];
 
     // Replace the 4 old items (q25 section header + q26/q27/q28 behavior questions)
-    const newItems = [
+    const newItems: FormItem[] = [
       ...items.slice(0, talentsStart),
       ...talentItems,
       ...items.slice(talentsStart + 4),
@@ -2482,20 +2482,20 @@ async function reviseLASAForm() {
     if (items[1]?.id === "lasa_child_info" && (items[11] as any)?.options?.[0] === "0 (Never)") return;
 
     const opts0 = (o: string[]) => o;
-    const lk = (id: string, domain: string, en: string, zh: string, ko: string) => ({
+    const lk = (id: string, domain: string, en: string, zh: string, ko: string): FormItem => ({
       id, type: "likert", domain, required: false,
       text: en, textChinese: zh, textKorean: ko,
       options: ["0 (Never)", "1 (Rarely)", "2 (Sometimes)", "3 (Frequently)", "4 (Always)"],
       optionsChinese: ["0 (\u4ece\u4e0d)", "1 (\u5f88\u5c11)", "2 (\u6709\u65f6)", "3 (\u7ecf\u5e38)", "4 (\u603b\u662f)"],
       optionsKorean: ["0 (\uc804\ud600)", "1 (\ub4dc\ubb3c\uac8c)", "2 (\uac00\ub07c)", "3 (\uc790\uc8fc)", "4 (\ud56d\uc0c1)"],
     });
-    const sh = (id: string, domain: string, en: string, zh: string, ko: string, noteEn?: string, noteZh?: string, noteKo?: string) => ({
+    const sh = (id: string, domain: string, en: string, zh: string, ko: string, noteEn?: string, noteZh?: string, noteKo?: string): FormItem => ({
       id, type: "section_header", domain, required: false,
       text: en, textChinese: zh, textKorean: ko,
       ...(noteEn ? { note: noteEn, noteChinese: noteZh, noteKorean: noteKo } : {}),
       options: opts0([]), optionsChinese: opts0([]), optionsKorean: opts0([]),
     });
-    const tf = (id: string, domain: string, en: string, zh: string, ko: string) => ({
+    const tf = (id: string, domain: string, en: string, zh: string, ko: string): FormItem => ({
       id, type: "text", domain, required: false,
       text: en, textChinese: zh, textKorean: ko,
       options: opts0([]), optionsChinese: opts0([]), optionsKorean: opts0([]),
@@ -2505,7 +2505,7 @@ async function reviseLASAForm() {
     const HOW_ZH = "\u8be5\u513f\u7ae5\u591a\u4e45\u51fa\u73b0\u4ee5\u4e0b\u60c5\u51b5\uff1a";
     const HOW_KO = "\uc544\ub3d9\uc774 \ub2e4\uc74c\uc744 \uc5bc\ub9c8\ub098 \uc790\uc8fc \ubcf4\uc785\ub2c8\uae4c:";
 
-    const newItems = [
+    const newItems: FormItem[] = [
       sh("lasa_instr", "admin",
         "Learning Ability Screening Assessment (LASA)",
         "\u5b66\u4e60\u80fd\u529b\u7b5b\u67e5\u8bc4\u4f30 (LASA)",

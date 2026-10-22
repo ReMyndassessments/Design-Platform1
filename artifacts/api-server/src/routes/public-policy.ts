@@ -40,8 +40,8 @@ router.get("/public/privacy-policy", async (req, res) => {
       lang === "ko" ? (policy.content_ko || policy.content_en) :
       policy.content_en;
 
-    res.json({ name: policy.policy_name, lang, content });
-  } catch { res.status(500).json({ error: "Failed to load policy" }); }
+    return res.json({ name: policy.policy_name, lang, content });
+  } catch { return res.status(500).json({ error: "Failed to load policy" }); }
 });
 
 export default router;

@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type Request } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, reportsTable } from "@workspace/db/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -13,9 +13,17 @@ import crypto from "crypto";
 import { z } from "zod/v4";
 import { writeAudit } from "../lib/audit.js";
 
-const router: IRouter = Router();
+const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 const storage = new ObjectStorageService();
+
+function requiredPathParam(req: Request, name: string): string {
+  const value = (req.params as Record<string, unknown>)[name];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Missing required route parameter: ${name}`);
+  }
+  return value;
+}
 
 const textValue = z.string().trim().max(20000);
 const jsonObject = z.record(z.string(), z.unknown());
@@ -336,25 +344,26 @@ const LANGUAGE_FUNCTIONS = [
   "hypothesize","argue","support with evidence",
 ];
 
-async function verifyCaseAccess(caseId: string, userId: string, role: string): Promise<boolean> {
+async function verifyCaseAccess(caseId: string, userId?: string, role?: string): Promise<boolean> {
+  if (!userId || !role) return false;
   return canUserAccessCase({ id: userId, role }, caseId);
 }
 
 // ── GET session ──────────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const rows = await db.execute(sql`SELECT * FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
     if (rows.rows.length === 0) return res.json(null);
-    res.json(rows.rows[0]);
-  } catch (err) { logger.error({ err }, "raepa get session"); res.status(500).json({ error: "Server error" }); }
+    return res.json(rows.rows[0]);
+  } catch (err) { logger.error({ err }, "raepa get session"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST session (create or update) ─────────────────────────────────────────
 router.post("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -401,23 +410,23 @@ router.post("/cases/:caseId/raepa/session", authMiddleware, async (req, res) => 
     await writeAudit({ eventType: "raepa.reports.invalidated", caseId, actorId: user.id, actorRole: user.role,
       metadata: { reason: "raepa.session.updated" } });
     return res.json(row);
-  } catch (err) { logger.error({ err }, "raepa post session"); res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "raepa post session"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET work samples ──────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/work-samples", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     const rows = await db.execute(sql`SELECT * FROM raepa_work_samples WHERE case_id = ${caseId} ORDER BY created_at ASC`);
-    res.json(rows.rows);
-  } catch (err) { logger.error({ err }, "raepa get work samples"); res.status(500).json({ error: "Server error" }); }
+    return res.json(rows.rows);
+  } catch (err) { logger.error({ err }, "raepa get work samples"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST work sample (upload) ─────────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("file"), async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -434,8 +443,8 @@ router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("
     if (req.file) {
       const ext = req.file.originalname.split(".").pop() ?? "bin";
       const key = `raepa/${caseId}/${nanoid()}.${ext}`;
-      await storage.uploadFile(key, req.file.buffer, req.file.mimetype);
-      file_url = await storage.getFileUrl(key);
+      await storage.uploadObjectEntity(key, req.file.buffer, req.file.mimetype);
+      file_url = await storage.getObjectEntitySignedDownloadURL(`/objects/${key}`);
       file_name = req.file.originalname;
       file_type = req.file.mimetype;
     }
@@ -466,13 +475,14 @@ router.post("/cases/:caseId/raepa/work-samples", authMiddleware, upload.single("
       return tx.execute(sql`SELECT * FROM raepa_work_samples WHERE id = ${id}`);
     });
     await writeAudit({ eventType: "raepa.work_sample.created", caseId, actorId: req.userId, actorRole: req.userRole, metadata: { sampleId: id } });
-    res.json(row.rows[0]);
-  } catch (err) { logger.error({ err }, "raepa upload work sample"); res.status(500).json({ error: "Server error" }); }
+    return res.json(row.rows[0]);
+  } catch (err) { logger.error({ err }, "raepa upload work sample"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── PATCH work sample ─────────────────────────────────────────────────────────
 router.patch("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
-  const { caseId, sampleId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
+  const sampleId = requiredPathParam(req, "sampleId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -497,13 +507,14 @@ router.patch("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, asyn
       return tx.execute(sql`SELECT * FROM raepa_work_samples WHERE id = ${sampleId}`);
     });
     await writeAudit({ eventType: "raepa.work_sample.updated", caseId, actorId: req.userId, actorRole: req.userRole, metadata: { sampleId } });
-    res.json(row.rows[0]);
-  } catch (err) { logger.error({ err }, "raepa patch work sample"); res.status(500).json({ error: "Server error" }); }
+    return res.json(row.rows[0]);
+  } catch (err) { logger.error({ err }, "raepa patch work sample"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── DELETE work sample ────────────────────────────────────────────────────────
 router.delete("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, async (req, res) => {
-  const { caseId, sampleId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
+  const sampleId = requiredPathParam(req, "sampleId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -513,13 +524,14 @@ router.delete("/cases/:caseId/raepa/work-samples/:sampleId", authMiddleware, asy
       await invalidateRaepaEvidence(caseId, req.userId, req.userRole, true, tx);
     });
     await writeAudit({ eventType: "raepa.work_sample.deleted", caseId, actorId: req.userId, actorRole: req.userRole, metadata: { sampleId } });
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "raepa delete work sample"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa delete work sample"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST work sample AI analysis ───────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/work-samples/:sampleId/analyze", authMiddleware, async (req, res) => {
-  const { caseId, sampleId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
+  const sampleId = requiredPathParam(req, "sampleId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -568,7 +580,12 @@ Return ONLY valid JSON. Do not include any text outside the JSON object.`;
         const isPdf = sample.file_type === "application/pdf";
 
         if (isImage || isPdf) {
-          const fileResp = await fetch(sample.file_url);
+      const normalizedFilePath = storage.normalizeObjectEntityPath(sample.file_url);
+      if (!normalizedFilePath.startsWith("/objects/")) {
+        throw new Error("Work sample is not stored in private object storage");
+      }
+      const signedFileUrl = await storage.getObjectEntitySignedDownloadURL(normalizedFilePath);
+      const fileResp = await fetch(signedFileUrl);
           const buffer = Buffer.from(await fileResp.arrayBuffer());
           const base64 = buffer.toString("base64");
           const mimeType = sample.file_type;
@@ -644,13 +661,13 @@ Return ONLY valid JSON. Do not include any text outside the JSON object.`;
       }
     })();
 
-    res.json({ ok: true, status: "processing" });
-  } catch (err) { logger.error({ err }, "raepa trigger analysis"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true, status: "processing" });
+  } catch (err) { logger.error({ err }, "raepa trigger analysis"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET domain ratings ────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -658,13 +675,13 @@ router.get("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, re
     if (session.rows.length === 0) return res.json([]);
     const sid = session.rows[0].id as string;
     const rows = await db.execute(sql`SELECT * FROM raepa_domain_ratings WHERE session_id = ${sid}`);
-    res.json(rows.rows);
-  } catch (err) { logger.error({ err }, "raepa get domain ratings"); res.status(500).json({ error: "Server error" }); }
+    return res.json(rows.rows);
+  } catch (err) { logger.error({ err }, "raepa get domain ratings"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST domain ratings (upsert) ──────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -695,13 +712,13 @@ router.post("/cases/:caseId/raepa/domain-ratings", authMiddleware, async (req, r
     if (!updated) { res.status(400).json({ error: "No session found" }); return; }
     await writeAudit({ eventType: "raepa.reports.invalidated", caseId, actorId: user.id, actorRole: user.role,
       metadata: { reason: "raepa.domain_ratings.updated" } });
-    res.json(updated.rows);
-  } catch (err) { logger.error({ err }, "raepa post domain ratings"); res.status(500).json({ error: "Server error" }); }
+    return res.json(updated.rows);
+  } catch (err) { logger.error({ err }, "raepa post domain ratings"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET language functions ────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -709,13 +726,13 @@ router.get("/cases/:caseId/raepa/language-functions", authMiddleware, async (req
     if (session.rows.length === 0) return res.json([]);
     const sid = session.rows[0].id as string;
     const rows = await db.execute(sql`SELECT * FROM raepa_language_functions WHERE session_id = ${sid}`);
-    res.json(rows.rows);
-  } catch (err) { logger.error({ err }, "raepa get language functions"); res.status(500).json({ error: "Server error" }); }
+    return res.json(rows.rows);
+  } catch (err) { logger.error({ err }, "raepa get language functions"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST language functions (upsert) ──────────────────────────────────────────
 router.post("/cases/:caseId/raepa/language-functions", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -746,13 +763,13 @@ router.post("/cases/:caseId/raepa/language-functions", authMiddleware, async (re
     if (!updated) { res.status(400).json({ error: "No session found" }); return; }
     await writeAudit({ eventType: "raepa.reports.invalidated", caseId, actorId: user.id, actorRole: user.role,
       metadata: { reason: "raepa.language_functions.updated" } });
-    res.json(updated.rows);
-  } catch (err) { logger.error({ err }, "raepa post language functions"); res.status(500).json({ error: "Server error" }); }
+    return res.json(updated.rows);
+  } catch (err) { logger.error({ err }, "raepa post language functions"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET module scores ─────────────────────────────────────────────────────────
 router.get("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -760,13 +777,13 @@ router.get("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res
     if (session.rows.length === 0) return res.json([]);
     const sid = session.rows[0].id as string;
     const rows = await db.execute(sql`SELECT * FROM raepa_module_scores WHERE session_id = ${sid}`);
-    res.json(rows.rows);
-  } catch (err) { logger.error({ err }, "raepa get module scores"); res.status(500).json({ error: "Server error" }); }
+    return res.json(rows.rows);
+  } catch (err) { logger.error({ err }, "raepa get module scores"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── POST module score (upsert) ────────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -800,12 +817,12 @@ router.post("/cases/:caseId/raepa/module-scores", authMiddleware, async (req, re
     await writeAudit({ eventType: "raepa.reports.invalidated", caseId, actorId: user.id, actorRole: user.role,
       metadata: { reason: "raepa.module_score.updated" } });
     return res.json(result.rows[0]);
-  } catch (err) { logger.error({ err }, "raepa post module score"); res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "raepa post module score"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── GET / generate teacher upload token ────────────────────────────────────────
 router.get("/cases/:caseId/raepa/teacher-token", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id!, user.role!)) return res.status(403).json({ error: "Forbidden" });
@@ -817,13 +834,13 @@ router.get("/cases/:caseId/raepa/teacher-token", authMiddleware, async (req, res
     await db.execute(sql`INSERT INTO raepa_access_tokens (id, case_id, token_hash, scope, expires_at, created_by)
       VALUES (${nanoid()}, ${caseId}, ${tokenHash(token)}, 'teacher', ${expiresAt}, ${user.id})`);
     await writeAudit({ eventType: "raepa.access_token.minted", caseId, actorId: user.id, actorRole: user.role, metadata: { scope: "teacher", expiresAt, source: "teacher-token" } });
-    res.json({ token, scope: "teacher", expires_at: expiresAt.toISOString() });
-  } catch (err) { logger.error({ err }, "raepa get teacher token"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ token, scope: "teacher", expires_at: expiresAt.toISOString() });
+  } catch (err) { logger.error({ err }, "raepa get teacher token"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── AI: generate elicitation content ──────────────────────────────────────────
 router.post("/cases/:caseId/raepa/generate-elicitation", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   const { domain, promptIndex, promptText } = req.body as { domain: string; promptIndex: number; promptText: string };
   try {
@@ -1056,10 +1073,10 @@ Return ONLY the JSON object.`;
       }
     }
 
-    res.json({ content: textContent, questions, images });
+    return res.json({ content: textContent, questions, images });
   } catch (err) {
     logger.error({ err }, "raepa generate-elicitation");
-    res.status(500).json({ error: "Generation failed" });
+    return res.status(500).json({ error: "Generation failed" });
   }
 });
 
@@ -1149,7 +1166,13 @@ async function buildCanonicalEvidenceBundle(caseId: string, executor: any = db):
   const byType = (type: string) => sourceRefs.filter(ref => ref.type === type).map(ref => ref.id);
   const findings: ReportFinding[] = [];
   const addFinding = (id: string, conclusion: string, refs: string[]) => {
-    if (refs.length) findings.push({ id, conclusion, evidence_refs: refs });
+    if (refs.length) findings.push({
+      id,
+      section_key: id,
+      narrative_text: conclusion,
+      conclusion,
+      evidence_refs: refs,
+    });
   };
   addFinding("profile-context", "The report is grounded in reviewed profile and language/subject context.", [
     ...byType("profile"), ...byType("language-history"), ...byType("subject-history"),
@@ -1271,7 +1294,7 @@ function resolveReportNarrative(value: any, pathway: ReportPathway): string {
 
 // ── AI: generate RAEPA narrative report ──────────────────────────────────────
 router.post("/cases/:caseId/raepa/generate-report", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -1481,16 +1504,16 @@ Generate the full comprehensive RAEPA report now. Be specific, evidence-based, a
       await writeAudit({ eventType: "raepa.report.regenerated", caseId, actorId: req.userId, actorRole: req.userRole,
         metadata: { reportId, priorStatus: (existingReport.rows[0] as any).status, priorVersion: (existingReport.rows[0] as any).version, pathway: reportPathway } });
     }
-    res.json({ report, report_id: reportId });
+    return res.json({ report, report_id: reportId });
   } catch (err) {
     logger.error({ err }, "raepa generate-report");
-    res.status(500).json({ error: "Report generation failed" });
+    return res.status(500).json({ error: "Report generation failed" });
   }
 });
 
 // ── AI: translate RAEPA report ────────────────────────────────────────────────
 router.post("/cases/:caseId/raepa/translate-report", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+  const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   const { text, targetLang } = req.body as { text: string; targetLang: "zh" | "ko" };
   try {
@@ -1504,16 +1527,16 @@ router.post("/cases/:caseId/raepa/translate-report", authMiddleware, async (req,
       },
       { role: "user", content: text },
     ], 4000);
-    res.json({ translatedText: report });
+    return res.json({ translatedText: report });
   } catch (err) {
     logger.error({ err }, "raepa translate-report");
-    res.status(500).json({ error: "Translation failed" });
+    return res.status(500).json({ error: "Translation failed" });
   }
 });
 
 // ── Public: validate teacher token ─────────────────────────────────────────────
 router.get("/public/raepa/teacher/:token", async (req, res) => {
-  const { token } = req.params;
+  const token = requiredPathParam(req, "token");
   try {
     const scoped = await getScopedToken(token);
     if (!scoped || scoped.scope !== "teacher") return res.status(404).json({ error: "Invalid or expired link" });
@@ -1523,16 +1546,16 @@ router.get("/public/raepa/teacher/:token", async (req, res) => {
       WHERE c.id = ${scoped.case_id} ORDER BY ws.created_at DESC LIMIT 1
     `);
     const profile = context.rows[0] as any;
-    res.json({
+    return res.json({
       ok: true, scope: scoped.scope, expires_at: scoped.expires_at,
       profile: { gradeLevel: profile?.grade_level ?? null, subject: profile?.subject ?? null },
     });
-  } catch (err) { logger.error({ err }, "raepa public teacher validate"); res.status(500).json({ error: "Server error" }); }
+  } catch (err) { logger.error({ err }, "raepa public teacher validate"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Public: teacher uploads a work sample ──────────────────────────────────────
 router.post("/public/raepa/teacher/:token/upload", upload.single("file"), async (req, res) => {
-  const { token } = req.params;
+  const token = requiredPathParam(req, "token");
   try {
     const scoped = await getScopedToken(token);
     if (!scoped || scoped.scope !== "teacher") return res.status(404).json({ error: "Invalid or expired link" });
@@ -1560,8 +1583,8 @@ router.post("/public/raepa/teacher/:token/upload", upload.single("file"), async 
     if (req.file) {
       const ext = req.file.originalname.split(".").pop() ?? "bin";
       const key = `raepa/${caseId}/teacher-${nanoid()}.${ext}`;
-      await storage.upload(key, req.file.buffer, req.file.mimetype);
-      fileUrl = await storage.getSignedUrl(key);
+      await storage.uploadObjectEntity(key, req.file.buffer, req.file.mimetype);
+      fileUrl = await storage.getObjectEntitySignedDownloadURL(`/objects/${key}`);
       fileName = req.file.originalname;
       fileType = req.file.mimetype;
     }
@@ -1618,13 +1641,13 @@ router.post("/public/raepa/teacher/:token/upload", upload.single("file"), async 
     if (result.created) {
       await writeAudit({ eventType: "raepa.public.teacher_work_sample.created", caseId, metadata: { workSampleId: id } });
     }
-    res.json({ ok: true, id: result.row?.id ?? id, duplicate: !result.created });
-  } catch (err) { logger.error({ err }, "raepa public teacher upload"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true, id: result.row?.id ?? id, duplicate: !result.created });
+  } catch (err) { logger.error({ err }, "raepa public teacher upload"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Examiner: push stimulus to student view ────────────────────────────────
 router.post("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, res) => {
-  const { caseId } = req.params;
+    const caseId = requiredPathParam(req, "caseId");
   const user = { id: req.userId, role: req.userRole };
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
@@ -1632,8 +1655,8 @@ router.post("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, re
     // For reading stimuli start at -1 (passage phase); examiner advances via PUT question-index
     const questionIndex = questions && questions.length > 0 ? -1 : undefined;
     await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = ${JSON.stringify({ text, images, questions, questionIndex })}::jsonb WHERE case_id = ${caseId}`);
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "raepa push-stimulus"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa push-stimulus"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Examiner: advance to a specific question index (−1 = passage) ──────────
@@ -1648,8 +1671,8 @@ router.put("/cases/:caseId/raepa/question-index", authMiddleware, async (req, re
       SET current_stimulus = jsonb_set(current_stimulus, '{questionIndex}', ${questionIndex}::text::jsonb)
       WHERE case_id = ${caseId}
     `);
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "raepa question-index"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa question-index"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Examiner: clear student stimulus ───────────────────────────────────────
@@ -1659,8 +1682,8 @@ router.delete("/cases/:caseId/raepa/push-stimulus", authMiddleware, async (req, 
   try {
     if (!await verifyCaseAccess(caseId, user.id, user.role)) return res.status(403).json({ error: "Forbidden" });
     await db.execute(sql`UPDATE raepa_sessions SET current_stimulus = NULL WHERE case_id = ${caseId}`);
-    res.json({ ok: true });
-  } catch (err) { logger.error({ err }, "raepa clear-stimulus"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ ok: true });
+  } catch (err) { logger.error({ err }, "raepa clear-stimulus"); return res.status(500).json({ error: "Server error" }); }
 });
 
 // ── Public: student view polls current stimulus ────────────────────────────
@@ -1679,8 +1702,8 @@ router.get("/public/raepa/student/:caseId", async (req, res) => {
     const row = await db.execute(sql`SELECT current_stimulus FROM raepa_sessions WHERE case_id = ${caseId} LIMIT 1`);
     if (row.rows.length === 0) return res.status(404).json({ error: "Session not found" });
     const stimulus = (row.rows[0] as any).current_stimulus ?? null;
-    res.json({ stimulus });
-  } catch (err) { logger.error({ err }, "raepa student poll"); res.status(500).json({ error: "Server error" }); }
+    return res.json({ stimulus });
+  } catch (err) { logger.error({ err }, "raepa student poll"); return res.status(500).json({ error: "Server error" }); }
 });
 
 router.get("/public/raepa/student/:caseId/responses", async (req, res): Promise<void> => {
@@ -1852,7 +1875,7 @@ router.post("/cases/:caseId/raepa/language-history", authMiddleware, async (req,
     res.status(400).json({ error: "Invalid academic history; no existing history was changed", details: parsed.error.flatten() }); return;
   }
   const payload = parsed.data;
-  const created: unknown[] = await db.transaction(async (tx) => {
+  const created: { languages: unknown[]; subjects: unknown[] } = await db.transaction(async (tx) => {
     const profileId = await ensureProfile(caseId, req.userId, tx);
     await tx.execute(sql`DELETE FROM raepa_language_academic_history WHERE case_id = ${caseId}`);
     await tx.execute(sql`DELETE FROM raepa_subject_language_history WHERE case_id = ${caseId}`);
@@ -2169,7 +2192,7 @@ router.post("/cases/:caseId/raepa/assessment-plan", authMiddleware, async (req, 
   if (approved) {
     const pending = await db.execute(sql`SELECT count(*)::int AS total,
       count(*) FILTER (WHERE status NOT IN ('approved','modified'))::int AS pending
-      FROM raepa_hypotheses WHERE case_id = ${caseId} AND id IN (${sql.join(hypothesisIds.map((id) => sql`${id}`), sql`, `)})`);
+      FROM raepa_hypotheses WHERE case_id = ${caseId} AND id IN (${sql.join(hypothesisIds.map((id: string) => sql`${id}`), sql`, `)})`);
     if (Number((pending.rows[0] as any)?.total ?? 0) !== hypothesisIds.length || Number((pending.rows[0] as any)?.pending ?? 0) > 0) {
       res.status(409).json({ error: "All plan hypotheses must exist and be approved or modified before plan approval" }); return;
     }
@@ -2420,17 +2443,19 @@ async function recomputeCanonicalQa(caseId: string, reportId: string, actorId?: 
   const deterministicCrossLinguistic = claimIsUnqualified(/\b(?:first|home|native|heritage|cross[- ]linguistic)\s+language\b[\s\S]{0,100}\b(?:caus(?:e|es|ed)|determin(?:e|es|ed)|predicts?|because of|due to)\b|\b(?:caus(?:e|es|ed)|determin(?:e|es|ed)|predicts?|because of|due to)\b[\s\S]{0,100}\b(?:first|home|native|heritage|cross[- ]linguistic)\s+language\b/gi);
   const englishEquatedAbility = claimIsUnqualified(/\b(?:limited|poor|low|developing)\s+(?:english|english proficiency|eal)\b[\s\S]{0,100}\b(?:low|limited|poor|high|intellectual|academic|cognitive)\s+ability\b|\b(?:english proficiency|eal status|limited english)\b[\s\S]{0,100}\b(?:proves?|means?|indicates?|equals?|demonstrates?)\b[\s\S]{0,50}\b(?:ability|intelligence|capacity)\b/gi);
   const knownRefs = new Set<string>();
-  for (const ref of evidenceBundle.source_refs) {
+  for (const ref of evidenceBundle.source_refs as Array<{ id: string }>) {
     knownRefs.add(ref.id);
     knownRefs.add(ref.id.slice(ref.id.indexOf(":") + 1));
   }
-  const sourceRefs = Array.isArray(report.source_evidence_refs) ? report.source_evidence_refs : [];
-  const normalizedSourceRefs = sourceRefs.map(referenceId);
+  const sourceRefs: unknown[] = Array.isArray(report.source_evidence_refs) ? report.source_evidence_refs : [];
+  const normalizedSourceRefs = sourceRefs
+    .map(referenceId)
+    .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
   const findings = reportFindings(report.report_findings);
   const editedReportText = selectedEditedText;
   const mappingValidation = validateNarrativeFindings(editedReportText, findings, evidenceBundle);
   const allFindingRefsValid = mappingValidation.valid;
-  const allSourceRefsValid = normalizedSourceRefs.length > 0 && normalizedSourceRefs.every(ref => knownRefs.has(ref));
+  const allSourceRefsValid = normalizedSourceRefs.length > 0 && normalizedSourceRefs.every((ref: string) => knownRefs.has(ref));
   const linkedEvidenceRefs: string[] = [];
   const collectRefs = (rows: any[], field = "evidence_refs") => {
     for (const row of rows) {
@@ -2444,9 +2469,12 @@ async function recomputeCanonicalQa(caseId: string, reportId: string, actorId?: 
   collectRefs(evidenceBundle.concept_language);
   collectRefs(evidenceBundle.recommendations);
   for (const plan of evidenceBundle.plans) {
-    const planData = parseJsonValue(plan?.reviewer_notes);
-    for (const recommendation of Array.isArray(planData?.recommendations) ? planData.recommendations : []) {
-      if (Array.isArray(recommendation?.evidence_ids)) linkedEvidenceRefs.push(...recommendation.evidence_ids.map(referenceId).filter(Boolean));
+    const planData = asJsonObject(plan?.reviewer_notes);
+    const recommendations = Array.isArray(planData.recommendations) ? planData.recommendations : [];
+    for (const recommendation of recommendations) {
+      if (!recommendation || typeof recommendation !== "object" || Array.isArray(recommendation)) continue;
+      const evidenceIds = (recommendation as Record<string, unknown>).evidence_ids;
+      if (Array.isArray(evidenceIds)) linkedEvidenceRefs.push(...evidenceIds.map(referenceId).filter(Boolean));
     }
   }
   const linkedEvidenceRefsValid = linkedEvidenceRefs.every(ref => knownRefs.has(ref));
@@ -3014,12 +3042,19 @@ router.post("/cases/:caseId/raepa/v2/hypotheses/:hypothesisId/review", authMiddl
 });
 
 function v2PlanShape(row: any): any {
-  const data = parseJsonValue(row?.reviewer_notes);
+  const data = asJsonObject(row?.reviewer_notes);
   return {
     id: row?.id, goals: data.goals ?? "", supports: data.supports ?? "",
     success_indicators: data.success_indicators ?? "", recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
     status: row?.status ?? "draft", version: row?.version,
   };
+}
+
+function asJsonObject(value: unknown): Record<string, unknown> {
+  const parsed = parseJsonValue(value);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : {};
 }
 
 router.get("/cases/:caseId/raepa/v2/plan", authMiddleware, async (req, res): Promise<void> => {

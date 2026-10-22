@@ -224,10 +224,10 @@ router.patch("/compliance/policies/:id", async (req, res) => {
     sets.push(sql`updated_at = NOW()`);
     const setClauses = sql.join(sets, sql`, `);
     await db.execute(sql`UPDATE compliance_policy_register SET ${setClauses} WHERE id = ${req.params.id}`);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("policy PATCH error:", err);
-    res.status(500).json({ error: "Failed to update policy" });
+    return res.status(500).json({ error: "Failed to update policy" });
   }
 });
 

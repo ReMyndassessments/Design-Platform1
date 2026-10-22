@@ -5,7 +5,8 @@ export type VisualType =
   | "fraction_circle" | "balance_scale" | "pattern_builder" | "clock"
   | "money_coins" | "shape_rotation" | "visual_word_problem"
   | "matching_task" | "sorting_task" | "tally_marks" | "place_value_chart"
-  | "area_model" | "number_bond" | "bar_model" | "coordinate_grid";
+  | "area_model" | "number_bond" | "bar_model" | "coordinate_grid"
+  | "building_comparison" | "building_groups" | "linear_program";
 
 export type RmraItem = {
   id: string;

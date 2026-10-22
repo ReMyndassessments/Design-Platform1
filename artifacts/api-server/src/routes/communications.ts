@@ -529,8 +529,8 @@ router.post("/communications/campaigns/:id/send-test", async (req, res): Promise
   await db.execute(sql`INSERT INTO communication_recipients(id,campaign_id,email,name,source_type,source_id,status) VALUES(${recipientId},${req.params.id},${email},${typeof req.body?.name === "string" ? req.body.name : null},'test','manual-test','pending') ON CONFLICT (campaign_id,email) DO UPDATE SET status='pending',error=NULL`);
   try {
     const settings = await getBrandSettings();
-    const sent = await sendGmailTest({ email, subject: c.subject, html: renderBrandedEmail(renderEmail(c.html, req.body?.name), settings), mailer: getCommunicationsMailer("gmail") });
-    await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=attempts+1,provider_message_id=${sent.id ?? null},sent_at=NOW() WHERE campaign_id=${req.params.id} AND email=${email}`);
+    await sendGmailTest({ email, subject: c.subject, html: renderBrandedEmail(renderEmail(c.html, req.body?.name), settings), mailer: getCommunicationsMailer("gmail") });
+    await db.execute(sql`UPDATE communication_recipients SET status='sent',attempts=attempts+1,sent_at=NOW() WHERE campaign_id=${req.params.id} AND email=${email}`);
     await db.execute(sql`UPDATE communication_campaigns SET is_test=true,status='sent',sent_at=NOW(),updated_at=NOW() WHERE id=${req.params.id}`);
     res.json({ ok: true, provider: "gmail" });
   } catch (err) {

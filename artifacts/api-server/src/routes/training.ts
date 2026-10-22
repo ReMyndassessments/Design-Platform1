@@ -652,9 +652,9 @@ router.get("/training/workshops/:id/admin-image", authMiddleware, requireAdmin, 
     const upstream = await service.downloadObject(file);
     res.setHeader("Content-Type", upstream.headers.get("content-type") ?? "image/jpeg");
     res.setHeader("Cache-Control", "private, max-age=300");
-    res.end(Buffer.from(await upstream.arrayBuffer()));
+    return res.end(Buffer.from(await upstream.arrayBuffer()));
   } catch {
-    res.status(404).end();
+    return res.status(404).end();
   }
 });
 
@@ -671,8 +671,8 @@ router.get("/training/workshops/public/:slug/image", async (req, res) => {
     res.setHeader('Content-Type', ct);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     const buf = Buffer.from(await upstream.arrayBuffer());
-    res.end(buf);
-  } catch { res.status(404).end(); }
+    return res.end(buf);
+  } catch { return res.status(404).end(); }
 });
 
 // ── PUBLIC: Workshop page data ────────────────────────────────────────────────
@@ -805,7 +805,7 @@ router.get("/training/workshops/public/:slug/manual-sales/payment-qr/:method", a
     res.setHeader("Content-Type", response.headers.get("content-type") ?? "image/png");
     res.setHeader("Cache-Control", "public, max-age=3600");
     if (!response.body) return res.end();
-    Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+    return Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
   } catch {
     return res.status(404).json({ error: "QR code not available" });
   }
@@ -865,7 +865,7 @@ router.post("/training/workshops/public/:slug/manual-sales/request-verification"
     const parentGradeBand = typeof child_grade_band === "string" ? child_grade_band : child_age_grade;
     const parentSupportNeeds = typeof support_needs === "string"
       ? support_needs
-      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim()).join("\n\n");
+      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join("\n\n");
     if (isParentWorkshop) {
       if (!parentWechatName?.trim() || terms_consent !== true) {
         return res.status(400).json({ error: "WeChat name and workshop terms consent are required" });
@@ -1036,7 +1036,7 @@ router.post("/training/workshops/public/:slug/register", async (req, res) => {
     const parentGradeBand = typeof child_grade_band === "string" ? child_grade_band : child_age_grade;
     const parentSupportNeeds = typeof support_needs === "string"
       ? support_needs
-      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim()).join("\n\n");
+      : [help_question, accessibility_support].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join("\n\n");
     if (isParentWorkshop) {
       if (!parentWechatName?.trim() || !preferred_language?.trim() || terms_consent !== true) {
         return res.status(400).json({ error: "WeChat name, preferred language, and workshop terms consent are required" });
@@ -1336,7 +1336,7 @@ router.get("/training/workshops/manual-sales-inquiries/:id/receipt", authMiddlew
     res.setHeader("Content-Type", response.headers.get("content-type") ?? "application/octet-stream");
     res.setHeader("Content-Disposition", `inline; filename="workshop-payment-receipt"`);
     if (!response.body) return res.end();
-    Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+    return Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
   } catch {
     return res.status(404).json({ error: "Receipt not found" });
   }

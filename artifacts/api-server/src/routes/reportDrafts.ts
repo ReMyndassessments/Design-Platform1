@@ -112,7 +112,8 @@ router.get("/cases/:id/report-drafts/:draftId/download", authMiddleware, async (
   }
 
   try {
-    const response = await storage.downloadObject({ fileKey: draft.fileKey });
+    const file = await storage.getObjectEntityFile(draft.fileKey);
+    const response = await storage.downloadObject(file);
     res.status(response.status);
     res.setHeader("Content-Disposition", `attachment; filename="${draft.filename}"`);
     const ct = response.headers.get("content-type");

@@ -31,7 +31,7 @@ export async function transcribeAudio(
     await writeFile(tmpPath, audioBuffer);
 
     const formData = new FormData();
-    const blob = new Blob([audioBuffer], { type: mimeType });
+    const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
     formData.append("file", blob, `recording.${ext}`);
     formData.append("model", "whisper-large-v3");
     formData.append("response_format", "text");
