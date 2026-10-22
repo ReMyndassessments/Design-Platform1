@@ -1420,7 +1420,7 @@ const LIBRARY_SECTIONS: { label: string; ids: string[] }[] = [
   { label: "Learning & Academic", ids: ["LASA", "DYSRISK", "RARPS", "SSITER", "RCS-80"] },
   { label: "Sensory & Functional", ids: ["SPP", "RFII", "HIQ"] },
   { label: "CDP — Developmental Profiles", ids: ["CDP-CL", "CDP-SR", "CDP-SI", "CDP-CI"] },
-  { label: "ReMynd Core Systems", ids: ["RCEP-CORE", "RSSC"] },
+  { label: "ReMynd Core Systems", ids: ["RCEP-CORE", "RSSC", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW"] },
   { label: "OCD & Clinical Symptom Tools", ids: ["CHOCHI-RS", "Y-BOCS-SC"] },
   { label: "SDQ Battery", ids: ["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18"] },
   { label: "General Mental Health Screeners", ids: ["GHQ-12"] },

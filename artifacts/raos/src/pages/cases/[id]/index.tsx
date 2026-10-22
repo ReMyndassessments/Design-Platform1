@@ -139,6 +139,11 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
   invigilator:       "Invigilator / Assessment Administration Team",
 };
 
+const SYC_CORE_EVIDENCE_TOOLS = [
+  { toolId: "REMYND-CLASSROOM-OBS", label: "Structured Classroom Learning Observation" },
+  { toolId: "REMYND-WORK-REVIEW", label: "Student Work Sample & Intervention History Review" },
+] as const;
+
 function canAdvancePhase(role: string): boolean {
   return role === "admin" || role === "school_clinical_coordinator";
 }
@@ -1138,15 +1143,15 @@ export default function CaseDetail() {
     }
     const hasExistingReview = Boolean(currentAnalysis.summary || (isSycCase && currentAnalysis.sycInitialReview));
     const confirmation = isSycCase
-      ? "Generate the non-diagnostic Strengthen Your Core review and tool suggestions using the school application, completed School/Teacher Referral and Parent Intake forms, interviews, and saved follow-up responses?\n\nThis replaces the previous AI draft. It does not approve or assign an assessment; administrator review is still required."
-      : `Regenerate the intake analysis using the saved case details (Grade ${c?.grade || "not specified"}, age ${ageFromDob(c?.dob) ?? "unknown"} from the saved birth date), forms, interviews and the latest submitted parent/teacher question responses?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`;
+      ? "Generate the non-diagnostic Strengthen Your Core review and tool suggestions using the school application, completed School/Teacher Referral and Parent Intake forms, interviews, saved follow-up, and any submitted classroom observation or work-sample review forms?\n\nThis replaces the previous AI draft. It does not approve or assign an assessment; administrator review is still required."
+      : `Regenerate the intake analysis using the saved case details (Grade ${c?.grade || "not specified"}, age ${ageFromDob(c?.dob) ?? "unknown"} from the saved birth date), forms, interviews, the latest submitted parent/teacher question responses, and any submitted classroom observation or work-sample review forms?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`;
     if (hasExistingReview && !window.confirm(confirmation)) return;
     analyzeIntakeMut.mutate({ caseId }, {
       onSuccess: () => {
         toast({
           title: isSycCase ? "Educational review updated" : "Intake Analysis Complete",
           description: isSycCase
-            ? "The completed school referral and parent intake were included. Administrator review is still required."
+            ? "Completed intake forms and any submitted classroom/work-sample evidence were included. Administrator review is still required."
             : "Saved parent and teacher question responses were included in the regenerated analysis.",
         });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
@@ -2335,6 +2340,45 @@ export default function CaseDetail() {
                       <p className="mt-2 text-sm text-slate-800">
                         <strong>RAOS core form:</strong> {coreInstrumentName}
                       </p>
+                      <div className="mt-3 rounded-lg border border-emerald-200 bg-white p-3">
+                        <h5 className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Core evidence forms in this RAOS case</h5>
+                        <p className="mt-1 text-xs text-slate-600">
+                          Assign these through the normal RAOS form workflow. Submitted answers are included when this educational review is regenerated. Both tools are also available in the Tool Library for other RAOS cases.
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {SYC_CORE_EVIDENCE_TOOLS.map(evidenceTool => {
+                            const relatedAssignments = allAssignments2.filter(a => a.toolId === evidenceTool.toolId);
+                            const completedCount = relatedAssignments.filter(a => a.status === "completed").length;
+                            const assignedCount = relatedAssignments.length;
+                            return (
+                              <div key={evidenceTool.toolId} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 px-3 py-2">
+                                <div>
+                                  <p className="text-sm font-medium text-slate-800">{evidenceTool.label}</p>
+                                  <p className="text-xs text-slate-500">
+                                    {completedCount > 0
+                                      ? `${completedCount} submitted${assignedCount > completedCount ? ` · ${assignedCount - completedCount} awaiting response` : ""}`
+                                      : assignedCount > 0 ? `${assignedCount} teacher form${assignedCount === 1 ? "" : "s"} awaiting response` : "Not assigned"}
+                                  </p>
+                                </div>
+                                {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && sycConsentVerified && assignedCount === 0 && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs"
+                                    disabled={assigningToolId === evidenceTool.toolId}
+                                    onClick={() => void handleAssignTool({
+                                      toolId: evidenceTool.toolId,
+                                      name: tools?.find(tool => tool.id === evidenceTool.toolId)?.name ?? evidenceTool.label,
+                                    })}
+                                  >
+                                    {assigningToolId === evidenceTool.toolId ? "Creating…" : "Assign teacher form"}
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                       {recommendedExtension ? (
                         <p className="mt-1 text-sm text-slate-800">
                           <strong>Optional extension suggested by the review:</strong> {recommendedExtensionName}
@@ -2564,7 +2608,7 @@ export default function CaseDetail() {
                             ? sycConsentVerified
                               ? intakeFormsComplete
                                 ? initialReview
-                                  ? "This non-diagnostic review combines the original school application with completed School/Teacher Referral and Parent Intake responses, plus saved interviews and follow-up. Regeneration replaces the prior draft and requires human review."
+                                  ? "This non-diagnostic review combines the original school application with completed School/Teacher Referral and Parent Intake responses, saved interviews and follow-up, and any submitted classroom or work-sample evidence forms. Regeneration replaces the prior draft and requires human review."
                                   : "Both intake forms are complete. Generate the non-diagnostic review and assessment suggestions from the school application, both responses, and saved RAOS follow-up."
                                 : "After verifying parent/guardian consent, use the Pre-Assessment Intake section above to send the School/Teacher Referral and Parent Intake forms. Generate or regenerate the review after both are submitted."
                               : "Verify parent/guardian consent through the standard RAOS workflow first. Then complete the School/Teacher Referral and Parent Intake forms before generating assessment suggestions."

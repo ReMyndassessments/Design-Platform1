@@ -22,6 +22,54 @@ export interface FormQuestion {
   links?: Array<{ text: string; url: string }>;
 }
 
+/** Descriptive classroom evidence form; not a standardized or scored measure. */
+export const REMYND_CLASSROOM_OBSERVATION_FORM: FormQuestion[] = [
+  {
+    id: "classroom_observation_instructions",
+    text: "Structured Classroom Learning Observation",
+    type: "section_header",
+    note: "Observe one typical learning routine. Record what the student does and the supports provided; do not infer a diagnosis or cause. Do not add direct identifiers to written responses.",
+    domain: "observation_context",
+  },
+  { id: "observation_date", text: "Date of observation", type: "date", domain: "observation_context", required: true },
+  {
+    id: "learning_routine",
+    text: "Which learning routine was observed?",
+    type: "select",
+    options: ["Whole-class instruction", "Small-group instruction", "Independent work", "Transition between activities", "Other"],
+    domain: "observation_context",
+    required: true,
+  },
+  { id: "task_and_expectation", text: "What was the learning task, and what was the student expected to do?", type: "textarea", domain: "task_context", required: true },
+  { id: "observed_strengths", text: "What strengths, interests, or successful strategies did you observe? Give a specific example.", type: "textarea", domain: "observed_strengths", required: true },
+  { id: "task_start_and_engagement", text: "How did the student begin and stay engaged with the task? Describe observable actions, including any delay or prompting.", type: "textarea", domain: "task_engagement", required: true },
+  { id: "response_to_challenge", text: "When the task became difficult, what did the student do (for example, persist, try another strategy, seek help, pause, or stop)?", type: "textarea", domain: "response_to_challenge", required: true },
+  { id: "scaffolding_and_response", text: "What scaffolding or adult support was provided, and how did the student respond to each support?", type: "textarea", domain: "scaffolding", required: true },
+  { id: "work_independence", text: "Which parts did the student complete independently, and which required prompts or assistance?", type: "textarea", domain: "independence", required: true },
+  { id: "access_and_context", text: "Were language, instructions, task difficulty, materials, time, or classroom conditions relevant? Describe only what you observed.", type: "textarea", domain: "learning_context" },
+  { id: "observation_follow_up", text: "What would be useful to observe or try next?", type: "textarea", domain: "follow_up" },
+];
+
+/** Structured review of work and prior supports; descriptive, with no normed score. */
+export const REMYND_WORK_SAMPLE_REVIEW_FORM: FormQuestion[] = [
+  {
+    id: "work_review_instructions",
+    text: "Student Work Sample & Intervention History Review",
+    type: "section_header",
+    note: "Review one or more recent examples of the student's work and available support/intervention records. Describe the evidence; do not diagnose, infer cause, or add direct identifiers.",
+    domain: "review_context",
+  },
+  { id: "work_review_date", text: "Date of review", type: "date", domain: "review_context", required: true },
+  { id: "sample_context", text: "What work was reviewed? Include subject or learning area, task, approximate date, and how many examples were considered.", type: "textarea", domain: "work_context", required: true },
+  { id: "task_expectation", text: "What was the student expected to demonstrate in this task?", type: "textarea", domain: "task_expectation", required: true },
+  { id: "work_evidence", text: "What does the work show? Describe specific strengths and needs (for example, accuracy, completeness, organization, strategy use, or written expression).", type: "textarea", domain: "work_evidence", required: true },
+  { id: "prior_supports", text: "What supports or interventions have been tried? Include the goal, frequency, and duration when known.", type: "textarea", domain: "prior_supports", required: true },
+  { id: "response_to_support", text: "What changed while each support was in place? Include evidence of improvement, no change, or difficulty sustaining the support.", type: "textarea", domain: "response_to_support", required: true },
+  { id: "current_independence", text: "What can the student currently do independently, and what still requires prompts, scaffolding, or adult help?", type: "textarea", domain: "independence" },
+  { id: "work_access_context", text: "Were language of instruction, task demands, attendance, materials, or opportunity to learn relevant to interpreting this work? Describe known context without assuming a cause.", type: "textarea", domain: "learning_context" },
+  { id: "evidence_still_needed", text: "What additional work sample, response data, or context would help clarify the student's needs?", type: "textarea", domain: "evidence_gaps" },
+];
+
 const LIKERT_OPTIONS = ["Never", "Rarely", "Sometimes", "Often", "Very Often"];
 const LIKERT_OPTIONS_ZH = ["从不", "很少", "有时", "经常", "非常频繁"];
 const LIKERT_OPTIONS_KO = ["전혀 없음", "거의 없음", "때때로", "자주", "매우 자주"];

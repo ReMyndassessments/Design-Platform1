@@ -5,7 +5,7 @@ import { setupWatchAlong } from "./lib/watchAlong.js";
 import { db } from "@workspace/db";
 import { usersTable, assessmentToolsTable, batteriesTable, casesTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import type { FormItem, ScoringConfig } from "@workspace/db/schema";
-import { RCEP_CORE_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM, CONSENT_FORM_V2 } from "./lib/questions.js";
+import { RCEP_CORE_FORM, REMYND_CLASSROOM_OBSERVATION_FORM, REMYND_WORK_SAMPLE_REVIEW_FORM, BYI2_FORM, RCADS_FORM, SCAS_FORM, SCAS_P_FORM, RSCA_FORM, REFI_FORM, RERMS_FORM, BSPP_FORM, EFA_FORM, SPP_FORM, RSSC_FORM, RSCP_FORM, RARPS_FORM, RFII_FORM, REFERRAL_CORP_FORM, REFERRAL_UNI_FORM, REFERRAL_PARENT_FORM, REFERRAL_BOARDING_FORM, VADPRS_FORM, VADTRS_FORM, ABC_FORM, YBOCS_SC_FORM, BFI_44_FORM, ASRS_ADHD_FORM, TLPI_FORM, CONSENT_FORM, CONSENT_FORM_V2 } from "./lib/questions.js";
 import { RPPI_FORM_ITEMS, RPPI_SCORING_CONFIG } from "./lib/rppi.js";
 import { RDA_SCORING_CONFIG } from "./lib/rda.js";
 import { RRFA_SCORING_CONFIG } from "./lib/rrfa.js";
@@ -348,6 +348,30 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     domains: ["attention_regulation", "executive_functioning", "emotional_regulation", "social_communication", "academic_persistence", "functional_impact", "protective_factors"],
     scoringConfig: RCEP_CORE_SCORING_CONFIG,
     formItems: RCEP_CORE_FORM,
+  },
+  {
+    id: "REMYND-CLASSROOM-OBS",
+    name: "ReMynd Structured Classroom Learning Observation",
+    category: "ReMynd Core",
+    description: "A non-standardized, descriptive observation form for recording task context, observable learning behavior, response to challenge, scaffolding, and independence. No scoring or diagnosis. Available as an optional evidence tool in any RAOS case; required as a core evidence component in Strengthen Your Core.",
+    isRemyndOwned: true,
+    respondentTypes: ["referring_teacher"],
+    scoringType: "manual",
+    domains: ["classroom_context", "task_engagement", "response_to_challenge", "scaffolding", "independence"],
+    formItems: REMYND_CLASSROOM_OBSERVATION_FORM,
+    scoringConfig: null,
+  },
+  {
+    id: "REMYND-WORK-REVIEW",
+    name: "ReMynd Student Work Sample & Intervention History Review",
+    category: "ReMynd Core",
+    description: "A non-standardized, descriptive school form for reviewing student work, learning expectations, prior supports, and response to intervention. No scoring or diagnosis. Available as an optional evidence tool in any RAOS case; required as a core evidence component in Strengthen Your Core.",
+    isRemyndOwned: true,
+    respondentTypes: ["referring_teacher"],
+    scoringType: "manual",
+    domains: ["work_evidence", "prior_supports", "response_to_support", "independence", "evidence_gaps"],
+    formItems: REMYND_WORK_SAMPLE_REVIEW_FORM,
+    scoringConfig: null,
   },
   {
     id: "BYI2",
@@ -2004,7 +2028,7 @@ const PRODUCT_TOOL_MAP: Record<string, string[]> = {
   "sen-learning-support": ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
   "boarding-wellbeing":   ["BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "SDQ-SR18", "GAD-7"],
   "raepa":                ["RAEPA"],
-  "STRENGTHEN_CORE":      ["RCEP-CORE"],
+  "STRENGTHEN_CORE":      ["RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW"],
   "why-struggling":    ["RCS-80", "RASR", "RSCP", "RARPS", "RFII", "INTAKE", "RCADS", "BYI2"],
   "ef-coaching":       ["REFI", "RASR", "BRIEF2-SR"],
   "emotional-wellbeing": ["RERMS", "DASS-21", "GAD-7", "PHQ-9"],

@@ -74,6 +74,8 @@ export function buildIntakeAnalysisPrompt(intake: {
   parentInterviewNotes?: string | null;
   followUpAnswers?: Record<string, unknown> | null;
   groupResponses?: Record<string, string> | null;
+  classroomObservationAnswers?: Array<{ respondentType: string; answers: Record<string, unknown> }> | null;
+  workSampleReviewAnswers?: Array<{ respondentType: string; answers: Record<string, unknown> }> | null;
   submittedQuestionRequests?: Array<{
     audience: string;
     questions: string[];
@@ -140,6 +142,12 @@ ${intake.submittedQuestionRequests?.length
 ${intake.leadContext
   ? `═══ VERIFIED ASSESSMENT LEAD CLARIFICATIONS ═══\n${intake.leadContext}\n`
   : ""}
+${intake.classroomObservationAnswers?.length
+  ? `═══ STRUCTURED CLASSROOM LEARNING OBSERVATION RESPONSES ═══\n${JSON.stringify(intake.classroomObservationAnswers, null, 2)}\nThese are descriptive observations, not standardized scores. Distinguish what was observed from interpretation.\n`
+  : ""}
+${intake.workSampleReviewAnswers?.length
+  ? `═══ STUDENT WORK SAMPLE & INTERVENTION HISTORY REVIEW RESPONSES ═══\n${JSON.stringify(intake.workSampleReviewAnswers, null, 2)}\nThese are descriptive evidence reviews, not standardized scores. Distinguish work evidence, prior supports, and response to support.\n`
+  : ""}
 ═══ AVAILABLE ASSESSMENT TOOLS ═══
 ${toolList || "No tools available in library."}
 
@@ -157,6 +165,7 @@ Based on ALL the above information (student age, grade, gender if mentioned, ref
 3. Prioritize ReMynd-owned tools where clinically appropriate
 4. Assign each tool a priority: "essential" (must use), "recommended" (strongly suggested), or "optional" (useful if time allows)
 5. Provide a brief clinical rationale for each tool selection
+6. When relevant, these two ReMynd forms may be recommended as optional evidence-gathering tools: classroom observation and student work/intervention-history review. They are non-standardized, unscored forms; do not describe them as diagnostic tests or imply norm-based interpretation.
 
 Return ONLY a JSON object (no markdown, no code fences) with this exact structure:
 {

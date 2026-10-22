@@ -59,6 +59,7 @@ export function deidentifiedIntake(data: Record<string, unknown>): Record<string
     "raosIntakeResponses", "parentInterviewNotes", "recordedInterviewNotes",
     "followUpResponses", "groupResponses", "submittedQuestionResponses",
     "leadContext", "previousReview", "schoolApplication",
+    "classroomLearningObservation", "studentWorkInterventionReview",
   ];
   const selected = Object.fromEntries(allowed.filter((key) => key in data).map((key) => [key, data[key]]));
   return redactContactData(selected) as Record<string, unknown>;
@@ -76,6 +77,7 @@ PRODUCT PURPOSE AND FIXED CORE:
 - Every student pathway includes all three core components: (1) ReMynd Comprehensive Educational Profile — Tier 2 Core (RCEP-CORE), using parent and teacher perspectives and developmentally appropriate student report where available; (2) a brief structured Strengthen Your Core classroom learning observation focused on learning behavior, response to challenge, and scaffolding; and (3) a structured review of student work samples and prior intervention history, including what was tried and the student's response.
 - Parent/guardian consent is the only consent gate. A developmentally appropriate student report is an instrument respondent role when available; do not request or require a separate student-assent form.
 - The classroom observation and work-sample/history review are evidence-gathering activities, not additional standardized tests or score scales. If that evidence is not present in the intake, identify it as still needed; never imply it has already been collected.
+- When the intake contains classroomLearningObservation or studentWorkInterventionReview responses, use them as direct, descriptive school evidence. Keep the two sources distinct and do not create scores or conclusions that the form did not record.
 - In addition to those fixed core components, recommend at most one targeted extension from the enabled list below. Recommending no extension is valid. Do not force a tool choice.
 
 This is non-diagnostic. Do not diagnose, rule out, infer causation, make clinical claims, or recommend a comprehensive assessment automatically. The output is a provisional draft for administrator review only. It must not authorize assessment dispatch or be presented as a final intervention plan.

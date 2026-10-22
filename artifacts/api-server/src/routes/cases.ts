@@ -881,10 +881,11 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const REFERRAL_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"];
   const ADMIN_IDS = new Set([...REFERRAL_IDS, "CONSENT", "INTAKE"]);
+  const SYC_CORE_EVIDENCE_TOOL_IDS = ["REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW"] as const;
 
   const [assignments, allTools, parentInterviews] = await Promise.all([
     db.select().from(assignmentsTable).where(
-      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE"]))
+      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE", ...SYC_CORE_EVIDENCE_TOOL_IDS]))
     ),
     db.select({
       id: assessmentToolsTable.id,
@@ -917,7 +918,10 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const referralAssignmentIds = assignments.filter(a => REFERRAL_IDS.includes(a.toolId)).map(a => a.id);
   const intakeAssignmentIds = assignments.filter(a => a.toolId === "INTAKE").map(a => a.id);
-  const allAssignmentIds = [...referralAssignmentIds, ...intakeAssignmentIds];
+  const coreEvidenceAssignmentIds = assignments
+    .filter(a => (SYC_CORE_EVIDENCE_TOOL_IDS as readonly string[]).includes(a.toolId))
+    .map(a => a.id);
+  const allAssignmentIds = [...referralAssignmentIds, ...intakeAssignmentIds, ...coreEvidenceAssignmentIds];
 
   const responses = allAssignmentIds.length > 0
     ? await db.select().from(responsesTable).where(inArray(responsesTable.assignmentId, allAssignmentIds))
@@ -949,6 +953,12 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     if (items.length === 1) return items[0].answers as Record<string, unknown>;
     return Object.fromEntries(items.map(item => [`${item.type}_intake`, item.answers]));
   })();
+  const submittedEvidenceAnswers = (toolId: typeof SYC_CORE_EVIDENCE_TOOL_IDS[number]) =>
+    assignments.filter(a => a.toolId === toolId && a.status === "completed")
+      .flatMap(a => {
+        const response = responses.find(r => r.assignmentId === a.id);
+        return response ? [{ respondentType: a.respondentType ?? "teacher", answers: response.answers as Record<string, unknown> }] : [];
+      });
 
   const isStrengthenCoreCase = ((c.productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
   const currentIntakeAnalysis = (c.intakeAnalysis ?? {}) as Record<string, unknown>;
@@ -1059,6 +1069,8 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
       raosIntakeResponses: intakeAnswers,
       parentInterviewNotes: c.parentInterviewNotes ?? null,
       recordedInterviewNotes,
+      classroomLearningObservation: submittedEvidenceAnswers("REMYND-CLASSROOM-OBS"),
+      studentWorkInterventionReview: submittedEvidenceAnswers("REMYND-WORK-REVIEW"),
       followUpResponses: currentIntakeAnalysis.followUpAnswers ?? null,
       groupResponses: currentIntakeAnalysis.groupResponses ?? null,
       submittedQuestionResponses: submittedQuestionRequests.map(({ recipientName: _recipientName, ...response }) => response),
@@ -1112,6 +1124,8 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     referralFormAnswers: referralAnswers,
     parentIntakeAnswers: intakeAnswers,
     parentInterviewNotes: combinedParentInterviewNotes,
+    classroomObservationAnswers: submittedEvidenceAnswers("REMYND-CLASSROOM-OBS"),
+    workSampleReviewAnswers: submittedEvidenceAnswers("REMYND-WORK-REVIEW"),
     followUpAnswers: (currentIntakeAnalysis.followUpAnswers as Record<string, unknown> | undefined) ?? null,
     groupResponses: (currentIntakeAnalysis.groupResponses as Record<string, string> | undefined) ?? null,
     submittedQuestionRequests,

@@ -804,7 +804,11 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
       .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
     const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };
     const allowedSycTools = new Set<string>();
-    if (settings.coreInstrumentEnabled === true) allowedSycTools.add("RCEP-CORE");
+    if (settings.coreInstrumentEnabled === true) {
+      allowedSycTools.add("RCEP-CORE");
+      allowedSycTools.add("REMYND-CLASSROOM-OBS");
+      allowedSycTools.add("REMYND-WORK-REVIEW");
+    }
     const approvedExtension = typeof sycWorkflow.approvedExtension === "string" ? sycWorkflow.approvedExtension : null;
     if (approvedExtension && settings.allowedExtensions?.includes(approvedExtension)) {
       allowedSycTools.add(approvedExtension);
