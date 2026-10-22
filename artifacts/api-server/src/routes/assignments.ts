@@ -763,6 +763,7 @@ router.post("/cases/:caseId/assignments/consolidate-parent", authMiddleware, asy
 
 router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const { toolId, respondentLabel, assignedToName, assignedToEmail, dueDate } = req.body;
+  const safeRespondentLabel = typeof respondentLabel === "string" ? respondentLabel : "";
   const caseId = req.params.caseId;
   if (typeof caseId !== "string") {
     res.status(400).json({ error: "invalid_case_id" });
@@ -891,7 +892,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
       toolId,
       toolName: req.body.toolName ?? toolId,
       respondentType,
-      respondentLabel,
+      respondentLabel: safeRespondentLabel,
       assignedToName,
       assignedToEmail,
       uniqueToken: token,
@@ -928,7 +929,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     toolId,
     actorId: req.userId ?? null,
     actorRole: req.userRole ?? null,
-    metadata: { respondentType, respondentLabel, assignedToName: assignedToName ?? null },
+    metadata: { respondentType, respondentLabel: safeRespondentLabel, assignedToName: assignedToName ?? null },
   });
 
   res.status(201).json(assignment[0]);

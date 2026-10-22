@@ -1450,7 +1450,7 @@ export default function CaseDetail() {
             toolId,
             toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
             respondentType: respondentType as CreateAssignmentRequestRespondentType,
-            respondentLabel: autoRoutedSyc ? undefined : newAssignment.respondentLabel,
+            respondentLabel: autoRoutedSyc ? "" : newAssignment.respondentLabel,
             assignedToName: autoRoutedSyc ? undefined : newAssignment.assignedToName,
             assignedToEmail: autoRoutedSyc ? undefined : newAssignment.assignedToEmail,
           } as any
