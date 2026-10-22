@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2, Copy, Link } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch, useGetCurrentUser } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import StrengthenCoreAdmin from "@/pages/admin/strengthen-core";
+import { QRCodeSVG } from "qrcode.react";
 
 interface Inquiry {
   id: string;
@@ -66,6 +66,16 @@ interface Inquiry {
   interestedPartnerSchool?: boolean;
   trainingOnly?: boolean;
   marketingConsent?: boolean;
+  metadata?: Record<string, unknown> | null;
+}
+
+interface SycProgramSettings {
+  open: boolean;
+  maxSchools: number | null;
+  closesAt: string | null;
+  portalDurationDays: number;
+  coreInstrumentEnabled: boolean;
+  allowedExtensions: string[];
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -85,13 +95,36 @@ function formatDate(iso: string) {
   });
 }
 
-export default function InquiriesPage() {
-  const [location, setLocation] = useLocation();
-  const [showStrengthenCore, setShowStrengthenCore] = useState(() =>
-    typeof window !== "undefined" &&
-    window.location.pathname === "/admin/strengthen-your-core"
+function SycAnalysisSummary({ value }: { value: unknown }) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const data = value as Record<string, unknown>;
+  const renderList = (title: string, items: unknown) => Array.isArray(items) && items.length > 0 ? (
+    <div>
+      <p className="mb-1 text-xs font-semibold text-slate-500">{title}</p>
+      <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">{items.map((item, index) => <li key={`${title}-${index}`}>{String(item)}</li>)}</ul>
+    </div>
+  ) : null;
+  return (
+    <div className="space-y-3 text-sm">
+      {typeof data.referralSummary === "string" && <p className="leading-6 text-slate-700">{data.referralSummary}</p>}
+      {typeof data.primaryEducationalQuestion === "string" && <p><strong>Question for review:</strong> {data.primaryEducationalQuestion}</p>}
+      {renderList("Reported strengths", data.studentStrengths)}
+      {renderList("Reported concerns", data.observedConcerns)}
+      {renderList("Possible interpretations to consider", data.interpretations)}
+      {renderList("Other explanations to rule out", data.alternativeExplanations)}
+      {typeof data.assessmentJustification === "string" && <p><strong>Form-selection rationale:</strong> {data.assessmentJustification}</p>}
+      {renderList("Information still needed", data.missingInformation)}
+      {renderList("Safety flags for human review", data.safetyFlags)}
+      <p className="rounded-md bg-slate-50 p-2 text-xs text-slate-600">
+        Suitability: {String(data.suitability ?? "not stated")} · Suggested extension: {String(data.recommendedExtension ?? "none")}
+        {" · "}Administrator review required
+      </p>
+    </div>
   );
-  const { data: currentUser } = useGetCurrentUser();
+}
+
+export default function InquiriesPage() {
+  const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
@@ -100,17 +133,13 @@ export default function InquiriesPage() {
 
   // Send Referral Form invite state
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showSycSharePanel, setShowSycSharePanel] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const [linkCopied, setLinkCopied] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState("REFERRAL");
   const [includeConsent, setIncludeConsent] = useState(false);
+  const [inviteInquiryId, setInviteInquiryId] = useState<string | null>(null);
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
-
-  useEffect(() => {
-    if (location === "/admin/strengthen-your-core") {
-      setLocation("/inquiries");
-    }
-  }, [location, setLocation]);
 
   const FORM_OPTIONS = [
     { id: "REFERRAL",          label: "Referral — School" },
@@ -122,6 +151,25 @@ export default function InquiriesPage() {
 
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(null);
+  const sycApplicationLink = `${window.location.origin}/strengthen-your-core/apply`;
+  const sycSettings = useQuery({
+    queryKey: ["strengthen-core-program-admin"],
+    queryFn: () => customFetch<SycProgramSettings>("/api/strengthen-core/program/admin"),
+    enabled: showSycSharePanel,
+  });
+  const saveSycSettings = useMutation({
+    mutationFn: (patch: Partial<SycProgramSettings>) => {
+      const current = sycSettings.data;
+      if (!current) throw new Error("Programme settings have not loaded.");
+      return customFetch<SycProgramSettings>("/api/strengthen-core/program", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...current, ...patch }),
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["strengthen-core-program-admin"] }),
+    onError: (error: Error) => toast({ title: "Could not update programme settings", description: error.message, variant: "destructive" }),
+  });
 
   function callInviteApi(sendEmail: boolean) {
     return customFetch<{ success: boolean; link: string; inviteToken: string }>("/api/portal/send-referral-invite", {
@@ -131,6 +179,7 @@ export default function InquiriesPage() {
         ...inviteForm,
         formId: selectedFormId,
         includeConsent,
+        ...(inviteInquiryId ? { inquiryId: inviteInquiryId } : {}),
         sendEmail,
         // Reuse the same invite token so we never create a duplicate
         ...(generatedInviteToken ? { existingToken: generatedInviteToken } : {}),
@@ -164,6 +213,23 @@ export default function InquiriesPage() {
       toast({ title: "Failed to generate link", description: err?.message ?? "Please try again.", variant: "destructive" });
     },
   });
+
+  function prepareSycReferralInvite(inquiry: Inquiry) {
+    setInviteInquiryId(inquiry.id);
+    setSelectedFormId(inquiry.inquiryType === "parent" ? "REFERRAL-PARENT" : "REFERRAL");
+    setIncludeConsent(true);
+    setInviteForm({
+      toName: inquiry.contactName,
+      toEmail: inquiry.contactEmail,
+      schoolName: inquiry.organisation ?? "",
+      note: "Please complete the standard RAOS referral form. The parent/guardian consent and student assent forms will follow through the same case workflow.",
+    });
+    setInviteSent(false);
+    setGeneratedLink(null);
+    setGeneratedInviteToken(null);
+    setShowInviteForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const { data: inquiries = [], isLoading, isError } = useQuery<Inquiry[]>({
     queryKey: ["inquiries"],
@@ -216,6 +282,31 @@ export default function InquiriesPage() {
     },
   });
 
+  const analyzeSycInquiry = useMutation({
+    mutationFn: (id: string) => customFetch<{ analysis: Record<string, unknown> }>(`/api/strengthen-core/inquiries/${encodeURIComponent(id)}/analyze`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["inquiries"] }),
+    onError: (error: Error) => toast({ title: "AI analysis failed", description: error.message, variant: "destructive" }),
+  });
+
+  const startSycCase = useMutation({
+    mutationFn: (id: string) => customFetch<{ caseId: string }>(`/api/portal/inquiries/${encodeURIComponent(id)}/start-syc-case`, { method: "POST" }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["inquiries"] });
+      setLocation(`/cases/${encodeURIComponent(data.caseId)}`);
+    },
+    onError: (error: Error) => toast({ title: "Could not start RAOS consent flow", description: error.message, variant: "destructive" }),
+  });
+
+  const verifySycConsent = useMutation({
+    mutationFn: (id: string) => customFetch<{ caseId: string }>(`/api/portal/inquiries/${encodeURIComponent(id)}/verify-syc-consent`, { method: "POST" }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["inquiries"] });
+      toast({ title: "Consent verified", description: "Assessment assignments are now available on the RAOS case." });
+      setLocation(`/cases/${encodeURIComponent(data.caseId)}`);
+    },
+    onError: (error: Error) => toast({ title: "Consent is not ready", description: error.message, variant: "destructive" }),
+  });
+
   const filtered = filter === "all" ? allInquiries : allInquiries.filter((i) => i.status === filter);
 
   const counts = {
@@ -225,29 +316,6 @@ export default function InquiriesPage() {
     converted: allInquiries.filter((i) => i.status === "converted").length,
     closed: allInquiries.filter((i) => i.status === "closed").length,
   };
-
-  if (showStrengthenCore) {
-    return (
-      <div className="space-y-5 animate-fade-in pb-12">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
-            <p className="mt-1 text-slate-500">Strengthen Your Core applications and review</p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowStrengthenCore(false);
-              setLocation("/inquiries");
-            }}
-          >
-            Portal inquiries
-          </Button>
-        </div>
-        <StrengthenCoreAdmin embedded />
-      </div>
-    );
-  }
 
   if (isLoading)
     return (
@@ -272,17 +340,16 @@ export default function InquiriesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {currentUser?.role === "admin" && (
-            <Button
-              variant="outline"
-              className="shrink-0"
-              onClick={() => setShowStrengthenCore(true)}
-            >
-              Strengthen Your Core applications
-            </Button>
-          )}
           <Button
-            onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); }}
+            variant="outline"
+            onClick={() => setShowSycSharePanel((value) => !value)}
+            className="shrink-0 gap-2"
+          >
+            Strengthen Your Core link / QR
+            {showSycSharePanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </Button>
+          <Button
+            onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); setInviteInquiryId(null); }}
             className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <SendHorizonal size={15} />
@@ -291,6 +358,73 @@ export default function InquiriesPage() {
           </Button>
         </div>
       </div>
+
+      {showSycSharePanel && (
+        <Card className="border-teal-200 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Strengthen Your Core · promotional intake link</CardTitle>
+            <p className="text-sm text-slate-500">This public link submits to the same RAOS Inquiries queue. It does not create a separate application queue.</p>
+          </CardHeader>
+          <CardContent className="grid gap-5 md:grid-cols-[1fr_auto]">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {sycSettings.isLoading ? (
+                  <span className="text-sm text-slate-500">Checking programme availability…</span>
+                ) : sycSettings.isError ? (
+                  <span className="text-sm text-red-600">Could not load programme settings.</span>
+                ) : (
+                  <>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${sycSettings.data?.open ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                      Applications {sycSettings.data?.open ? "open" : "closed"}
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${sycSettings.data?.coreInstrumentEnabled ? "bg-teal-100 text-teal-800" : "bg-amber-100 text-amber-800"}`}>
+                      Core assessment {sycSettings.data?.coreInstrumentEnabled ? "enabled" : "disabled"}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigator.clipboard.writeText(sycApplicationLink).then(() => toast({ title: "Link copied", description: "The promotional application link is ready to share." }))}
+                >
+                  <Copy size={14} className="mr-2" /> Copy promotional link
+                </Button>
+                {sycSettings.data && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={saveSycSettings.isPending}
+                      onClick={() => saveSycSettings.mutate({ open: !sycSettings.data!.open })}
+                    >
+                      {sycSettings.data.open ? "Close intake" : "Open intake"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={saveSycSettings.isPending}
+                      title="Enable only when the instrument and programme are operationally ready."
+                      onClick={() => saveSycSettings.mutate({ coreInstrumentEnabled: !sycSettings.data!.coreInstrumentEnabled })}
+                    >
+                      {sycSettings.data.coreInstrumentEnabled ? "Disable core assessment" : "Enable core assessment"}
+                    </Button>
+                  </>
+                )}
+              </div>
+              <div className="break-all rounded-lg border bg-slate-50 p-3 font-mono text-xs text-slate-700">{sycApplicationLink}</div>
+              <p className="text-xs leading-5 text-slate-500">
+                Public portal inquiries and this detailed promotional intake are both stored in RAOS Inquiries. The source controls AI review criteria and the next standard RAOS forms.
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-2 rounded-xl border bg-white p-4">
+              <QRCodeSVG value={sycApplicationLink} size={148} level="M" />
+              <span className="text-xs text-slate-500">Scan to open the promotional intake</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Send Referral Form invite panel */}
       {showInviteForm && (
@@ -328,10 +462,13 @@ export default function InquiriesPage() {
 
             {/* Consent form add-on toggle */}
             <button
+              disabled={Boolean(inviteInquiryId)}
               onClick={() => setIncludeConsent(v => !v)}
               className={cn(
                 "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
-                includeConsent
+                inviteInquiryId
+                  ? "border-teal-300 bg-teal-50 text-teal-800 cursor-not-allowed"
+                  : includeConsent
                   ? "border-emerald-400 bg-emerald-50 text-emerald-800"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               )}
@@ -342,9 +479,14 @@ export default function InquiriesPage() {
               )}>
                 {includeConsent && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
               </div>
-              <span>Also include Consent Form</span>
-              {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ 1 form</span>}
+              <span>{inviteInquiryId ? "Parent consent is required" : "Also include Consent Form"}</span>
+              {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ consent and student assent</span>}
             </button>
+            {inviteInquiryId && (
+              <p className="rounded-lg bg-teal-50 p-3 text-xs leading-5 text-teal-900">
+                Strengthen Your Core is using the standard RAOS referral link. After it is submitted, RAOS creates the case and the parent/guardian consent and student assent forms in the same case workflow.
+              </p>
+            )}
 
             {/* Contact details + actions */}
             {inviteSent && generatedLink ? (
@@ -369,7 +511,7 @@ export default function InquiriesPage() {
                 </div>
                 <Button
                   variant="outline" size="sm"
-                  onClick={() => { setInviteSent(false); setGeneratedLink(null); setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" }); }}
+                  onClick={() => { setInviteSent(false); setGeneratedLink(null); setGeneratedInviteToken(null); setInviteInquiryId(null); setIncludeConsent(false); setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" }); }}
                 >
                   Send another
                 </Button>
@@ -455,7 +597,7 @@ export default function InquiriesPage() {
                       <><Copy size={14}/> Copy Link Only</>
                     )}
                   </Button>
-                  <Button variant="ghost" onClick={() => { setShowInviteForm(false); setGeneratedLink(null); setInviteSent(false); }}>Cancel</Button>
+                  <Button variant="ghost" onClick={() => { setShowInviteForm(false); setGeneratedLink(null); setInviteSent(false); setGeneratedInviteToken(null); setInviteInquiryId(null); setIncludeConsent(false); }}>Cancel</Button>
                 </div>
               </>
             )}
@@ -537,6 +679,11 @@ export default function InquiriesPage() {
                         }`}>
                           {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType === "workshop_sales" ? "Workshop Sales" : inq.inquiryType}
                         </span>
+                        {inq.metadata?.productId === "STRENGTHEN_CORE" && (
+                          <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">
+                            Strengthen Your Core · {inq.metadata.source === "promotional_link" ? "Promotional" : "Portal"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-500 truncate">
                         {inq.workshopTitle ? `${inq.workshopTitle} · ` : inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
@@ -591,7 +738,80 @@ export default function InquiriesPage() {
 
               {isOpen && (
                 <CardContent className="pt-0 pb-5 border-t border-slate-100">
-                  {inq.inquiryType === "partner_school" ? (
+          {inq.metadata?.productId === "STRENGTHEN_CORE" && (
+            <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4" data-testid={`syc-inquiry-${inq.id}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-teal-900">Strengthen Your Core · {inq.metadata.source === "promotional_link" ? "Promotional application" : "Website portal inquiry"}</h4>
+                  <p className="mt-1 text-xs text-teal-800">This inquiry uses the normal RAOS inquiry queue. Analysis and next forms depend on how the inquiry was submitted.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={analyzeSycInquiry.isPending}
+                    onClick={(event) => { event.stopPropagation(); analyzeSycInquiry.mutate(inq.id); }}
+                  >
+                    {analyzeSycInquiry.isPending ? "Analyzing…" : "Generate review suggestions"}
+                  </Button>
+                  {inq.metadata.source === "promotional_link" && !inq.metadata.caseId && (
+                    <Button
+                      size="sm"
+                      onClick={(event) => { event.stopPropagation(); startSycCase.mutate(inq.id); }}
+                      disabled={startSycCase.isPending}
+                      className="bg-teal-700 text-white hover:bg-teal-800"
+                    >
+                      {startSycCase.isPending ? "Starting…" : "Start RAOS consent forms"}
+                    </Button>
+                  )}
+                  {inq.metadata.source === "portal" && !inq.metadata.caseId && (
+                    <Button size="sm" onClick={(event) => { event.stopPropagation(); prepareSycReferralInvite(inq); }} className="bg-teal-700 text-white hover:bg-teal-800">
+                      Send standard referral + consent
+                    </Button>
+                  )}
+                  {typeof inq.metadata.caseId === "string" && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); void verifySycConsent.mutate(inq.id); }} disabled={verifySycConsent.isPending}>
+                        Verify submitted consent
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); setLocation(`/cases/${encodeURIComponent(String(inq.metadata?.caseId))}`); }}>
+                        Open RAOS case
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              {inq.metadata.source === "promotional_link" && Boolean(inq.metadata.intakeData) && (
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  <div className="rounded-lg bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Submitted school referral details</p>
+                    <div className="max-h-64 space-y-2 overflow-auto">
+                      {Object.entries(inq.metadata.intakeData as Record<string, unknown>).map(([key, value]) => (
+                        <div key={key} className="border-b border-slate-100 pb-2 last:border-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())}</p>
+                          <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{typeof value === "string" ? value : JSON.stringify(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {Boolean(inq.metadata.aiAnalysis) && (
+                    <div className="rounded-lg bg-white p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">AI review suggestions · human review required</p>
+                      <div className="max-h-64 overflow-auto"><SycAnalysisSummary value={inq.metadata.aiAnalysis} /></div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {inq.metadata.source === "portal" && Boolean(inq.metadata.aiAnalysis) && (
+                <div className="mt-4 rounded-lg bg-white p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Brief inquiry triage · request a full RAOS referral before selecting instruments</p>
+                  <div className="max-h-64 overflow-auto"><SycAnalysisSummary value={inq.metadata.aiAnalysis} /></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {inq.inquiryType === "partner_school" ? (
                     // Partner school expanded view
                     <div className="mt-4 space-y-5">
                       <div className="grid sm:grid-cols-2 gap-5">

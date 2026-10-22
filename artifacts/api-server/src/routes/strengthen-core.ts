@@ -11,15 +11,6 @@ import { writeAudit } from "../lib/audit.js";
 import { CONSENT_FORM_V2, SYC_STUDENT_ASSENT_FORM } from "../lib/questions.js";
 
 const router = Router();
-let inquiryMetadataColumnPromise: Promise<void> | null = null;
-
-async function ensureInquiryMetadataColumn(): Promise<void> {
-  inquiryMetadataColumnPromise ??= db.execute(sql`
-    ALTER TABLE inquiries
-    ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb
-  `).then(() => undefined);
-  await inquiryMetadataColumnPromise;
-}
 const EXTENSIONS = ["REFI", "RARPS", "RFII", "RSSC"] as const;
 type Extension = typeof EXTENSIONS[number];
 type ProgramSettings = {
@@ -311,7 +302,6 @@ router.patch("/strengthen-core/program", authMiddleware, async (req, res): Promi
 });
 
 router.post("/strengthen-core/applications", async (req, res): Promise<void> => {
-  await ensureInquiryMetadataColumn();
   const parsed = z.object({
     language: z.enum(["en", "zh", "ko"]),
     data: z.record(z.string(), z.unknown()),
@@ -487,7 +477,6 @@ router.post("/strengthen-core/inquiries/:inquiryId/analyze", authMiddleware, asy
     res.status(403).json({ error: "forbidden" });
     return;
   }
-  await ensureInquiryMetadataColumn();
   const id = asId(req.params.inquiryId);
   if (!id) {
     res.status(400).json({ error: "invalid_inquiry_id" });
@@ -520,11 +509,9 @@ router.post("/strengthen-core/inquiries/:inquiryId/analyze", authMiddleware, asy
       };
   const safeIntake = deidentifiedIntake(evidence);
   const settings = await getSettings();
-  const sourceInstruction = source === "portal_link"
-    ? ""
-    : source === "portal"
-      ? `\n\nIMPORTANT SOURCE RULE: This is a brief website-portal inquiry, not the detailed promotional application. The evidence is sparse. Do not make an assessment eligibility decision or recommend any instrument or extension. Focus the interpretation on what is known, what cannot yet be concluded, the most important missing details, and which standard RAOS referral form should be requested next. Set recommendedExtension to null and suitability to "additional_information_required" unless the limited facts clearly require urgent human review.`
-      : `\n\nSOURCE: detailed Strengthen Your Core promotional application. Use the specialized educational intake criteria in the instructions above. An extension suggestion is only a draft; the administrator must approve it.`;
+  const sourceInstruction = source === "portal"
+    ? `\n\nIMPORTANT SOURCE RULE: This is a brief website-portal inquiry, not the detailed promotional application. The evidence is sparse. Do not make an assessment eligibility decision or recommend any instrument or extension. Focus the interpretation on what is known, what cannot yet be concluded, the most important missing details, and which standard RAOS referral form should be requested next. Set recommendedExtension to null and suitability to "additional_information_required" unless the limited facts clearly require urgent human review.`
+    : `\n\nSOURCE: detailed Strengthen Your Core promotional application. Use the specialized educational intake criteria in the instructions above. An extension suggestion is only a draft; the administrator must approve it.`;
   try {
     const raw = await callDeepSeek(buildSycAnalysisPrompt(safeIntake, source === "portal" ? [] : settings.allowedExtensions) + sourceInstruction, 3000);
     const analysis = analysisSchema.parse(parseModelJson(raw));
@@ -619,6 +606,12 @@ router.patch("/strengthen-core/applications/:applicationId/review", authMiddlewa
 });
 
 router.post("/strengthen-core/applications/:applicationId/start-raos-flow", authMiddleware, async (req, res): Promise<void> => {
+  res.status(410).json({
+    error: "use_raos_inquiries",
+    message: "New Strengthen Your Core inquiries now continue through the shared RAOS Inquiries and Cases workflow.",
+  });
+  return;
+  /*
   if (!isAdmin(req)) {
     res.status(403).json({ error: "forbidden" });
     return;
@@ -753,6 +746,7 @@ router.post("/strengthen-core/applications/:applicationId/start-raos-flow", auth
     studentAssentUrl: assentUrl,
     alreadyStarted: false,
   });
+  */
 });
 
 router.post("/strengthen-core/applications/:applicationId/consent-links", authMiddleware, async (req, res): Promise<void> => {
@@ -1047,9 +1041,7 @@ router.post("/strengthen-core/applications/:applicationId/verify-consent", authM
       error: result.error,
       message: result.error === "both_consents_required"
         ? "A parent/guardian consent and a separate student assent must both be recorded first."
-        : result.error === "case_already_created"
-          ? "A RAOS case already exists for this application."
-          : result.error === "application_not_ready"
+        : result.error === "application_not_ready"
             ? "The application must be approved and consent responses received before verification."
             : "This application is not ready for verification.",
     });

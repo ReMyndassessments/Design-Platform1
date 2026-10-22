@@ -12,15 +12,6 @@ import { CONSENT_FORM_V2, SYC_STUDENT_ASSENT_FORM } from "../lib/questions.js";
 import { writeAudit } from "../lib/audit.js";
 
 const router = Router();
-let inquiryMetadataReady: Promise<void> | null = null;
-
-async function ensureInquiryMetadataColumn(): Promise<void> {
-  inquiryMetadataReady ??= db.execute(sql`
-    ALTER TABLE inquiries
-    ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb
-  `).then(() => undefined);
-  await inquiryMetadataReady;
-}
 
 async function getInquiryNotifyEmails(): Promise<string[]> {
   const envList = (process.env.INQUIRY_NOTIFY_EMAIL || "")
@@ -29,7 +20,6 @@ async function getInquiryNotifyEmails(): Promise<string[]> {
 }
 
 router.post("/portal/inquiry", async (req, res) => {
-  await ensureInquiryMetadataColumn();
   const {
     inquiryType,
     contactName,
@@ -130,7 +120,6 @@ router.post("/portal/inquiry", async (req, res) => {
 });
 
 router.get("/portal/inquiries", authMiddleware, async (req, res) => {
-  await ensureInquiryMetadataColumn();
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {
     res.status(403).json({ error: "forbidden" });
     return;
@@ -170,7 +159,6 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
     res.status(403).json({ error: "forbidden" });
     return;
   }
-  await ensureInquiryMetadataColumn();
   const [inquiry] = await db.select().from(inquiriesTable).where(sql`${inquiriesTable.id} = ${req.params.id}`).limit(1);
   if (!inquiry) {
     res.status(404).json({ error: "not_found" });
@@ -328,9 +316,35 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     res.status(403).json({ error: "forbidden" }); return;
   }
 
-  const { toEmail, toName, schoolName, note, formId, includeConsent, sendEmail: doSendEmail = true, existingToken } = req.body;
+  const { toEmail, toName, schoolName, note, formId, includeConsent: requestedConsent, sendEmail: doSendEmail = true, existingToken, inquiryId } = req.body;
   if (!toEmail || !toName) {
     res.status(400).json({ error: "bad_request", message: "toEmail and toName are required" }); return;
+  }
+
+  let productId: string | null = null;
+  let sourceInquiryId: string | null = null;
+  let includeAssent = false;
+  if (typeof inquiryId === "string" && inquiryId) {
+    const [sourceInquiry] = await db.select().from(inquiriesTable).where(sql`${inquiriesTable.id} = ${inquiryId}`).limit(1);
+    if (!sourceInquiry) {
+      res.status(404).json({ error: "inquiry_not_found" });
+      return;
+    }
+    const sourceMetadata = (sourceInquiry.metadata ?? {}) as Record<string, unknown>;
+    if (sourceMetadata.productId === "STRENGTHEN_CORE") {
+      productId = "STRENGTHEN_CORE";
+      sourceInquiryId = sourceInquiry.id;
+      includeAssent = true;
+    }
+  }
+  const includeConsent = productId === "STRENGTHEN_CORE" ? true : requestedConsent === true;
+  if (sourceInquiryId) {
+    const [sourceInquiry] = await db.select().from(inquiriesTable).where(sql`${inquiriesTable.id} = ${sourceInquiryId}`).limit(1);
+    const sourceMetadata = (sourceInquiry?.metadata ?? {}) as Record<string, unknown>;
+    if (typeof sourceMetadata.caseId === "string" && sourceMetadata.caseId) {
+      res.status(409).json({ error: "case_already_started", message: "This inquiry already has a case. Open the case to manage its forms." });
+      return;
+    }
   }
 
   const VALID_FORM_IDS = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING"];
@@ -360,6 +374,9 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
       token:          inviteToken,
       formId:         resolvedFormId,
       includeConsent: !!includeConsent,
+      includeAssent,
+      productId,
+      sourceInquiryId,
       toEmail,
       toName,
       schoolName:     schoolName || null,
@@ -382,7 +399,9 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
-      <p style="margin:0 0 12px;font-size:14px;color:#475569">Thank you for your interest in ReMynd Student Services. Please complete the ${formCount} at the link below — ${formTakes} just a few minutes.</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#475569">${productId === "STRENGTHEN_CORE"
+        ? "Please complete the standard RAOS referral form at the link below. After submission, the parent/guardian consent and student assent forms will continue through the same RAOS case workflow."
+        : `Thank you for your interest in ReMynd Student Services. Please complete the ${formCount} at the link below — ${formTakes} just a few minutes.`}</p>
       ${schoolLine}${noteLine}
       <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps. You can return to this link at any time.</p>
       <p style="text-align:center;margin:28px 0">
@@ -401,7 +420,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     }
   }
 
-  res.json({ success: true, link: portalLink, inviteToken });
+  res.json({ success: true, link: portalLink, inviteToken, productId, sourceInquiryId });
 });
 
 router.delete("/portal/inquiries/:id", authMiddleware, async (req, res) => {

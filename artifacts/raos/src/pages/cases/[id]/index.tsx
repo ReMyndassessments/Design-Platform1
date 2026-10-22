@@ -2843,11 +2843,11 @@ export default function CaseDetail() {
                         )}
                         {["admin", "psychometrician"].includes(role) && !isSeparateExaminerWorkflow(a) && (
                           <Button size="sm" className="gap-1.5" data-testid={`button-send-form-${a.id}`}
-                            disabled={batteryReviewQuery.data?.testResults?.[a.id]?.status !== "passed" || hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
-                            title={batteryReviewQuery.data?.testResults?.[a.id]?.status === "passed" ? "Send this tested form now — no battery approval required" : "Complete this form's staff test to send it"}
+                            disabled={(!["CONSENT", "SYC-ASSENT"].includes(a.toolId) && batteryReviewQuery.data?.testResults?.[a.id]?.status !== "passed") || hasSplitUnnamedParentPackages && a.respondentType === "parent" && (a.respondentLabel === "Parent" || a.respondentLabel === "Parent Assessment Package")}
+                            title={["CONSENT", "SYC-ASSENT"].includes(a.toolId) ? "Send this consent or assent form through the standard RAOS email flow" : batteryReviewQuery.data?.testResults?.[a.id]?.status === "passed" ? "Send this tested form now — no battery approval required" : "Complete this form's staff test to send it"}
                             onClick={() => {
                               setSendEmailError(null);
-                              setSendEmailTarget({ groupKey: `assignment:${a.id}`, label: a.toolName, name: a.assignedToName ?? "", email: a.assignedToEmail ?? "", link: invitationLink, formNames: [a.toolName], respondentRole: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, assignmentIds: [a.id], requiresFormTest: true });
+                              setSendEmailTarget({ groupKey: `assignment:${a.id}`, label: a.toolName, name: a.assignedToName ?? "", email: a.assignedToEmail ?? "", link: invitationLink, formNames: [a.toolName], respondentRole: RESPONDENT_TYPE_LABELS[a.respondentType] ?? a.respondentType, assignmentIds: [a.id], requiresFormTest: !["CONSENT", "SYC-ASSENT"].includes(a.toolId) });
                               setSendEmailForm({ name: a.assignedToName ?? "", email: a.assignedToEmail ?? "" });
                             }}>
                             <Send size={14} /> Send form

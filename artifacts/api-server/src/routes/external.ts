@@ -4,7 +4,7 @@ import { isChineseLiteracy } from "../lib/chineseLiteracyInstruments.js";
 import { withBehavobsDetails } from "../lib/behavobsDetails.js";
 import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
-import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, intakeQuestionRequestsTable, strengthenCoreApplicationsTable } from "@workspace/db/schema";
+import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, inquiriesTable, intakeQuestionRequestsTable, strengthenCoreApplicationsTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
 import { eq, and, or, ne, asc, sql } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
@@ -1081,18 +1081,13 @@ router.get("/external/form/:token", async (req, res) => {
   const toolId = assignment.toolId;
   let lockedPendingGuardianConsent = false;
   if (toolId === "SYC-ASSENT") {
-    const appRows = await db.execute(sql`
-      SELECT data FROM syc_applications
-      WHERE data -> '__syc' -> 'consent' ->> 'caseId' = ${assignment.caseId}
-      LIMIT 1
-    `);
-    const appData = appRows.rows[0] as { data?: Record<string, unknown> } | undefined;
-    const privateData = appData?.data?.__syc;
-    const consent = privateData && typeof privateData === "object"
-      ? (privateData as Record<string, unknown>).consent
-      : null;
-    lockedPendingGuardianConsent = !consent || typeof consent !== "object" ||
-      (consent as Record<string, unknown>).guardianStatus !== "consented";
+    const [sycCase] = await db.select({ intakeAnalysis: casesTable.intakeAnalysis })
+      .from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+    const analysis = (sycCase?.intakeAnalysis ?? {}) as Record<string, unknown>;
+    const workflow = analysis.sycWorkflow && typeof analysis.sycWorkflow === "object"
+      ? analysis.sycWorkflow as Record<string, unknown>
+      : {};
+    lockedPendingGuardianConsent = workflow.guardianStatus !== "consented";
   }
   const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
 
@@ -1163,27 +1158,19 @@ router.post("/external/form/:token/submit", async (req, res) => {
         const [lockedAssignment] = await tx.select().from(assignmentsTable)
           .where(eq(assignmentsTable.id, assignment.id)).for("update").limit(1);
         if (!lockedAssignment || lockedAssignment.status === "completed") return { error: "already_submitted" as const };
-        const appRows = await tx.execute(sql`
-          SELECT id, data FROM syc_applications
-          WHERE data -> '__syc' -> 'consent' ->> 'caseId' = ${assignment.caseId}
-          FOR UPDATE
-        `);
-        const app = appRows.rows[0] as { id: string; data: Record<string, unknown> } | undefined;
-        if (!app) return { error: "application_missing" as const };
-        const currentData = app.data;
-        const privateBlock = currentData.__syc && typeof currentData.__syc === "object"
-          ? currentData.__syc as Record<string, unknown>
-          : {};
-        const currentConsent = privateBlock.consent && typeof privateBlock.consent === "object"
-          ? privateBlock.consent as Record<string, unknown>
+        const [sycCase] = await tx.select({ id: casesTable.id, intakeAnalysis: casesTable.intakeAnalysis })
+          .from(casesTable).where(eq(casesTable.id, assignment.caseId)).for("update").limit(1);
+        if (!sycCase) return { error: "case_missing" as const };
+        const currentAnalysis = (sycCase.intakeAnalysis ?? {}) as Record<string, unknown>;
+        const currentWorkflow = currentAnalysis.sycWorkflow && typeof currentAnalysis.sycWorkflow === "object"
+          ? currentAnalysis.sycWorkflow as Record<string, unknown>
           : {};
 
-        if (assignment.toolId === "SYC-ASSENT" && currentConsent.guardianStatus !== "consented") {
+        if (assignment.toolId === "SYC-ASSENT" && currentWorkflow.guardianStatus !== "consented") {
           return { error: "guardian_consent_required" as const };
         }
 
-        let nextConsent: Record<string, unknown>;
-        let nextStatus: string;
+        let nextWorkflow: Record<string, unknown>;
         let affirmativeAssent = false;
         let studentName = "";
         let dob = "";
@@ -1221,18 +1208,14 @@ router.post("/external/form/:token/submit", async (req, res) => {
               (age < 14 && !affirmative(consentAnswers.consent_under14))) {
             return { error: "invalid_consent" as const };
           }
-          nextConsent = {
-            ...currentConsent,
+          nextWorkflow = {
+            ...currentWorkflow,
+            guardianStatus: "consented",
             guardianName,
             guardianEmail,
-            guardianRelationship: String(consentAnswers.guardian_relationship ?? "").trim(),
-            studentName,
-            studentDob: dob,
-            guardianStatus: "consented",
             guardianSignatureName: signatureName,
             guardianSignedAt: new Date().toISOString(),
           };
-          nextStatus = "guardian_consent_received";
         } else {
           const decision = String(consentAnswers.syc_assent_decision ?? "").trim().toLocaleLowerCase();
           const understands = affirmative(consentAnswers.syc_assent_understanding);
@@ -1247,13 +1230,12 @@ router.post("/external/form/:token/submit", async (req, res) => {
             return { error: "invalid_assent" as const };
           }
           affirmativeAssent = decision.startsWith("yes") || decision.startsWith("愿意") || decision.startsWith("네");
-          nextConsent = {
-            ...currentConsent,
+          nextWorkflow = {
+            ...currentWorkflow,
             studentStatus: affirmativeAssent ? "assented" : "declined",
             studentSignatureName: signature,
             studentAssentedAt: new Date().toISOString(),
           };
-          nextStatus = affirmativeAssent ? "student_assent_received" : "consent_declined";
         }
 
         await tx.insert(responsesTable).values({
@@ -1265,7 +1247,10 @@ router.post("/external/form/:token/submit", async (req, res) => {
         await tx.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() })
           .where(eq(assignmentsTable.id, assignment.id));
         if (isSycConsent) {
-          const learningLanguage = `${String(currentData.learningLanguage ?? "")} ${String(currentData.languagePreference ?? "")}`.toLocaleLowerCase();
+          const [caseDetails] = await tx.select({ intakeData: casesTable.intakeData })
+            .from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+          const intakeData = (caseDetails?.intakeData ?? {}) as Record<string, unknown>;
+          const learningLanguage = `${String(intakeData.learningLanguage ?? "")}`.toLocaleLowerCase();
           const languagePreference = /cantonese|廣東話|粤语/.test(learningLanguage)
             ? "cantonese" as const
             : /chinese|mandarin|中文|普通话/.test(learningLanguage)
@@ -1279,22 +1264,23 @@ router.post("/external/form/:token/submit", async (req, res) => {
             parentName: guardianName,
             parentEmail: guardianEmail,
             consentObtained: false,
+            intakeAnalysis: { ...currentAnalysis, sycWorkflow: nextWorkflow },
             updatedAt: new Date(),
           }).where(eq(casesTable.id, assignment.caseId));
           await tx.update(assignmentsTable).set({ assignedToName: studentName })
             .where(and(eq(assignmentsTable.caseId, assignment.caseId), eq(assignmentsTable.toolId, "SYC-ASSENT")));
+        } else {
+          await tx.update(casesTable).set({
+            intakeAnalysis: { ...currentAnalysis, sycWorkflow: nextWorkflow },
+            updatedAt: new Date(),
+          }).where(eq(casesTable.id, assignment.caseId));
         }
-        await tx.update(strengthenCoreApplicationsTable).set({
-          data: { ...currentData, __syc: { ...privateBlock, consent: nextConsent } },
-          status: nextStatus,
-          updatedAt: new Date(),
-        }).where(eq(strengthenCoreApplicationsTable.id, app.id));
-        return { applicationId: app.id, affirmativeAssent };
+        return { caseId: assignment.caseId, affirmativeAssent };
       });
 
       if ("error" in appResult) {
         const status = appResult.error === "already_submitted" ? 409
-          : appResult.error === "application_missing" ? 409
+          : appResult.error === "case_missing" ? 409
           : appResult.error === "guardian_consent_required" ? 409
           : 400;
         res.status(status).json({
@@ -1305,7 +1291,7 @@ router.post("/external/form/:token/submit", async (req, res) => {
               ? "Complete the explanation, choice, and signature fields before submitting."
               : appResult.error === "invalid_consent"
                 ? "The RAOS Consent Form needs valid guardian/student details and all required affirmative consent responses."
-                : "This RAOS consent response has already been submitted or is not linked to an application.",
+                : "This RAOS consent response has already been submitted or is not linked to a case.",
         });
         return;
       }
@@ -1315,7 +1301,7 @@ router.post("/external/form/:token/submit", async (req, res) => {
         assignmentId: assignment.id,
         toolId: assignment.toolId,
         ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
-        metadata: { applicationId: appResult.applicationId, affirmative: isSycConsent || appResult.affirmativeAssent },
+        metadata: { affirmative: isSycConsent || appResult.affirmativeAssent },
       });
       res.json({
         success: true,
@@ -1398,16 +1384,38 @@ router.post("/external/form/:token/submit", async (req, res) => {
 
     // Create the case
     const caseId = nanoid();
+    const isSycInvite = invite.productId === "STRENGTHEN_CORE";
+    const [sourceInquiry] = invite.sourceInquiryId
+      ? await db.select().from(inquiriesTable).where(eq(inquiriesTable.id, invite.sourceInquiryId)).limit(1)
+      : [];
+    const sourceMetadata = (sourceInquiry?.metadata ?? {}) as Record<string, unknown>;
     await db.insert(casesTable).values({
       id: caseId,
-      studentName: consentStudentName,
-      dob: consentDob,
+      studentName: isSycInvite ? "Pending guardian consent" : consentStudentName,
+      dob: isSycInvite ? "Pending" : consentDob,
       school: invite.schoolName || "TBD",
       grade: null,
-      referralReason: `Referral form submitted by ${invite.toName} (${invite.toEmail})`,
+      referralReason: isSycInvite
+        ? `Strengthen Your Core portal inquiry: ${sourceInquiry?.message ?? `Referral form submitted by ${invite.toName}`}`
+        : `Referral form submitted by ${invite.toName} (${invite.toEmail})`,
       currentPhase: "pre_commitment",
       progressPercentage: 0,
       caseStatus: "active",
+      ...(isSycInvite ? {
+        productIds: ["STRENGTHEN_CORE"],
+        intakeData: sourceMetadata.intakeData ?? {},
+        intakeAnalysis: {
+          source: "portal",
+          sourceInquiryId: invite.sourceInquiryId,
+          aiAnalysis: sourceMetadata.aiAnalysis ?? null,
+          sycWorkflow: {
+            source: "portal",
+            inquiryId: invite.sourceInquiryId,
+            guardianStatus: "pending",
+            studentStatus: "pending",
+          },
+        },
+      } : {}),
       ...(consentGuardian ? { parentName: consentGuardian } : {}),
       ...(consentEmail    ? { parentEmail: consentEmail }   : {}),
     });
@@ -1475,6 +1483,24 @@ router.post("/external/form/:token/submit", async (req, res) => {
         dueDate: null,
       });
     }
+    let assentToken: string | null = null;
+    if (isSycInvite && invite.includeAssent) {
+      assentToken = randomBytes(32).toString("base64url");
+      await db.insert(assignmentsTable).values({
+        id: nanoid(),
+        caseId,
+        toolId: "SYC-ASSENT",
+        toolName: "Strengthen Your Core — Student Assent",
+        respondentType: "student",
+        respondentLabel: "Student",
+        assignedToName: "Student",
+        uniqueToken: assentToken,
+        uniqueLink: `${baseUrl}/external/${assentToken}`,
+        qrCodeData: `${baseUrl}/external/${assentToken}`,
+        status: "not_started",
+        dueDate: null,
+      });
+    }
 
     // Store the actual form answers
     await db.insert(responsesTable).values({
@@ -1490,10 +1516,27 @@ router.post("/external/form/:token/submit", async (req, res) => {
       resultingCaseId: caseId,
     }).where(eq(referralInvitesTable.token, baseToken));
 
+    if (isSycInvite && sourceInquiry) {
+      await db.update(inquiriesTable).set({
+        status: "converted",
+        metadata: {
+          ...sourceMetadata,
+          caseId,
+          caseStartedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      }).where(eq(inquiriesTable.id, sourceInquiry.id));
+    }
+
     // Determine next form (consent still pending)
-    const nextForms = !isConsentSuffix && invite.includeConsent
-      ? [{ toolName: "Consent Form", uniqueToken: `${baseToken}__consent`, respondentLabel: "Referring Teacher" }]
-      : [];
+    const nextForms = [
+      ...(!isConsentSuffix && invite.includeConsent
+        ? [{ toolName: "Parent/Guardian Consent Form", uniqueToken: `${baseToken}__consent`, respondentLabel: "Parent / Guardian" }]
+        : []),
+      ...(assentToken
+        ? [{ toolName: "Student Assent Form", uniqueToken: assentToken, respondentLabel: "Student" }]
+        : []),
+    ];
 
     res.json({ success: true, message: "Thank you! Your response has been submitted.", nextForms });
     return;

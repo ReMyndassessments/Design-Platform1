@@ -774,32 +774,31 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     return;
   }
 
-  // Strengthen Your Core cases may receive only their RAOS consent/assent forms
-  // before both responses are verified. Assessment instruments remain blocked.
-  const sycRows = await db.execute(sql`
-    SELECT status, approved_extension
-    FROM syc_applications
-    WHERE status = 'consent_verified'
-      AND data -> '__syc' -> 'consent' ->> 'caseId' = ${caseId}
-    LIMIT 1
-  `);
+  // Strengthen Your Core stays inside the normal case/assignment workflow.
+  // Standard consent and assent forms are permitted first; assessment tools
+  // remain blocked until an administrator verifies both responses on the case.
   const isStrengthenCoreCase = ((caseRows[0].productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
-  if (isStrengthenCoreCase && !sycRows.rows[0] && !["CONSENT", "SYC-ASSENT"].includes(String(toolId))) {
+  const intakeAnalysis = (caseRows[0].intakeAnalysis ?? {}) as Record<string, unknown>;
+  const sycWorkflow = intakeAnalysis.sycWorkflow && typeof intakeAnalysis.sycWorkflow === "object"
+    ? intakeAnalysis.sycWorkflow as Record<string, unknown>
+    : {};
+  const sycConsentVerified = caseRows[0].consentObtained === true && typeof sycWorkflow.verifiedAt === "string";
+  if (isStrengthenCoreCase && !sycConsentVerified && !["CONSENT", "SYC-ASSENT"].includes(String(toolId))) {
     res.status(403).json({
       error: "strengthen_core_consent_not_verified",
       message: "This Strengthen Your Core case requires verified guardian consent and student assent before assessment assignments can be created.",
     });
     return;
   }
-  if (sycRows.rows[0]) {
-    const syc = sycRows.rows[0] as { status: string; approved_extension: string | null };
+  if (isStrengthenCoreCase && sycConsentVerified) {
     const [program] = await db.select().from(strengthenCoreProgramTable)
       .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
     const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };
     const allowedSycTools = new Set<string>();
     if (settings.coreInstrumentEnabled === true) allowedSycTools.add("RCEP-CORE");
-    if (syc.approved_extension && settings.allowedExtensions?.includes(syc.approved_extension)) {
-      allowedSycTools.add(syc.approved_extension);
+    const approvedExtension = typeof sycWorkflow.approvedExtension === "string" ? sycWorkflow.approvedExtension : null;
+    if (approvedExtension && settings.allowedExtensions?.includes(approvedExtension)) {
+      allowedSycTools.add(approvedExtension);
     }
     if (!allowedSycTools.has(String(req.body.toolId ?? ""))) {
       res.status(403).json({
