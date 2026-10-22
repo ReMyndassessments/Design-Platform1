@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, CircleAlert, ClipboardCheck, LockK
 import { getListStrengthenCoreApplicationsQueryKey, useGetStrengthenCoreProgram, useSubmitStrengthenCoreApplication } from "@workspace/api-client-react";
 
 type Lang = "en" | "zh" | "ko";
-type Field = { key: string; label: string; hint?: string; type?: "text" | "email" | "textarea" | "select" | "checkbox"; required?: boolean; options?: string[] };
+type Field = { key: string; label: string; hint?: string; type?: "text" | "email" | "textarea" | "select" | "checkbox"; required?: boolean; options?: Array<string | { value: string; label: string }>; showWhen?: { key: string; value: string } };
 type Section = { title: string; intro: string; fields: Field[] };
 const availabilityCopy: Record<Lang, { loading: string; closed: string; error: string; retry: string }> = {
   en: { loading: "Checking application availability…", closed: "Applications are currently closed.", error: "We could not check programme availability.", retry: "Try again" },
@@ -17,6 +17,7 @@ const questionExamples: Record<Lang, Record<string, string>> = {
   en: {
     schoolName: "Example (adapt to the actual situation): Enter the school's official name.",
     schoolLocation: "Example (adapt to the actual situation): Chengdu, Sichuan.",
+    schoolTypeOther: "Example (adapt to the actual situation): Montessori school, special education school, or another school model.",
     coordinatorName: "Example (adapt to the actual situation): Name of the staff member coordinating this application.",
     coordinatorRole: "Example (adapt to the actual situation): Learning support coordinator or class teacher.",
     coordinatorEmail: "Example (adapt to the actual situation): The coordinator's school email address.",
@@ -43,6 +44,7 @@ const questionExamples: Record<Lang, Record<string, string>> = {
   zh: {
     schoolName: "示例（请按实际情况调整）：填写学校正式名称。",
     schoolLocation: "示例（请按实际情况调整）：四川省成都市。",
+    schoolTypeOther: "示例（请按实际情况调整）：蒙特梭利学校、特殊教育学校或其他学校类型。",
     coordinatorName: "示例（请按实际情况调整）：填写负责协调本申请的校方工作人员姓名。",
     coordinatorRole: "示例（请按实际情况调整）：学习支持协调员或班主任。",
     coordinatorEmail: "示例（请按实际情况调整）：填写协调员的学校工作邮箱。",
@@ -69,6 +71,7 @@ const questionExamples: Record<Lang, Record<string, string>> = {
   ko: {
     schoolName: "예시(실제 상황에 맞게 조정하세요): 학교의 공식 명칭을 입력하세요.",
     schoolLocation: "예시(실제 상황에 맞게 조정하세요): 쓰촨성 청두시.",
+    schoolTypeOther: "예시(실제 상황에 맞게 조정하세요): 몬테소리 학교, 특수교육 학교 또는 기타 학교 유형.",
     coordinatorName: "예시(실제 상황에 맞게 조정하세요): 이 신청을 조정할 담당 교직원의 이름.",
     coordinatorRole: "예시(실제 상황에 맞게 조정하세요): 학습 지원 코디네이터 또는 담임교사.",
     coordinatorEmail: "예시(실제 상황에 맞게 조정하세요): 담당자의 학교 업무용 이메일 주소.",
@@ -97,7 +100,7 @@ const questionExamples: Record<Lang, Record<string, string>> = {
 const formCopy: Record<Lang, { brand: string; kicker: string; title: string; intro: string; language: string; required: string; privacy: string; nonDiag: string; noId: string; consent: string; assent: string; evidence: string; submit: string; submitting: string; receipt: string; receiptCopy: string; ref: string; error: string; validation: string; back: string; section: string; of: string; next: string; previous: string; review: string; received: string; open: string; sections: Section[] }> = {
   en: {
     brand: "REMYND · STRENGTHEN YOUR CORE", kicker: "SCHOOL APPLICATION · INTAKE & REVIEW", title: "A thoughtful starting point.", intro: "Tell us what your team notices and what support could look like. Please use de-identified referral text; do not include a student’s name, email address or other direct identifiers.", language: "Form language", required: "Required", privacy: "Please do not include student names, email addresses, dates of birth, or other information that directly identifies a student in referral text.", nonDiag: "Strengthen Your Core is a non-diagnostic educational pathway. It does not diagnose or replace clinical care.", noId: "I understand this is a non-diagnostic pathway and will keep student referral text de-identified.", consent: "I understand parent or guardian consent must be obtained before any assessment.", assent: "I understand student assent must also be obtained before any assessment.", evidence: "I confirm the school can provide supporting educational evidence through appropriate, approved channels if requested; I will not attach identifiable student records here.", submit: "Submit application", submitting: "Submitting…", receipt: "Application received", receiptCopy: "Your application has been submitted for intake and review. This receipt does not approve the application or start an assessment.", ref: "Application reference", error: "We couldn’t submit this application. Please review the form and try again.", validation: "Complete the required fields and acknowledgements to continue.", back: "Programme overview", section: "Section", of: "of", next: "Continue", previous: "Previous section", review: "Review and submit", received: "Submitted securely", open: "Complimentary pilot, subject to ReMynd approval. One student per approved school by default.", sections: [
-      { title: "School details", intro: "Help us understand the setting making this request.", fields: [{ key: "schoolName", label: "School name", required: true }, { key: "schoolLocation", label: "School location (city / region)" }, { key: "schoolType", label: "School type", type: "select", options: ["Primary", "Secondary", "All-through", "Other"] }] },
+      { title: "School details", intro: "Help us understand the setting making this request.", fields: [{ key: "schoolName", label: "School name", required: true }, { key: "schoolLocation", label: "School location (city / region)" }, { key: "schoolType", label: "School type", type: "select", options: [{ value: "K-12", label: "K-12" }, { value: "International school", label: "International school" }, { value: "Bilingual school", label: "Bilingual school" }, { value: "Other", label: "Other" }] }, { key: "schoolTypeOther", label: "If you selected Other, please specify the school type", type: "text", required: true, showWhen: { key: "schoolType", value: "Other" } }] },
       { title: "Implementation coordinator", intro: "A named school coordinator is required to make the pathway workable.", fields: [{ key: "coordinatorName", label: "Coordinator name", required: true }, { key: "coordinatorRole", label: "Role at school", required: true }, { key: "coordinatorEmail", label: "Work email", type: "email", required: true }, { key: "coordinatorPhone", label: "Work phone (optional)" }] },
       { title: "Learner context", intro: "Use a grade or age band only—never a name or direct identifier.", fields: [{ key: "gradeBand", label: "Grade or age band", required: true }, { key: "learningLanguage", label: "Primary language(s) of learning" }, { key: "context", label: "What context would help us understand this learner?", type: "textarea", hint: "Describe learning context only. Do not include names, dates of birth, contact details or unique identifiers." }] },
       { title: "What prompted this referral?", intro: "Describe the learning concern in observable, school-based terms.", fields: [{ key: "primaryConcern", label: "What has your team noticed, and how does it affect learning?", type: "textarea", required: true, hint: "Share observations rather than a diagnosis or assumption." }, { key: "duration", label: "How long has this concern been present?", type: "select", options: ["Less than one term", "1–2 terms", "More than two terms", "Not sure"] }] },
@@ -113,7 +116,7 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
   },
   zh: {
     brand: "REMYND · 强化学习核心", kicker: "学校申请 · 受理与审核", title: "从审慎的了解开始。", intro: "请分享团队的观察及可能的支持方向。转介文字必须去身份化；请勿填写学生姓名、电子邮箱或其他直接身份识别信息。", language: "表单语言", required: "必填", privacy: "请勿在转介文字中填写学生姓名、电子邮箱、出生日期或其他可直接识别学生的信息。", nonDiag: "「强化学习核心」是非诊断性的教育支持路径，不用于诊断，也不替代临床服务。", noId: "我了解本路径不提供诊断，并会确保学生转介文字已去身份化。", consent: "我了解任何评估开始前必须取得家长或监护人同意。", assent: "我了解任何评估开始前也必须取得学生本人的同意。", evidence: "我确认如有需要，学校可通过适当且获批准的渠道提供教育支持证据；此处不会上传可识别学生身份的记录。", submit: "提交申请", submitting: "正在提交……", receipt: "已收到申请", receiptCopy: "申请已提交，等待受理与审核。此回执不代表申请获批，也不会启动评估。", ref: "申请编号", error: "无法提交申请，请检查表单后重试。", validation: "请完成必填项和确认声明后继续。", back: "返回项目介绍", section: "部分", of: "/", next: "继续", previous: "上一部分", review: "检查并提交", received: "已安全提交", open: "免费试点须经 ReMynd 审批。默认每所获批学校一名学生。", sections: [
-      { title: "学校资料", intro: "请介绍提出申请的学校环境。", fields: [{ key: "schoolName", label: "学校名称", required: true }, { key: "schoolLocation", label: "学校所在地（城市／地区）" }, { key: "schoolType", label: "学校类型", type: "select", options: ["小学", "中学", "一贯制学校", "其他"] }] },
+      { title: "学校资料", intro: "请介绍提出申请的学校环境。", fields: [{ key: "schoolName", label: "学校名称", required: true }, { key: "schoolLocation", label: "学校所在地（城市／地区）" }, { key: "schoolType", label: "学校类型", type: "select", options: [{ value: "K-12", label: "K-12 学校" }, { value: "International school", label: "国际学校" }, { value: "Bilingual school", label: "双语学校" }, { value: "Other", label: "其他" }] }, { key: "schoolTypeOther", label: "如果选择“其他”，请说明学校类型", type: "text", required: true, showWhen: { key: "schoolType", value: "Other" } }] },
       { title: "项目实施协调员", intro: "学校须指定一名协调员，确保项目可行。", fields: [{ key: "coordinatorName", label: "协调员姓名", required: true }, { key: "coordinatorRole", label: "校内职务", required: true }, { key: "coordinatorEmail", label: "工作邮箱", type: "email", required: true }, { key: "coordinatorPhone", label: "工作电话（选填）" }] },
       { title: "学习者背景", intro: "仅填写年级或年龄范围，请勿填写姓名或直接身份信息。", fields: [{ key: "gradeBand", label: "年级或年龄范围", required: true }, { key: "learningLanguage", label: "主要学习语言" }, { key: "context", label: "哪些背景有助于我们理解这位学习者？", type: "textarea", hint: "仅描述学习背景。请勿填写姓名、出生日期、联系方式或独特身份信息。" }] },
       { title: "申请缘由", intro: "请以可观察的校内情况描述学习方面的关注。", fields: [{ key: "primaryConcern", label: "团队观察到什么？这对学习有何影响？", type: "textarea", required: true, hint: "请分享观察，而非诊断或假设。" }, { key: "duration", label: "这一情况持续多久？", type: "select", options: ["少于一学期", "1–2 学期", "超过两学期", "不确定"] }] },
@@ -129,7 +132,7 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
   },
   ko: {
     brand: "REMYND · 학습 핵심 강화", kicker: "학교 신청 · 접수 및 검토", title: "세심한 이해에서 시작합니다.", intro: "팀이 관찰한 내용과 가능한 지원 방향을 알려 주세요. 의뢰 문구는 비식별 처리해야 합니다. 학생 이름, 이메일 주소 또는 직접 식별 정보를 포함하지 마세요.", language: "양식 언어", required: "필수", privacy: "의뢰 문구에 학생 이름, 이메일 주소, 생년월일 또는 학생을 직접 식별하는 정보를 포함하지 마세요.", nonDiag: "학습 핵심 강화는 비진단 교육 지원 경로이며 진단을 제공하거나 임상 서비스를 대체하지 않습니다.", noId: "이 경로가 비진단적임을 이해하며 학생 의뢰 문구를 비식별 처리하겠습니다.", consent: "평가 전에 보호자 동의를 받아야 함을 이해합니다.", assent: "평가 전에 학생 본인의 동의도 받아야 함을 이해합니다.", evidence: "요청 시 적절히 승인된 경로로 교육 자료를 제공할 수 있음을 확인합니다. 식별 가능한 학생 기록은 여기에 첨부하지 않겠습니다.", submit: "신청 제출", submitting: "제출 중…", receipt: "신청이 접수되었습니다", receiptCopy: "신청이 접수 검토를 위해 제출되었습니다. 접수 확인은 승인이나 평가 시작을 의미하지 않습니다.", ref: "신청 참조 번호", error: "신청을 제출하지 못했습니다. 양식을 확인하고 다시 시도해 주세요.", validation: "필수 항목과 확인 사항을 완료한 후 계속해 주세요.", back: "프로그램 안내", section: "섹션", of: "/", next: "계속", previous: "이전 섹션", review: "검토 후 제출", received: "안전하게 제출됨", open: "무료 파일럿은 ReMynd 승인이 필요합니다. 승인 학교당 기본 학생 1명입니다.", sections: [
-      { title: "학교 정보", intro: "신청을 제출하는 학교 환경을 알려 주세요.", fields: [{ key: "schoolName", label: "학교명", required: true }, { key: "schoolLocation", label: "학교 위치(도시 / 지역)" }, { key: "schoolType", label: "학교 유형", type: "select", options: ["초등학교", "중학교", "통합 학교", "기타"] }] },
+      { title: "학교 정보", intro: "신청을 제출하는 학교 환경을 알려 주세요.", fields: [{ key: "schoolName", label: "학교명", required: true }, { key: "schoolLocation", label: "학교 위치(도시 / 지역)" }, { key: "schoolType", label: "학교 유형", type: "select", options: [{ value: "K-12", label: "K-12 학교" }, { value: "International school", label: "국제학교" }, { value: "Bilingual school", label: "이중언어 학교" }, { value: "Other", label: "기타" }] }, { key: "schoolTypeOther", label: "기타를 선택한 경우 학교 유형을 적어 주세요", type: "text", required: true, showWhen: { key: "schoolType", value: "Other" } }] },
       { title: "실행 코디네이터", intro: "경로를 원활히 운영하기 위해 학교 지정 코디네이터가 필요합니다.", fields: [{ key: "coordinatorName", label: "코디네이터 이름", required: true }, { key: "coordinatorRole", label: "학교 내 역할", required: true }, { key: "coordinatorEmail", label: "업무 이메일", type: "email", required: true }, { key: "coordinatorPhone", label: "업무 전화(선택)" }] },
       { title: "학습자 맥락", intro: "학년 또는 연령대만 입력하고 이름이나 직접 식별 정보는 입력하지 마세요.", fields: [{ key: "gradeBand", label: "학년 또는 연령대", required: true }, { key: "learningLanguage", label: "주요 학습 언어" }, { key: "context", label: "학습자를 이해하는 데 도움이 될 맥락은 무엇인가요?", type: "textarea", hint: "학습 맥락만 설명해 주세요. 이름, 생년월일, 연락처 또는 고유 식별 정보는 입력하지 마세요." }] },
       { title: "신청 배경", intro: "관찰 가능한 학교 상황을 중심으로 학습 우려를 설명해 주세요.", fields: [{ key: "primaryConcern", label: "팀이 관찰한 점과 학습에 미치는 영향은 무엇인가요?", type: "textarea", required: true, hint: "진단이나 추정이 아닌 관찰 내용을 공유해 주세요." }, { key: "duration", label: "이 우려가 지속된 기간은 어느 정도인가요?", type: "select", options: ["한 학기 미만", "1~2학기", "두 학기 초과", "잘 모르겠음"] }] },
@@ -157,15 +160,19 @@ export default function StrengthenCoreApplication() {
   const t = formCopy[lang];
   const sections = t.sections;
 
+  function isFieldVisible(field: Field) {
+    return !field.showWhen || values[field.showWhen.key] === field.showWhen.value;
+  }
+
   function validateCurrent() {
-    const missing = sections[step].fields.filter((f) => f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key);
+    const missing = sections[step].fields.filter((f) => isFieldVisible(f) && f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key);
     setErrors(missing);
     if (missing.length) window.scrollTo({ top: 0, behavior: "smooth" });
     return missing.length === 0;
   }
 
   function handleSubmit() {
-    const missing = sections.flatMap((section) => section.fields.filter((f) => f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key));
+    const missing = sections.flatMap((section) => section.fields.filter((f) => isFieldVisible(f) && f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key));
     setErrors(missing);
     if (missing.length) {
       const firstStep = sections.findIndex((section) => section.fields.some((f) => missing.includes(f.key)));
@@ -186,11 +193,52 @@ export default function StrengthenCoreApplication() {
     const describedBy = [field.hint && `hint-${field.key}`, example && `example-${field.key}`].filter(Boolean).join(" ") || undefined;
     const common = { id: field.key, "data-testid": `input-${field.key}`, "aria-describedby": describedBy, required: field.required, "aria-invalid": errors.includes(field.key), onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const target = e.target;
-      setValues((old) => ({ ...old, [field.key]: target instanceof HTMLInputElement && target.type === "checkbox" ? target.checked : target.value }));
-      setErrors((old) => old.filter((key) => key !== field.key));
+      setValues((old) => {
+        const next = { ...old, [field.key]: target instanceof HTMLInputElement && target.type === "checkbox" ? target.checked : target.value };
+        if (field.key === "schoolType" && target.value !== "Other") delete next.schoolTypeOther;
+        return next;
+      });
+      setErrors((old) => old.filter((key) => key !== field.key && !(field.key === "schoolType" && target.value !== "Other" && key === "schoolTypeOther")));
     } };
     if (field.type === "checkbox") return <label key={field.key} className={`flex cursor-pointer gap-3 rounded-xl border p-4 text-sm leading-6 ${errors.includes(field.key) ? "border-rose-400 bg-rose-50" : "border-[#d6e1da] bg-[#f7faf6]"}`}><input {...common} type="checkbox" checked={values[field.key] === true} className="mt-1 h-4 w-4 accent-[#1d5b58]" /><span>{field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}</span></label>;
-    return <div key={field.key} className="space-y-2"><label htmlFor={field.key} className="block text-sm font-semibold text-[#304d49]">{field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}</label>{field.type === "textarea" ? <textarea {...common} value={String(values[field.key] ?? "")} rows={4} className={`w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm leading-6 text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} /> : field.type === "select" ? <select {...common} value={String(values[field.key] ?? "")} className="w-full rounded-xl border border-[#d1ded6] bg-white px-4 py-3 text-sm text-[#284542] outline-none focus:border-[#528d78]"><option value="">—</option>{field.options?.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input {...common} type={field.type === "email" ? "email" : "text"} value={String(values[field.key] ?? "")} className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} />}{field.hint && <p id={`hint-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`hint-${field.key}`}>{field.hint}</p>}{example && <p id={`example-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`example-${field.key}`}>{example}</p>}{errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{t.validation}</p>}</div>;
+    return (
+      <div key={field.key} className="space-y-2">
+        <label htmlFor={field.key} className="block text-sm font-semibold text-[#304d49]">
+          {field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}
+        </label>
+        {field.type === "textarea" ? (
+          <textarea
+            {...common}
+            value={String(values[field.key] ?? "")}
+            rows={4}
+            className={`w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm leading-6 text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`}
+          />
+        ) : field.type === "select" ? (
+          <select
+            {...common}
+            value={String(values[field.key] ?? "")}
+            className="w-full rounded-xl border border-[#d1ded6] bg-white px-4 py-3 text-sm text-[#284542] outline-none focus:border-[#528d78]"
+          >
+            <option value="">—</option>
+            {field.options?.map((option) => {
+              const value = typeof option === "string" ? option : option.value;
+              const label = typeof option === "string" ? option : option.label;
+              return <option key={value} value={value}>{label}</option>;
+            })}
+          </select>
+        ) : (
+          <input
+            {...common}
+            type={field.type === "email" ? "email" : "text"}
+            value={String(values[field.key] ?? "")}
+            className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`}
+          />
+        )}
+        {field.hint && <p id={`hint-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`hint-${field.key}`}>{field.hint}</p>}
+        {example && <p id={`example-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`example-${field.key}`}>{example}</p>}
+        {errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{t.validation}</p>}
+      </div>
+    );
   }
 
   if (receipt) return <main className="min-h-[100dvh] bg-[#f3f7f3] px-4 py-12 text-[#244442]" lang={lang}><div className="mx-auto max-w-2xl rounded-3xl border border-[#d4e2d8] bg-[#fbfcf9] p-8 shadow-xl shadow-[#284a40]/5 md:p-12"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#e4f0e6] text-[#39765a]"><CheckCircle2 size={27} /></div><p className="mt-7 text-xs font-bold tracking-[.17em] text-[#769183]">{t.received}</p><h1 className="mt-3 font-display text-3xl font-semibold">{t.receipt}</h1><p className="mt-4 leading-7 text-[#5e746f]" data-testid="status-submission-receipt">{t.receiptCopy}</p><div className="mt-7 rounded-xl bg-[#eef4ee] p-4"><span className="text-xs font-semibold uppercase tracking-wider text-[#718781]">{t.ref}</span><p className="mt-1 font-mono text-lg font-semibold" data-testid="text-receipt-id">{receipt.id}</p><p className="mt-1 text-sm text-[#668078]">{receipt.status}</p></div><p className="mt-5 text-sm text-[#627972]">{t.open}</p><Link href="/strengthen-your-core" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#1d5b58]" data-testid="link-receipt-home"><ArrowLeft size={16} />{t.back}</Link></div></main>;
@@ -226,7 +274,7 @@ export default function StrengthenCoreApplication() {
           {errors.length > 0 && <div className="mb-5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-validation-error"><CircleAlert size={17} className="mt-0.5 shrink-0" />{t.validation}</div>}
           <section className="rounded-2xl border border-[#d8e3db] bg-[#fbfcf9] p-5 shadow-sm shadow-[#2d4d40]/[.03] md:p-8" data-testid={`section-application-${step + 1}`}>
             <div className="mb-7 flex gap-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e6efe7] font-mono text-sm font-bold text-[#54816d]">{String(step + 1).padStart(2, "0")}</span><div><h2 className="font-display text-2xl font-semibold text-[#264744]">{sections[step].title}</h2><p className="mt-1 text-sm leading-6 text-[#71817a]">{sections[step].intro}</p></div></div>
-            <div className="space-y-6">{sections[step].fields.map(fieldControl)}</div>
+            <div className="space-y-6">{sections[step].fields.filter(isFieldVisible).map(fieldControl)}</div>
             {step === 11 && <div className="mt-7 space-y-3 border-t border-[#e2e9e3] pt-6"><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.nonDiag}</p><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ClipboardCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.consent} {t.assent}</p><p className="text-xs leading-5 text-[#758680]">{t.evidence}</p></div>}
           </section>
           {submit.isError && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-submit-error">{t.error}</div>}
