@@ -146,10 +146,18 @@ export default function InquiriesPage() {
     mutationFn: (patch: Partial<SycProgramSettings>) => {
       const current = sycSettings.data;
       if (!current) throw new Error("Programme settings have not loaded.");
+      const settings = { ...current, ...patch };
       return customFetch<SycProgramSettings>("/api/strengthen-core/program", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...current, ...patch }),
+        body: JSON.stringify({
+          open: settings.open,
+          maxSchools: settings.maxSchools,
+          closesAt: settings.closesAt,
+          portalDurationDays: settings.portalDurationDays,
+          coreInstrumentEnabled: settings.coreInstrumentEnabled,
+          allowedExtensions: settings.allowedExtensions,
+        }),
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["strengthen-core-program-admin"] }),
