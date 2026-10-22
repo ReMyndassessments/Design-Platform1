@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   customFetch,
@@ -14,7 +14,8 @@ import {
   useUpdateStrengthenCoreProgram,
 } from "@workspace/api-client-react";
 import type { StrengthenCoreApplication, StrengthenCoreApplicationReviewDecision, StrengthenCoreProgramUpdateAllowedExtensionsItem } from "@workspace/api-client-react";
-import { Activity, AlertCircle, ArrowRight, Check, ChevronRight, Clock3, FileText, LockKeyhole, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, AlertCircle, ArrowRight, Check, ChevronRight, Clock3, Copy, Download, ExternalLink, FileText, LockKeyhole, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 type Lang = "en" | "zh" | "ko";
 type ConsentLinks = { guardianUrl: string | null; studentAssentUrl: string | null; expiresAt: string };
@@ -28,6 +29,51 @@ const text = {
   },
   ko: {
     title: "학습 핵심 강화", eyebrow: "REMYND · 관리자", subtitle: "신청 접수 및 검토", language: "언어", queue: "신청 대기열", queueNote: "접수 및 검토 결정만 지원", search: "학교 또는 우려 사항 검색", all: "모든 상태", pending: "검토 대기", approved: "승인", declined: "거절", more: "정보 요청", routed: "검토 전달", empty: "이 보기에 해당하는 신청이 없습니다.", loading: "신청 대기열을 불러오는 중…", queueError: "신청을 불러오지 못했습니다.", retry: "다시 시도", select: "검토할 신청을 선택하세요.", overview: "신청 상세", submitted: "제출", languageLabel: "양식 언어", noStudentIds: "비식별 접수 전용입니다. 학생 직접 식별 정보를 추가하지 마세요.", analysis: "AI 접수 제안", analyze: "제안 생성", analyzing: "준비 중…", analysisNote: "제안은 보조 자료이며 검토자가 반드시 평가해야 합니다. 결정이나 진단이 아닙니다.", noAnalysis: "생성된 제안이 없습니다. 검토자가 요청한 경우에만 사용하세요.", review: "검토 결정", decision: "결정", reason: "사유(필수)", reasonPlaceholder: "접수 결정의 근거를 기록하세요…", extension: "승인 확장 재정의", noExtension: "재정의 없음", saveReview: "결정 저장", saving: "저장 중…", requiredReason: "사유를 입력해야 합니다.", settings: "프로그램 설정", settingsNote: "변경 사항은 공개 신청 가능 여부와 프로그램 조건에 적용됩니다.", availability: "신청 접수 중", coreInstrument: "핵심 도구 활성화", maxSchools: "학교 최대 수", closeDate: "마감일", duration: "포털 기간(일)", extensions: "허용 확장", saveSettings: "프로그램 설정 저장", settingsSaved: "프로그램 설정을 저장했습니다.", settingsError: "프로그램 설정을 저장하지 못했습니다.", decisionSaved: "결정을 저장했습니다.", decisionError: "결정을 저장하지 못했습니다.", analysisError: "제안을 생성하지 못했습니다.", detailError: "신청 상세를 불러오지 못했습니다.", noDetails: "추가 신청 상세가 없습니다.", status: "상태", count: "건", open: "접수 중", closed: "마감", caveat: "이 작업 공간은 신청 검토와 보호자 동의 및 학생 본인 동의 수집을 지원합니다. 두 응답을 받은 후 관리자가 확인해야만 사례가 생성됩니다. 평가는 활성화되고 승인된 도구로만 배정할 수 있습니다. 보고서와 Case Portal은 아직 제공되지 않습니다.", school: "학교", concern: "주요 우려", submittedAt: "접수", data: "제출 응답", noItems: "제출된 응답 항목이 없습니다.", approvedDefault: "승인 학교당 기본 학생 1명", freePilot: "무료 파일럿은 ReMynd 승인 대상", coordinator: "학교 지정 실행 코디네이터 필요", consent: "평가 전에 보호자 및 학생 본인의 동의가 필요합니다.", nonDiagnostic: "비진단 경로", refresh: "대기열 새로고침", noReason: "기록된 검토 사유가 없습니다.", mark: "접수 검토", durationError: "기간은 1~90일이어야 합니다.", savedAt: "프로그램 API를 통해 설정을 관리합니다.", consentStage: "동의 및 평가 준비", guardianName: "부모／보호자 성명", guardianEmail: "부모／보호자 이메일", guardianRelationship: "학생과의 관계", studentName: "학생 성명", studentDob: "학생 생년월일", createConsentLinks: "동의 링크 생성／새로고침", guardianLink: "부모／보호자 동의 링크", studentLink: "학생 본인 동의 링크", copy: "복사", copied: "링크를 복사했습니다.", consentPending: "대기", consentReceived: "접수됨", consentDeclined: "거절됨", verifyConsent: "동의 확인 후 RAOS 사례 생성", verifying: "확인 중…", caseCreated: "동의를 확인했습니다. RAOS 사례가 생성되었습니다:", consentError: "동의 링크를 만들지 못했습니다.", verifyError: "확인하려면 두 개의 긍정적인 응답이 필요합니다.", expiredNote: "링크는 14일 후 만료됩니다. 새 링크를 만들면 사용되지 않은 이전 링크는 무효가 됩니다.", signedBy: "서명", verified: "확인됨",
+  },
+} as const;
+
+const shareCopy = {
+  en: {
+    title: "Share the application",
+    description: "Copy this direct link or download the QR code for school emails, flyers, and posters.",
+    linkLabel: "Direct application link",
+    copyLink: "Copy link",
+    copied: "Application link copied.",
+    copyError: "Could not copy automatically. Select and copy the link above.",
+    downloadQr: "Download QR for poster",
+    openForm: "Open application form",
+    openStatus: "Applications are open",
+    closedStatus: "Applications are closed",
+    previewWarning: "This is a workspace preview link. Use the published admin site to create a link for schools.",
+    qrAlt: "QR code linking directly to the Strengthen Your Core application form",
+  },
+  zh: {
+    title: "分享申请表",
+    description: "复制此直达链接，或下载二维码，用于学校邮件、宣传单和海报。",
+    linkLabel: "申请表直达链接",
+    copyLink: "复制链接",
+    copied: "申请链接已复制。",
+    copyError: "无法自动复制，请选择上方链接并手动复制。",
+    downloadQr: "下载海报二维码",
+    openForm: "打开申请表",
+    openStatus: "目前开放申请",
+    closedStatus: "目前暂未开放申请",
+    previewWarning: "这是工作区预览链接。请在已发布的管理页面中生成供学校使用的链接。",
+    qrAlt: "二维码：直接打开 Strengthen Your Core 申请表",
+  },
+  ko: {
+    title: "신청 링크 공유",
+    description: "학교 이메일, 안내문, 포스터에 사용할 직접 링크를 복사하거나 QR 코드를 다운로드하세요.",
+    linkLabel: "신청서 바로가기 링크",
+    copyLink: "링크 복사",
+    copied: "신청 링크를 복사했습니다.",
+    copyError: "자동으로 복사하지 못했습니다. 위 링크를 선택해 복사하세요.",
+    downloadQr: "포스터용 QR 다운로드",
+    openForm: "신청서 열기",
+    openStatus: "현재 신청 접수 중",
+    closedStatus: "현재 신청을 받지 않습니다",
+    previewWarning: "현재 작업 공간 미리보기 링크입니다. 학교에 공유할 링크는 게시된 관리자 페이지에서 만드세요.",
+    qrAlt: "Strengthen Your Core 신청서로 바로 연결되는 QR 코드",
   },
 } as const;
 
@@ -64,7 +110,15 @@ export default function StrengthenCoreAdmin() {
   const [consentLinks, setConsentLinks] = useState<ConsentLinks | null>(null);
   const [consentMessage, setConsentMessage] = useState("");
   const [createdCaseId, setCreatedCaseId] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
+  const qrContainerRef = useRef<HTMLDivElement>(null);
   const t = text[lang];
+  const share = shareCopy[lang];
+  const applicationUrl = useMemo(
+    () => `${window.location.origin}/strengthen-your-core/apply`,
+    [],
+  );
+  const isWorkspacePreview = /(^localhost$|^127\.0\.0\.1$|\.replit\.dev$)/i.test(window.location.hostname);
   const queue = useListStrengthenCoreApplications();
   const adminProgram = useGetStrengthenCoreProgramAdmin({
     query: { queryKey: getGetStrengthenCoreProgramAdminQueryKey() },
@@ -180,6 +234,31 @@ export default function StrengthenCoreAdmin() {
       setConsentMessage(url);
     }
   }
+  async function copyApplicationLink() {
+    try {
+      await navigator.clipboard.writeText(applicationUrl);
+      setShareMessage(share.copied);
+    } catch {
+      setShareMessage(share.copyError);
+    }
+  }
+  function downloadApplicationQr() {
+    const svg = qrContainerRef.current?.querySelector("svg");
+    if (!svg) return;
+    const copy = svg.cloneNode(true) as SVGSVGElement;
+    copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const svgFile = new Blob([new XMLSerializer().serializeToString(copy)], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const downloadUrl = URL.createObjectURL(svgFile);
+    const anchor = document.createElement("a");
+    anchor.href = downloadUrl;
+    anchor.download = "strengthen-your-core-application-qr.svg";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+  }
   function saveProgram() {
     const duration = Number(programForm.portalDurationDays);
     if (!Number.isFinite(duration) || duration < 1 || duration > 90) {
@@ -220,6 +299,33 @@ export default function StrengthenCoreAdmin() {
       </header>
       <div className="mx-auto max-w-[1500px] px-4 py-6 xl:px-8">
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#d9e4db] bg-[#e8f0e8] p-4 text-sm leading-6 text-[#536c61]" data-testid="notice-admin-scope"><LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#668872]" /><p>{t.caveat}</p></div>
+        <section className="mb-6 rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] p-5 shadow-sm md:p-7" aria-labelledby="share-application-title" data-testid="panel-application-sharing">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 id="share-application-title" className="font-display text-xl font-semibold text-[#254442]">{share.title}</h2>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${adminProgram.data?.open ? "bg-[#e4efe5] text-[#427450]" : "bg-[#f7e9e5] text-[#9d5848]"}`} data-testid="status-application-availability">
+                  {adminProgram.isLoading ? "…" : adminProgram.data?.open ? share.openStatus : share.closedStatus}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[#71817a]">{share.description}</p>
+              <label htmlFor="share-application-url" className="mt-5 block text-xs font-bold uppercase tracking-wide text-[#70837a]">{share.linkLabel}</label>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input id="share-application-url" readOnly value={applicationUrl} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-[#d7e1d9] bg-white px-3 py-2.5 text-sm text-[#405951]" data-testid="input-share-application-url" />
+                <button type="button" onClick={() => void copyApplicationLink()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#275c53] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#1f4e47]" data-testid="button-copy-application-link"><Copy size={15} />{share.copyLink}</button>
+                <a href={applicationUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d1ddd4] bg-white px-4 py-2.5 text-sm font-semibold text-[#45635b] transition hover:bg-[#edf3ed]" data-testid="link-open-application-form"><ExternalLink size={15} />{share.openForm}</a>
+              </div>
+              {shareMessage && <p className="mt-2 text-xs font-semibold text-[#477755]" role="status" data-testid="status-share-link">{shareMessage}</p>}
+              {isWorkspacePreview && <p className="mt-3 rounded-lg bg-[#fbf6e9] px-3 py-2 text-xs leading-5 text-[#75653d]" data-testid="notice-preview-share-link">{share.previewWarning}</p>}
+            </div>
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-[#e1e9e2] bg-white p-4">
+              <div ref={qrContainerRef} className="rounded-lg bg-white p-2" role="img" aria-label={share.qrAlt} data-testid="img-application-qr">
+                <QRCodeSVG value={applicationUrl} size={184} level="H" includeMargin />
+              </div>
+              <button type="button" onClick={downloadApplicationQr} className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d1ddd4] bg-white px-3 py-2 text-xs font-bold text-[#45635b] transition hover:bg-[#edf3ed]" data-testid="button-download-application-qr"><Download size={14} />{share.downloadQr}</button>
+            </div>
+          </div>
+        </section>
         <div className="grid gap-6 xl:grid-cols-[minmax(300px,370px)_minmax(0,1fr)]">
           <section className="overflow-hidden rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] shadow-sm">
             <div className="border-b border-[#e0e8e1] p-5"><div className="flex items-center justify-between"><div><h2 className="font-display text-xl font-semibold">{t.queue}</h2><p className="mt-1 text-xs text-[#82918a]">{t.queueNote}</p></div><button type="button" onClick={() => void queue.refetch()} className="rounded-lg p-2 text-[#637f72] transition hover:bg-[#e9f0e9]" aria-label={t.refresh} data-testid="button-refresh-queue"><RefreshCw size={16} /></button></div>
