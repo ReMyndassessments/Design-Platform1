@@ -774,8 +774,8 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     return;
   }
 
-  // Strengthen Your Core cases may only receive the approved instruments, and
-  // only after a separate guardian consent + student assent record was verified.
+  // Strengthen Your Core cases may receive only their RAOS consent/assent forms
+  // before both responses are verified. Assessment instruments remain blocked.
   const sycRows = await db.execute(sql`
     SELECT status, approved_extension
     FROM syc_applications
@@ -784,7 +784,7 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     LIMIT 1
   `);
   const isStrengthenCoreCase = ((caseRows[0].productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
-  if (isStrengthenCoreCase && !sycRows.rows[0]) {
+  if (isStrengthenCoreCase && !sycRows.rows[0] && !["CONSENT", "SYC-ASSENT"].includes(String(toolId))) {
     res.status(403).json({
       error: "strengthen_core_consent_not_verified",
       message: "This Strengthen Your Core case requires verified guardian consent and student assent before assessment assignments can be created.",

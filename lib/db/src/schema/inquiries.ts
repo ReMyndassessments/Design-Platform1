@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 
 export const inquiryTypeEnum = pgEnum("inquiry_type", ["school", "parent", "partner_school"]);
 export const inquiryStatusEnum = pgEnum("inquiry_status", ["new", "contacted", "converted", "closed"]);
@@ -30,6 +30,7 @@ export const inquiriesTable = pgTable("inquiries", {
   currentSupport: text("current_support"),
   howHeard: text("how_heard"),
   timeline: text("timeline"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -18,7 +18,6 @@ import { Activity, AlertCircle, ArrowRight, Check, ChevronRight, Clock3, Copy, D
 import { QRCodeSVG } from "qrcode.react";
 
 type Lang = "en" | "zh" | "ko";
-type ConsentLinks = { guardianUrl: string | null; studentAssentUrl: string | null; expiresAt: string };
 const text = {
   en: {
     title: "Strengthen Your Core", eyebrow: "REMYND · ADMINISTRATION", subtitle: "Application intake and review", language: "Language", queue: "Application queue", queueNote: "Intake and reviewer decisions only", search: "Search schools or concerns", all: "All statuses", pending: "Pending review", approved: "Approved", declined: "Declined", more: "Information requested", routed: "Routed for review", empty: "No applications match this view.", loading: "Loading application queue…", queueError: "Applications could not be loaded.", retry: "Try again", select: "Select an application to review.", overview: "Application details", submitted: "Submitted", languageLabel: "Form language", noStudentIds: "De-identified intake only. Do not add student direct identifiers.", analysis: "AI intake suggestions", analyze: "Generate suggestions", analyzing: "Preparing…", analysisNote: "Suggestions are assistive only. A reviewer must assess them; they are not a decision or diagnosis.", noAnalysis: "No suggestions generated. Use this only when a reviewer requests it.", review: "Reviewer decision", decision: "Decision", reason: "Reason (required)", reasonPlaceholder: "Record the rationale for this intake decision…", extension: "Approved extension override", noExtension: "No override", saveReview: "Save decision", saving: "Saving…", requiredReason: "A reason is required.", settings: "Programme configuration", settingsNote: "Changes affect public application availability and programme terms.", availability: "Accepting applications", coreInstrument: "Core instrument enabled", maxSchools: "Maximum schools", closeDate: "Closing date", duration: "Portal duration (days)", extensions: "Allowed extensions", saveSettings: "Save programme settings", settingsSaved: "Programme settings saved.", settingsError: "Could not save programme settings.", decisionSaved: "Decision saved.", decisionError: "Could not save the decision.", analysisError: "Could not generate suggestions.", detailError: "Application details could not be loaded.", noDetails: "No additional application details.", status: "Status", count: "applications", open: "Open", closed: "Closed", caveat: "This workspace supports application review and separate guardian-consent/student-assent collection. The case is created only after both responses are received and an administrator verifies them. Assessment assignments are restricted to enabled approved instruments; reporting and Case Portal remain out of scope.", school: "School", concern: "Primary concern", submittedAt: "Received", data: "Submitted responses", noItems: "No submitted response fields.", approvedDefault: "One student per approved school by default", freePilot: "Complimentary pilot subject to ReMynd approval", coordinator: "Named implementation coordinator required", consent: "Parent/guardian consent and student assent are required before assessment.", nonDiagnostic: "Non-diagnostic pathway", refresh: "Refresh queue", noReason: "No review reason recorded.", mark: "Intake review", durationError: "Duration must be 1–90 days.", savedAt: "Configuration is managed through the programme API.",
@@ -106,10 +105,8 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
   const [feedback, setFeedback] = useState("");
   const [programForm, setProgramForm] = useState({ open: false, coreInstrumentEnabled: false, maxSchools: "", closesAt: "", portalDurationDays: "30", allowedExtensions: [] as StrengthenCoreProgramUpdateAllowedExtensionsItem[] });
   const [settingsMessage, setSettingsMessage] = useState("");
-  const [consentForm, setConsentForm] = useState({ guardianName: "", guardianEmail: "", guardianRelationship: "", studentName: "", studentDob: "" });
-  const [consentLinks, setConsentLinks] = useState<ConsentLinks | null>(null);
   const [consentMessage, setConsentMessage] = useState("");
-  const [createdCaseId, setCreatedCaseId] = useState("");
+  const [startingRaosFlow, setStartingRaosFlow] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const qrContainerRef = useRef<HTMLDivElement>(null);
   const t = text[lang];
@@ -157,16 +154,7 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
     setReason(app.reviewReason ?? "");
     setApprovedExtension(app.approvedExtension ?? "");
     setFeedback("");
-    setConsentForm({
-      guardianName: app.consent?.guardianName ?? "",
-      guardianEmail: app.consent?.guardianEmail ?? "",
-      guardianRelationship: app.consent?.guardianRelationship ?? "",
-      studentName: app.consent?.studentName ?? "",
-      studentDob: "",
-    });
-    setConsentLinks(null);
     setConsentMessage("");
-    setCreatedCaseId(app.consent?.caseId ?? "");
   }
   function saveDecision() {
     if (!current || !reason.trim()) {
@@ -193,25 +181,22 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
       onError: () => setFeedback(t.analysisError),
     });
   }
-  async function createConsentLinks() {
+  async function startRaosFlow() {
     if (!current) return;
+    setStartingRaosFlow(true);
     setConsentMessage("");
     try {
-      const result = await customFetch<ConsentLinks>(`/api/strengthen-core/applications/${encodeURIComponent(current.id)}/consent-links`, {
+      await customFetch<{ caseId: string; caseUrl: string; alreadyStarted: boolean }>(`/api/strengthen-core/applications/${encodeURIComponent(current.id)}/start-raos-flow`, {
         method: "POST",
         responseType: "json",
-        body: JSON.stringify(consentForm),
       });
-      setConsentLinks({
-        guardianUrl: result.guardianUrl ? new URL(result.guardianUrl, window.location.origin).toString() : null,
-        studentAssentUrl: result.studentAssentUrl ? new URL(result.studentAssentUrl, window.location.origin).toString() : null,
-        expiresAt: result.expiresAt,
-      });
-      setConsentMessage(t.expiredNote);
+      setConsentMessage(lang === "zh" ? "已在 RAOS 个案中创建标准同意表和学生同意表。" : lang === "ko" ? "RAOS 사례에 표준 보호자 동의 및 학생 참여 동의 양식을 만들었습니다." : "The standard consent and student assent forms are now in the RAOS case.");
       void queryClient.invalidateQueries({ queryKey: getGetStrengthenCoreApplicationQueryKey(current.id) });
       void queryClient.invalidateQueries({ queryKey: getListStrengthenCoreApplicationsQueryKey() });
     } catch {
-      setConsentMessage(t.consentError);
+      setConsentMessage(lang === "zh" ? "无法启动 RAOS 同意流程。" : lang === "ko" ? "RAOS 동의 절차를 시작하지 못했습니다." : "Could not start the RAOS consent flow.");
+    } finally {
+      setStartingRaosFlow(false);
     }
   }
   async function verifyConsent() {
@@ -222,20 +207,12 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
         method: "POST",
         responseType: "json",
       });
-      setCreatedCaseId(result.caseId);
+      void result;
       setConsentMessage(t.caseCreated);
       void queryClient.invalidateQueries({ queryKey: getGetStrengthenCoreApplicationQueryKey(current.id) });
       void queryClient.invalidateQueries({ queryKey: getListStrengthenCoreApplicationsQueryKey() });
     } catch {
       setConsentMessage(t.verifyError);
-    }
-  }
-  async function copyConsentLink(url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setConsentMessage(t.copied);
-    } catch {
-      setConsentMessage(url);
     }
   }
   async function copyApplicationLink() {
@@ -302,7 +279,7 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
         </div>
       </header>}
       <div className={`mx-auto ${embedded ? "max-w-none px-0 py-0" : "max-w-[1500px] px-4 py-6 xl:px-8"}`}>
-        <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#d9e4db] bg-[#e8f0e8] p-4 text-sm leading-6 text-[#536c61]" data-testid="notice-admin-scope"><LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#668872]" /><p>{t.caveat}</p></div>
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#d9e4db] bg-[#e8f0e8] p-4 text-sm leading-6 text-[#536c61]" data-testid="notice-admin-scope"><LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#668872]" /><p>{lang === "zh" ? "此工作区用于申请审核和家长同意／学生本人同意的收集。批准后会先在 RAOS 中建立个案；在收到并核实两项同意前，不得分配评估。评估仅限已启用并获批的工具；报告和 Case Portal 不在此流程范围内。" : lang === "ko" ? "이 작업 공간은 신청 검토와 보호자 및 학생 참여 동의 수집을 지원합니다. 승인 후 RAOS 사례가 먼저 생성되며, 두 동의를 받고 확인하기 전에는 평가를 배정할 수 없습니다. 활성화되고 승인된 도구만 배정할 수 있으며 보고서와 Case Portal은 범위에 포함되지 않습니다." : "This workspace supports application review and separate guardian-consent/student-assent collection. After approval, a RAOS case is created first; assessment assignments stay blocked until both responses are received and verified. Only enabled, approved instruments can then be assigned. Reporting and Case Portal remain out of scope."}</p></div>
         <section className="mb-6 rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] p-5 shadow-sm md:p-7" aria-labelledby="share-application-title" data-testid="panel-application-sharing">
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
             <div className="min-w-0">
@@ -387,28 +364,40 @@ export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: b
                      </div>
                    </div>
                  )}
-                 {!current.consent?.caseId && current.status !== "consent_declined" && (
-                   <>
-                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianName}<input value={consentForm.guardianName} onChange={(event) => setConsentForm((old) => ({ ...old, guardianName: event.target.value }))} autoComplete="name" className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-guardian-name" /></label>
-                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianEmail}<input type="email" value={consentForm.guardianEmail} onChange={(event) => setConsentForm((old) => ({ ...old, guardianEmail: event.target.value }))} autoComplete="email" className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-guardian-email" /></label>
-                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianRelationship}<input value={consentForm.guardianRelationship} onChange={(event) => setConsentForm((old) => ({ ...old, guardianRelationship: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-relationship" /></label>
-                       <label className="text-xs font-semibold text-[#65766d]">{t.studentName}<input value={consentForm.studentName} onChange={(event) => setConsentForm((old) => ({ ...old, studentName: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-student-name" /></label>
-                       <label className="text-xs font-semibold text-[#65766d]">{t.studentDob}<input type="date" value={consentForm.studentDob} onChange={(event) => setConsentForm((old) => ({ ...old, studentDob: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-student-dob" /></label>
-                     </div>
-                     <button type="button" onClick={() => void createConsentLinks()} disabled={!consentForm.guardianName || !consentForm.guardianEmail || !consentForm.guardianRelationship || !consentForm.studentName || !consentForm.studentDob} className="mt-4 rounded-lg bg-[#275c53] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#1f4e47] disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-create-consent-links">{t.createConsentLinks}</button>
-                   </>
-                 )}
-                 {consentLinks && (
-                   <div className="mt-4 grid gap-3 sm:grid-cols-2" data-testid="panel-consent-links">
-                     {consentLinks.guardianUrl && <div className="rounded-xl border border-[#dce6dc] bg-white p-4"><p className="text-xs font-semibold">{t.guardianLink}</p><a className="mt-1 block break-all text-xs text-[#376f5a] underline" href={consentLinks.guardianUrl} target="_blank" rel="noreferrer">{consentLinks.guardianUrl}</a><button onClick={() => void copyConsentLink(consentLinks.guardianUrl!)} className="mt-2 text-xs font-bold text-[#376f5a]">{t.copy}</button></div>}
-                     {consentLinks.studentAssentUrl && <div className="rounded-xl border border-[#dce6dc] bg-white p-4"><p className="text-xs font-semibold">{t.studentLink}</p><a className="mt-1 block break-all text-xs text-[#376f5a] underline" href={consentLinks.studentAssentUrl} target="_blank" rel="noreferrer">{consentLinks.studentAssentUrl}</a><button onClick={() => void copyConsentLink(consentLinks.studentAssentUrl!)} className="mt-2 text-xs font-bold text-[#376f5a]">{t.copy}</button></div>}
-                   </div>
-                 )}
-                 {current.consent?.guardianStatus === "consented" && current.consent.studentStatus === "assented" && !current.consent.caseId && (
-                   <button type="button" onClick={() => void verifyConsent()} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#276455] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1f5144]" data-testid="button-verify-consent"><ShieldCheck size={16} />{t.verifyConsent}</button>
-                 )}
-                 {consentMessage && <p className="mt-3 break-all text-xs text-[#567263]" role="status" data-testid="status-consent-feedback">{consentMessage}{createdCaseId && !current.consent?.caseId && <a href={`/cases/${encodeURIComponent(createdCaseId)}`} className="ml-1 font-bold underline">{createdCaseId}</a>}</p>}
+                  {!current.consent?.caseId && current.status !== "consent_declined" && (
+                    <div className="mt-5">
+                      <p className="text-sm leading-6 text-[#60766d]">
+                        {lang === "zh" ? "这会在标准 RAOS 个案中建立家长同意表和学生本人同意表。家长填写 RAOS 标准同意表；学生确认后，再由管理员核实。"
+                          : lang === "ko" ? "표준 RAOS 사례에 보호자 동의 및 학생 참여 동의 양식을 만듭니다. 보호자는 RAOS 표준 양식을 작성하고, 학생의 선택을 받은 뒤 관리자가 확인합니다."
+                            : "This creates the standard RAOS Parent/Guardian Consent Form and a separate student assent form inside the case. The parent completes the RAOS form; the student's choice is recorded separately."}
+                      </p>
+                      <button type="button" onClick={() => void startRaosFlow()} disabled={startingRaosFlow} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#275c53] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#1f4e47] disabled:opacity-50" data-testid="button-start-raos-consent">
+                        <ShieldCheck size={16} />
+                        {startingRaosFlow
+                          ? (lang === "zh" ? "正在创建 RAOS 个案…" : lang === "ko" ? "RAOS 사례를 만드는 중…" : "Creating RAOS case…")
+                          : (lang === "zh" ? "在 RAOS 中创建个案和同意表" : lang === "ko" ? "RAOS 사례 및 동의 양식 만들기" : "Create case and consent forms in RAOS")}
+                      </button>
+                    </div>
+                  )}
+                  {current.consent?.caseId && (
+                    <div className="mt-5 rounded-xl border border-[#dce6dc] bg-white p-4">
+                      <p className="text-sm leading-6 text-[#60766d]">
+                        {lang === "zh" ? "家长同意和学生本人同意都通过 RAOS 个案表格收集。提交后，请在下方个案中核实答复，再开始评估。"
+                          : lang === "ko" ? "보호자 동의와 학생 참여 동의는 RAOS 사례 양식으로 수집됩니다. 두 응답을 확인한 뒤 평가를 시작하세요."
+                            : "Guardian consent and student assent are collected as standard RAOS case forms. Review both submitted responses in the case before enabling assessment assignments."}
+                      </p>
+                      <a href={`/cases/${encodeURIComponent(current.consent.caseId)}`} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#275c53] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1f4e47]" data-testid="link-open-raos-case">
+                        {lang === "zh" ? "打开 RAOS 个案" : lang === "ko" ? "RAOS 사례 열기" : "Open RAOS case"}
+                        <ArrowRight size={14} />
+                      </a>
+                      {current.consent.guardianStatus === "consented" && current.consent.studentStatus === "assented" && current.status !== "consent_verified" && (
+                        <button type="button" onClick={() => void verifyConsent()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#276455] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1f5144]" data-testid="button-verify-consent">
+                          <ShieldCheck size={16} />{lang === "zh" ? "核实同意并开放评估" : lang === "ko" ? "동의를 확인하고 평가 배정 허용" : "Verify both responses and allow assessment"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {consentMessage && <p className="mt-3 break-all text-xs text-[#567263]" role="status" data-testid="status-consent-feedback">{consentMessage}</p>}
                </section>
              )}
 

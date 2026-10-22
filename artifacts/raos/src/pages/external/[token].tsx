@@ -884,6 +884,7 @@ function FormIcon({ formType }: { formType: string }) {
   const cls = "text-primary";
   if (formType === "REFERRAL") return <ClipboardList size={26} className={cls} />;
   if (formType === "CONSENT")  return <ShieldCheck size={26} className={cls} />;
+  if (formType === "SYC-ASSENT") return <ShieldCheck size={26} className={cls} />;
   if (formType === "INTAKE")   return <FileText size={26} className={cls} />;
   return <img src="/images/remynd-logo-new.png" alt="ReMynd" className="w-9 h-9 object-contain mix-blend-multiply" />;
 }
@@ -891,6 +892,7 @@ function FormIcon({ formType }: { formType: string }) {
 function getFormLabel(formType: string) {
   if (formType === "REFERRAL") return "Student Referral";
   if (formType === "CONSENT")  return "Parent/Guardian Consent Form";
+  if (formType === "SYC-ASSENT") return "Student Assent Form";
   if (formType === "INTAKE")   return "Parent Intake";
   return "Assessment Screener";
 }
@@ -911,6 +913,7 @@ function getSubtitle(formType: string, studentName: string, language: string) {
 function getSubmitLabel(formType: string) {
   if (formType === "REFERRAL") return "Submit Referral";
   if (formType === "CONSENT")  return "Submit Consent Form";
+  if (formType === "SYC-ASSENT") return "Submit Student Assent";
   if (formType === "INTAKE")   return "Submit Intake Form";
   return "Submit Completed Form";
 }
@@ -1147,7 +1150,7 @@ function PortalView({
   const pendingCount = portal.forms.filter(f => f.status !== "completed").length;
   const completedCount = portal.forms.filter(f => f.status === "completed").length;
   const allDone = pendingCount === 0;
-  const ADMIN_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
+  const ADMIN_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "SYC-ASSENT", "INTAKE"]);
   const adminFormsAllDone = portal.forms.filter(f => ADMIN_TOOL_IDS.has(f.toolId)).every(f => f.status === "completed");
   const postDebriefFeaturesAvailable = !restricted && portal.currentPhase === "complete";
 
@@ -2915,6 +2918,24 @@ export function FormView({
           <p className="text-slate-500 text-sm leading-relaxed">{previewMode ? previewError ?? "The assigned form could not be loaded. No live respondent link was opened." : "This form link is invalid or has already expired."}</p>
           <button onClick={onBack} className="mt-6 text-sm text-primary underline">{previewMode ? `← ${previewBackLabel}` : "← Back to portal"}</button>
           <ReMyndFooter />
+        </div>
+      </div>
+    );
+  }
+
+  if ((form as any).lockedPendingGuardianConsent) {
+    const message = language === "mandarin"
+      ? "请先由家长或监护人完成 RAOS 同意书。确认家长同意后，学生本人同意表才会开放。"
+      : language === "korean"
+        ? "먼저 부모 또는 보호자가 RAOS 동의서를 제출해야 합니다. 확인 후 학생 참여 동의 양식이 열립니다."
+        : "The parent or guardian must submit the standard RAOS Consent Form first. The student assent form will open after that consent is recorded.";
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <Lock size={38} className="mx-auto mb-4 text-slate-400" />
+          <h2 className="text-xl font-bold text-slate-900">{language === "mandarin" ? "暂不可填写" : language === "korean" ? "아직 작성할 수 없습니다" : "Student assent is not available yet"}</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
+          <button onClick={onBack} className="mt-5 text-sm font-semibold text-primary underline">{language === "mandarin" ? "返回表格列表" : language === "korean" ? "양식 목록으로 돌아가기" : "Back to forms"}</button>
         </div>
       </div>
     );

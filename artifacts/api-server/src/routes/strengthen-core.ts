@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, strengthenCoreApplicationsTable, strengthenCoreProgramTable } from "@workspace/db/schema";
+import { assignmentsTable, assessmentToolsTable, casesTable, inquiriesTable, strengthenCoreApplicationsTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { createHash, randomBytes } from "node:crypto";
@@ -8,8 +8,18 @@ import { z } from "zod";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { callDeepSeek } from "../lib/ai.js";
 import { writeAudit } from "../lib/audit.js";
+import { CONSENT_FORM_V2, SYC_STUDENT_ASSENT_FORM } from "../lib/questions.js";
 
 const router = Router();
+let inquiryMetadataColumnPromise: Promise<void> | null = null;
+
+async function ensureInquiryMetadataColumn(): Promise<void> {
+  inquiryMetadataColumnPromise ??= db.execute(sql`
+    ALTER TABLE inquiries
+    ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+  `).then(() => undefined);
+  await inquiryMetadataColumnPromise;
+}
 const EXTENSIONS = ["REFI", "RARPS", "RFII", "RSSC"] as const;
 type Extension = typeof EXTENSIONS[number];
 type ProgramSettings = {
@@ -301,6 +311,7 @@ router.patch("/strengthen-core/program", authMiddleware, async (req, res): Promi
 });
 
 router.post("/strengthen-core/applications", async (req, res): Promise<void> => {
+  await ensureInquiryMetadataColumn();
   const parsed = z.object({
     language: z.enum(["en", "zh", "ko"]),
     data: z.record(z.string(), z.unknown()),
@@ -342,26 +353,46 @@ router.post("/strengthen-core/applications", async (req, res): Promise<void> => 
     return;
   }
   if (settings.maxSchools !== null) {
-    const approvedSchools = await db.select({ schoolName: strengthenCoreApplicationsTable.schoolName })
-      .from(strengthenCoreApplicationsTable)
-      .where(eq(strengthenCoreApplicationsTable.status, "approved"));
-    if (new Set(approvedSchools.map((row) => row.schoolName.trim().toLowerCase())).size >= settings.maxSchools) {
+    const approvedInquiries = await db.select({ organisation: inquiriesTable.organisation, metadata: inquiriesTable.metadata })
+      .from(inquiriesTable)
+      .where(eq(inquiriesTable.status, "converted"));
+    const approvedSchools = approvedInquiries.filter((row) =>
+      (row.metadata as Record<string, unknown> | null)?.productId === "STRENGTHEN_CORE"
+    );
+    if (new Set(approvedSchools.map((row) => (row.organisation ?? "").trim().toLowerCase()).filter(Boolean)).size >= settings.maxSchools) {
       res.status(409).json({ error: "programme_full", message: "The programme has reached its current approval capacity." });
       return;
     }
   }
   const id = nanoid();
-  const [row] = await db.insert(strengthenCoreApplicationsTable).values({
+  const [row] = await db.insert(inquiriesTable).values({
     id,
-    schoolName: safeString(data.schoolName, 240),
-    primaryConcern: safeString(data.primaryConcern, 240),
-    language: parsed.data.language,
-    status: "submitted",
-    data: data as Record<string, unknown>,
+    inquiryType: "school",
+    contactName: safeString(data.coordinatorName, 240),
+    contactEmail,
+    contactPhone: safeString(data.coordinatorPhone, 60) || null,
+    organisation: safeString(data.schoolName, 240),
+    role: safeString(data.coordinatorRole, 160),
+    yearGroup: safeString(data.gradeBand, 120),
+    message: safeString(data.primaryConcern, 4000),
+    schoolType: safeString(data.schoolType, 120) || null,
+    schoolLocation: safeString(data.schoolLocation, 240) || null,
+    currentSupport: safeString(data.supportsTried, 8000) || null,
+    timeline: safeString(data.duration, 160) || null,
+    howHeard: "Strengthen Your Core promotional application",
+    metadata: {
+      productId: "STRENGTHEN_CORE",
+      source: "promotional_link",
+      sourceLabel: "Strengthen Your Core promotional link",
+      language: parsed.data.language,
+      stage: "inquiry",
+      intakeData: data,
+    },
+    status: "new",
   }).returning();
   await writeAudit({
-    eventType: "syc.application.submitted",
-    metadata: { applicationId: id, language: parsed.data.language, primaryConcern: safeString(data.primaryConcern, 120) },
+    eventType: "inquiry.submitted",
+    metadata: { inquiryId: id, productId: "STRENGTHEN_CORE", source: "promotional_link", language: parsed.data.language },
   });
   res.status(201).json({ id: row.id, status: row.status, received: true });
 });
@@ -451,6 +482,79 @@ router.post("/strengthen-core/applications/:applicationId/analyze", authMiddlewa
   }
 });
 
+router.post("/strengthen-core/inquiries/:inquiryId/analyze", authMiddleware, async (req, res): Promise<void> => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  await ensureInquiryMetadataColumn();
+  const id = asId(req.params.inquiryId);
+  if (!id) {
+    res.status(400).json({ error: "invalid_inquiry_id" });
+    return;
+  }
+  const [inquiry] = await db.select().from(inquiriesTable).where(eq(inquiriesTable.id, id)).limit(1);
+  if (!inquiry) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const metadata = (inquiry.metadata ?? {}) as Record<string, unknown>;
+  if (metadata.productId !== "STRENGTHEN_CORE") {
+    res.status(409).json({ error: "not_strengthen_core_inquiry" });
+    return;
+  }
+  const source = metadata.source === "promotional_link" ? "promotional_link" : "portal";
+  const fullIntake = metadata.intakeData && typeof metadata.intakeData === "object" && !Array.isArray(metadata.intakeData)
+    ? metadata.intakeData as Record<string, unknown>
+    : {};
+  const evidence = source === "promotional_link"
+    ? fullIntake
+    : {
+        gradeBand: inquiry.yearGroup ?? "",
+        context: "",
+        primaryConcern: inquiry.message,
+        strengths: "",
+        barriers: "",
+        currentSupport: inquiry.currentSupport ?? "",
+        evidenceSummary: "",
+      };
+  const safeIntake = deidentifiedIntake(evidence);
+  const settings = await getSettings();
+  const sourceInstruction = source === "portal_link"
+    ? ""
+    : source === "portal"
+      ? `\n\nIMPORTANT SOURCE RULE: This is a brief website-portal inquiry, not the detailed promotional application. The evidence is sparse. Do not make an assessment eligibility decision or recommend any instrument or extension. Focus the interpretation on what is known, what cannot yet be concluded, the most important missing details, and which standard RAOS referral form should be requested next. Set recommendedExtension to null and suitability to "additional_information_required" unless the limited facts clearly require urgent human review.`
+      : `\n\nSOURCE: detailed Strengthen Your Core promotional application. Use the specialized educational intake criteria in the instructions above. An extension suggestion is only a draft; the administrator must approve it.`;
+  try {
+    const raw = await callDeepSeek(buildSycAnalysisPrompt(safeIntake, source === "portal" ? [] : settings.allowedExtensions) + sourceInstruction, 3000);
+    const analysis = analysisSchema.parse(parseModelJson(raw));
+    const eligibleRecommendation = source === "promotional_link" && analysis.recommendedExtension &&
+        settings.allowedExtensions.includes(analysis.recommendedExtension)
+      ? analysis.recommendedExtension
+      : null;
+    const savedAnalysis = {
+      ...analysis,
+      recommendedExtension: eligibleRecommendation,
+      professionalApprovalStatus: "pending_administrator_review",
+      source,
+      generatedAt: new Date().toISOString(),
+    };
+    const nextMetadata = { ...metadata, aiAnalysis: savedAnalysis, aiAnalysisSource: source };
+    await db.update(inquiriesTable).set({ metadata: nextMetadata, updatedAt: new Date() })
+      .where(eq(inquiriesTable.id, id));
+    await writeAudit({
+      eventType: "inquiry.syc_ai_analysis_generated",
+      actorId: req.userId,
+      actorRole: req.userRole,
+      metadata: { inquiryId: id, source, recommendedExtension: eligibleRecommendation, suitability: analysis.suitability },
+    });
+    res.json({ analysis: savedAnalysis, source });
+  } catch (error) {
+    req.log?.error({ error: error instanceof Error ? error.message : "unknown", inquiryId: id }, "Strengthen Your Core inquiry analysis failed");
+    res.status(502).json({ error: "analysis_unavailable", message: "The de-identified inquiry analysis could not be completed. The inquiry remains saved for review." });
+  }
+});
+
 router.patch("/strengthen-core/applications/:applicationId/review", authMiddleware, async (req, res): Promise<void> => {
   if (!isAdmin(req)) {
     res.status(403).json({ error: "forbidden" });
@@ -512,6 +616,143 @@ router.patch("/strengthen-core/applications/:applicationId/review", authMiddlewa
     metadata: { applicationId: id, status, approvedExtension: extension },
   });
   res.json(formatApplication(updated));
+});
+
+router.post("/strengthen-core/applications/:applicationId/start-raos-flow", authMiddleware, async (req, res): Promise<void> => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const id = asId(req.params.applicationId);
+  if (!id) {
+    res.status(400).json({ error: "invalid_application_id" });
+    return;
+  }
+  const [row] = await db.select().from(strengthenCoreApplicationsTable)
+    .where(eq(strengthenCoreApplicationsTable.id, id)).limit(1);
+  if (!row) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (!["approved", "consent_requested", "guardian_consent_received", "student_assent_received"].includes(row.status)) {
+    res.status(409).json({ error: "application_not_approved", message: "Approve the application before creating its RAOS case." });
+    return;
+  }
+  const settings = await getSettings();
+  if (!settings.coreInstrumentEnabled) {
+    res.status(409).json({ error: "programme_not_ready", message: "Enable the core instrument in programme settings before starting the RAOS flow." });
+    return;
+  }
+  const existingConsent = getPrivateData(row.data as Record<string, unknown>).consent;
+  if (existingConsent?.caseId) {
+    res.json({ caseId: existingConsent.caseId, caseUrl: `/cases/${encodeURIComponent(existingConsent.caseId)}`, alreadyStarted: true });
+    return;
+  }
+
+  const data = row.data as Record<string, unknown>;
+  const caseId = nanoid();
+  const consentToken = makeToken();
+  const assentToken = makeToken();
+  const baseUrl = `${(req.headers["x-forwarded-proto"] as string) ?? "https"}://${req.headers.host ?? "localhost"}`;
+  const consentUrl = `${baseUrl}/external/${consentToken}`;
+  const assentUrl = `${baseUrl}/external/${assentToken}`;
+  const learningLanguage = `${safeString(data.learningLanguage, 100)} ${safeString(data.languagePreference, 100)}`.toLowerCase();
+  const languagePreference = /cantonese|廣東話|粤语/.test(learningLanguage)
+    ? "cantonese" as const
+    : /chinese|mandarin|中文|普通话/.test(learningLanguage)
+      ? "mandarin" as const
+      : "english" as const;
+  const now = new Date();
+  const consent: SycConsentRecord = {
+    guardianName: "",
+    guardianEmail: "",
+    guardianRelationship: "",
+    studentName: "",
+    studentDob: "",
+    guardianStatus: "pending",
+    studentStatus: "pending",
+    guardianSignatureName: null,
+    guardianSignedAt: null,
+    studentSignatureName: null,
+    studentAssentedAt: null,
+    verifiedAt: null,
+    caseId,
+  };
+  const nextData = withPrivateData(data, { ...getPrivateData(data), consent });
+  const [consentTool] = await db.select({ formItems: assessmentToolsTable.formItems })
+    .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, "CONSENT")).limit(1);
+
+  await db.transaction(async (tx) => {
+    await tx.insert(casesTable).values({
+      id: caseId,
+      studentName: "Pending guardian consent",
+      dob: "Pending",
+      school: row.schoolName,
+      grade: safeString(data.gradeBand, 80) || null,
+      languagePreference,
+      referralReason: `Strengthen Your Core approved referral: ${row.primaryConcern}`,
+      currentPhase: "pre_commitment",
+      caseStatus: "active",
+      consentObtained: false,
+      productIds: ["STRENGTHEN_CORE"],
+      intakeAnalysis: {
+        strengthenCoreApplicationId: id,
+        productToolOverrides: {
+          STRENGTHEN_CORE: {
+            addedToolIds: row.approvedExtension ? [row.approvedExtension] : [],
+            removedToolIds: [],
+          },
+        },
+      },
+    });
+    await tx.insert(assignmentsTable).values([
+      {
+        id: nanoid(),
+        caseId,
+        toolId: "CONSENT",
+        toolName: "ReMynd Student Assessment — Parent/Guardian Consent Form",
+        respondentType: "parent",
+        respondentLabel: "Parent / Guardian",
+        uniqueToken: consentToken,
+        uniqueLink: consentUrl,
+        qrCodeData: consentUrl,
+        status: "not_started",
+        formItemsSnapshot: consentTool?.formItems ? JSON.stringify(consentTool.formItems) : JSON.stringify(CONSENT_FORM_V2),
+      },
+      {
+        id: nanoid(),
+        caseId,
+        toolId: "SYC-ASSENT",
+        toolName: "Strengthen Your Core — Student Assent",
+        respondentType: "student",
+        respondentLabel: "Student",
+        uniqueToken: assentToken,
+        uniqueLink: assentUrl,
+        qrCodeData: assentUrl,
+        status: "not_started",
+        formItemsSnapshot: JSON.stringify(SYC_STUDENT_ASSENT_FORM),
+      },
+    ]);
+    await tx.update(strengthenCoreApplicationsTable).set({
+      data: nextData,
+      status: "consent_requested",
+      updatedAt: now,
+    }).where(eq(strengthenCoreApplicationsTable.id, id));
+  });
+  await writeAudit({
+    eventType: "syc.application.raos_consent_flow_started",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    caseId,
+    metadata: { applicationId: id },
+  });
+  res.status(201).json({
+    caseId,
+    caseUrl: `/cases/${encodeURIComponent(caseId)}`,
+    consentUrl,
+    studentAssentUrl: assentUrl,
+    alreadyStarted: false,
+  });
 });
 
 router.post("/strengthen-core/applications/:applicationId/consent-links", authMiddleware, async (req, res): Promise<void> => {
@@ -735,9 +976,25 @@ router.post("/strengthen-core/applications/:applicationId/verify-consent", authM
     if (!consent || consent.guardianStatus !== "consented" || consent.studentStatus !== "assented") {
       return { error: "both_consents_required" as const };
     }
-    if (consent.caseId) return { error: "case_already_created" as const, caseId: consent.caseId };
     if (row.status !== "student_assent_received" && row.status !== "guardian_consent_received") {
       return { error: "application_not_ready" as const };
+    }
+    if (consent.caseId) {
+      const verifiedConsent: SycConsentRecord = {
+        ...consent,
+        guardianTokenHash: null,
+        studentTokenHash: null,
+        verifiedBy: req.userId ?? null,
+        verifiedAt: new Date().toISOString(),
+      };
+      await tx.update(casesTable).set({ consentObtained: true, updatedAt: new Date() })
+        .where(eq(casesTable.id, consent.caseId));
+      await tx.update(strengthenCoreApplicationsTable).set({
+        data: withPrivateData(data, { ...getPrivateData(data), consent: verifiedConsent }),
+        status: "consent_verified",
+        updatedAt: new Date(),
+      }).where(eq(strengthenCoreApplicationsTable.id, id));
+      return { caseId: consent.caseId };
     }
     const caseId = nanoid();
     const languageText = `${safeString(data.learningLanguage, 100)} ${safeString(data.languagePreference, 100)}`.toLowerCase();

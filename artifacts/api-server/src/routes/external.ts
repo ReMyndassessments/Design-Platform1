@@ -4,7 +4,7 @@ import { isChineseLiteracy } from "../lib/chineseLiteracyInstruments.js";
 import { withBehavobsDetails } from "../lib/behavobsDetails.js";
 import { createHmac, createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@workspace/db";
-import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, intakeQuestionRequestsTable } from "@workspace/db/schema";
+import { assignmentsTable, responsesTable, casesTable, assessmentToolsTable, referralInvitesTable, intakeQuestionRequestsTable, strengthenCoreApplicationsTable } from "@workspace/db/schema";
 import { reportUploadsTable, reportTokensTable } from "@workspace/db/schema";
 import { eq, and, or, ne, asc, sql } from "drizzle-orm";
 import { ObjectStorageService } from "../lib/objectStorage.js";
@@ -348,7 +348,7 @@ async function notifyAdminsOfAirwallexFailure(
   }
 }
 
-const FORM_TYPES = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"];
+const FORM_TYPES = ["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "SYC-ASSENT", "INTAKE"];
 
 const ITEM_TYPE_MAP: Record<string, string> = {
   radio: "radio_group",
@@ -1079,6 +1079,21 @@ router.get("/external/form/:token", async (req, res) => {
     : responseRows.length > 0;
 
   const toolId = assignment.toolId;
+  let lockedPendingGuardianConsent = false;
+  if (toolId === "SYC-ASSENT") {
+    const appRows = await db.execute(sql`
+      SELECT data FROM syc_applications
+      WHERE data -> '__syc' -> 'consent' ->> 'caseId' = ${assignment.caseId}
+      LIMIT 1
+    `);
+    const appData = appRows.rows[0] as { data?: Record<string, unknown> } | undefined;
+    const privateData = appData?.data?.__syc;
+    const consent = privateData && typeof privateData === "object"
+      ? (privateData as Record<string, unknown>).consent
+      : null;
+    lockedPendingGuardianConsent = !consent || typeof consent !== "object" ||
+      (consent as Record<string, unknown>).guardianStatus !== "consented";
+  }
   const formType = FORM_TYPES.includes(toolId) ? toolId : "screener";
 
   // Use the frozen snapshot stored at assignment-creation time so the respondent
@@ -1114,6 +1129,7 @@ router.get("/external/form/:token", async (req, res) => {
     questions,
     alreadySubmitted,
     isExaminerAdministered: toolId === "RPPI",
+    lockedPendingGuardianConsent,
   });
 });
 
@@ -1131,6 +1147,185 @@ router.post("/external/form/:token/submit", async (req, res) => {
     }
     if (!canAssignObservation(assignment.toolId, assignment.respondentType)) {
       res.status(403).json({ error: "invigilator_only", message: "Assessment Behavior Observation is for the invigilator only." });
+      return;
+    }
+    const consentAnswers = answers && typeof answers === "object" && !Array.isArray(answers)
+      ? answers as Record<string, unknown>
+      : {};
+    const [linkedCase] = await db.select({ productIds: casesTable.productIds })
+      .from(casesTable).where(eq(casesTable.id, assignment.caseId)).limit(1);
+    const isSycConsent = assignment.toolId === "CONSENT" &&
+      (((linkedCase?.productIds ?? []) as string[]).includes("STRENGTHEN_CORE"));
+    if (assignment.toolId === "SYC-ASSENT" || isSycConsent) {
+      const affirmative = (value: unknown) =>
+        typeof value === "string" && ["yes", "是", "예"].includes(value.trim().toLocaleLowerCase());
+      const appResult = await db.transaction(async (tx) => {
+        const [lockedAssignment] = await tx.select().from(assignmentsTable)
+          .where(eq(assignmentsTable.id, assignment.id)).for("update").limit(1);
+        if (!lockedAssignment || lockedAssignment.status === "completed") return { error: "already_submitted" as const };
+        const appRows = await tx.execute(sql`
+          SELECT id, data FROM syc_applications
+          WHERE data -> '__syc' -> 'consent' ->> 'caseId' = ${assignment.caseId}
+          FOR UPDATE
+        `);
+        const app = appRows.rows[0] as { id: string; data: Record<string, unknown> } | undefined;
+        if (!app) return { error: "application_missing" as const };
+        const currentData = app.data;
+        const privateBlock = currentData.__syc && typeof currentData.__syc === "object"
+          ? currentData.__syc as Record<string, unknown>
+          : {};
+        const currentConsent = privateBlock.consent && typeof privateBlock.consent === "object"
+          ? privateBlock.consent as Record<string, unknown>
+          : {};
+
+        if (assignment.toolId === "SYC-ASSENT" && currentConsent.guardianStatus !== "consented") {
+          return { error: "guardian_consent_required" as const };
+        }
+
+        let nextConsent: Record<string, unknown>;
+        let nextStatus: string;
+        let affirmativeAssent = false;
+        let studentName = "";
+        let dob = "";
+        let guardianName = "";
+        let guardianEmail = "";
+        if (isSycConsent) {
+          const requiredConsentIds = [
+            "consent_authority", "consent_authorization", "consent_ai", "consent_sensitive",
+            "consent_privacy_ack", "consent_final",
+          ];
+          const firstName = String(consentAnswers.student_first_name ?? "").trim();
+          const lastName = String(consentAnswers.student_last_name ?? "").trim();
+          studentName = [firstName, lastName].filter(Boolean).join(" ");
+          dob = String(consentAnswers.student_dob ?? "").trim();
+          guardianName = String(consentAnswers.guardian_name_input ?? "").trim();
+          guardianEmail = String(consentAnswers.guardian_email ?? "").trim();
+          const signatureName = String(consentAnswers.guardian_name ?? "").trim();
+          const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(dob) ? new Date(`${dob}T00:00:00Z`) : null;
+          const today = new Date();
+          const beforeBirthday = birthDate && (
+            today.getUTCMonth() < birthDate.getUTCMonth() ||
+            (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() < birthDate.getUTCDate())
+          );
+          const age = birthDate && Number.isFinite(birthDate.getTime())
+            ? today.getUTCFullYear() - birthDate.getUTCFullYear() - (beforeBirthday ? 1 : 0)
+            : null;
+          const identityComplete = !!studentName && !!guardianName &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail) &&
+            !!String(consentAnswers.guardian_relationship ?? "").trim() &&
+            !!String(consentAnswers.student_school ?? "").trim() &&
+            !!String(consentAnswers.student_grade ?? "").trim() &&
+            signatureName.toLocaleLowerCase() === guardianName.toLocaleLowerCase();
+          if (!identityComplete || age === null || age < 0 ||
+              !requiredConsentIds.every((key) => affirmative(consentAnswers[key])) ||
+              (age < 14 && !affirmative(consentAnswers.consent_under14))) {
+            return { error: "invalid_consent" as const };
+          }
+          nextConsent = {
+            ...currentConsent,
+            guardianName,
+            guardianEmail,
+            guardianRelationship: String(consentAnswers.guardian_relationship ?? "").trim(),
+            studentName,
+            studentDob: dob,
+            guardianStatus: "consented",
+            guardianSignatureName: signatureName,
+            guardianSignedAt: new Date().toISOString(),
+          };
+          nextStatus = "guardian_consent_received";
+        } else {
+          const decision = String(consentAnswers.syc_assent_decision ?? "").trim().toLocaleLowerCase();
+          const understands = affirmative(consentAnswers.syc_assent_understanding);
+          const name = String(consentAnswers.syc_assent_student_name ?? "").trim();
+          const signature = String(consentAnswers.syc_assent_signature ?? "").trim();
+          const date = String(consentAnswers.syc_assent_date ?? "").trim();
+          if (!understands || name.length < 2 || signature.length < 2 ||
+              !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+              (!decision.startsWith("yes") && !decision.startsWith("no") &&
+                !decision.startsWith("愿意") && !decision.startsWith("不愿意") &&
+                !decision.startsWith("네") && !decision.startsWith("아니요"))) {
+            return { error: "invalid_assent" as const };
+          }
+          affirmativeAssent = decision.startsWith("yes") || decision.startsWith("愿意") || decision.startsWith("네");
+          nextConsent = {
+            ...currentConsent,
+            studentStatus: affirmativeAssent ? "assented" : "declined",
+            studentSignatureName: signature,
+            studentAssentedAt: new Date().toISOString(),
+          };
+          nextStatus = affirmativeAssent ? "student_assent_received" : "consent_declined";
+        }
+
+        await tx.insert(responsesTable).values({
+          id: nanoid(),
+          assignmentId: assignment.id,
+          answers: consentAnswers as Record<string, string>,
+          language: language ?? "english",
+        });
+        await tx.update(assignmentsTable).set({ status: "completed", submittedAt: new Date() })
+          .where(eq(assignmentsTable.id, assignment.id));
+        if (isSycConsent) {
+          const learningLanguage = `${String(currentData.learningLanguage ?? "")} ${String(currentData.languagePreference ?? "")}`.toLocaleLowerCase();
+          const languagePreference = /cantonese|廣東話|粤语/.test(learningLanguage)
+            ? "cantonese" as const
+            : /chinese|mandarin|中文|普通话/.test(learningLanguage)
+              ? "mandarin" as const
+              : "english" as const;
+          await tx.update(casesTable).set({
+            studentName,
+            dob,
+            grade: String(consentAnswers.student_grade).trim(),
+            languagePreference,
+            parentName: guardianName,
+            parentEmail: guardianEmail,
+            consentObtained: false,
+            updatedAt: new Date(),
+          }).where(eq(casesTable.id, assignment.caseId));
+          await tx.update(assignmentsTable).set({ assignedToName: studentName })
+            .where(and(eq(assignmentsTable.caseId, assignment.caseId), eq(assignmentsTable.toolId, "SYC-ASSENT")));
+        }
+        await tx.update(strengthenCoreApplicationsTable).set({
+          data: { ...currentData, __syc: { ...privateBlock, consent: nextConsent } },
+          status: nextStatus,
+          updatedAt: new Date(),
+        }).where(eq(strengthenCoreApplicationsTable.id, app.id));
+        return { applicationId: app.id, affirmativeAssent };
+      });
+
+      if ("error" in appResult) {
+        const status = appResult.error === "already_submitted" ? 409
+          : appResult.error === "application_missing" ? 409
+          : appResult.error === "guardian_consent_required" ? 409
+          : 400;
+        res.status(status).json({
+          error: appResult.error,
+          message: appResult.error === "guardian_consent_required"
+            ? "The parent or guardian must submit the RAOS Consent Form first."
+            : appResult.error === "invalid_assent"
+              ? "Complete the explanation, choice, and signature fields before submitting."
+              : appResult.error === "invalid_consent"
+                ? "The RAOS Consent Form needs valid guardian/student details and all required affirmative consent responses."
+                : "This RAOS consent response has already been submitted or is not linked to an application.",
+        });
+        return;
+      }
+      void writeAudit({
+        eventType: isSycConsent ? "syc.guardian_consent_submitted" : "syc.student_assent_submitted",
+        caseId: assignment.caseId,
+        assignmentId: assignment.id,
+        toolId: assignment.toolId,
+        ipAddress: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.ip ?? null,
+        metadata: { applicationId: appResult.applicationId, affirmative: isSycConsent || appResult.affirmativeAssent },
+      });
+      res.json({
+        success: true,
+        message: isSycConsent
+          ? "Thank you. Your RAOS Consent Form has been submitted."
+          : appResult.affirmativeAssent
+            ? "Thank you. Your choice to take part has been recorded."
+            : "Your choice not to take part has been recorded. No assessment will be assigned.",
+        nextForms: [],
+      });
       return;
     }
     await db.insert(responsesTable).values({ id: nanoid(), assignmentId: assignment.id, answers: answers ?? {}, language: language ?? "english" });

@@ -945,6 +945,71 @@ export const CONSENT_FORM_V2: FormQuestion[] = [
   },
 ];
 
+export const SYC_STUDENT_ASSENT_FORM: FormQuestion[] = [
+  {
+    id: "syc_assent_intro",
+    text: "Student Assent — Strengthen Your Core",
+    textChinese: "学生本人同意——强化学习核心",
+    textKorean: "학생 참여 동의 — Strengthen Your Core",
+    note: "A school adult should explain this in words you understand before you answer. The activities are meant to help the adults understand what learning support may be useful. You can ask questions, say no, or stop later. Your choice will not get you in trouble.",
+    noteChinese: "回答前，学校成人应使用你能理解的语言向你说明。本项目活动旨在帮助成人了解哪些学习支持可能有帮助。你可以提问、拒绝或之后停止参加。你的选择不会让你受到惩罚。",
+    noteKorean: "답하기 전에 학교 어른이 이해하기 쉬운 말로 설명해 주세요. 활동은 어떤 학습 지원이 도움이 되는지 어른들이 이해하도록 돕기 위한 것입니다. 질문하거나 거절하거나 나중에 중단할 수 있으며, 선택으로 불이익을 받지 않습니다.",
+    type: "section_header",
+    domain: "student_assent",
+  },
+  {
+    id: "syc_assent_student_name",
+    text: "Your name",
+    textChinese: "你的姓名",
+    textKorean: "이름",
+    type: "text",
+    domain: "student_assent",
+    required: true,
+  },
+  {
+    id: "syc_assent_understanding",
+    text: "I have had this explained to me and had a chance to ask questions.",
+    textChinese: "有人已向我说明了这些内容，我也有机会提出问题。",
+    textKorean: "내용을 설명 들었고 질문할 기회가 있었습니다.",
+    type: "radio_group",
+    options: ["Yes", "No"],
+    optionsChinese: ["是", "否"],
+    optionsKorean: ["예", "아니요"],
+    domain: "student_assent",
+    required: true,
+  },
+  {
+    id: "syc_assent_decision",
+    text: "Would you like to take part in the learning activities?",
+    textChinese: "你愿意参加这些学习活动吗？",
+    textKorean: "학습 활동에 참여하고 싶나요?",
+    type: "radio_group",
+    options: ["Yes, I want to take part", "No, I do not want to take part"],
+    optionsChinese: ["愿意参加", "不愿意参加"],
+    optionsKorean: ["네, 참여하고 싶습니다", "아니요, 참여하고 싶지 않습니다"],
+    domain: "student_assent",
+    required: true,
+  },
+  {
+    id: "syc_assent_signature",
+    text: "Type your name to confirm your choice",
+    textChinese: "输入姓名以确认你的选择",
+    textKorean: "선택을 확인하기 위해 이름을 입력하세요",
+    type: "signature",
+    domain: "student_assent",
+    required: true,
+  },
+  {
+    id: "syc_assent_date",
+    text: "Date",
+    textChinese: "日期",
+    textKorean: "날짜",
+    type: "date",
+    domain: "student_assent",
+    required: true,
+  },
+];
+
 // ─── INTAKE FORM ───────────────────────────────────────────────────────────────
 export const INTAKE_FORM: FormQuestion[] = [
   // Section 1: Basic Info
@@ -4335,6 +4400,7 @@ export const SAMPLE_QUESTIONS: Record<string, FormQuestion[]> = {
   "REFERRAL-PARENT":   REFERRAL_PARENT_FORM,
   "REFERRAL-BOARDING": REFERRAL_BOARDING_FORM,
   CONSENT:    CONSENT_FORM,
+  "SYC-ASSENT": SYC_STUDENT_ASSENT_FORM,
   INTAKE:     INTAKE_FORM,
   RASR:       RASR_FORM,
   "RASR-OBS": RASR_OBS_FORM,

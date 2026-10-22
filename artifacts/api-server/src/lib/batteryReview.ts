@@ -16,6 +16,7 @@ export const INTAKE_TOOL_IDS = new Set([
   "REFERRAL-PARENT",
   "REFERRAL-BOARDING",
   "CONSENT",
+  "SYC-ASSENT",
   "INTAKE",
 ]);
 

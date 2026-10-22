@@ -102,7 +102,7 @@ function ageFromDob(dob: string | null | undefined): number | null {
 }
 
 const LEAD_PHASES = new Set(["pre_commitment", "intake"]);
-const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "INTAKE"]);
+const INTAKE_TOOL_IDS = new Set(["REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING", "CONSENT", "SYC-ASSENT", "INTAKE"]);
 const SPECIALIZED_EXAMINER_TOOL_IDS = new Set(["RPPI", "RDA", "RRCA", "RRFA", "RAEPA", "RAMRI", "RMRA"]);
 const getExaminerWorkflowPath = (toolId: string | null | undefined) =>
   toolId && SPECIALIZED_EXAMINER_TOOL_IDS.has(toolId) ? toolId.toLowerCase() : null;
