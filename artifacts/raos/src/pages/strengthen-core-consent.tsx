@@ -32,7 +32,7 @@ const copy = {
     blocked: "The parent or guardian must submit consent before the student can respond.",
     error: "Your response could not be submitted. Check the required fields and try again.",
     signatureMismatch: "Type the name that the school provided for this consent request.",
-    privacy: "This response is stored with the school application. Assessment invitations remain blocked until both responses are received and an administrator verifies them.",
+    privacy: "This response is stored in the RAOS case. Assessment invitations remain blocked until parent/guardian consent is received and an administrator verifies it.",
   },
   zh: {
     brand: "REMYND · 强化学习核心",
@@ -57,7 +57,7 @@ const copy = {
     blocked: "学生提交答复前，家长或监护人必须先提供同意。",
     error: "无法提交答复。请检查必填项后重试。",
     signatureMismatch: "请输入学校为此同意申请提供的姓名。",
-    privacy: "答复将与学校申请一并保存。只有在收到两份答复并由管理员核实后，才会开放评估邀请。",
+    privacy: "此答复将保存在 RAOS 个案中。只有收到家长或监护人同意并由管理员核实后，才会开放评估邀请。",
   },
   ko: {
     brand: "REMYND · 학습 핵심 강화",
@@ -82,7 +82,7 @@ const copy = {
     blocked: "학생이 응답하기 전에 부모 또는 보호자의 동의가 필요합니다.",
     error: "응답을 제출하지 못했습니다. 필수 항목을 확인하고 다시 시도하세요.",
     signatureMismatch: "학교가 이 동의 요청에 제공한 이름을 입력하세요.",
-    privacy: "응답은 학교 신청서와 함께 저장됩니다. 두 응답을 모두 받고 관리자가 확인하기 전에는 평가 초대를 보낼 수 없습니다.",
+    privacy: "이 응답은 RAOS 사례에 저장됩니다. 보호자 동의를 받고 관리자가 확인해야 평가 초대가 열립니다.",
   },
 } as const;
 
@@ -100,6 +100,10 @@ export default function StrengthenCoreConsentPage() {
   const [signatureError, setSignatureError] = useState(false);
 
   useEffect(() => {
+    if (role === "student") {
+      setLoading(false);
+      return;
+    }
     let active = true;
     customFetch<ConsentStatus>(`/api/strengthen-core/consent/${role}/${encodeURIComponent(params.token ?? "")}`, { responseType: "json" })
       .then((result) => { if (active) setStatus(result); })
@@ -112,7 +116,7 @@ export default function StrengthenCoreConsentPage() {
   const t = copy[lang];
 
   async function submit() {
-    if (!status || !signatureName.trim() || !confirmed) return;
+    if (role !== "guardian" || !status || !signatureName.trim() || !confirmed) return;
     setSubmitting(true);
     setSignatureError(false);
     try {
@@ -122,7 +126,7 @@ export default function StrengthenCoreConsentPage() {
         body: JSON.stringify({
           decision,
           signatureName: signatureName.trim(),
-          ...(role === "guardian" ? { legalAuthorityConfirmed: confirmed } : { studentUnderstands: confirmed }),
+          legalAuthorityConfirmed: confirmed,
         }),
       });
       setSubmitted(decision);
@@ -137,7 +141,12 @@ export default function StrengthenCoreConsentPage() {
     <main className="min-h-[100dvh] bg-[#f3f6f2] px-4 py-10 text-[#243f3b]">
       <article className="mx-auto max-w-2xl rounded-3xl border border-[#dce5dc] bg-white p-6 shadow-sm sm:p-10">
         <p className="text-[10px] font-bold tracking-[.18em] text-[#739084]">{t.brand}</p>
-        {loading ? <p className="mt-8 text-sm text-[#60766d]">{copy.en.loading}</p>
+        {role === "student" ? (
+          <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900">
+            <h1 className="text-xl font-semibold">No student form is needed</h1>
+            <p className="mt-3">A separate student assent form is not required for this pathway. Parent/guardian consent is the only consent form needed; no response is required from the student here.</p>
+          </div>
+        ) : loading ? <p className="mt-8 text-sm text-[#60766d]">{copy.en.loading}</p>
           : invalid ? <div className="mt-8 flex gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><CircleAlert className="shrink-0" size={18} />{copy.en.invalid}</div>
             : submitted ? <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" role="status"><CheckCircle2 size={24} className="text-emerald-700" /><h1 className="mt-3 text-xl font-semibold">{submitted === "decline" ? t.declined : role === "guardian" ? t.successGuardian : t.successStudent}</h1></div>
               : <div className="mt-8">

@@ -272,7 +272,7 @@ export default function StrengthenCoreApplication() {
           <section className="rounded-2xl border border-[#d8e3db] bg-[#fbfcf9] p-5 shadow-sm shadow-[#2d4d40]/[.03] md:p-8" data-testid={`section-application-${step + 1}`}>
             <div className="mb-7 flex gap-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e6efe7] font-mono text-sm font-bold text-[#54816d]">{String(step + 1).padStart(2, "0")}</span><div><h2 className="font-display text-2xl font-semibold text-[#264744]">{sections[step].title}</h2><p className="mt-1 text-sm leading-6 text-[#71817a]">{sections[step].intro}</p></div></div>
             <div className="space-y-6">{sections[step].fields.filter(isFieldVisible).map(fieldControl)}</div>
-            {step === 11 && <div className="mt-7 space-y-3 border-t border-[#e2e9e3] pt-6"><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.nonDiag}</p><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ClipboardCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.consent} {t.assent}</p><p className="text-xs leading-5 text-[#758680]">{t.evidence}</p></div>}
+            {step === 11 && <div className="mt-7 space-y-3 border-t border-[#e2e9e3] pt-6"><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.nonDiag}</p><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ClipboardCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.consent}</p><p className="text-xs leading-5 text-[#758680]">{t.evidence}</p></div>}
           </section>
           {submit.isError && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-submit-error">{t.error}</div>}
           <div className="mt-6 flex flex-wrap justify-between gap-3">
@@ -282,7 +282,7 @@ export default function StrengthenCoreApplication() {
         </section>
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-2xl border border-[#d7e3da] bg-[#e8f0e8] p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">STRENGTHEN YOUR CORE</p><p className="mt-3 text-sm leading-6 text-[#526f66]">{t.open}</p></div>
-          <div className="rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5"><h3 className="flex items-center gap-2 text-sm font-bold text-[#365951]"><ShieldCheck size={17} />{t.nonDiag}</h3><p className="mt-3 text-sm leading-6 text-[#687d76]">{t.consent} {t.assent}</p></div>
+          <div className="rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5"><h3 className="flex items-center gap-2 text-sm font-bold text-[#365951]"><ShieldCheck size={17} />{t.nonDiag}</h3><p className="mt-3 text-sm leading-6 text-[#687d76]">{t.consent}</p></div>
           <div className="hidden rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5 lg:block"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">APPLICATION SECTIONS</p><ol className="mt-3 space-y-2">{sections.map((s, i) => <li key={s.title} className={`text-xs ${step === i ? "font-bold text-[#285c51]" : "text-[#82918b]"}`}><span className="mr-2 font-mono">{String(i + 1).padStart(2, "0")}</span>{s.title}</li>)}</ol></div>
         </aside>
       </div>

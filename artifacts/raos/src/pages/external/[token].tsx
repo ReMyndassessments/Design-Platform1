@@ -2923,19 +2923,19 @@ export function FormView({
     );
   }
 
-  if ((form as any).lockedPendingGuardianConsent) {
+  if ((form as any).studentAssentNotRequired) {
     const message = language === "mandarin"
-      ? "请先由家长或监护人完成 RAOS 同意书。确认家长同意后，学生本人同意表才会开放。"
+      ? "此路径不需要单独的学生同意表。只需完成家长或监护人的 RAOS 同意书；此页面无需填写。"
       : language === "korean"
-        ? "먼저 부모 또는 보호자가 RAOS 동의서를 제출해야 합니다. 확인 후 학생 참여 동의 양식이 열립니다."
-        : "The parent or guardian must submit the standard RAOS Consent Form first. The student assent form will open after that consent is recorded.";
+        ? "이 경로에는 별도의 학생 동의서가 필요하지 않습니다. 보호자의 RAOS 동의서만 필요하며 이 페이지에서 작성할 내용은 없습니다."
+        : "A separate student assent form is not required for this pathway. Parent/guardian consent is the only consent form needed; no response is needed on this page.";
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-50 to-white">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <Lock size={38} className="mx-auto mb-4 text-slate-400" />
-          <h2 className="text-xl font-bold text-slate-900">{language === "mandarin" ? "暂不可填写" : language === "korean" ? "아직 작성할 수 없습니다" : "Student assent is not available yet"}</h2>
+          <h2 className="text-xl font-bold text-slate-900">{language === "mandarin" ? "无需填写此表" : language === "korean" ? "이 양식은 작성하지 않아도 됩니다" : "No student form is needed"}</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
-          <button onClick={onBack} className="mt-5 text-sm font-semibold text-primary underline">{language === "mandarin" ? "返回表格列表" : language === "korean" ? "양식 목록으로 돌아가기" : "Back to forms"}</button>
+          <button onClick={onBack} className="mt-5 text-sm font-semibold text-primary underline">{language === "mandarin" ? "返回" : language === "korean" ? "돌아가기" : "Go back"}</button>
         </div>
       </div>
     );

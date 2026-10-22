@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
+import { EXTENSIONS, type Extension } from "../lib/strengthen-core-analysis.js";
 
 export type { AssessmentProductDef };
 
@@ -180,26 +181,75 @@ router.patch("/cases/:caseId/product-tool-overrides", authMiddleware, async (req
 
   const existing = (caseRows[0].intakeAnalysis as any) ?? {};
   const existingOverrides = existing.productToolOverrides ?? {};
+  const isStrengthenCoreCase = ((caseRows[0].productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
+  let approvedExtension: string | null | undefined;
+  if (productId === "STRENGTHEN_CORE") {
+    if (!isStrengthenCoreCase || req.userRole !== "admin") {
+      res.status(403).json({ error: "forbidden", message: "Only an administrator can approve Strengthen Your Core assessment tools." });
+      return;
+    }
+    if (!Array.isArray(addedToolIds) || !Array.isArray(removedToolIds)) {
+      res.status(400).json({ error: "invalid_tool_overrides" });
+      return;
+    }
+    const extensionIds = addedToolIds.filter((toolId): toolId is Extension =>
+      typeof toolId === "string" && EXTENSIONS.includes(toolId as Extension)
+    );
+    const invalidAdded = addedToolIds.some(toolId => toolId !== "RCEP-CORE" && !EXTENSIONS.includes(toolId as Extension));
+    const invalidRemoved = removedToolIds.some(toolId => toolId !== "RCEP-CORE" && !EXTENSIONS.includes(toolId as Extension));
+    if (invalidAdded || invalidRemoved || removedToolIds.includes("RCEP-CORE") || extensionIds.length > 1) {
+      res.status(400).json({
+        error: "invalid_strengthen_core_tool_selection",
+        message: "Strengthen Your Core allows its core instrument and no more than one enabled extension.",
+      });
+      return;
+    }
+    const [program] = await db.select().from(strengthenCoreProgramTable)
+      .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
+    const settings = (program?.settings ?? {}) as { allowedExtensions?: string[] };
+    const nextExtension = extensionIds[0] ?? null;
+    if (nextExtension && !settings.allowedExtensions?.includes(nextExtension)) {
+      res.status(400).json({
+        error: "extension_not_enabled",
+        message: "This extension is not enabled for Strengthen Your Core.",
+      });
+      return;
+    }
+    const workflow = existing.sycWorkflow && typeof existing.sycWorkflow === "object" ? existing.sycWorkflow : {};
+    const currentExtension = typeof workflow.approvedExtension === "string" ? workflow.approvedExtension : null;
+    if (caseRows[0].consentObtained === true && currentExtension !== nextExtension) {
+      res.status(409).json({
+        error: "approved_extension_locked",
+        message: "The approved extension cannot be changed after parent/guardian consent has been verified.",
+      });
+      return;
+    }
+    approvedExtension = nextExtension;
+  }
+  const updatedAnalysis = {
+    ...existing,
+    productToolOverrides: {
+      ...existingOverrides,
+      [productId]: {
+        addedToolIds: addedToolIds ?? [],
+        removedToolIds: removedToolIds ?? [],
+      },
+    },
+    ...(approvedExtension !== undefined
+      ? { sycWorkflow: { ...(existing.sycWorkflow ?? {}), approvedExtension } }
+      : {}),
+  };
   const updated = await db
     .update(casesTable)
     .set({
-      intakeAnalysis: {
-        ...existing,
-        productToolOverrides: {
-          ...existingOverrides,
-          [productId]: {
-            addedToolIds: addedToolIds ?? [],
-            removedToolIds: removedToolIds ?? [],
-          },
-        },
-      },
+      intakeAnalysis: updatedAnalysis,
       updatedAt: new Date(),
     })
     .where(eq(casesTable.id, caseId))
     .returning();
 
   const result = (updated[0].intakeAnalysis as any)?.productToolOverrides ?? {};
-  res.json({ productToolOverrides: result });
+  res.json({ productToolOverrides: result, ...(approvedExtension !== undefined ? { approvedExtension } : {}) });
 });
 
 // ── POST /api/cases/:caseId/product-report ────────────────────────────────────

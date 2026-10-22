@@ -76,13 +76,18 @@ export default function ProductDashboardPage() {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ productId, addedToolIds, removedToolIds }),
-      }).then(r => r.json()),
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.message ?? data.error ?? "Failed to save tool selection.");
+        return data;
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/product-dashboard`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
       toast({ title: "Tool customization saved" });
       setCustomizeProductId(null);
     },
-    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Failed to save", description: error.message, variant: "destructive" }),
   });
 
   function toggleExpand(pid: string) {

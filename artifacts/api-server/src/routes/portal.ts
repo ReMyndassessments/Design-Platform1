@@ -207,7 +207,13 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
       intakeAnalysis: {
         source: "promotional_link",
         sourceInquiryId: inquiry.id,
-        aiAnalysis: existingAnalysis,
+        sycInitialReview: existingAnalysis,
+        productToolOverrides: {
+          STRENGTHEN_CORE: {
+            addedToolIds: typeof workflow.approvedExtension === "string" ? [workflow.approvedExtension] : [],
+            removedToolIds: [],
+          },
+        },
         sycWorkflow: workflow,
       },
     });
@@ -296,7 +302,6 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
 
   let productId: string | null = null;
   let sourceInquiryId: string | null = null;
-  let includeAssent = false;
   if (typeof inquiryId === "string" && inquiryId) {
     const [sourceInquiry] = await db.select().from(inquiriesTable).where(sql`${inquiriesTable.id} = ${inquiryId}`).limit(1);
     if (!sourceInquiry) {
@@ -304,10 +309,9 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
       return;
     }
     const sourceMetadata = (sourceInquiry.metadata ?? {}) as Record<string, unknown>;
-    if (sourceMetadata.productId === "STRENGTHEN_CORE") {
+    if (sourceMetadata.productId === "STRENGTHEN_CORE" && sourceMetadata.source === "promotional_link") {
       productId = "STRENGTHEN_CORE";
       sourceInquiryId = sourceInquiry.id;
-      includeAssent = true;
     }
   }
   const includeConsent = productId === "STRENGTHEN_CORE" ? true : requestedConsent === true;
@@ -347,7 +351,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
       token:          inviteToken,
       formId:         resolvedFormId,
       includeConsent: !!includeConsent,
-      includeAssent,
+      includeAssent: false,
       productId,
       sourceInquiryId,
       toEmail,
@@ -373,7 +377,7 @@ router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => 
     <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 16px;font-size:18px;color:#0a1628">Hi ${toName},</h2>
       <p style="margin:0 0 12px;font-size:14px;color:#475569">${productId === "STRENGTHEN_CORE"
-        ? "Please complete the standard RAOS referral form at the link below. After submission, the parent/guardian consent and student assent forms will continue through the same RAOS case workflow."
+        ? "Please complete the standard RAOS referral form at the link below. Parent/guardian consent is the only consent form required before assessment."
         : `Thank you for your interest in ReMynd Student Services. Please complete the ${formCount} at the link below — ${formTakes} just a few minutes.`}</p>
       ${schoolLine}${noteLine}
       <p style="margin:0 0 24px;font-size:14px;color:#475569">Once received, a member of our team will be in touch within one business day to discuss next steps. You can return to this link at any time.</p>

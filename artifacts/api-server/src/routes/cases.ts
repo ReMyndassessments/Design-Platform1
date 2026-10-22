@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PROMOTIONAL_DEMO_CASE_ID } from "../middlewares/promotionalDemoReadOnly.js";
 import { db } from "@workspace/db";
-import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable, clinicalApprenticeNotesTable, clinicalApprenticeFeedbackTable, interviewRecordingsTable, rmraSessionsTable, rmraTaskResponsesTable, reportsTable, reportUploadsTable, reportTokensTable, reportDraftsTable, intakeQuestionRequestsTable } from "@workspace/db/schema";
+import { casesTable, assignmentsTable, scoresTable, responsesTable, assessmentToolsTable, referralInvitesTable, usersTable, caseApprenticeAssignmentsTable, clinicalApprenticeNotesTable, clinicalApprenticeFeedbackTable, interviewRecordingsTable, rmraSessionsTable, rmraTaskResponsesTable, reportsTable, reportUploadsTable, reportTokensTable, reportDraftsTable, intakeQuestionRequestsTable, inquiriesTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -14,6 +14,7 @@ import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intakeQuestionEmail.js";
 import { createIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
+import { deidentifiedIntake, EXTENSIONS, generateSycAnalysis, type Extension } from "../lib/strengthen-core-analysis.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -949,7 +950,41 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     return Object.fromEntries(items.map(item => [`${item.type}_intake`, item.answers]));
   })();
 
-  const assessmentTools = allTools.filter(t => !ADMIN_IDS.has(t.id));
+  const isStrengthenCoreCase = ((c.productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
+  const currentIntakeAnalysis = (c.intakeAnalysis ?? {}) as Record<string, unknown>;
+  const sourceIntakeData = c.intakeData && typeof c.intakeData === "object" && !Array.isArray(c.intakeData)
+    ? c.intakeData as Record<string, unknown>
+    : {};
+  const sycEvidenceKeys = [
+    "gradeBand", "learningLanguage", "context", "primaryConcern", "duration",
+    "strengths", "successContext", "barriers", "patterns", "evidenceSummary",
+    "supportsTried", "responseToSupport", "studentPerspective", "familyPerspective",
+    "familyEngagement", "sixWeekOutcome", "outcomeMeasure", "coordinatorCapacity",
+  ];
+  const directIdentifiers = [
+    c.studentName, c.parentName, c.parentEmail, c.parentPhone, c.school,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 1)
+    .sort((a, b) => b.length - a.length);
+  const redactSycText = (text: string) => {
+    let result = text
+      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted email]")
+      .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, "[redacted phone]");
+    for (const identifier of directIdentifiers) result = result.replaceAll(identifier, "[redacted]");
+    return result;
+  };
+  const redactSycValue = (value: unknown): unknown => {
+    if (typeof value === "string") return redactSycText(value);
+    if (value instanceof Date) return value.toISOString();
+    if (Array.isArray(value)) return value.map(redactSycValue);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, redactSycValue(item)]));
+    }
+    return value;
+  };
+  const sycApplicationEvidence = Object.fromEntries(
+    sycEvidenceKeys.filter(key => Object.hasOwn(sourceIntakeData, key))
+      .map(key => [key, redactSycValue(sourceIntakeData[key])]),
+  );
 
   const age = c.dob ? ageOnDate(c.dob) : null;
 
@@ -962,6 +997,82 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     return `Parent interview ${index + 1}${recording.interviewDate ? ` (${recording.interviewDate.toISOString().slice(0, 10)})` : ""}:\n${sections || recording.transcript || "No transcript available"}`;
   }).join("\n\n");
 
+  const combinedParentInterviewNotes = [c.parentInterviewNotes?.trim(), recordedInterviewNotes].filter(Boolean).join("\n\n") || null;
+  if (isStrengthenCoreCase) {
+    const sycWorkflow = currentIntakeAnalysis.sycWorkflow && typeof currentIntakeAnalysis.sycWorkflow === "object"
+      ? currentIntakeAnalysis.sycWorkflow as Record<string, unknown>
+      : {};
+    if (c.consentObtained !== true || typeof sycWorkflow.verifiedAt !== "string") {
+      res.status(403).json({
+        error: "strengthen_core_consent_not_verified",
+        message: "Verify parent/guardian consent through the standard RAOS workflow before regenerating this educational review.",
+      });
+      return;
+    }
+    const [program] = await db.select().from(strengthenCoreProgramTable)
+      .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
+    const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };
+    if (settings.coreInstrumentEnabled !== true) {
+      res.status(409).json({
+        error: "strengthen_core_instrument_not_enabled",
+        message: "The Strengthen Your Core core instrument must be enabled before the case review can be regenerated.",
+      });
+      return;
+    }
+    const enabledExtensions = (settings.allowedExtensions ?? [])
+      .filter((extension): extension is Extension => EXTENSIONS.includes(extension as Extension));
+    const evidence = deidentifiedIntake(redactSycValue({
+      ...sycApplicationEvidence,
+      gradeBand: c.grade ?? sourceIntakeData.gradeBand ?? "",
+      learningLanguage: sourceIntakeData.learningLanguage ?? c.languagePreference,
+      primaryConcern: sourceIntakeData.primaryConcern ?? c.referralReason,
+      ageAtAnalysis: age,
+      schoolApplication: sycApplicationEvidence,
+      raosReferralResponses: referralAnswers,
+      raosIntakeResponses: intakeAnswers,
+      parentInterviewNotes: c.parentInterviewNotes ?? null,
+      recordedInterviewNotes,
+      followUpResponses: currentIntakeAnalysis.followUpAnswers ?? null,
+      groupResponses: currentIntakeAnalysis.groupResponses ?? null,
+      submittedQuestionResponses: submittedQuestionRequests.map(({ recipientName: _recipientName, ...response }) => response),
+      leadContext: currentIntakeAnalysis.leadContext ?? null,
+      previousReview: currentIntakeAnalysis.sycInitialReview ?? null,
+    }) as Record<string, unknown>);
+    const generated = await generateSycAnalysis(evidence, enabledExtensions);
+    const savedReview = {
+      ...generated,
+      source: "promotional_link",
+      professionalApprovalStatus: "pending_administrator_review",
+      generatedAt: new Date().toISOString(),
+    };
+    await db.update(casesTable).set({
+      intakeAnalysis: sql`jsonb_set(COALESCE(${casesTable.intakeAnalysis}, '{}'::jsonb),
+        '{sycInitialReview}', ${JSON.stringify(savedReview)}::jsonb, true)`,
+      updatedAt: new Date(),
+    }).where(eq(casesTable.id, req.params.caseId));
+
+    const sourceInquiryId = typeof currentIntakeAnalysis.sourceInquiryId === "string"
+      ? currentIntakeAnalysis.sourceInquiryId
+      : typeof sycWorkflow.inquiryId === "string" ? sycWorkflow.inquiryId : null;
+    if (sourceInquiryId) {
+      const [sourceInquiry] = await db.select().from(inquiriesTable)
+        .where(eq(inquiriesTable.id, sourceInquiryId)).limit(1);
+      if (sourceInquiry) {
+        await db.update(inquiriesTable).set({
+          metadata: {
+            ...((sourceInquiry.metadata ?? {}) as Record<string, unknown>),
+            aiAnalysis: savedReview,
+            aiAnalysisSource: "promotional_link",
+          },
+          updatedAt: new Date(),
+        }).where(eq(inquiriesTable.id, sourceInquiryId));
+      }
+    }
+    res.json(savedReview);
+    return;
+  }
+
+  const assessmentTools = allTools.filter(t => !ADMIN_IDS.has(t.id));
   const analysis = await analyzeIntakeWithAI({
     studentName: c.studentName,
     caseId: req.params.caseId,
@@ -972,11 +1083,11 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     age,
     referralFormAnswers: referralAnswers,
     parentIntakeAnswers: intakeAnswers,
-    parentInterviewNotes: [c.parentInterviewNotes?.trim(), recordedInterviewNotes].filter(Boolean).join("\n\n") || null,
-    followUpAnswers: (c.intakeAnalysis as { followUpAnswers?: Record<string, unknown> } | null)?.followUpAnswers ?? null,
-    groupResponses: (c.intakeAnalysis as { groupResponses?: Record<string, string> } | null)?.groupResponses ?? null,
+    parentInterviewNotes: combinedParentInterviewNotes,
+    followUpAnswers: (currentIntakeAnalysis.followUpAnswers as Record<string, unknown> | undefined) ?? null,
+    groupResponses: (currentIntakeAnalysis.groupResponses as Record<string, string> | undefined) ?? null,
     submittedQuestionRequests,
-    leadContext: (c.intakeAnalysis as { leadContext?: string } | null)?.leadContext ?? null,
+    leadContext: typeof currentIntakeAnalysis.leadContext === "string" ? currentIntakeAnalysis.leadContext : null,
     assessmentTools,
   });
 

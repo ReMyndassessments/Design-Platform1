@@ -276,7 +276,7 @@ export default function InquiriesPage() {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
       setLocation(`/cases/${encodeURIComponent(data.caseId)}`);
     },
-    onError: (error: Error) => toast({ title: "Could not start RAOS consent flow", description: error.message, variant: "destructive" }),
+      onError: (error: Error) => toast({ title: "Could not open the RAOS case", description: error.message, variant: "destructive" }),
   });
 
   const verifySycConsent = useMutation({
@@ -476,7 +476,7 @@ export default function InquiriesPage() {
                 {includeConsent && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
               </div>
               <span>Also include Consent Form</span>
-              {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ consent and student assent</span>}
+              {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ parent/guardian consent</span>}
             </button>
 
             {/* Contact details + actions */}
@@ -764,7 +764,7 @@ export default function InquiriesPage() {
                       disabled={startSycCase.isPending}
                       className="bg-teal-700 text-white hover:bg-teal-800"
                     >
-                      {startSycCase.isPending ? "Starting…" : "Start RAOS consent forms"}
+                      {startSycCase.isPending ? "Opening…" : "Create RAOS case"}
                     </Button>
                   )}
                   {typeof inq.metadata.caseId === "string" && (

@@ -1354,17 +1354,21 @@ router.post("/external/form/:token/submit", async (req, res) => {
 
     // Create the case
     const caseId = nanoid();
-    const isSycInvite = invite.productId === "STRENGTHEN_CORE";
     const [sourceInquiry] = invite.sourceInquiryId
       ? await db.select().from(inquiriesTable).where(eq(inquiriesTable.id, invite.sourceInquiryId)).limit(1)
       : [];
     const sourceMetadata = (sourceInquiry?.metadata ?? {}) as Record<string, unknown>;
+    const isSycInvite = invite.productId === "STRENGTHEN_CORE" &&
+      sourceMetadata.productId === "STRENGTHEN_CORE" &&
+      sourceMetadata.source === "promotional_link";
     await db.insert(casesTable).values({
       id: caseId,
       studentName: isSycInvite ? "Pending guardian consent" : consentStudentName,
       dob: isSycInvite ? "Pending" : consentDob,
-      school: invite.schoolName || "TBD",
-      grade: null,
+      school: isSycInvite ? sourceInquiry?.organisation || invite.schoolName || "School to be confirmed" : invite.schoolName || "TBD",
+      grade: isSycInvite
+        ? safeString((sourceMetadata.intakeData as Record<string, unknown> | undefined)?.gradeBand, 80) || null
+        : null,
       referralReason: isSycInvite
         ? `Strengthen Your Core portal inquiry: ${sourceInquiry?.message ?? `Referral form submitted by ${invite.toName}`}`
         : `Referral form submitted by ${invite.toName} (${invite.toEmail})`,
@@ -1375,14 +1379,17 @@ router.post("/external/form/:token/submit", async (req, res) => {
         productIds: ["STRENGTHEN_CORE"],
         intakeData: sourceMetadata.intakeData ?? {},
         intakeAnalysis: {
-          source: "portal",
+          source: "promotional_link",
           sourceInquiryId: invite.sourceInquiryId,
-          aiAnalysis: sourceMetadata.aiAnalysis ?? null,
+          sycInitialReview: sourceMetadata.aiAnalysis ?? null,
+          productToolOverrides: {
+            STRENGTHEN_CORE: { addedToolIds: [], removedToolIds: [] },
+          },
           sycWorkflow: {
-            source: "portal",
+            source: "promotional_link",
             inquiryId: invite.sourceInquiryId,
             guardianStatus: "pending",
-            studentStatus: "pending",
+            approvedExtension: null,
           },
         },
       } : {}),
@@ -1453,25 +1460,6 @@ router.post("/external/form/:token/submit", async (req, res) => {
         dueDate: null,
       });
     }
-    let assentToken: string | null = null;
-    if (isSycInvite && invite.includeAssent) {
-      assentToken = randomBytes(32).toString("base64url");
-      await db.insert(assignmentsTable).values({
-        id: nanoid(),
-        caseId,
-        toolId: "SYC-ASSENT",
-        toolName: "Strengthen Your Core — Student Assent",
-        respondentType: "student",
-        respondentLabel: "Student",
-        assignedToName: "Student",
-        uniqueToken: assentToken,
-        uniqueLink: `${baseUrl}/external/${assentToken}`,
-        qrCodeData: `${baseUrl}/external/${assentToken}`,
-        status: "not_started",
-        dueDate: null,
-      });
-    }
-
     // Store the actual form answers
     await db.insert(responsesTable).values({
       id: nanoid(),
@@ -1502,9 +1490,6 @@ router.post("/external/form/:token/submit", async (req, res) => {
     const nextForms = [
       ...(!isConsentSuffix && invite.includeConsent
         ? [{ toolName: "Parent/Guardian Consent Form", uniqueToken: `${baseToken}__consent`, respondentLabel: "Parent / Guardian" }]
-        : []),
-      ...(assentToken
-        ? [{ toolName: "Student Assent Form", uniqueToken: assentToken, respondentLabel: "Student" }]
         : []),
     ];
 
