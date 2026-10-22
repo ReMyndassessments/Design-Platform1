@@ -1177,7 +1177,7 @@ router.post("/external/form/:token/submit", async (req, res) => {
           ? currentAnalysis.sycWorkflow as Record<string, unknown>
           : {};
 
-        let nextWorkflow: Record<string, unknown>;
+        let nextWorkflow: Record<string, unknown> = currentWorkflow;
         let studentName = "";
         let dob = "";
         let guardianName = "";
@@ -1361,13 +1361,20 @@ router.post("/external/form/:token/submit", async (req, res) => {
     const isSycInvite = invite.productId === "STRENGTHEN_CORE" &&
       sourceMetadata.productId === "STRENGTHEN_CORE" &&
       sourceMetadata.source === "promotional_link";
+    const sycIntakeData = sourceMetadata.intakeData && typeof sourceMetadata.intakeData === "object"
+      && !Array.isArray(sourceMetadata.intakeData)
+      ? sourceMetadata.intakeData as Record<string, unknown>
+      : {};
+    const sycGradeBand = typeof sycIntakeData.gradeBand === "string"
+      ? sycIntakeData.gradeBand.trim().slice(0, 80) || null
+      : null;
     await db.insert(casesTable).values({
       id: caseId,
       studentName: isSycInvite ? "Pending guardian consent" : consentStudentName,
       dob: isSycInvite ? "Pending" : consentDob,
       school: isSycInvite ? sourceInquiry?.organisation || invite.schoolName || "School to be confirmed" : invite.schoolName || "TBD",
       grade: isSycInvite
-        ? safeString((sourceMetadata.intakeData as Record<string, unknown> | undefined)?.gradeBand, 80) || null
+        ? sycGradeBand
         : null,
       referralReason: isSycInvite
         ? `Strengthen Your Core portal inquiry: ${sourceInquiry?.message ?? `Referral form submitted by ${invite.toName}`}`
@@ -1377,7 +1384,7 @@ router.post("/external/form/:token/submit", async (req, res) => {
       caseStatus: "active",
       ...(isSycInvite ? {
         productIds: ["STRENGTHEN_CORE"],
-        intakeData: sourceMetadata.intakeData ?? {},
+        intakeData: sycIntakeData,
         intakeAnalysis: {
           source: "promotional_link",
           sourceInquiryId: invite.sourceInquiryId,

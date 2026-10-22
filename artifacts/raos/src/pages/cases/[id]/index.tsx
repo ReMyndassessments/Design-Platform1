@@ -2308,7 +2308,7 @@ export default function CaseDetail() {
                     </p>
                   </details>
                 )}
-                {isSycCase && sycConsentVerified && initialReview?.suggestedQuestions && (
+                {isSycCase && sycConsentVerified && initialReview !== null && Boolean(initialReview.suggestedQuestions) && (
                   <IntakeFollowUp
                     caseId={caseId}
                     analysis={{ ...caseAnalysis, suggestedQuestions: initialReview.suggestedQuestions } as any}
@@ -2387,13 +2387,13 @@ export default function CaseDetail() {
                     />
 
                     {/* Recommended Tools */}
-                    {Array.isArray(c.intakeAnalysis.recommendedTools) && (c.intakeAnalysis.recommendedTools as any[]).length > 0 && (() => {
+                    {Array.isArray(caseAnalysis.recommendedTools) && (caseAnalysis.recommendedTools as any[]).length > 0 && (() => {
                       const dismissedIds = new Set<string>(
-                        Array.isArray((c.intakeAnalysis as any).dismissedToolIds)
-                          ? (c.intakeAnalysis as any).dismissedToolIds
+                        Array.isArray(caseAnalysis.dismissedToolIds)
+                          ? caseAnalysis.dismissedToolIds
                           : []
                       );
-                      const visibleTools = (c.intakeAnalysis.recommendedTools as any[]).filter((t: any) => !dismissedIds.has(t.toolId));
+                      const visibleTools = (caseAnalysis.recommendedTools as any[]).filter((t: any) => !dismissedIds.has(t.toolId));
                       if (visibleTools.length === 0) return null;
                       return (
                         <div>
