@@ -39,6 +39,7 @@ import {
 import { z } from "zod";
 import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib/questionnaireTestHistory.js";
 import { selectReadyInvitationForms } from "../lib/formInvitationReadiness.js";
+import { EXTENSIONS } from "../lib/strengthen-core-analysis.js";
 
 const router = Router();
 
@@ -818,13 +819,17 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
       allowedSycTools.add("REMYND-WORK-REVIEW");
     }
     const approvedExtension = typeof sycWorkflow.approvedExtension === "string" ? sycWorkflow.approvedExtension : null;
-    if (approvedExtension && settings.allowedExtensions?.includes(approvedExtension)) {
+    if (req.userRole === "admin") {
+      // Administrators retain direct control in the normal RAOS assignment flow;
+      // an AI suggestion or programme-level extension setting must not hide these tools.
+      EXTENSIONS.forEach(extension => allowedSycTools.add(extension));
+    } else if (approvedExtension && settings.allowedExtensions?.includes(approvedExtension)) {
       allowedSycTools.add(approvedExtension);
     }
     if (!allowedSycTools.has(String(req.body.toolId ?? ""))) {
       res.status(403).json({
         error: "strengthen_core_instrument_not_approved",
-        message: "This Strengthen Your Core case can only receive its enabled core instrument and the single extension approved for this application.",
+        message: "Administrators may manually assign any Strengthen Your Core extension. Other staff may assign only the enabled extension approved for this case.",
       });
       return;
     }

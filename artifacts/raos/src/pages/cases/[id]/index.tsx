@@ -144,6 +144,8 @@ const SYC_CORE_EVIDENCE_TOOLS = [
   { toolId: "REMYND-CLASSROOM-OBS", label: "Structured Classroom Learning Observation" },
   { toolId: "REMYND-WORK-REVIEW", label: "Student Work Sample & Intervention History Review" },
 ] as const;
+const SYC_EXTENSION_TOOLS = ["REFI", "RARPS", "RFII", "RSSC"] as const;
+const SYC_EXTENSION_TOOL_IDS = new Set<string>(SYC_EXTENSION_TOOLS);
 
 function canAdvancePhase(role: string): boolean {
   return role === "admin" || role === "school_clinical_coordinator";
@@ -942,7 +944,9 @@ export default function CaseDetail() {
     "CONSENT", "INTAKE", "REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING",
     "RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW",
   ]);
-  if (typeof assignmentSycWorkflow.approvedExtension === "string") {
+  if (role === "admin") {
+    SYC_EXTENSION_TOOLS.forEach(toolId => assignmentSycAllowedTools.add(toolId));
+  } else if (typeof assignmentSycWorkflow.approvedExtension === "string") {
     assignmentSycAllowedTools.add(assignmentSycWorkflow.approvedExtension);
   }
   const assignmentRespondentTypeOptions = assignmentIsSycCase && !assignmentSycConsentComplete
@@ -3810,6 +3814,71 @@ export default function CaseDetail() {
               )}
             </section>
           )}
+          {assignmentIsSycCase && (
+            <section aria-labelledby="syc-extension-forms-heading" className="mt-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 id="syc-extension-forms-heading" className="text-xs font-bold uppercase tracking-wide text-blue-950">
+                  Strengthen Your Core · Optional Assessment Forms
+                </h3>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-blue-800">
+                  {SYC_EXTENSION_TOOLS.length} available
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-700">
+                These are optional targeted forms. As administrator, you can choose any of them; the AI suggestion does not limit your selection.
+              </p>
+              <div className="mt-2 divide-y rounded-md border border-blue-200 bg-white">
+                {SYC_EXTENSION_TOOLS.map(toolId => {
+                  const catalogueTool = tools?.find(tool => tool.id === toolId);
+                  const supportedRespondents = assignmentRespondentTypes(catalogueTool?.respondentTypes ?? [], toolId);
+                  const checked = newAssignment.toolIds.includes(toolId);
+                  const aiApprovedExtension = assignmentSycWorkflow.approvedExtension === toolId;
+                  const canSelect = assignmentSycConsentComplete && (role === "admin" || aiApprovedExtension);
+                  return (
+                    <label
+                      key={toolId}
+                      className={`flex items-start gap-3 px-3 py-2.5 ${canSelect ? "cursor-pointer hover:bg-blue-50/60" : "cursor-not-allowed opacity-60"} ${checked ? "bg-blue-50" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-blue-700"
+                        checked={checked}
+                        disabled={!canSelect}
+                        data-testid={`checkbox-syc-extension-${toolId}`}
+                        onChange={event => {
+                          const toolIds = event.target.checked
+                            ? [...newAssignment.toolIds, toolId]
+                            : newAssignment.toolIds.filter(id => id !== toolId);
+                          setNewAssignment({ ...newAssignment, toolIds });
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900">
+                          {catalogueTool?.name ?? toolId}
+                          {aiApprovedExtension && (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                              AI suggestion approved
+                            </span>
+                          )}
+                        </span>
+                        {supportedRespondents.length > 0 && (
+                          <span className="mt-0.5 block text-[11px] text-slate-500">
+                            Available for: {supportedRespondents.map(type => RESPONDENT_TYPE_LABELS[type] ?? type).join(", ")}
+                          </span>
+                        )}
+                        {!assignmentSycConsentComplete && (
+                          <span className="mt-0.5 block text-[11px] text-amber-800">Available after standard parent/guardian consent.</span>
+                        )}
+                        {role !== "admin" && !aiApprovedExtension && assignmentSycConsentComplete && (
+                          <span className="mt-0.5 block text-[11px] text-slate-500">Administrator assignment only unless this form is approved for the case.</span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type <span className="text-slate-400 font-normal">(select all that apply)</span></label>
@@ -3827,7 +3896,9 @@ export default function CaseDetail() {
                             ? [...newAssignment.respondentTypes, rt]
                             : newAssignment.respondentTypes.filter(t => t !== rt);
                           const retainedCoreForms = assignmentIsSycCase
-                            ? newAssignment.toolIds.filter(id => SYC_CORE_EVIDENCE_TOOLS.some(form => form.toolId === id))
+                            ? newAssignment.toolIds.filter(id =>
+                                SYC_CORE_EVIDENCE_TOOLS.some(form => form.toolId === id) || SYC_EXTENSION_TOOL_IDS.has(id)
+                              )
                             : [];
                           setNewAssignment({ ...newAssignment, respondentTypes: types, toolIds: retainedCoreForms });
                           setShowAllTools(false);
@@ -3850,21 +3921,13 @@ export default function CaseDetail() {
               ) ?? [];
               const sycCoreToolIds = new Set<string>(SYC_CORE_EVIDENCE_TOOLS.map(form => form.toolId));
               const availableTools = showAllTools ? (filteredTools ?? []) : matchedTools;
-              const approvedSycExtension = typeof assignmentSycWorkflow.approvedExtension === "string"
-                ? assignmentSycWorkflow.approvedExtension
-                : null;
               const formSections = assignmentIsSycCase
                 ? [
-                    {
-                      key: "syc-extension",
-                      title: "Strengthen Your Core · Approved Extension",
-                      tools: availableTools.filter(tool => tool.id === approvedSycExtension),
-                    },
                     {
                       key: "raos-standard",
                       title: "Standard RAOS Forms",
                       tools: availableTools.filter(tool =>
-                        !sycCoreToolIds.has(tool.id) && tool.id !== approvedSycExtension
+                        !sycCoreToolIds.has(tool.id) && !SYC_EXTENSION_TOOL_IDS.has(tool.id)
                       ),
                     },
                   ].filter(section => section.tools.length > 0)
