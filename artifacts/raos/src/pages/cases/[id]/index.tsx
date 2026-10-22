@@ -3767,6 +3767,31 @@ export default function CaseDetail() {
                 newAssignment.respondentTypes.some(rt => new Set<string>(t.respondentTypes ?? []).has(rt))
               ) ?? [];
               const availableTools = showAllTools ? (filteredTools ?? []) : matchedTools;
+              const sycCoreToolIds = new Set(["RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW"]);
+              const approvedSycExtension = typeof assignmentSycWorkflow.approvedExtension === "string"
+                ? assignmentSycWorkflow.approvedExtension
+                : null;
+              const formSections = assignmentIsSycCase
+                ? [
+                    {
+                      key: "syc-core",
+                      title: "Strengthen Your Core · Required Core Forms",
+                      tools: availableTools.filter(tool => sycCoreToolIds.has(tool.id)),
+                    },
+                    {
+                      key: "syc-extension",
+                      title: "Strengthen Your Core · Approved Extension",
+                      tools: availableTools.filter(tool => tool.id === approvedSycExtension),
+                    },
+                    {
+                      key: "raos-standard",
+                      title: "Standard RAOS Forms",
+                      tools: availableTools.filter(tool =>
+                        !sycCoreToolIds.has(tool.id) && tool.id !== approvedSycExtension
+                      ),
+                    },
+                  ].filter(section => section.tools.length > 0)
+                : [{ key: "all", title: "", tools: availableTools }];
               return (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -3779,29 +3804,38 @@ export default function CaseDetail() {
                       {showAllTools ? "Show matched only" : "Show all tools"}
                     </button>
                   </div>
-                  <div className="border border-input rounded-md divide-y max-h-48 overflow-y-auto">
+                  <div className="border border-input rounded-md max-h-64 overflow-y-auto">
                     {availableTools.length === 0 && (
                       <p className="px-3 py-3 text-sm text-slate-400">No forms available for the selected respondent type(s).</p>
                     )}
-                    {availableTools.map(t => {
-                      const checked = newAssignment.toolIds.includes(t.id);
-                      return (
-                        <label key={t.id} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
-                            checked={checked}
-                            onChange={e => {
-                              const ids = e.target.checked
-                                ? [...newAssignment.toolIds, t.id]
-                                : newAssignment.toolIds.filter(id => id !== t.id);
-                              setNewAssignment({ ...newAssignment, toolIds: ids });
-                            }}
-                          />
-                          <span className="text-sm text-slate-800">{toolDisplayName(t.id, t.name)}</span>
-                        </label>
-                      );
-                    })}
+                    {formSections.map(section => (
+                      <div key={section.key}>
+                        {section.title && (
+                          <div className="border-y bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600 first:border-t-0">
+                            {section.title}
+                          </div>
+                        )}
+                        {section.tools.map(t => {
+                          const checked = newAssignment.toolIds.includes(t.id);
+                          return (
+                            <label key={t.id} className={`flex items-center gap-3 border-b px-3 py-2.5 last:border-b-0 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 accent-primary cursor-pointer"
+                                checked={checked}
+                                onChange={e => {
+                                  const ids = e.target.checked
+                                    ? [...newAssignment.toolIds, t.id]
+                                    : newAssignment.toolIds.filter(id => id !== t.id);
+                                  setNewAssignment({ ...newAssignment, toolIds: ids });
+                                }}
+                              />
+                              <span className="text-sm text-slate-800">{toolDisplayName(t.id, t.name)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                   {newAssignment.toolIds.length > 0 && (
                     <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
