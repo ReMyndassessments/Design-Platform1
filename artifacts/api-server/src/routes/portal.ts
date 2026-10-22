@@ -246,49 +246,6 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
   res.status(201).json({ caseId, caseUrl: `/cases/${encodeURIComponent(caseId)}`, guardianUrl, alreadyStarted: false });
 });
 
-router.post("/portal/inquiries/:id/verify-syc-consent", authMiddleware, async (req, res) => {
-  if (req.userRole !== "admin") {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
-  const [inquiry] = await db.select().from(inquiriesTable).where(sql`${inquiriesTable.id} = ${req.params.id}`).limit(1);
-  const metadata = (inquiry?.metadata ?? {}) as Record<string, unknown>;
-  const caseId = typeof metadata.caseId === "string" ? metadata.caseId : null;
-  if (!inquiry || !caseId || metadata.productId !== "STRENGTHEN_CORE") {
-    res.status(409).json({ error: "case_not_started" });
-    return;
-  }
-  const [caseRow] = await db.select().from(casesTable).where(sql`${casesTable.id} = ${caseId}`).limit(1);
-  const analysis = (caseRow?.intakeAnalysis ?? {}) as Record<string, unknown>;
-  const workflow = analysis.sycWorkflow && typeof analysis.sycWorkflow === "object"
-    ? analysis.sycWorkflow as Record<string, unknown>
-    : {};
-  const records = await db.select({ toolId: assignmentsTable.toolId, status: assignmentsTable.status })
-    .from(assignmentsTable).where(sql`${assignmentsTable.caseId} = ${caseId}`);
-  const guardianDone = records.some((r) => r.toolId === "CONSENT" && r.status === "completed");
-  if (!caseRow || workflow.guardianStatus !== "consented" || !guardianDone) {
-    res.status(409).json({ error: "consent_not_verified", message: "Parent/guardian consent must be submitted before verification." });
-    return;
-  }
-  const nextAnalysis = {
-    ...analysis,
-    sycWorkflow: { ...workflow, verifiedAt: new Date().toISOString(), verifiedBy: req.userId ?? null },
-  };
-  await db.update(casesTable).set({
-    consentObtained: true,
-    intakeAnalysis: nextAnalysis,
-    updatedAt: new Date(),
-  }).where(sql`${casesTable.id} = ${caseId}`);
-  await writeAudit({
-    eventType: "inquiry.syc_consent_verified",
-    actorId: req.userId,
-    actorRole: req.userRole,
-    caseId,
-    metadata: { inquiryId: inquiry.id },
-  });
-  res.json({ verified: true, caseId });
-});
-
 // ── Send referral form invite to a school contact ───────────────────────────
 router.post("/portal/send-referral-invite", authMiddleware, async (req, res) => {
   if (req.userRole !== "admin" && req.userRole !== "assessment_invigilator") {

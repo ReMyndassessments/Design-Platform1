@@ -934,8 +934,9 @@ export default function CaseDetail() {
     ? assignmentCaseAnalysis.sycWorkflow as Record<string, unknown>
     : {};
   const assignmentIsSycCase = ((c.productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
-  const assignmentSycConsentVerified = !assignmentIsSycCase ||
-    (c.consentObtained === true && typeof assignmentSycWorkflow.verifiedAt === "string");
+  const assignmentSycConsentComplete = !assignmentIsSycCase ||
+    c.consentObtained === true ||
+    (c.assignments ?? []).some(a => a.toolId === "CONSENT" && a.status === "completed");
   const assignmentSycAllowedTools = new Set([
     "CONSENT", "INTAKE", "REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING",
     "RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW",
@@ -943,12 +944,12 @@ export default function CaseDetail() {
   if (typeof assignmentSycWorkflow.approvedExtension === "string") {
     assignmentSycAllowedTools.add(assignmentSycWorkflow.approvedExtension);
   }
-  const assignmentRespondentTypeOptions = assignmentIsSycCase && !assignmentSycConsentVerified
+  const assignmentRespondentTypeOptions = assignmentIsSycCase && !assignmentSycConsentComplete
     ? ["parent"] as const
     : RESPONDENT_TYPES_IN_MODAL;
   const filteredTools = tools?.filter(t => {
     if (assignmentIsSycCase) {
-      if (!assignmentSycConsentVerified) return t.id === "CONSENT";
+      if (!assignmentSycConsentComplete) return t.id === "CONSENT";
       return assignmentSycAllowedTools.has(t.id);
     }
     if (role === "admin" || String(role) === "school_clinical_coordinator") return true;
@@ -2237,8 +2238,9 @@ export default function CaseDetail() {
           const sycWorkflow = caseAnalysis.sycWorkflow && typeof caseAnalysis.sycWorkflow === "object"
             ? caseAnalysis.sycWorkflow as Record<string, unknown>
             : {};
-          const sycConsentVerified = !isSycCase ||
-            (c.consentObtained === true && typeof sycWorkflow.verifiedAt === "string");
+          const sycConsentComplete = !isSycCase ||
+            c.consentObtained === true ||
+            allAssignments2.some(a => a.toolId === "CONSENT" && a.status === "completed");
           const hasRaosAnalysis = !isSycCase && typeof caseAnalysis.summary === "string" && caseAnalysis.summary.trim().length > 0;
           const schoolReferralComplete = allAssignments2.some(a =>
             a.toolId === "REFERRAL" && a.respondentType === "referring_teacher" && a.status === "completed"
@@ -2381,7 +2383,7 @@ export default function CaseDetail() {
                                       : assignedCount > 0 ? `${assignedCount} teacher form${assignedCount === 1 ? "" : "s"} awaiting response` : "Not assigned"}
                                   </p>
                                 </div>
-                                {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && sycConsentVerified && assignedCount === 0 && (
+                                {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && sycConsentComplete && assignedCount === 0 && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -2459,7 +2461,7 @@ export default function CaseDetail() {
                     </p>
                   </details>
                 )}
-                {isSycCase && sycConsentVerified && initialReview !== null && Boolean(initialReview.suggestedQuestions) && (
+                {isSycCase && sycConsentComplete && initialReview !== null && Boolean(initialReview.suggestedQuestions) && (
                   <IntakeFollowUp
                     caseId={caseId}
                     analysis={{ ...caseAnalysis, suggestedQuestions: initialReview.suggestedQuestions } as any}
@@ -2473,9 +2475,9 @@ export default function CaseDetail() {
                     onUpdated={() => queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] })}
                   />
                 )}
-                {isSycCase && !sycConsentVerified && (
+                {isSycCase && !sycConsentComplete && (
                   <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                    Send the standard RAOS Parent/Guardian Consent Form from this case and verify the completed consent in the linked RAOS inquiry. Then send the School/Teacher Referral and Parent Intake forms through RAOS; generate the assessment suggestions after both have been submitted.
+                    Send the standard RAOS Parent/Guardian Consent Form from this case. Once the parent submits it, approved assessment assignments unlock automatically. Then send the School/Teacher Referral and Parent Intake forms; generate assessment suggestions after both are submitted.
                   </div>
                 )}
                 {hasRaosAnalysis ? (
@@ -2626,16 +2628,16 @@ export default function CaseDetail() {
                       <>
                         <p className="text-sm text-slate-500 mb-4">
                           {isSycCase
-                            ? sycConsentVerified
+                            ? sycConsentComplete
                               ? intakeFormsComplete
                                 ? initialReview
                                   ? "This non-diagnostic review combines the original school application with completed School/Teacher Referral and Parent Intake responses, saved interviews and follow-up, and any submitted classroom or work-sample evidence forms. Regeneration replaces the prior draft and requires human review."
                                   : "Both intake forms are complete. Generate the non-diagnostic review and assessment suggestions from the school application, both responses, and saved RAOS follow-up."
-                                : "After verifying parent/guardian consent, use the Pre-Assessment Intake section above to send the School/Teacher Referral and Parent Intake forms. Generate or regenerate the review after both are submitted."
-                              : "Verify parent/guardian consent through the standard RAOS workflow first. Then complete the School/Teacher Referral and Parent Intake forms before generating assessment suggestions."
+                                : "After the parent/guardian Consent Form is submitted, use the Pre-Assessment Intake section above to send the School/Teacher Referral and Parent Intake forms. Generate or regenerate the review after both are submitted."
+                                : "Complete the standard parent/guardian Consent Form first. Then complete the School/Teacher Referral and Parent Intake forms before generating assessment suggestions."
                             : "No AI analysis run yet for this case."}
                         </p>
-                        {isSycCase && sycConsentVerified && (
+                        {isSycCase && sycConsentComplete && (
                           <div className="mb-4 flex flex-wrap gap-2 text-xs">
                             <span className={`rounded-full border px-2.5 py-1 ${schoolReferralComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
                               School/Teacher Referral: {schoolReferralComplete ? "submitted" : "needed"}
@@ -2645,8 +2647,8 @@ export default function CaseDetail() {
                             </span>
                           </div>
                         )}
-                        {(!isSycCase || sycConsentVerified) && (
-                          <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || !intakeFormsComplete || !sycConsentVerified} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        {(!isSycCase || sycConsentComplete) && (
+                          <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || !intakeFormsComplete || !sycConsentComplete} className="bg-blue-600 hover:bg-blue-700 text-white">
                             {analyzeIntakeMut.isPending
                               ? isSycCase ? "Generating suggestions..." : "Analyzing..."
                               : isSycCase ? initialReview ? "Regenerate Review & Tool Suggestions" : "Generate Review & Tool Suggestions" : "Run AI Intake Analysis"}
@@ -3708,10 +3710,10 @@ export default function CaseDetail() {
             )}
           </DialogHeader>
           {assignmentIsSycCase && (
-            <div className={`rounded-md border px-3 py-2.5 text-sm ${assignmentSycConsentVerified ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
-              {assignmentSycConsentVerified
-                ? "Consent is verified. This pathway allows the standard intake forms, RCEP-CORE, the classroom observation and work-sample review, plus an administrator-approved extension."
-                : "Assessment forms are locked until parent/guardian consent is submitted and verified. Only the Parent/Guardian Consent Form is available now. After it is completed, open the Strengthen Your Core inquiry from the Inquiries page and choose “Verify submitted consent,” then refresh this case."}
+            <div className={`rounded-md border px-3 py-2.5 text-sm ${assignmentSycConsentComplete ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+              {assignmentSycConsentComplete
+                ? "Parent/guardian consent is complete. This pathway allows the standard intake forms, RCEP-CORE, the classroom observation and work-sample review, plus an administrator-approved extension."
+                : "Only the Parent/Guardian Consent Form is available until the parent submits it. Approved assessment forms then unlock automatically; refresh this case if needed."}
             </div>
           )}
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">

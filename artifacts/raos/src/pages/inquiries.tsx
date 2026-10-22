@@ -279,16 +279,6 @@ export default function InquiriesPage() {
       onError: (error: Error) => toast({ title: "Could not open the RAOS case", description: error.message, variant: "destructive" }),
   });
 
-  const verifySycConsent = useMutation({
-    mutationFn: (id: string) => customFetch<{ caseId: string }>(`/api/portal/inquiries/${encodeURIComponent(id)}/verify-syc-consent`, { method: "POST" }),
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["inquiries"] });
-      toast({ title: "Consent verified", description: "Assessment assignments are now available on the RAOS case." });
-      setLocation(`/cases/${encodeURIComponent(data.caseId)}`);
-    },
-    onError: (error: Error) => toast({ title: "Consent is not ready", description: error.message, variant: "destructive" }),
-  });
-
   const statusFiltered = filter === "all" ? allInquiries : allInquiries.filter((i) => i.status === filter);
   const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
   const filtered = normalizedSearchTerm
@@ -769,9 +759,6 @@ export default function InquiriesPage() {
                   )}
                   {typeof inq.metadata.caseId === "string" && (
                     <>
-                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); void verifySycConsent.mutate(inq.id); }} disabled={verifySycConsent.isPending}>
-                        Verify submitted consent
-                      </Button>
                       <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); setLocation(`/cases/${encodeURIComponent(String(inq.metadata?.caseId))}`); }}>
                         Open RAOS case
                       </Button>

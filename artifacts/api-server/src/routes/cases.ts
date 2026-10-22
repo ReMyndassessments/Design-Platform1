@@ -885,7 +885,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
 
   const [assignments, allTools, parentInterviews] = await Promise.all([
     db.select().from(assignmentsTable).where(
-      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "INTAKE", ...SYC_CORE_EVIDENCE_TOOL_IDS]))
+      and(eq(assignmentsTable.caseId, req.params.caseId), inArray(assignmentsTable.toolId, [...REFERRAL_IDS, "CONSENT", "INTAKE", ...SYC_CORE_EVIDENCE_TOOL_IDS]))
     ),
     db.select({
       id: assessmentToolsTable.id,
@@ -917,11 +917,12 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   )).orderBy(intakeQuestionRequestsTable.submittedAt);
 
   const referralAssignmentIds = assignments.filter(a => REFERRAL_IDS.includes(a.toolId)).map(a => a.id);
+  const consentAssignmentIds = assignments.filter(a => a.toolId === "CONSENT").map(a => a.id);
   const intakeAssignmentIds = assignments.filter(a => a.toolId === "INTAKE").map(a => a.id);
   const coreEvidenceAssignmentIds = assignments
     .filter(a => (SYC_CORE_EVIDENCE_TOOL_IDS as readonly string[]).includes(a.toolId))
     .map(a => a.id);
-  const allAssignmentIds = [...referralAssignmentIds, ...intakeAssignmentIds, ...coreEvidenceAssignmentIds];
+  const allAssignmentIds = [...referralAssignmentIds, ...consentAssignmentIds, ...intakeAssignmentIds, ...coreEvidenceAssignmentIds];
 
   const responses = allAssignmentIds.length > 0
     ? await db.select().from(responsesTable).where(inArray(responsesTable.assignmentId, allAssignmentIds))
@@ -1014,14 +1015,19 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     const sycWorkflow = currentIntakeAnalysis.sycWorkflow && typeof currentIntakeAnalysis.sycWorkflow === "object"
       ? currentIntakeAnalysis.sycWorkflow as Record<string, unknown>
       : {};
-    if (c.consentObtained !== true || typeof sycWorkflow.verifiedAt !== "string") {
+    const submittedResponseAssignmentIds = new Set(responses.map(response => response.assignmentId));
+    const hasCompletedConsent = c.consentObtained === true || assignments.some(assignment =>
+      assignment.toolId === "CONSENT" &&
+      assignment.status === "completed" &&
+      submittedResponseAssignmentIds.has(assignment.id)
+    );
+    if (!hasCompletedConsent) {
       res.status(403).json({
-        error: "strengthen_core_consent_not_verified",
-        message: "Verify parent/guardian consent through the standard RAOS workflow before regenerating this educational review.",
+        error: "strengthen_core_consent_required",
+        message: "Complete the standard RAOS Parent/Guardian Consent Form before regenerating this educational review.",
       });
       return;
     }
-    const submittedResponseAssignmentIds = new Set(responses.map(response => response.assignmentId));
     const hasSchoolReferral = assignments.some(assignment =>
       assignment.toolId === "REFERRAL" &&
       assignment.respondentType === "referring_teacher" &&

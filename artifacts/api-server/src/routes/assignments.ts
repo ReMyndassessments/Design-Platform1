@@ -781,7 +781,15 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   const sycWorkflow = intakeAnalysis.sycWorkflow && typeof intakeAnalysis.sycWorkflow === "object"
     ? intakeAnalysis.sycWorkflow as Record<string, unknown>
     : {};
-  const sycConsentVerified = caseRows[0].consentObtained === true && typeof sycWorkflow.verifiedAt === "string";
+  const [completedConsentAssignment] = isStrengthenCoreCase
+    ? await db.select({ id: assignmentsTable.id }).from(assignmentsTable)
+      .where(and(
+        eq(assignmentsTable.caseId, caseRows[0].id),
+        eq(assignmentsTable.toolId, "CONSENT"),
+        eq(assignmentsTable.status, "completed"),
+      )).limit(1)
+    : [];
+  const sycConsentComplete = caseRows[0].consentObtained === true || Boolean(completedConsentAssignment);
   if (isStrengthenCoreCase && String(toolId) === "SYC-ASSENT") {
     res.status(410).json({
       error: "student_assent_not_required",
@@ -789,17 +797,17 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     });
     return;
   }
-  if (isStrengthenCoreCase && !sycConsentVerified && String(toolId) !== "CONSENT") {
+  if (isStrengthenCoreCase && !sycConsentComplete && String(toolId) !== "CONSENT") {
     res.status(403).json({
-      error: "strengthen_core_consent_not_verified",
-      message: "This Strengthen Your Core case requires verified parent/guardian consent before assessment assignments can be created.",
+      error: "strengthen_core_consent_required",
+      message: "Complete the standard RAOS Parent/Guardian Consent Form before creating assessment assignments for this Strengthen Your Core case.",
     });
     return;
   }
   const sycIntakeFormIds = new Set([
     "CONSENT", "INTAKE", "REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING",
   ]);
-  if (isStrengthenCoreCase && sycConsentVerified && !sycIntakeFormIds.has(String(toolId))) {
+  if (isStrengthenCoreCase && sycConsentComplete && !sycIntakeFormIds.has(String(toolId))) {
     const [program] = await db.select().from(strengthenCoreProgramTable)
       .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
     const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };

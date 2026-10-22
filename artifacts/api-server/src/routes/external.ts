@@ -1249,7 +1249,7 @@ router.post("/external/form/:token/submit", async (req, res) => {
             languagePreference,
             parentName: guardianName,
             parentEmail: guardianEmail,
-            consentObtained: false,
+            consentObtained: true,
             intakeAnalysis: { ...currentAnalysis, sycWorkflow: nextWorkflow },
             updatedAt: new Date(),
           }).where(eq(casesTable.id, assignment.caseId));
