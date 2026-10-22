@@ -37,4 +37,5 @@
 - [Case page scrolling](case-page-scrolling.md) — case header and progress scroll with content; sidebar remains visible and does not move with the page.
 - [RRCA cross-language interpretation](rrca-cross-language.md) — keep language phases separate; stopped phases are incomplete, and AI passages are not matched or normed.
 - [Multi-respondent report coverage](multi-respondent-report-coverage.md) — every multi-respondent dashboard needs a full comparison narrative, domain interpretations, recommendations, and separate source scores.
-- [Strengthen Your Core safeguards](strengthen-core-program.md) — de-identify intake before AI; require human review and verified guardian consent/student assent before assessment dispatch.
+- [Strengthen Your Core safeguards](strengthen-core-program.md) — non-diagnostic school pathway; standard parent consent only; missing school evidence never blocks case progress.
+- [Strengthen Your Core assignment picker](strengthen-core-assignment-picker.md) — required forms must be visible and selectable before the respondent choices.

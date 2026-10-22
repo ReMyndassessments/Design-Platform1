@@ -3749,6 +3749,67 @@ export default function CaseDetail() {
                 : "Only the Parent/Guardian Consent Form is available until the parent submits it. Approved assessment forms then unlock automatically; refresh this case if needed."}
             </div>
           )}
+          {assignmentIsSycCase && (
+            <section aria-labelledby="syc-required-forms-heading" className="mt-3 rounded-lg border-2 border-emerald-300 bg-emerald-50/70 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 id="syc-required-forms-heading" className="text-xs font-bold uppercase tracking-wide text-emerald-950">
+                  Strengthen Your Core · Required Core Forms
+                </h3>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                  {SYC_CORE_EVIDENCE_TOOLS.length} required
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-700">
+                Select the forms here first, then choose the respondent(s) below. Your selections stay checked when you choose respondents.
+              </p>
+              <div className="mt-2 divide-y rounded-md border border-emerald-200 bg-white">
+                {SYC_CORE_EVIDENCE_TOOLS.map(form => {
+                  const catalogueTool = tools?.find(tool => tool.id === form.toolId);
+                  const supportedRespondents = assignmentRespondentTypes(
+                    catalogueTool?.respondentTypes ?? [],
+                    form.toolId,
+                  );
+                  const checked = newAssignment.toolIds.includes(form.toolId);
+                  return (
+                    <label
+                      key={form.toolId}
+                      className={`flex items-start gap-3 px-3 py-2.5 ${assignmentSycConsentComplete ? "cursor-pointer hover:bg-emerald-50/60" : "cursor-not-allowed opacity-60"} ${checked ? "bg-emerald-50" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-emerald-700"
+                        checked={checked}
+                        disabled={!assignmentSycConsentComplete}
+                        data-testid={`checkbox-syc-required-${form.toolId}`}
+                        onChange={event => {
+                          const toolIds = event.target.checked
+                            ? [...newAssignment.toolIds, form.toolId]
+                            : newAssignment.toolIds.filter(id => id !== form.toolId);
+                          setNewAssignment({ ...newAssignment, toolIds });
+                        }}
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-slate-900">{form.label}</span>
+                        {supportedRespondents.length > 0 && (
+                          <span className="mt-0.5 block text-[11px] text-slate-500">
+                            Available for: {supportedRespondents.map(type => RESPONDENT_TYPE_LABELS[type] ?? type).join(", ")}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {!assignmentSycConsentComplete && (
+                <p className="mt-2 text-xs text-amber-900">Complete the standard parent/guardian consent first to select and assign these forms.</p>
+              )}
+              {newAssignment.toolIds.some(id => SYC_CORE_EVIDENCE_TOOLS.some(form => form.toolId === id)) && (
+                <p className="mt-2 text-xs font-semibold text-emerald-900">
+                  {newAssignment.toolIds.filter(id => SYC_CORE_EVIDENCE_TOOLS.some(form => form.toolId === id)).length} required core form(s) selected
+                </p>
+              )}
+            </section>
+          )}
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type <span className="text-slate-400 font-normal">(select all that apply)</span></label>
@@ -3765,7 +3826,10 @@ export default function CaseDetail() {
                           const types = e.target.checked
                             ? [...newAssignment.respondentTypes, rt]
                             : newAssignment.respondentTypes.filter(t => t !== rt);
-                          setNewAssignment({ ...newAssignment, respondentTypes: types, toolIds: [] });
+                          const retainedCoreForms = assignmentIsSycCase
+                            ? newAssignment.toolIds.filter(id => SYC_CORE_EVIDENCE_TOOLS.some(form => form.toolId === id))
+                            : [];
+                          setNewAssignment({ ...newAssignment, respondentTypes: types, toolIds: retainedCoreForms });
                           setShowAllTools(false);
                         }}
                       />
@@ -3780,20 +3844,17 @@ export default function CaseDetail() {
             </div>
             {newAssignment.respondentTypes.length > 0 && (() => {
               const matchedTools = filteredTools?.filter(t =>
-                newAssignment.respondentTypes.some(rt => new Set<string>(t.respondentTypes ?? []).has(rt))
+                newAssignment.respondentTypes.some(rt =>
+                  assignmentRespondentTypes(t.respondentTypes ?? [], t.id).includes(rt)
+                )
               ) ?? [];
+              const sycCoreToolIds = new Set<string>(SYC_CORE_EVIDENCE_TOOLS.map(form => form.toolId));
               const availableTools = showAllTools ? (filteredTools ?? []) : matchedTools;
-              const sycCoreToolIds = new Set(["RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW"]);
               const approvedSycExtension = typeof assignmentSycWorkflow.approvedExtension === "string"
                 ? assignmentSycWorkflow.approvedExtension
                 : null;
               const formSections = assignmentIsSycCase
                 ? [
-                    {
-                      key: "syc-core",
-                      title: "Strengthen Your Core · Required Core Forms",
-                      tools: availableTools.filter(tool => sycCoreToolIds.has(tool.id)),
-                    },
                     {
                       key: "syc-extension",
                       title: "Strengthen Your Core · Approved Extension",
@@ -3808,10 +3869,14 @@ export default function CaseDetail() {
                     },
                   ].filter(section => section.tools.length > 0)
                 : [{ key: "all", title: "", tools: availableTools }];
+              const additionalTools = formSections.flatMap(section => section.tools);
               return (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Assessment Forms <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+                    <label className="text-sm font-medium">
+                      {assignmentIsSycCase ? "Other Assessment Forms" : "Assessment Forms"}{" "}
+                      <span className="text-slate-400 font-normal">(select all that apply)</span>
+                    </label>
                     <button
                       type="button"
                       className="text-xs text-primary underline underline-offset-2 hover:opacity-70"
@@ -3821,8 +3886,12 @@ export default function CaseDetail() {
                     </button>
                   </div>
                   <div className="border border-input rounded-md max-h-64 overflow-y-auto">
-                    {availableTools.length === 0 && (
-                      <p className="px-3 py-3 text-sm text-slate-400">No forms available for the selected respondent type(s).</p>
+                    {additionalTools.length === 0 && (
+                      <p className="px-3 py-3 text-sm text-slate-500">
+                        {assignmentIsSycCase
+                          ? "The required Strengthen Your Core forms are listed above. No other forms match the selected respondents."
+                          : "No forms available for the selected respondent type(s)."}
+                      </p>
                     )}
                     {formSections.map(section => (
                       <div key={section.key}>
@@ -3854,7 +3923,7 @@ export default function CaseDetail() {
                     ))}
                   </div>
                   {newAssignment.toolIds.length > 0 && (
-                    <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
+                    <p className="text-xs text-primary font-medium">{newAssignment.toolIds.length} total form{newAssignment.toolIds.length > 1 ? "s" : ""} selected</p>
                   )}
                 </div>
               );
