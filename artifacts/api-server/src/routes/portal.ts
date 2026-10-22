@@ -8,7 +8,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { sendInquiryNotification, sendEmail } from "../lib/outlookEmail.js";
 import { logger } from "../lib/logger.js";
 import { getAdminEmails } from "../lib/adminEmails.js";
-import { CONSENT_FORM_V2, SYC_STUDENT_ASSENT_FORM } from "../lib/questions.js";
+import { CONSENT_FORM_V2 } from "../lib/questions.js";
 import { writeAudit } from "../lib/audit.js";
 
 const router = Router();
@@ -179,14 +179,11 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
   const host = (req.headers.host as string) ?? "localhost";
   const baseUrl = `${proto}://${host}`;
   const guardianToken = crypto.randomBytes(32).toString("base64url");
-  const assentToken = crypto.randomBytes(32).toString("base64url");
   const guardianUrl = `${baseUrl}/external/${guardianToken}`;
-  const assentUrl = `${baseUrl}/external/${assentToken}`;
   const workflow = {
     source: "promotional_link",
     inquiryId: inquiry.id,
     guardianStatus: "pending",
-    studentStatus: "pending",
     approvedExtension: null,
   };
   const existingAnalysis = metadata.aiAnalysis && typeof metadata.aiAnalysis === "object"
@@ -214,34 +211,19 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
         sycWorkflow: workflow,
       },
     });
-    await tx.insert(assignmentsTable).values([
-      {
-        id: nanoid(),
-        caseId,
-        toolId: "CONSENT",
-        toolName: "ReMynd Student Assessment — Parent/Guardian Consent Form",
-        respondentType: "parent",
-        respondentLabel: "Parent / Guardian",
-        uniqueToken: guardianToken,
-        uniqueLink: guardianUrl,
-        qrCodeData: guardianUrl,
-        status: "not_started",
-        formItemsSnapshot: JSON.stringify(CONSENT_FORM_V2),
-      },
-      {
-        id: nanoid(),
-        caseId,
-        toolId: "SYC-ASSENT",
-        toolName: "Strengthen Your Core — Student Assent",
-        respondentType: "student",
-        respondentLabel: "Student",
-        uniqueToken: assentToken,
-        uniqueLink: assentUrl,
-        qrCodeData: assentUrl,
-        status: "not_started",
-        formItemsSnapshot: JSON.stringify(SYC_STUDENT_ASSENT_FORM),
-      },
-    ]);
+    await tx.insert(assignmentsTable).values({
+      id: nanoid(),
+      caseId,
+      toolId: "CONSENT",
+      toolName: "ReMynd Student Assessment — Parent/Guardian Consent Form",
+      respondentType: "parent",
+      respondentLabel: "Parent / Guardian",
+      uniqueToken: guardianToken,
+      uniqueLink: guardianUrl,
+      qrCodeData: guardianUrl,
+      status: "not_started",
+      formItemsSnapshot: JSON.stringify(CONSENT_FORM_V2),
+    });
     await tx.update(inquiriesTable).set({
       status: "converted",
       metadata: { ...metadata, caseId, caseStartedAt: new Date().toISOString() },
@@ -255,7 +237,7 @@ router.post("/portal/inquiries/:id/start-syc-case", authMiddleware, async (req, 
     caseId,
     metadata: { inquiryId: inquiry.id, productId: "STRENGTHEN_CORE", source: "promotional_link" },
   });
-  res.status(201).json({ caseId, caseUrl: `/cases/${encodeURIComponent(caseId)}`, guardianUrl, studentAssentUrl: assentUrl, alreadyStarted: false });
+  res.status(201).json({ caseId, caseUrl: `/cases/${encodeURIComponent(caseId)}`, guardianUrl, alreadyStarted: false });
 });
 
 router.post("/portal/inquiries/:id/verify-syc-consent", authMiddleware, async (req, res) => {
@@ -278,9 +260,8 @@ router.post("/portal/inquiries/:id/verify-syc-consent", authMiddleware, async (r
   const records = await db.select({ toolId: assignmentsTable.toolId, status: assignmentsTable.status })
     .from(assignmentsTable).where(sql`${assignmentsTable.caseId} = ${caseId}`);
   const guardianDone = records.some((r) => r.toolId === "CONSENT" && r.status === "completed");
-  const assentDone = records.some((r) => r.toolId === "SYC-ASSENT" && r.status === "completed");
-  if (!caseRow || workflow.guardianStatus !== "consented" || workflow.studentStatus !== "assented" || !guardianDone || !assentDone) {
-    res.status(409).json({ error: "consent_not_verified", message: "The guardian consent and separate affirmative student assent must both be submitted before verification." });
+  if (!caseRow || workflow.guardianStatus !== "consented" || !guardianDone) {
+    res.status(409).json({ error: "consent_not_verified", message: "Parent/guardian consent must be submitted before verification." });
     return;
   }
   const nextAnalysis = {

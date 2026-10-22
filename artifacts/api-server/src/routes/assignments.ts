@@ -775,18 +775,24 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   }
 
   // Strengthen Your Core stays inside the normal case/assignment workflow.
-  // Standard consent and assent forms are permitted first; assessment tools
-  // remain blocked until an administrator verifies both responses on the case.
+  // Parent/guardian consent is the only required consent form before assessments.
   const isStrengthenCoreCase = ((caseRows[0].productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
   const intakeAnalysis = (caseRows[0].intakeAnalysis ?? {}) as Record<string, unknown>;
   const sycWorkflow = intakeAnalysis.sycWorkflow && typeof intakeAnalysis.sycWorkflow === "object"
     ? intakeAnalysis.sycWorkflow as Record<string, unknown>
     : {};
   const sycConsentVerified = caseRows[0].consentObtained === true && typeof sycWorkflow.verifiedAt === "string";
-  if (isStrengthenCoreCase && !sycConsentVerified && !["CONSENT", "SYC-ASSENT"].includes(String(toolId))) {
+  if (isStrengthenCoreCase && String(toolId) === "SYC-ASSENT") {
+    res.status(410).json({
+      error: "student_assent_not_required",
+      message: "A separate student assent form is not used in this workflow. Parent/guardian consent is the required consent form.",
+    });
+    return;
+  }
+  if (isStrengthenCoreCase && !sycConsentVerified && String(toolId) !== "CONSENT") {
     res.status(403).json({
       error: "strengthen_core_consent_not_verified",
-      message: "This Strengthen Your Core case requires verified guardian consent and student assent before assessment assignments can be created.",
+      message: "This Strengthen Your Core case requires verified parent/guardian consent before assessment assignments can be created.",
     });
     return;
   }
