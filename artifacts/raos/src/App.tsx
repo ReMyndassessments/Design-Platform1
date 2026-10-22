@@ -265,7 +265,11 @@ function Router() {
         <Route path="/strengthen-your-core/consent/:role/:token" component={StrengthenCoreConsentPage} />
         <Route path="/strengthen-your-core" component={StrengthenCoreLandingPage} />
         <Route path="/admin/strengthen-your-core">
-          {() => <ProtectedRoute component={InquiriesPage} adminOnly />}
+          {() => {
+            const [, navigate] = useLocation();
+            React.useEffect(() => { navigate("/inquiries", { replace: true }); }, [navigate]);
+            return null;
+          }}
         </Route>
         <Route path="/communications">
           {() => <ProtectedRoute component={CommunicationsPage} adminOnly />}
