@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable, strengthenCoreProgramTable } from "@workspace/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
@@ -217,10 +217,17 @@ router.patch("/cases/:caseId/product-tool-overrides", authMiddleware, async (req
     }
     const workflow = existing.sycWorkflow && typeof existing.sycWorkflow === "object" ? existing.sycWorkflow : {};
     const currentExtension = typeof workflow.approvedExtension === "string" ? workflow.approvedExtension : null;
-    if (caseRows[0].consentObtained === true && currentExtension !== nextExtension) {
+    const assignedSycAssessment = await db.select({ id: assignmentsTable.id })
+      .from(assignmentsTable)
+      .where(and(
+        eq(assignmentsTable.caseId, caseId),
+        inArray(assignmentsTable.toolId, ["RCEP-CORE", ...EXTENSIONS]),
+      ))
+      .limit(1);
+    if (assignedSycAssessment.length > 0 && currentExtension !== nextExtension) {
       res.status(409).json({
         error: "approved_extension_locked",
-        message: "The approved extension cannot be changed after parent/guardian consent has been verified.",
+        message: "The approved extension cannot be changed after an assessment tool has been assigned.",
       });
       return;
     }

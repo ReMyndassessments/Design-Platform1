@@ -1138,7 +1138,7 @@ export default function CaseDetail() {
     }
     const hasExistingReview = Boolean(currentAnalysis.summary || (isSycCase && currentAnalysis.sycInitialReview));
     const confirmation = isSycCase
-      ? "Regenerate the non-diagnostic Strengthen Your Core educational review using the school application and saved RAOS parent/teacher forms, interviews, and follow-up responses?\n\nThis replaces the previous AI draft. It does not approve or assign an assessment; administrator review is still required."
+      ? "Generate the non-diagnostic Strengthen Your Core review and tool suggestions using the school application, completed School/Teacher Referral and Parent Intake forms, interviews, and saved follow-up responses?\n\nThis replaces the previous AI draft. It does not approve or assign an assessment; administrator review is still required."
       : `Regenerate the intake analysis using the saved case details (Grade ${c?.grade || "not specified"}, age ${ageFromDob(c?.dob) ?? "unknown"} from the saved birth date), forms, interviews and the latest submitted parent/teacher question responses?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`;
     if (hasExistingReview && !window.confirm(confirmation)) return;
     analyzeIntakeMut.mutate({ caseId }, {
@@ -1146,7 +1146,7 @@ export default function CaseDetail() {
         toast({
           title: isSycCase ? "Educational review updated" : "Intake Analysis Complete",
           description: isSycCase
-            ? "Saved RAOS responses were included. Administrator review is still required."
+            ? "The completed school referral and parent intake were included. Administrator review is still required."
             : "Saved parent and teacher question responses were included in the regenerated analysis.",
         });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
@@ -2192,7 +2192,7 @@ export default function CaseDetail() {
 
         {showAiCard && (() => {
           const allAssignments2 = c.assignments ?? [];
-          const INTAKE_TOOL_IDS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"]];
+          const INTAKE_FORM_GROUPS = [["REFERRAL","REFERRAL-CORP","REFERRAL-UNI","REFERRAL-PARENT","REFERRAL-BOARDING"],["INTAKE"]];
           const caseAnalysis = (c.intakeAnalysis ?? {}) as Record<string, any>;
           const isSycCase = ((c.productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
           const applicationData = c.intakeData && typeof c.intakeData === "object" && !Array.isArray(c.intakeData)
@@ -2210,8 +2210,27 @@ export default function CaseDetail() {
           const sycConsentVerified = !isSycCase ||
             (c.consentObtained === true && typeof sycWorkflow.verifiedAt === "string");
           const hasRaosAnalysis = !isSycCase && typeof caseAnalysis.summary === "string" && caseAnalysis.summary.trim().length > 0;
-          const intakeFormsComplete = isSycCase && applicationEntries.length > 0 ||
-            INTAKE_TOOL_IDS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
+          const schoolReferralComplete = allAssignments2.some(a =>
+            a.toolId === "REFERRAL" && a.respondentType === "referring_teacher" && a.status === "completed"
+          );
+          const parentIntakeComplete = allAssignments2.some(a =>
+            a.toolId === "INTAKE" && a.respondentType === "parent" && a.status === "completed"
+          );
+          const intakeFormsComplete = isSycCase
+            ? schoolReferralComplete && parentIntakeComplete
+            : INTAKE_FORM_GROUPS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
+          const missingSycForms = [
+            ...(!schoolReferralComplete ? ["school referral"] : []),
+            ...(!parentIntakeComplete ? ["parent intake"] : []),
+          ];
+          const recommendedExtension = initialReview && typeof initialReview.recommendedExtension === "string"
+            ? initialReview.recommendedExtension
+            : null;
+          const recommendedExtensionName = recommendedExtension
+            ? tools?.find(tool => tool.id === recommendedExtension)?.name ?? recommendedExtension
+            : null;
+          const coreInstrumentName = tools?.find(tool => tool.id === "RCEP-CORE")?.name ?? "Strengthen Your Core Core Assessment";
+          const approvedExtension = typeof sycWorkflow.approvedExtension === "string" ? sycWorkflow.approvedExtension : null;
           return (
             <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-100" id="tour-ai-synthesis">
               <CardHeader className="pb-2">
@@ -2223,7 +2242,9 @@ export default function CaseDetail() {
                   </CardTitle>
                   <div className="flex items-center gap-2 shrink-0">
                     {!intakeFormsComplete && !hasRaosAnalysis && (
-                      <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">Complete Step 1 first</span>
+                      <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+                        {isSycCase ? `Complete ${missingSycForms.join(" + ")} first` : "Complete Step 1 first"}
+                      </span>
                     )}
                     {hasRaosAnalysis && (role === "admin" || role === "school_clinical_coordinator") && (
                       <Button size="sm" variant="outline" onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || savingInterviewNotes} className="text-blue-700 border-blue-200 hover:bg-blue-50">
@@ -2273,17 +2294,14 @@ export default function CaseDetail() {
                 {isSycCase && initialReview && (
                   <details open className="mb-5 rounded-xl border border-blue-200 bg-white/80 p-4">
                     <summary className="cursor-pointer font-semibold text-blue-950">
-                      Initial application review
-                      <span className="ml-2 text-xs font-normal text-blue-800">Assistive only · human review required</span>
+                      Strengthen Your Core educational intake analysis
+                      <span className="ml-2 text-xs font-normal text-blue-800">Assessment suggestions · human review required</span>
                     </summary>
                     {typeof initialReview.referralSummary === "string" && (
                       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{initialReview.referralSummary}</p>
                     )}
                     {typeof initialReview.primaryEducationalQuestion === "string" && (
                       <p className="mt-3 text-sm text-slate-700"><strong>Primary educational question:</strong> {initialReview.primaryEducationalQuestion}</p>
-                    )}
-                    {typeof initialReview.assessmentJustification === "string" && (
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700"><strong>Assessment justification:</strong> {initialReview.assessmentJustification}</p>
                     )}
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       {([
@@ -2302,9 +2320,37 @@ export default function CaseDetail() {
                         </div>
                       ))}
                     </div>
+                    <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">Suggested assessment forms</h4>
+                      <p className="mt-2 text-sm text-slate-800">
+                        <strong>Core assessment:</strong> {coreInstrumentName}
+                      </p>
+                      {recommendedExtension ? (
+                        <p className="mt-1 text-sm text-slate-800">
+                          <strong>Optional extension suggested by the review:</strong> {recommendedExtensionName}
+                          <span className="ml-1 text-xs text-slate-600">
+                            ({recommendedExtension}; {approvedExtension === recommendedExtension ? "administrator approved" : "requires administrator approval"})
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-slate-700">No optional extension was suggested from the currently enabled options.</p>
+                      )}
+                      {typeof initialReview.assessmentJustification === "string" && initialReview.assessmentJustification.trim() && (
+                        <p className="mt-2 text-sm leading-6 text-slate-700"><strong>Why:</strong> {initialReview.assessmentJustification}</p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-600">
+                        These are suggestions, not assignments. An administrator must review the recommendation before any assessment form is sent.
+                      </p>
+                      {role === "admin" && recommendedExtension && approvedExtension !== recommendedExtension && (
+                        <Link href={`/cases/${caseId}/product-dashboard`}>
+                          <Button size="sm" variant="outline" className="mt-3 border-violet-300 text-violet-800">
+                            Review tool selection
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                     <p className="mt-3 text-xs text-slate-600">
                       Suitability: {String(initialReview.suitability ?? "not recorded")}
-                      {initialReview.recommendedExtension ? ` · Suggested extension: ${String(initialReview.recommendedExtension)} (requires administrator approval)` : ""}
                     </p>
                   </details>
                 )}
@@ -2324,7 +2370,7 @@ export default function CaseDetail() {
                 )}
                 {isSycCase && !sycConsentVerified && (
                   <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                    Send the standard RAOS Parent/Guardian Consent Form from this case and verify the completed consent in the linked RAOS inquiry. After verification, this review can be regenerated with the parent/teacher responses and follow-up information collected through RAOS.
+                    Send the standard RAOS Parent/Guardian Consent Form from this case and verify the completed consent in the linked RAOS inquiry. Then send the School/Teacher Referral and Parent Intake forms through RAOS; generate the assessment suggestions after both have been submitted.
                   </div>
                 )}
                 {hasRaosAnalysis ? (
@@ -2476,17 +2522,29 @@ export default function CaseDetail() {
                         <p className="text-sm text-slate-500 mb-4">
                           {isSycCase
                             ? sycConsentVerified
-                              ? initialReview
-                                ? "This non-diagnostic educational review uses the school application and current RAOS intake, interview, and follow-up responses. Regeneration replaces the previous draft and requires human review."
-                                : "Generate the initial non-diagnostic suggestions from the linked RAOS inquiry. After parent/guardian consent is verified, you can regenerate the review here using information collected through RAOS."
-                              : "Verify parent/guardian consent through the standard RAOS workflow before regenerating this educational review with parent/teacher responses."
+                              ? intakeFormsComplete
+                                ? initialReview
+                                  ? "This non-diagnostic review combines the original school application with completed School/Teacher Referral and Parent Intake responses, plus saved interviews and follow-up. Regeneration replaces the prior draft and requires human review."
+                                  : "Both intake forms are complete. Generate the non-diagnostic review and assessment suggestions from the school application, both responses, and saved RAOS follow-up."
+                                : "After verifying parent/guardian consent, use the Pre-Assessment Intake section above to send the School/Teacher Referral and Parent Intake forms. Generate or regenerate the review after both are submitted."
+                              : "Verify parent/guardian consent through the standard RAOS workflow first. Then complete the School/Teacher Referral and Parent Intake forms before generating assessment suggestions."
                             : "No AI analysis run yet for this case."}
                         </p>
+                        {isSycCase && sycConsentVerified && (
+                          <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                            <span className={`rounded-full border px-2.5 py-1 ${schoolReferralComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                              School/Teacher Referral: {schoolReferralComplete ? "submitted" : "needed"}
+                            </span>
+                            <span className={`rounded-full border px-2.5 py-1 ${parentIntakeComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                              Parent Intake: {parentIntakeComplete ? "submitted" : "needed"}
+                            </span>
+                          </div>
+                        )}
                         {(!isSycCase || sycConsentVerified) && (
                           <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || !intakeFormsComplete || !sycConsentVerified} className="bg-blue-600 hover:bg-blue-700 text-white">
                             {analyzeIntakeMut.isPending
-                              ? isSycCase ? "Generating review..." : "Analyzing..."
-                              : isSycCase ? initialReview ? "Regenerate Educational Review" : "Generate Educational Review" : "Run AI Intake Analysis"}
+                              ? isSycCase ? "Generating suggestions..." : "Analyzing..."
+                              : isSycCase ? initialReview ? "Regenerate Review & Tool Suggestions" : "Generate Review & Tool Suggestions" : "Run AI Intake Analysis"}
                           </Button>
                         )}
                       </>

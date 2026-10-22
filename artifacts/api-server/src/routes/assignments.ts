@@ -796,7 +796,10 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     });
     return;
   }
-  if (isStrengthenCoreCase && sycConsentVerified) {
+  const sycIntakeFormIds = new Set([
+    "CONSENT", "INTAKE", "REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING",
+  ]);
+  if (isStrengthenCoreCase && sycConsentVerified && !sycIntakeFormIds.has(String(toolId))) {
     const [program] = await db.select().from(strengthenCoreProgramTable)
       .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
     const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };
