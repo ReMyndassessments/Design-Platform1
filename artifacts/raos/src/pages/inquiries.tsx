@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2, Copy, Link } from "lucide-react";
+import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2, Copy, Link, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -128,6 +128,7 @@ export default function InquiriesPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Inquiry | null>(null);
 
@@ -307,7 +308,24 @@ export default function InquiriesPage() {
     onError: (error: Error) => toast({ title: "Consent is not ready", description: error.message, variant: "destructive" }),
   });
 
-  const filtered = filter === "all" ? allInquiries : allInquiries.filter((i) => i.status === filter);
+  const statusFiltered = filter === "all" ? allInquiries : allInquiries.filter((i) => i.status === filter);
+  const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+  const filtered = normalizedSearchTerm
+    ? statusFiltered.filter((inquiry) => {
+        const searchableText = [
+          inquiry.contactName,
+          inquiry.contactEmail,
+          inquiry.contactPhone,
+          inquiry.organisation,
+          inquiry.role,
+          inquiry.message,
+          inquiry.workshopTitle,
+          inquiry.metadata?.sourceLabel,
+          inquiry.metadata?.intakeData ? JSON.stringify(inquiry.metadata.intakeData) : "",
+        ].filter(Boolean).join(" ").toLocaleLowerCase();
+        return searchableText.includes(normalizedSearchTerm);
+      })
+    : statusFiltered;
 
   const counts = {
     all: allInquiries.length,
@@ -336,7 +354,7 @@ export default function InquiriesPage() {
         <div>
           <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
           <p className="text-slate-500 mt-1">
-              Portal inquiries and verified workshop sales inquiries
+            RAOS inquiries, including Strengthen Your Core and workshop sales
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -623,10 +641,22 @@ export default function InquiriesPage() {
         ))}
       </div>
 
+      <div className="relative max-w-xl">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+        <Input
+          type="search"
+          aria-label="Search inquiries"
+          placeholder="Search school, contact, email, concern, or intake"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {filtered.length === 0 && (
         <Card className="border-none shadow-md">
           <CardContent className="py-16 text-center text-slate-400">
-            No inquiries found.
+            {normalizedSearchTerm ? "No inquiries match that search." : "No inquiries found."}
           </CardContent>
         </Card>
       )}
