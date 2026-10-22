@@ -30,7 +30,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 interface Inquiry {
   id: string;
-  inquiryType: "school" | "parent" | "partner_school" | "workshop_sales";
+  inquiryType: "school" | "parent" | "partner_school";
   status: "new" | "contacted" | "converted" | "closed";
   contactName: string;
   contactEmail: string;
@@ -51,21 +51,6 @@ interface Inquiry {
   howHeard: string | null;
   timeline: string | null;
   createdAt: string;
-  workshopTitle?: string;
-  paymentMethod?: "wechat_pay" | "alipay" | "credit_card";
-  otherPaymentOptions?: string[];
-  paymentReference?: string | null;
-  paymentStatus?: string;
-  receiptUploaded?: boolean;
-  schoolSize?: string | null;
-  areasOfInterest?: string[];
-  schoolSupportChallenge?: string | null;
-  interestedFutureLearning?: boolean;
-  interestedSchoolTraining?: boolean;
-  interestedAssessmentServices?: boolean;
-  interestedPartnerSchool?: boolean;
-  trainingOnly?: boolean;
-  marketingConsent?: boolean;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -217,16 +202,16 @@ export default function InquiriesPage() {
     queryKey: ["inquiries"],
     queryFn: () => customFetch<Inquiry[]>("/api/portal/inquiries"),
   });
-  const allInquiries = inquiries.filter((inquiry) => inquiry.inquiryType !== "workshop_sales").sort(
+  const allInquiries = inquiries.slice().sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status, paymentConfirmed }: { id: string; status: string; paymentConfirmed?: boolean }) =>
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
       customFetch(`/api/portal/inquiries/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, ...(paymentConfirmed ? { paymentConfirmed: true } : {}) }),
+        body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
@@ -276,7 +261,6 @@ export default function InquiriesPage() {
           inquiry.organisation,
           inquiry.role,
           inquiry.message,
-          inquiry.workshopTitle,
           inquiry.metadata?.sourceLabel,
           inquiry.metadata?.intakeData ? JSON.stringify(inquiry.metadata.intakeData) : "",
         ].filter(Boolean).join(" ").toLocaleLowerCase();
@@ -628,8 +612,6 @@ export default function InquiriesPage() {
                           ? "bg-indigo-100"
                           : inq.inquiryType === "partner_school"
                           ? "bg-purple-100"
-                          : inq.inquiryType === "workshop_sales"
-                          ? "bg-amber-100"
                           : "bg-teal-100"
                       }`}
                     >
@@ -637,8 +619,6 @@ export default function InquiriesPage() {
                         <School size={18} className="text-indigo-600" />
                       ) : inq.inquiryType === "partner_school" ? (
                         <Building2 size={18} className="text-purple-600" />
-                        ) : inq.inquiryType === "workshop_sales" ? (
-                          <Calendar size={18} className="text-amber-600" />
                         ) : (
                         <User size={18} className="text-teal-600" />
                       )}
@@ -656,7 +636,7 @@ export default function InquiriesPage() {
                             ? "bg-purple-100 text-purple-700"
                             : "text-slate-400"
                         }`}>
-                          {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType === "workshop_sales" ? "Workshop Sales" : inq.inquiryType}
+                          {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType}
                         </span>
                         {inq.metadata?.productId === "STRENGTHEN_CORE" && inq.metadata.source === "promotional_link" && (
                           <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">
@@ -665,7 +645,7 @@ export default function InquiriesPage() {
                         )}
                       </div>
                       <p className="text-sm text-slate-500 truncate">
-                        {inq.workshopTitle ? `${inq.workshopTitle} · ` : inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
+                        {inq.organisation ? `${inq.organisation} · ` : ""}{inq.contactEmail}
                       </p>
                     </div>
                   </div>
@@ -675,17 +655,7 @@ export default function InquiriesPage() {
                     </span>
                     <Select
                       value={inq.status}
-                      onValueChange={(val) => {
-                        if (inq.inquiryType === "workshop_sales" && val === "converted") {
-                          const confirmed = window.confirm(
-                            "Confirm that this workshop payment has been received. This will add the person to the paid attendee roster and send their registration confirmation."
-                          );
-                          if (!confirmed) return;
-                          updateStatus.mutate({ id: inq.id, status: val, paymentConfirmed: true });
-                          return;
-                        }
-                        updateStatus.mutate({ id: inq.id, status: val });
-                      }}
+                      onValueChange={(val) => updateStatus.mutate({ id: inq.id, status: val })}
                     >
                       <SelectTrigger
                         className="h-8 text-xs w-32"
@@ -855,43 +825,6 @@ export default function InquiriesPage() {
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Message / Reason</h4>
                         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{inq.message}</div>
                       </div>
-                      {inq.inquiryType === "workshop_sales" && (
-                        <div className="mt-5 space-y-4">
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">School information and interests</h4>
-                            <div className="space-y-1 text-sm text-slate-700">
-                              {inq.schoolType && <p><strong>School type:</strong> {inq.schoolType}</p>}
-                              {inq.schoolSize && <p><strong>Approximate students:</strong> {inq.schoolSize}</p>}
-                              {!!inq.areasOfInterest?.length && <p><strong>Areas of interest:</strong> {inq.areasOfInterest.join(", ")}</p>}
-                              {inq.schoolSupportChallenge && <p><strong>School need:</strong> {inq.schoolSupportChallenge}</p>}
-                              <p><strong>Future interest:</strong> {[
-                                inq.interestedFutureLearning && "Free professional learning",
-                                inq.interestedSchoolTraining && "Dedicated school training",
-                                inq.interestedAssessmentServices && "Assessment services",
-                                inq.interestedPartnerSchool && "Partner School",
-                                inq.trainingOnly && "This workshop only",
-                              ].filter(Boolean).join(", ") || "None selected"}</p>
-                              <p><strong>Marketing consent:</strong> {inq.marketingConsent ? "Yes" : "No"}</p>
-                            </div>
-                          </div>
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                            <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Payment preference</h4>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {inq.paymentMethod === "wechat_pay" ? "WeChat Pay" : inq.paymentMethod === "alipay" ? "Alipay" : "Credit Card"}
-                            </p>
-                            {inq.paymentReference && <p className="mt-1 text-sm text-slate-600">Reference: {inq.paymentReference}</p>}
-                            <p className="mt-1 text-xs text-slate-500">
-                              {inq.receiptUploaded ? "Receipt screenshot uploaded — payment requires administrator verification." : "No immediate payment receipt; contact the registrant with payment instructions."}
-                            </p>
-                            {inq.receiptUploaded && (
-                              <a href={`/api/training/workshops/manual-sales-inquiries/${inq.id}/receipt`} target="_blank" rel="noreferrer"
-                                className="mt-3 inline-block text-sm font-semibold text-teal-700 underline">
-                                View receipt screenshot
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </>
                   )}
                 </CardContent>
