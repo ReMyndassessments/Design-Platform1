@@ -5,6 +5,12 @@ description: Durable delivery, consent, privacy, and live-data safety rules for 
 
 Use Gmail for direct, individual, case-related, staff, test, and small operational messages. Send one Gmail transaction per recipient, never expose recipient addresses, and cap Gmail groups at 50 recipients. Use EmailOctopus only for consent-eligible cohort, newsletter, and promotional campaigns.
 
+Strengthen Your Core application-arrival alerts use the existing RAOS inquiry notification recipients and operational Gmail path. Include only the school name and application reference, not student details or narrative responses. Email failure must never block or undo the saved application.
+
+**Why:** The full application contains sensitive educational information; an email alert only needs enough context to locate it securely in RAOS.
+
+**How to apply:** Direct reviewers to the protected RAOS Inquiries page for details. Keep sending one message per recipient and treat delivery as best-effort after the application and case are saved.
+
 **Why:** Case-service consent is not promotional consent. Bulk-provider synchronization must never leak confidential assessment or case information, and existing provider contacts must not be silently changed or resubscribed.
 
 **How to apply:** Keep communications changes additive and preserve authoritative source records. Operational Gmail messages remain capped at 50. Admins may paste a promotional list only after explicitly confirming prior marketing consent. For continuation sends, match the internal campaign name and exclude addresses already recorded as sent or delivered. EmailOctopus's documented API cannot create or dispatch broadcasts: RAOS prepares a timestamped dedicated filtered list, the admin sends it in the EmailOctopus dashboard, then explicitly confirms the external send in RAOS so local exclusion history is updated. Populate large lists with a small bounded worker pool; sequential contact creation exceeds production request timeouts, while unbounded concurrency risks provider limits. A normal Send Now message sent to the administrator as a final check is still a real send, so do not auto-label it as a test; show recipient details and require explicit deletion instead. Reference source type and source ID when one exists. Synchronize only minimum campaign data to EmailOctopus, honor local suppressions, use Gmail for all dedicated test sends, and never modify or auto-resubscribe an existing EmailOctopus contact.

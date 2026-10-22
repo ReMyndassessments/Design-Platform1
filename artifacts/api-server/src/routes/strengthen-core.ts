@@ -9,6 +9,8 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
 import { CONSENT_FORM_V2 } from "../lib/questions.js";
 import { deidentifiedIntake, EXTENSIONS, generateSycAnalysis, type Extension } from "../lib/strengthen-core-analysis.js";
+import { getAdminEmails } from "../lib/adminEmails.js";
+import { sendEmail } from "../lib/outlookEmail.js";
 
 const router = Router();
 type ProgramSettings = {
@@ -63,6 +65,47 @@ async function getSettings(): Promise<ProgramSettings> {
 
 function safeString(value: unknown, max = 1000): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function escapeEmailHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] ?? character);
+}
+
+async function notifySycApplicationAdmins(applicationId: string, schoolName: string): Promise<number> {
+  const configuredRecipients = (process.env.INQUIRY_NOTIFY_EMAIL ?? "")
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+  const recipients = [...new Set(configuredRecipients.length ? configuredRecipients : await getAdminEmails())];
+  if (!recipients.length) throw new Error("No RAOS inquiry notification recipients are configured.");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#243b3a">
+      <div style="background:#1d5b58;padding:20px 24px;border-radius:12px 12px 0 0;color:#fff">
+        <h1 style="margin:0;font-size:20px">New Strengthen Your Core application</h1>
+      </div>
+      <div style="border:1px solid #d7e3da;border-top:0;border-radius:0 0 12px 12px;padding:22px 24px">
+        <p>A school submitted an application through the designated Strengthen Your Core link.</p>
+        <p><strong>School:</strong> ${escapeEmailHtml(schoolName)}</p>
+        <p><strong>Application reference:</strong> ${escapeEmailHtml(applicationId)}</p>
+        <p>Open RAOS and select <strong>Inquiries</strong> to review the application. The application is already in the RAOS case workflow.</p>
+        <p style="color:#647875;font-size:12px">For privacy, this notification does not include student details or application narratives.</p>
+      </div>
+    </div>`;
+  const results = await Promise.allSettled(recipients.map((to) => sendEmail({
+    to,
+    subject: "[RAOS] New Strengthen Your Core application received",
+    html,
+  })));
+  const failedCount = results.filter((result) => result.status === "rejected").length;
+  if (failedCount) throw new Error(`Could not deliver ${failedCount} of ${recipients.length} application notification emails.`);
+  return recipients.length;
 }
 
 type SycConsentRecord = {
@@ -368,6 +411,9 @@ router.post("/strengthen-core/applications", async (req, res): Promise<void> => 
     caseId,
     metadata: { inquiryId: id, productId: "STRENGTHEN_CORE", source: "promotional_link", consentPending: true },
   });
+  void notifySycApplicationAdmins(id, schoolName)
+    .then((recipientCount) => req.log?.info({ inquiryId: id, recipientCount }, "Strengthen Your Core application email notification sent"))
+    .catch((err) => req.log?.error({ err, inquiryId: id }, "Strengthen Your Core application email notification failed"));
   res.status(201).json({ id: row.id, status: row.status, received: true });
 });
 
