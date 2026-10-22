@@ -929,7 +929,28 @@ export default function CaseDetail() {
     ? (PHASE_LABELS[previousInternalPhase] ?? previousInternalPhase.replace("_", " "))
     : null;
 
+  const assignmentCaseAnalysis = (c.intakeAnalysis ?? {}) as Record<string, unknown>;
+  const assignmentSycWorkflow = assignmentCaseAnalysis.sycWorkflow && typeof assignmentCaseAnalysis.sycWorkflow === "object"
+    ? assignmentCaseAnalysis.sycWorkflow as Record<string, unknown>
+    : {};
+  const assignmentIsSycCase = ((c.productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
+  const assignmentSycConsentVerified = !assignmentIsSycCase ||
+    (c.consentObtained === true && typeof assignmentSycWorkflow.verifiedAt === "string");
+  const assignmentSycAllowedTools = new Set([
+    "CONSENT", "INTAKE", "REFERRAL", "REFERRAL-CORP", "REFERRAL-UNI", "REFERRAL-PARENT", "REFERRAL-BOARDING",
+    "RCEP-CORE", "REMYND-CLASSROOM-OBS", "REMYND-WORK-REVIEW",
+  ]);
+  if (typeof assignmentSycWorkflow.approvedExtension === "string") {
+    assignmentSycAllowedTools.add(assignmentSycWorkflow.approvedExtension);
+  }
+  const assignmentRespondentTypeOptions = assignmentIsSycCase && !assignmentSycConsentVerified
+    ? ["parent"] as const
+    : RESPONDENT_TYPES_IN_MODAL;
   const filteredTools = tools?.filter(t => {
+    if (assignmentIsSycCase) {
+      if (!assignmentSycConsentVerified) return t.id === "CONSENT";
+      return assignmentSycAllowedTools.has(t.id);
+    }
     if (role === "admin" || String(role) === "school_clinical_coordinator") return true;
     if (role === "assessment_invigilator") return true;
     if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
@@ -3686,11 +3707,18 @@ export default function CaseDetail() {
               <DialogDescription>As a psychometrician, you can deploy assessment instruments (not intake forms).</DialogDescription>
             )}
           </DialogHeader>
+          {assignmentIsSycCase && (
+            <div className={`rounded-md border px-3 py-2.5 text-sm ${assignmentSycConsentVerified ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+              {assignmentSycConsentVerified
+                ? "Consent is verified. This pathway allows the standard intake forms, RCEP-CORE, the classroom observation and work-sample review, plus an administrator-approved extension."
+                : "Assessment forms are locked until parent/guardian consent is submitted and verified. Only the Parent/Guardian Consent Form is available now. After it is completed, open the Strengthen Your Core inquiry from the Inquiries page and choose “Verify submitted consent,” then refresh this case."}
+            </div>
+          )}
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Respondent Type <span className="text-slate-400 font-normal">(select all that apply)</span></label>
               <div className="border border-input rounded-md divide-y">
-                {RESPONDENT_TYPES_IN_MODAL.map(rt => {
+                {assignmentRespondentTypeOptions.map(rt => {
                   const checked = newAssignment.respondentTypes.includes(rt);
                   return (
                     <label key={rt} className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors ${checked ? "bg-primary/5" : ""}`}>
