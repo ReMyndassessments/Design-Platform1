@@ -166,10 +166,15 @@ const pilotOfferCopy: Record<Lang, { badge: string; title: string; body: string;
   },
 };
 
+const validationCopy: Record<Lang, string> = {
+  en: "Complete all required fields and acknowledgements before submitting.",
+  zh: "提交前请填写所有必填项并完成确认声明。",
+  ko: "제출하기 전에 모든 필수 항목과 확인 사항을 완료해 주세요.",
+};
+
 export default function StrengthenCoreApplication() {
   const [lang, setLang] = useState<Lang>("en");
   const [values, setValues] = useState<Record<string, string | boolean>>({});
-  const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<{ id: string; status: string } | null>(null);
   const queryClient = useQueryClient();
@@ -182,20 +187,13 @@ export default function StrengthenCoreApplication() {
     return !field.showWhen || values[field.showWhen.key] === field.showWhen.value;
   }
 
-  function validateCurrent() {
-    const missing = sections[step].fields.filter((f) => isFieldVisible(f) && f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key);
-    setErrors(missing);
-    if (missing.length) window.scrollTo({ top: 0, behavior: "smooth" });
-    return missing.length === 0;
-  }
-
   function handleSubmit() {
     const missing = sections.flatMap((section) => section.fields.filter((f) => isFieldVisible(f) && f.required && (f.type === "checkbox" ? values[f.key] !== true : !String(values[f.key] ?? "").trim() || (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values[f.key] ?? "").trim())))).map((f) => f.key));
     setErrors(missing);
     if (missing.length) {
-      const firstStep = sections.findIndex((section) => section.fields.some((f) => missing.includes(f.key)));
-      setStep(firstStep >= 0 ? firstStep : 0);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const firstInvalidField = document.getElementById(missing[0]);
+      firstInvalidField?.focus({ preventScroll: true });
+      firstInvalidField?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     submit.mutate({ data: { language: lang, data: { ...values } } }, {
@@ -254,7 +252,7 @@ export default function StrengthenCoreApplication() {
         )}
         {field.hint && <p id={`hint-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`hint-${field.key}`}>{field.hint}</p>}
         {example && <p id={`example-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`example-${field.key}`}>{example}</p>}
-        {errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{t.validation}</p>}
+        {errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{validationCopy[lang]}</p>}
       </div>
     );
   }
@@ -325,23 +323,44 @@ export default function StrengthenCoreApplication() {
               <a href="#application-form" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1d5b58] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#154846] focus:outline-none focus:ring-2 focus:ring-[#52866f] focus:ring-offset-2" data-testid="link-start-application">{t.journey.start}<ArrowRight size={16} aria-hidden="true" /></a>
             </div>
           </section>
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-[#d6e2d9] bg-[#fbfcf9] px-4 py-3"><span className="text-sm font-semibold text-[#58706a]">{t.section} {step + 1} {t.of} {sections.length}</span><span className="font-mono text-xs text-[#82948b]">{String(step + 1).padStart(2, "0")} / 12</span></div>
-          <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-[#e0e9e2]"><div className="h-full rounded-full bg-[#52866f] transition-all duration-300" style={{ width: `${((step + 1) / sections.length) * 100}%` }} /></div>
-          {errors.length > 0 && <div className="mb-5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-validation-error"><CircleAlert size={17} className="mt-0.5 shrink-0" />{t.validation}</div>}
-          <section id="application-form" className="rounded-2xl border border-[#d8e3db] bg-[#fbfcf9] p-5 shadow-sm shadow-[#2d4d40]/[.03] md:p-8" data-testid={`section-application-${step + 1}`}>
-            <div className="mb-7 flex gap-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e6efe7] font-mono text-sm font-bold text-[#54816d]">{String(step + 1).padStart(2, "0")}</span><div><h2 className="font-display text-2xl font-semibold text-[#264744]">{sections[step].title}</h2><p className="mt-1 text-sm leading-6 text-[#71817a]">{sections[step].intro}</p></div></div>
-            <div className="space-y-6">{sections[step].fields.filter(isFieldVisible).map(fieldControl)}</div>
-            {step === 11 && <div className="mt-7 space-y-3 border-t border-[#e2e9e3] pt-6"><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.nonDiag}</p><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ClipboardCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.consent}</p><p className="text-xs leading-5 text-[#758680]">{t.evidence}</p></div>}
-          </section>
-          {submit.isError && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-submit-error">{t.error}</div>}
-          <div className="mt-6 flex flex-wrap justify-between gap-3">
-            <button type="button" onClick={() => { setStep((s) => Math.max(0, s - 1)); setErrors([]); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={step === 0} className="rounded-xl border border-[#ccd9d0] bg-[#fbfcf9] px-5 py-3 text-sm font-semibold text-[#45635b] transition hover:bg-[#edf3ed] disabled:opacity-40" data-testid="button-previous-section">{t.previous}</button>
-            {step < sections.length - 1 ? <button type="button" onClick={() => { if (validateCurrent()) { setStep((s) => s + 1); window.scrollTo({ top: 0, behavior: "smooth" }); } }} className="inline-flex items-center gap-2 rounded-xl bg-[#1d5b58] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#154846]" data-testid="button-next-section">{t.next}<ArrowRight size={16} /></button> : <button type="button" onClick={handleSubmit} disabled={submit.isPending} className="inline-flex items-center gap-2 rounded-xl bg-[#1d5b58] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#154846] disabled:opacity-60" data-testid="button-submit-application">{submit.isPending ? t.submitting : t.review}<ArrowRight size={16} /></button>}
-          </div>
+          <form
+            id="application-form"
+            className="space-y-5"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSubmit();
+            }}
+          >
+            {errors.length > 0 && <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-validation-error"><CircleAlert size={17} className="mt-0.5 shrink-0" />{validationCopy[lang]}</div>}
+            {sections.map((section, index) => (
+              <section
+                key={section.title}
+                id={`application-section-${index + 1}`}
+                className="rounded-2xl border border-[#d8e3db] bg-[#fbfcf9] p-5 shadow-sm shadow-[#2d4d40]/[.03] md:p-8"
+                aria-labelledby={`application-section-title-${index + 1}`}
+                data-testid={`section-application-${index + 1}`}
+              >
+                <div className="mb-7 flex gap-4">
+                  <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e6efe7] font-mono text-sm font-bold text-[#54816d]">{String(index + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h2 id={`application-section-title-${index + 1}`} className="font-display text-2xl font-semibold text-[#264744]">{section.title}</h2>
+                    <p className="mt-1 text-sm leading-6 text-[#71817a]">{section.intro}</p>
+                  </div>
+                </div>
+                <div className="space-y-6">{section.fields.filter(isFieldVisible).map(fieldControl)}</div>
+                {index === sections.length - 1 && <div className="mt-7 space-y-3 border-t border-[#e2e9e3] pt-6"><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.nonDiag}</p><p className="flex gap-2 text-sm leading-6 text-[#506b63]"><ClipboardCheck size={17} className="mt-0.5 shrink-0 text-[#638f75]" />{t.consent}</p><p className="text-xs leading-5 text-[#758680]">{t.evidence}</p></div>}
+              </section>
+            ))}
+            {submit.isError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert" data-testid="status-submit-error">{t.error}</div>}
+            <div className="flex justify-end pb-4">
+              <button type="submit" disabled={submit.isPending} className="inline-flex items-center gap-2 rounded-xl bg-[#1d5b58] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#154846] disabled:opacity-60" data-testid="button-submit-application">{submit.isPending ? t.submitting : t.submit}<ArrowRight size={16} /></button>
+            </div>
+          </form>
         </section>
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5"><h3 className="flex items-center gap-2 text-sm font-bold text-[#365951]"><ShieldCheck size={17} />{t.nonDiag}</h3><p className="mt-3 text-sm leading-6 text-[#687d76]">{t.consent}</p></div>
-          <div className="hidden rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5 lg:block"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">APPLICATION SECTIONS</p><ol className="mt-3 space-y-2">{sections.map((s, i) => <li key={s.title} className={`text-xs ${step === i ? "font-bold text-[#285c51]" : "text-[#82918b]"}`}><span className="mr-2 font-mono">{String(i + 1).padStart(2, "0")}</span>{s.title}</li>)}</ol></div>
+          <nav aria-label="Application sections" className="hidden rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5 lg:block"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">APPLICATION SECTIONS</p><ol className="mt-3 space-y-2">{sections.map((section, index) => <li key={section.title} className="text-xs"><a href={`#application-section-${index + 1}`} className="text-[#60766e] hover:text-[#285c51] hover:underline focus:outline-none focus:ring-2 focus:ring-[#52866f]" data-testid={`link-application-section-${index + 1}`}><span className="mr-2 font-mono">{String(index + 1).padStart(2, "0")}</span>{section.title}</a></li>)}</ol></nav>
         </aside>
       </div>
     </main>

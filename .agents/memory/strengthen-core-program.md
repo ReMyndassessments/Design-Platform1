@@ -15,6 +15,12 @@ The complimentary pilot is offered to demonstrate how ReMynd’s Tier 2, non-dia
 
 **How to apply:** On public Strengthen Your Core application materials, explain the educational value of the pilot and state plainly that approved schools pay no fee; keep approval conditions and limits equally visible.
 
+The public school application should be one continuous page with all 12 sections rendered in order, not a step-by-step Continue flow. Validation should direct the applicant to the first missing field without resetting the page to the top.
+
+**Why:** Applicants should be able to move naturally through the whole form without repeatedly losing their place and scrolling back to the next section.
+
+**How to apply:** Preserve the single-page form and section navigation; keep the existing required fields, conditional questions, consent checks, and submission behavior intact.
+
 De-identify intake narratives before any AI call. After the standard RAOS parent/guardian consent form is completed, generate or regenerate the case-level Strengthen Your Core analysis whenever the reviewer chooses, using the original school application and whatever RAOS information is available at that time. School/Teacher Referral and Parent Intake responses are optional evidence that can be incorporated later by regenerating the review. Use the non-diagnostic educational criteria, not the generic clinical intake analyzer. AI recommends no more than one enabled extension and drafts practical, provisional Tier 2 intervention targets, supports, observable goals, and progress monitoring; it must identify uncollected classroom/work-sample evidence and must not present the draft as a final plan.
 
 **Why:** The programme serves minors and handles sensitive educational information. A school inquiry is not parent consent, and an AI suggestion is not professional approval. The attached product brief defines the scope as a proportionate Tier 2 learner profile and intervention plan, not a diagnostic or abbreviated comprehensive assessment.
