@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { Link as WouterLink } from "wouter";
+import WorkshopPaymentRequests from "@/components/workshop-payment-requests";
 
 const TRAINING_URL = "https://remyndassessments.com/training";
 
@@ -516,6 +517,8 @@ function WorkshopsSection() {
           <Plus size={14} /> Create New Workshop
         </button>
       </div>
+
+      <WorkshopPaymentRequests />
 
       {isLoading && (
         <div className="flex items-center justify-center py-16 text-slate-400">

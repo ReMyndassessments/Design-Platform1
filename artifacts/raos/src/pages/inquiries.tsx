@@ -217,32 +217,19 @@ export default function InquiriesPage() {
     queryKey: ["inquiries"],
     queryFn: () => customFetch<Inquiry[]>("/api/portal/inquiries"),
   });
-  const { data: workshopSalesResponse } = useQuery<{ inquiries: Inquiry[] }>({
-    queryKey: ["workshop-sales-inquiries"],
-    queryFn: () => customFetch<{ inquiries: Inquiry[] }>("/api/training/workshops/manual-sales-inquiries"),
-  });
-  const allInquiries = [...inquiries, ...(workshopSalesResponse?.inquiries ?? [])].sort(
+  const allInquiries = inquiries.filter((inquiry) => inquiry.inquiryType !== "workshop_sales").sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status, paymentConfirmed }: { id: string; status: string; paymentConfirmed?: boolean }) =>
-      customFetch(id.startsWith("wms_") ? `/api/training/workshops/manual-sales-inquiries/${id}/status` : `/api/portal/inquiries/${id}/status`, {
+      customFetch(`/api/portal/inquiries/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, ...(paymentConfirmed ? { paymentConfirmed: true } : {}) }),
       }),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
-      qc.invalidateQueries({ queryKey: ["workshop-sales-inquiries"] });
-      if (variables.id.startsWith("wms_") && variables.status === "converted") {
-        qc.invalidateQueries({ queryKey: ["workshop-registrations"] });
-        qc.invalidateQueries({ queryKey: ["workshops"] });
-        toast({
-          title: "Paid attendee added",
-          description: "The attendee is now registered and included in the workshop roster.",
-        });
-      }
     },
     onError: (err: any) => {
       toast({
@@ -255,10 +242,9 @@ export default function InquiriesPage() {
 
   const deleteInquiry = useMutation({
     mutationFn: (id: string) =>
-      customFetch(id.startsWith("wms_") ? `/api/training/workshops/manual-sales-inquiries/${id}` : `/api/portal/inquiries/${id}`, { method: "DELETE" }),
+      customFetch(`/api/portal/inquiries/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inquiries"] });
-      qc.invalidateQueries({ queryKey: ["workshop-sales-inquiries"] });
       if (expanded === deleteTarget?.id) setExpanded(null);
       setDeleteTarget(null);
     },
@@ -325,7 +311,7 @@ export default function InquiriesPage() {
         <div>
           <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
           <p className="text-slate-500 mt-1">
-            RAOS inquiries, including Strengthen Your Core and workshop sales
+            RAOS assessment inquiries, including Strengthen Your Core
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
