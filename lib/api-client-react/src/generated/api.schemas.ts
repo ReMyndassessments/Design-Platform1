@@ -89,6 +89,45 @@ export type StrengthenCoreApplicationAnalysis = {
   [key: string]: unknown;
 } | null;
 
+export type StrengthenCoreConsentSummaryGuardianStatus =
+  (typeof StrengthenCoreConsentSummaryGuardianStatus)[keyof typeof StrengthenCoreConsentSummaryGuardianStatus];
+
+export const StrengthenCoreConsentSummaryGuardianStatus = {
+  pending: "pending",
+  consented: "consented",
+  declined: "declined",
+} as const;
+
+export type StrengthenCoreConsentSummaryStudentStatus =
+  (typeof StrengthenCoreConsentSummaryStudentStatus)[keyof typeof StrengthenCoreConsentSummaryStudentStatus];
+
+export const StrengthenCoreConsentSummaryStudentStatus = {
+  pending: "pending",
+  assented: "assented",
+  declined: "declined",
+} as const;
+
+export interface StrengthenCoreConsentSummary {
+  guardianName: string;
+  guardianEmail: string;
+  guardianRelationship: string;
+  studentName: string;
+  guardianStatus: StrengthenCoreConsentSummaryGuardianStatus;
+  studentStatus: StrengthenCoreConsentSummaryStudentStatus;
+  /** @nullable */
+  guardianSignatureName: string | null;
+  /** @nullable */
+  guardianSignedAt: string | null;
+  /** @nullable */
+  studentSignatureName: string | null;
+  /** @nullable */
+  studentAssentedAt: string | null;
+  /** @nullable */
+  verifiedAt: string | null;
+  /** @nullable */
+  caseId: string | null;
+}
+
 export interface StrengthenCoreApplication {
   id: string;
   schoolName: string;
@@ -105,6 +144,89 @@ export interface StrengthenCoreApplication {
   reviewReason: string | null;
   /** @nullable */
   reviewedAt: string | null;
+  consent: StrengthenCoreConsentSummary | null;
+}
+
+export interface StrengthenCoreConsentLinkInput {
+  /**
+   * @minLength 2
+   * @maxLength 200
+   */
+  guardianName: string;
+  /** @maxLength 320 */
+  guardianEmail: string;
+  /**
+   * @minLength 2
+   * @maxLength 120
+   */
+  guardianRelationship: string;
+  /**
+   * @minLength 2
+   * @maxLength 200
+   */
+  studentName: string;
+  /** @pattern ^\\d{4}-\\d{2}-\\d{2}$ */
+  studentDob: string;
+}
+
+export interface StrengthenCoreConsentLinks {
+  /** @nullable */
+  guardianUrl: string | null;
+  /** @nullable */
+  studentAssentUrl: string | null;
+  expiresAt: string;
+}
+
+export type StrengthenCoreConsentFormStatusRole =
+  (typeof StrengthenCoreConsentFormStatusRole)[keyof typeof StrengthenCoreConsentFormStatusRole];
+
+export const StrengthenCoreConsentFormStatusRole = {
+  guardian: "guardian",
+  student: "student",
+} as const;
+
+export type StrengthenCoreConsentFormStatusLanguage =
+  (typeof StrengthenCoreConsentFormStatusLanguage)[keyof typeof StrengthenCoreConsentFormStatusLanguage];
+
+export const StrengthenCoreConsentFormStatusLanguage = {
+  en: "en",
+  zh: "zh",
+  ko: "ko",
+} as const;
+
+export interface StrengthenCoreConsentFormStatus {
+  role: StrengthenCoreConsentFormStatusRole;
+  language: StrengthenCoreConsentFormStatusLanguage;
+  guardianConsentReceived: boolean;
+}
+
+export type StrengthenCoreConsentSubmissionDecision =
+  (typeof StrengthenCoreConsentSubmissionDecision)[keyof typeof StrengthenCoreConsentSubmissionDecision];
+
+export const StrengthenCoreConsentSubmissionDecision = {
+  agree: "agree",
+  decline: "decline",
+} as const;
+
+export interface StrengthenCoreConsentSubmission {
+  decision: StrengthenCoreConsentSubmissionDecision;
+  /**
+   * @minLength 2
+   * @maxLength 200
+   */
+  signatureName: string;
+  legalAuthorityConfirmed?: boolean;
+  studentUnderstands?: boolean;
+}
+
+export interface StrengthenCoreConsentReceipt {
+  submitted: boolean;
+  status: string;
+}
+
+export interface StrengthenCoreConsentVerification {
+  verified: boolean;
+  caseId: string;
 }
 
 export type StrengthenCoreApplicationReviewDecision =
@@ -257,6 +379,7 @@ export const CaseCurrentPhase = {
   assessment: "assessment",
   scoring: "scoring",
   report: "report",
+  final_review: "final_review",
   debrief: "debrief",
   complete: "complete",
 } as const;
@@ -270,6 +393,15 @@ export const CaseRiskLevel = {
   moderate: "moderate",
   high: "high",
 } as const;
+
+export type CaseReferralInvite = {
+  token?: string;
+  formId?: string;
+  toName?: string;
+  toEmail?: string;
+  schoolName?: string;
+  usedAt?: string | null;
+} | null;
 
 export interface Case {
   id: string;
@@ -294,6 +426,17 @@ export interface Case {
   parentEmail?: string | null;
   parentPhone?: string | null;
   consentObtained: boolean;
+  workingDocUrl?: string | null;
+  adminApprovedReport?: boolean;
+  psychApprovedReport?: boolean;
+  customMeetingUrl?: string | null;
+  assessmentMeetingDate?: string | null;
+  debriefMeetingUrl?: string | null;
+  debriefMeetingDate?: string | null;
+  bobbyAiPortalCredentials?: string | null;
+  productIds?: string[];
+  parentInterviewNotes?: string | null;
+  referralInvite?: CaseReferralInvite;
   createdAt: string;
   updatedAt: string;
 }
@@ -378,6 +521,7 @@ export interface IntakeAnalysis {
   riskLevel: IntakeAnalysisRiskLevel;
   summary: string;
   flags?: string[];
+  recommendedTools?: string[];
 }
 
 export type CaseDetail = Case & {
@@ -419,8 +563,8 @@ export interface CreateCaseRequest {
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
-  assignedLeadId?: string;
-  assignedPsychId?: string;
+  assignedLeadId?: string | null;
+  assignedPsychId?: string | null;
 }
 
 export type UpdateCaseRequestLanguagePreference =
@@ -491,9 +635,18 @@ export interface UpdateCaseRequest {
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
-  assignedLeadId?: string;
-  assignedPsychId?: string;
+  assignedLeadId?: string | null;
+  assignedPsychId?: string | null;
   consentObtained?: boolean;
+  workingDocUrl?: string | null;
+  customMeetingUrl?: string | null;
+  moderatorMeetingUrl?: string | null;
+  assessmentMeetingDate?: string | null;
+  debriefMeetingUrl?: string | null;
+  debriefMeetingDate?: string | null;
+  bobbyAiPortalCredentials?: string | null;
+  productIds?: string[];
+  parentInterviewNotes?: string | null;
 }
 
 /**

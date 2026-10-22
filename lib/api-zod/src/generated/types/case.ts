@@ -9,6 +9,7 @@ import type { CaseCaseMode } from "./caseCaseMode";
 import type { CaseCaseStatus } from "./caseCaseStatus";
 import type { CaseCurrentPhase } from "./caseCurrentPhase";
 import type { CaseLanguagePreference } from "./caseLanguagePreference";
+import type { CaseReferralInvite } from "./caseReferralInvite";
 import type { CaseRiskLevel } from "./caseRiskLevel";
 
 export interface Case {
@@ -34,6 +35,17 @@ export interface Case {
   parentEmail?: string | null;
   parentPhone?: string | null;
   consentObtained: boolean;
+  workingDocUrl?: string | null;
+  adminApprovedReport?: boolean;
+  psychApprovedReport?: boolean;
+  customMeetingUrl?: string | null;
+  assessmentMeetingDate?: string | null;
+  debriefMeetingUrl?: string | null;
+  debriefMeetingDate?: string | null;
+  bobbyAiPortalCredentials?: string | null;
+  productIds?: string[];
+  parentInterviewNotes?: string | null;
+  referralInvite?: CaseReferralInvite;
   createdAt: Date;
   updatedAt: Date;
 }

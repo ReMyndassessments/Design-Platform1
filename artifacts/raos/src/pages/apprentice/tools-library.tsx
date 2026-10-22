@@ -28,7 +28,7 @@ export default function ApprenticeToolsLibraryPage() {
   const filtered = (tools ?? []).filter((tool) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
-    return tool.name.toLowerCase().includes(q) || tool.category.toLowerCase().includes(q) || tool.description.toLowerCase().includes(q);
+    return tool.name.toLowerCase().includes(q) || tool.category.toLowerCase().includes(q) || (tool.description ?? "").toLowerCase().includes(q);
   });
 
   return (

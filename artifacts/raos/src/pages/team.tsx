@@ -504,7 +504,7 @@ function StaffRow({ user, isSelf }: { user: StaffUser; isSelf: boolean }) {
 
         {(isSelf || user.role === "admin") && (
           <div className="flex-shrink-0">
-            <Shield size={16} className="text-slate-300" title="Protected account" />
+            <Shield size={16} className="text-slate-300" aria-label="Protected account" />
           </div>
         )}
       </div>
@@ -635,7 +635,7 @@ function CompetencyModal({ user, onClose }: { user: StaffUser; onClose: () => vo
 export default function TeamPage() {
   const { data: currentUser, isLoading: userLoading } = useGetCurrentUser();
   const isAdmin = !userLoading && currentUser?.role === "admin";
-  const { data: users, isLoading } = useListUsers({ query: { enabled: isAdmin } });
+  const { data: users, isLoading } = useListUsers({ query: { enabled: isAdmin, queryKey: ["users"] } });
   const [adding, setAdding] = useState(false);
 
   if (userLoading || !currentUser) {

@@ -925,7 +925,7 @@ export default function CaseDetail() {
     : null;
 
   const filteredTools = tools?.filter(t => {
-    if ((role === "admin" || role === "school_clinical_coordinator") || role === "school_clinical_coordinator") return true;
+    if (role === "admin" || String(role) === "school_clinical_coordinator") return true;
     if (role === "assessment_invigilator") return true;
     if (role === "psychometrician") return !INTAKE_TOOL_IDS.has(t.id);
     return true;
@@ -1287,6 +1287,9 @@ export default function CaseDetail() {
     e.preventDefault();
     const data = {
       ...editFields,
+      languagePreference: editFields.languagePreference as "english" | "mandarin" | "cantonese",
+      caseStatus: editFields.caseStatus as "active" | "on_hold" | "completed" | "archived",
+      caseMode: editFields.caseMode as "live" | "test",
       assignedLeadId: editFields.assignedLeadId || null,
       assignedPsychId: editFields.assignedPsychId || null,
     };
@@ -3439,7 +3442,7 @@ export default function CaseDetail() {
             </div>
             {newAssignment.respondentTypes.length > 0 && (() => {
               const matchedTools = filteredTools?.filter(t =>
-                newAssignment.respondentTypes.some(rt => (t.respondentTypes ?? []).includes(rt))
+                newAssignment.respondentTypes.some(rt => new Set<string>(t.respondentTypes ?? []).has(rt))
               ) ?? [];
               const availableTools = showAllTools ? (filteredTools ?? []) : matchedTools;
               return (

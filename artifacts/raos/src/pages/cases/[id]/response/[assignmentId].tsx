@@ -73,6 +73,7 @@ interface ResponseData {
   toolDomains: string[];
   scoringConfig: ScoringConfig | null;
   existingScore: ScoreRecord | null;
+  bascCorrectionApplied?: boolean;
 }
 
 const LIKERT_LABELS: Record<number, string> = {

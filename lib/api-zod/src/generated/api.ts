@@ -83,6 +83,23 @@ export const ListStrengthenCoreApplicationsResponseItem = zod.object({
   approvedExtension: zod.string().nullable(),
   reviewReason: zod.string().nullable(),
   reviewedAt: zod.string().nullable(),
+  consent: zod.union([
+    zod.object({
+      guardianName: zod.string(),
+      guardianEmail: zod.string().email(),
+      guardianRelationship: zod.string(),
+      studentName: zod.string(),
+      guardianStatus: zod.enum(["pending", "consented", "declined"]),
+      studentStatus: zod.enum(["pending", "assented", "declined"]),
+      guardianSignatureName: zod.string().nullable(),
+      guardianSignedAt: zod.date().nullable(),
+      studentSignatureName: zod.string().nullable(),
+      studentAssentedAt: zod.date().nullable(),
+      verifiedAt: zod.date().nullable(),
+      caseId: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
 });
 export const ListStrengthenCoreApplicationsResponse = zod.array(
   ListStrengthenCoreApplicationsResponseItem,
@@ -115,6 +132,23 @@ export const GetStrengthenCoreApplicationResponse = zod.object({
   approvedExtension: zod.string().nullable(),
   reviewReason: zod.string().nullable(),
   reviewedAt: zod.string().nullable(),
+  consent: zod.union([
+    zod.object({
+      guardianName: zod.string(),
+      guardianEmail: zod.string().email(),
+      guardianRelationship: zod.string(),
+      studentName: zod.string(),
+      guardianStatus: zod.enum(["pending", "consented", "declined"]),
+      studentStatus: zod.enum(["pending", "assented", "declined"]),
+      guardianSignatureName: zod.string().nullable(),
+      guardianSignedAt: zod.date().nullable(),
+      studentSignatureName: zod.string().nullable(),
+      studentAssentedAt: zod.date().nullable(),
+      verifiedAt: zod.date().nullable(),
+      caseId: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
 });
 
 /**
@@ -136,6 +170,23 @@ export const AnalyzeStrengthenCoreApplicationResponse = zod.object({
   approvedExtension: zod.string().nullable(),
   reviewReason: zod.string().nullable(),
   reviewedAt: zod.string().nullable(),
+  consent: zod.union([
+    zod.object({
+      guardianName: zod.string(),
+      guardianEmail: zod.string().email(),
+      guardianRelationship: zod.string(),
+      studentName: zod.string(),
+      guardianStatus: zod.enum(["pending", "consented", "declined"]),
+      studentStatus: zod.enum(["pending", "assented", "declined"]),
+      guardianSignatureName: zod.string().nullable(),
+      guardianSignedAt: zod.date().nullable(),
+      studentSignatureName: zod.string().nullable(),
+      studentAssentedAt: zod.date().nullable(),
+      verifiedAt: zod.date().nullable(),
+      caseId: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
 });
 
 /**
@@ -176,6 +227,119 @@ export const ReviewStrengthenCoreApplicationResponse = zod.object({
   approvedExtension: zod.string().nullable(),
   reviewReason: zod.string().nullable(),
   reviewedAt: zod.string().nullable(),
+  consent: zod.union([
+    zod.object({
+      guardianName: zod.string(),
+      guardianEmail: zod.string().email(),
+      guardianRelationship: zod.string(),
+      studentName: zod.string(),
+      guardianStatus: zod.enum(["pending", "consented", "declined"]),
+      studentStatus: zod.enum(["pending", "assented", "declined"]),
+      guardianSignatureName: zod.string().nullable(),
+      guardianSignedAt: zod.date().nullable(),
+      studentSignatureName: zod.string().nullable(),
+      studentAssentedAt: zod.date().nullable(),
+      verifiedAt: zod.date().nullable(),
+      caseId: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Create separate parent consent and student assent links for an approved application
+ */
+export const CreateStrengthenCoreConsentLinksParams = zod.object({
+  applicationId: zod.coerce.string(),
+});
+
+export const createStrengthenCoreConsentLinksBodyGuardianNameMin = 2;
+export const createStrengthenCoreConsentLinksBodyGuardianNameMax = 200;
+
+export const createStrengthenCoreConsentLinksBodyGuardianEmailMax = 320;
+
+export const createStrengthenCoreConsentLinksBodyGuardianRelationshipMin = 2;
+export const createStrengthenCoreConsentLinksBodyGuardianRelationshipMax = 120;
+
+export const createStrengthenCoreConsentLinksBodyStudentNameMin = 2;
+export const createStrengthenCoreConsentLinksBodyStudentNameMax = 200;
+
+export const createStrengthenCoreConsentLinksBodyStudentDobRegExp = new RegExp(
+  "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
+);
+
+export const CreateStrengthenCoreConsentLinksBody = zod.object({
+  guardianName: zod
+    .string()
+    .min(createStrengthenCoreConsentLinksBodyGuardianNameMin)
+    .max(createStrengthenCoreConsentLinksBodyGuardianNameMax),
+  guardianEmail: zod
+    .string()
+    .email()
+    .max(createStrengthenCoreConsentLinksBodyGuardianEmailMax),
+  guardianRelationship: zod
+    .string()
+    .min(createStrengthenCoreConsentLinksBodyGuardianRelationshipMin)
+    .max(createStrengthenCoreConsentLinksBodyGuardianRelationshipMax),
+  studentName: zod
+    .string()
+    .min(createStrengthenCoreConsentLinksBodyStudentNameMin)
+    .max(createStrengthenCoreConsentLinksBodyStudentNameMax),
+  studentDob: zod
+    .string()
+    .regex(createStrengthenCoreConsentLinksBodyStudentDobRegExp),
+});
+
+/**
+ * @summary Check a public guardian-consent or student-assent link
+ */
+export const GetStrengthenCoreConsentFormParams = zod.object({
+  role: zod.enum(["guardian", "student"]),
+  token: zod.coerce.string(),
+});
+
+export const GetStrengthenCoreConsentFormResponse = zod.object({
+  role: zod.enum(["guardian", "student"]),
+  language: zod.enum(["en", "zh", "ko"]),
+  guardianConsentReceived: zod.boolean(),
+});
+
+/**
+ * @summary Record a guardian consent or separate student assent response
+ */
+export const SubmitStrengthenCoreConsentParams = zod.object({
+  role: zod.enum(["guardian", "student"]),
+  token: zod.coerce.string(),
+});
+
+export const submitStrengthenCoreConsentBodySignatureNameMin = 2;
+export const submitStrengthenCoreConsentBodySignatureNameMax = 200;
+
+export const SubmitStrengthenCoreConsentBody = zod.object({
+  decision: zod.enum(["agree", "decline"]),
+  signatureName: zod
+    .string()
+    .min(submitStrengthenCoreConsentBodySignatureNameMin)
+    .max(submitStrengthenCoreConsentBodySignatureNameMax),
+  legalAuthorityConfirmed: zod.boolean().optional(),
+  studentUnderstands: zod.boolean().optional(),
+});
+
+export const SubmitStrengthenCoreConsentResponse = zod.object({
+  submitted: zod.boolean(),
+  status: zod.string(),
+});
+
+/**
+ * @summary Verify both consent responses and create the RAOS case
+ */
+export const VerifyStrengthenCoreConsentParams = zod.object({
+  applicationId: zod.coerce.string(),
+});
+
+export const VerifyStrengthenCoreConsentResponse = zod.object({
+  verified: zod.boolean(),
+  caseId: zod.string(),
 });
 
 /**
@@ -207,6 +371,7 @@ export const ListCasesResponseItem = zod.object({
     "assessment",
     "scoring",
     "report",
+    "final_review",
     "debrief",
     "complete",
   ]),
@@ -221,6 +386,26 @@ export const ListCasesResponseItem = zod.object({
   parentEmail: zod.string().nullish(),
   parentPhone: zod.string().nullish(),
   consentObtained: zod.boolean(),
+  workingDocUrl: zod.string().nullish(),
+  adminApprovedReport: zod.boolean().optional(),
+  psychApprovedReport: zod.boolean().optional(),
+  customMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
+  referralInvite: zod
+    .object({
+      token: zod.string().optional(),
+      formId: zod.string().optional(),
+      toName: zod.string().optional(),
+      toEmail: zod.string().optional(),
+      schoolName: zod.string().optional(),
+      usedAt: zod.string().nullish(),
+    })
+    .nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -245,8 +430,8 @@ export const CreateCaseBody = zod.object({
   parentName: zod.string().optional(),
   parentEmail: zod.string().optional(),
   parentPhone: zod.string().optional(),
-  assignedLeadId: zod.string().optional(),
-  assignedPsychId: zod.string().optional(),
+  assignedLeadId: zod.string().nullish(),
+  assignedPsychId: zod.string().nullish(),
 });
 
 /**
@@ -274,6 +459,7 @@ export const RestorePromotionalDemoCaseResponse = zod.object({
     "assessment",
     "scoring",
     "report",
+    "final_review",
     "debrief",
     "complete",
   ]),
@@ -288,6 +474,26 @@ export const RestorePromotionalDemoCaseResponse = zod.object({
   parentEmail: zod.string().nullish(),
   parentPhone: zod.string().nullish(),
   consentObtained: zod.boolean(),
+  workingDocUrl: zod.string().nullish(),
+  adminApprovedReport: zod.boolean().optional(),
+  psychApprovedReport: zod.boolean().optional(),
+  customMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
+  referralInvite: zod
+    .object({
+      token: zod.string().optional(),
+      formId: zod.string().optional(),
+      toName: zod.string().optional(),
+      toEmail: zod.string().optional(),
+      schoolName: zod.string().optional(),
+      usedAt: zod.string().nullish(),
+    })
+    .nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -321,6 +527,7 @@ export const GetCaseResponse = zod
       "assessment",
       "scoring",
       "report",
+      "final_review",
       "debrief",
       "complete",
     ]),
@@ -335,6 +542,26 @@ export const GetCaseResponse = zod
     parentEmail: zod.string().nullish(),
     parentPhone: zod.string().nullish(),
     consentObtained: zod.boolean(),
+    workingDocUrl: zod.string().nullish(),
+    adminApprovedReport: zod.boolean().optional(),
+    psychApprovedReport: zod.boolean().optional(),
+    customMeetingUrl: zod.string().nullish(),
+    assessmentMeetingDate: zod.string().nullish(),
+    debriefMeetingUrl: zod.string().nullish(),
+    debriefMeetingDate: zod.string().nullish(),
+    bobbyAiPortalCredentials: zod.string().nullish(),
+    productIds: zod.array(zod.string()).optional(),
+    parentInterviewNotes: zod.string().nullish(),
+    referralInvite: zod
+      .object({
+        token: zod.string().optional(),
+        formId: zod.string().optional(),
+        toName: zod.string().optional(),
+        toEmail: zod.string().optional(),
+        schoolName: zod.string().optional(),
+        usedAt: zod.string().nullish(),
+      })
+      .nullish(),
     createdAt: zod.date(),
     updatedAt: zod.date(),
   })
@@ -403,6 +630,7 @@ export const GetCaseResponse = zod
           riskLevel: zod.enum(["low", "moderate", "high"]),
           summary: zod.string(),
           flags: zod.array(zod.string()).optional(),
+          recommendedTools: zod.array(zod.string()).optional(),
         })
         .nullish(),
     }),
@@ -450,9 +678,18 @@ export const UpdateCaseBody = zod.object({
   parentName: zod.string().optional(),
   parentEmail: zod.string().optional(),
   parentPhone: zod.string().optional(),
-  assignedLeadId: zod.string().optional(),
-  assignedPsychId: zod.string().optional(),
+  assignedLeadId: zod.string().nullish(),
+  assignedPsychId: zod.string().nullish(),
   consentObtained: zod.boolean().optional(),
+  workingDocUrl: zod.string().nullish(),
+  customMeetingUrl: zod.string().nullish(),
+  moderatorMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
 });
 
 export const updateCaseResponseProgressPercentageMin = 0;
@@ -476,6 +713,7 @@ export const UpdateCaseResponse = zod.object({
     "assessment",
     "scoring",
     "report",
+    "final_review",
     "debrief",
     "complete",
   ]),
@@ -490,6 +728,26 @@ export const UpdateCaseResponse = zod.object({
   parentEmail: zod.string().nullish(),
   parentPhone: zod.string().nullish(),
   consentObtained: zod.boolean(),
+  workingDocUrl: zod.string().nullish(),
+  adminApprovedReport: zod.boolean().optional(),
+  psychApprovedReport: zod.boolean().optional(),
+  customMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
+  referralInvite: zod
+    .object({
+      token: zod.string().optional(),
+      formId: zod.string().optional(),
+      toName: zod.string().optional(),
+      toEmail: zod.string().optional(),
+      schoolName: zod.string().optional(),
+      usedAt: zod.string().nullish(),
+    })
+    .nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -522,6 +780,7 @@ export const AdvanceCasePhaseResponse = zod.object({
     "assessment",
     "scoring",
     "report",
+    "final_review",
     "debrief",
     "complete",
   ]),
@@ -536,6 +795,26 @@ export const AdvanceCasePhaseResponse = zod.object({
   parentEmail: zod.string().nullish(),
   parentPhone: zod.string().nullish(),
   consentObtained: zod.boolean(),
+  workingDocUrl: zod.string().nullish(),
+  adminApprovedReport: zod.boolean().optional(),
+  psychApprovedReport: zod.boolean().optional(),
+  customMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
+  referralInvite: zod
+    .object({
+      token: zod.string().optional(),
+      formId: zod.string().optional(),
+      toName: zod.string().optional(),
+      toEmail: zod.string().optional(),
+      schoolName: zod.string().optional(),
+      usedAt: zod.string().nullish(),
+    })
+    .nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -585,6 +864,7 @@ export const StepBackCasePhaseResponse = zod.object({
     "assessment",
     "scoring",
     "report",
+    "final_review",
     "debrief",
     "complete",
   ]),
@@ -599,6 +879,26 @@ export const StepBackCasePhaseResponse = zod.object({
   parentEmail: zod.string().nullish(),
   parentPhone: zod.string().nullish(),
   consentObtained: zod.boolean(),
+  workingDocUrl: zod.string().nullish(),
+  adminApprovedReport: zod.boolean().optional(),
+  psychApprovedReport: zod.boolean().optional(),
+  customMeetingUrl: zod.string().nullish(),
+  assessmentMeetingDate: zod.string().nullish(),
+  debriefMeetingUrl: zod.string().nullish(),
+  debriefMeetingDate: zod.string().nullish(),
+  bobbyAiPortalCredentials: zod.string().nullish(),
+  productIds: zod.array(zod.string()).optional(),
+  parentInterviewNotes: zod.string().nullish(),
+  referralInvite: zod
+    .object({
+      token: zod.string().optional(),
+      formId: zod.string().optional(),
+      toName: zod.string().optional(),
+      toEmail: zod.string().optional(),
+      schoolName: zod.string().optional(),
+      usedAt: zod.string().nullish(),
+    })
+    .nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -615,6 +915,7 @@ export const AnalyzeIntakeResponse = zod.object({
   riskLevel: zod.enum(["low", "moderate", "high"]),
   summary: zod.string(),
   flags: zod.array(zod.string()).optional(),
+  recommendedTools: zod.array(zod.string()).optional(),
 });
 
 /**
@@ -1694,6 +1995,7 @@ export const GetDashboardStatsResponse = zod.object({
         "assessment",
         "scoring",
         "report",
+        "final_review",
         "debrief",
         "complete",
       ]),
@@ -1708,6 +2010,26 @@ export const GetDashboardStatsResponse = zod.object({
       parentEmail: zod.string().nullish(),
       parentPhone: zod.string().nullish(),
       consentObtained: zod.boolean(),
+      workingDocUrl: zod.string().nullish(),
+      adminApprovedReport: zod.boolean().optional(),
+      psychApprovedReport: zod.boolean().optional(),
+      customMeetingUrl: zod.string().nullish(),
+      assessmentMeetingDate: zod.string().nullish(),
+      debriefMeetingUrl: zod.string().nullish(),
+      debriefMeetingDate: zod.string().nullish(),
+      bobbyAiPortalCredentials: zod.string().nullish(),
+      productIds: zod.array(zod.string()).optional(),
+      parentInterviewNotes: zod.string().nullish(),
+      referralInvite: zod
+        .object({
+          token: zod.string().optional(),
+          formId: zod.string().optional(),
+          toName: zod.string().optional(),
+          toEmail: zod.string().optional(),
+          schoolName: zod.string().optional(),
+          usedAt: zod.string().nullish(),
+        })
+        .nullish(),
       createdAt: zod.date(),
       updatedAt: zod.date(),
     }),

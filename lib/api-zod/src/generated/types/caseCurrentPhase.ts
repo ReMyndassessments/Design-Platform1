@@ -17,6 +17,7 @@ export const CaseCurrentPhase = {
   assessment: "assessment",
   scoring: "scoring",
   report: "report",
+  final_review: "final_review",
   debrief: "debrief",
   complete: "complete",
 } as const;

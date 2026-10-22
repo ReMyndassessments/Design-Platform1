@@ -1786,7 +1786,7 @@ function MatchingTaskVisual({ taskId, accent, vp, theme }: {
           </div>
         )}
         <div className="flex flex-col gap-1.5 py-1">
-          {clues.map((clue, i) => (
+          {(clues ?? []).map((clue, i) => (
             <div key={i} className="flex gap-2 items-start px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: accent + "25", color: accent }}>{i + 1}</span>
               <span className="text-xs text-slate-700">{clue}</span>
@@ -2206,7 +2206,7 @@ function BarModelVisual({ total, accent, vp, theme }: {
   const queryDays = typeof vp?.queryDays === "number" ? vp!.queryDays as number : null;
   if (totalDays !== null && queryDays !== null) {
     const distLabels = vp?.distLabels as Record<string, string> | undefined;
-    const distLabel = distLabels?.[theme] ?? (typeof vp?.distLabel === "string" ? vp!.distLabel as string : "");
+    const distLabel = (theme ? distLabels?.[theme] : undefined) ?? (typeof vp?.distLabel === "string" ? vp!.distLabel as string : "");
     const prW = 260; const prH = 44; const prPad = 10;
     const segW = (prW - prPad * 2) / totalDays;
     return (

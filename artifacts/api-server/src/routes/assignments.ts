@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable } from "@workspace/db/schema";
+import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
@@ -772,6 +772,42 @@ router.post("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
   if (!caseRows[0]) {
     res.status(404).json({ error: "not_found" });
     return;
+  }
+
+  // Strengthen Your Core cases may only receive the approved instruments, and
+  // only after a separate guardian consent + student assent record was verified.
+  const sycRows = await db.execute(sql`
+    SELECT status, approved_extension
+    FROM syc_applications
+    WHERE status = 'consent_verified'
+      AND data -> '__syc' -> 'consent' ->> 'caseId' = ${caseId}
+    LIMIT 1
+  `);
+  const isStrengthenCoreCase = ((caseRows[0].productIds as string[] | null) ?? []).includes("STRENGTHEN_CORE");
+  if (isStrengthenCoreCase && !sycRows.rows[0]) {
+    res.status(403).json({
+      error: "strengthen_core_consent_not_verified",
+      message: "This Strengthen Your Core case requires verified guardian consent and student assent before assessment assignments can be created.",
+    });
+    return;
+  }
+  if (sycRows.rows[0]) {
+    const syc = sycRows.rows[0] as { status: string; approved_extension: string | null };
+    const [program] = await db.select().from(strengthenCoreProgramTable)
+      .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
+    const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };
+    const allowedSycTools = new Set<string>();
+    if (settings.coreInstrumentEnabled === true) allowedSycTools.add("RCEP-CORE");
+    if (syc.approved_extension && settings.allowedExtensions?.includes(syc.approved_extension)) {
+      allowedSycTools.add(syc.approved_extension);
+    }
+    if (!allowedSycTools.has(String(req.body.toolId ?? ""))) {
+      res.status(403).json({
+        error: "strengthen_core_instrument_not_approved",
+        message: "This Strengthen Your Core case can only receive its enabled core instrument and the single extension approved for this application.",
+      });
+      return;
+    }
   }
 
   const { userRole } = req;

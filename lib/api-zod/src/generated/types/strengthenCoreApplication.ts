@@ -7,6 +7,7 @@
  */
 import type { StrengthenCoreApplicationAnalysis } from "./strengthenCoreApplicationAnalysis";
 import type { StrengthenCoreApplicationData } from "./strengthenCoreApplicationData";
+import type { StrengthenCoreConsentSummary } from "./strengthenCoreConsentSummary";
 
 export interface StrengthenCoreApplication {
   id: string;
@@ -24,4 +25,5 @@ export interface StrengthenCoreApplication {
   reviewReason: string | null;
   /** @nullable */
   reviewedAt: string | null;
+  consent: StrengthenCoreConsentSummary | null;
 }

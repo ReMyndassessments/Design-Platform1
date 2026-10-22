@@ -145,6 +145,7 @@ const WorkshopPublicPage = React.lazy(() => import("@/pages/training-workshop"))
 const StrengthenCoreLandingPage = React.lazy(() => import("@/pages/strengthen-core-landing"));
 const StrengthenCoreApplicationPage = React.lazy(() => import("@/pages/strengthen-core-application"));
 const StrengthenCoreAdminPage = React.lazy(() => import("@/pages/admin/strengthen-core"));
+const StrengthenCoreConsentPage = React.lazy(() => import("@/pages/strengthen-core-consent"));
 const CommunicationsPage = React.lazy(() => import("@/pages/communications/index"));
 const CommunicationsComposePage = React.lazy(() => import("@/pages/communications/compose"));
 
@@ -262,6 +263,7 @@ function Router() {
         <Route path="/training/:slug" component={WorkshopPublicPage} />
         <Route path="/training" component={TrainingPage} />
         <Route path="/strengthen-your-core/apply" component={StrengthenCoreApplicationPage} />
+        <Route path="/strengthen-your-core/consent/:role/:token" component={StrengthenCoreConsentPage} />
         <Route path="/strengthen-your-core" component={StrengthenCoreLandingPage} />
         <Route path="/admin/strengthen-your-core">
           {() => <ProtectedRoute component={StrengthenCoreAdminPage} adminOnly />}

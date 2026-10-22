@@ -218,7 +218,7 @@ export default function ProductDashboardPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge className={`border text-[10px] font-semibold ${marketStyle.bg} ${marketStyle.text} ${marketStyle.border}`}>
-                      {MARKET_LABELS[product.market] ?? product.market}
+                      {MARKET_LABELS[product.market as keyof typeof MARKET_LABELS] ?? product.market}
                     </Badge>
                   </div>
                   <CardTitle className="text-sm font-semibold text-slate-800">{product.productName}</CardTitle>

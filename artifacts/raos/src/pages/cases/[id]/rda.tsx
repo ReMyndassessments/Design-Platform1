@@ -196,7 +196,9 @@ export default function RdaAdminPage() {
   const setItemField = (id: string, field: keyof ItemResponse, value: string | number | null) => {
     setItems(prev => ({
       ...prev,
-      [id]: { studentResponse: "", score: null, notes: "", ...prev[id], [field]: value },
+      [id]: prev[id]
+        ? { ...prev[id], [field]: value }
+        : { studentResponse: "", score: null, notes: "", [field]: value },
     }));
   };
 

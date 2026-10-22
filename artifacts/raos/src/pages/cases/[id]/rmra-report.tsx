@@ -46,6 +46,7 @@ export type ReportNarrative = {
 export type RmraReportSession = {
   id: string;
   caseId: string | null;
+  status?: string;
   ageBand: string;
   version: string;
   domainScores: Record<string, DomainScore> | null;
@@ -566,9 +567,9 @@ export function RmraReportPanel({
   languagePreference?: string | null;
 }) {
   const { toast } = useToast();
-  const authHeader = () =>
+  const authHeader = (): Record<string, string> =>
     isStandalone
-      ? { "X-Examiner-Token": examinerToken }
+      ? examinerToken ? { "X-Examiner-Token": examinerToken } : {}
       : { Authorization: `Bearer ${localStorage.getItem("raos_token")}` };
 
   const reportEndpoint = isStandalone
@@ -678,7 +679,7 @@ export function RmraReportPanel({
     try {
       const r = await fetch(reportEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader() },
+        headers: (() => { const headers = new Headers(authHeader()); headers.set("Content-Type", "application/json"); return headers; })(),
         signal: controller.signal,
       });
       if (!r.ok) throw new Error(await r.text());
@@ -702,7 +703,7 @@ export function RmraReportPanel({
     try {
       const r = await fetch(bobbyEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader() },
+        headers: (() => { const headers = new Headers(authHeader()); headers.set("Content-Type", "application/json"); return headers; })(),
         body: JSON.stringify({ action: actionId }),
       });
       if (!r.ok) throw new Error(await r.text());

@@ -12,4 +12,5 @@ export interface IntakeAnalysis {
   riskLevel: IntakeAnalysisRiskLevel;
   summary: string;
   flags?: string[];
+  recommendedTools?: string[];
 }

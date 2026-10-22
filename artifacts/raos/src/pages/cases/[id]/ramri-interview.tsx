@@ -148,6 +148,8 @@ type WorkSample = {
   suitability: string; approved: boolean; examiner_notes: string;
   sample_role: "interview" | "evidence" | "observation";
   suggested_for_interview: boolean;
+  math_topic?: string | null;
+  independence_reported?: string | null;
 };
 
 type ControlProblem = {
@@ -574,16 +576,18 @@ export default function RamriInterviewPage() {
           choiceSets: ChoiceSet[]; selections: Selection[]; ratings: DomainRating[]; report: Report | null;
           userRole?: string; invigilatorId?: string | null; invigilatorName?: string | null;
           studentName?: string | null;
+          assignmentToken?: string; uploadsClosed?: boolean;
+          caseInfo?: { school: string | null; grade: string | null; dob: string | null; assessmentDate: string | null; referralReason: string | null; parentName: string | null } | null;
         };
         setSession(data.session);
         setSessionId(data.session.id);
-        if (data.assignmentToken) setAssignmentToken(data.assignmentToken as unknown as string);
-        if (typeof (data as Record<string, unknown>).uploadsClosed === "boolean") setUploadsClosed((data as Record<string, boolean>).uploadsClosed);
+        if (data.assignmentToken) setAssignmentToken(data.assignmentToken);
+        if (typeof data.uploadsClosed === "boolean") setUploadsClosed(data.uploadsClosed);
         setUserRole(data.userRole ?? null);
         setInvigilatorId(data.invigilatorId ?? null);
         setInvigilatorName(data.invigilatorName ?? null);
         setStudentName(data.studentName ?? null);
-        if ((data as Record<string, unknown>).caseInfo) setCaseInfo((data as { caseInfo: typeof caseInfo }).caseInfo);
+        if (data.caseInfo) setCaseInfo(data.caseInfo);
         setDocs(data.docs);
         knownDocIds.current = new Set(data.docs.map((d: WorkDoc) => d.id));
         setSamples(data.samples);
@@ -3054,7 +3058,7 @@ ${listHtml}
                       <div key={sel.id as string} className="flex items-center gap-2 text-xs text-slate-600">
                         <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold shrink-0">{i + 1}</span>
                         <span className="flex-1 truncate">{(sel.extracted_problem as string) || "Sample"}</span>
-                        {sel.domain && <span className="text-slate-400 shrink-0">{sel.domain as string}</span>}
+                        {typeof sel.domain === "string" && <span className="text-slate-400 shrink-0">{sel.domain}</span>}
                       </div>
                     ))}
                   </div>
@@ -3470,7 +3474,7 @@ ${listHtml}
                               {activeSelId === csSel.id && generatedQs.length > 0 && (
                                 <div className="space-y-2">
                                   {generatedQs.map((q, qi) => (
-                                    <InterviewQuestionCard key={qi} question={q} selId={csSel.id} caseId={caseId} sessionId={sessionId} onSave={saveResponse} />
+                                    <InterviewQuestionCard key={qi} question={q} selId={csSel.id ?? ""} caseId={caseId ?? ""} sessionId={sessionId ?? ""} onSave={saveResponse} />
                                   ))}
                                 </div>
                               )}
@@ -3606,7 +3610,7 @@ ${listHtml}
                             {generatedQs.length > 0 && (
                               <div className="space-y-2">
                                 {generatedQs.map((q, qi) => (
-                                  <InterviewQuestionCard key={qi} question={q} selId={sel.id} caseId={caseId} sessionId={sessionId} onSave={saveResponse} />
+                                  <InterviewQuestionCard key={qi} question={q} selId={sel.id ?? ""} caseId={caseId ?? ""} sessionId={sessionId ?? ""} onSave={saveResponse} />
                                 ))}
                               </div>
                             )}
@@ -3953,7 +3957,7 @@ ${listHtml}
                     { key: "tutorStrategies", label: "Strategies for Tutors / Learning Support", color: "blue" },
                     { key: "recommendations", label: "Recommendations" },
                     { key: "limitations", label: "Limitations" },
-                  ] as const).map(({ key, label, color }) => {
+                  ] as Array<{ key: string; label: string; color?: string }>).map(({ key, label, color }) => {
                     const items = (editedNarrative[key as string] as string[]) ?? [];
                     const accentMap: Record<string, string> = { violet: "bg-violet-50 border-violet-100", emerald: "bg-emerald-50 border-emerald-100", blue: "bg-blue-50 border-blue-100" };
                     const accent = color ? accentMap[color] ?? "" : "";

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
-import { useLogin, useGetCurrentUser } from "@workspace/api-client-react";
+import { getGetCurrentUserQueryKey, useLogin, useGetCurrentUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, Loader2, ChevronLeft } from "lucide-react";
@@ -17,7 +17,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
 
   const { data: user, isLoading: isCheckingUser } = useGetCurrentUser({
-    query: { retry: false, refetchOnWindowFocus: false }
+    query: { retry: false, refetchOnWindowFocus: false, queryKey: getGetCurrentUserQueryKey() }
   });
 
   const hasRedirected = useRef(false);

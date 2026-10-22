@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useGetCurrentUser } from "@workspace/api-client-react";
+import { getGetCurrentUserQueryKey, useGetCurrentUser } from "@workspace/api-client-react";
 
 interface WatchAlongState {
   isMentor: boolean;
@@ -29,7 +29,7 @@ function wsUrl(caseId: string, token: string): string {
 }
 
 export function WatchAlongProvider({ children }: { children: React.ReactNode }) {
-  const { data: currentUser } = useGetCurrentUser({ query: { retry: false, staleTime: 5 * 60 * 1000 } });
+  const { data: currentUser } = useGetCurrentUser({ query: { retry: false, staleTime: 5 * 60 * 1000, queryKey: getGetCurrentUserQueryKey() } });
   const [location, navigate] = useLocation();
   const caseId = extractCaseId(location);
   const isApprentice = currentUser?.role === "clinical_apprentice";

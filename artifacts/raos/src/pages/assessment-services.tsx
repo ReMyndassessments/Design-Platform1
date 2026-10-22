@@ -707,7 +707,7 @@ export default function AssessmentServicesPage() {
                   <div className={`w-2.5 h-2.5 rounded-full ${cat.dotClass}`} />
                   <h3 className="text-lg font-extrabold text-slate-900">{cat.label}</h3>
                   <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-xs text-slate-400 font-medium">{cat.products.length} {cat.products.length === 1 ? (a.assessmentUnit ?? "assessment") : (a.assessmentsUnit ?? "assessments")}</span>
+                  <span className="text-xs text-slate-400 font-medium">{cat.products.length} {cat.products.length === 1 ? ((a as unknown as Record<string, string>).assessmentUnit ?? "assessment") : ((a as unknown as Record<string, string>).assessmentsUnit ?? "assessments")}</span>
                 </div>
                 {cat.id === "university" && (
                   <div className="flex items-start gap-2 mb-4 bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">

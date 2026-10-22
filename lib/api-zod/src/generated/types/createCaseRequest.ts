@@ -20,6 +20,6 @@ export interface CreateCaseRequest {
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
-  assignedLeadId?: string;
-  assignedPsychId?: string;
+  assignedLeadId?: string | null;
+  assignedPsychId?: string | null;
 }

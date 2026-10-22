@@ -80,6 +80,12 @@ import type {
   StrengthenCoreApplicationInput,
   StrengthenCoreApplicationReceipt,
   StrengthenCoreApplicationReview,
+  StrengthenCoreConsentFormStatus,
+  StrengthenCoreConsentLinkInput,
+  StrengthenCoreConsentLinks,
+  StrengthenCoreConsentReceipt,
+  StrengthenCoreConsentSubmission,
+  StrengthenCoreConsentVerification,
   StrengthenCoreProgram,
   StrengthenCoreProgramUpdate,
   StrengthenCorePublicProgram,
@@ -913,6 +919,413 @@ export const useReviewStrengthenCoreApplication = <
   return useMutation(
     getReviewStrengthenCoreApplicationMutationOptions(options),
   );
+};
+
+/**
+ * @summary Create separate parent consent and student assent links for an approved application
+ */
+export const getCreateStrengthenCoreConsentLinksUrl = (
+  applicationId: string,
+) => {
+  return `/api/strengthen-core/applications/${applicationId}/consent-links`;
+};
+
+export const createStrengthenCoreConsentLinks = async (
+  applicationId: string,
+  strengthenCoreConsentLinkInput: StrengthenCoreConsentLinkInput,
+  options?: RequestInit,
+): Promise<StrengthenCoreConsentLinks> => {
+  return customFetch<StrengthenCoreConsentLinks>(
+    getCreateStrengthenCoreConsentLinksUrl(applicationId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(strengthenCoreConsentLinkInput),
+    },
+  );
+};
+
+export const getCreateStrengthenCoreConsentLinksMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>,
+    TError,
+    { applicationId: string; data: BodyType<StrengthenCoreConsentLinkInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>,
+  TError,
+  { applicationId: string; data: BodyType<StrengthenCoreConsentLinkInput> },
+  TContext
+> => {
+  const mutationKey = ["createStrengthenCoreConsentLinks"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>,
+    { applicationId: string; data: BodyType<StrengthenCoreConsentLinkInput> }
+  > = (props) => {
+    const { applicationId, data } = props ?? {};
+
+    return createStrengthenCoreConsentLinks(
+      applicationId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStrengthenCoreConsentLinksMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>
+>;
+export type CreateStrengthenCoreConsentLinksMutationBody =
+  BodyType<StrengthenCoreConsentLinkInput>;
+export type CreateStrengthenCoreConsentLinksMutationError = ErrorType<void>;
+
+/**
+ * @summary Create separate parent consent and student assent links for an approved application
+ */
+export const useCreateStrengthenCoreConsentLinks = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>,
+    TError,
+    { applicationId: string; data: BodyType<StrengthenCoreConsentLinkInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStrengthenCoreConsentLinks>>,
+  TError,
+  { applicationId: string; data: BodyType<StrengthenCoreConsentLinkInput> },
+  TContext
+> => {
+  return useMutation(
+    getCreateStrengthenCoreConsentLinksMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Check a public guardian-consent or student-assent link
+ */
+export const getGetStrengthenCoreConsentFormUrl = (
+  role: "guardian" | "student",
+  token: string,
+) => {
+  return `/api/strengthen-core/consent/${role}/${token}`;
+};
+
+export const getStrengthenCoreConsentForm = async (
+  role: "guardian" | "student",
+  token: string,
+  options?: RequestInit,
+): Promise<StrengthenCoreConsentFormStatus> => {
+  return customFetch<StrengthenCoreConsentFormStatus>(
+    getGetStrengthenCoreConsentFormUrl(role, token),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStrengthenCoreConsentFormQueryKey = (
+  role: "guardian" | "student",
+  token: string,
+) => {
+  return [`/api/strengthen-core/consent/${role}/${token}`] as const;
+};
+
+export const getGetStrengthenCoreConsentFormQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>,
+  TError = ErrorType<void>,
+>(
+  role: "guardian" | "student",
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetStrengthenCoreConsentFormQueryKey(role, token);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>
+  > = ({ signal }) =>
+    getStrengthenCoreConsentForm(role, token, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(role && token),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStrengthenCoreConsentFormQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>
+>;
+export type GetStrengthenCoreConsentFormQueryError = ErrorType<void>;
+
+/**
+ * @summary Check a public guardian-consent or student-assent link
+ */
+
+export function useGetStrengthenCoreConsentForm<
+  TData = Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>,
+  TError = ErrorType<void>,
+>(
+  role: "guardian" | "student",
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStrengthenCoreConsentForm>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStrengthenCoreConsentFormQueryOptions(
+    role,
+    token,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Record a guardian consent or separate student assent response
+ */
+export const getSubmitStrengthenCoreConsentUrl = (
+  role: "guardian" | "student",
+  token: string,
+) => {
+  return `/api/strengthen-core/consent/${role}/${token}`;
+};
+
+export const submitStrengthenCoreConsent = async (
+  role: "guardian" | "student",
+  token: string,
+  strengthenCoreConsentSubmission: StrengthenCoreConsentSubmission,
+  options?: RequestInit,
+): Promise<StrengthenCoreConsentReceipt> => {
+  return customFetch<StrengthenCoreConsentReceipt>(
+    getSubmitStrengthenCoreConsentUrl(role, token),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(strengthenCoreConsentSubmission),
+    },
+  );
+};
+
+export const getSubmitStrengthenCoreConsentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStrengthenCoreConsent>>,
+    TError,
+    {
+      role: "guardian" | "student";
+      token: string;
+      data: BodyType<StrengthenCoreConsentSubmission>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitStrengthenCoreConsent>>,
+  TError,
+  {
+    role: "guardian" | "student";
+    token: string;
+    data: BodyType<StrengthenCoreConsentSubmission>;
+  },
+  TContext
+> => {
+  const mutationKey = ["submitStrengthenCoreConsent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitStrengthenCoreConsent>>,
+    {
+      role: "guardian" | "student";
+      token: string;
+      data: BodyType<StrengthenCoreConsentSubmission>;
+    }
+  > = (props) => {
+    const { role, token, data } = props ?? {};
+
+    return submitStrengthenCoreConsent(role, token, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitStrengthenCoreConsentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitStrengthenCoreConsent>>
+>;
+export type SubmitStrengthenCoreConsentMutationBody =
+  BodyType<StrengthenCoreConsentSubmission>;
+export type SubmitStrengthenCoreConsentMutationError = ErrorType<void>;
+
+/**
+ * @summary Record a guardian consent or separate student assent response
+ */
+export const useSubmitStrengthenCoreConsent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStrengthenCoreConsent>>,
+    TError,
+    {
+      role: "guardian" | "student";
+      token: string;
+      data: BodyType<StrengthenCoreConsentSubmission>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitStrengthenCoreConsent>>,
+  TError,
+  {
+    role: "guardian" | "student";
+    token: string;
+    data: BodyType<StrengthenCoreConsentSubmission>;
+  },
+  TContext
+> => {
+  return useMutation(getSubmitStrengthenCoreConsentMutationOptions(options));
+};
+
+/**
+ * @summary Verify both consent responses and create the RAOS case
+ */
+export const getVerifyStrengthenCoreConsentUrl = (applicationId: string) => {
+  return `/api/strengthen-core/applications/${applicationId}/verify-consent`;
+};
+
+export const verifyStrengthenCoreConsent = async (
+  applicationId: string,
+  options?: RequestInit,
+): Promise<StrengthenCoreConsentVerification> => {
+  return customFetch<StrengthenCoreConsentVerification>(
+    getVerifyStrengthenCoreConsentUrl(applicationId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getVerifyStrengthenCoreConsentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>,
+    TError,
+    { applicationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>,
+  TError,
+  { applicationId: string },
+  TContext
+> => {
+  const mutationKey = ["verifyStrengthenCoreConsent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>,
+    { applicationId: string }
+  > = (props) => {
+    const { applicationId } = props ?? {};
+
+    return verifyStrengthenCoreConsent(applicationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyStrengthenCoreConsentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>
+>;
+
+export type VerifyStrengthenCoreConsentMutationError = ErrorType<void>;
+
+/**
+ * @summary Verify both consent responses and create the RAOS case
+ */
+export const useVerifyStrengthenCoreConsent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>,
+    TError,
+    { applicationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyStrengthenCoreConsent>>,
+  TError,
+  { applicationId: string },
+  TContext
+> => {
+  return useMutation(getVerifyStrengthenCoreConsentMutationOptions(options));
 };
 
 /**

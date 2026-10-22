@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  customFetch,
   getGetStrengthenCoreApplicationQueryKey,
   getGetStrengthenCoreProgramAdminQueryKey,
   getGetStrengthenCoreProgramQueryKey,
@@ -16,15 +17,17 @@ import type { StrengthenCoreApplication, StrengthenCoreApplicationReviewDecision
 import { Activity, AlertCircle, ArrowRight, Check, ChevronRight, Clock3, FileText, LockKeyhole, RefreshCw, Save, Search, Settings2, ShieldCheck, Sparkles } from "lucide-react";
 
 type Lang = "en" | "zh" | "ko";
+type ConsentLinks = { guardianUrl: string | null; studentAssentUrl: string | null; expiresAt: string };
 const text = {
   en: {
-    title: "Strengthen Your Core", eyebrow: "REMYND · ADMINISTRATION", subtitle: "Application intake and review", language: "Language", queue: "Application queue", queueNote: "Intake and reviewer decisions only", search: "Search schools or concerns", all: "All statuses", pending: "Pending review", approved: "Approved", declined: "Declined", more: "Information requested", routed: "Routed for review", empty: "No applications match this view.", loading: "Loading application queue…", queueError: "Applications could not be loaded.", retry: "Try again", select: "Select an application to review.", overview: "Application details", submitted: "Submitted", languageLabel: "Form language", noStudentIds: "De-identified intake only. Do not add student direct identifiers.", analysis: "AI intake suggestions", analyze: "Generate suggestions", analyzing: "Preparing…", analysisNote: "Suggestions are assistive only. A reviewer must assess them; they are not a decision or diagnosis.", noAnalysis: "No suggestions generated. Use this only when a reviewer requests it.", review: "Reviewer decision", decision: "Decision", reason: "Reason (required)", reasonPlaceholder: "Record the rationale for this intake decision…", extension: "Approved extension override", noExtension: "No override", saveReview: "Save decision", saving: "Saving…", requiredReason: "A reason is required.", settings: "Programme configuration", settingsNote: "Changes affect public application availability and programme terms.", availability: "Accepting applications", coreInstrument: "Core instrument enabled", maxSchools: "Maximum schools", closeDate: "Closing date", duration: "Portal duration (days)", extensions: "Allowed extensions", saveSettings: "Save programme settings", settingsSaved: "Programme settings saved.", settingsError: "Could not save programme settings.", decisionSaved: "Decision saved.", decisionError: "Could not save the decision.", analysisError: "Could not generate suggestions.", detailError: "Application details could not be loaded.", noDetails: "No additional application details.", status: "Status", count: "applications", open: "Open", closed: "Closed", caveat: "This workspace supports intake and administrative review only. Assessment dispatch, consent verification, reporting, debrief, and Case Portal actions are not available here.", school: "School", concern: "Primary concern", submittedAt: "Received", data: "Submitted responses", noItems: "No submitted response fields.", approvedDefault: "One student per approved school by default", freePilot: "Complimentary pilot subject to ReMynd approval", coordinator: "Named implementation coordinator required", consent: "Parent/guardian consent and student assent are required before assessment.", nonDiagnostic: "Non-diagnostic pathway", refresh: "Refresh queue", noReason: "No review reason recorded.", mark: "Intake review", durationError: "Duration must be 1–90 days.", savedAt: "Configuration is managed through the programme API.",
+    title: "Strengthen Your Core", eyebrow: "REMYND · ADMINISTRATION", subtitle: "Application intake and review", language: "Language", queue: "Application queue", queueNote: "Intake and reviewer decisions only", search: "Search schools or concerns", all: "All statuses", pending: "Pending review", approved: "Approved", declined: "Declined", more: "Information requested", routed: "Routed for review", empty: "No applications match this view.", loading: "Loading application queue…", queueError: "Applications could not be loaded.", retry: "Try again", select: "Select an application to review.", overview: "Application details", submitted: "Submitted", languageLabel: "Form language", noStudentIds: "De-identified intake only. Do not add student direct identifiers.", analysis: "AI intake suggestions", analyze: "Generate suggestions", analyzing: "Preparing…", analysisNote: "Suggestions are assistive only. A reviewer must assess them; they are not a decision or diagnosis.", noAnalysis: "No suggestions generated. Use this only when a reviewer requests it.", review: "Reviewer decision", decision: "Decision", reason: "Reason (required)", reasonPlaceholder: "Record the rationale for this intake decision…", extension: "Approved extension override", noExtension: "No override", saveReview: "Save decision", saving: "Saving…", requiredReason: "A reason is required.", settings: "Programme configuration", settingsNote: "Changes affect public application availability and programme terms.", availability: "Accepting applications", coreInstrument: "Core instrument enabled", maxSchools: "Maximum schools", closeDate: "Closing date", duration: "Portal duration (days)", extensions: "Allowed extensions", saveSettings: "Save programme settings", settingsSaved: "Programme settings saved.", settingsError: "Could not save programme settings.", decisionSaved: "Decision saved.", decisionError: "Could not save the decision.", analysisError: "Could not generate suggestions.", detailError: "Application details could not be loaded.", noDetails: "No additional application details.", status: "Status", count: "applications", open: "Open", closed: "Closed", caveat: "This workspace supports application review and separate guardian-consent/student-assent collection. The case is created only after both responses are received and an administrator verifies them. Assessment assignments are restricted to enabled approved instruments; reporting and Case Portal remain out of scope.", school: "School", concern: "Primary concern", submittedAt: "Received", data: "Submitted responses", noItems: "No submitted response fields.", approvedDefault: "One student per approved school by default", freePilot: "Complimentary pilot subject to ReMynd approval", coordinator: "Named implementation coordinator required", consent: "Parent/guardian consent and student assent are required before assessment.", nonDiagnostic: "Non-diagnostic pathway", refresh: "Refresh queue", noReason: "No review reason recorded.", mark: "Intake review", durationError: "Duration must be 1–90 days.", savedAt: "Configuration is managed through the programme API.",
+    consentStage: "Consent and assessment readiness", guardianName: "Parent / guardian full name", guardianEmail: "Parent / guardian email", guardianRelationship: "Relationship to student", studentName: "Student full name", studentDob: "Student date of birth", createConsentLinks: "Create / refresh consent links", guardianLink: "Parent / guardian consent link", studentLink: "Student assent link", copy: "Copy", copied: "Link copied.", consentPending: "Pending", consentReceived: "Received", consentDeclined: "Declined", verifyConsent: "Verify consent and create RAOS case", verifying: "Verifying…", caseCreated: "Consent verified. RAOS case created:", consentError: "Could not create consent links.", verifyError: "Both affirmative responses are required before verification.", expiredNote: "Links expire after 14 days. Creating new links invalidates any previous pending links.", signedBy: "Signed by", verified: "Verified",
   },
   zh: {
-    title: "强化学习核心", eyebrow: "REMYND · 管理", subtitle: "申请受理与审核", language: "语言", queue: "申请队列", queueNote: "仅提供受理和审核决定", search: "搜索学校或关注事项", all: "所有状态", pending: "待审核", approved: "已批准", declined: "已拒绝", more: "待补充信息", routed: "转交审核", empty: "此视图中没有符合条件的申请。", loading: "正在加载申请队列……", queueError: "无法加载申请。", retry: "重试", select: "请选择一项申请进行审核。", overview: "申请详情", submitted: "提交时间", languageLabel: "表单语言", noStudentIds: "仅限去身份化受理。请勿添加学生直接身份信息。", analysis: "AI 受理建议", analyze: "生成建议", analyzing: "正在准备……", analysisNote: "建议仅供辅助，必须由审核人员评估；不构成决定或诊断。", noAnalysis: "尚未生成建议。仅在审核人员提出要求时使用。", review: "审核决定", decision: "决定", reason: "理由（必填）", reasonPlaceholder: "记录此受理决定的理由……", extension: "获批扩展覆盖", noExtension: "无覆盖", saveReview: "保存决定", saving: "正在保存……", requiredReason: "必须填写理由。", settings: "项目配置", settingsNote: "此处更改会影响公开申请状态和项目条款。", availability: "接受申请", coreInstrument: "核心工具已启用", maxSchools: "学校数量上限", closeDate: "截止日期", duration: "门户有效天数", extensions: "允许的扩展", saveSettings: "保存项目配置", settingsSaved: "项目配置已保存。", settingsError: "无法保存项目配置。", decisionSaved: "决定已保存。", decisionError: "无法保存决定。", analysisError: "无法生成建议。", detailError: "无法加载申请详情。", noDetails: "没有其他申请详情。", status: "状态", count: "份申请", open: "开放", closed: "关闭", caveat: "此工作区仅支持受理和管理审核。此处不提供评估派发、同意核验、报告、反馈会议或 Case Portal 操作。", school: "学校", concern: "主要关注", submittedAt: "收到时间", data: "提交的回答", noItems: "没有提交的回答字段。", approvedDefault: "默认每所获批学校一名学生", freePilot: "免费试点须经 ReMynd 审批", coordinator: "须指定项目实施协调员", consent: "评估前必须取得家长／监护人同意及学生本人同意。", nonDiagnostic: "非诊断性路径", refresh: "刷新队列", noReason: "尚未记录审核理由。", mark: "受理审核", durationError: "有效期须为 1–90 天。", savedAt: "配置通过项目 API 管理。",
+    title: "强化学习核心", eyebrow: "REMYND · 管理", subtitle: "申请受理与审核", language: "语言", queue: "申请队列", queueNote: "仅提供受理和审核决定", search: "搜索学校或关注事项", all: "所有状态", pending: "待审核", approved: "已批准", declined: "已拒绝", more: "待补充信息", routed: "转交审核", empty: "此视图中没有符合条件的申请。", loading: "正在加载申请队列……", queueError: "无法加载申请。", retry: "重试", select: "请选择一项申请进行审核。", overview: "申请详情", submitted: "提交时间", languageLabel: "表单语言", noStudentIds: "仅限去身份化受理。请勿添加学生直接身份信息。", analysis: "AI 受理建议", analyze: "生成建议", analyzing: "正在准备……", analysisNote: "建议仅供辅助，必须由审核人员评估；不构成决定或诊断。", noAnalysis: "尚未生成建议。仅在审核人员提出要求时使用。", review: "审核决定", decision: "决定", reason: "理由（必填）", reasonPlaceholder: "记录此受理决定的理由……", extension: "获批扩展覆盖", noExtension: "无覆盖", saveReview: "保存决定", saving: "正在保存……", requiredReason: "必须填写理由。", settings: "项目配置", settingsNote: "此处更改会影响公开申请状态和项目条款。", availability: "接受申请", coreInstrument: "核心工具已启用", maxSchools: "学校数量上限", closeDate: "截止日期", duration: "门户有效天数", extensions: "允许的扩展", saveSettings: "保存项目配置", settingsSaved: "项目配置已保存。", settingsError: "无法保存项目配置。", decisionSaved: "决定已保存。", decisionError: "无法保存决定。", analysisError: "无法生成建议。", detailError: "无法加载申请详情。", noDetails: "没有其他申请详情。", status: "状态", count: "份申请", open: "开放", closed: "关闭", caveat: "此工作区支持申请审核和独立的家长同意／学生本人同意收集。只有收到两份答复并由管理员核实后才会创建个案。评估派发仅限已启用且获批的工具；报告与 Case Portal 尚未开放。", school: "学校", concern: "主要关注", submittedAt: "收到时间", data: "提交的回答", noItems: "没有提交的回答字段。", approvedDefault: "默认每所获批学校一名学生", freePilot: "免费试点须经 ReMynd 审批", coordinator: "须指定项目实施协调员", consent: "评估前必须取得家长／监护人同意及学生本人同意。", nonDiagnostic: "非诊断性路径", refresh: "刷新队列", noReason: "尚未记录审核理由。", mark: "受理审核", durationError: "有效期须为 1–90 天。", savedAt: "配置通过项目 API 管理。", consentStage: "同意与评估准备", guardianName: "家长／监护人姓名", guardianEmail: "家长／监护人邮箱", guardianRelationship: "与学生的关系", studentName: "学生姓名", studentDob: "学生出生日期", createConsentLinks: "创建／刷新同意链接", guardianLink: "家长／监护人同意链接", studentLink: "学生本人同意链接", copy: "复制", copied: "链接已复制。", consentPending: "待处理", consentReceived: "已收到", consentDeclined: "已拒绝", verifyConsent: "核实同意并创建 RAOS 个案", verifying: "正在核实……", caseCreated: "同意已核实。RAOS 个案已创建：", consentError: "无法创建同意链接。", verifyError: "必须先收到两份同意答复。", expiredNote: "链接 14 天后过期。创建新链接会使此前尚未完成的链接失效。", signedBy: "签名", verified: "已核实",
   },
   ko: {
-    title: "학습 핵심 강화", eyebrow: "REMYND · 관리자", subtitle: "신청 접수 및 검토", language: "언어", queue: "신청 대기열", queueNote: "접수 및 검토 결정만 지원", search: "학교 또는 우려 사항 검색", all: "모든 상태", pending: "검토 대기", approved: "승인", declined: "거절", more: "정보 요청", routed: "검토 전달", empty: "이 보기에 해당하는 신청이 없습니다.", loading: "신청 대기열을 불러오는 중…", queueError: "신청을 불러오지 못했습니다.", retry: "다시 시도", select: "검토할 신청을 선택하세요.", overview: "신청 상세", submitted: "제출", languageLabel: "양식 언어", noStudentIds: "비식별 접수 전용입니다. 학생 직접 식별 정보를 추가하지 마세요.", analysis: "AI 접수 제안", analyze: "제안 생성", analyzing: "준비 중…", analysisNote: "제안은 보조 자료이며 검토자가 반드시 평가해야 합니다. 결정이나 진단이 아닙니다.", noAnalysis: "생성된 제안이 없습니다. 검토자가 요청한 경우에만 사용하세요.", review: "검토 결정", decision: "결정", reason: "사유(필수)", reasonPlaceholder: "접수 결정의 근거를 기록하세요…", extension: "승인 확장 재정의", noExtension: "재정의 없음", saveReview: "결정 저장", saving: "저장 중…", requiredReason: "사유를 입력해야 합니다.", settings: "프로그램 설정", settingsNote: "변경 사항은 공개 신청 가능 여부와 프로그램 조건에 적용됩니다.", availability: "신청 접수 중", coreInstrument: "핵심 도구 활성화", maxSchools: "학교 최대 수", closeDate: "마감일", duration: "포털 기간(일)", extensions: "허용 확장", saveSettings: "프로그램 설정 저장", settingsSaved: "프로그램 설정을 저장했습니다.", settingsError: "프로그램 설정을 저장하지 못했습니다.", decisionSaved: "결정을 저장했습니다.", decisionError: "결정을 저장하지 못했습니다.", analysisError: "제안을 생성하지 못했습니다.", detailError: "신청 상세를 불러오지 못했습니다.", noDetails: "추가 신청 상세가 없습니다.", status: "상태", count: "건", open: "접수 중", closed: "마감", caveat: "이 작업 공간은 접수 및 관리자 검토만 지원합니다. 평가 배정, 동의 확인, 보고서, 디브리핑 및 Case Portal 작업은 사용할 수 없습니다.", school: "학교", concern: "주요 우려", submittedAt: "접수", data: "제출 응답", noItems: "제출된 응답 항목이 없습니다.", approvedDefault: "승인 학교당 기본 학생 1명", freePilot: "무료 파일럿은 ReMynd 승인 대상", coordinator: "학교 지정 실행 코디네이터 필요", consent: "평가 전에 보호자 및 학생 본인의 동의가 필요합니다.", nonDiagnostic: "비진단 경로", refresh: "대기열 새로고침", noReason: "기록된 검토 사유가 없습니다.", mark: "접수 검토", durationError: "기간은 1~90일이어야 합니다.", savedAt: "프로그램 API를 통해 설정을 관리합니다.",
+    title: "학습 핵심 강화", eyebrow: "REMYND · 관리자", subtitle: "신청 접수 및 검토", language: "언어", queue: "신청 대기열", queueNote: "접수 및 검토 결정만 지원", search: "학교 또는 우려 사항 검색", all: "모든 상태", pending: "검토 대기", approved: "승인", declined: "거절", more: "정보 요청", routed: "검토 전달", empty: "이 보기에 해당하는 신청이 없습니다.", loading: "신청 대기열을 불러오는 중…", queueError: "신청을 불러오지 못했습니다.", retry: "다시 시도", select: "검토할 신청을 선택하세요.", overview: "신청 상세", submitted: "제출", languageLabel: "양식 언어", noStudentIds: "비식별 접수 전용입니다. 학생 직접 식별 정보를 추가하지 마세요.", analysis: "AI 접수 제안", analyze: "제안 생성", analyzing: "준비 중…", analysisNote: "제안은 보조 자료이며 검토자가 반드시 평가해야 합니다. 결정이나 진단이 아닙니다.", noAnalysis: "생성된 제안이 없습니다. 검토자가 요청한 경우에만 사용하세요.", review: "검토 결정", decision: "결정", reason: "사유(필수)", reasonPlaceholder: "접수 결정의 근거를 기록하세요…", extension: "승인 확장 재정의", noExtension: "재정의 없음", saveReview: "결정 저장", saving: "저장 중…", requiredReason: "사유를 입력해야 합니다.", settings: "프로그램 설정", settingsNote: "변경 사항은 공개 신청 가능 여부와 프로그램 조건에 적용됩니다.", availability: "신청 접수 중", coreInstrument: "핵심 도구 활성화", maxSchools: "학교 최대 수", closeDate: "마감일", duration: "포털 기간(일)", extensions: "허용 확장", saveSettings: "프로그램 설정 저장", settingsSaved: "프로그램 설정을 저장했습니다.", settingsError: "프로그램 설정을 저장하지 못했습니다.", decisionSaved: "결정을 저장했습니다.", decisionError: "결정을 저장하지 못했습니다.", analysisError: "제안을 생성하지 못했습니다.", detailError: "신청 상세를 불러오지 못했습니다.", noDetails: "추가 신청 상세가 없습니다.", status: "상태", count: "건", open: "접수 중", closed: "마감", caveat: "이 작업 공간은 신청 검토와 보호자 동의 및 학생 본인 동의 수집을 지원합니다. 두 응답을 받은 후 관리자가 확인해야만 사례가 생성됩니다. 평가는 활성화되고 승인된 도구로만 배정할 수 있습니다. 보고서와 Case Portal은 아직 제공되지 않습니다.", school: "학교", concern: "주요 우려", submittedAt: "접수", data: "제출 응답", noItems: "제출된 응답 항목이 없습니다.", approvedDefault: "승인 학교당 기본 학생 1명", freePilot: "무료 파일럿은 ReMynd 승인 대상", coordinator: "학교 지정 실행 코디네이터 필요", consent: "평가 전에 보호자 및 학생 본인의 동의가 필요합니다.", nonDiagnostic: "비진단 경로", refresh: "대기열 새로고침", noReason: "기록된 검토 사유가 없습니다.", mark: "접수 검토", durationError: "기간은 1~90일이어야 합니다.", savedAt: "프로그램 API를 통해 설정을 관리합니다.", consentStage: "동의 및 평가 준비", guardianName: "부모／보호자 성명", guardianEmail: "부모／보호자 이메일", guardianRelationship: "학생과의 관계", studentName: "학생 성명", studentDob: "학생 생년월일", createConsentLinks: "동의 링크 생성／새로고침", guardianLink: "부모／보호자 동의 링크", studentLink: "학생 본인 동의 링크", copy: "복사", copied: "링크를 복사했습니다.", consentPending: "대기", consentReceived: "접수됨", consentDeclined: "거절됨", verifyConsent: "동의 확인 후 RAOS 사례 생성", verifying: "확인 중…", caseCreated: "동의를 확인했습니다. RAOS 사례가 생성되었습니다:", consentError: "동의 링크를 만들지 못했습니다.", verifyError: "확인하려면 두 개의 긍정적인 응답이 필요합니다.", expiredNote: "링크는 14일 후 만료됩니다. 새 링크를 만들면 사용되지 않은 이전 링크는 무효가 됩니다.", signedBy: "서명", verified: "확인됨",
   },
 } as const;
 
@@ -57,6 +60,10 @@ export default function StrengthenCoreAdmin() {
   const [feedback, setFeedback] = useState("");
   const [programForm, setProgramForm] = useState({ open: false, coreInstrumentEnabled: false, maxSchools: "", closesAt: "", portalDurationDays: "30", allowedExtensions: [] as StrengthenCoreProgramUpdateAllowedExtensionsItem[] });
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [consentForm, setConsentForm] = useState({ guardianName: "", guardianEmail: "", guardianRelationship: "", studentName: "", studentDob: "" });
+  const [consentLinks, setConsentLinks] = useState<ConsentLinks | null>(null);
+  const [consentMessage, setConsentMessage] = useState("");
+  const [createdCaseId, setCreatedCaseId] = useState("");
   const t = text[lang];
   const queue = useListStrengthenCoreApplications();
   const adminProgram = useGetStrengthenCoreProgramAdmin({
@@ -96,6 +103,16 @@ export default function StrengthenCoreAdmin() {
     setReason(app.reviewReason ?? "");
     setApprovedExtension(app.approvedExtension ?? "");
     setFeedback("");
+    setConsentForm({
+      guardianName: app.consent?.guardianName ?? "",
+      guardianEmail: app.consent?.guardianEmail ?? "",
+      guardianRelationship: app.consent?.guardianRelationship ?? "",
+      studentName: app.consent?.studentName ?? "",
+      studentDob: "",
+    });
+    setConsentLinks(null);
+    setConsentMessage("");
+    setCreatedCaseId(app.consent?.caseId ?? "");
   }
   function saveDecision() {
     if (!current || !reason.trim()) {
@@ -121,6 +138,47 @@ export default function StrengthenCoreAdmin() {
       },
       onError: () => setFeedback(t.analysisError),
     });
+  }
+  async function createConsentLinks() {
+    if (!current) return;
+    setConsentMessage("");
+    try {
+      const result = await customFetch<ConsentLinks>(`/api/strengthen-core/applications/${encodeURIComponent(current.id)}/consent-links`, {
+        method: "POST",
+        responseType: "json",
+        body: JSON.stringify(consentForm),
+      });
+      setConsentLinks(result);
+      setConsentMessage(t.expiredNote);
+      void queryClient.invalidateQueries({ queryKey: getGetStrengthenCoreApplicationQueryKey(current.id) });
+      void queryClient.invalidateQueries({ queryKey: getListStrengthenCoreApplicationsQueryKey() });
+    } catch {
+      setConsentMessage(t.consentError);
+    }
+  }
+  async function verifyConsent() {
+    if (!current) return;
+    setConsentMessage("");
+    try {
+      const result = await customFetch<{ verified: boolean; caseId: string }>(`/api/strengthen-core/applications/${encodeURIComponent(current.id)}/verify-consent`, {
+        method: "POST",
+        responseType: "json",
+      });
+      setCreatedCaseId(result.caseId);
+      setConsentMessage(t.caseCreated);
+      void queryClient.invalidateQueries({ queryKey: getGetStrengthenCoreApplicationQueryKey(current.id) });
+      void queryClient.invalidateQueries({ queryKey: getListStrengthenCoreApplicationsQueryKey() });
+    } catch {
+      setConsentMessage(t.verifyError);
+    }
+  }
+  async function copyConsentLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setConsentMessage(t.copied);
+    } catch {
+      setConsentMessage(url);
+    }
   }
   function saveProgram() {
     const duration = Number(programForm.portalDurationDays);
@@ -190,7 +248,59 @@ export default function StrengthenCoreAdmin() {
                     </section>
                   </div>
                 </div>
-              </section>}
+               </section>}
+
+             {current && ["approved", "consent_requested", "guardian_consent_received", "student_assent_received", "consent_verified"].includes(current.status) && (
+               <section className="rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] p-5 shadow-sm md:p-7" data-testid="panel-consent-readiness">
+                 <div className="flex flex-wrap items-start justify-between gap-4">
+                   <div>
+                     <p className="text-[10px] font-bold tracking-[.16em] text-[#82958a]">{t.consentStage}</p>
+                     <h2 className="mt-2 font-display text-xl font-semibold text-[#244542]">{t.consent}</h2>
+                     <p className="mt-2 max-w-3xl text-xs leading-5 text-[#73857b]">{t.expiredNote}</p>
+                   </div>
+                   {current.consent?.caseId && <a href={`/cases/${encodeURIComponent(current.consent.caseId)}`} className="rounded-lg bg-[#275c53] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1f4e47]" data-testid="link-consent-verified-case">{t.caseCreated} {current.consent.caseId} <ArrowRight size={14} className="ml-1 inline" /></a>}
+                 </div>
+                 {current.consent && (
+                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                     <div className="rounded-xl border border-[#dce6dc] bg-white p-4 text-sm">
+                       <p className="font-semibold text-[#405951]">{t.guardianName}: {current.consent.guardianName}</p>
+                       <p className="mt-1 text-xs text-[#708178]">{current.consent.guardianEmail} · {current.consent.guardianRelationship}</p>
+                       <p className="mt-3 text-xs font-semibold text-[#567263]">{t.status}: {current.consent.guardianStatus === "consented" ? t.consentReceived : current.consent.guardianStatus === "declined" ? t.consentDeclined : t.consentPending}</p>
+                       {current.consent.guardianSignatureName && <p className="mt-1 text-xs text-[#708178]">{t.signedBy}: {current.consent.guardianSignatureName}</p>}
+                       {current.consent.guardianSignedAt && <p className="mt-1 text-[11px] text-[#8a9790]">{new Date(current.consent.guardianSignedAt).toLocaleString()}</p>}
+                     </div>
+                     <div className="rounded-xl border border-[#dce6dc] bg-white p-4 text-sm">
+                       <p className="font-semibold text-[#405951]">{t.studentName}: {current.consent.studentName}</p>
+                       <p className="mt-3 text-xs font-semibold text-[#567263]">{t.status}: {current.consent.studentStatus === "assented" ? t.consentReceived : current.consent.studentStatus === "declined" ? t.consentDeclined : t.consentPending}</p>
+                       {current.consent.studentSignatureName && <p className="mt-1 text-xs text-[#708178]">{t.signedBy}: {current.consent.studentSignatureName}</p>}
+                       {current.consent.studentAssentedAt && <p className="mt-1 text-[11px] text-[#8a9790]">{new Date(current.consent.studentAssentedAt).toLocaleString()}</p>}
+                     </div>
+                   </div>
+                 )}
+                 {!current.consent?.caseId && current.status !== "consent_declined" && (
+                   <>
+                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianName}<input value={consentForm.guardianName} onChange={(event) => setConsentForm((old) => ({ ...old, guardianName: event.target.value }))} autoComplete="name" className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-guardian-name" /></label>
+                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianEmail}<input type="email" value={consentForm.guardianEmail} onChange={(event) => setConsentForm((old) => ({ ...old, guardianEmail: event.target.value }))} autoComplete="email" className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-guardian-email" /></label>
+                       <label className="text-xs font-semibold text-[#65766d]">{t.guardianRelationship}<input value={consentForm.guardianRelationship} onChange={(event) => setConsentForm((old) => ({ ...old, guardianRelationship: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-relationship" /></label>
+                       <label className="text-xs font-semibold text-[#65766d]">{t.studentName}<input value={consentForm.studentName} onChange={(event) => setConsentForm((old) => ({ ...old, studentName: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-student-name" /></label>
+                       <label className="text-xs font-semibold text-[#65766d]">{t.studentDob}<input type="date" value={consentForm.studentDob} onChange={(event) => setConsentForm((old) => ({ ...old, studentDob: event.target.value }))} className="mt-1.5 w-full rounded-lg border border-[#d8e1d9] bg-white px-3 py-2.5 text-sm font-normal" data-testid="input-consent-student-dob" /></label>
+                     </div>
+                     <button type="button" onClick={() => void createConsentLinks()} disabled={!consentForm.guardianName || !consentForm.guardianEmail || !consentForm.guardianRelationship || !consentForm.studentName || !consentForm.studentDob} className="mt-4 rounded-lg bg-[#275c53] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#1f4e47] disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-create-consent-links">{t.createConsentLinks}</button>
+                   </>
+                 )}
+                 {consentLinks && (
+                   <div className="mt-4 grid gap-3 sm:grid-cols-2" data-testid="panel-consent-links">
+                     {consentLinks.guardianUrl && <div className="rounded-xl border border-[#dce6dc] bg-white p-4"><p className="text-xs font-semibold">{t.guardianLink}</p><a className="mt-1 block break-all text-xs text-[#376f5a] underline" href={consentLinks.guardianUrl} target="_blank" rel="noreferrer">{consentLinks.guardianUrl}</a><button onClick={() => void copyConsentLink(consentLinks.guardianUrl!)} className="mt-2 text-xs font-bold text-[#376f5a]">{t.copy}</button></div>}
+                     {consentLinks.studentAssentUrl && <div className="rounded-xl border border-[#dce6dc] bg-white p-4"><p className="text-xs font-semibold">{t.studentLink}</p><a className="mt-1 block break-all text-xs text-[#376f5a] underline" href={consentLinks.studentAssentUrl} target="_blank" rel="noreferrer">{consentLinks.studentAssentUrl}</a><button onClick={() => void copyConsentLink(consentLinks.studentAssentUrl!)} className="mt-2 text-xs font-bold text-[#376f5a]">{t.copy}</button></div>}
+                   </div>
+                 )}
+                 {current.consent?.guardianStatus === "consented" && current.consent.studentStatus === "assented" && !current.consent.caseId && (
+                   <button type="button" onClick={() => void verifyConsent()} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#276455] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#1f5144]" data-testid="button-verify-consent"><ShieldCheck size={16} />{t.verifyConsent}</button>
+                 )}
+                 {consentMessage && <p className="mt-3 break-all text-xs text-[#567263]" role="status" data-testid="status-consent-feedback">{consentMessage}{createdCaseId && !current.consent?.caseId && <a href={`/cases/${encodeURIComponent(createdCaseId)}`} className="ml-1 font-bold underline">{createdCaseId}</a>}</p>}
+               </section>
+             )}
 
             <section className="rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] shadow-sm">
               <div className="border-b border-[#e0e8e1] p-5"><h2 className="flex items-center gap-2 font-display text-xl font-semibold"><Settings2 size={19} className="text-[#688875]" />{t.settings}</h2><p className="mt-1 text-xs leading-5 text-[#819088]">{t.settingsNote}</p></div>

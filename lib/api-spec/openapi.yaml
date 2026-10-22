@@ -205,6 +205,102 @@ paths:
           description: Administrator access required
         "404":
           description: Application not found
+  /strengthen-core/applications/{applicationId}/consent-links:
+    post:
+      operationId: createStrengthenCoreConsentLinks
+      tags: [programs]
+      summary: Create separate parent consent and student assent links for an approved application
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrengthenCoreConsentLinkInput"
+      responses:
+        "201":
+          description: Consent links created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreConsentLinks"
+        "403": { description: Administrator access required }
+        "409": { description: Application not approved or programme not ready }
+  /strengthen-core/consent/{role}/{token}:
+    get:
+      operationId: getStrengthenCoreConsentForm
+      tags: [programs]
+      summary: Check a public guardian-consent or student-assent link
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema: { type: string, enum: [guardian, student] }
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Consent form is available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreConsentFormStatus"
+        "404": { description: Link invalid or expired }
+        "409": { description: Guardian consent required first }
+    post:
+      operationId: submitStrengthenCoreConsent
+      tags: [programs]
+      summary: Record a guardian consent or separate student assent response
+      parameters:
+        - name: role
+          in: path
+          required: true
+          schema: { type: string, enum: [guardian, student] }
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrengthenCoreConsentSubmission"
+      responses:
+        "200":
+          description: Consent response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreConsentReceipt"
+        "400": { description: Required confirmations or matching typed signature missing }
+        "404": { description: Link invalid or expired }
+        "409": { description: Guardian consent must be recorded before student assent }
+  /strengthen-core/applications/{applicationId}/verify-consent:
+    post:
+      operationId: verifyStrengthenCoreConsent
+      tags: [programs]
+      summary: Verify both consent responses and create the RAOS case
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Consent verified and case created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreConsentVerification"
+        "403": { description: Administrator access required }
+        "409": { description: Consent or programme readiness requirements not met }
 
   # ─── Cases ───────────────────────────────────────────────────────────────
   /cases:
@@ -1776,7 +1872,77 @@ components:
           type: ["string", "null"]
         reviewedAt:
           type: ["string", "null"]
-      required: [id, schoolName, primaryConcern, language, status, submittedAt, data, analysis, approvedExtension, reviewReason, reviewedAt]
+        consent:
+          oneOf:
+            - $ref: "#/components/schemas/StrengthenCoreConsentSummary"
+            - type: "null"
+      required: [id, schoolName, primaryConcern, language, status, submittedAt, data, analysis, approvedExtension, reviewReason, reviewedAt, consent]
+
+    StrengthenCoreConsentLinkInput:
+      type: object
+      properties:
+        guardianName: { type: string, minLength: 2, maxLength: 200 }
+        guardianEmail: { type: string, format: email, maxLength: 320 }
+        guardianRelationship: { type: string, minLength: 2, maxLength: 120 }
+        studentName: { type: string, minLength: 2, maxLength: 200 }
+        studentDob: { type: string, pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
+      required: [guardianName, guardianEmail, guardianRelationship, studentName, studentDob]
+
+    StrengthenCoreConsentLinks:
+      type: object
+      properties:
+        guardianUrl: { type: ["string", "null"], format: uri }
+        studentAssentUrl: { type: ["string", "null"], format: uri }
+        expiresAt: { type: string, format: date-time }
+      required: [guardianUrl, studentAssentUrl, expiresAt]
+
+    StrengthenCoreConsentFormStatus:
+      type: object
+      properties:
+        role: { type: string, enum: [guardian, student] }
+        language: { type: string, enum: [en, zh, ko] }
+        guardianConsentReceived: { type: boolean }
+      required: [role, language, guardianConsentReceived]
+
+    StrengthenCoreConsentSubmission:
+      type: object
+      properties:
+        decision: { type: string, enum: [agree, decline] }
+        signatureName: { type: string, minLength: 2, maxLength: 200 }
+        legalAuthorityConfirmed: { type: boolean }
+        studentUnderstands: { type: boolean }
+      required: [decision, signatureName]
+
+    StrengthenCoreConsentReceipt:
+      type: object
+      properties:
+        submitted: { type: boolean }
+        status: { type: string }
+      required: [submitted, status]
+
+    StrengthenCoreConsentSummary:
+      type: object
+      properties:
+        guardianName: { type: string }
+        guardianEmail: { type: string, format: email }
+        guardianRelationship: { type: string }
+        studentName: { type: string }
+        guardianStatus: { type: string, enum: [pending, consented, declined] }
+        studentStatus: { type: string, enum: [pending, assented, declined] }
+        guardianSignatureName: { type: ["string", "null"] }
+        guardianSignedAt: { type: ["string", "null"], format: date-time }
+        studentSignatureName: { type: ["string", "null"] }
+        studentAssentedAt: { type: ["string", "null"], format: date-time }
+        verifiedAt: { type: ["string", "null"], format: date-time }
+        caseId: { type: ["string", "null"] }
+      required: [guardianName, guardianEmail, guardianRelationship, studentName, guardianStatus, studentStatus, guardianSignatureName, guardianSignedAt, studentSignatureName, studentAssentedAt, verifiedAt, caseId]
+
+    StrengthenCoreConsentVerification:
+      type: object
+      properties:
+        verified: { type: boolean }
+        caseId: { type: string }
+      required: [verified, caseId]
 
     StrengthenCoreApplicationReview:
       type: object
@@ -1916,7 +2082,7 @@ components:
           enum: [live, test]
         currentPhase:
           type: string
-          enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, debrief, complete]
+          enum: [pre_commitment, intake, setup, forms, assessment, scoring, report, final_review, debrief, complete]
         progressPercentage:
           type: integer
           minimum: 0
@@ -1942,6 +2108,45 @@ components:
           nullable: true
         consentObtained:
           type: boolean
+        workingDocUrl:
+          type: string
+          nullable: true
+        adminApprovedReport:
+          type: boolean
+        psychApprovedReport:
+          type: boolean
+        customMeetingUrl:
+          type: string
+          nullable: true
+        assessmentMeetingDate:
+          type: string
+          nullable: true
+        debriefMeetingUrl:
+          type: string
+          nullable: true
+        debriefMeetingDate:
+          type: string
+          nullable: true
+        bobbyAiPortalCredentials:
+          type: string
+          nullable: true
+        productIds:
+          type: array
+          items:
+            type: string
+        parentInterviewNotes:
+          type: string
+          nullable: true
+        referralInvite:
+          type: object
+          nullable: true
+          properties:
+            token: { type: string }
+            formId: { type: string }
+            toName: { type: string }
+            toEmail: { type: string }
+            schoolName: { type: string }
+            usedAt: { type: string, nullable: true }
         createdAt:
           type: string
           format: date-time
@@ -2009,8 +2214,10 @@ components:
           type: string
         assignedLeadId:
           type: string
+          nullable: true
         assignedPsychId:
           type: string
+          nullable: true
       required: [studentName, dob, school, languagePreference, referralReason]
 
     UpdateCaseRequest:
@@ -2049,10 +2256,40 @@ components:
           type: string
         assignedLeadId:
           type: string
+          nullable: true
         assignedPsychId:
           type: string
+          nullable: true
         consentObtained:
           type: boolean
+        workingDocUrl:
+          type: string
+          nullable: true
+        customMeetingUrl:
+          type: string
+          nullable: true
+        moderatorMeetingUrl:
+          type: string
+          nullable: true
+        assessmentMeetingDate:
+          type: string
+          nullable: true
+        debriefMeetingUrl:
+          type: string
+          nullable: true
+        debriefMeetingDate:
+          type: string
+          nullable: true
+        bobbyAiPortalCredentials:
+          type: string
+          nullable: true
+        productIds:
+          type: array
+          items:
+            type: string
+        parentInterviewNotes:
+          type: string
+          nullable: true
 
     CasePhaseReturnInput:
       type: object
@@ -2075,6 +2312,10 @@ components:
         summary:
           type: string
         flags:
+          type: array
+          items:
+            type: string
+        recommendedTools:
           type: array
           items:
             type: string

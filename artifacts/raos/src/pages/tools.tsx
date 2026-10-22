@@ -683,7 +683,7 @@ function AddToolModal({ onClose }: { onClose: () => void }) {
     if (isDuplicate) { setError(`Tool ID "${id.trim().toUpperCase()}" already exists. Choose a different ID.`); return; }
     if (!name.trim()) { setError("Name is required."); return; }
     if (!category.trim()) { setError("Category is required."); return; }
-    const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
+    const domains = domainsRaw.split(",").map((d: string) => d.trim()).filter(Boolean);
     createMut.mutate(
       {
         data: {
@@ -1110,7 +1110,7 @@ function EditToolModal({ tool, onClose }: { tool: any; onClose: () => void }) {
     if (!category.trim()) { setError("Category is required."); return; }
     setSaving(true);
     setError(null);
-    const domains = domainsRaw.split(",").map(d => d.trim()).filter(Boolean);
+    const domains = domainsRaw.split(",").map((d: string) => d.trim()).filter(Boolean);
     try {
       await updateMut.mutateAsync({
         id: tool.id,
@@ -1713,7 +1713,7 @@ export default function AssessmentTools() {
       (t.description ?? "").toLowerCase().includes(q) ||
       (Array.isArray(t.domains) ? t.domains : []).some((d: string) => d.toLowerCase().includes(q));
     const matchRespondent =
-      filterRespondent === "all" || (t.respondentTypes ?? []).includes(filterRespondent);
+      filterRespondent === "all" || new Set<string>(t.respondentTypes ?? []).has(filterRespondent);
     const matchCategory =
       filterCategory === "all" || t.category === filterCategory;
     const matchBattery =

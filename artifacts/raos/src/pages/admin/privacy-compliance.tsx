@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
-import { useGetCurrentUser } from "@workspace/api-client-react";
+import { getGetCurrentUserQueryKey, useGetCurrentUser } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useI18n, LanguageSwitcherLight } from "../../lib/i18n";
 import {
@@ -59,7 +59,7 @@ function TabLoading({ msg }: { msg: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function PrivacyCompliancePage() {
   const [, navigate] = useLocation();
-  const { data: user, isLoading: userLoading } = useGetCurrentUser({ query: { retry: false } });
+  const { data: user, isLoading: userLoading } = useGetCurrentUser({ query: { retry: false, queryKey: getGetCurrentUserQueryKey() } });
   const [activeTab, setActiveTab] = useState("overview");
   const { t } = useI18n();
   const c = t.compliance;
@@ -140,7 +140,7 @@ function OverviewTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-dashboard"],
-    queryFn: () => customFetch("/api/compliance/dashboard"),
+    queryFn: () => customFetch<any>("/api/compliance/dashboard"),
   });
 
   if (isLoading) return <TabLoading msg={c.loading} />;
@@ -184,7 +184,7 @@ function InventoryTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-inventory"],
-    queryFn: () => customFetch("/api/compliance/data-inventory"),
+    queryFn: () => customFetch<any>("/api/compliance/data-inventory"),
   });
 
   const updateMutation = useMutation({
@@ -310,7 +310,7 @@ function VendorsTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-vendors"],
-    queryFn: () => customFetch("/api/compliance/vendors"),
+    queryFn: () => customFetch<any>("/api/compliance/vendors"),
   });
 
   const updateMutation = useMutation({
@@ -408,7 +408,7 @@ function CrossBorderTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-vendors"],
-    queryFn: () => customFetch("/api/compliance/vendors"),
+    queryFn: () => customFetch<any>("/api/compliance/vendors"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
   const xborder = (data?.items ?? []).filter((v: any) => v.leaves_mainland !== false);
@@ -447,7 +447,7 @@ function AccessReviewTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-access"],
-    queryFn: () => customFetch("/api/compliance/access-review"),
+    queryFn: () => customFetch<any>("/api/compliance/access-review"),
   });
 
   const updateMutation = useMutation({
@@ -535,7 +535,7 @@ function SecurityEventsTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-events"],
-    queryFn: () => customFetch("/api/compliance/security-events?limit=50"),
+    queryFn: () => customFetch<any>("/api/compliance/security-events?limit=50"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
   const events = data?.events ?? [];
@@ -588,7 +588,7 @@ function AiReviewTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-ai"],
-    queryFn: () => customFetch("/api/compliance/ai-review"),
+    queryFn: () => customFetch<any>("/api/compliance/ai-review"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
 
@@ -847,7 +847,7 @@ function PoliciesTab() {
   const [viewing, setViewing] = useState<any | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-policies"],
-    queryFn: () => customFetch("/api/compliance/policies"),
+    queryFn: () => customFetch<any>("/api/compliance/policies"),
   });
 
   const updateMutation = useMutation({
@@ -936,7 +936,7 @@ function FindingsTab() {
   const c = t.compliance;
   const { data, isLoading } = useQuery({
     queryKey: ["compliance-findings"],
-    queryFn: () => customFetch("/api/compliance/phase1-findings"),
+    queryFn: () => customFetch<any>("/api/compliance/phase1-findings"),
   });
   if (isLoading) return <TabLoading msg={c.loading} />;
 

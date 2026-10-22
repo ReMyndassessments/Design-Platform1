@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { strengthenCoreApplicationsTable, strengthenCoreProgramTable } from "@workspace/db/schema";
+import { casesTable, strengthenCoreApplicationsTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { callDeepSeek } from "../lib/ai.js";
@@ -55,57 +56,6 @@ const reviewSchema = z.object({
   reason: z.string().trim().min(1).max(4000),
 });
 
-let schemaReady: Promise<void> | null = null;
-async function ensureTables(): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = (async () => {
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS syc_program_settings (
-          id text PRIMARY KEY,
-          settings jsonb NOT NULL,
-          updated_by text,
-          updated_at timestamptz NOT NULL DEFAULT NOW()
-        )
-      `);
-      await db.execute(sql`
-        CREATE TABLE IF NOT EXISTS syc_applications (
-          id text PRIMARY KEY,
-          school_name text NOT NULL,
-          primary_concern text NOT NULL,
-          language text NOT NULL DEFAULT 'en',
-          status text NOT NULL DEFAULT 'submitted',
-          data jsonb NOT NULL,
-          analysis jsonb,
-          approved_extension text,
-          review_reason text,
-          reviewed_by text,
-          reviewed_at timestamptz,
-          created_at timestamptz NOT NULL DEFAULT NOW(),
-          updated_at timestamptz NOT NULL DEFAULT NOW()
-        )
-      `);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS syc_applications_status_created_idx ON syc_applications(status, created_at DESC)`);
-      await db.insert(strengthenCoreProgramTable).values({
-        id: "default",
-        settings: DEFAULT_SETTINGS,
-      }).onConflictDoNothing();
-    })().catch((error) => {
-      schemaReady = null;
-      throw error;
-    });
-  }
-  await schemaReady;
-}
-
-router.use(async (_req, _res, next) => {
-  try {
-    await ensureTables();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
 function isAdmin(req: { userRole?: string }): boolean {
   return req.userRole === "admin";
 }
@@ -136,7 +86,51 @@ function safeString(value: unknown, max = 1000): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+type SycConsentRecord = {
+  guardianName: string;
+  guardianEmail: string;
+  guardianRelationship: string;
+  studentName: string;
+  studentDob: string;
+  guardianTokenHash?: string | null;
+  studentTokenHash?: string | null;
+  guardianExpiresAt?: string | null;
+  studentExpiresAt?: string | null;
+  guardianStatus?: "pending" | "consented" | "declined";
+  studentStatus?: "pending" | "assented" | "declined";
+  guardianSignatureName?: string | null;
+  guardianSignedAt?: string | null;
+  studentSignatureName?: string | null;
+  studentAssentedAt?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  caseId?: string | null;
+};
+
+type SycPrivateData = {
+  consent?: SycConsentRecord;
+};
+
+function getPrivateData(data: Record<string, unknown>): SycPrivateData {
+  const metadata = data.__syc;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+  const consent = (metadata as Record<string, unknown>).consent;
+  return consent && typeof consent === "object" && !Array.isArray(consent)
+    ? { consent: consent as SycConsentRecord }
+    : {};
+}
+
+function withPrivateData(data: Record<string, unknown>, privateData: SycPrivateData): Record<string, unknown> {
+  return { ...data, __syc: privateData };
+}
+
+function publicApplicationData(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(data).filter(([key]) => key !== "__syc" && !key.startsWith("_")));
+}
+
 function formatApplication(row: typeof strengthenCoreApplicationsTable.$inferSelect) {
+  const data = row.data as Record<string, unknown>;
+  const consent = getPrivateData(data).consent;
   return {
     id: row.id,
     schoolName: row.schoolName,
@@ -144,16 +138,42 @@ function formatApplication(row: typeof strengthenCoreApplicationsTable.$inferSel
     language: row.language,
     status: row.status,
     submittedAt: row.createdAt,
-    data: row.data,
+    data: publicApplicationData(data),
     analysis: row.analysis,
     approvedExtension: row.approvedExtension,
     reviewReason: row.reviewReason,
     reviewedAt: row.reviewedAt,
+    consent: consent ? {
+      guardianName: consent.guardianName,
+      guardianEmail: consent.guardianEmail,
+      guardianRelationship: consent.guardianRelationship,
+      studentName: consent.studentName,
+      guardianStatus: consent.guardianStatus ?? "pending",
+      studentStatus: consent.studentStatus ?? "pending",
+      guardianSignatureName: consent.guardianSignatureName ?? null,
+      guardianSignedAt: consent.guardianSignedAt ?? null,
+      studentSignatureName: consent.studentSignatureName ?? null,
+      studentAssentedAt: consent.studentAssentedAt ?? null,
+      verifiedAt: consent.verifiedAt ?? null,
+      caseId: consent.caseId ?? null,
+    } : null,
   };
 }
 
 function asId(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function makeToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function normalizedName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
 function redactContactData(value: unknown): unknown {
@@ -289,7 +309,7 @@ router.post("/strengthen-core/applications", async (req, res): Promise<void> => 
     res.status(400).json({ error: "invalid_request", message: "Please review the required application fields." });
     return;
   }
-  const data = parsed.data.data;
+  const data = publicApplicationData(parsed.data.data);
   const requiredTextFields = [
     "schoolName", "coordinatorName", "coordinatorRole", "coordinatorEmail", "gradeBand",
     "primaryConcern", "strengths", "sixWeekOutcome", "coordinatorCapacity",
@@ -452,6 +472,11 @@ router.patch("/strengthen-core/applications/:applicationId/review", authMiddlewa
     res.status(404).json({ error: "not_found" });
     return;
   }
+  const existingConsent = getPrivateData(row.data as Record<string, unknown>).consent;
+  if (existingConsent) {
+    res.status(409).json({ error: "consent_flow_started", message: "Review decisions are locked once consent links have been issued." });
+    return;
+  }
   const settings = await getSettings();
   const extension = parsed.data.approvedExtension ?? null;
   if (extension && !settings.allowedExtensions.includes(extension)) {
@@ -487,6 +512,292 @@ router.patch("/strengthen-core/applications/:applicationId/review", authMiddlewa
     metadata: { applicationId: id, status, approvedExtension: extension },
   });
   res.json(formatApplication(updated));
+});
+
+router.post("/strengthen-core/applications/:applicationId/consent-links", authMiddleware, async (req, res): Promise<void> => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const id = asId(req.params.applicationId);
+  const parsed = z.object({
+    guardianName: z.string().trim().min(2).max(200),
+    guardianEmail: z.string().trim().email().max(320),
+    guardianRelationship: z.string().trim().min(2).max(120),
+    studentName: z.string().trim().min(2).max(200),
+    studentDob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }).strict().safeParse(req.body);
+  if (!id || !parsed.success) {
+    res.status(400).json({ error: "invalid_request", message: "Provide the guardian's details and the student's name and date of birth." });
+    return;
+  }
+  const [row] = await db.select().from(strengthenCoreApplicationsTable)
+    .where(eq(strengthenCoreApplicationsTable.id, id)).limit(1);
+  if (!row) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (!["approved", "consent_requested", "guardian_consent_received", "student_assent_received"].includes(row.status)) {
+    res.status(409).json({ error: "application_not_approved", message: "The application must be approved before requesting consent." });
+    return;
+  }
+  const settings = await getSettings();
+  if (!settings.coreInstrumentEnabled) {
+    res.status(409).json({ error: "programme_not_ready", message: "Enable the core instrument in programme settings before starting consent." });
+    return;
+  }
+  const existing = getPrivateData(row.data as Record<string, unknown>).consent;
+  if (existing?.caseId || existing?.guardianStatus === "declined" || existing?.studentStatus === "declined") {
+    res.status(409).json({ error: "consent_flow_closed", message: "Consent has been declined or a verified case already exists." });
+    return;
+  }
+  const identity = existing?.guardianStatus === "consented"
+    ? {
+        guardianName: existing.guardianName,
+        guardianEmail: existing.guardianEmail,
+        guardianRelationship: existing.guardianRelationship,
+        studentName: existing.studentName,
+        studentDob: existing.studentDob,
+      }
+    : parsed.data;
+  if (!identity.guardianName || !identity.guardianEmail || !identity.guardianRelationship || !identity.studentName || !identity.studentDob) {
+    res.status(409).json({ error: "consent_identity_incomplete", message: "The consent identity record is incomplete. Contact an administrator." });
+    return;
+  }
+  const guardianToken = existing?.guardianStatus === "consented" ? null : makeToken();
+  const studentToken = existing?.studentStatus === "assented" ? null : makeToken();
+  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const data = row.data as Record<string, unknown>;
+  const privateData = getPrivateData(data);
+  const consent: SycConsentRecord = {
+    ...existing,
+    ...identity,
+    guardianTokenHash: guardianToken ? hashToken(guardianToken) : null,
+    studentTokenHash: studentToken ? hashToken(studentToken) : null,
+    guardianExpiresAt: guardianToken ? expiresAt : existing?.guardianExpiresAt ?? null,
+    studentExpiresAt: studentToken ? expiresAt : existing?.studentExpiresAt ?? null,
+    guardianStatus: existing?.guardianStatus ?? "pending",
+    studentStatus: existing?.studentStatus ?? "pending",
+    guardianSignatureName: existing?.guardianSignatureName ?? null,
+    guardianSignedAt: existing?.guardianSignedAt ?? null,
+    studentSignatureName: existing?.studentSignatureName ?? null,
+    studentAssentedAt: existing?.studentAssentedAt ?? null,
+    verifiedBy: null,
+    verifiedAt: null,
+    caseId: null,
+  };
+  await db.update(strengthenCoreApplicationsTable).set({
+    data: withPrivateData(data, { ...privateData, consent }),
+    status: "consent_requested",
+    updatedAt: new Date(),
+  }).where(eq(strengthenCoreApplicationsTable.id, id));
+  await writeAudit({
+    eventType: "syc.application.consent_links_created",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    metadata: { applicationId: id, expiresAt },
+  });
+  const base = "/strengthen-your-core/consent";
+  res.status(201).json({
+    guardianUrl: guardianToken ? `${base}/guardian/${guardianToken}` : null,
+    studentAssentUrl: studentToken ? `${base}/student/${studentToken}` : null,
+    expiresAt,
+  });
+});
+
+router.get("/strengthen-core/consent/:role/:token", async (req, res): Promise<void> => {
+  const role = req.params.role;
+  const token = req.params.token;
+  if ((role !== "guardian" && role !== "student") || !token || token.length > 200) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const key = role === "guardian" ? "guardianTokenHash" : "studentTokenHash";
+  const rows = await db.execute(sql`
+    SELECT id, language, status, data
+    FROM syc_applications
+    WHERE data -> '__syc' -> 'consent' ->> ${key} = ${hashToken(token)}
+    LIMIT 1
+  `);
+  const row = rows.rows[0] as { id: string; language: string; status: string; data: Record<string, unknown> } | undefined;
+  const consent = row ? getPrivateData(row.data).consent : null;
+  const expiry = role === "guardian" ? consent?.guardianExpiresAt : consent?.studentExpiresAt;
+  const tokenStatus = role === "guardian" ? consent?.guardianStatus : consent?.studentStatus;
+  if (!row || !["consent_requested", "guardian_consent_received", "student_assent_received"].includes(row.status) ||
+      !consent || !expiry || Date.parse(expiry) < Date.now() || tokenStatus !== "pending") {
+    res.status(404).json({ error: "invalid_or_expired_link", message: "This consent link is invalid, expired, or has already been used." });
+    return;
+  }
+  res.json({ role, language: row.language, guardianConsentReceived: consent.guardianStatus === "consented" });
+});
+
+router.post("/strengthen-core/consent/:role/:token", async (req, res): Promise<void> => {
+  const role = req.params.role;
+  const token = req.params.token;
+  if ((role !== "guardian" && role !== "student") || !token || token.length > 200) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const parsed = z.object({
+    decision: z.enum(["agree", "decline"]),
+    signatureName: z.string().trim().min(2).max(200),
+    legalAuthorityConfirmed: z.boolean().optional(),
+    studentUnderstands: z.boolean().optional(),
+  }).strict().safeParse(req.body);
+  if (!parsed.success ||
+      (role === "guardian" && parsed.data.legalAuthorityConfirmed !== true) ||
+      (role === "student" && parsed.data.studentUnderstands !== true)) {
+    res.status(400).json({ error: "invalid_consent", message: "Complete the required consent confirmations and signature." });
+    return;
+  }
+  const key = role === "guardian" ? "guardianTokenHash" : "studentTokenHash";
+  const result = await db.transaction(async (tx) => {
+    const rows = await tx.execute(sql`
+      SELECT id, data, status
+      FROM syc_applications
+      WHERE data -> '__syc' -> 'consent' ->> ${key} = ${hashToken(token)}
+      FOR UPDATE
+    `);
+    const row = rows.rows[0] as { id: string; data: Record<string, unknown>; status: string } | undefined;
+    const consent = row ? getPrivateData(row.data).consent : null;
+    const expiry = role === "guardian" ? consent?.guardianExpiresAt : consent?.studentExpiresAt;
+    const tokenStatus = role === "guardian" ? consent?.guardianStatus : consent?.studentStatus;
+    if (!row || !["consent_requested", "guardian_consent_received", "student_assent_received"].includes(row.status) ||
+        !consent || !expiry || Date.parse(expiry) < Date.now() || tokenStatus !== "pending") {
+      return { error: "invalid_or_expired_link" as const };
+    }
+    if (role === "student" && consent.guardianStatus !== "consented") {
+      return { error: "guardian_consent_required" as const };
+    }
+    const expectedName = role === "guardian" ? consent.guardianName : consent.studentName;
+    if (role === "guardian" && normalizedName(parsed.data.signatureName) !== normalizedName(expectedName)) {
+      return { error: "signature_mismatch" as const };
+    }
+    const now = new Date().toISOString();
+    const nextConsent: SycConsentRecord = role === "guardian"
+      ? {
+          ...consent,
+          guardianStatus: parsed.data.decision === "agree" ? "consented" : "declined",
+          guardianSignatureName: parsed.data.signatureName.trim(),
+          guardianSignedAt: now,
+          guardianTokenHash: null,
+        }
+      : {
+          ...consent,
+          studentStatus: parsed.data.decision === "agree" ? "assented" : "declined",
+          studentSignatureName: parsed.data.signatureName.trim(),
+          studentAssentedAt: now,
+          studentTokenHash: null,
+        };
+    const newStatus = parsed.data.decision === "decline"
+      ? "consent_declined"
+      : role === "guardian" ? "guardian_consent_received" : "student_assent_received";
+    await tx.update(strengthenCoreApplicationsTable).set({
+      data: withPrivateData(row.data, { ...getPrivateData(row.data), consent: nextConsent }),
+      status: newStatus,
+      updatedAt: new Date(),
+    }).where(and(eq(strengthenCoreApplicationsTable.id, row.id), eq(strengthenCoreApplicationsTable.status, row.status)));
+    return { id: row.id, status: newStatus };
+  });
+  if ("error" in result) {
+    const status = result.error === "guardian_consent_required" ? 409 : 404;
+    res.status(status).json({ error: result.error, message: result.error === "signature_mismatch" ? "The typed signature must match the name provided by the school." : "This link is invalid, expired, already used, or not yet available." });
+    return;
+  }
+  await writeAudit({
+    eventType: `syc.consent.${role}_${parsed.data.decision}`,
+    metadata: { applicationId: result.id },
+  });
+  res.json({ submitted: true, status: result.status });
+});
+
+router.post("/strengthen-core/applications/:applicationId/verify-consent", authMiddleware, async (req, res): Promise<void> => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const id = asId(req.params.applicationId);
+  if (!id) {
+    res.status(400).json({ error: "invalid_application_id" });
+    return;
+  }
+  const settings = await getSettings();
+  if (!settings.coreInstrumentEnabled) {
+    res.status(409).json({ error: "programme_not_ready", message: "Enable the core instrument in programme settings before verifying assessment readiness." });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx.select().from(strengthenCoreApplicationsTable)
+      .where(eq(strengthenCoreApplicationsTable.id, id)).for("update").limit(1);
+    if (!row) return { error: "not_found" as const };
+    const data = row.data as Record<string, unknown>;
+    const consent = getPrivateData(data).consent;
+    if (!consent || consent.guardianStatus !== "consented" || consent.studentStatus !== "assented") {
+      return { error: "both_consents_required" as const };
+    }
+    if (consent.caseId) return { error: "case_already_created" as const, caseId: consent.caseId };
+    if (row.status !== "student_assent_received" && row.status !== "guardian_consent_received") {
+      return { error: "application_not_ready" as const };
+    }
+    const caseId = nanoid();
+    const languageText = `${safeString(data.learningLanguage, 100)} ${safeString(data.languagePreference, 100)}`.toLowerCase();
+    const languagePreference = /cantonese|廣東話|粤语/.test(languageText)
+      ? "cantonese" as const
+      : /chinese|mandarin|中文|普通话/.test(languageText)
+        ? "mandarin" as const
+        : "english" as const;
+    await tx.insert(casesTable).values({
+      id: caseId,
+      studentName: consent.studentName,
+      dob: consent.studentDob,
+      school: row.schoolName,
+      grade: safeString(data.gradeBand, 80) || null,
+      languagePreference,
+      referralReason: `Strengthen Your Core approved referral: ${row.primaryConcern}`,
+      currentPhase: "pre_commitment",
+      caseStatus: "active",
+      consentObtained: true,
+      parentName: consent.guardianName,
+      parentEmail: consent.guardianEmail,
+      productIds: ["STRENGTHEN_CORE"],
+    });
+    const verifiedConsent: SycConsentRecord = {
+      ...consent,
+      guardianTokenHash: null,
+      studentTokenHash: null,
+      verifiedBy: req.userId ?? null,
+      verifiedAt: new Date().toISOString(),
+      caseId,
+    };
+    await tx.update(strengthenCoreApplicationsTable).set({
+      data: withPrivateData(data, { ...getPrivateData(data), consent: verifiedConsent }),
+      status: "consent_verified",
+      updatedAt: new Date(),
+    }).where(eq(strengthenCoreApplicationsTable.id, id));
+    return { caseId };
+  });
+  if ("error" in result) {
+    const status = result.error === "not_found" ? 404 : 409;
+    res.status(status).json({
+      error: result.error,
+      message: result.error === "both_consents_required"
+        ? "A parent/guardian consent and a separate student assent must both be recorded first."
+        : result.error === "case_already_created"
+          ? "A RAOS case already exists for this application."
+          : result.error === "application_not_ready"
+            ? "The application must be approved and consent responses received before verification."
+            : "This application is not ready for verification.",
+    });
+    return;
+  }
+  await writeAudit({
+    eventType: "syc.application.consent_verified_case_created",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    caseId: result.caseId,
+    metadata: { applicationId: id },
+  });
+  res.json({ verified: true, caseId: result.caseId });
 });
 
 export default router;

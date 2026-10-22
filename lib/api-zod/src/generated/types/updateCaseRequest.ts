@@ -28,7 +28,16 @@ export interface UpdateCaseRequest {
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
-  assignedLeadId?: string;
-  assignedPsychId?: string;
+  assignedLeadId?: string | null;
+  assignedPsychId?: string | null;
   consentObtained?: boolean;
+  workingDocUrl?: string | null;
+  customMeetingUrl?: string | null;
+  moderatorMeetingUrl?: string | null;
+  assessmentMeetingDate?: string | null;
+  debriefMeetingUrl?: string | null;
+  debriefMeetingDate?: string | null;
+  bobbyAiPortalCredentials?: string | null;
+  productIds?: string[];
+  parentInterviewNotes?: string | null;
 }

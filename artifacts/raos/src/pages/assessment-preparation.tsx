@@ -1102,23 +1102,23 @@ function renderSection(sec: Section) {
         {subs.map((sub, i) => (
           <div key={i} className="space-y-3 pt-2 first:pt-0 border-t border-slate-100 first:border-0">
             <h3 className="font-bold text-slate-800">{sub.heading as string}</h3>
-            {sub.body && <p className="text-sm text-slate-600 leading-relaxed">{sub.body as string}</p>}
-            {sub.avoidHeading && (
+            {typeof sub.body === "string" && <p className="text-sm text-slate-600 leading-relaxed">{sub.body}</p>}
+            {typeof sub.avoidHeading === "string" && (
               <>
                 <p className="text-sm font-semibold text-slate-700">{sub.avoidHeading as string}</p>
                 <BulletList items={sub.avoidItems as string[]} variant="alert" />
               </>
             )}
-            {sub.consultNote && <NoteBox variant="info">{sub.consultNote as string}</NoteBox>}
-            {sub.tellTeamHeading && (
+            {typeof sub.consultNote === "string" && <NoteBox variant="info">{sub.consultNote}</NoteBox>}
+            {typeof sub.tellTeamHeading === "string" && (
               <>
                 <p className="text-sm font-semibold text-slate-700 mt-3">{sub.tellTeamHeading as string}</p>
                 <BulletList items={sub.tellTeamItems as string[]} variant="check" />
               </>
             )}
-            {sub.beforeItems && <BulletList items={sub.beforeItems as string[]} variant="check" />}
-            {sub.items && <BulletList items={sub.items as string[]} variant="check" />}
-            {sub.closingNote && <NoteBox variant="warn">{sub.closingNote as string}</NoteBox>}
+            {Array.isArray(sub.beforeItems) && <BulletList items={sub.beforeItems as string[]} variant="check" />}
+            {Array.isArray(sub.items) && <BulletList items={sub.items as string[]} variant="check" />}
+            {typeof sub.closingNote === "string" && <NoteBox variant="warn">{sub.closingNote}</NoteBox>}
           </div>
         ))}
       </SectionCard>
@@ -1164,7 +1164,7 @@ function renderSection(sec: Section) {
             <h3 className="font-bold text-slate-800">{sub.heading as string}</h3>
             <p className="text-sm text-slate-600 leading-relaxed">{sub.body as string}</p>
             <BulletList items={sub.items as string[]} variant="check" />
-            {sub.note && <NoteBox variant="warn">{sub.note as string}</NoteBox>}
+            {typeof sub.note === "string" && <NoteBox variant="warn">{sub.note}</NoteBox>}
           </div>
         ))}
       </SectionCard>
