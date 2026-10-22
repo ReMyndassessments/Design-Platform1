@@ -53,8 +53,6 @@ router.post("/portal/inquiry", async (req, res) => {
     howHeard,
     timeline,
   } = req.body;
-  const productId = req.body.productId === "STRENGTHEN_CORE" ? "STRENGTHEN_CORE" : null;
-  const inquirySource = productId && req.body.inquirySource === "portal" ? "portal" : "portal";
 
   const row = await db.insert(inquiriesTable).values({
     id: nanoid(),
@@ -76,13 +74,7 @@ router.post("/portal/inquiry", async (req, res) => {
     currentSupport: currentSupport || null,
     howHeard: howHeard || null,
     timeline: timeline || null,
-    metadata: productId ? {
-      productId,
-      source: inquirySource,
-      sourceLabel: "RAOS website inquiry portal",
-      stage: "inquiry",
-      intakeData: {},
-    } : {},
+    metadata: {},
     status: "new",
   }).returning();
 

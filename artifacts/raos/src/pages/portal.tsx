@@ -375,7 +375,6 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
   const { t, lang } = useI18n();
   const f = t.portal.form;
   const [form, setForm] = useState<InquiryForm>(emptyForm);
-  const [strengthenCoreInterest, setStrengthenCoreInterest] = useState(false);
   const isSchool = tab === "school";
 
   const mutation = useMutation({
@@ -386,7 +385,6 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
         body: JSON.stringify({
           ...data,
           inquiryType: tab,
-          ...(strengthenCoreInterest ? { productId: "STRENGTHEN_CORE", inquirySource: "portal" } : {}),
         }),
       });
       if (!res.ok) throw new Error("Submission failed");
@@ -413,20 +411,6 @@ function InquiryFormPanel({ tab, onBack, onSuccess }: { tab: Tab; onBack: () => 
         {isSchool ? f.titleSchool : f.titleParent}
       </h3>
       <p className="text-sm text-slate-500">{f.formDesc}</p>
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-teal-100 bg-teal-50 p-4 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={strengthenCoreInterest}
-          onChange={(event) => setStrengthenCoreInterest(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-teal-600"
-          data-testid="checkbox-strengthen-core-interest"
-        />
-        <span>
-          {lang === "zh" ? "我想了解 Strengthen Your Core 学习支持项目"
-            : lang === "ko" ? "Strengthen Your Core 학습 지원 프로그램에 대해 문의하고 싶습니다"
-              : "I am enquiring about the Strengthen Your Core learning-support programme."}
-        </span>
-      </label>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">

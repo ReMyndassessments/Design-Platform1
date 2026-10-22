@@ -139,7 +139,6 @@ export default function InquiriesPage() {
   const [linkCopied, setLinkCopied] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState("REFERRAL");
   const [includeConsent, setIncludeConsent] = useState(false);
-  const [inviteInquiryId, setInviteInquiryId] = useState<string | null>(null);
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
 
   const FORM_OPTIONS = [
@@ -180,7 +179,6 @@ export default function InquiriesPage() {
         ...inviteForm,
         formId: selectedFormId,
         includeConsent,
-        ...(inviteInquiryId ? { inquiryId: inviteInquiryId } : {}),
         sendEmail,
         // Reuse the same invite token so we never create a duplicate
         ...(generatedInviteToken ? { existingToken: generatedInviteToken } : {}),
@@ -214,23 +212,6 @@ export default function InquiriesPage() {
       toast({ title: "Failed to generate link", description: err?.message ?? "Please try again.", variant: "destructive" });
     },
   });
-
-  function prepareSycReferralInvite(inquiry: Inquiry) {
-    setInviteInquiryId(inquiry.id);
-    setSelectedFormId(inquiry.inquiryType === "parent" ? "REFERRAL-PARENT" : "REFERRAL");
-    setIncludeConsent(true);
-    setInviteForm({
-      toName: inquiry.contactName,
-      toEmail: inquiry.contactEmail,
-      schoolName: inquiry.organisation ?? "",
-      note: "Please complete the standard RAOS referral form. The parent/guardian consent and student assent forms will follow through the same case workflow.",
-    });
-    setInviteSent(false);
-    setGeneratedLink(null);
-    setGeneratedInviteToken(null);
-    setShowInviteForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
 
   const { data: inquiries = [], isLoading, isError } = useQuery<Inquiry[]>({
     queryKey: ["inquiries"],
@@ -367,7 +348,7 @@ export default function InquiriesPage() {
             {showSycSharePanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </Button>
           <Button
-            onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); setInviteInquiryId(null); }}
+            onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); }}
             className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <SendHorizonal size={15} />
@@ -480,13 +461,10 @@ export default function InquiriesPage() {
 
             {/* Consent form add-on toggle */}
             <button
-              disabled={Boolean(inviteInquiryId)}
               onClick={() => setIncludeConsent(v => !v)}
               className={cn(
                 "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
-                inviteInquiryId
-                  ? "border-teal-300 bg-teal-50 text-teal-800 cursor-not-allowed"
-                  : includeConsent
+                includeConsent
                   ? "border-emerald-400 bg-emerald-50 text-emerald-800"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
               )}
@@ -497,14 +475,9 @@ export default function InquiriesPage() {
               )}>
                 {includeConsent && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
               </div>
-              <span>{inviteInquiryId ? "Parent consent is required" : "Also include Consent Form"}</span>
+              <span>Also include Consent Form</span>
               {includeConsent && <span className="ml-auto text-xs text-emerald-600 font-normal">+ consent and student assent</span>}
             </button>
-            {inviteInquiryId && (
-              <p className="rounded-lg bg-teal-50 p-3 text-xs leading-5 text-teal-900">
-                Strengthen Your Core is using the standard RAOS referral link. After it is submitted, RAOS creates the case and the parent/guardian consent and student assent forms in the same case workflow.
-              </p>
-            )}
 
             {/* Contact details + actions */}
             {inviteSent && generatedLink ? (
@@ -529,7 +502,7 @@ export default function InquiriesPage() {
                 </div>
                 <Button
                   variant="outline" size="sm"
-                  onClick={() => { setInviteSent(false); setGeneratedLink(null); setGeneratedInviteToken(null); setInviteInquiryId(null); setIncludeConsent(false); setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" }); }}
+                  onClick={() => { setInviteSent(false); setGeneratedLink(null); setGeneratedInviteToken(null); setIncludeConsent(false); setInviteForm({ toName: "", toEmail: "", schoolName: "", note: "" }); }}
                 >
                   Send another
                 </Button>
@@ -615,7 +588,7 @@ export default function InquiriesPage() {
                       <><Copy size={14}/> Copy Link Only</>
                     )}
                   </Button>
-                  <Button variant="ghost" onClick={() => { setShowInviteForm(false); setGeneratedLink(null); setInviteSent(false); setGeneratedInviteToken(null); setInviteInquiryId(null); setIncludeConsent(false); }}>Cancel</Button>
+                  <Button variant="ghost" onClick={() => { setShowInviteForm(false); setGeneratedLink(null); setInviteSent(false); setGeneratedInviteToken(null); setIncludeConsent(false); }}>Cancel</Button>
                 </div>
               </>
             )}
@@ -709,9 +682,9 @@ export default function InquiriesPage() {
                         }`}>
                           {inq.inquiryType === "partner_school" ? "Partner School" : inq.inquiryType === "workshop_sales" ? "Workshop Sales" : inq.inquiryType}
                         </span>
-                        {inq.metadata?.productId === "STRENGTHEN_CORE" && (
+                        {inq.metadata?.productId === "STRENGTHEN_CORE" && inq.metadata.source === "promotional_link" && (
                           <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">
-                            Strengthen Your Core · {inq.metadata.source === "promotional_link" ? "Promotional" : "Portal"}
+                            Strengthen Your Core · Promotional
                           </span>
                         )}
                       </div>
@@ -768,12 +741,12 @@ export default function InquiriesPage() {
 
               {isOpen && (
                 <CardContent className="pt-0 pb-5 border-t border-slate-100">
-          {inq.metadata?.productId === "STRENGTHEN_CORE" && (
+          {inq.metadata?.productId === "STRENGTHEN_CORE" && inq.metadata.source === "promotional_link" && (
             <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4" data-testid={`syc-inquiry-${inq.id}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-bold text-teal-900">Strengthen Your Core · {inq.metadata.source === "promotional_link" ? "Promotional application" : "Website portal inquiry"}</h4>
-                  <p className="mt-1 text-xs text-teal-800">This inquiry uses the normal RAOS inquiry queue. Analysis and next forms depend on how the inquiry was submitted.</p>
+                  <h4 className="text-sm font-bold text-teal-900">Strengthen Your Core · Promotional application</h4>
+                  <p className="mt-1 text-xs text-teal-800">This inquiry came through the designated school promotional link and uses the existing RAOS inquiry queue.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -792,11 +765,6 @@ export default function InquiriesPage() {
                       className="bg-teal-700 text-white hover:bg-teal-800"
                     >
                       {startSycCase.isPending ? "Starting…" : "Start RAOS consent forms"}
-                    </Button>
-                  )}
-                  {inq.metadata.source === "portal" && !inq.metadata.caseId && (
-                    <Button size="sm" onClick={(event) => { event.stopPropagation(); prepareSycReferralInvite(inq); }} className="bg-teal-700 text-white hover:bg-teal-800">
-                      Send standard referral + consent
                     </Button>
                   )}
                   {typeof inq.metadata.caseId === "string" && (
@@ -830,12 +798,6 @@ export default function InquiriesPage() {
                       <div className="max-h-64 overflow-auto"><SycAnalysisSummary value={inq.metadata.aiAnalysis} /></div>
                     </div>
                   )}
-                </div>
-              )}
-              {inq.metadata.source === "portal" && Boolean(inq.metadata.aiAnalysis) && (
-                <div className="mt-4 rounded-lg bg-white p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Brief inquiry triage · request a full RAOS referral before selecting instruments</p>
-                  <div className="max-h-64 overflow-auto"><SycAnalysisSummary value={inq.metadata.aiAnalysis} /></div>
                 </div>
               )}
             </div>
