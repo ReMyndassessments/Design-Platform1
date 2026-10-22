@@ -13,6 +13,86 @@ const availabilityCopy: Record<Lang, { loading: string; closed: string; error: s
   zh: { loading: "正在确认是否接受申请……", closed: "目前暂不接受申请。", error: "无法确认项目申请状态。", retry: "重试" },
   ko: { loading: "신청 가능 여부를 확인하는 중…", closed: "현재 신청을 접수하지 않습니다.", error: "프로그램 신청 상태를 확인하지 못했습니다.", retry: "다시 시도" },
 };
+const questionExamples: Record<Lang, Record<string, string>> = {
+  en: {
+    schoolName: "Example (adapt to the actual situation): Enter the school's official name.",
+    schoolLocation: "Example (adapt to the actual situation): Chengdu, Sichuan.",
+    coordinatorName: "Example (adapt to the actual situation): Name of the staff member coordinating this application.",
+    coordinatorRole: "Example (adapt to the actual situation): Learning support coordinator or class teacher.",
+    coordinatorEmail: "Example (adapt to the actual situation): The coordinator's school email address.",
+    coordinatorPhone: "Example (adapt to the actual situation): A school contact number, if appropriate.",
+    gradeBand: "Example (adapt to the actual situation): Grade 5 or ages 10–11. Do not enter a date of birth.",
+    learningLanguage: "Example (adapt to the actual situation): Mandarin is used for most lessons; English is used in some subjects.",
+    context: "Example (adapt to the actual situation): Recent changes in school, attendance, or previous learning support. Do not include details that identify the student.",
+    primaryConcern: "Example (adapt to the actual situation): The learner often needs repeated prompts to begin independent reading, which leaves less time for written work. Describe what staff observe and how it affects learning.",
+    strengths: "Example (adapt to the actual situation): Explains ideas clearly aloud, enjoys science, or completes tasks more confidently with a visual checklist.",
+    successContext: "Example (adapt to the actual situation): The learner participates more in a small group or when instructions are shown visually.",
+    barriers: "Example (adapt to the actual situation): Copying lengthy instructions or moving between tasks is difficult. Note when this happens.",
+    patterns: "Example (adapt to the actual situation): Reading is harder during whole-class work than one-to-one support, or at particular times of day.",
+    evidenceSummary: "Example (adapt to the actual situation): Classroom observations, work samples, or progress checks held by the school. Do not paste records or identifying details.",
+    supportsTried: "Example (adapt to the actual situation): A visual schedule used daily for four weeks, shorter instructions, or small-group practice.",
+    responseToSupport: "Example (adapt to the actual situation): The learner starts sooner with a checklist but still needs reminders. Say what changed and how often you observed it.",
+    studentPerspective: "Example (adapt to the actual situation): A de-identified quote or paraphrase of what the student actually said, such as “I like hearing the story, but reading aloud feels hard.”",
+    studentAssentPlan: "Example (adapt to the actual situation): Explain in language the student understands what activities may involve and why; invite questions; say participation is their choice and they can decline or stop without penalty; then ask clearly whether they want to take part. Silence is not agreement. For example: “We’d like to try a few learning activities to find out what support helps. You can ask questions or say no. Would you like to take part?”",
+    familyPerspective: "Example (adapt to the actual situation): The family says reading homework takes a long time, or the student feels more confident when stories are read aloud.",
+    familyEngagement: "Example (adapt to the actual situation): Invite the family to share priorities in a meeting or phone call before goals are set, then agree how updates will be shared.",
+    sixWeekOutcome: "Example (adapt to the actual situation): The learner begins the target reading activity independently on 4 of 5 school days using a visual checklist.",
+    outcomeMeasure: "Example (adapt to the actual situation): The coordinator records task starts each week and compares them with the starting point at week six.",
+    coordinatorCapacity: "Example (adapt to the actual situation): A named coordinator can check progress weekly and meet with staff for 20 minutes.",
+  },
+  zh: {
+    schoolName: "示例（请按实际情况调整）：填写学校正式名称。",
+    schoolLocation: "示例（请按实际情况调整）：四川省成都市。",
+    coordinatorName: "示例（请按实际情况调整）：填写负责协调本申请的校方工作人员姓名。",
+    coordinatorRole: "示例（请按实际情况调整）：学习支持协调员或班主任。",
+    coordinatorEmail: "示例（请按实际情况调整）：填写协调员的学校工作邮箱。",
+    coordinatorPhone: "示例（请按实际情况调整）：如适用，填写学校联系电话。",
+    gradeBand: "示例（请按实际情况调整）：五年级或 10–11 岁。请勿填写出生日期。",
+    learningLanguage: "示例（请按实际情况调整）：大部分课程使用普通话，部分科目使用英语。",
+    context: "示例（请按实际情况调整）：转学、出勤或以往学习支持等背景。请勿填写可识别学生身份的信息。",
+    primaryConcern: "示例（请按实际情况调整）：学生独立阅读时常需重复提醒才开始，因此书面作业时间减少。请描述工作人员观察到的情况及其对学习的影响。",
+    strengths: "示例（请按实际情况调整）：能清楚地口头表达想法、喜欢科学，或使用视觉清单时更有信心地完成任务。",
+    successContext: "示例（请按实际情况调整）：学生在小组活动中，或看到可视化指令时，参与度更高。",
+    barriers: "示例（请按实际情况调整）：抄写较长的指令或转换任务较困难。请说明通常在什么情况下发生。",
+    patterns: "示例（请按实际情况调整）：全班阅读时比一对一支持时更困难，或困难集中在一天中的某些时段。",
+    evidenceSummary: "示例（请按实际情况调整）：学校已有的课堂观察、作业样本或进度记录。请勿粘贴记录或可识别身份的信息。",
+    supportsTried: "示例（请按实际情况调整）：连续四周每天使用视觉日程、缩短指令，或开展小组练习。",
+    responseToSupport: "示例（请按实际情况调整）：使用清单后学生能更快开始，但仍需提醒。请说明变化及观察频率。",
+    studentPerspective: "示例（请按实际情况调整）：引用或转述学生实际表达的想法，并去除身份信息，例如：“我喜欢听故事，但大声朗读让我觉得困难。”",
+    studentAssentPlan: "示例（请按实际情况调整）：用学生能理解的语言说明可能进行的活动及原因，鼓励学生提问；明确说明是否参加由学生决定，学生可以拒绝或中途停止且不会因此受罚；然后直接询问学生是否愿意参加。沉默不等于同意。例如：“我们想一起做几个学习活动，看看什么支持最有帮助。你可以提问、拒绝或中途停止。你愿意参加吗？”",
+    familyPerspective: "示例（请按实际情况调整）：家长表示阅读作业需要很长时间，或学生听故事时更有信心。",
+    familyEngagement: "示例（请按实际情况调整）：设定目标前通过会议或电话邀请家庭分享优先事项，并商定后续如何沟通进展。",
+    sixWeekOutcome: "示例（请按实际情况调整）：使用视觉清单后，学生每周五个上学日中有四天能独立开始目标阅读活动。",
+    outcomeMeasure: "示例（请按实际情况调整）：协调员每周记录学生开始任务的情况，并在第六周与起始情况比较。",
+    coordinatorCapacity: "示例（请按实际情况调整）：指定协调员每周查看进展，并能与工作人员安排 20 分钟沟通。",
+  },
+  ko: {
+    schoolName: "예시(실제 상황에 맞게 조정하세요): 학교의 공식 명칭을 입력하세요.",
+    schoolLocation: "예시(실제 상황에 맞게 조정하세요): 쓰촨성 청두시.",
+    coordinatorName: "예시(실제 상황에 맞게 조정하세요): 이 신청을 조정할 담당 교직원의 이름.",
+    coordinatorRole: "예시(실제 상황에 맞게 조정하세요): 학습 지원 코디네이터 또는 담임교사.",
+    coordinatorEmail: "예시(실제 상황에 맞게 조정하세요): 담당자의 학교 업무용 이메일 주소.",
+    coordinatorPhone: "예시(실제 상황에 맞게 조정하세요): 필요한 경우 학교 연락처.",
+    gradeBand: "예시(실제 상황에 맞게 조정하세요): 5학년 또는 10~11세. 생년월일은 입력하지 마세요.",
+    learningLanguage: "예시(실제 상황에 맞게 조정하세요): 대부분의 수업은 중국어로 진행하고 일부 과목은 영어를 사용합니다.",
+    context: "예시(실제 상황에 맞게 조정하세요): 전학, 출석 또는 이전 학습 지원과 관련된 맥락을 적되 학생을 식별할 정보는 포함하지 마세요.",
+    primaryConcern: "예시(실제 상황에 맞게 조정하세요): 혼자 읽기를 시작하려면 반복적인 안내가 필요해 글쓰기 시간이 줄어듭니다. 교직원이 관찰한 점과 학습에 미치는 영향을 설명하세요.",
+    strengths: "예시(실제 상황에 맞게 조정하세요): 말로 생각을 명확히 설명하거나, 과학을 좋아하거나, 시각적 체크리스트를 사용하면 과제를 더 자신 있게 합니다.",
+    successContext: "예시(실제 상황에 맞게 조정하세요): 소그룹 활동이나 시각적으로 안내를 볼 수 있을 때 더 적극적으로 참여합니다.",
+    barriers: "예시(실제 상황에 맞게 조정하세요): 긴 지시를 옮겨 적거나 과제를 바꾸는 일이 어렵습니다. 주로 언제 나타나는지 적으세요.",
+    patterns: "예시(실제 상황에 맞게 조정하세요): 전체 학급 읽기보다 일대일 지원에서 더 잘하거나, 특정 시간대에 어려움이 커집니다.",
+    evidenceSummary: "예시(실제 상황에 맞게 조정하세요): 학교가 보유한 수업 관찰, 과제 샘플 또는 진도 점검 내용. 기록이나 식별 정보는 붙여 넣지 마세요.",
+    supportsTried: "예시(실제 상황에 맞게 조정하세요): 4주 동안 매일 시각 일정표 사용, 짧은 지시, 소그룹 연습 등을 시도했습니다.",
+    responseToSupport: "예시(실제 상황에 맞게 조정하세요): 체크리스트를 사용하면 더 빨리 시작하지만 여전히 안내가 필요합니다. 변화와 관찰 빈도를 적으세요.",
+    studentPerspective: "예시(실제 상황에 맞게 조정하세요): 학생이 실제로 말한 내용을 식별 정보 없이 인용하거나 바꾸어 적으세요. 예: “이야기를 듣는 건 좋지만 소리 내어 읽기는 어려워요.”",
+    studentAssentPlan: "예시(실제 상황에 맞게 조정하세요): 학생이 이해할 수 있는 말로 어떤 활동을 할 수 있고 왜 하는지 설명하고 질문할 기회를 주세요. 참여는 학생의 선택이며 거절하거나 불이익 없이 중단할 수 있다고 알린 뒤, 참여하고 싶은지 분명하게 물어보세요. 침묵을 동의로 보지 마세요. 예: “어떤 도움이 좋은지 알아보려고 몇 가지 학습 활동을 해 보려 해. 질문하거나 거절하거나 중간에 그만둘 수 있어. 참여하고 싶니?”",
+    familyPerspective: "예시(실제 상황에 맞게 조정하세요): 가족은 읽기 숙제에 시간이 오래 걸린다고 하거나, 이야기를 들을 때 학생이 더 자신감을 보인다고 말합니다.",
+    familyEngagement: "예시(실제 상황에 맞게 조정하세요): 목표를 정하기 전에 회의나 전화로 가족의 우선순위를 듣고, 진행 상황을 공유할 방법을 함께 정합니다.",
+    sixWeekOutcome: "예시(실제 상황에 맞게 조정하세요): 시각 체크리스트를 사용해 일주일 중 5일 가운데 4일은 목표 읽기 활동을 스스로 시작합니다.",
+    outcomeMeasure: "예시(실제 상황에 맞게 조정하세요): 코디네이터가 매주 과제 시작 여부를 기록하고 6주 차에 시작 시점과 비교합니다.",
+    coordinatorCapacity: "예시(실제 상황에 맞게 조정하세요): 지정 코디네이터가 매주 진행을 확인하고 교직원과 20분간 논의할 수 있습니다.",
+  },
+};
 
 const formCopy: Record<Lang, { brand: string; kicker: string; title: string; intro: string; language: string; required: string; privacy: string; nonDiag: string; noId: string; consent: string; assent: string; evidence: string; submit: string; submitting: string; receipt: string; receiptCopy: string; ref: string; error: string; validation: string; back: string; section: string; of: string; next: string; previous: string; review: string; received: string; open: string; sections: Section[] }> = {
   en: {
@@ -25,7 +105,7 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
       { title: "Learning barriers", intro: "Describe situations that make participation or progress harder.", fields: [{ key: "barriers", label: "What learning tasks, settings or transitions are difficult?", type: "textarea" }, { key: "patterns", label: "Are there patterns across subjects, times or settings?", type: "textarea" }] },
       { title: "Evidence and observations", intro: "Summarise evidence already held by the school without sharing records here.", fields: [{ key: "evidenceSummary", label: "What school-based observations or evidence inform this application?", type: "textarea", hint: "Do not paste reports, student records or identifying information." }, { key: "evidenceAvailable", label: "The school can provide relevant supporting evidence through approved channels if requested.", type: "checkbox", required: true }] },
       { title: "Support already tried", intro: "Share what has been attempted and what your team has learned.", fields: [{ key: "supportsTried", label: "What strategies or supports have been tried?", type: "textarea" }, { key: "responseToSupport", label: "How has the learner responded?", type: "textarea" }] },
-      { title: "Student perspective", intro: "Share the learner’s perspective in an age-appropriate, de-identified way.", fields: [{ key: "studentPerspective", label: "What has the student shared about learning or support?", type: "textarea" }, { key: "studentAssentPlan", label: "How will the school explain the process and seek student assent?", type: "textarea" }] },
+      { title: "Student perspective", intro: "Share the learner’s perspective in an age-appropriate, de-identified way.", fields: [{ key: "studentPerspective", label: "What has the student shared about learning or support?", type: "textarea" }, { key: "studentAssentPlan", label: "How will you explain the assessment to the student and ask whether they want to take part?", type: "textarea" }] },
       { title: "Family and caregiver perspective", intro: "Include relevant context shared by the family, without identifying details.", fields: [{ key: "familyPerspective", label: "What perspective or priorities has the family shared?", type: "textarea" }, { key: "familyEngagement", label: "How does the school plan to involve the family?", type: "textarea" }] },
       { title: "Six-week outcome", intro: "Name a practical, observable change the team hopes to see in six weeks.", fields: [{ key: "sixWeekOutcome", label: "At six weeks, what would be different for the learner at school?", type: "textarea", required: true, hint: "Make the outcome specific and observable—for example, participation, confidence or access to a learning task." }, { key: "outcomeMeasure", label: "How will the team notice or record that change?", type: "textarea" }] },
       { title: "Readiness and acknowledgements", intro: "Confirm the school’s readiness and shared safeguards.", fields: [{ key: "coordinatorCapacity", label: "What time or coordination capacity can the school commit?", type: "textarea", required: true }, { key: "oneStudent", label: "I understand one student per approved school is the default and the complimentary pilot is subject to ReMynd approval.", type: "checkbox", required: true }, { key: "consentAcknowledgement", label: "I understand parent or guardian consent is required before any assessment.", type: "checkbox", required: true }, { key: "assentAcknowledgement", label: "I understand student assent is required before any assessment.", type: "checkbox", required: true }, { key: "nonDiagnosticAcknowledgement", label: "I understand this is a non-diagnostic educational pathway.", type: "checkbox", required: true }, { key: "deidentificationAcknowledgement", label: "I confirm referral text contains no student name, email address or other direct identifier.", type: "checkbox", required: true }] },
@@ -41,7 +121,7 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
       { title: "学习障碍", intro: "描述使参与或进步更加困难的情境。", fields: [{ key: "barriers", label: "哪些学习任务、环境或转换较为困难？", type: "textarea" }, { key: "patterns", label: "不同科目、时段或环境之间有何规律？", type: "textarea" }] },
       { title: "证据与观察", intro: "概述学校已有的证据，请勿在此分享记录。", fields: [{ key: "evidenceSummary", label: "哪些校内观察或证据支持本申请？", type: "textarea", hint: "请勿粘贴报告、学生记录或可识别身份的信息。" }, { key: "evidenceAvailable", label: "如有需要，学校可通过获批准的渠道提供相关支持证据。", type: "checkbox", required: true }] },
       { title: "已尝试的支持", intro: "分享已尝试的方法以及团队的观察。", fields: [{ key: "supportsTried", label: "已尝试哪些策略或支持？", type: "textarea" }, { key: "responseToSupport", label: "学习者的反应如何？", type: "textarea" }] },
-      { title: "学生视角", intro: "请以适龄且去身份化的方式分享学生的观点。", fields: [{ key: "studentPerspective", label: "学生如何描述学习或支持？", type: "textarea" }, { key: "studentAssentPlan", label: "学校将如何说明流程并征求学生本人同意？", type: "textarea" }] },
+      { title: "学生视角", intro: "请以适龄且去身份化的方式分享学生的观点。", fields: [{ key: "studentPerspective", label: "学生如何描述学习或支持？", type: "textarea" }, { key: "studentAssentPlan", label: "学校将如何向学生说明评估，并询问学生是否愿意参加？", type: "textarea" }] },
       { title: "家庭与照护者视角", intro: "请分享家庭提出的相关背景，不含身份识别信息。", fields: [{ key: "familyPerspective", label: "家庭分享了哪些观点或优先事项？", type: "textarea" }, { key: "familyEngagement", label: "学校计划如何邀请家庭参与？", type: "textarea" }] },
       { title: "六周目标", intro: "请说明团队希望在六周内看到的实际、可观察变化。", fields: [{ key: "sixWeekOutcome", label: "六周后，学生在校内的哪些方面会有所不同？", type: "textarea", required: true, hint: "目标应具体且可观察，例如参与度、信心或完成学习任务的能力。" }, { key: "outcomeMeasure", label: "团队将如何观察或记录这一变化？", type: "textarea" }] },
       { title: "准备情况与确认声明", intro: "请确认学校的准备度及共同遵循的保障原则。", fields: [{ key: "coordinatorCapacity", label: "学校可投入哪些时间或协调资源？", type: "textarea", required: true }, { key: "oneStudent", label: "我了解每所获批学校默认一名学生，免费试点须经 ReMynd 审批。", type: "checkbox", required: true }, { key: "consentAcknowledgement", label: "我了解评估前必须取得家长或监护人同意。", type: "checkbox", required: true }, { key: "assentAcknowledgement", label: "我了解评估前必须取得学生本人同意。", type: "checkbox", required: true }, { key: "nonDiagnosticAcknowledgement", label: "我了解本路径属于非诊断性教育支持。", type: "checkbox", required: true }, { key: "deidentificationAcknowledgement", label: "我确认转介文字不含学生姓名、电子邮箱或其他直接身份信息。", type: "checkbox", required: true }] },
@@ -57,7 +137,7 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
       { title: "학습 장벽", intro: "참여나 성장을 어렵게 만드는 상황을 설명해 주세요.", fields: [{ key: "barriers", label: "어떤 학습 과제, 환경 또는 전환이 어렵나요?", type: "textarea" }, { key: "patterns", label: "교과, 시간 또는 환경에 따른 패턴이 있나요?", type: "textarea" }] },
       { title: "근거와 관찰", intro: "학교가 보유한 근거를 요약하고 기록 자체는 공유하지 마세요.", fields: [{ key: "evidenceSummary", label: "신청을 뒷받침하는 학교 관찰 또는 근거는 무엇인가요?", type: "textarea", hint: "보고서, 학생 기록 또는 식별 정보를 붙여 넣지 마세요." }, { key: "evidenceAvailable", label: "요청 시 학교는 승인된 경로로 관련 교육 근거를 제공할 수 있습니다.", type: "checkbox", required: true }] },
       { title: "시도한 지원", intro: "시도한 방법과 팀이 알게 된 점을 공유해 주세요.", fields: [{ key: "supportsTried", label: "어떤 전략이나 지원을 시도했나요?", type: "textarea" }, { key: "responseToSupport", label: "학생은 어떻게 반응했나요?", type: "textarea" }] },
-      { title: "학생의 관점", intro: "학생의 관점을 연령에 맞고 비식별 방식으로 공유해 주세요.", fields: [{ key: "studentPerspective", label: "학생은 학습이나 지원에 관해 무엇을 이야기했나요?", type: "textarea" }, { key: "studentAssentPlan", label: "과정을 설명하고 학생 동의를 어떻게 구할 계획인가요?", type: "textarea" }] },
+      { title: "학생의 관점", intro: "학생의 관점을 연령에 맞고 비식별 방식으로 공유해 주세요.", fields: [{ key: "studentPerspective", label: "학생은 학습이나 지원에 관해 무엇을 이야기했나요?", type: "textarea" }, { key: "studentAssentPlan", label: "평가에 대해 어떻게 설명하고 학생에게 참여 의사를 물어볼 계획인가요?", type: "textarea" }] },
       { title: "가족 및 보호자 관점", intro: "식별 정보 없이 가족이 공유한 관련 맥락을 알려 주세요.", fields: [{ key: "familyPerspective", label: "가족이 공유한 관점이나 우선순위는 무엇인가요?", type: "textarea" }, { key: "familyEngagement", label: "가족을 어떻게 참여시킬 계획인가요?", type: "textarea" }] },
       { title: "6주 목표", intro: "6주 안에 기대하는 실질적이고 관찰 가능한 변화를 정해 주세요.", fields: [{ key: "sixWeekOutcome", label: "6주 후 학교에서 학생에게 어떤 변화가 있기를 바라나요?", type: "textarea", required: true, hint: "참여, 자신감 또는 학습 과제 접근성처럼 구체적이고 관찰 가능한 결과를 작성해 주세요." }, { key: "outcomeMeasure", label: "팀은 그 변화를 어떻게 관찰하거나 기록할까요?", type: "textarea" }] },
       { title: "준비 상태 및 확인", intro: "학교의 준비 상태와 안전 원칙을 확인해 주세요.", fields: [{ key: "coordinatorCapacity", label: "학교가 투입할 수 있는 시간이나 조정 역량은 무엇인가요?", type: "textarea", required: true }, { key: "oneStudent", label: "승인 학교당 기본 1명이며 무료 파일럿은 ReMynd 승인이 필요함을 이해합니다.", type: "checkbox", required: true }, { key: "consentAcknowledgement", label: "평가 전에 보호자 동의가 필요함을 이해합니다.", type: "checkbox", required: true }, { key: "assentAcknowledgement", label: "평가 전에 학생 본인의 동의가 필요함을 이해합니다.", type: "checkbox", required: true }, { key: "nonDiagnosticAcknowledgement", label: "이 경로가 비진단 교육 지원임을 이해합니다.", type: "checkbox", required: true }, { key: "deidentificationAcknowledgement", label: "의뢰 문구에 학생 이름, 이메일 또는 직접 식별 정보가 없음을 확인합니다.", type: "checkbox", required: true }] },
@@ -102,13 +182,15 @@ export default function StrengthenCoreApplication() {
   }
 
   function fieldControl(field: Field) {
-    const common = { id: field.key, "data-testid": `input-${field.key}`, required: field.required, "aria-invalid": errors.includes(field.key), onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const example = questionExamples[lang][field.key];
+    const describedBy = [field.hint && `hint-${field.key}`, example && `example-${field.key}`].filter(Boolean).join(" ") || undefined;
+    const common = { id: field.key, "data-testid": `input-${field.key}`, "aria-describedby": describedBy, required: field.required, "aria-invalid": errors.includes(field.key), onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const target = e.target;
       setValues((old) => ({ ...old, [field.key]: target instanceof HTMLInputElement && target.type === "checkbox" ? target.checked : target.value }));
       setErrors((old) => old.filter((key) => key !== field.key));
     } };
     if (field.type === "checkbox") return <label key={field.key} className={`flex cursor-pointer gap-3 rounded-xl border p-4 text-sm leading-6 ${errors.includes(field.key) ? "border-rose-400 bg-rose-50" : "border-[#d6e1da] bg-[#f7faf6]"}`}><input {...common} type="checkbox" checked={values[field.key] === true} className="mt-1 h-4 w-4 accent-[#1d5b58]" /><span>{field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}</span></label>;
-    return <div key={field.key} className="space-y-2"><label htmlFor={field.key} className="block text-sm font-semibold text-[#304d49]">{field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}</label>{field.type === "textarea" ? <textarea {...common} value={String(values[field.key] ?? "")} rows={4} className={`w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm leading-6 text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} /> : field.type === "select" ? <select {...common} value={String(values[field.key] ?? "")} className="w-full rounded-xl border border-[#d1ded6] bg-white px-4 py-3 text-sm text-[#284542] outline-none focus:border-[#528d78]"><option value="">—</option>{field.options?.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input {...common} type={field.type === "email" ? "email" : "text"} value={String(values[field.key] ?? "")} className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} />}{field.hint && <p className="text-xs leading-5 text-[#71827c]">{field.hint}</p>}{errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{t.validation}</p>}</div>;
+    return <div key={field.key} className="space-y-2"><label htmlFor={field.key} className="block text-sm font-semibold text-[#304d49]">{field.label}{field.required && <b className="ml-1 text-[#b55243]">*</b>}</label>{field.type === "textarea" ? <textarea {...common} value={String(values[field.key] ?? "")} rows={4} className={`w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm leading-6 text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} /> : field.type === "select" ? <select {...common} value={String(values[field.key] ?? "")} className="w-full rounded-xl border border-[#d1ded6] bg-white px-4 py-3 text-sm text-[#284542] outline-none focus:border-[#528d78]"><option value="">—</option>{field.options?.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input {...common} type={field.type === "email" ? "email" : "text"} value={String(values[field.key] ?? "")} className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#284542] outline-none transition focus:border-[#528d78] focus:ring-2 focus:ring-[#528d78]/15 ${errors.includes(field.key) ? "border-rose-400" : "border-[#d1ded6]"}`} />}{field.hint && <p id={`hint-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`hint-${field.key}`}>{field.hint}</p>}{example && <p id={`example-${field.key}`} className="text-xs leading-5 text-[#71827c]" data-testid={`example-${field.key}`}>{example}</p>}{errors.includes(field.key) && <p className="text-xs font-semibold text-rose-700" data-testid={`error-${field.key}`}>{t.validation}</p>}</div>;
   }
 
   if (receipt) return <main className="min-h-[100dvh] bg-[#f3f7f3] px-4 py-12 text-[#244442]" lang={lang}><div className="mx-auto max-w-2xl rounded-3xl border border-[#d4e2d8] bg-[#fbfcf9] p-8 shadow-xl shadow-[#284a40]/5 md:p-12"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#e4f0e6] text-[#39765a]"><CheckCircle2 size={27} /></div><p className="mt-7 text-xs font-bold tracking-[.17em] text-[#769183]">{t.received}</p><h1 className="mt-3 font-display text-3xl font-semibold">{t.receipt}</h1><p className="mt-4 leading-7 text-[#5e746f]" data-testid="status-submission-receipt">{t.receiptCopy}</p><div className="mt-7 rounded-xl bg-[#eef4ee] p-4"><span className="text-xs font-semibold uppercase tracking-wider text-[#718781]">{t.ref}</span><p className="mt-1 font-mono text-lg font-semibold" data-testid="text-receipt-id">{receipt.id}</p><p className="mt-1 text-sm text-[#668078]">{receipt.status}</p></div><p className="mt-5 text-sm text-[#627972]">{t.open}</p><Link href="/strengthen-your-core" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#1d5b58]" data-testid="link-receipt-home"><ArrowLeft size={16} />{t.back}</Link></div></main>;
