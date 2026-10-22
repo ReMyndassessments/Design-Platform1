@@ -146,6 +146,10 @@ const SYC_CORE_EVIDENCE_TOOLS = [
 ] as const;
 const SYC_EXTENSION_TOOLS = ["REFI", "RARPS", "RFII", "RSSC"] as const;
 const SYC_EXTENSION_TOOL_IDS = new Set<string>(SYC_EXTENSION_TOOLS);
+const SYC_AUTO_ROUTED_TOOL_IDS = new Set<string>([
+  ...SYC_CORE_EVIDENCE_TOOLS.map(form => form.toolId),
+  ...SYC_EXTENSION_TOOLS,
+]);
 
 function canAdvancePhase(role: string): boolean {
   return role === "admin" || role === "school_clinical_coordinator";
@@ -1380,57 +1384,92 @@ export default function CaseDetail() {
 
   const handleAddAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newAssignment.respondentTypes.length === 0) {
-      toast({ title: "Select at least one respondent type.", variant: "destructive" });
-      return;
-    }
     if (newAssignment.toolIds.length === 0) {
       toast({ title: "Select at least one form to assign.", variant: "destructive" });
       return;
     }
-    const assignmentPairs = newAssignment.toolIds.flatMap(toolId => {
+    const autoRoutedToolIds = assignmentIsSycCase
+      ? newAssignment.toolIds.filter(toolId => SYC_AUTO_ROUTED_TOOL_IDS.has(toolId))
+      : [];
+    const standardToolIds = newAssignment.toolIds.filter(toolId => !autoRoutedToolIds.includes(toolId));
+    if (standardToolIds.length > 0 && newAssignment.respondentTypes.length === 0) {
+      toast({ title: "Choose a respondent type for the Standard RAOS form(s).", variant: "destructive" });
+      return;
+    }
+    const autoRoutedPairs = autoRoutedToolIds.flatMap(toolId => {
+      const tool = tools?.find(item => item.id === toolId);
+      return assignmentRespondentTypes(tool?.respondentTypes ?? [], toolId)
+        .map(respondentType => ({ toolId, respondentType, autoRoutedSyc: true }));
+    });
+    const standardCandidates = standardToolIds.flatMap(toolId => {
       const tool = tools?.find(item => item.id === toolId);
       const supportedRespondents = new Set(assignmentRespondentTypes(tool?.respondentTypes ?? [], toolId));
       return newAssignment.respondentTypes
         .filter(respondentType => supportedRespondents.has(respondentType))
-        .map(respondentType => ({ toolId, respondentType }));
+        .map(respondentType => ({ toolId, respondentType, autoRoutedSyc: false }));
     });
-    const selectedPairCount = newAssignment.toolIds.length * newAssignment.respondentTypes.length;
+    const candidatePairs = [...autoRoutedPairs, ...standardCandidates];
+    const uniqueCandidatePairs = candidatePairs.filter((pair, index) =>
+      candidatePairs.findIndex(candidate =>
+        candidate.toolId === pair.toolId && candidate.respondentType === pair.respondentType
+      ) === index
+    );
+    const existingAssignmentKeys = new Set(
+      (c.assignments ?? []).map(assignment => `${assignment.toolId}\u0000${assignment.respondentType}`)
+    );
+    const assignmentPairs = uniqueCandidatePairs.filter(pair =>
+      !pair.autoRoutedSyc || !existingAssignmentKeys.has(`${pair.toolId}\u0000${pair.respondentType}`)
+    );
+    if (candidatePairs.length === 0) {
+      toast({
+        title: autoRoutedToolIds.length > 0
+          ? "No respondent portal is configured for the selected product form."
+          : "No compatible forms and respondents are selected.",
+        description: autoRoutedToolIds.length > 0
+          ? "Check that the form is available in the RAOS assessment library."
+          : "Choose a respondent type supported by at least one selected Standard RAOS form.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (assignmentPairs.length === 0) {
       toast({
-        title: "No compatible forms and respondents selected",
-        description: "Choose a respondent type supported by at least one selected form.",
-        variant: "destructive",
+        title: "These forms are already in the Respondent Forms list.",
+        description: "No duplicate assignments were created.",
       });
       return;
     }
     setIsSubmittingAssignments(true);
     let createdCount = 0;
+    let createdAutoRoutedCount = 0;
     try {
-      for (const { respondentType, toolId } of assignmentPairs) {
+      for (const { respondentType, toolId, autoRoutedSyc } of assignmentPairs) {
         await createAssignmentMut.mutateAsync({
           caseId,
           data: {
             toolId,
             toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
             respondentType: respondentType as CreateAssignmentRequestRespondentType,
-            respondentLabel: newAssignment.respondentLabel,
-            assignedToName: newAssignment.assignedToName,
-            assignedToEmail: newAssignment.assignedToEmail,
+            respondentLabel: autoRoutedSyc ? undefined : newAssignment.respondentLabel,
+            assignedToName: autoRoutedSyc ? undefined : newAssignment.assignedToName,
+            assignedToEmail: autoRoutedSyc ? undefined : newAssignment.assignedToEmail,
           } as any
         });
         createdCount++;
+        if (autoRoutedSyc) createdAutoRoutedCount++;
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetCaseQueryKey(caseId) }),
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] }),
       ]);
-      const skipped = selectedPairCount - assignmentPairs.length;
+      const unsupportedStandardPairs = standardToolIds.length * newAssignment.respondentTypes.length - standardCandidates.length;
       toast({
         title: createdCount === 1 ? "Assignment added" : `${createdCount} assignments added`,
         description: [
-          "The Respondent Forms list is refreshed; forms are ready to send through the matching parent, teacher, or student portal.",
-          skipped > 0 ? `${skipped} unsupported form/respondent combinations were skipped.` : "",
+          createdAutoRoutedCount > 0
+            ? "Strengthen Your Core forms were added automatically to every compatible respondent portal."
+            : "The Respondent Forms list is refreshed; forms are ready to send through the matching portal.",
+          unsupportedStandardPairs > 0 ? `${unsupportedStandardPairs} unsupported Standard RAOS form/respondent combinations were skipped.` : "",
         ].filter(Boolean).join(" "),
       });
       setAddAssignmentModalOpen(false);
@@ -3749,7 +3788,7 @@ export default function CaseDetail() {
           {assignmentIsSycCase && (
             <div className={`rounded-md border px-3 py-2.5 text-sm ${assignmentSycConsentComplete ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
               {assignmentSycConsentComplete
-                ? "RCEP-CORE, classroom observation, and work-sample/prior-intervention review are required components. Choose respondents and assign them through RAOS. Delayed school responses do not block other case work and can be added later."
+                ? "Select the Strengthen Your Core forms you want. RAOS automatically adds each selected form to every respondent portal it supports; you do not need to choose respondent types for these forms."
                 : "Only the Parent/Guardian Consent Form is available until the parent submits it. Approved assessment forms then unlock automatically; refresh this case if needed."}
             </div>
           )}
@@ -3764,7 +3803,7 @@ export default function CaseDetail() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-700">
-                Select the forms here first, then choose the respondent(s) below. Your selections stay checked when you choose respondents.
+                Select the forms to add them automatically to each compatible respondent portal listed below.
               </p>
               <div className="mt-2 divide-y rounded-md border border-emerald-200 bg-white">
                 {SYC_CORE_EVIDENCE_TOOLS.map(form => {
@@ -3825,7 +3864,7 @@ export default function CaseDetail() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-700">
-                These are optional targeted forms. As administrator, you can choose any of them; the AI suggestion does not limit your selection.
+                These are optional targeted forms. As administrator, you can choose any of them; RAOS adds each to every compatible respondent portal. The AI suggestion does not limit your selection.
               </p>
               <div className="mt-2 divide-y rounded-md border border-blue-200 bg-white">
                 {SYC_EXTENSION_TOOLS.map(toolId => {
@@ -3881,7 +3920,15 @@ export default function CaseDetail() {
           )}
           <form onSubmit={handleAddAssignment} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Respondent Type <span className="text-slate-400 font-normal">(select all that apply)</span></label>
+              <label className="text-sm font-medium">
+                {assignmentIsSycCase ? "Respondent Type for Standard RAOS Forms" : "Respondent Type"}{" "}
+                <span className="text-slate-400 font-normal">(select all that apply)</span>
+              </label>
+              {assignmentIsSycCase && (
+                <p className="text-xs text-slate-600">
+                  Not needed for the Strengthen Your Core forms above. Choose a respondent type here only if you also add a Standard RAOS form below.
+                </p>
+              )}
               <div className="border border-input rounded-md divide-y">
                 {assignmentRespondentTypeOptions.map(rt => {
                   const checked = newAssignment.respondentTypes.includes(rt);
@@ -3991,18 +4038,22 @@ export default function CaseDetail() {
                 </div>
               );
             })()}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Respondent Label <span className="text-slate-400 font-normal">(optional — e.g., 'Mom', 'Math Teacher')</span></label>
-              <Input placeholder="e.g. Mom, Mr. Santos" value={newAssignment.respondentLabel} onChange={e => setNewAssignment({...newAssignment, respondentLabel: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Assigned To Name</label>
-              <Input value={newAssignment.assignedToName} onChange={e => setNewAssignment({...newAssignment, assignedToName: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email Address <span className="text-slate-400 font-normal">(optional)</span></label>
-              <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
-            </div>
+            {(!assignmentIsSycCase || newAssignment.toolIds.some(toolId => !SYC_AUTO_ROUTED_TOOL_IDS.has(toolId))) && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Respondent Label <span className="text-slate-400 font-normal">(optional — e.g., 'Mom', 'Math Teacher')</span></label>
+                  <Input placeholder="e.g. Mom, Mr. Santos" value={newAssignment.respondentLabel} onChange={e => setNewAssignment({...newAssignment, respondentLabel: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Assigned To Name</label>
+                  <Input value={newAssignment.assignedToName} onChange={e => setNewAssignment({...newAssignment, assignedToName: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email Address <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <Input type="email" placeholder="respondent@example.com" value={newAssignment.assignedToEmail} onChange={e => setNewAssignment({...newAssignment, assignedToEmail: e.target.value})} />
+                </div>
+              </>
+            )}
             <Button type="submit" className="w-full mt-4" disabled={isSubmittingAssignments}>
               {isSubmittingAssignments
                 ? "Adding…"
