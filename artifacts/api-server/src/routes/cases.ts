@@ -1028,30 +1028,6 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
       });
       return;
     }
-    const hasSchoolReferral = assignments.some(assignment =>
-      assignment.toolId === "REFERRAL" &&
-      assignment.respondentType === "referring_teacher" &&
-      assignment.status === "completed" &&
-      submittedResponseAssignmentIds.has(assignment.id)
-    );
-    const hasParentIntake = assignments.some(assignment =>
-      assignment.toolId === "INTAKE" &&
-      assignment.respondentType === "parent" &&
-      assignment.status === "completed" &&
-      submittedResponseAssignmentIds.has(assignment.id)
-    );
-    if (!hasSchoolReferral || !hasParentIntake) {
-      const missingForms = [
-        ...(!hasSchoolReferral ? ["School/Teacher Referral Form"] : []),
-        ...(!hasParentIntake ? ["Parent Intake Form"] : []),
-      ];
-      res.status(409).json({
-        error: "strengthen_core_intake_forms_incomplete",
-        message: `Complete and submit the ${missingForms.join(" and ")} in RAOS before generating or regenerating assessment suggestions.`,
-        missingForms,
-      });
-      return;
-    }
     const [program] = await db.select().from(strengthenCoreProgramTable)
       .where(eq(strengthenCoreProgramTable.id, "default")).limit(1);
     const settings = (program?.settings ?? {}) as { coreInstrumentEnabled?: boolean; allowedExtensions?: string[] };

@@ -2251,10 +2251,6 @@ export default function CaseDetail() {
           const intakeFormsComplete = isSycCase
             ? schoolReferralComplete && parentIntakeComplete
             : INTAKE_FORM_GROUPS.every(ids => allAssignments2.some(a => ids.includes(a.toolId ?? "") && a.status === "completed"));
-          const missingSycForms = [
-            ...(!schoolReferralComplete ? ["school referral"] : []),
-            ...(!parentIntakeComplete ? ["parent intake"] : []),
-          ];
           const recommendedExtension = initialReview && typeof initialReview.recommendedExtension === "string"
             ? initialReview.recommendedExtension
             : null;
@@ -2273,9 +2269,9 @@ export default function CaseDetail() {
                     {isSycCase ? "Strengthen Your Core Educational Intake Review" : "AI Intake Analysis"}
                   </CardTitle>
                   <div className="flex items-center gap-2 shrink-0">
-                    {!intakeFormsComplete && !hasRaosAnalysis && (
+                    {!isSycCase && !intakeFormsComplete && !hasRaosAnalysis && (
                       <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
-                        {isSycCase ? `Complete ${missingSycForms.join(" + ")} first` : "Complete Step 1 first"}
+                        Complete Step 1 first
                       </span>
                     )}
                     {hasRaosAnalysis && (role === "admin" || role === "school_clinical_coordinator") && (
@@ -2477,7 +2473,7 @@ export default function CaseDetail() {
                 )}
                 {isSycCase && !sycConsentComplete && (
                   <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                    Send the standard RAOS Parent/Guardian Consent Form from this case. Once the parent submits it, approved assessment assignments unlock automatically. Then send the School/Teacher Referral and Parent Intake forms; generate assessment suggestions after both are submitted.
+                    Send the standard RAOS Parent/Guardian Consent Form from this case to unlock assessment assignments. School/Teacher Referral and Parent Intake forms are optional; generate suggestions now from available information, and regenerate later if you choose to add either response.
                   </div>
                 )}
                 {hasRaosAnalysis ? (
@@ -2629,26 +2625,24 @@ export default function CaseDetail() {
                         <p className="text-sm text-slate-500 mb-4">
                           {isSycCase
                             ? sycConsentComplete
-                              ? intakeFormsComplete
-                                ? initialReview
-                                  ? "This non-diagnostic review combines the original school application with completed School/Teacher Referral and Parent Intake responses, saved interviews and follow-up, and any submitted classroom or work-sample evidence forms. Regeneration replaces the prior draft and requires human review."
-                                  : "Both intake forms are complete. Generate the non-diagnostic review and assessment suggestions from the school application, both responses, and saved RAOS follow-up."
-                                : "After the parent/guardian Consent Form is submitted, use the Pre-Assessment Intake section above to send the School/Teacher Referral and Parent Intake forms. Generate or regenerate the review after both are submitted."
-                                : "Complete the standard parent/guardian Consent Form first. Then complete the School/Teacher Referral and Parent Intake forms before generating assessment suggestions."
+                              ? initialReview
+                                ? "This non-diagnostic review uses the information currently available, including the original school application and any submitted RAOS forms, interviews, follow-up, classroom observation, or work-sample evidence. Regenerate it whenever you choose; later submissions can be included in another review."
+                                : "Generate the non-diagnostic review and assessment suggestions now from the original school application and information collected so far. School/Teacher Referral and Parent Intake responses can be included later if submitted."
+                              : "Complete the standard parent/guardian Consent Form to unlock assessment assignments. You can generate or regenerate this review after consent, using the information currently available."
                             : "No AI analysis run yet for this case."}
                         </p>
                         {isSycCase && sycConsentComplete && (
                           <div className="mb-4 flex flex-wrap gap-2 text-xs">
-                            <span className={`rounded-full border px-2.5 py-1 ${schoolReferralComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-                              School/Teacher Referral: {schoolReferralComplete ? "submitted" : "needed"}
+                            <span className={`rounded-full border px-2.5 py-1 ${schoolReferralComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                              School/Teacher Referral: {schoolReferralComplete ? "submitted" : "not submitted · optional"}
                             </span>
-                            <span className={`rounded-full border px-2.5 py-1 ${parentIntakeComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-                              Parent Intake: {parentIntakeComplete ? "submitted" : "needed"}
+                            <span className={`rounded-full border px-2.5 py-1 ${parentIntakeComplete ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                              Parent Intake: {parentIntakeComplete ? "submitted" : "not submitted · optional"}
                             </span>
                           </div>
                         )}
                         {(!isSycCase || sycConsentComplete) && (
-                          <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || !intakeFormsComplete || !sycConsentComplete} className="bg-blue-600 hover:bg-blue-700 text-white">
+                          <Button onClick={handleAnalyzeIntake} disabled={analyzeIntakeMut.isPending || (!isSycCase && !intakeFormsComplete) || !sycConsentComplete} className="bg-blue-600 hover:bg-blue-700 text-white">
                             {analyzeIntakeMut.isPending
                               ? isSycCase ? "Generating suggestions..." : "Analyzing..."
                               : isSycCase ? initialReview ? "Regenerate Review & Tool Suggestions" : "Generate Review & Tool Suggestions" : "Run AI Intake Analysis"}
