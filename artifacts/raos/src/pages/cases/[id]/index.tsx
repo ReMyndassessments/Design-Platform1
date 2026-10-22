@@ -1401,8 +1401,8 @@ export default function CaseDetail() {
       return;
     }
     setIsSubmittingAssignments(true);
+    let createdCount = 0;
     try {
-      let count = 0;
       for (const { respondentType, toolId } of assignmentPairs) {
         await createAssignmentMut.mutateAsync({
           caseId,
@@ -1415,18 +1415,34 @@ export default function CaseDetail() {
             assignedToEmail: newAssignment.assignedToEmail,
           } as any
         });
-        count++;
+        createdCount++;
       }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetCaseQueryKey(caseId) }),
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] }),
+      ]);
       const skipped = selectedPairCount - assignmentPairs.length;
       toast({
-        title: count === 1 ? "Assignment added" : `${count} assignments added`,
-        description: skipped > 0 ? `${skipped} form/respondent combinations were skipped because those forms do not support those respondents.` : undefined,
+        title: createdCount === 1 ? "Assignment added" : `${createdCount} assignments added`,
+        description: [
+          "The Respondent Forms list is refreshed; forms are ready to send through the matching parent, teacher, or student portal.",
+          skipped > 0 ? `${skipped} unsupported form/respondent combinations were skipped.` : "",
+        ].filter(Boolean).join(" "),
       });
       setAddAssignmentModalOpen(false);
       setNewAssignment({ toolIds: [], respondentTypes: [], respondentLabel: "", assignedToName: "", assignedToEmail: "" });
-      queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
     } catch (error) {
-      toast({ title: "Cannot add assignment", description: error instanceof Error ? error.message : "The assignment could not be saved. Please try again.", variant: "destructive" });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetCaseQueryKey(caseId) }),
+        queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}/assignments`] }),
+      ]);
+      toast({
+        title: createdCount > 0 ? "Some assignments were added" : "Cannot add assignment",
+        description: createdCount > 0
+          ? `${createdCount} assignment${createdCount === 1 ? " was" : "s were"} saved, and the Respondent Forms list was refreshed. ${error instanceof Error ? error.message : "Retry the remaining forms."}`
+          : error instanceof Error ? error.message : "The assignment could not be saved. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmittingAssignments(false);
     }
