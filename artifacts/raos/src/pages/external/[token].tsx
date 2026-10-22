@@ -3130,16 +3130,21 @@ export function FormView({
 
         {/* Questions */}
         {(() => {
+          // Hide conditional items before numbering and rendering. Otherwise an
+          // invisible field leaves an empty numbered card (e.g. guardian
+          // relationship details when the selected relationship is "Mother").
+          const visibleQuestions = (form.questions as Question[]).filter(q => isQuestionVisible(q, answers));
+
           // Pre-compute per-section display numbers: resets to 1 after every section_header
           const questionNums = new Map<string, number>();
           let n = 0;
-          for (const q of (form.questions as Question[])) {
+          for (const q of visibleQuestions) {
             if (q.type === "section_header") { n = 0; }
             else { n += 1; questionNums.set(q.id, n); }
           }
           return (
             <div className="space-y-5">
-              {(form.questions as Question[]).map(q => {
+              {visibleQuestions.map(q => {
                 const isSection = q.type === "section_header";
                 const num = questionNums.get(q.id);
                 return (
