@@ -14,3 +14,9 @@ Large executeSql results can be replaced by a truncation marker at approximately
 **Why:** Aggregating frozen questionnaire snapshots exceeded the result cap and prevented an otherwise valid read-only review check.
 
 **How to apply:** Query only the needed metadata first. When raw snapshots are necessary, fetch bounded batches and validate that each result is complete before decoding it.
+
+In this workspace, Node's native TypeScript stripping does not resolve a source import ending in `.js` to its neighboring `.ts` file, including transitive imports.
+
+**Why:** A focused parser regression test failed during module loading, before the test ran, because the imported implementation pulled in a `.js`-specifier dependency.
+
+**How to apply:** For native `node --experimental-strip-types --test` tests, import `.ts` modules directly and keep the tested helper free of transitive source imports using `.js` specifiers.

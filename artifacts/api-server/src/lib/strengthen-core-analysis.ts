@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { callDeepSeek } from "./ai.js";
+import { normalizeSycAnalysisOutput } from "./strengthen-core-analysis-response.js";
 
 export const EXTENSIONS = ["REFI", "RARPS", "RFII", "RSSC"] as const;
 export type Extension = typeof EXTENSIONS[number];
@@ -106,7 +107,7 @@ Return only valid JSON with these exact keys:
     "observableGoals": ["measurable student behaviors; do not invent a baseline"],
     "progressMonitoring": ["what to record and when to review; state when a baseline still needs to be collected"]
   },
-  "missingInformation": ["missing evidence"],
+   "missingInformation": ["up to 12 concise, prioritized missing evidence items"],
   "suitability": "suitable|additional_information_required|professional_pathway_review_required|outside_scope|urgent_human_review_required",
   "safetyFlags": ["items needing prompt human review"],
   "suggestedQuestions": {
@@ -128,13 +129,18 @@ Selection guidance:
 ${sourceGuidance}`;
 }
 
+export function parseSycAnalysisResponse(raw: string) {
+  const decoded: unknown = JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim());
+  return analysisSchema.parse(normalizeSycAnalysisOutput(decoded));
+}
+
 export async function generateSycAnalysis(
   intake: Record<string, unknown>,
   enabledExtensions: Extension[],
   sourceGuidance = "",
 ) {
   const raw = await callDeepSeek(buildSycAnalysisPrompt(intake, enabledExtensions, sourceGuidance), 4000);
-  const analysis = analysisSchema.parse(JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim()));
+  const analysis = parseSycAnalysisResponse(raw);
   if (analysis.recommendedExtension && !enabledExtensions.includes(analysis.recommendedExtension)) {
     throw new Error("The educational review recommended an extension that is not enabled.");
   }
