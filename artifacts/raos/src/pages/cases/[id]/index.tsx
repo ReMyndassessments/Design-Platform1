@@ -2204,6 +2204,10 @@ export default function CaseDetail() {
           const initialReview = caseAnalysis.sycInitialReview && typeof caseAnalysis.sycInitialReview === "object"
             ? caseAnalysis.sycInitialReview as Record<string, unknown>
             : null;
+          const interventionPlanDraft = initialReview?.interventionPlanDraft && typeof initialReview.interventionPlanDraft === "object"
+            ? initialReview.interventionPlanDraft as Record<string, unknown>
+            : null;
+          const isCurrentSycFrameworkReview = initialReview?.frameworkVersion === "syc-tier2-intervention-v1";
           const sycWorkflow = caseAnalysis.sycWorkflow && typeof caseAnalysis.sycWorkflow === "object"
             ? caseAnalysis.sycWorkflow as Record<string, unknown>
             : {};
@@ -2321,9 +2325,15 @@ export default function CaseDetail() {
                       ))}
                     </div>
                     <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">Suggested assessment forms</h4>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">Strengthen Your Core assessment framework</h4>
+                      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-800">
+                        <li><strong>RCEP-CORE:</strong> required whole-learner profile using parent and teacher perspectives, with student report where developmentally appropriate.</li>
+                        <li><strong>Classroom learning observation:</strong> brief structured observation of learning behavior, response to challenge, and scaffolding.</li>
+                        <li><strong>Student work and intervention-history review:</strong> review existing work, prior supports, and the student’s response.</li>
+                      </ol>
+                      <p className="mt-2 text-xs text-slate-600">The observation and work-history review are evidence activities, not additional standardized tests. Parent/guardian consent remains the only consent requirement; this does not add a student-assent form.</p>
                       <p className="mt-2 text-sm text-slate-800">
-                        <strong>Core assessment:</strong> {coreInstrumentName}
+                        <strong>RAOS core form:</strong> {coreInstrumentName}
                       </p>
                       {recommendedExtension ? (
                         <p className="mt-1 text-sm text-slate-800">
@@ -2349,6 +2359,36 @@ export default function CaseDetail() {
                         </Link>
                       )}
                     </div>
+                    {interventionPlanDraft && (
+                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Provisional intervention planning</h4>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {interventionPlanDraft.readiness === "professional_review_required"
+                            ? "Professional review is needed before using this plan."
+                            : interventionPlanDraft.readiness === "more_information_required"
+                              ? "More classroom or work-sample evidence is needed before setting a plan."
+                              : "Draft starting points only; confirm them after the core assessment and classroom evidence are reviewed."}
+                        </p>
+                        {([
+                          ["Priority targets", interventionPlanDraft.priorityTargets],
+                          ["Practical support strategies", interventionPlanDraft.supportStrategies],
+                          ["Observable goals", interventionPlanDraft.observableGoals],
+                          ["Progress monitoring", interventionPlanDraft.progressMonitoring],
+                        ] as [string, unknown][]).map(([label, items]) => Array.isArray(items) && items.length > 0 && (
+                          <div key={label} className="mt-3">
+                            <h5 className="text-xs font-semibold text-slate-700">{label}</h5>
+                            <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-slate-700">
+                              {items.map((item, index) => <li key={index}>{String(item)}</li>)}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {initialReview && !isCurrentSycFrameworkReview && (
+                      <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        This saved review predates the current Strengthen Your Core intervention framework. Regenerate it after the school referral and parent intake are submitted to get the updated assessment and intervention recommendations.
+                      </p>
+                    )}
                     <p className="mt-3 text-xs text-slate-600">
                       Suitability: {String(initialReview.suitability ?? "not recorded")}
                     </p>

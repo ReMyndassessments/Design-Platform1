@@ -14,7 +14,7 @@ import { z } from "zod";
 import { sendEmail } from "../lib/outlookEmail.js";
 import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intakeQuestionEmail.js";
 import { createIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
-import { deidentifiedIntake, EXTENSIONS, generateSycAnalysis, type Extension } from "../lib/strengthen-core-analysis.js";
+import { deidentifiedIntake, EXTENSIONS, generateSycAnalysis, SYC_FRAMEWORK_VERSION, type Extension } from "../lib/strengthen-core-analysis.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -998,6 +998,8 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
   }).join("\n\n");
 
   const combinedParentInterviewNotes = [c.parentInterviewNotes?.trim(), recordedInterviewNotes].filter(Boolean).join("\n\n") || null;
+  // Keep this product-specific, de-identified educational analysis isolated.
+  // It returns before the normal RAOS clinical intake analyzer below.
   if (isStrengthenCoreCase) {
     const sycWorkflow = currentIntakeAnalysis.sycWorkflow && typeof currentIntakeAnalysis.sycWorkflow === "object"
       ? currentIntakeAnalysis.sycWorkflow as Record<string, unknown>
@@ -1066,6 +1068,7 @@ router.post("/cases/:caseId/intake-analysis", authMiddleware, async (req, res) =
     const generated = await generateSycAnalysis(evidence, enabledExtensions);
     const savedReview = {
       ...generated,
+      frameworkVersion: SYC_FRAMEWORK_VERSION,
       source: "promotional_link",
       professionalApprovalStatus: "pending_administrator_review",
       generatedAt: new Date().toISOString(),
