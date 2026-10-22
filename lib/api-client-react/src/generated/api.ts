@@ -64,6 +64,7 @@ import type {
   IntakeQuestionTestEmailInput,
   IntakeQuestionTestEmailResult,
   ListCasesParams,
+  ListStrengthenCoreApplicationsParams,
   LoginRequest,
   ManualScoreRequest,
   RecommendToolsRequest,
@@ -75,6 +76,13 @@ import type {
   SelfReportRequest,
   SendRespondentEmailInput,
   StaffAssignmentPreview,
+  StrengthenCoreApplication,
+  StrengthenCoreApplicationInput,
+  StrengthenCoreApplicationReceipt,
+  StrengthenCoreApplicationReview,
+  StrengthenCoreProgram,
+  StrengthenCoreProgramUpdate,
+  StrengthenCorePublicProgram,
   SubmitFormRequest,
   SubmitFormResponse,
   SuccessResponse,
@@ -172,6 +180,740 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get public Strengthen Your Core programme availability
+ */
+export const getGetStrengthenCoreProgramUrl = () => {
+  return `/api/strengthen-core/program`;
+};
+
+export const getStrengthenCoreProgram = async (
+  options?: RequestInit,
+): Promise<StrengthenCorePublicProgram> => {
+  return customFetch<StrengthenCorePublicProgram>(
+    getGetStrengthenCoreProgramUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStrengthenCoreProgramQueryKey = () => {
+  return [`/api/strengthen-core/program`] as const;
+};
+
+export const getGetStrengthenCoreProgramQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStrengthenCoreProgram>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgram>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStrengthenCoreProgramQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStrengthenCoreProgram>>
+  > = ({ signal }) => getStrengthenCoreProgram({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgram>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStrengthenCoreProgramQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStrengthenCoreProgram>>
+>;
+export type GetStrengthenCoreProgramQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get public Strengthen Your Core programme availability
+ */
+
+export function useGetStrengthenCoreProgram<
+  TData = Awaited<ReturnType<typeof getStrengthenCoreProgram>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgram>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStrengthenCoreProgramQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update Strengthen Your Core programme settings
+ */
+export const getUpdateStrengthenCoreProgramUrl = () => {
+  return `/api/strengthen-core/program`;
+};
+
+export const updateStrengthenCoreProgram = async (
+  strengthenCoreProgramUpdate: StrengthenCoreProgramUpdate,
+  options?: RequestInit,
+): Promise<StrengthenCoreProgram> => {
+  return customFetch<StrengthenCoreProgram>(
+    getUpdateStrengthenCoreProgramUrl(),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(strengthenCoreProgramUpdate),
+    },
+  );
+};
+
+export const getUpdateStrengthenCoreProgramMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStrengthenCoreProgram>>,
+    TError,
+    { data: BodyType<StrengthenCoreProgramUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStrengthenCoreProgram>>,
+  TError,
+  { data: BodyType<StrengthenCoreProgramUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStrengthenCoreProgram"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStrengthenCoreProgram>>,
+    { data: BodyType<StrengthenCoreProgramUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateStrengthenCoreProgram(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStrengthenCoreProgramMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStrengthenCoreProgram>>
+>;
+export type UpdateStrengthenCoreProgramMutationBody =
+  BodyType<StrengthenCoreProgramUpdate>;
+export type UpdateStrengthenCoreProgramMutationError = ErrorType<void>;
+
+/**
+ * @summary Update Strengthen Your Core programme settings
+ */
+export const useUpdateStrengthenCoreProgram = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStrengthenCoreProgram>>,
+    TError,
+    { data: BodyType<StrengthenCoreProgramUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStrengthenCoreProgram>>,
+  TError,
+  { data: BodyType<StrengthenCoreProgramUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateStrengthenCoreProgramMutationOptions(options));
+};
+
+/**
+ * @summary Get Strengthen Your Core programme settings for administrators
+ */
+export const getGetStrengthenCoreProgramAdminUrl = () => {
+  return `/api/strengthen-core/program/admin`;
+};
+
+export const getStrengthenCoreProgramAdmin = async (
+  options?: RequestInit,
+): Promise<StrengthenCoreProgram> => {
+  return customFetch<StrengthenCoreProgram>(
+    getGetStrengthenCoreProgramAdminUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStrengthenCoreProgramAdminQueryKey = () => {
+  return [`/api/strengthen-core/program/admin`] as const;
+};
+
+export const getGetStrengthenCoreProgramAdminQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStrengthenCoreProgramAdminQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>
+  > = ({ signal }) =>
+    getStrengthenCoreProgramAdmin({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStrengthenCoreProgramAdminQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>
+>;
+export type GetStrengthenCoreProgramAdminQueryError = ErrorType<void>;
+
+/**
+ * @summary Get Strengthen Your Core programme settings for administrators
+ */
+
+export function useGetStrengthenCoreProgramAdmin<
+  TData = Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreProgramAdmin>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStrengthenCoreProgramAdminQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List Strengthen Your Core applications for administrators
+ */
+export const getListStrengthenCoreApplicationsUrl = (
+  params?: ListStrengthenCoreApplicationsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/strengthen-core/applications?${stringifiedParams}`
+    : `/api/strengthen-core/applications`;
+};
+
+export const listStrengthenCoreApplications = async (
+  params?: ListStrengthenCoreApplicationsParams,
+  options?: RequestInit,
+): Promise<StrengthenCoreApplication[]> => {
+  return customFetch<StrengthenCoreApplication[]>(
+    getListStrengthenCoreApplicationsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListStrengthenCoreApplicationsQueryKey = (
+  params?: ListStrengthenCoreApplicationsParams,
+) => {
+  return [
+    `/api/strengthen-core/applications`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListStrengthenCoreApplicationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStrengthenCoreApplications>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListStrengthenCoreApplicationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listStrengthenCoreApplications>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListStrengthenCoreApplicationsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listStrengthenCoreApplications>>
+  > = ({ signal }) =>
+    listStrengthenCoreApplications(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStrengthenCoreApplications>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStrengthenCoreApplicationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStrengthenCoreApplications>>
+>;
+export type ListStrengthenCoreApplicationsQueryError = ErrorType<void>;
+
+/**
+ * @summary List Strengthen Your Core applications for administrators
+ */
+
+export function useListStrengthenCoreApplications<
+  TData = Awaited<ReturnType<typeof listStrengthenCoreApplications>>,
+  TError = ErrorType<void>,
+>(
+  params?: ListStrengthenCoreApplicationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listStrengthenCoreApplications>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStrengthenCoreApplicationsQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Submit a school application
+ */
+export const getSubmitStrengthenCoreApplicationUrl = () => {
+  return `/api/strengthen-core/applications`;
+};
+
+export const submitStrengthenCoreApplication = async (
+  strengthenCoreApplicationInput: StrengthenCoreApplicationInput,
+  options?: RequestInit,
+): Promise<StrengthenCoreApplicationReceipt> => {
+  return customFetch<StrengthenCoreApplicationReceipt>(
+    getSubmitStrengthenCoreApplicationUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(strengthenCoreApplicationInput),
+    },
+  );
+};
+
+export const getSubmitStrengthenCoreApplicationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStrengthenCoreApplication>>,
+    TError,
+    { data: BodyType<StrengthenCoreApplicationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitStrengthenCoreApplication>>,
+  TError,
+  { data: BodyType<StrengthenCoreApplicationInput> },
+  TContext
+> => {
+  const mutationKey = ["submitStrengthenCoreApplication"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitStrengthenCoreApplication>>,
+    { data: BodyType<StrengthenCoreApplicationInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitStrengthenCoreApplication(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitStrengthenCoreApplicationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitStrengthenCoreApplication>>
+>;
+export type SubmitStrengthenCoreApplicationMutationBody =
+  BodyType<StrengthenCoreApplicationInput>;
+export type SubmitStrengthenCoreApplicationMutationError = ErrorType<void>;
+
+/**
+ * @summary Submit a school application
+ */
+export const useSubmitStrengthenCoreApplication = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStrengthenCoreApplication>>,
+    TError,
+    { data: BodyType<StrengthenCoreApplicationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitStrengthenCoreApplication>>,
+  TError,
+  { data: BodyType<StrengthenCoreApplicationInput> },
+  TContext
+> => {
+  return useMutation(
+    getSubmitStrengthenCoreApplicationMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Get a Strengthen Your Core application
+ */
+export const getGetStrengthenCoreApplicationUrl = (applicationId: string) => {
+  return `/api/strengthen-core/applications/${applicationId}`;
+};
+
+export const getStrengthenCoreApplication = async (
+  applicationId: string,
+  options?: RequestInit,
+): Promise<StrengthenCoreApplication> => {
+  return customFetch<StrengthenCoreApplication>(
+    getGetStrengthenCoreApplicationUrl(applicationId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStrengthenCoreApplicationQueryKey = (
+  applicationId: string,
+) => {
+  return [`/api/strengthen-core/applications/${applicationId}`] as const;
+};
+
+export const getGetStrengthenCoreApplicationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStrengthenCoreApplication>>,
+  TError = ErrorType<void>,
+>(
+  applicationId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStrengthenCoreApplication>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetStrengthenCoreApplicationQueryKey(applicationId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStrengthenCoreApplication>>
+  > = ({ signal }) =>
+    getStrengthenCoreApplication(applicationId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!applicationId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStrengthenCoreApplication>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStrengthenCoreApplicationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStrengthenCoreApplication>>
+>;
+export type GetStrengthenCoreApplicationQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a Strengthen Your Core application
+ */
+
+export function useGetStrengthenCoreApplication<
+  TData = Awaited<ReturnType<typeof getStrengthenCoreApplication>>,
+  TError = ErrorType<void>,
+>(
+  applicationId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStrengthenCoreApplication>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStrengthenCoreApplicationQueryOptions(
+    applicationId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate a de-identified AI intake analysis for professional review
+ */
+export const getAnalyzeStrengthenCoreApplicationUrl = (
+  applicationId: string,
+) => {
+  return `/api/strengthen-core/applications/${applicationId}/analyze`;
+};
+
+export const analyzeStrengthenCoreApplication = async (
+  applicationId: string,
+  options?: RequestInit,
+): Promise<StrengthenCoreApplication> => {
+  return customFetch<StrengthenCoreApplication>(
+    getAnalyzeStrengthenCoreApplicationUrl(applicationId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAnalyzeStrengthenCoreApplicationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>,
+    TError,
+    { applicationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>,
+  TError,
+  { applicationId: string },
+  TContext
+> => {
+  const mutationKey = ["analyzeStrengthenCoreApplication"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>,
+    { applicationId: string }
+  > = (props) => {
+    const { applicationId } = props ?? {};
+
+    return analyzeStrengthenCoreApplication(applicationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnalyzeStrengthenCoreApplicationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>
+>;
+
+export type AnalyzeStrengthenCoreApplicationMutationError = ErrorType<void>;
+
+/**
+ * @summary Generate a de-identified AI intake analysis for professional review
+ */
+export const useAnalyzeStrengthenCoreApplication = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>,
+    TError,
+    { applicationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof analyzeStrengthenCoreApplication>>,
+  TError,
+  { applicationId: string },
+  TContext
+> => {
+  return useMutation(
+    getAnalyzeStrengthenCoreApplicationMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Record an administrator decision on an application
+ */
+export const getReviewStrengthenCoreApplicationUrl = (
+  applicationId: string,
+) => {
+  return `/api/strengthen-core/applications/${applicationId}/review`;
+};
+
+export const reviewStrengthenCoreApplication = async (
+  applicationId: string,
+  strengthenCoreApplicationReview: StrengthenCoreApplicationReview,
+  options?: RequestInit,
+): Promise<StrengthenCoreApplication> => {
+  return customFetch<StrengthenCoreApplication>(
+    getReviewStrengthenCoreApplicationUrl(applicationId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(strengthenCoreApplicationReview),
+    },
+  );
+};
+
+export const getReviewStrengthenCoreApplicationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>,
+    TError,
+    { applicationId: string; data: BodyType<StrengthenCoreApplicationReview> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>,
+  TError,
+  { applicationId: string; data: BodyType<StrengthenCoreApplicationReview> },
+  TContext
+> => {
+  const mutationKey = ["reviewStrengthenCoreApplication"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>,
+    { applicationId: string; data: BodyType<StrengthenCoreApplicationReview> }
+  > = (props) => {
+    const { applicationId, data } = props ?? {};
+
+    return reviewStrengthenCoreApplication(applicationId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewStrengthenCoreApplicationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>
+>;
+export type ReviewStrengthenCoreApplicationMutationBody =
+  BodyType<StrengthenCoreApplicationReview>;
+export type ReviewStrengthenCoreApplicationMutationError = ErrorType<void>;
+
+/**
+ * @summary Record an administrator decision on an application
+ */
+export const useReviewStrengthenCoreApplication = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>,
+    TError,
+    { applicationId: string; data: BodyType<StrengthenCoreApplicationReview> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reviewStrengthenCoreApplication>>,
+  TError,
+  { applicationId: string; data: BodyType<StrengthenCoreApplicationReview> },
+  TContext
+> => {
+  return useMutation(
+    getReviewStrengthenCoreApplicationMutationOptions(options),
+  );
+};
 
 /**
  * @summary List all cases

@@ -5,6 +5,140 @@
  * ReMynd Assessment Operating System API
  * OpenAPI spec version: 0.1.0
  */
+export interface StrengthenCorePublicProgram {
+  open: boolean;
+  message: string;
+}
+
+export type StrengthenCoreProgramAllowedExtensionsItem =
+  (typeof StrengthenCoreProgramAllowedExtensionsItem)[keyof typeof StrengthenCoreProgramAllowedExtensionsItem];
+
+export const StrengthenCoreProgramAllowedExtensionsItem = {
+  REFI: "REFI",
+  RARPS: "RARPS",
+  RFII: "RFII",
+  RSSC: "RSSC",
+} as const;
+
+export interface StrengthenCoreProgram {
+  id: string;
+  open: boolean;
+  /** @nullable */
+  maxSchools: number | null;
+  /** @nullable */
+  closesAt: string | null;
+  portalDurationDays: number;
+  coreInstrumentEnabled: boolean;
+  allowedExtensions: StrengthenCoreProgramAllowedExtensionsItem[];
+  updatedAt: string;
+}
+
+export type StrengthenCoreProgramUpdateAllowedExtensionsItem =
+  (typeof StrengthenCoreProgramUpdateAllowedExtensionsItem)[keyof typeof StrengthenCoreProgramUpdateAllowedExtensionsItem];
+
+export const StrengthenCoreProgramUpdateAllowedExtensionsItem = {
+  REFI: "REFI",
+  RARPS: "RARPS",
+  RFII: "RFII",
+  RSSC: "RSSC",
+} as const;
+
+export interface StrengthenCoreProgramUpdate {
+  open: boolean;
+  /** @nullable */
+  maxSchools: number | null;
+  /** @nullable */
+  closesAt: string | null;
+  /**
+   * @minimum 1
+   * @maximum 90
+   */
+  portalDurationDays: number;
+  coreInstrumentEnabled: boolean;
+  allowedExtensions: StrengthenCoreProgramUpdateAllowedExtensionsItem[];
+}
+
+export type StrengthenCoreApplicationInputLanguage =
+  (typeof StrengthenCoreApplicationInputLanguage)[keyof typeof StrengthenCoreApplicationInputLanguage];
+
+export const StrengthenCoreApplicationInputLanguage = {
+  en: "en",
+  zh: "zh",
+  ko: "ko",
+} as const;
+
+export type StrengthenCoreApplicationInputData = { [key: string]: unknown };
+
+export interface StrengthenCoreApplicationInput {
+  language: StrengthenCoreApplicationInputLanguage;
+  data: StrengthenCoreApplicationInputData;
+}
+
+export interface StrengthenCoreApplicationReceipt {
+  id: string;
+  status: string;
+  received: boolean;
+}
+
+export type StrengthenCoreApplicationData = { [key: string]: unknown };
+
+/**
+ * @nullable
+ */
+export type StrengthenCoreApplicationAnalysis = {
+  [key: string]: unknown;
+} | null;
+
+export interface StrengthenCoreApplication {
+  id: string;
+  schoolName: string;
+  primaryConcern: string;
+  language: string;
+  status: string;
+  submittedAt: string;
+  data: StrengthenCoreApplicationData;
+  /** @nullable */
+  analysis: StrengthenCoreApplicationAnalysis;
+  /** @nullable */
+  approvedExtension: string | null;
+  /** @nullable */
+  reviewReason: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+}
+
+export type StrengthenCoreApplicationReviewDecision =
+  (typeof StrengthenCoreApplicationReviewDecision)[keyof typeof StrengthenCoreApplicationReviewDecision];
+
+export const StrengthenCoreApplicationReviewDecision = {
+  request_information: "request_information",
+  approve: "approve",
+  decline: "decline",
+  route_review: "route_review",
+} as const;
+
+/**
+ * @nullable
+ */
+export type StrengthenCoreApplicationReviewApprovedExtension =
+  | (typeof StrengthenCoreApplicationReviewApprovedExtension)[keyof typeof StrengthenCoreApplicationReviewApprovedExtension]
+  | null;
+
+export const StrengthenCoreApplicationReviewApprovedExtension = {
+  REFI: "REFI",
+  RARPS: "RARPS",
+  RFII: "RFII",
+  RSSC: "RSSC",
+} as const;
+
+export interface StrengthenCoreApplicationReview {
+  decision: StrengthenCoreApplicationReviewDecision;
+  /** @nullable */
+  approvedExtension?: StrengthenCoreApplicationReviewApprovedExtension;
+  /** @minLength 1 */
+  reason: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -1156,6 +1290,10 @@ export interface ChineseLiteracyDashboardResponse {
   administrations: ChineseLiteracyDashboardAdministration[];
   comparison: ChineseLiteracyDashboardComparison | null;
 }
+
+export type ListStrengthenCoreApplicationsParams = {
+  status?: string;
+};
 
 export type ListCasesParams = {
   status?: string;

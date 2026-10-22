@@ -15,6 +15,170 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Get public Strengthen Your Core programme availability
+ */
+export const GetStrengthenCoreProgramResponse = zod.object({
+  open: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Update Strengthen Your Core programme settings
+ */
+export const updateStrengthenCoreProgramBodyPortalDurationDaysMax = 90;
+
+export const UpdateStrengthenCoreProgramBody = zod.object({
+  open: zod.boolean(),
+  maxSchools: zod.number().nullable(),
+  closesAt: zod.string().nullable(),
+  portalDurationDays: zod
+    .number()
+    .min(1)
+    .max(updateStrengthenCoreProgramBodyPortalDurationDaysMax),
+  coreInstrumentEnabled: zod.boolean(),
+  allowedExtensions: zod.array(zod.enum(["REFI", "RARPS", "RFII", "RSSC"])),
+});
+
+export const UpdateStrengthenCoreProgramResponse = zod.object({
+  id: zod.string(),
+  open: zod.boolean(),
+  maxSchools: zod.number().nullable(),
+  closesAt: zod.string().nullable(),
+  portalDurationDays: zod.number(),
+  coreInstrumentEnabled: zod.boolean(),
+  allowedExtensions: zod.array(zod.enum(["REFI", "RARPS", "RFII", "RSSC"])),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Get Strengthen Your Core programme settings for administrators
+ */
+export const GetStrengthenCoreProgramAdminResponse = zod.object({
+  id: zod.string(),
+  open: zod.boolean(),
+  maxSchools: zod.number().nullable(),
+  closesAt: zod.string().nullable(),
+  portalDurationDays: zod.number(),
+  coreInstrumentEnabled: zod.boolean(),
+  allowedExtensions: zod.array(zod.enum(["REFI", "RARPS", "RFII", "RSSC"])),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary List Strengthen Your Core applications for administrators
+ */
+export const ListStrengthenCoreApplicationsQueryParams = zod.object({
+  status: zod.coerce.string().optional(),
+});
+
+export const ListStrengthenCoreApplicationsResponseItem = zod.object({
+  id: zod.string(),
+  schoolName: zod.string(),
+  primaryConcern: zod.string(),
+  language: zod.string(),
+  status: zod.string(),
+  submittedAt: zod.date(),
+  data: zod.record(zod.string(), zod.unknown()),
+  analysis: zod.record(zod.string(), zod.unknown()).nullable(),
+  approvedExtension: zod.string().nullable(),
+  reviewReason: zod.string().nullable(),
+  reviewedAt: zod.string().nullable(),
+});
+export const ListStrengthenCoreApplicationsResponse = zod.array(
+  ListStrengthenCoreApplicationsResponseItem,
+);
+
+/**
+ * @summary Submit a school application
+ */
+export const SubmitStrengthenCoreApplicationBody = zod.object({
+  language: zod.enum(["en", "zh", "ko"]),
+  data: zod.record(zod.string(), zod.unknown()),
+});
+
+/**
+ * @summary Get a Strengthen Your Core application
+ */
+export const GetStrengthenCoreApplicationParams = zod.object({
+  applicationId: zod.coerce.string(),
+});
+
+export const GetStrengthenCoreApplicationResponse = zod.object({
+  id: zod.string(),
+  schoolName: zod.string(),
+  primaryConcern: zod.string(),
+  language: zod.string(),
+  status: zod.string(),
+  submittedAt: zod.date(),
+  data: zod.record(zod.string(), zod.unknown()),
+  analysis: zod.record(zod.string(), zod.unknown()).nullable(),
+  approvedExtension: zod.string().nullable(),
+  reviewReason: zod.string().nullable(),
+  reviewedAt: zod.string().nullable(),
+});
+
+/**
+ * @summary Generate a de-identified AI intake analysis for professional review
+ */
+export const AnalyzeStrengthenCoreApplicationParams = zod.object({
+  applicationId: zod.coerce.string(),
+});
+
+export const AnalyzeStrengthenCoreApplicationResponse = zod.object({
+  id: zod.string(),
+  schoolName: zod.string(),
+  primaryConcern: zod.string(),
+  language: zod.string(),
+  status: zod.string(),
+  submittedAt: zod.date(),
+  data: zod.record(zod.string(), zod.unknown()),
+  analysis: zod.record(zod.string(), zod.unknown()).nullable(),
+  approvedExtension: zod.string().nullable(),
+  reviewReason: zod.string().nullable(),
+  reviewedAt: zod.string().nullable(),
+});
+
+/**
+ * @summary Record an administrator decision on an application
+ */
+export const ReviewStrengthenCoreApplicationParams = zod.object({
+  applicationId: zod.coerce.string(),
+});
+
+export const ReviewStrengthenCoreApplicationBody = zod.object({
+  decision: zod.enum([
+    "request_information",
+    "approve",
+    "decline",
+    "route_review",
+  ]),
+  approvedExtension: zod
+    .union([
+      zod.literal("REFI"),
+      zod.literal("RARPS"),
+      zod.literal("RFII"),
+      zod.literal("RSSC"),
+      zod.literal(null),
+    ])
+    .nullish(),
+  reason: zod.string().min(1),
+});
+
+export const ReviewStrengthenCoreApplicationResponse = zod.object({
+  id: zod.string(),
+  schoolName: zod.string(),
+  primaryConcern: zod.string(),
+  language: zod.string(),
+  status: zod.string(),
+  submittedAt: zod.date(),
+  data: zod.record(zod.string(), zod.unknown()),
+  analysis: zod.record(zod.string(), zod.unknown()).nullable(),
+  approvedExtension: zod.string().nullable(),
+  reviewReason: zod.string().nullable(),
+  reviewedAt: zod.string().nullable(),
+});
+
+/**
  * @summary List all cases
  */
 export const ListCasesQueryParams = zod.object({

@@ -42,6 +42,170 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /strengthen-core/program:
+    get:
+      operationId: getStrengthenCoreProgram
+      tags: [programs]
+      summary: Get public Strengthen Your Core programme availability
+      responses:
+        "200":
+          description: Public programme status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCorePublicProgram"
+    patch:
+      operationId: updateStrengthenCoreProgram
+      tags: [programs]
+      summary: Update Strengthen Your Core programme settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrengthenCoreProgramUpdate"
+      responses:
+        "200":
+          description: Updated programme settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreProgram"
+        "403":
+          description: Administrator access required
+  /strengthen-core/program/admin:
+    get:
+      operationId: getStrengthenCoreProgramAdmin
+      tags: [programs]
+      summary: Get Strengthen Your Core programme settings for administrators
+      responses:
+        "200":
+          description: Programme configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreProgram"
+        "403":
+          description: Administrator access required
+  /strengthen-core/applications:
+    get:
+      operationId: listStrengthenCoreApplications
+      tags: [programs]
+      summary: List Strengthen Your Core applications for administrators
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StrengthenCoreApplication"
+        "403":
+          description: Administrator access required
+    post:
+      operationId: submitStrengthenCoreApplication
+      tags: [programs]
+      summary: Submit a school application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrengthenCoreApplicationInput"
+      responses:
+        "201":
+          description: Application received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreApplicationReceipt"
+        "400":
+          description: Invalid application
+        "409":
+          description: Programme is closed
+  /strengthen-core/applications/{applicationId}:
+    get:
+      operationId: getStrengthenCoreApplication
+      tags: [programs]
+      summary: Get a Strengthen Your Core application
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Application detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreApplication"
+        "403":
+          description: Administrator access required
+        "404":
+          description: Application not found
+  /strengthen-core/applications/{applicationId}/analyze:
+    post:
+      operationId: analyzeStrengthenCoreApplication
+      tags: [programs]
+      summary: Generate a de-identified AI intake analysis for professional review
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Intake analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreApplication"
+        "403":
+          description: Administrator access required
+        "404":
+          description: Application not found
+        "502":
+          description: AI analysis unavailable
+  /strengthen-core/applications/{applicationId}/review:
+    patch:
+      operationId: reviewStrengthenCoreApplication
+      tags: [programs]
+      summary: Record an administrator decision on an application
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrengthenCoreApplicationReview"
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StrengthenCoreApplication"
+        "400":
+          description: Invalid decision
+        "403":
+          description: Administrator access required
+        "404":
+          description: Application not found
+
   # ─── Cases ───────────────────────────────────────────────────────────────
   /cases:
     get:
@@ -1506,6 +1670,128 @@ paths:
 
 components:
   schemas:
+    StrengthenCorePublicProgram:
+      type: object
+      properties:
+        open:
+          type: boolean
+        message:
+          type: string
+      required: [open, message]
+
+    StrengthenCoreProgram:
+      type: object
+      properties:
+        id:
+          type: string
+        open:
+          type: boolean
+        maxSchools:
+          type: ["integer", "null"]
+        closesAt:
+          type: ["string", "null"]
+        portalDurationDays:
+          type: integer
+        coreInstrumentEnabled:
+          type: boolean
+        allowedExtensions:
+          type: array
+          items:
+            type: string
+            enum: [REFI, RARPS, RFII, RSSC]
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, open, maxSchools, closesAt, portalDurationDays, coreInstrumentEnabled, allowedExtensions, updatedAt]
+
+    StrengthenCoreProgramUpdate:
+      type: object
+      properties:
+        open:
+          type: boolean
+        maxSchools:
+          type: ["integer", "null"]
+        closesAt:
+          type: ["string", "null"]
+        portalDurationDays:
+          type: integer
+          minimum: 1
+          maximum: 90
+        coreInstrumentEnabled:
+          type: boolean
+        allowedExtensions:
+          type: array
+          items:
+            type: string
+            enum: [REFI, RARPS, RFII, RSSC]
+      required: [open, maxSchools, closesAt, portalDurationDays, coreInstrumentEnabled, allowedExtensions]
+
+    StrengthenCoreApplicationInput:
+      type: object
+      properties:
+        language:
+          type: string
+          enum: [en, zh, ko]
+        data:
+          type: object
+          additionalProperties: true
+      required: [language, data]
+
+    StrengthenCoreApplicationReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        received:
+          type: boolean
+      required: [id, status, received]
+
+    StrengthenCoreApplication:
+      type: object
+      properties:
+        id:
+          type: string
+        schoolName:
+          type: string
+        primaryConcern:
+          type: string
+        language:
+          type: string
+        status:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        data:
+          type: object
+          additionalProperties: true
+        analysis:
+          type: ["object", "null"]
+          additionalProperties: true
+        approvedExtension:
+          type: ["string", "null"]
+        reviewReason:
+          type: ["string", "null"]
+        reviewedAt:
+          type: ["string", "null"]
+      required: [id, schoolName, primaryConcern, language, status, submittedAt, data, analysis, approvedExtension, reviewReason, reviewedAt]
+
+    StrengthenCoreApplicationReview:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [request_information, approve, decline, route_review]
+        approvedExtension:
+          type: ["string", "null"]
+          enum: [REFI, RARPS, RFII, RSSC, null]
+        reason:
+          type: string
+          minLength: 1
+      required: [decision, reason]
+
     HealthStatus:
       type: object
       properties:

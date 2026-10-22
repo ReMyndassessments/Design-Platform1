@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout";
-import { useGetCurrentUser, setAuthTokenGetter } from "@workspace/api-client-react";
+import { getGetCurrentUserQueryKey, useGetCurrentUser, setAuthTokenGetter } from "@workspace/api-client-react";
 import { LangProvider } from "@/lib/i18n";
 import { WatchAlongProvider } from "@/hooks/use-watch-along";
 import { WatchAlongBanner } from "@/components/watch-along-banner";
@@ -142,6 +142,9 @@ const PrivacyPolicyPage = React.lazy(() => import("@/pages/privacy-policy"));
 const TrainingPage = React.lazy(() => import("@/pages/training"));
 const TrainingRegistrationsPage = React.lazy(() => import("@/pages/admin/training-registrations"));
 const WorkshopPublicPage = React.lazy(() => import("@/pages/training-workshop"));
+const StrengthenCoreLandingPage = React.lazy(() => import("@/pages/strengthen-core-landing"));
+const StrengthenCoreApplicationPage = React.lazy(() => import("@/pages/strengthen-core-application"));
+const StrengthenCoreAdminPage = React.lazy(() => import("@/pages/admin/strengthen-core"));
 const CommunicationsPage = React.lazy(() => import("@/pages/communications/index"));
 const CommunicationsComposePage = React.lazy(() => import("@/pages/communications/compose"));
 
@@ -160,6 +163,7 @@ function ProtectedRoute({ component: Component, apprenticeOnly = false, allowApp
     query: {
       retry: false,
       staleTime: 5 * 60 * 1000,
+      queryKey: getGetCurrentUserQueryKey(),
     }
   });
 
@@ -257,6 +261,11 @@ function Router() {
         </Route>
         <Route path="/training/:slug" component={WorkshopPublicPage} />
         <Route path="/training" component={TrainingPage} />
+        <Route path="/strengthen-your-core/apply" component={StrengthenCoreApplicationPage} />
+        <Route path="/strengthen-your-core" component={StrengthenCoreLandingPage} />
+        <Route path="/admin/strengthen-your-core">
+          {() => <ProtectedRoute component={StrengthenCoreAdminPage} adminOnly />}
+        </Route>
         <Route path="/communications">
           {() => <ProtectedRoute component={CommunicationsPage} adminOnly />}
         </Route>
