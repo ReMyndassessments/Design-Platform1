@@ -202,7 +202,11 @@ export default function StrengthenCoreAdmin() {
         responseType: "json",
         body: JSON.stringify(consentForm),
       });
-      setConsentLinks(result);
+      setConsentLinks({
+        guardianUrl: result.guardianUrl ? new URL(result.guardianUrl, window.location.origin).toString() : null,
+        studentAssentUrl: result.studentAssentUrl ? new URL(result.studentAssentUrl, window.location.origin).toString() : null,
+        expiresAt: result.expiresAt,
+      });
       setConsentMessage(t.expiredNote);
       void queryClient.invalidateQueries({ queryKey: getGetStrengthenCoreApplicationQueryKey(current.id) });
       void queryClient.invalidateQueries({ queryKey: getListStrengthenCoreApplicationsQueryKey() });
