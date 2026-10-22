@@ -140,6 +140,7 @@ const RESPONDENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const SYC_CORE_EVIDENCE_TOOLS = [
+  { toolId: "RCEP-CORE", label: "ReMynd Comprehensive Educational Profile — Tier 2 Core (RCEP-Core)" },
   { toolId: "REMYND-CLASSROOM-OBS", label: "Structured Classroom Learning Observation" },
   { toolId: "REMYND-WORK-REVIEW", label: "Student Work Sample & Intervention History Review" },
 ] as const;
@@ -1165,7 +1166,7 @@ export default function CaseDetail() {
     }
     const hasExistingReview = Boolean(currentAnalysis.summary || (isSycCase && currentAnalysis.sycInitialReview));
     const confirmation = isSycCase
-      ? "Generate the non-diagnostic Strengthen Your Core review and tool suggestions using the school application, completed School/Teacher Referral and Parent Intake forms, interviews, saved follow-up, and any submitted classroom observation or work-sample review forms?\n\nThis replaces the previous AI draft. It does not approve or assign an assessment; administrator review is still required."
+      ? "Generate the non-diagnostic Strengthen Your Core review and tool suggestions using the original school application and information received so far, including any submitted referral, parent intake, interview, follow-up, classroom observation, or work-sample responses?\n\nDo not wait for outstanding school responses; you can regenerate after they arrive. This replaces the previous AI draft but does not approve or assign an assessment."
       : `Regenerate the intake analysis using the saved case details (Grade ${c?.grade || "not specified"}, age ${ageFromDob(c?.dob) ?? "unknown"} from the saved birth date), forms, interviews, the latest submitted parent/teacher question responses, and any submitted classroom observation or work-sample review forms?\n\nIf the grade or birth date has changed, update it in More → Edit Case first. This replaces the AI summary and recommendations, but keeps assigned tools and saved responses.`;
     if (hasExistingReview && !window.confirm(confirmation)) return;
     analyzeIntakeMut.mutate({ caseId }, {
@@ -1173,7 +1174,7 @@ export default function CaseDetail() {
         toast({
           title: isSycCase ? "Educational review updated" : "Intake Analysis Complete",
           description: isSycCase
-            ? "Completed intake forms and any submitted classroom/work-sample evidence were included. Administrator review is still required."
+            ? "Available responses were included. Regenerate later if additional school forms are returned."
             : "Saved parent and teacher question responses were included in the regenerated analysis.",
         });
         queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
@@ -1383,26 +1384,44 @@ export default function CaseDetail() {
       toast({ title: "Select at least one form to assign.", variant: "destructive" });
       return;
     }
+    const assignmentPairs = newAssignment.toolIds.flatMap(toolId => {
+      const tool = tools?.find(item => item.id === toolId);
+      const supportedRespondents = new Set(assignmentRespondentTypes(tool?.respondentTypes ?? [], toolId));
+      return newAssignment.respondentTypes
+        .filter(respondentType => supportedRespondents.has(respondentType))
+        .map(respondentType => ({ toolId, respondentType }));
+    });
+    const selectedPairCount = newAssignment.toolIds.length * newAssignment.respondentTypes.length;
+    if (assignmentPairs.length === 0) {
+      toast({
+        title: "No compatible forms and respondents selected",
+        description: "Choose a respondent type supported by at least one selected form.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSubmittingAssignments(true);
     try {
       let count = 0;
-      for (const respondentType of newAssignment.respondentTypes) {
-        for (const toolId of newAssignment.toolIds) {
-          await createAssignmentMut.mutateAsync({
-            caseId,
-            data: {
-              toolId,
-              toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
-              respondentType: respondentType as CreateAssignmentRequestRespondentType,
-              respondentLabel: newAssignment.respondentLabel,
-              assignedToName: newAssignment.assignedToName,
-              assignedToEmail: newAssignment.assignedToEmail,
-            } as any
-          });
-          count++;
-        }
+      for (const { respondentType, toolId } of assignmentPairs) {
+        await createAssignmentMut.mutateAsync({
+          caseId,
+          data: {
+            toolId,
+            toolName: tools?.find(t => t.id === toolId)?.name ?? toolId,
+            respondentType: respondentType as CreateAssignmentRequestRespondentType,
+            respondentLabel: newAssignment.respondentLabel,
+            assignedToName: newAssignment.assignedToName,
+            assignedToEmail: newAssignment.assignedToEmail,
+          } as any
+        });
+        count++;
       }
-      toast({ title: count === 1 ? "Assignment added" : `${count} assignments added` });
+      const skipped = selectedPairCount - assignmentPairs.length;
+      toast({
+        title: count === 1 ? "Assignment added" : `${count} assignments added`,
+        description: skipped > 0 ? `${skipped} form/respondent combinations were skipped because those forms do not support those respondents.` : undefined,
+      });
       setAddAssignmentModalOpen(false);
       setNewAssignment({ toolIds: [], respondentTypes: [], respondentLabel: "", assignedToName: "", assignedToEmail: "" });
       queryClient.invalidateQueries({ queryKey: [`/api/cases/${caseId}`] });
@@ -2351,19 +2370,37 @@ export default function CaseDetail() {
                     <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-3">
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">Strengthen Your Core assessment framework</h4>
                       <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-800">
-                        <li><strong>RCEP-CORE:</strong> required whole-learner profile using parent and teacher perspectives, with student report where developmentally appropriate.</li>
-                        <li><strong>Classroom learning observation:</strong> brief structured observation of learning behavior, response to challenge, and scaffolding.</li>
-                        <li><strong>Student work and intervention-history review:</strong> review existing work, prior supports, and the student’s response.</li>
+                        <li><strong>RCEP-CORE:</strong> required whole-learner profile; the assessment lead selects respondents through the normal RAOS workflow.</li>
+                        <li><strong>Structured classroom learning observation:</strong> required descriptive record of learning behavior, response to challenge, and scaffolding.</li>
+                        <li><strong>Student work sample and prior-intervention review:</strong> required descriptive review of work, prior supports, and response to intervention.</li>
                       </ol>
+                      <p className="mt-2 text-sm text-slate-700">
+                        These are the three required Strengthen Your Core components. A delayed or missing school response does not stop the case: continue assessment work, review generation, and phase advancement using information already available. Add school responses later and regenerate the review; reports should identify evidence that was not yet available.
+                      </p>
                       <p className="mt-2 text-xs text-slate-600">The observation and work-history review are evidence activities, not additional standardized tests. Parent/guardian consent remains the only consent requirement; this does not add a student-assent form.</p>
                       <p className="mt-2 text-sm text-slate-800">
                         <strong>RAOS core form:</strong> {coreInstrumentName}
                       </p>
                       <div className="mt-3 rounded-lg border border-emerald-200 bg-white p-3">
-                        <h5 className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Core evidence forms in this RAOS case</h5>
+                        <h5 className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Required Strengthen Your Core forms</h5>
                         <p className="mt-1 text-xs text-slate-600">
-                          Assign these through the normal RAOS form workflow. Submitted answers are included when this educational review is regenerated. Both tools are also available in the Tool Library for other RAOS cases.
+                          Use the normal RAOS assignment flow to choose respondents and assign these three required components. School responses can arrive later; pending forms do not block other case work.
                         </p>
+                        {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-3"
+                            onClick={() => {
+                              setNewAssignment({ toolIds: [], respondentTypes: [], respondentLabel: "", assignedToName: "", assignedToEmail: "" });
+                              setShowAllTools(false);
+                              setAddAssignmentModalOpen(true);
+                            }}
+                            disabled={!sycConsentComplete}
+                          >
+                            Choose respondents and forms
+                          </Button>
+                        )}
                         <div className="mt-3 space-y-2">
                           {SYC_CORE_EVIDENCE_TOOLS.map(evidenceTool => {
                             const relatedAssignments = allAssignments2.filter(a => a.toolId === evidenceTool.toolId);
@@ -2376,23 +2413,9 @@ export default function CaseDetail() {
                                   <p className="text-xs text-slate-500">
                                     {completedCount > 0
                                       ? `${completedCount} submitted${assignedCount > completedCount ? ` · ${assignedCount - completedCount} awaiting response` : ""}`
-                                      : assignedCount > 0 ? `${assignedCount} teacher form${assignedCount === 1 ? "" : "s"} awaiting response` : "Not assigned"}
+                                      : assignedCount > 0 ? `${assignedCount} assigned · awaiting response; continue case` : "Not assigned yet"}
                                   </p>
                                 </div>
-                                {(role === "admin" || role === "school_clinical_coordinator" || role === "psychometrician") && sycConsentComplete && assignedCount === 0 && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-8 text-xs"
-                                    disabled={assigningToolId === evidenceTool.toolId}
-                                    onClick={() => void handleAssignTool({
-                                      toolId: evidenceTool.toolId,
-                                      name: tools?.find(tool => tool.id === evidenceTool.toolId)?.name ?? evidenceTool.label,
-                                    })}
-                                  >
-                                    {assigningToolId === evidenceTool.toolId ? "Creating…" : "Assign teacher form"}
-                                  </Button>
-                                )}
                               </div>
                             );
                           })}
@@ -2429,7 +2452,7 @@ export default function CaseDetail() {
                           {interventionPlanDraft.readiness === "professional_review_required"
                             ? "Professional review is needed before using this plan."
                             : interventionPlanDraft.readiness === "more_information_required"
-                              ? "More classroom or work-sample evidence is needed before setting a plan."
+                              ? "This is a preliminary plan from the information available now. Continue the case; add classroom or work-sample evidence when it arrives and regenerate before finalizing."
                               : "Draft starting points only; confirm them after the core assessment and classroom evidence are reviewed."}
                         </p>
                         {([
@@ -2449,7 +2472,7 @@ export default function CaseDetail() {
                     )}
                     {initialReview && !isCurrentSycFrameworkReview && (
                       <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                        This saved review predates the current Strengthen Your Core intervention framework. Regenerate it after the school referral and parent intake are submitted to get the updated assessment and intervention recommendations.
+                        This saved review predates the current Strengthen Your Core intervention framework. Regenerate it now using information already available; later school or parent responses can be included in another review.
                       </p>
                     )}
                     <p className="mt-3 text-xs text-slate-600">
@@ -2626,8 +2649,8 @@ export default function CaseDetail() {
                           {isSycCase
                             ? sycConsentComplete
                               ? initialReview
-                                ? "This non-diagnostic review uses the information currently available, including the original school application and any submitted RAOS forms, interviews, follow-up, classroom observation, or work-sample evidence. Regenerate it whenever you choose; later submissions can be included in another review."
-                                : "Generate the non-diagnostic review and assessment suggestions now from the original school application and information collected so far. School/Teacher Referral and Parent Intake responses can be included later if submitted."
+                                ? "This non-diagnostic review uses the information currently available, including the original school application and any submitted RAOS forms, interviews, follow-up, classroom observation, or work-sample evidence. Regenerate it whenever you choose; later responses can be added without pausing the case."
+                                : "Generate the non-diagnostic review and assessment suggestions now from the original school application and information collected so far. School/Teacher Referral, Parent Intake, classroom observation, and work-sample responses can be included later."
                               : "Complete the standard parent/guardian Consent Form to unlock assessment assignments. You can generate or regenerate this review after consent, using the information currently available."
                             : "No AI analysis run yet for this case."}
                         </p>
@@ -3706,7 +3729,7 @@ export default function CaseDetail() {
           {assignmentIsSycCase && (
             <div className={`rounded-md border px-3 py-2.5 text-sm ${assignmentSycConsentComplete ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
               {assignmentSycConsentComplete
-                ? "Parent/guardian consent is complete. This pathway allows the standard intake forms, RCEP-CORE, the classroom observation and work-sample review, plus an administrator-approved extension."
+                ? "RCEP-CORE, classroom observation, and work-sample/prior-intervention review are required components. Choose respondents and assign them through RAOS. Delayed school responses do not block other case work and can be added later."
                 : "Only the Parent/Guardian Consent Form is available until the parent submits it. Approved assessment forms then unlock automatically; refresh this case if needed."}
             </div>
           )}
