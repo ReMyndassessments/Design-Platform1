@@ -9,6 +9,12 @@ Keep Strengthen Your Core non-diagnostic and school-focused, integrated as an as
 
 Only the designated Strengthen Your Core promotional link for schools may create a Strengthen Your Core inquiry. The general RAOS website portal remains the ordinary inquiry route and must not tag, route, or display those inquiries as Strengthen Your Core.
 
+The complimentary pilot is offered to demonstrate how ReMynd’s Tier 2, non-diagnostic assessments can be a vital part of supporting students throughout their academic journey. Make both the reason and the no-cost terms prominent on the application page: approval is required, the default is one learner per approved school, and there is no obligation to buy other services.
+
+**Why:** Schools may reasonably assume an assessment offer is paid unless the price and purpose are stated clearly at the point of application.
+
+**How to apply:** On public Strengthen Your Core application materials, explain the educational value of the pilot and state plainly that approved schools pay no fee; keep approval conditions and limits equally visible.
+
 De-identify intake narratives before any AI call. After the standard RAOS parent/guardian consent form is completed, generate or regenerate the case-level Strengthen Your Core analysis whenever the reviewer chooses, using the original school application and whatever RAOS information is available at that time. School/Teacher Referral and Parent Intake responses are optional evidence that can be incorporated later by regenerating the review. Use the non-diagnostic educational criteria, not the generic clinical intake analyzer. AI recommends no more than one enabled extension and drafts practical, provisional Tier 2 intervention targets, supports, observable goals, and progress monitoring; it must identify uncollected classroom/work-sample evidence and must not present the draft as a final plan.
 
 **Why:** The programme serves minors and handles sensitive educational information. A school inquiry is not parent consent, and an AI suggestion is not professional approval. The attached product brief defines the scope as a proportionate Tier 2 learner profile and intervention plan, not a diagnostic or abbreviated comprehensive assessment.

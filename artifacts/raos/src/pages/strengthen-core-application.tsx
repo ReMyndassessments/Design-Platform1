@@ -145,6 +145,27 @@ const formCopy: Record<Lang, { brand: string; kicker: string; title: string; int
   },
 };
 
+const pilotOfferCopy: Record<Lang, { badge: string; title: string; body: string; terms: string }> = {
+  en: {
+    badge: "COMPLIMENTARY PILOT · APPROVAL REQUIRED",
+    title: "Why we're offering this pilot",
+    body: "We’re offering it at no cost so schools can experience how ReMynd’s Tier 2, non-diagnostic assessments can be a vital part of supporting students throughout their academic journey—helping educators understand the whole learner, choose practical supports, and review progress.",
+    terms: "If approved, there is no fee for the pilot. It normally covers one learner per school. Applying or taking part creates no obligation to purchase other services.",
+  },
+  zh: {
+    badge: "免费试点 · 须经审批",
+    title: "我们为什么提供这项试点",
+    body: "我们提供免费试点，让学校体验 ReMynd 的 Tier 2 非诊断性评估如何成为学生整个学业历程中重要的支持方式：帮助教育工作者全面了解学习者、选择切实可行的支持，并回顾进展。",
+    terms: "申请获批后，试点无需付费，通常每所学校限一名学习者。申请或参与本试点均不代表必须购买其他服务。",
+  },
+  ko: {
+    badge: "무료 파일럿 · 승인 필요",
+    title: "파일럿을 제공하는 이유",
+    body: "학교가 비용 부담 없이 ReMynd의 Tier 2 비진단 평가를 경험할 수 있도록 파일럿을 제공합니다. 이 평가는 학생의 학업 여정 전반에서 중요한 지원의 일부가 될 수 있으며, 교직원이 학생을 폭넓게 이해하고 실천 가능한 지원을 선택하며 진행 상황을 살피도록 돕습니다.",
+    terms: "승인된 경우 파일럿 비용은 없습니다. 일반적으로 학교당 학습자 1명이 포함됩니다. 신청하거나 참여해도 다른 서비스를 구매할 의무는 없습니다.",
+  },
+};
+
 export default function StrengthenCoreApplication() {
   const [lang, setLang] = useState<Lang>("en");
   const [values, setValues] = useState<Record<string, string | boolean>>({});
@@ -238,7 +259,7 @@ export default function StrengthenCoreApplication() {
     );
   }
 
-  if (receipt) return <main className="min-h-[100dvh] bg-[#f3f7f3] px-4 py-12 text-[#244442]" lang={lang}><div className="mx-auto max-w-2xl rounded-3xl border border-[#d4e2d8] bg-[#fbfcf9] p-8 shadow-xl shadow-[#284a40]/5 md:p-12"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#e4f0e6] text-[#39765a]"><CheckCircle2 size={27} /></div><p className="mt-7 text-xs font-bold tracking-[.17em] text-[#769183]">{t.received}</p><h1 className="mt-3 font-display text-3xl font-semibold">{t.receipt}</h1><p className="mt-4 leading-7 text-[#5e746f]" data-testid="status-submission-receipt">{t.receiptCopy}</p><div className="mt-7 rounded-xl bg-[#eef4ee] p-4"><span className="text-xs font-semibold uppercase tracking-wider text-[#718781]">{t.ref}</span><p className="mt-1 font-mono text-lg font-semibold" data-testid="text-receipt-id">{receipt.id}</p><p className="mt-1 text-sm text-[#668078]">{receipt.status}</p></div><p className="mt-5 text-sm text-[#627972]">{t.open}</p><Link href="/strengthen-your-core" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#1d5b58]" data-testid="link-receipt-home"><ArrowLeft size={16} />{t.back}</Link></div></main>;
+  if (receipt) return <main className="min-h-[100dvh] bg-[#f3f7f3] px-4 py-12 text-[#244442]" lang={lang}><div className="mx-auto max-w-2xl rounded-3xl border border-[#d4e2d8] bg-[#fbfcf9] p-8 shadow-xl shadow-[#284a40]/5 md:p-12"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#e4f0e6] text-[#39765a]"><CheckCircle2 size={27} /></div><p className="mt-7 text-xs font-bold tracking-[.17em] text-[#769183]">{t.received}</p><h1 className="mt-3 font-display text-3xl font-semibold">{t.receipt}</h1><p className="mt-4 leading-7 text-[#5e746f]" data-testid="status-submission-receipt">{t.receiptCopy}</p><div className="mt-7 rounded-xl bg-[#eef4ee] p-4"><span className="text-xs font-semibold uppercase tracking-wider text-[#718781]">{t.ref}</span><p className="mt-1 font-mono text-lg font-semibold" data-testid="text-receipt-id">{receipt.id}</p><p className="mt-1 text-sm text-[#668078]">{receipt.status}</p></div><p className="mt-5 text-sm text-[#627972]">{pilotOfferCopy[lang].terms}</p><Link href="/strengthen-your-core" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#1d5b58]" data-testid="link-receipt-home"><ArrowLeft size={16} />{t.back}</Link></div></main>;
 
   if (program.isLoading || program.isError || !program.data?.open) {
     const copy = availabilityCopy[lang];
@@ -263,6 +284,12 @@ export default function StrengthenCoreApplication() {
         <label className="flex items-center gap-2 text-xs font-semibold text-[#688079]">{t.language}<select value={lang} onChange={(e) => { setLang(e.target.value as Lang); setErrors([]); }} className="rounded-lg border border-[#cedbd2] bg-[#fbfcf9] px-2 py-2 text-sm text-[#31534e]" data-testid="select-application-language"><option value="en">English</option><option value="zh">简体中文</option><option value="ko">한국어</option></select></label>
       </header>
       <div className="mx-auto grid max-w-6xl gap-8 px-5 pb-16 pt-4 lg:grid-cols-[minmax(0,1fr)_290px]">
+        <section className="rounded-2xl border border-[#194d49] bg-[#1d5b58] p-5 text-white shadow-sm shadow-[#214b3f]/10 lg:col-span-2 md:p-7" aria-labelledby="pilot-offer-heading" data-testid="section-pilot-offer">
+          <p className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[.12em] text-[#e6f4e9]">{pilotOfferCopy[lang].badge}</p>
+          <h2 id="pilot-offer-heading" className="mt-3 font-display text-xl font-semibold leading-snug text-white md:text-2xl">{pilotOfferCopy[lang].title}</h2>
+          <p className="mt-2 max-w-5xl text-sm leading-6 text-[#eff7f0] md:text-base md:leading-7">{pilotOfferCopy[lang].body}</p>
+          <p className="mt-4 border-t border-white/20 pt-3 text-sm font-medium leading-6 text-white" data-testid="text-pilot-offer-terms">{pilotOfferCopy[lang].terms}</p>
+        </section>
         <section>
           <div className="mb-7"><p className="text-xs font-bold tracking-[.18em] text-[#739083]">{t.kicker}</p><h1 className="mt-3 font-display text-4xl font-semibold tracking-[-.04em] text-[#203f3d]">{t.title}</h1><p className="mt-3 max-w-2xl leading-7 text-[#5c7470]">{t.intro}</p></div>
           <div className="mb-6 rounded-xl border border-[#e5d8bb] bg-[#fbf6e9] p-4 text-sm leading-6 text-[#75653d]"><div className="flex gap-3"><LockKeyhole size={18} className="mt-0.5 shrink-0" /><p>{t.privacy}</p></div></div>
@@ -294,8 +321,7 @@ export default function StrengthenCoreApplication() {
                 ))}
               </ul>
             </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="rounded-lg border border-[#e7dfc9] bg-[#fbf7ed] px-4 py-3 text-xs leading-5 text-[#746644]" data-testid="text-pilot-terms">{t.journey.pilotNote}</p>
+            <div className="mt-5 flex justify-end">
               <a href="#application-form" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1d5b58] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#154846] focus:outline-none focus:ring-2 focus:ring-[#52866f] focus:ring-offset-2" data-testid="link-start-application">{t.journey.start}<ArrowRight size={16} aria-hidden="true" /></a>
             </div>
           </section>
@@ -314,7 +340,6 @@ export default function StrengthenCoreApplication() {
           </div>
         </section>
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-2xl border border-[#d7e3da] bg-[#e8f0e8] p-5"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">STRENGTHEN YOUR CORE</p><p className="mt-3 text-sm leading-6 text-[#526f66]">{t.open}</p></div>
           <div className="rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5"><h3 className="flex items-center gap-2 text-sm font-bold text-[#365951]"><ShieldCheck size={17} />{t.nonDiag}</h3><p className="mt-3 text-sm leading-6 text-[#687d76]">{t.consent}</p></div>
           <div className="hidden rounded-2xl border border-[#d7e3da] bg-[#fbfcf9] p-5 lg:block"><p className="text-xs font-bold uppercase tracking-[.14em] text-[#718b7a]">APPLICATION SECTIONS</p><ol className="mt-3 space-y-2">{sections.map((s, i) => <li key={s.title} className={`text-xs ${step === i ? "font-bold text-[#285c51]" : "text-[#82918b]"}`}><span className="mr-2 font-mono">{String(i + 1).padStart(2, "0")}</span>{s.title}</li>)}</ol></div>
         </aside>
