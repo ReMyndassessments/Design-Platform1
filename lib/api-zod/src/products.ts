@@ -58,6 +58,12 @@ export const ASSESSMENT_PRODUCTS: AssessmentProduct[] = [
     market: "schools",
     toolIds: ["RAEPA"],
   },
+  {
+    id: "STRENGTHEN_CORE",
+    name: "Strengthen Your Core — School-Based Support Assessment",
+    market: "schools",
+    toolIds: ["RCEP-CORE"],
+  },
   // ── Parents ───────────────────────────────────────────────────────────
   {
     id: "why-struggling",

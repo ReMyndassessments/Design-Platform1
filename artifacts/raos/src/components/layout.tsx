@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   Mic,
   Sparkles,
-  Target,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useGetCurrentUser, useLogout, customFetch } from "@workspace/api-client-react";
@@ -192,7 +191,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         ...(user?.role === "admin" ? [{ href: "/subscriptions", label: "Subscriptions", icon: Sparkles }] : []),
         ...(user?.role === "admin" ? [{ href: "/admin/privacy-compliance", label: "Privacy & Compliance", icon: ShieldCheck }] : []),
         ...(user?.role === "admin" ? [{ href: "/admin/training-registrations", label: "Training Registrations", icon: BookOpen }] : []),
-        ...(user?.role === "admin" ? [{ href: "/admin/strengthen-your-core", label: "Strengthen Your Core", icon: Target }] : []),
       ];
 
   return (

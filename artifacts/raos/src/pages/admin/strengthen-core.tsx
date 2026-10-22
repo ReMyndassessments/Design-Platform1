@@ -95,7 +95,7 @@ function displayValue(value: unknown): string {
   return String(value);
 }
 
-export default function StrengthenCoreAdmin() {
+export default function StrengthenCoreAdmin({ embedded = false }: { embedded?: boolean }) {
   const [lang, setLang] = useState<Lang>("en");
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
@@ -294,14 +294,14 @@ export default function StrengthenCoreAdmin() {
   };
 
   return (
-    <main className="min-h-[100dvh] bg-[#f1f5f2] text-[#233e3c]" lang={lang}>
-      <header className="border-b border-[#d7e1da] bg-[#f8faf7]">
+    <main className={`${embedded ? "" : "min-h-[100dvh]"} bg-[#f1f5f2] text-[#233e3c]`} lang={lang}>
+      {!embedded && <header className="border-b border-[#d7e1da] bg-[#f8faf7]">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-5 xl:px-8">
           <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#1d504e] text-white"><Activity size={19} /></span><div><p className="text-[10px] font-bold tracking-[.18em] text-[#779087]">{t.eyebrow}</p><h1 className="font-display text-xl font-semibold text-[#254442]">{t.title}</h1></div></div>
           <div className="flex items-center gap-3"><span className="hidden text-xs text-[#788a83] sm:inline">{t.subtitle}</span><label className="sr-only" htmlFor="admin-language">{t.language}</label><select id="admin-language" value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="rounded-lg border border-[#d1ddd4] bg-[#f8faf7] px-3 py-2 text-sm font-semibold" data-testid="select-admin-language"><option value="en">English</option><option value="zh">简体中文</option><option value="ko">한국어</option></select></div>
         </div>
-      </header>
-      <div className="mx-auto max-w-[1500px] px-4 py-6 xl:px-8">
+      </header>}
+      <div className={`mx-auto ${embedded ? "max-w-none px-0 py-0" : "max-w-[1500px] px-4 py-6 xl:px-8"}`}>
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#d9e4db] bg-[#e8f0e8] p-4 text-sm leading-6 text-[#536c61]" data-testid="notice-admin-scope"><LockKeyhole size={18} className="mt-0.5 shrink-0 text-[#668872]" /><p>{t.caveat}</p></div>
         <section className="mb-6 rounded-2xl border border-[#d6e1d9] bg-[#f9fbf8] p-5 shadow-sm md:p-7" aria-labelledby="share-application-title" data-testid="panel-application-sharing">
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">

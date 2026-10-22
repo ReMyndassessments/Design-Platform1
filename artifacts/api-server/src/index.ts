@@ -2004,6 +2004,7 @@ const PRODUCT_TOOL_MAP: Record<string, string[]> = {
   "sen-learning-support": ["RCS-80", "RCEP-CORE", "REFI", "RFII", "RARPS", "RASR", "SCAS", "RCADS", "BYI2", "RSCA", "EFA"],
   "boarding-wellbeing":   ["BSPP", "RERMS", "RSCP", "RFII", "WHO-5", "PSS-10", "SDQ-SR", "SDQ-SR18", "GAD-7"],
   "raepa":                ["RAEPA"],
+  "STRENGTHEN_CORE":      ["RCEP-CORE"],
   "why-struggling":    ["RCS-80", "RASR", "RSCP", "RARPS", "RFII", "INTAKE", "RCADS", "BYI2"],
   "ef-coaching":       ["REFI", "RASR", "BRIEF2-SR"],
   "emotional-wellbeing": ["RERMS", "DASS-21", "GAD-7", "PHQ-9"],

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { School, User, Mail, Phone, Calendar, Building2, Trash2, SendHorizonal, ChevronDown, ChevronUp, CheckCircle2, Copy, Link } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch, useGetCurrentUser } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import StrengthenCoreAdmin from "@/pages/admin/strengthen-core";
 
 interface Inquiry {
   id: string;
@@ -84,6 +86,12 @@ function formatDate(iso: string) {
 }
 
 export default function InquiriesPage() {
+  const [location, setLocation] = useLocation();
+  const [showStrengthenCore, setShowStrengthenCore] = useState(() =>
+    typeof window !== "undefined" &&
+    window.location.pathname === "/admin/strengthen-your-core"
+  );
+  const { data: currentUser } = useGetCurrentUser();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
@@ -97,6 +105,12 @@ export default function InquiriesPage() {
   const [selectedFormId, setSelectedFormId] = useState("REFERRAL");
   const [includeConsent, setIncludeConsent] = useState(false);
   const [inviteForm, setInviteForm] = useState({ toName: "", toEmail: "", schoolName: "", note: "" });
+
+  useEffect(() => {
+    if (location === "/admin/strengthen-your-core") {
+      setLocation("/inquiries");
+    }
+  }, [location, setLocation]);
 
   const FORM_OPTIONS = [
     { id: "REFERRAL",          label: "Referral — School" },
@@ -212,6 +226,29 @@ export default function InquiriesPage() {
     closed: allInquiries.filter((i) => i.status === "closed").length,
   };
 
+  if (showStrengthenCore) {
+    return (
+      <div className="space-y-5 animate-fade-in pb-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
+            <p className="mt-1 text-slate-500">Strengthen Your Core applications and review</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowStrengthenCore(false);
+              setLocation("/inquiries");
+            }}
+          >
+            Portal inquiries
+          </Button>
+        </div>
+        <StrengthenCoreAdmin embedded />
+      </div>
+    );
+  }
+
   if (isLoading)
     return (
       <div className="flex items-center justify-center h-64">
@@ -227,21 +264,32 @@ export default function InquiriesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h1 className="text-3xl font-bold font-display text-slate-900">Inquiries</h1>
           <p className="text-slate-500 mt-1">
               Portal inquiries and verified workshop sales inquiries
           </p>
         </div>
-        <Button
-          onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); }}
-          className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <SendHorizonal size={15} />
-          Send Referral Form
-          {showInviteForm ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {currentUser?.role === "admin" && (
+            <Button
+              variant="outline"
+              className="shrink-0"
+              onClick={() => setShowStrengthenCore(true)}
+            >
+              Strengthen Your Core applications
+            </Button>
+          )}
+          <Button
+            onClick={() => { setShowInviteForm(v => !v); setInviteSent(false); }}
+            className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <SendHorizonal size={15} />
+            Send Referral Form
+            {showInviteForm ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+          </Button>
+        </div>
       </div>
 
       {/* Send Referral Form invite panel */}

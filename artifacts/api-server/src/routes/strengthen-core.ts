@@ -760,6 +760,14 @@ router.post("/strengthen-core/applications/:applicationId/verify-consent", authM
       parentName: consent.guardianName,
       parentEmail: consent.guardianEmail,
       productIds: ["STRENGTHEN_CORE"],
+      intakeAnalysis: {
+        productToolOverrides: {
+          STRENGTHEN_CORE: {
+            addedToolIds: row.approvedExtension ? [row.approvedExtension] : [],
+            removedToolIds: [],
+          },
+        },
+      },
     });
     const verifiedConsent: SycConsentRecord = {
       ...consent,
