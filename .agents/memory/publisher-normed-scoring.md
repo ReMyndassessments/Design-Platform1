@@ -7,6 +7,8 @@ Do not calculate or present publisher-standardized scores unless the applicable 
 
 When authorized scoring materials or source results are unavailable, keep a respondent-separated descriptive record of exact saved labels/codes, show provenance and completeness separately, and block standardized interpretation. Preserve historical responses, existing score rows, and issued reports; do not silently rewrite them.
 
+Do not disable existing RAOS workflow features (including assignment, submission, or “View in English”) unless the user explicitly asks. Add safe parallel views or scoring guards without removing unrelated functionality, and keep translations separate from the original saved responses.
+
 **Why:** BASC-3 and BYI-2 scores are proprietary and edition/respondent/age dependent; unsupported conversion can produce misleading psychometric conclusions.
 
-**How to apply:** Before enabling a standardized scoring path, verify the applicable licensed materials or an identity-bound publisher report, then require human review. Until then, descriptive-only presentation is the safe fallback.
+**How to apply:** Before enabling a standardized scoring path, verify the applicable licensed materials or an identity-bound publisher report, then require human review. Until then, descriptive-only presentation is the safe fallback; that is not permission to disable normal workflow features.

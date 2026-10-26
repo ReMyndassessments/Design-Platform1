@@ -1434,14 +1434,6 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/translate", authM
     .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
     .limit(1);
   if (!assignmentRows[0]) { res.status(404).json({ error: "not_found" }); return; }
-  if (isPublisherScoredToolId(assignmentRows[0].toolId)) {
-    res.status(409).json({
-      error: "translation_unavailable",
-      message: "This report keeps the response in the language used during administration. AI translation is not applied to BASC-3 or BYI-2 response records.",
-    });
-    return;
-  }
-
   const responseRows = await db.select().from(responsesTable)
     .where(eq(responsesTable.assignmentId, req.params.assignmentId))
     .limit(1);

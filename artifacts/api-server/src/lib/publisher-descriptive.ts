@@ -13,6 +13,9 @@ export function isPublisherScoredToolId(toolId: string | null | undefined): bool
 export interface PublisherDescriptiveItem {
   id: string;
   prompt: string | null;
+  promptEnglish: string | null;
+  savedOptions: string[];
+  englishOptions: string[];
   response: string | null;
   state: "answered" | "missing";
 }
@@ -69,6 +72,9 @@ function recordedValue(value: unknown): string | null {
   if (typeof value === "string" && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
     return `Recorded code/value: ${value}`;
   }
+  if (typeof value === "string" && /^(true|false)$/i.test(value.trim())) {
+    return `Recorded code/value: ${value}`;
+  }
   if (typeof value === "string") return value;
   try {
     return `Recorded value: ${JSON.stringify(value)}`;
@@ -96,6 +102,9 @@ export function buildPublisherDescriptiveRecord(input: {
     return {
       id: item.id,
       prompt: displayedText(item, input.language),
+      promptEnglish: item.text || null,
+      savedOptions: savedOptions(item, input.language),
+      englishOptions: item.options ?? [],
       response,
       state: response === null ? "missing" : "answered",
     };
@@ -107,7 +116,7 @@ export function buildPublisherDescriptiveRecord(input: {
     if (questionIds.has(id)) continue;
     const response = recordedValue(value);
     if (response === null) continue;
-    items.push({ id, prompt: null, response, state: "answered" });
+    items.push({ id, prompt: null, promptEnglish: null, savedOptions: [], englishOptions: [], response, state: "answered" });
   }
 
   const groups = new Map<string, PublisherResponseFrequencyGroup>();

@@ -100,7 +100,7 @@ interface ResponseData {
     reviewerApproval: "not_reviewed";
     provenanceIssues: string[];
     responseFrequencyGroups: Array<{ savedOptions: string[]; counts: Record<string, number> }>;
-    items: Array<{ id: string; prompt: string | null; response: string | null; state: "answered" | "missing" }>;
+    items: Array<{ id: string; prompt: string | null; promptEnglish: string | null; savedOptions: string[]; englishOptions: string[]; response: string | null; state: "answered" | "missing" }>;
     summary: string;
   } | null;
 }
@@ -651,6 +651,27 @@ export default function ResponseViewer() {
     : isPublisherDescriptive
       ? (data.publisherDescriptive?.summary ?? null)
       : summary;
+  const publisherFrequencyGroups = viewInEnglish && data.publisherDescriptive
+    ? (() => {
+        const groups = new Map<string, { savedOptions: string[]; counts: Record<string, number> }>();
+        for (const item of data.publisherDescriptive.items) {
+          const rawValue = response.answers[item.id];
+          if (rawValue === undefined || rawValue === null || rawValue === "") continue;
+          const isRecordedCode = typeof rawValue === "number"
+            || typeof rawValue === "boolean"
+            || (typeof rawValue === "string" && (/^-?\d+(?:\.\d+)?$/.test(rawValue.trim()) || /^(true|false)$/i.test(rawValue.trim())));
+          const label = isRecordedCode
+            ? item.response ?? "Recorded value"
+            : translatedAnswers?.[item.id] ?? item.response ?? "Recorded value";
+          const options = item.englishOptions.length ? item.englishOptions : item.savedOptions;
+          const key = JSON.stringify(options);
+          const group = groups.get(key) ?? { savedOptions: options, counts: {} };
+          group.counts[label] = (group.counts[label] ?? 0) + 1;
+          groups.set(key, group);
+        }
+        return Array.from(groups.values());
+      })()
+    : data.publisherDescriptive?.responseFrequencyGroups ?? [];
 
   // When viewing in English, override language + merge translated free-text answers
   const effectiveLang = viewInEnglish ? "english" : lang;
@@ -767,7 +788,7 @@ export default function ResponseViewer() {
             )}
 
             {/* Translate to English — shown only for non-English responses */}
-            {lang !== "english" && !isPublisherDescriptive && (
+            {lang !== "english" && (
               <Button
                 variant={viewInEnglish ? "default" : "outline"}
                 size="sm"
@@ -988,7 +1009,7 @@ export default function ResponseViewer() {
                 ? `${data.publisherDescriptive.completeness.answered} recorded response values are available; the assigned form snapshot is missing.`
                 : `${data.publisherDescriptive.completeness.answered} of ${data.publisherDescriptive.completeness.total} saved form items have recorded responses${data.publisherDescriptive.completeness.missing ? ` · ${data.publisherDescriptive.completeness.missing} unanswered` : ""}.`}
             </p>
-            {data.publisherDescriptive.responseFrequencyGroups.map((group, index) => (
+            {publisherFrequencyGroups.map((group, index) => (
               <div key={`${index}-${group.savedOptions.join("|")}`} className="mt-4 rounded-xl border border-amber-200 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Recorded responses · {group.savedOptions.length ? `saved choice set: ${group.savedOptions.join(" / ")}` : "saved response values"}
@@ -1016,9 +1037,20 @@ export default function ResponseViewer() {
                   {data.publisherDescriptive.items.map((item, index) => (
                     <tr key={item.id} className="border-t border-slate-100 align-top">
                       <td className="px-4 py-3 text-slate-700">
-                        {item.prompt ? `${index + 1}. ${item.prompt}` : `Saved item ID: ${item.id} (prompt not saved)`}
+                        {item.prompt
+                          ? `${index + 1}. ${viewInEnglish ? item.promptEnglish || item.prompt : item.prompt}`
+                          : `Saved item ID: ${item.id} (prompt not saved)`}
                       </td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{item.response ?? "Unanswered"}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {(() => {
+                          const rawValue = response.answers[item.id];
+                          const isNumericCode = typeof rawValue === "number"
+                            || (typeof rawValue === "string" && /^-?\d+(?:\.\d+)?$/.test(rawValue.trim()));
+                          return viewInEnglish && !isNumericCode
+                            ? translatedAnswers?.[item.id] ?? item.response ?? "Unanswered"
+                            : item.response ?? "Unanswered";
+                        })()}
+                      </td>
                     </tr>
                   ))}
                   {data.publisherDescriptive.items.length === 0 && (
