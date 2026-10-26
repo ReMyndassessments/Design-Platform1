@@ -42,6 +42,7 @@ import { selectReadyInvitationForms } from "../lib/formInvitationReadiness.js";
 import { EXTENSIONS } from "../lib/strengthen-core-analysis.js";
 import { buildBrief2DescriptiveResponse, isBrief2ToolId } from "../lib/brief2-descriptive.js";
 import { buildPublisherDescriptiveRecord, isPublisherScoredToolId, publisherScoredFamily } from "../lib/publisher-descriptive.js";
+import { buildSdqDescriptiveResponse, isSdqToolId } from "../lib/sdq-descriptive.js";
 
 const router = Router();
 
@@ -1153,10 +1154,11 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
   const isPublisherScored = isPublisherScoredToolId(assignment.toolId);
+  const isSdq = isSdqToolId(assignment.toolId);
   const [toolRows, existingScoreRows, snapRow] = await Promise.all([
     db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
-    (isBrief2ToolId(assignment.toolId) || isPublisherScored)
+    (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq)
       ? Promise.resolve([])
       : db.select().from(scoresTable)
         .where(and(
@@ -1220,6 +1222,14 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
           : null,
       })
     : null;
+  const sdqDescriptive = isSdq
+    ? buildSdqDescriptiveResponse({
+        toolId: assignment.toolId,
+        questions,
+        answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
+        language: responseRows[0].language,
+      })
+    : null;
 
   res.json({
     assignment: {
@@ -1233,14 +1243,15 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     response: responseRows[0],
     brief2Descriptive,
     publisherDescriptive,
+    sdqDescriptive,
     questions,
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
-    scoringType: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : toolRows[0]?.scoringType ?? null,
-    toolDomains: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? [] : toolRows[0]?.domains ?? [],
-    scoringConfig: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : toolRows[0]?.scoringConfig ?? null,
-    existingScore: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : existingScoreRows[0] ?? null,
+    scoringType: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : toolRows[0]?.scoringType ?? null,
+    toolDomains: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? [] : toolRows[0]?.domains ?? [],
+    scoringConfig: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : toolRows[0]?.scoringConfig ?? null,
+    existingScore: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : existingScoreRows[0] ?? null,
   });
 });
 
@@ -1280,7 +1291,19 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
   };
 
   let summary: string;
-  if (isPublisherScoredToolId(assignment.toolId)) {
+  if (isSdqToolId(assignment.toolId)) {
+    const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot)
+      ?? (toolRows[0]?.formItems as any[] | null)
+      ?? [];
+    summary = buildSdqDescriptiveResponse({
+      toolId: assignment.toolId,
+      questions,
+      answers: commonParams.answers as Record<string, unknown>,
+      language: responseRows[0].language,
+    }).summary;
+    res.json({ summary });
+    return;
+  } else if (isPublisherScoredToolId(assignment.toolId)) {
     summary = buildPublisherDescriptiveRecord({
       toolId: assignment.toolId,
       questions: questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) ?? [],

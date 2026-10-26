@@ -8,6 +8,7 @@ import { generateReportWithAI } from "../lib/ai.js";
 import { isChineseLiteracy, isParentLiteracy } from "../lib/chineseLiteracyInstruments.js";
 import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
 import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
+import { isSdqToolId } from "../lib/sdq-descriptive.js";
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
   const reportContent = await generateReportWithAI({
     caseData: { ...caseData, caseId: req.params.caseId },
     scores: scores.filter(score =>
-      !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId)
+      !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId) && !isSdqToolId(score.toolId)
     ),
     intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
     debriefNotes: (caseData as any).debriefNotes ?? null,

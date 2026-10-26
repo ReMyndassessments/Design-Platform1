@@ -71,12 +71,12 @@ const BATTERY_TILE_DEFS: Array<{
   },
   {
     id: "sdq",
-    title: "SDQ Dashboard",
-    subtitle: "Strengths and Difficulties Questionnaire — multi-informant",
+    title: "SDQ Descriptive Review",
+    subtitle: "Respondent records shown as entered; no unverified norm scores are generated",
     tag: "SDQ",
     tagColor: "bg-teal-100 text-teal-700",
     icon: <Users size={22} className="text-teal-500" />,
-    toolIds: new Set(["SDQ-P4","SDQ-T4","SDQ-SR4","SDQ-P11","SDQ-T11","SDQ-SR"]),
+    toolIds: new Set(["SDQ-P","SDQ-P11","SDQ-T","SDQ-T11","SDQ-SR","SDQ-SR18","SDQ-P4","SDQ-T4","SDQ-SR4","SDQ-SR11"]),
   },
   {
     id: "vanderbilt",

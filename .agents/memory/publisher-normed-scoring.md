@@ -9,6 +9,8 @@ When authorized scoring materials or source results are unavailable, keep a resp
 
 Do not disable existing RAOS workflow features (including assignment, submission, or “View in English”) unless the user explicitly asks. Add safe parallel views or scoring guards without removing unrelated functionality, and keep translations separate from the original saved responses.
 
-**Why:** BASC-3 and BYI-2 scores are proprietary and edition/respondent/age dependent; unsupported conversion can produce misleading psychometric conclusions.
+For SDQ, public scoring instructions do not establish permission for electronic administration or scoring. Before calculating totals, impact scores, or norm bands, verify authorization plus the exact edition, language, age/respondent form, item key, and norm table. If these are unverified, preserve exact responses descriptively; do not infer scores, and keep impact, duration, and burden fields separate.
 
-**How to apply:** Before enabling a standardized scoring path, verify the applicable licensed materials or an identity-bound publisher report, then require human review. Until then, descriptive-only presentation is the safe fallback; that is not permission to disable normal workflow features.
+**Why:** BASC-3, BYI-2, and BRIEF-2 scores depend on authorized, form-specific scoring sources; SDQ’s public scoring guidance is not itself electronic-scoring authorization. Unsupported conversion can produce misleading psychometric conclusions.
+
+**How to apply:** Before enabling standardized scoring, verify applicable authorization, edition, language, respondent match, scoring key/norm source, and human review. If any are unverified, use descriptive responses or verified source-result import; preserve historical records and normal workflow features.

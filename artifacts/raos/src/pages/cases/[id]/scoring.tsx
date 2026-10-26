@@ -112,7 +112,7 @@ const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = 
   basc3:      { label: "BASC-3 Descriptive Report", ids: new Set(["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A", "BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"]) },
   byi2:       { label: "BYI-2 Descriptive Report", ids: new Set(["BYI2"]) },
   brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
-  sdq:        { label: "SDQ Dashboard",         ids: new Set(["SDQ-11", "SDQ-4"]) },
+  sdq:        { label: "SDQ Descriptive Review", ids: new Set(["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "SDQ-P4", "SDQ-T4", "SDQ-SR4", "SDQ-SR11"]) },
   vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
   dyslexia:   { label: "Dyslexia Screening Tool Dashboard", ids: new Set(["DYSRISK"]) },
 };
@@ -956,6 +956,15 @@ export default function ScoringView() {
       return response.json() as Promise<PublisherDescriptiveReport>;
     },
   });
+  const sdqAssignmentsQuery = useQuery<any[]>({
+    queryKey: ["sdq-descriptive-assignments", caseId],
+    enabled: batteryParam === "sdq",
+    queryFn: async () => {
+      const response = await fetch(`${BASE_URL}/api/cases/${caseId}/assignments`, { headers: authHeaders() });
+      if (!response.ok) throw new Error("Could not load SDQ respondent forms.");
+      return response.json() as Promise<any[]>;
+    },
+  });
   const calcMut = useCalculateScores();
   const isInvigilator = currentUser?.role === "assessment_invigilator";
   const isApprentice = currentUser?.role === "clinical_apprentice";
@@ -1128,6 +1137,79 @@ export default function ScoringView() {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (batteryParam === "sdq") {
+    const sdqAssignments = (sdqAssignmentsQuery.data ?? []).filter((assignment: any) =>
+      BATTERY_FILTER_MAP.sdq.ids.has(assignment.toolId),
+    );
+    return (
+      <div className="mx-auto max-w-4xl space-y-6 animate-fade-in pb-20">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href={`/cases/${caseId}/dashboards`}>
+              <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft size={20} /></Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">SDQ Descriptive Review</h1>
+              <p className="text-sm text-slate-500">Case: {studentName} · {today}</p>
+            </div>
+          </div>
+        </div>
+
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
+          <h2 className="font-semibold">Responses are available for review; no unverified scores are shown</h2>
+          <p className="mt-2">
+            This report does not calculate SDQ scale totals or norm classifications until electronic-scoring authorization
+            and the applicable form edition, language, and scoring key are verified. Open each completed respondent form
+            to review the saved answers, including positively worded items.
+          </p>
+        </section>
+
+        {sdqAssignmentsQuery.isLoading ? (
+          <div className="flex justify-center p-12">
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+          </div>
+        ) : sdqAssignmentsQuery.isError ? (
+          <section className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+            {sdqAssignmentsQuery.error instanceof Error ? sdqAssignmentsQuery.error.message : "Could not load SDQ respondent forms."}
+          </section>
+        ) : sdqAssignments.length === 0 ? (
+          <section className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
+            No SDQ forms are assigned to this case yet.
+          </section>
+        ) : (
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="font-semibold text-slate-900">Respondent forms</h2>
+              <p className="mt-1 text-sm text-slate-500">Each respondent’s answers remain separate.</p>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {sdqAssignments.map((assignment: any) => (
+                <div key={assignment.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div>
+                    <p className="font-medium text-slate-900">{assignment.toolName || assignment.toolId}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {assignment.respondentLabel || assignment.respondentType}
+                      {assignment.assignedToName ? ` · ${assignment.assignedToName}` : ""}
+                    </p>
+                  </div>
+                  {assignment.status === "completed" ? (
+                    <Link href={`/cases/${caseId}/response/${assignment.id}`}>
+                      <Button variant="outline" size="sm">Review responses</Button>
+                    </Link>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                      {assignment.status || "Not submitted"}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     );
   }

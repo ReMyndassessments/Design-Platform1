@@ -103,6 +103,32 @@ interface ResponseData {
     items: Array<{ id: string; prompt: string | null; promptEnglish: string | null; savedOptions: string[]; englishOptions: string[]; response: string | null; state: "answered" | "missing" }>;
     summary: string;
   } | null;
+  sdqDescriptive?: {
+    reportingState: "descriptive_only";
+    scoringEligibility: "not_verified";
+    formCompatibility: "expected_item_set" | "item_set_unverified";
+    completeness: { answered: number; missing: number; total: number };
+    missingCoreItems: number[];
+    sourceVerification: "unverified";
+    reviewerApproval: "not_reviewed";
+    items: Array<{
+      id: string;
+      itemNumber: number | null;
+      prompt: string;
+      response: string | null;
+      state: "recorded" | "missing";
+      positivelyWorded: boolean;
+    }>;
+    positivePhraseItems: Array<{
+      itemNumber: number | null;
+      prompt: string;
+      response: string | null;
+      state: "recorded" | "missing";
+      interpretationNote: string;
+    }>;
+    supplemental: Array<{ id: string; prompt: string; response: string | null; state: "recorded" | "missing" }>;
+    summary: string;
+  } | null;
 }
 
 const LIKERT_LABELS: Record<number, string> = {
@@ -645,8 +671,11 @@ export default function ResponseViewer() {
   const lang = response.language;
   const isBrief2 = assignment.toolId.startsWith("BRIEF2-");
   const isPublisherDescriptive = assignment.toolId.startsWith("BASC3-") || assignment.toolId === "BYI2";
-  const isDescriptiveOnly = isBrief2 || isPublisherDescriptive;
-  const summaryForDisplay = isBrief2
+  const isSdqDescriptive = assignment.toolId.startsWith("SDQ-");
+  const isDescriptiveOnly = isBrief2 || isPublisherDescriptive || isSdqDescriptive;
+  const summaryForDisplay = isSdqDescriptive
+    ? null
+    : isBrief2
     ? (data.brief2Descriptive?.summary ?? null)
     : isPublisherDescriptive
       ? (data.publisherDescriptive?.summary ?? null)
@@ -921,6 +950,47 @@ export default function ResponseViewer() {
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-5 py-3 rounded-xl print-hide">
             {scoreError}
           </div>
+        )}
+
+        {isSdqDescriptive && data.sdqDescriptive && (
+          <section className="rounded-2xl border border-teal-200 bg-teal-50/70 p-6 print-page">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-teal-950">SDQ descriptive response record</h2>
+                <p className="mt-1 text-sm text-teal-900">
+                  {data.sdqDescriptive.completeness.answered} of {data.sdqDescriptive.completeness.total} core responses recorded.
+                  {data.sdqDescriptive.completeness.missing > 0 && ` ${data.sdqDescriptive.completeness.missing} are unanswered.`}
+                </p>
+              </div>
+              <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800">
+                Standardized scoring not verified
+              </span>
+            </div>
+            <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
+              {data.sdqDescriptive.summary}
+            </p>
+            {data.sdqDescriptive.formCompatibility === "item_set_unverified" && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                The saved form does not contain the complete expected 25-item core set. Review the recorded items below; no totals or norm classifications are shown.
+              </p>
+            )}
+            {data.sdqDescriptive.positivePhraseItems.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold text-teal-950">Positively worded items</h3>
+                <p className="mt-1 text-xs text-slate-600">
+                  Endorsements below are preserved as favorable evidence, not counted or described as difficulties.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {data.sdqDescriptive.positivePhraseItems.map(item => (
+                    <div key={item.itemNumber} className="rounded-lg border border-teal-100 bg-white p-3 text-sm">
+                      <p className="font-medium text-slate-800">Item {item.itemNumber}: {item.prompt}</p>
+                      <p className="mt-1 text-slate-600">Recorded response: {item.response ?? "No response recorded"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         )}
 
         {isBrief2 && data.brief2Descriptive && (
