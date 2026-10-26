@@ -7,6 +7,7 @@ import { ArrowLeft, Printer, User, Calendar, Globe, FileText, Sparkles, RefreshC
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid } from "recharts";
 import { useGetCase } from "@workspace/api-client-react";
 import { PrintReportIdentity } from "@/components/PrintReportIdentity";
+import { PublisherCriteriaPanel, type PublisherCriteria } from "@/components/assessment/PublisherCriteriaPanel";
 
 interface FormQuestion {
   id: string;
@@ -50,6 +51,7 @@ interface ScoringConfig {
 }
 
 interface ResponseData {
+  publisherCriteria?: PublisherCriteria | null;
   assignment: {
     id: string;
     toolId: string;
@@ -759,15 +761,15 @@ export default function ResponseViewer() {
         }
       `}</style>
 
-      <div className="max-w-3xl mx-auto space-y-6 pb-16">
+      <div className="w-full min-w-0 max-w-3xl mx-auto space-y-6 pb-16">
         {/* Toolbar */}
-        <div className="flex items-center justify-between print-hide">
-          <Link href={`/cases/${caseId}`}>
+        <div className="flex min-w-0 flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between print-hide">
+          <Link href={`/cases/${caseId}`} className="self-start shrink-0 pr-12 md:pr-0">
             <Button variant="ghost" size="sm" className="gap-2 text-slate-600">
               <ArrowLeft size={16} /> Back to Case
             </Button>
           </Link>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end [&>button]:max-w-full [&>button]:whitespace-normal [&>button]:h-auto [&>button]:min-h-9">
             {/* AI Summary — available for all completed forms */}
             {summaryForDisplay && (
               <Button
@@ -975,6 +977,8 @@ export default function ResponseViewer() {
             {scoreError}
           </div>
         )}
+
+        {data.publisherCriteria && <PublisherCriteriaPanel criteria={data.publisherCriteria} />}
 
         {isSdqDescriptive && data.sdqDescriptive && (
           <section className="rounded-2xl border border-teal-200 bg-teal-50/70 p-6 print-page print-score-card">

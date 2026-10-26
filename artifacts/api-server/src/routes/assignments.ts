@@ -21,6 +21,7 @@ import type { BatteryApproval } from "../lib/batteryReview.js";
 import { getRrcaLanguageTrialResults } from "../lib/rrca.js";
 import type { RrcaAnswers } from "../lib/rrca.js";
 import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
+import { getPublisherCriteria } from "../lib/publisher-criteria.js";
 import {
   buildQuestionnaireTestFingerprint,
   buildQuestionnaireTestFormKey,
@@ -1247,6 +1248,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     brief2Descriptive,
     publisherDescriptive,
     sdqDescriptive,
+    publisherCriteria: getPublisherCriteria(assignment.toolId),
     questions,
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
