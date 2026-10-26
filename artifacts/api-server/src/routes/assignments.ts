@@ -41,6 +41,7 @@ import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib
 import { selectReadyInvitationForms } from "../lib/formInvitationReadiness.js";
 import { EXTENSIONS } from "../lib/strengthen-core-analysis.js";
 import { buildBrief2DescriptiveResponse, isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { buildPublisherDescriptiveRecord, isPublisherScoredToolId, publisherScoredFamily } from "../lib/publisher-descriptive.js";
 
 const router = Router();
 
@@ -159,6 +160,80 @@ router.get("/cases/:caseId/brief2/descriptive-report", authMiddleware, async (re
       "This report shows recorded response labels only and is not standardized scoring.",
       "Norm-based scores, percentiles, validity findings, and composites are unavailable unless supplied by an authorized, reviewed scoring source.",
     ],
+    administrations,
+  });
+});
+
+router.get("/cases/:caseId/publisher-descriptive-report", authMiddleware, async (req, res) => {
+  const caseId = String(req.params.caseId);
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+  const requestedFamily = req.query.instrument;
+  if (requestedFamily !== "BASC3" && requestedFamily !== "BYI2") {
+    res.status(400).json({ error: "invalid_instrument", message: "Choose BASC3 or BYI2." });
+    return;
+  }
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(eq(assignmentsTable.caseId, caseId));
+  const matchingAssignments = assignmentRows.filter(assignment =>
+    publisherScoredFamily(assignment.toolId) === requestedFamily
+  );
+  const toolIds = [...new Set(matchingAssignments.map(assignment => assignment.toolId))];
+  const toolRows = toolIds.length
+    ? await db.select({
+        id: assessmentToolsTable.id,
+        name: assessmentToolsTable.name,
+        formItems: assessmentToolsTable.formItems,
+      }).from(assessmentToolsTable).where(inArray(assessmentToolsTable.id, toolIds))
+    : [];
+  const toolsById = new Map(toolRows.map(tool => [tool.id, tool]));
+  const administrations = await Promise.all(matchingAssignments.map(async assignment => {
+    const responseRows = await db.select().from(responsesTable)
+      .where(eq(responsesTable.assignmentId, assignment.id))
+      .orderBy(desc(responsesTable.submittedAt))
+      .limit(1);
+    const response = responseRows[0] ?? null;
+    const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) ?? [];
+    const currentFormItems = toolsById.get(assignment.toolId)?.formItems;
+    const currentDefinitionQuestions = Array.isArray(currentFormItems)
+      ? currentFormItems.filter((item: any) => !["section_header", "heading", "instruction"].includes(item?.type))
+      : [];
+    const report = buildPublisherDescriptiveRecord({
+      toolId: assignment.toolId,
+      questions,
+      answers: (response?.answers ?? {}) as Record<string, unknown>,
+      language: response?.language ?? assignment.language ?? "unknown",
+      currentDefinitionItemCount: currentDefinitionQuestions.length,
+    });
+    return {
+      assignmentId: assignment.id,
+      toolId: assignment.toolId,
+      toolName: toolsById.get(assignment.toolId)?.name ?? assignment.toolName,
+      toolVersionId: assignment.toolVersionId ?? null,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel ?? "",
+      status: response ? assignment.status : "no_response",
+      administrationDate: response?.submittedAt?.toISOString() ?? null,
+      language: response?.language ?? assignment.language ?? null,
+      report,
+    };
+  }));
+  res.json({
+    instrument: requestedFamily,
+    reportingState: "descriptive_only",
+    standardizedScoringEligibility: "blocked",
+    limitations: requestedFamily === "BYI2"
+      ? [
+          "The current RAOS BYI-2 definition has not been verified against the applicable licensed edition or item mapping.",
+          "No separate inventory scores are produced. The five-inventory structure must be verified before any subscale grouping or interpretation.",
+          "No publisher scores, norm lookup, response-validity result, or clinical classification is generated here.",
+        ]
+      : [
+          "BASC-3 form age/edition eligibility, item mapping, and translations have not been verified against applicable licensed materials.",
+          "No publisher scores, norm lookup, response-validity result, or clinical classification is generated here.",
+        ],
     administrations,
   });
 });
@@ -1077,10 +1152,11 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
+  const isPublisherScored = isPublisherScoredToolId(assignment.toolId);
   const [toolRows, existingScoreRows, snapRow] = await Promise.all([
     db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
-    isBrief2ToolId(assignment.toolId)
+    (isBrief2ToolId(assignment.toolId) || isPublisherScored)
       ? Promise.resolve([])
       : db.select().from(scoresTable)
         .where(and(
@@ -1111,13 +1187,13 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         required: item.required ?? true,
       }));
     } catch {
-      const rawItems = toolRows[0]?.formItems;
+      const rawItems = isPublisherScored ? null : toolRows[0]?.formItems;
       questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
         ? (rawItems as StoredItem[]).map(item => ({ ...item, type: ITEM_TYPE_MAP[item.type] ?? item.type, domain: item.domain ?? "", required: item.required ?? true }))
         : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
     }
   } else {
-    const rawItems = toolRows[0]?.formItems;
+    const rawItems = isPublisherScored ? null : toolRows[0]?.formItems;
     questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
       ? (rawItems as StoredItem[]).map(item => ({
           ...item,
@@ -1140,15 +1216,17 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         language: responseRows[0].language,
       })
     : null;
-
-  let bascCorrectionApplied = false;
-  try {
-    const bcResult = await db.execute(sql`
-      SELECT COALESCE(basc_correction_applied, FALSE) AS applied
-      FROM responses WHERE id = ${responseRows[0].id}
-    `);
-    bascCorrectionApplied = (bcResult.rows?.[0] as any)?.applied ?? false;
-  } catch { /* column may not exist on very first boot before migration runs */ }
+  const publisherDescriptive = isPublisherScored
+    ? buildPublisherDescriptiveRecord({
+        toolId: assignment.toolId,
+        questions,
+        answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
+        language: responseRows[0].language,
+        currentDefinitionItemCount: Array.isArray(toolRows[0]?.formItems)
+          ? (toolRows[0]?.formItems as StoredItem[]).filter(item => !["section_header", "heading", "instruction"].includes(item.type)).length
+          : null,
+      })
+    : null;
 
   res.json({
     assignment: {
@@ -1161,15 +1239,15 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     },
     response: responseRows[0],
     brief2Descriptive,
-    bascCorrectionApplied,
+    publisherDescriptive,
     questions,
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
-    scoringType: isBrief2ToolId(assignment.toolId) ? null : toolRows[0]?.scoringType ?? null,
-    toolDomains: isBrief2ToolId(assignment.toolId) ? [] : toolRows[0]?.domains ?? [],
-    scoringConfig: isBrief2ToolId(assignment.toolId) ? null : toolRows[0]?.scoringConfig ?? null,
-    existingScore: isBrief2ToolId(assignment.toolId) ? null : existingScoreRows[0] ?? null,
+    scoringType: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : toolRows[0]?.scoringType ?? null,
+    toolDomains: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? [] : toolRows[0]?.domains ?? [],
+    scoringConfig: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : toolRows[0]?.scoringConfig ?? null,
+    existingScore: (isBrief2ToolId(assignment.toolId) || isPublisherScored) ? null : existingScoreRows[0] ?? null,
   });
 });
 
