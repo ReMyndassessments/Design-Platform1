@@ -41,7 +41,7 @@ test("BRIEF-2 self-report retains 55 item responses without assigning parent/tea
   assert.deepEqual(report.frequencyCounts, { Never: 55 });
 });
 
-test("missing values stay distinct from Never and numeric codes use only saved response options", () => {
+test("missing values stay distinct from labels and numeric codes are not inferred from option order", () => {
   const questions = [
     { id: "q1", text: "Synthetic item 1", type: "likert", options: ["Never", "Sometimes", "Often"] },
     { id: "q2", text: "Synthetic item 2", type: "likert", options: ["Never", "Sometimes", "Often"] },
@@ -54,9 +54,9 @@ test("missing values stay distinct from Never and numeric codes use only saved r
   });
 
   assert.deepEqual(report.completeness, { answered: 1, missing: 1, total: 2 });
-  assert.deepEqual(report.frequencyCounts, { Never: 1 });
+  assert.deepEqual(report.frequencyCounts, { "Recorded code/value: 0": 1 });
   assert.equal(report.items[1]?.state, "missing");
-  assert.equal(report.items[0]?.response, "Never");
+  assert.equal(report.items[0]?.response, "Recorded code/value: 0");
 });
 
 test("mismatched or incomplete response records are blocked from standardized interpretation", () => {

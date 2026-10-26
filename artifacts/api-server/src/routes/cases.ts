@@ -16,6 +16,7 @@ import { buildIntakeQuestionEmail, sendIntakeQuestionEmail } from "../lib/intake
 import { createIntakeQuestionPreviewToken } from "../lib/intakeQuestionPreview.js";
 import { deidentifiedIntake, EXTENSIONS, generateSycAnalysis, SYC_FRAMEWORK_VERSION, type Extension } from "../lib/strengthen-core-analysis.js";
 import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 const INVIGILATOR_EMAIL = "hayleyxu13@gmail.com";
 const INVIGILATOR_NAME  = "Hayley";
@@ -438,7 +439,7 @@ router.get("/cases/:caseId", authMiddleware, async (req, res) => {
     intakeData: c.intakeData,
     intakeAnalysis: c.intakeAnalysis,
     assignments: caseAssignments,
-    scores: scores.filter(score => !isBrief2ToolId(score.toolId)),
+    scores: scores.filter(score => !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId)),
     referralInvite,
   });
 });

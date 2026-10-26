@@ -5,8 +5,8 @@ const NSOA_ZH = ["从不", "有时", "经常", "几乎总是"];
 const TF_EN   = ["True", "False"];
 const TF_ZH   = ["对", "错"];
 
-// ── BASC-3 item → clinical subscale mapping ──────────────────────────────────
-// Based on Reynolds, C.R. & Kamphaus, R.W. (2015). BASC-3 Manual.
+// ── Legacy local item-domain guesses; unverified and never used for scoring ────
+// Retained only as source history. Do not use these mappings for reporting.
 // TRS/PRS scales: hyperactivity, aggression, conduct_problems, anxiety, depression,
 //   somatization, atypicality, withdrawal, attention_problems, learning_problems (TRS),
 //   adaptability, social_skills, leadership, study_skills (TRS), functional_communication,
@@ -361,14 +361,17 @@ const BASC3_DOMAIN: Record<string, string> = {
 const q = (id: string, en: string, zh: string): FormQuestion => ({
   id, text: en, textChinese: zh, textKorean: "",
   type: "likert", options: NSOA_EN, optionsChinese: NSOA_ZH, optionsKorean: [],
-  domain: BASC3_DOMAIN[id] ?? "behavior", required: true,
+  domain: "unverified_item", required: true,
 });
 
 const qtf = (id: string, en: string, zh: string): FormQuestion => ({
   id, text: en, textChinese: zh, textKorean: "",
   type: "likert", options: TF_EN, optionsChinese: TF_ZH, optionsKorean: [],
-  domain: BASC3_DOMAIN[id] ?? "behavior", required: true,
+  domain: "unverified_item", required: true,
 });
+
+// Keep the legacy mapping referenced so it cannot be mistaken for an active scoring key.
+void BASC3_DOMAIN;
 
 // ─── BASC-3 TRS-A: Teacher Rating Scales – Adolescent (Ages 12–21) ────────────
 

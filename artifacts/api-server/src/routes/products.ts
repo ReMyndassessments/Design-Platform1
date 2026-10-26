@@ -7,6 +7,7 @@ import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
 import { EXTENSIONS, type Extension } from "../lib/strengthen-core-analysis.js";
 import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 export type { AssessmentProductDef };
 
@@ -81,7 +82,7 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
   // Score lookup by toolId (may have multiple respondents)
   const scoresByTool = new Map<string, typeof scores>();
   for (const s of scores) {
-    if (isBrief2ToolId(s.toolId)) continue;
+    if (isBrief2ToolId(s.toolId) || isPublisherScoredToolId(s.toolId)) continue;
     if (!scoresByTool.has(s.toolId)) scoresByTool.set(s.toolId, []);
     scoresByTool.get(s.toolId)!.push(s);
   }
@@ -306,7 +307,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
 
     // Build toolScores from completed tools' score records
     const toolScores = allScores
-      .filter(s => completedTools.includes(s.toolId) && !isBrief2ToolId(s.toolId))
+      .filter(s => completedTools.includes(s.toolId) && !isBrief2ToolId(s.toolId) && !isPublisherScoredToolId(s.toolId))
       .map(s => ({
         toolId: s.toolId,
         toolName: scoreToolNameMap.get(s.toolId) ?? s.toolName ?? s.toolId,

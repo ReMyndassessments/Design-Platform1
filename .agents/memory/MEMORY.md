@@ -40,3 +40,4 @@
 - [Multi-respondent report coverage](multi-respondent-report-coverage.md) — every multi-respondent dashboard needs a full comparison narrative, domain interpretations, recommendations, and separate source scores.
 - [Strengthen Your Core safeguards](strengthen-core-program.md) — non-diagnostic school pathway; standard parent consent only; missing school evidence never blocks case progress.
 - [Strengthen Your Core assignment picker](strengthen-core-assignment-picker.md) — required forms must be visible and selectable before the respondent choices.
+- [Publisher-normed scoring safeguards](publisher-normed-scoring.md) — BASC-3, BYI-2, and BRIEF-2 must not use generic RAOS averages or inferred response-code labels.

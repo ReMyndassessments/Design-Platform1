@@ -199,24 +199,24 @@ router.get("/cases/:caseId/publisher-descriptive-report", authMiddleware, async 
     const currentFormItems = toolsById.get(assignment.toolId)?.formItems;
     const currentDefinitionQuestions = Array.isArray(currentFormItems)
       ? currentFormItems.filter((item: any) => !["section_header", "heading", "instruction"].includes(item?.type))
-      : [];
+      : null;
     const report = buildPublisherDescriptiveRecord({
       toolId: assignment.toolId,
       questions,
       answers: (response?.answers ?? {}) as Record<string, unknown>,
-      language: response?.language ?? assignment.language ?? "unknown",
-      currentDefinitionItemCount: currentDefinitionQuestions.length,
+      language: response?.language ?? "unknown",
+      currentDefinitionItemCount: currentDefinitionQuestions?.length ?? null,
     });
     return {
       assignmentId: assignment.id,
       toolId: assignment.toolId,
       toolName: toolsById.get(assignment.toolId)?.name ?? assignment.toolName,
-      toolVersionId: assignment.toolVersionId ?? null,
+      toolVersionId: null,
       respondentType: assignment.respondentType,
       respondentLabel: assignment.respondentLabel ?? "",
       status: response ? assignment.status : "no_response",
       administrationDate: response?.submittedAt?.toISOString() ?? null,
-      language: response?.language ?? assignment.language ?? null,
+      language: response?.language ?? null,
       report,
     };
   }));
@@ -1176,32 +1176,25 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   type StoredItem = { id: string; text: string; textChinese?: string; textKorean?: string; type: string; options?: string[]; optionsChinese?: string[]; optionsKorean?: string[]; domain?: string; required?: boolean; note?: string; noteChinese?: string; noteKorean?: string };
 
   const snapshotJson = (snapRow.rows?.[0] as any)?.form_items_snapshot ?? null;
+  const snapshotQuestions = questionsFromAssignmentSnapshot(snapshotJson);
   let questions: StoredItem[];
-  if (snapshotJson) {
-    try {
-      const snapshotItems = JSON.parse(snapshotJson) as StoredItem[];
-      questions = snapshotItems.map(item => ({
+  if (snapshotQuestions) {
+    questions = snapshotQuestions.map(item => ({
         ...item,
         type: ITEM_TYPE_MAP[item.type] ?? item.type,
         domain: item.domain ?? "",
         required: item.required ?? true,
       }));
-    } catch {
-      const rawItems = isPublisherScored ? null : toolRows[0]?.formItems;
-      questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
-        ? (rawItems as StoredItem[]).map(item => ({ ...item, type: ITEM_TYPE_MAP[item.type] ?? item.type, domain: item.domain ?? "", required: item.required ?? true }))
-        : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
-    }
   } else {
     const rawItems = isPublisherScored ? null : toolRows[0]?.formItems;
-    questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
+      questions = (rawItems && Array.isArray(rawItems) && rawItems.length > 0)
       ? (rawItems as StoredItem[]).map(item => ({
           ...item,
           type: ITEM_TYPE_MAP[item.type] ?? item.type,
           domain: item.domain ?? "",
           required: item.required ?? true,
         }))
-      : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
+      : isPublisherScored ? [] : (SAMPLE_QUESTIONS[assignment.toolId] ?? SAMPLE_QUESTIONS["default"] ?? []);
   }
 
   if (Object.hasOwn(responseRows[0].answers ?? {}, "q24_details")) {
@@ -1266,7 +1259,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
     return;
   }
   const [responseRows, caseRows, toolRows] = await Promise.all([
-    db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id)).limit(1),
+    db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id))
+      .orderBy(desc(responsesTable.submittedAt)).limit(1),
     db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
       .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1),
     db.select({ name: assessmentToolsTable.name, formItems: assessmentToolsTable.formItems })
@@ -1286,7 +1280,21 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
   };
 
   let summary: string;
-  if (isBrief2ToolId(assignment.toolId)) {
+  if (isPublisherScoredToolId(assignment.toolId)) {
+    summary = buildPublisherDescriptiveRecord({
+      toolId: assignment.toolId,
+      questions: questionsFromAssignmentSnapshot(assignment.formItemsSnapshot) ?? [],
+      answers: commonParams.answers as Record<string, unknown>,
+      language: responseRows[0].language,
+      currentDefinitionItemCount: Array.isArray(toolRows[0]?.formItems)
+        ? (toolRows[0]?.formItems as any[]).filter(item => !["section_header", "heading", "instruction"].includes(item?.type)).length
+        : null,
+    }).summary;
+    // Keep any historical narrative untouched; the safe descriptive view is returned
+    // for this request and is rebuilt from the frozen form snapshot when viewed.
+    res.json({ summary });
+    return;
+  } else if (isBrief2ToolId(assignment.toolId)) {
     const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot)
       ?? (toolRows[0]?.formItems as any[] | null)
       ?? [];
@@ -1426,6 +1434,13 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/translate", authM
     .where(and(eq(assignmentsTable.id, req.params.assignmentId), eq(assignmentsTable.caseId, req.params.caseId)))
     .limit(1);
   if (!assignmentRows[0]) { res.status(404).json({ error: "not_found" }); return; }
+  if (isPublisherScoredToolId(assignmentRows[0].toolId)) {
+    res.status(409).json({
+      error: "translation_unavailable",
+      message: "This report keeps the response in the language used during administration. AI translation is not applied to BASC-3 or BYI-2 response records.",
+    });
+    return;
+  }
 
   const responseRows = await db.select().from(responsesTable)
     .where(eq(responsesTable.assignmentId, req.params.assignmentId))

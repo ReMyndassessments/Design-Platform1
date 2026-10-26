@@ -50,24 +50,18 @@ function getItemText(item: Brief2FormItem, language: string): string {
   return item.text;
 }
 
-function getResponseOptions(item: Brief2FormItem, language: string): string[] {
-  if (language === "mandarin" || language === "cantonese") return item.optionsChinese?.length ? item.optionsChinese : item.options ?? [];
-  if (language === "korean") return item.optionsKorean?.length ? item.optionsKorean : item.options ?? [];
-  return item.options ?? [];
-}
-
-function formatRecordedResponse(item: Brief2FormItem, value: unknown, language: string): string | null {
+function formatRecordedResponse(value: unknown): string | null {
   if (value === undefined || value === null || value === "") return null;
-  if (typeof value === "string") return value;
-
-  // Numeric values are interpreted only against this administration's saved options.
-  // Without that evidence, retain the code instead of guessing what the respondent saw.
-  const numericValue = typeof value === "number" ? value : Number(value);
-  if (Number.isInteger(numericValue)) {
-    const option = getResponseOptions(item, language)[numericValue];
-    return option ?? `Recorded code ${String(value)}`;
+  if (typeof value === "number" || typeof value === "boolean") return `Recorded code/value: ${String(value)}`;
+  if (typeof value === "string" && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
+    return `Recorded code/value: ${value}`;
   }
-  return String(value);
+  if (typeof value === "string") return value;
+  try {
+    return `Recorded value: ${JSON.stringify(value)}`;
+  } catch {
+    return "Recorded value (format unavailable)";
+  }
 }
 
 export function buildBrief2DescriptiveResponse(input: {
@@ -81,7 +75,7 @@ export function buildBrief2DescriptiveResponse(input: {
   const items: Brief2DescriptiveItem[] = input.questions
     .filter(item => item.type !== "section_header" && item.type !== "heading" && item.type !== "instruction")
     .map(item => {
-      const response = formatRecordedResponse(item, input.answers[item.id], input.language);
+      const response = formatRecordedResponse(input.answers[item.id]);
       return {
         id: item.id,
         prompt: getItemText(item, input.language),

@@ -377,12 +377,13 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
     id: "BYI2",
     name: "Beck Youth Inventories 2nd Edition",
     category: "social-emotional",
-    description: "Self-report measure of emotional and social impairment in children and adolescents. 100 items across 5 scales: Self-Concept, Anxiety, Depression, Anger, and Disruptive Behavior.",
+    description: "Youth self-report form. The local item mapping, language versions, and licensed edition have not been verified; RAOS provides descriptive recorded responses only and does not calculate publisher scores or interpretations.",
     isRemyndOwned: false,
     respondentTypes: ["self"],
     scoringType: "manual",
-    domains: ["depression", "anxiety", "anger", "disruptive_behavior", "self_concept"],
-    formItems: BYI2_FORM,
+    domains: ["unverified_item"],
+    formItems: BYI2_FORM.map(item => item.type === "section_header" ? item : { ...item, domain: "unverified_item" }),
+    scoringConfig: null,
   },
   {
     id: "RCADS",
@@ -1489,75 +1490,75 @@ const CANONICAL_TOOLS: (typeof assessmentToolsTable.$inferInsert)[] = [
   // ─── BASC-3 ────────────────────────────────────────────────────────────────
   {
     id: "BASC3-TRS-A",
-    name: "BASC-3 Teacher Rating Scales – Adolescent (Ages 12–21)",
+    name: "BASC-3 Teacher Rating Scales – Adolescent Form",
     category: "behavior",
-    description: "Teacher-completed behavior rating scale for adolescents aged 12–21. Assesses a broad range of behavioral and emotional dimensions including externalizing problems, internalizing problems, school problems, adaptive skills, and behavioral symptoms. Part of the BASC-3 battery.",
+    description: "Teacher-completed BASC-3 form. Confirm the licensed edition and age eligibility before use. RAOS currently displays recorded responses only; publisher scoring and interpretation are not enabled.",
     isRemyndOwned: false,
     respondentTypes: ["teacher1", "teacher2"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_TRS_A_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BASC3-PRS-A",
-    name: "BASC-3 Parent Rating Scales – Adolescent (Ages 12–21)",
+    name: "BASC-3 Parent Rating Scales – Adolescent Form",
     category: "behavior",
-    description: "Parent-completed behavior rating scale for adolescents aged 12–21. Covers externalizing problems, internalizing problems, adaptive skills, and behavioral symptoms from a home context. Part of the BASC-3 battery.",
+    description: "Parent/guardian-completed BASC-3 form. Confirm the licensed edition and age eligibility before use. RAOS currently displays recorded responses only; publisher scoring and interpretation are not enabled.",
     isRemyndOwned: false,
     respondentTypes: ["parent"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_PRS_A_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BASC3-TRS-C",
-    name: "BASC-3 Teacher Rating Scales – Child (Ages 6–11)",
+    name: "BASC-3 Teacher Rating Scales – Child Form",
     category: "behavior",
-    description: "Teacher-completed behavior rating scale for children aged 6–11. Assesses externalizing problems, internalizing problems, school problems, adaptive skills, and behavioral symptoms in the classroom setting. Part of the BASC-3 battery.",
+    description: "Teacher-completed BASC-3 form. Confirm the licensed edition and age eligibility before use. RAOS currently displays recorded responses only; publisher scoring and interpretation are not enabled.",
     isRemyndOwned: false,
     respondentTypes: ["teacher1", "teacher2"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_TRS_C_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BASC3-PRS-C",
-    name: "BASC-3 Parent Rating Scales – Child (Ages 6–11)",
+    name: "BASC-3 Parent Rating Scales – Child Form",
     category: "behavior",
-    description: "Parent-completed behavior rating scale for children aged 6–11. Covers externalizing problems, internalizing problems, adaptive skills, and behavioral symptoms from a home context. Part of the BASC-3 battery.",
+    description: "Parent/guardian-completed BASC-3 form. Confirm the licensed edition and age eligibility before use. RAOS currently displays recorded responses only; publisher scoring and interpretation are not enabled.",
     isRemyndOwned: false,
     respondentTypes: ["parent"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_PRS_C_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BASC3-SRP-A",
-    name: "BASC-3 Self-Report of Personality – Adolescent (Ages 12–21)",
+    name: "BASC-3 Self-Report of Personality – Adolescent Form",
     category: "behavior",
-    description: "Self-report scale completed by adolescents aged 12–21. Items 1–59 use True/False format; items 60–189 use a frequency scale (Never–Almost always). Covers school maladjustment, clinical maladjustment, personal adjustment, and an emotional symptoms index. Part of the BASC-3 battery.",
+    description: "BASC-3 youth self-report form. Confirm the licensed edition and age eligibility before use. RAOS preserves the saved response formats but does not calculate publisher scores or interpretations.",
     isRemyndOwned: false,
     respondentTypes: ["self"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_SRP_A_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BASC3-SRP-C",
-    name: "BASC-3 Self-Report of Personality – Child (Ages 8–11)",
+    name: "BASC-3 Self-Report of Personality – Child Form",
     category: "behavior",
-    description: "Self-report scale completed by children aged 8–11. Items 1–42 use True/False format; items 43–137 use a frequency scale (Never–Almost always). Covers school maladjustment, clinical maladjustment, personal adjustment, and an emotional symptoms index. Part of the BASC-3 battery.",
+    description: "BASC-3 youth self-report form. Confirm the licensed edition and age eligibility before use. RAOS preserves the saved response formats but does not calculate publisher scores or interpretations.",
     isRemyndOwned: false,
     respondentTypes: ["self"],
     scoringType: "manual",
-    domains: ["behavior"],
+    domains: ["unverified_item"],
     formItems: BASC3_SRP_C_FORM,
-    scoringConfig: { max: 3 },
+    scoringConfig: null,
   },
   {
     id: "BRIEF2-P",
@@ -2210,11 +2211,11 @@ const CANONICAL_BATTERIES: (typeof batteriesTable.$inferInsert)[] = [
   {
     id: BASC3_BATTERY_ID,
     name: "Behavior Assessment System for Children, Third Edition (BASC-3)",
-    description: "A comprehensive, multi-method assessment system for evaluating the behavior and self-perceptions of children and adolescents aged 6–21. Includes Teacher Rating Scales (TRS), Parent Rating Scales (PRS), and Self-Report of Personality (SRP) forms for child (6–11) and adolescent (12–21) age bands. Scoring is completed externally using the BASC-3 ASSIST software.",
+    description: "BASC-3 response forms in RAOS are not verified against the applicable licensed editions or age/translation requirements. The case report preserves responses descriptively only.",
     toolIds: ["BASC3-TRS-A", "BASC3-PRS-A", "BASC3-TRS-C", "BASC3-PRS-C", "BASC3-SRP-A", "BASC3-SRP-C"],
     isRemyndOwned: false,
-    domains: ["behavior"],
-    scoringNotes: "BASC-3 scoring is performed externally using the BASC-3 ASSIST scoring software. Raw scores, T-scores, and percentile ranks are generated by ASSIST and entered into the case record manually. Rating scale forms (TRS/PRS) use a 4-point frequency scale: Never (N), Sometimes (S), Often (O), Almost Always (A). Self-Report forms (SRP) use True/False for the first set of items and the same 4-point frequency scale for the remainder.",
+    domains: ["unverified_item"],
+    scoringNotes: "RAOS does not calculate or accept BASC-3 standardized scores through generic score entry. Publisher scoring, validity results, norm tables, age/edition suitability, and item mappings are not verified here. Use the descriptive response report only.",
   },
   {
     id: BRIEF2_BATTERY_ID,
@@ -3435,28 +3436,6 @@ async function patchToolVersions() {
     if (patched > 0) logger.info({ patched }, "Tool versions patched");
   } catch (err) {
     logger.error({ err }, "patchToolVersions failed");
-  }
-}
-
-async function applyBascHistoricalCorrection() {
-  try {
-    await db.execute(sql`
-      ALTER TABLE responses
-      ADD COLUMN IF NOT EXISTS basc_correction_applied BOOLEAN NOT NULL DEFAULT FALSE
-    `);
-    const result = await db.execute(sql`
-      UPDATE responses
-      SET    basc_correction_applied = TRUE
-      WHERE  basc_correction_applied = FALSE
-        AND  assignment_id IN (
-               SELECT id FROM assignments WHERE tool_id LIKE 'BASC3-%'
-             )
-    `);
-    if ((result.rowCount ?? 0) > 0) {
-      logger.info({ count: result.rowCount }, "Applied BASC historical response correction flag");
-    }
-  } catch (err) {
-    logger.error({ err }, "applyBascHistoricalCorrection failed");
   }
 }
 
@@ -5140,7 +5119,6 @@ Promise.all([runMigrations(), seedIfEmpty(), syncUserEmails(), syncTools(), sync
   .then(() => addAssignmentMetadataColumn())
   .then(() => patchToolVersions())
   .then(() => seedChineseLiteracy())
-  .then(() => applyBascHistoricalCorrection())
   .then(() => repairPendingCasesFromConsent())
   .then(() => addCoordinatorSupport())
   .then(() => syncAssignmentToolNames())

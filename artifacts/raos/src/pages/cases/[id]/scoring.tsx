@@ -51,6 +51,40 @@ interface Brief2DescriptiveReport {
   administrations: Brief2DescriptiveAdministration[];
 }
 
+interface PublisherDescriptiveReport {
+  instrument: "BASC3" | "BYI2";
+  reportingState: "descriptive_only";
+  standardizedScoringEligibility: "blocked";
+  limitations: string[];
+  administrations: Array<{
+    assignmentId: string;
+    toolId: string;
+    toolName: string;
+    toolVersionId: string | null;
+    respondentType: string;
+    respondentLabel: string;
+    status: string;
+    administrationDate: string | null;
+    language: string | null;
+    report: {
+      reportingState: "descriptive_only";
+      standardizedScoringEligibility: "blocked";
+      provenanceState: "legacy_unverified";
+      formSource: "assignment_snapshot" | "not_saved";
+      formItemCount: { captured: number; savedCurrentDefinition: number | null; matchesSavedDefinition: boolean | null };
+      completeness: { answered: number; missing: number; total: number | null };
+      administrationSuitability: "not_verified";
+      sourceVerification: "unverified";
+      responseValidity: "not_available";
+      reviewerApproval: "not_reviewed";
+      provenanceIssues: string[];
+      responseFrequencyGroups: Array<{ savedOptions: string[]; counts: Record<string, number> }>;
+      items: Array<{ id: string; prompt: string | null; response: string | null; state: "answered" | "missing" }>;
+      summary: string;
+    };
+  }>;
+}
+
 function brief2RespondentLabel(type: string, label: string) {
   if (label.trim()) return label;
   if (type === "parent") return "Parent/Guardian";
@@ -75,7 +109,8 @@ const DEFAULT_EXCLUDED_TOOLS = new Set(["CONSENT", "REFERRAL", "INTAKE", "SESQ"]
 // battery dashboard card via ?battery=<tileId>.
 const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = {
   snap:       { label: "SNAP-IV Dashboard",     ids: new Set(["SNAPIV26"]) },
-  basc3:      { label: "BASC-3 Dashboard",      ids: new Set(["BASC3-A", "BASC3-C", "BASC3-P"]) },
+  basc3:      { label: "BASC-3 Descriptive Report", ids: new Set(["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A", "BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"]) },
+  byi2:       { label: "BYI-2 Descriptive Report", ids: new Set(["BYI2"]) },
   brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
   sdq:        { label: "SDQ Dashboard",         ids: new Set(["SDQ-11", "SDQ-4"]) },
   vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
@@ -86,21 +121,6 @@ const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = 
 // When 2+ tools from the same battery have scores, they are merged into a
 // single multi-respondent section instead of appearing as separate sections.
 const BATTERY_GROUPS: Array<{ batteryId: string; batteryName: string; toolIds: string[] }> = [
-  {
-    batteryId: "BASC3-A",
-    batteryName: "BASC-3 Adolescent Rating Scales (Ages 12–21)",
-    toolIds: ["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A"],
-  },
-  {
-    batteryId: "BASC3-C",
-    batteryName: "BASC-3 Child Rating Scales (Ages 6–11)",
-    toolIds: ["BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"],
-  },
-  {
-    batteryId: "BASC3-P",
-    batteryName: "BASC-3 Preschool Rating Scales (Ages 2–5)",
-    toolIds: ["BASC3-PRS-P", "BASC3-TRS-P"],
-  },
   {
     batteryId: "BRIEF2",
     batteryName: "BRIEF-2 (Behavior Rating Inventory of Executive Function)",
@@ -914,6 +934,7 @@ export default function ScoringView() {
   const { data: scores, isLoading } = useGetCaseScores(caseId);
   const { data: caseData } = useGetCase(caseId);
   const { data: currentUser } = useGetCurrentUser();
+  const publisherFamily = batteryParam.startsWith("basc3") ? "BASC3" : batteryParam === "byi2" ? "BYI2" : null;
   const brief2Query = useQuery<Brief2DescriptiveReport>({
     queryKey: ["brief2-descriptive-report", caseId],
     enabled: batteryParam === "brief2",
@@ -921,6 +942,18 @@ export default function ScoringView() {
       const response = await fetch(`${BASE_URL}/api/cases/${caseId}/brief2/descriptive-report`, { headers: authHeaders() });
       if (!response.ok) throw new Error("Could not load the BRIEF-2 descriptive report.");
       return response.json() as Promise<Brief2DescriptiveReport>;
+    },
+  });
+  const publisherQuery = useQuery<PublisherDescriptiveReport>({
+    queryKey: ["publisher-descriptive-report", caseId, publisherFamily],
+    enabled: publisherFamily !== null,
+    queryFn: async () => {
+      const response = await fetch(
+        `${BASE_URL}/api/cases/${caseId}/publisher-descriptive-report?instrument=${publisherFamily}`,
+        { headers: authHeaders() },
+      );
+      if (!response.ok) throw new Error("Could not load the descriptive response report.");
+      return response.json() as Promise<PublisherDescriptiveReport>;
     },
   });
   const calcMut = useCalculateScores();
@@ -1084,6 +1117,145 @@ export default function ScoringView() {
                             <tr key={item.id} className="border-t align-top">
                               <td className="px-3 py-2 text-slate-700">{index + 1}. {item.prompt}</td>
                               <td className="px-3 py-2 font-medium">{item.response ?? "Unanswered"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (publisherFamily) {
+    const administrations = publisherQuery.data?.administrations ?? [];
+    const instrumentName = publisherFamily === "BASC3" ? "BASC-3" : "BYI-2";
+    return (
+      <div className="space-y-6 animate-fade-in pb-20">
+        <PrintReportIdentity
+          reportTitle={`${instrumentName} Descriptive Response Report`}
+          studentName={caseData?.studentName}
+          dob={caseData?.dob}
+          grade={caseData?.grade}
+          school={caseData?.school}
+          languagePreference={caseData?.languagePreference}
+          caseId={caseId}
+        />
+        <div className="flex items-center justify-between gap-4 no-print">
+          <div className="flex items-center gap-4">
+            <Link href={`/cases/${caseId}/dashboards`}>
+              <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft size={20} /></Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">{instrumentName} Descriptive Report</h1>
+              <p className="text-sm text-slate-500">Case: {studentName} · {today}</p>
+            </div>
+          </div>
+          <Button onClick={() => window.print()} variant="outline" className="bg-white">
+            <Download size={16} className="mr-2" /> Download PDF
+          </Button>
+        </div>
+
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
+          <h2 className="font-semibold">Descriptive only — standardized scoring is blocked</h2>
+          <p className="mt-1">
+            Each completed form is shown separately by respondent. RAOS does not calculate norm-based scores, percentiles, composites, validity results, or clinical classifications.
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5">
+            {(publisherQuery.data?.limitations ?? [
+              "The applicable licensed form edition, item mapping, translations, and scoring source are not verified.",
+              "Recorded numeric codes are shown as codes; RAOS does not infer their response labels from option order.",
+            ]).map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </section>
+
+        {publisherQuery.isLoading && <div className="rounded-xl border bg-white p-8 text-center text-slate-500">Loading saved response records…</div>}
+        {publisherQuery.isError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+            {publisherQuery.error instanceof Error ? publisherQuery.error.message : "Could not load the descriptive response report."}
+          </div>
+        )}
+        {!publisherQuery.isLoading && !publisherQuery.isError && administrations.length === 0 && (
+          <Card className="p-10 text-center text-slate-500">No {instrumentName} assignments are recorded for this case.</Card>
+        )}
+
+        <div className="space-y-6">
+          {administrations.map(admin => (
+            <Card key={admin.assignmentId} className="overflow-hidden border-slate-200">
+              <CardHeader className="border-b bg-slate-50">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg">{admin.toolName}</CardTitle>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {brief2RespondentLabel(admin.respondentType, admin.respondentLabel)}
+                      {admin.administrationDate && ` · Submitted ${new Date(admin.administrationDate).toLocaleDateString()}`}
+                      {admin.language && ` · ${admin.language}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${admin.status === "no_response" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>
+                      {admin.status === "no_response" ? "No response" : "Descriptive only"}
+                    </span>
+                    <Link href={`/cases/${caseId}/response/${admin.assignmentId}`}>
+                      <Button variant="outline" size="sm">Open response</Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5">
+                <p className="text-sm text-slate-700">
+                  {admin.report.completeness.total === null
+                    ? `${admin.report.completeness.answered} recorded response values; no saved assignment form snapshot.`
+                    : `${admin.report.completeness.answered}/${admin.report.completeness.total} saved items answered · ${admin.report.completeness.missing} unanswered`}
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full border border-red-300 bg-red-50 px-3 py-1 text-red-800">Scoring blocked</span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">Edition unverified</span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">Validity unavailable</span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">Not reviewed</span>
+                </div>
+                {admin.report.provenanceIssues.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-amber-900">
+                    {admin.report.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
+                  </ul>
+                )}
+                {admin.report.responseFrequencyGroups.map((group, index) => (
+                  <div key={`${index}-${group.savedOptions.join("|")}`} className="rounded-lg border bg-white p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Recorded values · {group.savedOptions.length ? `saved choices: ${group.savedOptions.join(" / ")}` : "saved response values"}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(group.counts).map(([label, count]) => (
+                        <span key={label} className="rounded-lg border bg-slate-50 px-3 py-2 text-sm">
+                          <strong>{label}</strong>: {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {publisherFamily === "BYI2" && (
+                  <p className="rounded-lg border border-amber-200 bg-white p-3 text-sm text-slate-700">
+                    RAOS does not display separate inventory scores until the licensed form’s five-inventory item mapping is verified.
+                  </p>
+                )}
+                {admin.report.items.length > 0 && (
+                  <details>
+                    <summary className="cursor-pointer text-sm font-medium text-primary">View recorded item responses</summary>
+                    <div className="mt-3 max-h-[28rem] overflow-auto rounded-lg border bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                          <tr><th className="px-3 py-2">Saved item</th><th className="px-3 py-2">Recorded response</th></tr>
+                        </thead>
+                        <tbody>
+                          {admin.report.items.map((item, index) => (
+                            <tr key={item.id} className="border-t align-top">
+                              <td className="px-3 py-2 text-slate-700">{item.prompt ? `${index + 1}. ${item.prompt}` : `Saved item ID: ${item.id} (prompt not saved)`}</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">{item.response ?? "Unanswered"}</td>
                             </tr>
                           ))}
                         </tbody>

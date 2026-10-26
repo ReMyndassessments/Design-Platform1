@@ -86,7 +86,23 @@ interface ResponseData {
     items: Array<{ id: string; prompt: string; response: string | null; state: "answered" | "missing" }>;
     summary: string;
   } | null;
-  bascCorrectionApplied?: boolean;
+  publisherDescriptive?: {
+    family: "BASC3" | "BYI2";
+    reportingState: "descriptive_only";
+    standardizedScoringEligibility: "blocked";
+    provenanceState: "legacy_unverified";
+    formSource: "assignment_snapshot" | "not_saved";
+    formItemCount: { captured: number; savedCurrentDefinition: number | null; matchesSavedDefinition: boolean | null };
+    completeness: { answered: number; missing: number; total: number | null };
+    administrationSuitability: "not_verified";
+    sourceVerification: "unverified";
+    responseValidity: "not_available";
+    reviewerApproval: "not_reviewed";
+    provenanceIssues: string[];
+    responseFrequencyGroups: Array<{ savedOptions: string[]; counts: Record<string, number> }>;
+    items: Array<{ id: string; prompt: string | null; response: string | null; state: "answered" | "missing" }>;
+    summary: string;
+  } | null;
 }
 
 const LIKERT_LABELS: Record<number, string> = {
@@ -625,10 +641,16 @@ export default function ResponseViewer() {
     );
   }
 
-  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig, bascCorrectionApplied } = data;
+  const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig } = data;
   const lang = response.language;
   const isBrief2 = assignment.toolId.startsWith("BRIEF2-");
-  const summaryForDisplay = isBrief2 ? (data.brief2Descriptive?.summary ?? null) : summary;
+  const isPublisherDescriptive = assignment.toolId.startsWith("BASC3-") || assignment.toolId === "BYI2";
+  const isDescriptiveOnly = isBrief2 || isPublisherDescriptive;
+  const summaryForDisplay = isBrief2
+    ? (data.brief2Descriptive?.summary ?? null)
+    : isPublisherDescriptive
+      ? (data.publisherDescriptive?.summary ?? null)
+      : summary;
 
   // When viewing in English, override language + merge translated free-text answers
   const effectiveLang = viewInEnglish ? "english" : lang;
@@ -692,7 +714,7 @@ export default function ResponseViewer() {
             >
               {isGenerating
                 ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                : <><Sparkles size={14} /> {isBrief2 ? "Refresh Descriptive Summary" : summary ? "Regenerate Summary" : "Generate Summary"}</>}
+                : <><Sparkles size={14} /> {isDescriptiveOnly ? "Refresh Descriptive Summary" : summary ? "Regenerate Summary" : "Generate Summary"}</>}
             </Button>
 
             {/* System Scored tools */}
@@ -745,7 +767,7 @@ export default function ResponseViewer() {
             )}
 
             {/* Translate to English — shown only for non-English responses */}
-            {lang !== "english" && (
+            {lang !== "english" && !isPublisherDescriptive && (
               <Button
                 variant={viewInEnglish ? "default" : "outline"}
                 size="sm"
@@ -780,37 +802,7 @@ export default function ResponseViewer() {
         />
 
         {/* Report Card */}
-        {/* BASC Historical Response Scale Correction Disclosure */}
-        {bascCorrectionApplied && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 print-page">
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
-              <div className="flex-1">
-                <p className="font-semibold text-amber-900 text-sm mb-1">Response Scale Correction Notice</p>
-                <p className="text-amber-800 text-xs leading-relaxed mb-4">
-                  Due to a historical form-delivery configuration issue, this BASC form was completed using an incorrect
-                  response scale. Because re-administration was not feasible, responses were converted using a conservative
-                  midpoint correction methodology designed to preserve the respondent's intended frequency rating while
-                  minimising score inflation. Results should be interpreted with appropriate clinical and professional judgement.
-                </p>
-                <div>
-                  <p className="text-amber-900 text-xs font-semibold mb-2">Conversion Reference</p>
-                  <div className="grid grid-cols-3 text-xs text-amber-800 border border-amber-200 rounded overflow-hidden max-w-xs">
-                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-r border-amber-200">Original Value</div>
-                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-r border-amber-200">Original Label</div>
-                    <div className="bg-amber-100 font-semibold px-3 py-1.5 border-b border-amber-200">Converted Score</div>
-                    <div className="px-3 py-1 border-b border-r border-amber-100">0</div><div className="px-3 py-1 border-b border-r border-amber-100">Never</div><div className="px-3 py-1 border-b border-amber-100">1.0</div>
-                    <div className="px-3 py-1 border-b border-r border-amber-100">1</div><div className="px-3 py-1 border-b border-r border-amber-100">Rarely</div><div className="px-3 py-1 border-b border-amber-100">1.5</div>
-                    <div className="px-3 py-1 border-b border-r border-amber-100">2</div><div className="px-3 py-1 border-b border-r border-amber-100">Sometimes</div><div className="px-3 py-1 border-b border-amber-100">2.5</div>
-                    <div className="px-3 py-1 border-r border-amber-100">3</div><div className="px-3 py-1 border-r border-amber-100">Often</div><div className="px-3 py-1">3.5</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-qa-card">
+        {!isDescriptiveOnly && <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-qa-card">
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-7 print:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
@@ -891,7 +883,7 @@ export default function ResponseViewer() {
               <span>ReMynd Assessment Operating System</span>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Error states */}
         {translateError && (
@@ -964,6 +956,74 @@ export default function ResponseViewer() {
                       <td className="px-4 py-3 font-medium text-slate-900">{item.response ?? "Unanswered"}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {isPublisherDescriptive && data.publisherDescriptive && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 print-page">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {data.publisherDescriptive.family === "BASC3" ? "BASC-3" : "BYI-2"} descriptive response record
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-700">
+                  This records what was saved for this respondent. It is not publisher-standardized scoring or an interpretation.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-red-300 bg-red-50 px-3 py-1 font-medium text-red-800">Standardized scoring blocked</span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">Source edition unverified</span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">Validity not available</span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">Reviewer approval not recorded</span>
+              </div>
+            </div>
+            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-amber-950">
+              {data.publisherDescriptive.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
+            </ul>
+            <p className="mt-4 text-sm text-slate-700">
+              {data.publisherDescriptive.completeness.total === null
+                ? `${data.publisherDescriptive.completeness.answered} recorded response values are available; the assigned form snapshot is missing.`
+                : `${data.publisherDescriptive.completeness.answered} of ${data.publisherDescriptive.completeness.total} saved form items have recorded responses${data.publisherDescriptive.completeness.missing ? ` · ${data.publisherDescriptive.completeness.missing} unanswered` : ""}.`}
+            </p>
+            {data.publisherDescriptive.responseFrequencyGroups.map((group, index) => (
+              <div key={`${index}-${group.savedOptions.join("|")}`} className="mt-4 rounded-xl border border-amber-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Recorded responses · {group.savedOptions.length ? `saved choice set: ${group.savedOptions.join(" / ")}` : "saved response values"}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {Object.entries(group.counts).map(([label, count]) => (
+                    <span key={label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                      <strong>{label}</strong>: {count}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {data.publisherDescriptive.family === "BYI2" && (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-white p-3 text-sm text-slate-700">
+                The five inventory groupings and their item mapping are not shown as separate scores until verified against the applicable licensed form.
+              </p>
+            )}
+            <div className="mt-5 max-h-[32rem] overflow-auto rounded-xl border border-amber-200 bg-white">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr><th className="px-4 py-3">Saved item</th><th className="px-4 py-3">Recorded response</th></tr>
+                </thead>
+                <tbody>
+                  {data.publisherDescriptive.items.map((item, index) => (
+                    <tr key={item.id} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3 text-slate-700">
+                        {item.prompt ? `${index + 1}. ${item.prompt}` : `Saved item ID: ${item.id} (prompt not saved)`}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.response ?? "Unanswered"}</td>
+                    </tr>
+                  ))}
+                  {data.publisherDescriptive.items.length === 0 && (
+                    <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No saved item responses are available.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1055,8 +1115,8 @@ export default function ResponseViewer() {
               <div className="flex items-center gap-3">
                 <Sparkles size={18} className="text-violet-300" />
                 <div>
-                  <h2 className="text-lg font-bold text-white">{isBrief2 ? "Descriptive response summary" : "AI-Generated Summary"}</h2>
-                  <p className="text-violet-300 text-xs mt-0.5">{assignment.toolName} — {studentName} · {isBrief2 ? "Exact recorded frequencies; no standardized interpretation" : "Generated by ReMynd AI"}</p>
+                  <h2 className="text-lg font-bold text-white">{isDescriptiveOnly ? "Descriptive response summary" : "AI-Generated Summary"}</h2>
+                  <p className="text-violet-300 text-xs mt-0.5">{assignment.toolName} — {studentName} · {isDescriptiveOnly ? "Recorded values only; no standardized interpretation" : "Generated by ReMynd AI"}</p>
                 </div>
               </div>
             </div>
@@ -1076,7 +1136,7 @@ export default function ResponseViewer() {
               </div>
             </div>
             <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-xs text-slate-400">{isBrief2 ? "Descriptive-only; not standardized or norm-referenced" : "AI-assisted narrative — for clinical use only"}</span>
+                  <span className="text-xs text-slate-400">{isDescriptiveOnly ? "Descriptive-only; not standardized or norm-referenced" : "AI-assisted narrative — for clinical use only"}</span>
               <Button
                 size="sm"
                 variant="outline"

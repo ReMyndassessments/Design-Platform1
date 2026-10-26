@@ -67,45 +67,7 @@ router.get("/admin/validation-warnings", authMiddleware, async (req, res) => {
 
   const warnings: object[] = [];
 
-  // ── 1. BASC historical scale correction ─────────────────────────────────────
-  try {
-    const bascRows = await db.execute(sql`
-      SELECT
-        r.id            AS response_id,
-        a.id            AS assignment_id,
-        a.tool_id,
-        a.tool_name,
-        a.respondent_label,
-        a.case_id,
-        c.student_name,
-        c.school,
-        r.submitted_at
-      FROM responses r
-      JOIN assignments a ON a.id = r.assignment_id
-      JOIN cases c       ON c.id = a.case_id
-      WHERE r.basc_correction_applied = TRUE
-      ORDER BY r.submitted_at DESC
-    `);
-    for (const row of bascRows.rows as any[]) {
-      warnings.push({
-        type: "basc_scale_correction",
-        severity: "warning",
-        caseId: row.case_id,
-        studentName: row.student_name,
-        school: row.school ?? "",
-        assignmentId: row.assignment_id,
-        toolId: row.tool_id,
-        toolName: row.tool_name,
-        respondentLabel: row.respondent_label,
-        submittedAt: row.submitted_at,
-        description:
-          "This response was submitted under an incorrect BASC response scale (0–3 instead of 1–4). " +
-          "A conservative midpoint correction has been applied. Results should be interpreted with appropriate clinical judgement.",
-      });
-    }
-  } catch { /* table may not exist on first boot */ }
-
-  // ── 2. Form version changed after assignment was sent ────────────────────────
+  // ── 1. Form version changed after assignment was sent ────────────────────────
   try {
     const driftRows = await db.execute(sql`
       SELECT

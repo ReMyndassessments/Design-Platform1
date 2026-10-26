@@ -8,7 +8,6 @@ import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const WARNING_LABELS: Record<string, string> = {
-  basc_scale_correction: "BASC Response Scale Correction Applied",
   form_version_changed: "Form Definition Changed After Assignment Was Sent",
 };
 

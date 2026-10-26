@@ -8,6 +8,7 @@ import { SAMPLE_QUESTIONS } from "../lib/questions.js";
 import { writeAudit } from "../lib/audit.js";
 import { isChineseLiteracy } from "../lib/chineseLiteracyInstruments.js";
 import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 const router = Router();
 
@@ -98,7 +99,9 @@ router.get("/cases/:caseId/scores", authMiddleware, async (req, res) => {
   const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
   // Descriptive literacy profiles have their own coverage/evidence view, not
   // the generic normalized/risk visualizations used by other instruments.
-  res.json(scores.filter(score => !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId)));
+  res.json(scores.filter(score =>
+    !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId)
+  ));
 });
 
 router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) => {
@@ -112,7 +115,7 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   const newScores = [];
 
   for (const assignment of completedAssignments) {
-    if (isChineseLiteracy(assignment.toolId) || isBrief2ToolId(assignment.toolId)) continue;
+    if (isChineseLiteracy(assignment.toolId) || isBrief2ToolId(assignment.toolId) || isPublisherScoredToolId(assignment.toolId)) continue;
     const responses = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id));
     if (responses.length === 0) continue;
 
@@ -168,7 +171,9 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   }
 
   const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
-  res.json(allScores.filter(score => !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId)));
+  res.json(allScores.filter(score =>
+    !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId)
+  ));
 });
 
 router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => {
@@ -182,6 +187,9 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
   }
   if (isBrief2ToolId(toolId)) {
     res.status(409).json({ message: "BRIEF-2 cannot use RAOS /100 or generic severity scoring. Use descriptive response frequencies or enter results from an authorized scoring source through a reviewed workflow." }); return;
+  }
+  if (isPublisherScoredToolId(toolId)) {
+    res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
   }
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
@@ -252,6 +260,9 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
   }
   if (isBrief2ToolId(assignment?.toolId)) {
     res.status(409).json({ message: "BRIEF-2 cannot use RAOS /100 or generic severity scoring. Review descriptive response frequencies instead." }); return;
+  }
+  if (isPublisherScoredToolId(assignment?.toolId)) {
+    res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
   }
 
   const responseRows = await db.select().from(responsesTable)

@@ -20,7 +20,9 @@ test("BASC mixed response types stay in separate saved-option groups and numeric
   assert.equal(report.items[1]?.response, "Recorded code/value: 2");
   assert.equal(report.responseFrequencyGroups.length, 2);
   assert.equal(report.responseValidity, "not_available");
-  assert.doesNotMatch(report.summary, /normal|mild|clinical significance|T-score|percentile/i);
+  assert.match(report.summary, /does not calculate publisher scores/i);
+  assert.equal("normalizedScores" in report, false);
+  assert.equal("domainScores" in report, false);
 });
 
 test("BYI-2 missing answers stay missing and item domains are not used to create scores", () => {
@@ -43,6 +45,7 @@ test("BYI-2 missing answers stay missing and item domains are not used to create
 
 test("publisher-scored form detection does not capture unrelated Beck or other assessments", () => {
   assert.equal(isPublisherScoredToolId("BASC3-TRS-C"), true);
+  assert.equal(isPublisherScoredToolId("BASC3"), true);
   assert.equal(isPublisherScoredToolId("BYI2"), true);
   assert.equal(isPublisherScoredToolId("BDI-II"), false);
   assert.equal(isPublisherScoredToolId("BECK"), false);

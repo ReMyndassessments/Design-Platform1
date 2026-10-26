@@ -7,6 +7,7 @@ import { generateRemyndIndexInsights } from "../lib/ai.js";
 import { buildDomainMap, computeDomainScores, normalizeScores } from "../lib/scoringHelpers.js";
 import { nanoid } from "nanoid";
 import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 const router = Router();
 const REMYND_INSIGHTS_VERSION = 2;
@@ -66,7 +67,7 @@ async function getRemyndToolIds(): Promise<Set<string>> {
       .select({ id: assessmentToolsTable.id, scoringType: assessmentToolsTable.scoringType, isRemyndOwned: assessmentToolsTable.isRemyndOwned })
       .from(assessmentToolsTable);
     const dbIds = toolRows
-      .filter(t => t.isRemyndOwned && t.scoringType === "auto" && !isBrief2ToolId(t.id))
+      .filter(t => t.isRemyndOwned && t.scoringType === "auto" && !isBrief2ToolId(t.id) && !isPublisherScoredToolId(t.id))
       .map(t => t.id);
     return new Set([...REMYND_AUTO_TOOL_IDS, ...dbIds]);
   } catch {

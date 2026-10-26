@@ -1,7 +1,7 @@
 export type PublisherScoredFamily = "BASC3" | "BYI2";
 
 export function publisherScoredFamily(toolId: string | null | undefined): PublisherScoredFamily | null {
-  if (toolId?.startsWith("BASC3-")) return "BASC3";
+  if (toolId === "BASC3" || toolId?.startsWith("BASC3-")) return "BASC3";
   if (toolId === "BYI2") return "BYI2";
   return null;
 }
