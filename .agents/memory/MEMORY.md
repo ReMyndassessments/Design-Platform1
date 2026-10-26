@@ -31,6 +31,7 @@
 - [RAOS battery review policy](raos-battery-review-policy.md) — admin approves sends; staff dry runs cover questionnaires, not separate examiner workflows; test-package links never save answers.
 - [RAOS Drizzle schema drift](raos-drizzle-schema-drift.md) — broad schema push may propose renaming unrelated legacy tables; inspect and reject ambiguous changes.
 - [Execution sandbox constraints](execution-runtime-quirks.md) — generate identifiers in impure scope when needed; batch large SQL results to avoid the ~1 MiB output cap.
+- [Node strip-types test imports](node-strip-types-test-imports.md) — Node's strip-types runner needs explicit TypeScript test imports and rejects directory imports.
 - [Teacher editor scope](teacher-editor-scope.md) — use the existing respondent editor; do not add replacement-package flows or renewed battery approval for contact corrections.
 - [Git revert checkpoint state](git-revert-checkpoints.md) — quit a completed no-commit revert so leftover Git operation state cannot block automatic checkpoints.
 - [Chinese literacy scope](chinese-literacy-scope.md) — parent-home and teacher-classroom forms are independent; keep sources separate, with descriptive domains and no diagnostic or pooled scores.

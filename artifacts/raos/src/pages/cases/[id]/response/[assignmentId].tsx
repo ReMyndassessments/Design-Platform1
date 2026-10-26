@@ -73,6 +73,19 @@ interface ResponseData {
   toolDomains: string[];
   scoringConfig: ScoringConfig | null;
   existingScore: ScoreRecord | null;
+  brief2Descriptive?: {
+    reportingState: "descriptive_only";
+    provenanceState: "legacy_unverified" | "blocked";
+    provenanceIssues: string[];
+    formCompatibility: "expected_item_count" | "item_count_mismatch";
+    completeness: { answered: number; missing: number; total: number };
+    sourceVerification: "unverified";
+    responseValidity: "not_available";
+    reviewerApproval: "not_reviewed";
+    frequencyCounts: Record<string, number>;
+    items: Array<{ id: string; prompt: string; response: string | null; state: "answered" | "missing" }>;
+    summary: string;
+  } | null;
   bascCorrectionApplied?: boolean;
 }
 
@@ -614,6 +627,8 @@ export default function ResponseViewer() {
 
   const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig, bascCorrectionApplied } = data;
   const lang = response.language;
+  const isBrief2 = assignment.toolId.startsWith("BRIEF2-");
+  const summaryForDisplay = isBrief2 ? (data.brief2Descriptive?.summary ?? null) : summary;
 
   // When viewing in English, override language + merge translated free-text answers
   const effectiveLang = viewInEnglish ? "english" : lang;
@@ -658,7 +673,7 @@ export default function ResponseViewer() {
           </Link>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* AI Summary — available for all completed forms */}
-            {summary && (
+            {summaryForDisplay && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -677,7 +692,7 @@ export default function ResponseViewer() {
             >
               {isGenerating
                 ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                : <><Sparkles size={14} /> {summary ? "Regenerate Summary" : "Generate Summary"}</>}
+                : <><Sparkles size={14} /> {isBrief2 ? "Refresh Descriptive Summary" : summary ? "Regenerate Summary" : "Generate Summary"}</>}
             </Button>
 
             {/* System Scored tools */}
@@ -895,6 +910,66 @@ export default function ResponseViewer() {
           </div>
         )}
 
+        {isBrief2 && data.brief2Descriptive && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 print-page">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">BRIEF-2 descriptive response record</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-700">
+                  Recorded response labels for this respondent only. This is not standardized scoring and does not provide norm-based interpretations.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className={`rounded-full border px-3 py-1 font-medium ${data.brief2Descriptive.provenanceState === "blocked" ? "border-red-300 bg-red-50 text-red-800" : "border-amber-300 bg-white text-amber-800"}`}>
+                  {data.brief2Descriptive.provenanceState === "blocked" ? "Blocked from standardized interpretation" : "Legacy provenance unverified"}
+                </span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">
+                  Form item count: {data.brief2Descriptive.formCompatibility === "expected_item_count" ? "expected" : "mismatch"}
+                </span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">Validity: not available</span>
+                <span className="rounded-full border border-slate-300 bg-white px-3 py-1 font-medium text-slate-700">Review: not approved</span>
+              </div>
+            </div>
+            {data.brief2Descriptive.provenanceIssues.length > 0 && (
+              <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-red-800">
+                {data.brief2Descriptive.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
+              </ul>
+            )}
+            <p className="mt-4 text-sm text-slate-700">
+              Response completeness: {data.brief2Descriptive.completeness.answered} of {data.brief2Descriptive.completeness.total} items answered
+              {data.brief2Descriptive.completeness.missing > 0 && ` · ${data.brief2Descriptive.completeness.missing} unanswered`}.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {Object.entries(data.brief2Descriptive.frequencyCounts).map(([label, count]) => (
+                <span key={label} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800">
+                  <strong>{label}</strong>: {count}
+                </span>
+              ))}
+              {Object.keys(data.brief2Descriptive.frequencyCounts).length === 0 && (
+                <span className="text-sm text-slate-500">No response labels recorded.</span>
+              )}
+            </div>
+            <div className="mt-5 max-h-[32rem] overflow-auto rounded-xl border border-amber-200 bg-white">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Item</th>
+                    <th className="px-4 py-3">Recorded response</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.brief2Descriptive.items.map((item, index) => (
+                    <tr key={item.id} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3 text-slate-700">{index + 1}. {item.prompt}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.response ?? "Unanswered"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {/* Manual Score Entry Form */}
         {isManuallyScored && showManualForm && (
           <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden print-hide">
@@ -974,20 +1049,20 @@ export default function ResponseViewer() {
         )}
 
         {/* AI-Generated Summary */}
-        {summary && (
+        {summaryForDisplay && (
           <div ref={summaryRef} className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden print-page print-summary-card">
             <div className="bg-gradient-to-r from-violet-900 to-violet-800 px-8 py-5">
               <div className="flex items-center gap-3">
                 <Sparkles size={18} className="text-violet-300" />
                 <div>
-                  <h2 className="text-lg font-bold text-white">AI-Generated Summary</h2>
-                  <p className="text-violet-300 text-xs mt-0.5">{assignment.toolName} — {studentName} · Generated by ReMynd AI</p>
+                  <h2 className="text-lg font-bold text-white">{isBrief2 ? "Descriptive response summary" : "AI-Generated Summary"}</h2>
+                  <p className="text-violet-300 text-xs mt-0.5">{assignment.toolName} — {studentName} · {isBrief2 ? "Exact recorded frequencies; no standardized interpretation" : "Generated by ReMynd AI"}</p>
                 </div>
               </div>
             </div>
             <div className="px-8 py-7">
               <div className="space-y-0">
-                {summary.split("\n").map((line, i) => {
+                {summaryForDisplay.split("\n").map((line, i) => {
                   const trimmed = line.trim();
                   if (!trimmed) return <div key={i} className="h-3" />;
                   if (trimmed === trimmed.toUpperCase() && trimmed.length > 4 && !trimmed.endsWith(".")) {
@@ -1001,7 +1076,7 @@ export default function ResponseViewer() {
               </div>
             </div>
             <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-xs text-slate-400">AI-assisted narrative — for clinical use only</span>
+              <span className="text-xs text-slate-400">{isBrief2 ? "Descriptive-only; not standardized or norm-referenced" : "AI-assisted narrative — for clinical use only"}</span>
               <Button
                 size="sm"
                 variant="outline"

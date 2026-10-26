@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearch, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useGetCaseScores, useCalculateScores, useGetCase, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,50 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { buildMultiInformantReport, buildMultiInformantSources } from "@/lib/multi-informant-report";
 import { PrintReportIdentity } from "@/components/PrintReportIdentity";
+
+const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function authHeaders() {
+  const token = localStorage.getItem("raos_token");
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+interface Brief2DescriptiveAdministration {
+  assignmentId: string;
+  toolId: string;
+  toolName: string;
+  respondentType: string;
+  respondentLabel: string;
+  administrationDate: string | null;
+  language: string | null;
+  status: string;
+  reportingState: "descriptive_only";
+  provenanceState: "legacy_unverified" | "blocked";
+  provenanceIssues: string[];
+  formCompatibility: "expected_item_count" | "item_count_mismatch";
+  completeness: { answered: number; missing: number; total: number };
+  sourceVerification: "unverified";
+  responseValidity: "not_available";
+  reviewerApproval: "not_reviewed";
+  frequencyCounts: Record<string, number>;
+  items: Array<{ id: string; prompt: string; response: string | null; state: "answered" | "missing" }>;
+  summary: string;
+}
+
+interface Brief2DescriptiveReport {
+  scoringState: "descriptive_only";
+  limitations: string[];
+  administrations: Brief2DescriptiveAdministration[];
+}
+
+function brief2RespondentLabel(type: string, label: string) {
+  if (label.trim()) return label;
+  if (type === "parent") return "Parent/Guardian";
+  if (type === "teacher1") return "Teacher 1";
+  if (type === "teacher2") return "Teacher 2";
+  if (type === "self" || type === "student") return "Student Self-Report";
+  return type.replace(/_/g, " ");
+}
 
 // ── Tools that score higher = better (strengths-based) ───────────────────────
 const HIGHER_IS_BETTER_TOOLS = new Set(["EFA"]);
@@ -869,6 +914,15 @@ export default function ScoringView() {
   const { data: scores, isLoading } = useGetCaseScores(caseId);
   const { data: caseData } = useGetCase(caseId);
   const { data: currentUser } = useGetCurrentUser();
+  const brief2Query = useQuery<Brief2DescriptiveReport>({
+    queryKey: ["brief2-descriptive-report", caseId],
+    enabled: batteryParam === "brief2",
+    queryFn: async () => {
+      const response = await fetch(`${BASE_URL}/api/cases/${caseId}/brief2/descriptive-report`, { headers: authHeaders() });
+      if (!response.ok) throw new Error("Could not load the BRIEF-2 descriptive report.");
+      return response.json() as Promise<Brief2DescriptiveReport>;
+    },
+  });
   const calcMut = useCalculateScores();
   const isInvigilator = currentUser?.role === "assessment_invigilator";
   const isApprentice = currentUser?.role === "clinical_apprentice";
@@ -915,6 +969,135 @@ export default function ScoringView() {
 
   const studentName = caseData?.studentName ?? "the student";
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+  if (batteryParam === "brief2") {
+    const administrations = brief2Query.data?.administrations ?? [];
+    return (
+      <div className="space-y-6 animate-fade-in pb-20">
+        <PrintReportIdentity
+          reportTitle="BRIEF-2 Descriptive Response Report"
+          studentName={caseData?.studentName}
+          dob={caseData?.dob}
+          grade={caseData?.grade}
+          school={caseData?.school}
+          languagePreference={caseData?.languagePreference}
+          caseId={caseId}
+        />
+        <div className="flex items-center justify-between gap-4 no-print">
+          <div className="flex items-center gap-4">
+            <Link href={`/cases/${caseId}/dashboards`}>
+              <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft size={20} /></Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">BRIEF-2 Descriptive Report</h1>
+              <p className="text-sm text-slate-500">Case: {studentName} · {today}</p>
+            </div>
+          </div>
+          <Button onClick={() => window.print()} variant="outline" className="bg-white">
+            <Download size={16} className="mr-2" /> Download PDF
+          </Button>
+        </div>
+
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
+          <h2 className="font-semibold">Descriptive only — not standardized BRIEF-2 scoring</h2>
+          <p className="mt-1">
+            These legacy administrations have unverified form, response-scale, language, and scoring provenance. This page shows the recorded responses separately by respondent; it does not calculate /100 scores, severity bands, norm-based results, or pooled comparisons.
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5">
+            {(brief2Query.data?.limitations ?? [
+              "No publisher-generated T-scores, percentiles, composite scores, or validity results are available here.",
+              "Missing or incompatible administration details require professional review; they are not inferred.",
+            ]).map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </section>
+
+        {brief2Query.isLoading && <div className="rounded-xl border bg-white p-8 text-center text-slate-500">Loading recorded responses…</div>}
+        {brief2Query.isError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+            {brief2Query.error instanceof Error ? brief2Query.error.message : "Could not load BRIEF-2 response data."}
+          </div>
+        )}
+        {!brief2Query.isLoading && !brief2Query.isError && administrations.length === 0 && (
+          <Card className="p-10 text-center text-slate-500">No BRIEF-2 assignments are recorded for this case.</Card>
+        )}
+        <div className="space-y-6">
+          {administrations.map(admin => (
+            <Card key={admin.assignmentId} className="overflow-hidden border-slate-200">
+              <CardHeader className="border-b bg-slate-50">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg">{admin.toolName}</CardTitle>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {brief2RespondentLabel(admin.respondentType, admin.respondentLabel)}
+                      {admin.administrationDate && ` · Submitted ${new Date(admin.administrationDate).toLocaleDateString()}`}
+                      {admin.language && ` · ${admin.language}`}
+                    </p>
+                  </div>
+                  <Link href={`/cases/${caseId}/response/${admin.assignmentId}`}>
+                    <Button variant="outline" size="sm">Open recorded response</Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5">
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">
+                    {admin.completeness.answered}/{admin.completeness.total} items answered
+                  </span>
+                  <span className={`rounded-full border px-3 py-1 ${admin.provenanceState === "blocked" ? "border-red-300 bg-red-50 text-red-800" : "border-amber-300 bg-amber-50 text-amber-800"}`}>
+                    {admin.provenanceState === "blocked" ? "Blocked from standardized interpretation" : "Source unverified"}
+                  </span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">
+                    Form item count: {admin.formCompatibility === "expected_item_count" ? "expected" : "mismatch"}
+                  </span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">Validity unavailable</span>
+                  <span className="rounded-full border bg-white px-3 py-1 text-slate-700">Not reviewed</span>
+                </div>
+                {admin.provenanceIssues.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-red-800">
+                    {admin.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
+                  </ul>
+                )}
+                {Object.keys(admin.frequencyCounts).length > 0 ? (
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recorded response frequencies</h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(admin.frequencyCounts).map(([label, count]) => (
+                        <span key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                          <strong>{label}</strong>: {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">{admin.summary}</p>
+                )}
+                {admin.items.length > 0 && (
+                  <details>
+                    <summary className="cursor-pointer text-sm font-medium text-primary">View all recorded item responses</summary>
+                    <div className="mt-3 max-h-[28rem] overflow-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                          <tr><th className="px-3 py-2">Item</th><th className="px-3 py-2">Recorded response</th></tr>
+                        </thead>
+                        <tbody>
+                          {admin.items.map((item, index) => (
+                            <tr key={item.id} className="border-t align-top">
+                              <td className="px-3 py-2 text-slate-700">{index + 1}. {item.prompt}</td>
+                              <td className="px-3 py-2 font-medium">{item.response ?? "Unanswered"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Group scores by toolId, keeping only the latest per respondentType
   const byTool: Record<string, Record<string, any>> = {};

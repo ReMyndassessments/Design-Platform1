@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable, strengthenCoreProgramTable } from "@workspace/db/schema";
-import { eq, and, ne, inArray, sql } from "drizzle-orm";
+import { eq, and, ne, inArray, sql, desc } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
@@ -40,6 +40,7 @@ import { z } from "zod";
 import { readQuestionnaireTestHistory, lockQuestionnaireTestForms } from "../lib/questionnaireTestHistory.js";
 import { selectReadyInvitationForms } from "../lib/formInvitationReadiness.js";
 import { EXTENSIONS } from "../lib/strengthen-core-analysis.js";
+import { buildBrief2DescriptiveResponse, isBrief2ToolId } from "../lib/brief2-descriptive.js";
 
 const router = Router();
 
@@ -74,6 +75,92 @@ router.get("/cases/:caseId/assignments", authMiddleware, async (req, res) => {
     : [];
   res.json(visibleObservationAssignments(assignments, new Set(savedObservations.map(r => r.assignmentId)))
     .map(({ formItemsSnapshot: _snapshot, ...assignment }) => assignment));
+});
+
+router.get("/cases/:caseId/brief2/descriptive-report", authMiddleware, async (req, res) => {
+  const caseId = String(req.params.caseId);
+  if (!await checkCaseAccess(req.userRole!, req.userId!, caseId)) {
+    res.status(403).json({ error: "forbidden", message: "Access denied" });
+    return;
+  }
+
+  const assignments = await db.select().from(assignmentsTable)
+    .where(and(eq(assignmentsTable.caseId, caseId), inArray(assignmentsTable.toolId, ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"])));
+  if (assignments.length === 0) {
+    res.json({ scoringState: "descriptive_only", administrations: [] });
+    return;
+  }
+
+  const toolRows = await db.select({
+    id: assessmentToolsTable.id,
+    formItems: assessmentToolsTable.formItems,
+  }).from(assessmentToolsTable)
+    .where(inArray(assessmentToolsTable.id, [...new Set(assignments.map(row => row.toolId))]));
+  const formItemsByTool = new Map(toolRows.map(row => [row.id, row.formItems]));
+
+  const administrations = await Promise.all(assignments.map(async assignment => {
+    const responseRows = await db.select().from(responsesTable)
+      .where(eq(responsesTable.assignmentId, assignment.id))
+      .orderBy(desc(responsesTable.submittedAt))
+      .limit(1);
+    const response = responseRows[0];
+    const snapshotQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+    const questions = snapshotQuestions ?? (formItemsByTool.get(assignment.toolId) as any[] | null) ?? [];
+
+    if (!response) {
+      const total = questions.filter(question => question.type !== "section_header" && question.type !== "heading" && question.type !== "instruction").length;
+      return {
+        assignmentId: assignment.id,
+        toolId: assignment.toolId,
+        toolName: assignment.toolName,
+        respondentType: assignment.respondentType,
+        respondentLabel: assignment.respondentLabel,
+        assignedToName: assignment.assignedToName,
+        administrationDate: null,
+        language: null,
+        status: assignment.status,
+        reportingState: "descriptive_only",
+        provenanceState: "blocked",
+        provenanceIssues: ["No submitted response is available for this assignment."],
+        formCompatibility: total === (assignment.toolId === "BRIEF2-SR" ? 55 : 63) ? "expected_item_count" : "item_count_mismatch",
+        completeness: { answered: 0, missing: total, total },
+        sourceVerification: "unverified",
+        responseValidity: "not_available",
+        reviewerApproval: "not_reviewed",
+        frequencyCounts: {},
+        items: [],
+        summary: "No submitted response is available for this assignment.",
+      };
+    }
+
+    return {
+      assignmentId: assignment.id,
+      toolId: assignment.toolId,
+      toolName: assignment.toolName,
+      respondentType: assignment.respondentType,
+      respondentLabel: assignment.respondentLabel,
+      assignedToName: assignment.assignedToName,
+      administrationDate: response.submittedAt,
+      language: response.language,
+      status: assignment.status,
+      ...buildBrief2DescriptiveResponse({
+        toolId: assignment.toolId,
+        questions,
+        answers: (response.answers ?? {}) as Record<string, unknown>,
+        language: response.language,
+      }),
+    };
+  }));
+
+  res.json({
+    scoringState: "descriptive_only",
+    limitations: [
+      "Existing BRIEF-2 records are unverified legacy administrations.",
+      "This report shows recorded response labels only and is not standardized scoring.",
+      "Norm-based scores, percentiles, validity findings, and composites are unavailable unless supplied by an authorized, reviewed scoring source.",
+    ],
+    administrations,
+  });
 });
 
 function mayReviewBattery(role: string | undefined): boolean {
@@ -980,6 +1067,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
 
   const responseRows = await db.select().from(responsesTable)
     .where(eq(responsesTable.assignmentId, assignment.id))
+    .orderBy(desc(responsesTable.submittedAt))
     .limit(1);
   if (!responseRows[0]) {
     res.status(404).json({ error: "not_found", message: "No response submitted yet" });
@@ -992,13 +1080,15 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   const [toolRows, existingScoreRows, snapRow] = await Promise.all([
     db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
-    db.select().from(scoresTable)
-      .where(and(
-        eq(scoresTable.caseId, req.params.caseId),
-        eq(scoresTable.toolId, assignment.toolId),
-        eq(scoresTable.respondentType, assignment.respondentType)
-      ))
-      .limit(1),
+    isBrief2ToolId(assignment.toolId)
+      ? Promise.resolve([])
+      : db.select().from(scoresTable)
+        .where(and(
+          eq(scoresTable.caseId, req.params.caseId),
+          eq(scoresTable.toolId, assignment.toolId),
+          eq(scoresTable.respondentType, assignment.respondentType)
+        ))
+        .limit(1),
     db.execute(sql`SELECT form_items_snapshot FROM assignments WHERE id = ${assignment.id}`),
   ]);
 
@@ -1042,6 +1132,15 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     questions = withBehavobsDetails(questions, assignment.toolId);
   }
 
+  const brief2Descriptive = isBrief2ToolId(assignment.toolId)
+    ? buildBrief2DescriptiveResponse({
+        toolId: assignment.toolId,
+        questions,
+        answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
+        language: responseRows[0].language,
+      })
+    : null;
+
   let bascCorrectionApplied = false;
   try {
     const bcResult = await db.execute(sql`
@@ -1061,15 +1160,16 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
       assignedToName: assignment.assignedToName,
     },
     response: responseRows[0],
+    brief2Descriptive,
     bascCorrectionApplied,
     questions,
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
-    scoringType: toolRows[0]?.scoringType ?? null,
-    toolDomains: toolRows[0]?.domains ?? [],
-    scoringConfig: toolRows[0]?.scoringConfig ?? null,
-    existingScore: existingScoreRows[0] ?? null,
+    scoringType: isBrief2ToolId(assignment.toolId) ? null : toolRows[0]?.scoringType ?? null,
+    toolDomains: isBrief2ToolId(assignment.toolId) ? [] : toolRows[0]?.domains ?? [],
+    scoringConfig: isBrief2ToolId(assignment.toolId) ? null : toolRows[0]?.scoringConfig ?? null,
+    existingScore: isBrief2ToolId(assignment.toolId) ? null : existingScoreRows[0] ?? null,
   });
 });
 
@@ -1108,7 +1208,17 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
   };
 
   let summary: string;
-  if (assignment.toolId === "INTAKE") {
+  if (isBrief2ToolId(assignment.toolId)) {
+    const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot)
+      ?? (toolRows[0]?.formItems as any[] | null)
+      ?? [];
+    summary = buildBrief2DescriptiveResponse({
+      toolId: assignment.toolId,
+      questions,
+      answers: commonParams.answers as Record<string, unknown>,
+      language: responseRows[0].language,
+    }).summary;
+  } else if (assignment.toolId === "INTAKE") {
     summary = await generateIntakeSummary(commonParams);
   } else if (assignment.toolId === "BEHAVOBS") {
     summary = await generateAboSummary(commonParams);

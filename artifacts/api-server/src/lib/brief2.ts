@@ -3,10 +3,9 @@ import type { FormQuestion } from "./questions.js";
 const NSO_EN = ["Never", "Sometimes", "Often"];
 const NSO_ZH = ["从不", "有时", "经常"];
 
-// ── BRIEF-2 item → clinical subscale mapping ─────────────────────────────────
-// Based on Gioia, G.A., Isquith, P.K., Guy, S.C., & Kenworthy, L. (2015).
-// BRIEF-2: Behavior Rating Inventory of Executive Function, 2nd Edition.
-const B2_DOMAIN: Record<string, string> = {
+// Legacy item labels are retained only for compatibility with stored form
+// snapshots. Current BRIEF-2 reporting never uses this mapping or creates scores.
+const LEGACY_UNVERIFIED_B2_DOMAIN: Record<string, string> = {
   // ── Parent Form (b2p, 63 items) ───────────────────────────────────────────
   "b2p-1":"inhibit",        "b2p-2":"shift",          "b2p-3":"working_memory",
   "b2p-4":"self_monitor",   "b2p-5":"organization_of_materials","b2p-6":"emotional_control",
@@ -77,7 +76,7 @@ const B2_DOMAIN: Record<string, string> = {
 const q = (id: string, en: string, zh: string): FormQuestion => ({
   id, text: en, textChinese: zh, textKorean: "",
   type: "likert", options: NSO_EN, optionsChinese: NSO_ZH, optionsKorean: [],
-  domain: B2_DOMAIN[id] ?? "executive-function", required: true,
+  domain: "unverified_item", required: true,
 });
 
 // ─── BRIEF-2 Parent Form (63 items) ───────────────────────────────────────────

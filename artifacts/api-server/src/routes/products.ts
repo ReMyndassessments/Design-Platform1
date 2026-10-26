@@ -6,6 +6,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
 import { EXTENSIONS, type Extension } from "../lib/strengthen-core-analysis.js";
+import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
 
 export type { AssessmentProductDef };
 
@@ -80,6 +81,7 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
   // Score lookup by toolId (may have multiple respondents)
   const scoresByTool = new Map<string, typeof scores>();
   for (const s of scores) {
+    if (isBrief2ToolId(s.toolId)) continue;
     if (!scoresByTool.has(s.toolId)) scoresByTool.set(s.toolId, []);
     scoresByTool.get(s.toolId)!.push(s);
   }
@@ -304,7 +306,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
 
     // Build toolScores from completed tools' score records
     const toolScores = allScores
-      .filter(s => completedTools.includes(s.toolId))
+      .filter(s => completedTools.includes(s.toolId) && !isBrief2ToolId(s.toolId))
       .map(s => ({
         toolId: s.toolId,
         toolName: scoreToolNameMap.get(s.toolId) ?? s.toolName ?? s.toolId,
@@ -331,6 +333,14 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
   const totalCompleted = productSummaries.reduce((sum: number, p: any) => sum + (p?.completedToolCount ?? 0), 0);
   if (totalCompleted === 0) {
     res.status(400).json({ error: "no_completed_tools", message: "At least one tool must be completed before generating a report." });
+    return;
+  }
+  const totalWithScoredResults = productSummaries.reduce((sum: number, product: any) => sum + (product?.toolScores?.length ?? 0), 0);
+  if (totalWithScoredResults === 0) {
+    res.status(409).json({
+      error: "no_supported_scores",
+      message: "BRIEF-2 responses are descriptive-only until authorized, reviewed scoring results are available. No generic score report was generated.",
+    });
     return;
   }
 
