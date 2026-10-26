@@ -1150,7 +1150,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     return;
   }
 
-  const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
+  const caseRows = await db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade, dob: casesTable.dob })
     .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1);
 
   const isPublisherScored = isPublisherScoredToolId(assignment.toolId);
@@ -1209,6 +1209,8 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         questions,
         answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
         language: responseRows[0].language,
+        dateOfBirth: caseRows[0]?.dob ?? null,
+        administeredAt: responseRows[0].submittedAt,
       })
     : null;
   const publisherDescriptive = isPublisherScored
@@ -1272,7 +1274,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
   const [responseRows, caseRows, toolRows] = await Promise.all([
     db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id))
       .orderBy(desc(responsesTable.submittedAt)).limit(1),
-    db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade })
+    db.select({ studentName: casesTable.studentName, school: casesTable.school, grade: casesTable.grade, dob: casesTable.dob })
       .from(casesTable).where(eq(casesTable.id, req.params.caseId)).limit(1),
     db.select({ name: assessmentToolsTable.name, formItems: assessmentToolsTable.formItems })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId ?? "")).limit(1),
@@ -1300,6 +1302,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
       questions,
       answers: commonParams.answers as Record<string, unknown>,
       language: responseRows[0].language,
+      dateOfBirth: caseRows[0]?.dob ?? null,
+      administeredAt: responseRows[0].submittedAt,
     }).summary;
     res.json({ summary });
     return;

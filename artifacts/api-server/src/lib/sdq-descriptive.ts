@@ -1,3 +1,5 @@
+import { scoreSdq, type SdqScoringQuestion } from "./sdq-scoring.js";
+
 export const SDQ_TOOL_IDS = new Set([
   "SDQ-P",
   "SDQ-P11",
@@ -21,6 +23,9 @@ type SdqQuestion = {
   textChinese?: string;
   textKorean?: string;
   type?: string;
+  domain?: string;
+  options?: string[];
+  rows?: Array<{ id: string; text?: string }>;
 };
 
 function itemNumberFromId(id: string): number | null {
@@ -47,10 +52,20 @@ export function isSdqToolId(toolId: string | null | undefined): boolean {
 
 export function buildSdqDescriptiveResponse(input: {
   toolId: string;
-  questions: SdqQuestion[];
+  questions: SdqScoringQuestion[] & SdqQuestion[];
   answers: Record<string, unknown>;
   language?: string | null;
+  dateOfBirth?: string | Date | null;
+  administeredAt?: string | Date | null;
 }) {
+  const scoring = scoreSdq({
+    toolId: input.toolId,
+    questions: input.questions,
+    answers: input.answers,
+    language: input.language,
+    dateOfBirth: input.dateOfBirth,
+    administeredAt: input.administeredAt,
+  });
   const coreItems = input.questions
     .map(question => ({
       question,
@@ -91,9 +106,13 @@ export function buildSdqDescriptiveResponse(input: {
     "SDQ descriptive response record",
     `Respondent form: ${input.toolId}${language ? ` · language: ${language}` : ""}.`,
     `Recorded core responses: ${answersRecorded} of ${coreItems.length} items shown in this saved form.`,
-    "No scale totals, impact score, norm band, or classification has been calculated. The saved answers are available for human review.",
+    scoring.scoringState === "scored"
+      ? "Scale totals and eligible reference bands were calculated using the verified response and form mapping. Review the scoring panel and its limitations."
+      : "No scale totals, impact score, norm band, or classification has been calculated. The saved answers are available for human review.",
     "Keep positively worded items as strengths when endorsed; do not describe them as difficulties.",
-    "Electronic scoring authorization and the applicable edition, language, and scoring key have not been verified for this record.",
+    scoring.referencePopulation
+      ? `Classification reference: ${scoring.referencePopulation}.`
+      : scoring.classificationLimit,
   ].join("\n");
 
   return {
@@ -119,5 +138,6 @@ export function buildSdqDescriptiveResponse(input: {
     positivePhraseItems,
     supplemental,
     summary,
+    scoring,
   };
 }
