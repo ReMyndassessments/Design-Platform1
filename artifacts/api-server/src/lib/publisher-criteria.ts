@@ -61,12 +61,12 @@ const BYI_ENTRY_SOURCE = "https://qglobal.pearsonclinical.com/qg/static/Product/
 const BYI_REPORT_SOURCE = "https://www.pearsonclinical.co.uk/content/dam/school/global/clinical/us/assets/beck/BYI-2-Score-Report-Sample.pdf";
 
 export function getPublisherCriteria(toolId: string | null | undefined) {
-  const family: PublisherFamily | null = toolId && ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"].includes(toolId) ? "BRIEF2"
+  const family: PublisherFamily | null = toolId && ["BRIEF2", "BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"].includes(toolId) ? "BRIEF2"
     : toolId === "BASC3" || toolId?.startsWith("BASC3-") ? "BASC3"
     : toolId === "BYI2" ? "BYI2" : null;
   if (!family) return null;
   const bands = family === "BRIEF2" ? BRIEF_BANDS : family === "BASC3" ? BASC_BANDS : [];
-  const clinicalScales = family === "BRIEF2"
+  const clinicalScales = family === "BRIEF2" && toolId !== "BRIEF2"
     ? toolId === "BRIEF2-SR"
       ? ["Inhibit", "Self-Monitor", "Shift", "Emotional Control", "Task Completion", "Working Memory", "Plan/Organize"]
       : ["Inhibit", "Self-Monitor", "Shift", "Emotional Control", "Initiate", "Working Memory", "Plan/Organize", "Task-Monitor", "Organization of Materials"]

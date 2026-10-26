@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import { casesTable, assignmentsTable, assessmentToolsTable, scoresTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
@@ -6,8 +7,6 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateProductReport } from "../lib/ai.js";
 import { AssessmentProduct as AssessmentProductDef, ASSESSMENT_PRODUCTS as PRODUCTS_LIST, MARKET_LABELS } from "@workspace/api-zod";
 import { EXTENSIONS, type Extension } from "../lib/strengthen-core-analysis.js";
-import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
-import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 export type { AssessmentProductDef };
 
@@ -82,7 +81,7 @@ router.get("/cases/:caseId/product-dashboard", authMiddleware, async (req, res) 
   // Score lookup by toolId (may have multiple respondents)
   const scoresByTool = new Map<string, typeof scores>();
   for (const s of scores) {
-    if (isBrief2ToolId(s.toolId) || isPublisherScoredToolId(s.toolId)) continue;
+    if (usesInstrumentSpecificScoring(s.toolId)) continue;
     if (!scoresByTool.has(s.toolId)) scoresByTool.set(s.toolId, []);
     scoresByTool.get(s.toolId)!.push(s);
   }
@@ -307,7 +306,7 @@ router.post("/cases/:caseId/product-report", authMiddleware, async (req, res) =>
 
     // Build toolScores from completed tools' score records
     const toolScores = allScores
-      .filter(s => completedTools.includes(s.toolId) && !isBrief2ToolId(s.toolId) && !isPublisherScoredToolId(s.toolId))
+      .filter(s => completedTools.includes(s.toolId) && !usesInstrumentSpecificScoring(s.toolId))
       .map(s => ({
         toolId: s.toolId,
         toolName: scoreToolNameMap.get(s.toolId) ?? s.toolName ?? s.toolId,

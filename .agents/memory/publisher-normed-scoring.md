@@ -16,3 +16,7 @@ The user confirmed organizational scoring sources/permissions for SDQ, BRIEF-2, 
 **Why:** BASC-3, BYI-2, and BRIEF-2 scores depend on authorized, form-specific scoring sources; SDQ’s public scoring guidance is not itself electronic-scoring authorization. Unsupported conversion can produce misleading psychometric conclusions.
 
 **How to apply:** Before enabling standardized scoring, verify applicable authorization, edition, language, respondent match, scoring key/norm source, and human review. If any are unverified, use descriptive responses or verified source-result import; preserve historical records and normal workflow features.
+
+Treat unknown or legacy IDs within these four families (including BREIF misspellings) as instrument-specific, never as generic fallback candidates. Apply the same exclusion to aggregate/product/index views as to score writers.
+
+**Why:** Correcting only the dedicated score endpoint leaves alternate aggregate calculations able to reproduce misleading legacy percentages.

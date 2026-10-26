@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import {
   casesTable,
@@ -188,7 +189,7 @@ router.get("/apprentice/cases/:caseId", authMiddleware, async (req, res) => {
       dueDate: a.dueDate,
       submittedAt: a.submittedAt,
     })),
-    scoringSummary: scores.map(s => ({
+    scoringSummary: scores.filter(s => !usesInstrumentSpecificScoring(s.toolId)).map(s => ({
       toolId: s.toolId,
       toolName: s.toolName,
       respondentType: s.respondentType,

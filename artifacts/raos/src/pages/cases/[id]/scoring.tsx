@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { buildMultiInformantReport, buildMultiInformantSources } from "@/lib/multi-informant-report";
 import { PrintReportIdentity } from "@/components/PrintReportIdentity";
+import { PublisherCriteriaPanel, type PublisherCriteria } from "@/components/assessment/PublisherCriteriaPanel";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -47,6 +48,7 @@ interface Brief2DescriptiveAdministration {
 
 interface Brief2DescriptiveReport {
   scoringState: "descriptive_only";
+  publisherCriteria: PublisherCriteria | null;
   limitations: string[];
   administrations: Brief2DescriptiveAdministration[];
 }
@@ -54,6 +56,7 @@ interface Brief2DescriptiveReport {
 interface PublisherDescriptiveReport {
   instrument: "BASC3" | "BYI2";
   reportingState: "descriptive_only";
+  publisherCriteria: PublisherCriteria | null;
   standardizedScoringEligibility: "blocked";
   limitations: string[];
   administrations: Array<{
@@ -111,7 +114,7 @@ const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = 
   snap:       { label: "SNAP-IV Dashboard",     ids: new Set(["SNAPIV26"]) },
   basc3:      { label: "BASC-3 Descriptive Report", ids: new Set(["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A", "BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"]) },
   byi2:       { label: "BYI-2 Descriptive Report", ids: new Set(["BYI2"]) },
-  brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
+  brief2:     { label: "BRIEF-2 Criteria & Response Report", ids: new Set(["BRIEF2"]) },
   sdq:        { label: "SDQ Scoring & Review", ids: new Set(["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "SDQ-P4", "SDQ-T4", "SDQ-SR4", "SDQ-SR11"]) },
   vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
   dyslexia:   { label: "Dyslexia Screening Tool Dashboard", ids: new Set(["DYSRISK"]) },
@@ -1017,7 +1020,7 @@ export default function ScoringView() {
     return (
       <div className="space-y-6 animate-fade-in pb-20">
         <PrintReportIdentity
-          reportTitle="BRIEF-2 Descriptive Response Report"
+          reportTitle="BRIEF-2 Criteria & Response Report"
           studentName={caseData?.studentName}
           dob={caseData?.dob}
           grade={caseData?.grade}
@@ -1031,7 +1034,7 @@ export default function ScoringView() {
               <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft size={20} /></Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">BRIEF-2 Descriptive Report</h1>
+              <h1 className="text-2xl font-bold text-slate-900">BRIEF-2 Criteria & Response Report</h1>
               <p className="text-sm text-slate-500">Case: {studentName} · {today}</p>
             </div>
           </div>
@@ -1052,6 +1055,8 @@ export default function ScoringView() {
             ]).map(item => <li key={item}>{item}</li>)}
           </ul>
         </section>
+
+        {brief2Query.data?.publisherCriteria && <PublisherCriteriaPanel criteria={brief2Query.data.publisherCriteria} />}
 
         {brief2Query.isLoading && <div className="rounded-xl border bg-white p-8 text-center text-slate-500">Loading recorded responses…</div>}
         {brief2Query.isError && (
@@ -1255,6 +1260,8 @@ export default function ScoringView() {
             ]).map(item => <li key={item}>{item}</li>)}
           </ul>
         </section>
+
+        {publisherQuery.data?.publisherCriteria && <PublisherCriteriaPanel criteria={publisherQuery.data.publisherCriteria} />}
 
         {publisherQuery.isLoading && <div className="rounded-xl border bg-white p-8 text-center text-slate-500">Loading saved response records…</div>}
         {publisherQuery.isError && (

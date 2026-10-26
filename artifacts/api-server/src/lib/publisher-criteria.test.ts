@@ -47,6 +47,9 @@ test("exact source classifications are retained separately from reference criter
   assert.equal(result.provenance, "publisher_source");
 });
 test("form-specific reference structures do not manufacture self-report constructs or overall BYI scores", () => {
+  const allBriefForms = getPublisherCriteria("BRIEF2")!;
+  assert.deepEqual(allBriefForms.clinicalScales, []);
+  assert.equal(allBriefForms.bands.length, 4);
   const self = getPublisherCriteria("BRIEF2-SR")!;
   assert.ok(self.clinicalScales.includes("Task Completion"));
   assert.ok(!self.clinicalScales.includes("Initiate"));

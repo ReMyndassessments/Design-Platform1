@@ -45,7 +45,7 @@ const BATTERY_TILE_DEFS: Array<{
   {
     id: "basc3",
     title: "BASC-3 Descriptive Report",
-    subtitle: "Separate respondent records; no standardized scores are calculated",
+    subtitle: "Separate responses; clinical and adaptive T-score criteria shown in the report",
     tag: "BASC-3",
     tagColor: "bg-rose-100 text-rose-700",
     icon: <Activity size={22} className="text-rose-500" />,
@@ -54,7 +54,7 @@ const BATTERY_TILE_DEFS: Array<{
   {
     id: "byi2",
     title: "BYI-2 Descriptive Report",
-    subtitle: "Youth responses shown descriptively; no standardized scores are calculated",
+    subtitle: "Five separate inventories, response anchors and source limitations shown in the report",
     tag: "BYI-2",
     tagColor: "bg-violet-100 text-violet-700",
     icon: <Activity size={22} className="text-violet-500" />,
@@ -62,8 +62,8 @@ const BATTERY_TILE_DEFS: Array<{
   },
   {
     id: "brief2",
-    title: "BRIEF-2 Dashboard",
-    subtitle: "Behavior Rating Inventory of Executive Function",
+    title: "BRIEF-2 Criteria & Response Report",
+    subtitle: "Separate respondent responses; published T-score interpretation bands shown in the report",
     tag: "BRIEF-2",
     tagColor: "bg-cyan-100 text-cyan-700",
     icon: <Cpu size={22} className="text-cyan-500" />,

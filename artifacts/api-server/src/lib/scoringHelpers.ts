@@ -2,9 +2,11 @@ import { db } from "@workspace/db";
 import { assessmentToolsTable, responsesTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { SAMPLE_QUESTIONS } from "./questions.js";
+import { assertGenericScoringAllowed } from "./instrument-scoring-policy.js";
 
 /** Build a questionId → domain lookup from the tool's DB-stored or canonical question list. */
 export async function buildDomainMap(toolId: string): Promise<Record<string, string>> {
+  assertGenericScoringAllowed(toolId);
   const toolRows = await db.select({ formItems: assessmentToolsTable.formItems })
     .from(assessmentToolsTable)
     .where(eq(assessmentToolsTable.id, toolId))
@@ -22,6 +24,7 @@ export async function buildDomainMap(toolId: string): Promise<Record<string, str
 
 /** Fetch scale max from the tool's scoringConfig (fallback 5). */
 export async function getScaleMax(toolId: string): Promise<number> {
+  assertGenericScoringAllowed(toolId);
   const toolRows = await db.select({ scoringConfig: assessmentToolsTable.scoringConfig })
     .from(assessmentToolsTable)
     .where(eq(assessmentToolsTable.id, toolId))

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import { reportsTable, casesTable, scoresTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import { eq, or, sql } from "drizzle-orm";
@@ -66,7 +67,7 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
   const reportContent = await generateReportWithAI({
     caseData: { ...caseData, caseId: req.params.caseId },
     scores: scores.filter(score =>
-      !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId) && !isSdqToolId(score.toolId)
+      !isChineseLiteracy(score.toolId) && !usesInstrumentSpecificScoring(score.toolId)
     ),
     intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
     debriefNotes: (caseData as any).debriefNotes ?? null,
@@ -74,7 +75,7 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
   // Keep these instrument records deterministic. Generic diagnostic AI never
   // recalculates their scores or invents norm conversions from legacy values.
   for (const { assignment, response } of instrumentResponses) {
-    if (!isSdqToolId(assignment.toolId) && !isBrief2ToolId(assignment.toolId) && !isPublisherScoredToolId(assignment.toolId)) continue;
+    if (!usesInstrumentSpecificScoring(assignment.toolId)) continue;
     const savedQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
     const input = {
       toolId: assignment.toolId,
@@ -89,7 +90,9 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
         }).reportText
       : isBrief2ToolId(assignment.toolId)
         ? buildBrief2DescriptiveResponse(input).summary
-        : buildPublisherDescriptiveRecord({ ...input, currentDefinitionItemCount: null }).summary;
+        : isPublisherScoredToolId(assignment.toolId)
+          ? buildPublisherDescriptiveRecord({ ...input, currentDefinitionItemCount: null }).summary
+          : "The saved instrument/version mapping has not been verified. Original responses are preserved; no generic score, normative classification or AI-derived conversion is supplied.";
     reportContent.domainAnalysis += `\n\n${assignment.toolName} — ${assignment.respondentType}${assignment.respondentLabel ? ` (${assignment.respondentLabel})` : ""}\nAdministration ${assignment.id}; response ${response.id}; submitted ${response.submittedAt.toISOString()}; language ${response.language}.\n${text}`;
   }
   // Add only professionally approved, explicitly labelled teacher evidence.

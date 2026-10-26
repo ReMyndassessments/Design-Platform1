@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import { assignmentsTable, casesTable, responsesTable, assessmentToolsTable, scoresTable, batteriesTable, usersTable, strengthenCoreProgramTable } from "@workspace/db/schema";
 import { eq, and, ne, inArray, sql, desc } from "drizzle-orm";
@@ -90,7 +91,7 @@ router.get("/cases/:caseId/brief2/descriptive-report", authMiddleware, async (re
   const assignments = await db.select().from(assignmentsTable)
     .where(and(eq(assignmentsTable.caseId, caseId), inArray(assignmentsTable.toolId, ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"])));
   if (assignments.length === 0) {
-    res.json({ scoringState: "descriptive_only", administrations: [] });
+    res.json({ scoringState: "descriptive_only", publisherCriteria: getPublisherCriteria("BRIEF2"), administrations: [] });
     return;
   }
 
@@ -157,6 +158,7 @@ router.get("/cases/:caseId/brief2/descriptive-report", authMiddleware, async (re
 
   res.json({
     scoringState: "descriptive_only",
+    publisherCriteria: getPublisherCriteria("BRIEF2"),
     limitations: [
       "Existing BRIEF-2 records are unverified legacy administrations.",
       "This report shows recorded response labels only and is not standardized scoring.",
@@ -225,6 +227,7 @@ router.get("/cases/:caseId/publisher-descriptive-report", authMiddleware, async 
   res.json({
     instrument: requestedFamily,
     reportingState: "descriptive_only",
+    publisherCriteria: getPublisherCriteria(requestedFamily === "BASC3" ? "BASC3" : "BYI2"),
     standardizedScoringEligibility: "blocked",
     limitations: requestedFamily === "BYI2"
       ? [
@@ -1159,7 +1162,7 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
   const [toolRows, existingScoreRows, snapRow] = await Promise.all([
     db.select({ formItems: assessmentToolsTable.formItems, scoringType: assessmentToolsTable.scoringType, domains: assessmentToolsTable.domains, scoringConfig: assessmentToolsTable.scoringConfig })
       .from(assessmentToolsTable).where(eq(assessmentToolsTable.id, assignment.toolId)).limit(1),
-    (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq)
+    usesInstrumentSpecificScoring(assignment.toolId)
       ? Promise.resolve([])
       : db.select().from(scoresTable)
         .where(and(
@@ -1253,10 +1256,10 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
     studentName: caseRows[0]?.studentName ?? "Unknown Student",
     school: caseRows[0]?.school ?? "",
     grade: caseRows[0]?.grade ?? "",
-    scoringType: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : toolRows[0]?.scoringType ?? null,
-    toolDomains: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? [] : toolRows[0]?.domains ?? [],
-    scoringConfig: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : toolRows[0]?.scoringConfig ?? null,
-    existingScore: (isBrief2ToolId(assignment.toolId) || isPublisherScored || isSdq) ? null : existingScoreRows[0] ?? null,
+    scoringType: usesInstrumentSpecificScoring(assignment.toolId) ? null : toolRows[0]?.scoringType ?? null,
+    toolDomains: usesInstrumentSpecificScoring(assignment.toolId) ? [] : toolRows[0]?.domains ?? [],
+    scoringConfig: usesInstrumentSpecificScoring(assignment.toolId) ? null : toolRows[0]?.scoringConfig ?? null,
+    existingScore: usesInstrumentSpecificScoring(assignment.toolId) ? null : existingScoreRows[0] ?? null,
   });
 });
 
@@ -1336,6 +1339,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
       answers: commonParams.answers as Record<string, unknown>,
       language: responseRows[0].language,
     }).summary;
+  } else if (usesInstrumentSpecificScoring(assignment.toolId)) {
+    summary = "This instrument/version requires a verified instrument-specific mapping. Original responses are preserved. No generic score, norm band, composite or AI-derived conversion has been calculated.";
   } else if (assignment.toolId === "INTAKE") {
     summary = await generateIntakeSummary(commonParams);
   } else if (assignment.toolId === "BEHAVOBS") {

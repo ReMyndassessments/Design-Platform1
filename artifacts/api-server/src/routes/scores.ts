@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import { scoresTable, responsesTable, assignmentsTable, casesTable, assessmentToolsTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -101,7 +102,7 @@ router.get("/cases/:caseId/scores", authMiddleware, async (req, res) => {
   // Descriptive literacy profiles have their own coverage/evidence view, not
   // the generic normalized/risk visualizations used by other instruments.
   res.json(scores.filter(score =>
-    !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId) && !isSdqToolId(score.toolId)
+    !isChineseLiteracy(score.toolId) && !usesInstrumentSpecificScoring(score.toolId)
   ));
 });
 
@@ -116,7 +117,7 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
   const newScores = [];
 
   for (const assignment of completedAssignments) {
-    if (isChineseLiteracy(assignment.toolId) || isBrief2ToolId(assignment.toolId) || isPublisherScoredToolId(assignment.toolId) || isSdqToolId(assignment.toolId)) continue;
+    if (isChineseLiteracy(assignment.toolId) || usesInstrumentSpecificScoring(assignment.toolId)) continue;
     const responses = await db.select().from(responsesTable).where(eq(responsesTable.assignmentId, assignment.id));
     if (responses.length === 0) continue;
 
@@ -173,7 +174,7 @@ router.post("/cases/:caseId/scores/calculate", authMiddleware, async (req, res) 
 
   const allScores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
   res.json(allScores.filter(score =>
-    !isChineseLiteracy(score.toolId) && !isBrief2ToolId(score.toolId) && !isPublisherScoredToolId(score.toolId) && !isSdqToolId(score.toolId)
+    !isChineseLiteracy(score.toolId) && !usesInstrumentSpecificScoring(score.toolId)
   ));
 });
 
@@ -190,10 +191,13 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
     res.status(409).json({ message: "BRIEF-2 cannot use RAOS /100 or generic severity scoring. Use descriptive response frequencies or enter results from an authorized scoring source through a reviewed workflow." }); return;
   }
   if (isPublisherScoredToolId(toolId)) {
-    res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
+    res.status(409).json({ message: "BASC-3 and BYI-2 cannot be scored using generic domain averages or /100 normalization. Published interpretation criteria are available in the response viewer; raw-to-standard conversion requires the applicable verified publisher tables or official results." }); return;
   }
   if (isSdqToolId(toolId)) {
     res.status(409).json({ message: "SDQ uses its instrument-specific scoring record, not generic/manual percentage scores. Open the completed respondent form to review its scale scores, impact and eligible reference bands." }); return;
+  }
+  if (usesInstrumentSpecificScoring(toolId)) {
+    res.status(409).json({ message: "This instrument version requires a verified instrument-specific scoring mapping; generic /100 scoring cannot be substituted. Original responses remain available." }); return;
   }
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
@@ -266,10 +270,13 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
     res.status(409).json({ message: "BRIEF-2 cannot use RAOS /100 or generic severity scoring. Review descriptive response frequencies instead." }); return;
   }
   if (isPublisherScoredToolId(assignment?.toolId)) {
-    res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
+    res.status(409).json({ message: "BASC-3 and BYI-2 cannot be scored using generic domain averages or /100 normalization. Published interpretation criteria are available in the response viewer; raw-to-standard conversion requires the applicable verified publisher tables or official results." }); return;
   }
   if (isSdqToolId(assignment?.toolId)) {
     res.status(409).json({ message: "SDQ uses its instrument-specific scoring record, not generic percentage scores. Open the completed respondent form to review its scale scores, impact and eligible reference bands." }); return;
+  }
+  if (usesInstrumentSpecificScoring(assignment?.toolId)) {
+    res.status(409).json({ message: "This instrument version requires a verified instrument-specific scoring mapping; generic /100 scoring cannot be substituted. Original responses remain available." }); return;
   }
 
   const responseRows = await db.select().from(responsesTable)

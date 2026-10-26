@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { usesInstrumentSpecificScoring } from "../lib/instrument-scoring-policy.js";
 import { db } from "@workspace/db";
 import { scoresTable, casesTable, assessmentToolsTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
@@ -6,8 +7,6 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { generateRemyndIndexInsights } from "../lib/ai.js";
 import { buildDomainMap, computeDomainScores, normalizeScores } from "../lib/scoringHelpers.js";
 import { nanoid } from "nanoid";
-import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
-import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
 
 const router = Router();
 const REMYND_INSIGHTS_VERSION = 2;
@@ -67,11 +66,11 @@ async function getRemyndToolIds(): Promise<Set<string>> {
       .select({ id: assessmentToolsTable.id, scoringType: assessmentToolsTable.scoringType, isRemyndOwned: assessmentToolsTable.isRemyndOwned })
       .from(assessmentToolsTable);
     const dbIds = toolRows
-      .filter(t => t.isRemyndOwned && t.scoringType === "auto" && !isBrief2ToolId(t.id) && !isPublisherScoredToolId(t.id))
+      .filter(t => t.isRemyndOwned && t.scoringType === "auto" && !usesInstrumentSpecificScoring(t.id))
       .map(t => t.id);
-    return new Set([...REMYND_AUTO_TOOL_IDS, ...dbIds]);
+    return new Set([...REMYND_AUTO_TOOL_IDS, ...dbIds].filter(id => !usesInstrumentSpecificScoring(id)));
   } catch {
-    return REMYND_AUTO_TOOL_IDS;
+    return new Set([...REMYND_AUTO_TOOL_IDS].filter(id => !usesInstrumentSpecificScoring(id)));
   }
 }
 
@@ -179,7 +178,7 @@ async function buildIndexData(caseId: string) {
     .select()
     .from(assignmentsTable)
     .where(and(eq(assignmentsTable.caseId, caseId), eq(assignmentsTable.status, "completed")));
-  const remyndAssignments = allAssignments.filter(a => remyndToolIds.has(a.toolId));
+  const remyndAssignments = allAssignments.filter(a => remyndToolIds.has(a.toolId) && !usesInstrumentSpecificScoring(a.toolId));
 
   if (remyndAssignments.length === 0) return { tools: [], index: {} };
 
@@ -189,6 +188,7 @@ async function buildIndexData(caseId: string) {
   const allScoreRows = await db.select().from(scoresTable).where(eq(scoresTable.caseId, caseId));
   const scoreMap = new Map<string, typeof allScoreRows[0]>();
   for (const score of allScoreRows) {
+    if (usesInstrumentSpecificScoring(score.toolId)) continue;
     const key = `${score.toolId}::${score.respondentType ?? ""}`;
     scoreMap.set(key, score);
   }
