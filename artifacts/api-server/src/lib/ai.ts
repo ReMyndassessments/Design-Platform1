@@ -286,6 +286,12 @@ ${JSON.stringify(params.scores.map(s => ({
   normalized: s.normalizedScores,
 })), null, 2)}
 
+INSTRUMENT SAFEGUARD:
+Do not calculate, infer, or repeat BRIEF-2, BASC-3, BYI-2/Beck, or SDQ standardized scores,
+norm bands, validity findings, composites, or score-based diagnoses from historical intake text.
+Their instrument-specific source records are appended separately after this draft is generated.
+Do not treat a generic normalized percentage as one of these instruments' scores.
+
 Write a professional psychoeducational report in JSON format (no markdown) with these sections:
 - backgroundSummary: Background and reason for referral (2-3 paragraphs)
 - domainAnalysis: Analysis of each domain assessed with score interpretation (2-3 paragraphs)

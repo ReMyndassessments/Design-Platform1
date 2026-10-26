@@ -71,8 +71,8 @@ const BATTERY_TILE_DEFS: Array<{
   },
   {
     id: "sdq",
-    title: "SDQ Descriptive Review",
-    subtitle: "Respondent records shown as entered; no unverified norm scores are generated",
+    title: "SDQ Scoring & Review",
+    subtitle: "Separate respondent records, instrument-specific scores and eligible reference bands",
     tag: "SDQ",
     tagColor: "bg-teal-100 text-teal-700",
     icon: <Users size={22} className="text-teal-500" />,

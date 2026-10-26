@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { reportsTable, casesTable, scoresTable, assignmentsTable } from "@workspace/db/schema";
+import { reportsTable, casesTable, scoresTable, assignmentsTable, responsesTable } from "@workspace/db/schema";
 import { eq, or, sql } from "drizzle-orm";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { nanoid } from "nanoid";
 import { generateReportWithAI } from "../lib/ai.js";
 import { isChineseLiteracy, isParentLiteracy } from "../lib/chineseLiteracyInstruments.js";
-import { isBrief2ToolId } from "../lib/brief2-descriptive.js";
-import { isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
-import { isSdqToolId } from "../lib/sdq-descriptive.js";
+import { buildBrief2DescriptiveResponse, isBrief2ToolId } from "../lib/brief2-descriptive.js";
+import { buildPublisherDescriptiveRecord, isPublisherScoredToolId } from "../lib/publisher-descriptive.js";
+import { buildSdqDescriptiveResponse, isSdqToolId } from "../lib/sdq-descriptive.js";
+import { questionsFromAssignmentSnapshot } from "../lib/assignmentSnapshotQuestions.js";
 
 const router = Router();
 
@@ -57,6 +58,10 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
   const caseData = caseRows[0];
   const scores = await db.select().from(scoresTable).where(eq(scoresTable.caseId, req.params.caseId));
   const literacyRecords = await db.execute(sql`SELECT document FROM chinese_literacy_administrations WHERE case_id=${req.params.caseId} AND document->'report'->>'status'='approved'`);
+  const instrumentResponses = await db.select({ assignment: assignmentsTable, response: responsesTable })
+    .from(assignmentsTable)
+    .innerJoin(responsesTable, eq(responsesTable.assignmentId, assignmentsTable.id))
+    .where(eq(assignmentsTable.caseId, req.params.caseId));
 
   const reportContent = await generateReportWithAI({
     caseData: { ...caseData, caseId: req.params.caseId },
@@ -66,6 +71,27 @@ router.post("/cases/:caseId/report/generate", authMiddleware, async (req, res) =
     intakeAnalysis: caseData.intakeAnalysis as Record<string, unknown> | null,
     debriefNotes: (caseData as any).debriefNotes ?? null,
   });
+  // Keep these instrument records deterministic. Generic diagnostic AI never
+  // recalculates their scores or invents norm conversions from legacy values.
+  for (const { assignment, response } of instrumentResponses) {
+    if (!isSdqToolId(assignment.toolId) && !isBrief2ToolId(assignment.toolId) && !isPublisherScoredToolId(assignment.toolId)) continue;
+    const savedQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+    const input = {
+      toolId: assignment.toolId,
+      questions: savedQuestions ?? [],
+      answers: response.answers,
+      language: response.language,
+    };
+    const text = isSdqToolId(assignment.toolId)
+      ? buildSdqDescriptiveResponse({
+          ...input, dateOfBirth: caseData.dob, administeredAt: response.submittedAt,
+          formSnapshotPresent: !!savedQuestions?.length,
+        }).reportText
+      : isBrief2ToolId(assignment.toolId)
+        ? buildBrief2DescriptiveResponse(input).summary
+        : buildPublisherDescriptiveRecord({ ...input, currentDefinitionItemCount: null }).summary;
+    reportContent.domainAnalysis += `\n\n${assignment.toolName} — ${assignment.respondentType}${assignment.respondentLabel ? ` (${assignment.respondentLabel})` : ""}\nAdministration ${assignment.id}; response ${response.id}; submitted ${response.submittedAt.toISOString()}; language ${response.language}.\n${text}`;
+  }
   // Add only professionally approved, explicitly labelled teacher evidence.
   // Generic diagnostic AI never receives or reinterprets these profile scores.
   for (const row of literacyRecords.rows as any[]) {

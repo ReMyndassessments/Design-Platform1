@@ -193,7 +193,7 @@ router.post("/cases/:caseId/scores/manual", authMiddleware, async (req, res) => 
     res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
   }
   if (isSdqToolId(toolId)) {
-    res.status(409).json({ message: "SDQ scores and norm bands are not calculated until electronic-scoring authorization and the applicable edition, language, and scoring key are verified. Review the descriptive response record instead." }); return;
+    res.status(409).json({ message: "SDQ uses its instrument-specific scoring record, not generic/manual percentage scores. Open the completed respondent form to review its scale scores, impact and eligible reference bands." }); return;
   }
   const normalizedScores = normalize(domainScores ?? {});
   const caseId = req.params.caseId;
@@ -269,7 +269,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/score", authMiddleware, as
     res.status(409).json({ message: "BASC-3 and BYI-2 standardized scoring is disabled until the applicable licensed edition, scoring source, and reviewer workflow are verified. Use the descriptive response report." }); return;
   }
   if (isSdqToolId(assignment?.toolId)) {
-    res.status(409).json({ message: "SDQ scores and norm bands are not calculated until electronic-scoring authorization and the applicable edition, language, and scoring key are verified. Review the descriptive response record instead." }); return;
+    res.status(409).json({ message: "SDQ uses its instrument-specific scoring record, not generic percentage scores. Open the completed respondent form to review its scale scores, impact and eligible reference bands." }); return;
   }
 
   const responseRows = await db.select().from(responsesTable)

@@ -1,6 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSdqDescriptiveResponse, isSdqToolId } from "./sdq-descriptive.ts";
+import { registerHooks } from "node:module";
+
+// The app is bundled from .js specifiers; Node's strip-types test runner does
+// not resolve that one source dependency to TypeScript on its own.
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "./sdq-scoring.js" && context.parentURL?.endsWith("/sdq-descriptive.ts")) {
+      return nextResolve("./sdq-scoring.ts", context);
+    }
+    return nextResolve(specifier, context);
+  },
+});
+const { buildSdqDescriptiveResponse, isSdqToolId } = await import("./sdq-descriptive.ts");
+
+test("SDQ report text is generated from the same deterministic score record", () => {
+  const domains: Record<string, number[]> = {
+    emotional: [3, 8, 13, 16, 24], conduct: [5, 7, 12, 18, 22],
+    hyperactivity: [2, 10, 15, 21, 25], peer: [6, 11, 14, 19, 23],
+    prosocial: [1, 4, 9, 17, 20],
+  };
+  const questions = Array.from({ length: 25 }, (_, index) => ({
+    id: `sdqp11_${index + 1}`, text: `Synthetic item ${index + 1}`,
+    domain: Object.entries(domains).find(([, items]) => items.includes(index + 1))![0],
+    options: ["Not True", "Somewhat True", "Certainly True"],
+  }));
+  const result = buildSdqDescriptiveResponse({
+    toolId: "SDQ-P11", questions,
+    answers: Object.fromEntries(questions.map(question => [question.id, "Somewhat True"])),
+    language: "english", formSnapshotPresent: true,
+    dateOfBirth: "2012-01-01", administeredAt: "2026-01-01",
+  });
+  assert.equal(result.scoring.totalDifficulties.score, 20);
+  assert.match(result.reportText, /Total Difficulties: 20\/40/);
+  assert.match(result.reportText, /reference band: Very high/);
+  assert.match(result.reportText, /No scores are pooled across respondents/);
+});
 
 test("recognizes current and saved SDQ form identifiers only", () => {
   assert.equal(isSdqToolId("SDQ-P"), true);

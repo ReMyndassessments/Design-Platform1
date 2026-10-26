@@ -17,7 +17,7 @@ export type SdqScoringQuestion = {
   type?: string;
   domain?: string;
   options?: string[];
-  rows?: Array<{ id: string; text?: string }>;
+  rows?: SdqScoringQuestion[];
 };
 
 const ITEM_DOMAINS: Record<number, string> = {
@@ -53,7 +53,7 @@ const FORM_CONFIG: Record<string, { respondent: Respondent; prefix: string; minA
   "SDQ-T11": { respondent: "teacher", prefix: "sdqt11", minAge: 11, maxAge: 18 },
   "SDQ-SR": { respondent: "self", prefix: "sdqsr11", minAge: 11, maxAge: 17 },
   "SDQ-SR11": { respondent: "self", prefix: "sdqsr11", minAge: 11, maxAge: 17 },
-  "SDQ-SR18": { respondent: "self", prefix: "sdqsr18", minAge: 18, maxAge: 120 },
+  "SDQ-SR18": { respondent: "self", prefix: "sdqsr18", minAge: 18, maxAge: Number.POSITIVE_INFINITY },
 };
 
 function coreItemNumber(id: string): number | null {
@@ -103,6 +103,10 @@ function roundHalfUp(value: number): number {
 function ageForBand(age: number | null, respondent: Respondent): boolean {
   if (age === null || age < 4 || age > 17) return false;
   return respondent !== "self" || age >= 11;
+}
+
+function isEnglishLanguage(language: string | null | undefined): boolean {
+  return /^(?:english|en(?:[-_].+)?)$/i.test(language ?? "");
 }
 
 function band(min: number, max: number, label: string): Band {
@@ -203,12 +207,28 @@ function classify(value: number | null, bands: Band[] | undefined): string | nul
   return bands.find(candidate => value >= candidate.min && value <= candidate.max)?.label ?? null;
 }
 
+export function classifySdqReferenceScore(input: {
+  respondent: Respondent;
+  scheme: SdqClassificationScheme;
+  scale: ScaleName;
+  score: number;
+}): string {
+  const maximum = input.scale === "Total Difficulties" ? 40
+    : input.scale === "Impact" && input.respondent === "teacher" ? 6 : 10;
+  if (!Number.isInteger(input.score) || input.score < 0 || input.score > maximum) {
+    throw new RangeError(`Invalid ${input.scale} score; expected an integer from 0 to ${maximum}.`);
+  }
+  const result = classify(input.score, makeClassificationBands(input.respondent, input.scheme)[input.scale]);
+  if (!result) throw new Error("No applicable SDQ reference band.");
+  return result;
+}
+
 function getImpactRawValue(
   questionId: string,
   questions: SdqScoringQuestion[],
   answers: Record<string, unknown>,
 ): unknown {
-  if (Object.hasOwn(answers, questionId)) return answers[questionId];
+  if (questions.some(question => question.id === questionId) && Object.hasOwn(answers, questionId)) return answers[questionId];
   for (const question of questions) {
     const row = question.rows?.find(candidate => candidate.id === questionId);
     if (!row) continue;
@@ -227,6 +247,7 @@ export function scoreSdq(input: {
   language?: string | null;
   dateOfBirth?: string | Date | null;
   administeredAt?: string | Date | null;
+  formSnapshotPresent?: boolean;
 }) {
   const form = FORM_CONFIG[input.toolId];
   const age = ageAtAdministration(input.dateOfBirth, input.administeredAt);
@@ -237,18 +258,27 @@ export function scoreSdq(input: {
   const duplicateItems = itemNumbers.filter((itemNumber, index) => itemNumbers.indexOf(itemNumber) !== index);
   const missingItems = Array.from({ length: 25 }, (_, index) => index + 1).filter(itemNumber => !itemNumbers.includes(itemNumber));
   const issues: string[] = [];
+  let itemMapReady = coreQuestions.length === 25 && missingItems.length === 0 && duplicateItems.length === 0;
 
   if (!form) issues.push("The saved form identifier is not mapped to a verified SDQ respondent/version.");
-  if (!/^en(?:[-_]|$)/i.test(input.language ?? "")) issues.push("This implementation has not verified the administered non-English translation and response mapping.");
+  if (!input.formSnapshotPresent) issues.push("The administered form snapshot is unavailable; current library items cannot establish the scoring key for a historical response.");
+  if (!isEnglishLanguage(input.language)) issues.push("This implementation has not verified the administered non-English translation and response mapping.");
   if (coreQuestions.length !== 25 || missingItems.length || duplicateItems.length) {
     issues.push("The saved form does not contain exactly one of each canonical core item.");
   }
   for (const { question, itemNumber } of coreQuestions) {
     if (itemNumber === null) continue;
+    if (form && question.id !== `${form.prefix}_${itemNumber}`) {
+      itemMapReady = false;
+      issues.push(`Canonical item ${itemNumber} has a local identifier belonging to a different or unverified form.`);
+    }
     if (question.domain !== ITEM_DOMAINS[itemNumber]) {
+      itemMapReady = false;
       issues.push(`Canonical item ${itemNumber} does not match the expected SDQ scale mapping.`);
     }
-    if (JSON.stringify(question.options ?? []) !== JSON.stringify(ITEM_OPTIONS)) {
+    const options = (question.options ?? []).map(option => option.trim().toLowerCase()).sort();
+    if (JSON.stringify(options) !== JSON.stringify(ITEM_OPTIONS.map(option => option.toLowerCase()).sort())) {
+      itemMapReady = false;
       issues.push(`Canonical item ${itemNumber} does not use the verified English response options.`);
     }
   }
@@ -284,11 +314,9 @@ export function scoreSdq(input: {
     });
   }
 
-  const formSuitable = !!form && !issues.some(issue =>
-    issue.includes("form identifier") || issue.includes("outside this saved form"),
-  );
-  const ruleReady = formSuitable && /^en(?:[-_]|$)/i.test(input.language ?? "")
-    && !issues.some(issue => issue.includes("canonical core item") || issue.includes("expected SDQ scale") || issue.includes("verified English response"));
+  const formSuitable = !!form && (age === null || (age >= form.minAge && age <= form.maxAge));
+  const ruleReady = formSuitable && input.formSnapshotPresent === true && isEnglishLanguage(input.language)
+    && itemMapReady;
   const scales: Record<string, {
     score: number | null;
     validAnswers: number;
@@ -304,12 +332,12 @@ export function scoreSdq(input: {
     const sum = valid.reduce((total, item) => total + (item?.contribution ?? 0), 0);
     const eligible = valid.length === 5 || valid.length >= 3;
     const prorated = valid.length >= 3 && valid.length < 5;
-    const unroundedScore = eligible ? (prorated ? (5 * sum) / valid.length : sum) : null;
+    const unroundedScore = ruleReady && !invalidAnswer && eligible ? (prorated ? (5 * sum) / valid.length : sum) : null;
     scales[scale.name] = {
       score: ruleReady && !invalidAnswer && eligible ? (prorated ? roundHalfUp(unroundedScore as number) : sum) : null,
       validAnswers: valid.length,
       missingAnswers: 5 - valid.length,
-      prorated,
+      prorated: ruleReady && !invalidAnswer && prorated,
       unroundedScore,
       range: [0, 10],
     };
@@ -355,7 +383,6 @@ export function scoreSdq(input: {
         invalid: contribution === "invalid",
       };
     });
-    const validComponents = components.filter(component => component.contribution !== null).length;
     const invalidImpact = components.some(component => component.invalid);
     const expectedComponentCount = form.respondent === "teacher" ? 3 : 5;
     const requiredComponents = components.slice(0, expectedComponentCount);
@@ -366,7 +393,9 @@ export function scoreSdq(input: {
       maximum: form.respondent === "teacher" ? 6 : 10,
       validComponents: requiredComponents.filter(component => component.contribution !== null).length,
       requiredComponents: expectedComponentCount,
-      components: components.map(({ id, response, contribution }) => ({ id, response, contribution })),
+      components: components.map(({ id, response, contribution }) => ({
+        id, response, contribution: ruleReady && !invalidAnswer ? contribution : null,
+      })),
     };
   }
 
@@ -377,15 +406,14 @@ export function scoreSdq(input: {
     three_band: {},
   };
   for (const scheme of ["four_band", "three_band"] as const) {
-    const tables = form ? makeClassificationBands(form.respondent, scheme) : {};
     const values: Partial<Record<ScaleName, number | null>> = {
       ...Object.fromEntries(Object.entries(scales).map(([name, data]) => [name, data.score])),
       "Total Difficulties": totalDifficulties,
       Impact: impact.score,
     };
     for (const name of Object.keys(values) as ScaleName[]) {
-      classificationSchemes[scheme][name] = classificationEligible
-        ? classify(values[name] ?? null, tables[name])
+      classificationSchemes[scheme][name] = classificationEligible && values[name] !== null && values[name] !== undefined && form
+        ? classifySdqReferenceScore({ respondent: form.respondent, scheme, scale: name, score: values[name] as number })
         : null;
     }
   }
@@ -403,11 +431,15 @@ export function scoreSdq(input: {
     referencePopulation: classificationEligible ? "UK reference, age 4–17 (screening bands; not local norms or diagnosis)" : null,
     scoringState: ruleReady && !invalidAnswer ? "scored" as const : "blocked" as const,
     classificationState: classificationEligible ? "available" as const : "withheld" as const,
-    classificationLimit: ageApplicable
+    classificationLimit: !ruleReady || invalidAnswer
+      ? "Classifications are withheld because the saved form, response mapping, language version, or core answers did not pass verification."
+      : ageApplicable
       ? "UK reference bands only; not locally normed and not diagnostic."
       : "Child classification bands are withheld because age at administration is unavailable or outside the supported respondent/age range.",
     issues: blockingIssues,
-    itemContributions: contributions,
+    itemContributions: ruleReady && !invalidAnswer ? contributions : contributions.map(item => ({
+      ...item, directValue: null, contribution: null,
+    })),
     scales,
     totalDifficulties: { score: totalDifficulties, range: [0, 40] as [number, number] },
     impact,

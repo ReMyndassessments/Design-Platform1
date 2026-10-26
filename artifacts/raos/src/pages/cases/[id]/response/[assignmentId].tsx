@@ -105,7 +105,7 @@ interface ResponseData {
   } | null;
   sdqDescriptive?: {
     reportingState: "descriptive_only";
-    scoringEligibility: "not_verified";
+    scoringEligibility: "rule_supported" | "not_verified";
     formCompatibility: "expected_item_set" | "item_set_unverified";
     completeness: { answered: number; missing: number; total: number };
     missingCoreItems: number[];
@@ -128,6 +128,28 @@ interface ResponseData {
     }>;
     supplemental: Array<{ id: string; prompt: string; response: string | null; state: "recorded" | "missing" }>;
     summary: string;
+    scoring: {
+      scoringVersion: string;
+      source: string;
+      respondent: string | null;
+      ageAtAdministration: number | null;
+      referencePopulation: string | null;
+      scoringState: "scored" | "blocked";
+      classificationState: "available" | "withheld";
+      classificationLimit: string;
+      issues: string[];
+      scales: Record<string, {
+        score: number | null;
+        validAnswers: number;
+        missingAnswers: number;
+        prorated: boolean;
+        unroundedScore: number | null;
+        range: [number, number];
+      }>;
+      totalDifficulties: { score: number | null; range: [number, number] };
+      impact: { score: number | null; maximum: number; validComponents: number; requiredComponents: number };
+      classificationSchemes: Record<"four_band" | "three_band", Record<string, string | null>>;
+    };
   } | null;
 }
 
@@ -467,7 +489,7 @@ export default function ResponseViewer() {
   const assignmentId = params.assignmentId as string;
   const { data: caseDemographics } = useGetCase(caseId);
 
-  const { data, isLoading, isError, error } = useQuery<ResponseData, Error>({
+  const { data, isLoading, isError, error, refetch: refetchResponse } = useQuery<ResponseData, Error>({
     queryKey: ["assignment-response", caseId, assignmentId],
     queryFn: () => fetchResponse(caseId, assignmentId),
   });
@@ -476,6 +498,7 @@ export default function ResponseViewer() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [sdqScheme, setSdqScheme] = useState<"four_band" | "three_band">("four_band");
   const summaryRef = useRef<HTMLDivElement>(null);
 
   // Translation state
@@ -563,6 +586,7 @@ export default function ResponseViewer() {
       }
       const json = await res.json() as { summary: string };
       setSummary(json.summary);
+      if (data?.assignment.toolId.startsWith("SDQ-")) await refetchResponse();
       setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (e) {
       setGenerateError(e instanceof Error ? e.message : "Unknown error");
@@ -670,7 +694,7 @@ export default function ResponseViewer() {
   const { assignment, response, questions, studentName, school, grade, scoringType, toolDomains, scoringConfig } = data;
   const lang = response.language;
   const isBrief2 = assignment.toolId.startsWith("BRIEF2-");
-  const isPublisherDescriptive = assignment.toolId.startsWith("BASC3-") || assignment.toolId === "BYI2";
+  const isPublisherDescriptive = assignment.toolId === "BASC3" || assignment.toolId.startsWith("BASC3-") || assignment.toolId === "BYI2";
   const isSdqDescriptive = assignment.toolId.startsWith("SDQ-");
   const isDescriptiveOnly = isBrief2 || isPublisherDescriptive || isSdqDescriptive;
   const summaryForDisplay = isSdqDescriptive
@@ -764,7 +788,7 @@ export default function ResponseViewer() {
             >
               {isGenerating
                 ? <><RefreshCw size={14} className="animate-spin" /> Generating…</>
-                : <><Sparkles size={14} /> {isDescriptiveOnly ? "Refresh Descriptive Summary" : summary ? "Regenerate Summary" : "Generate Summary"}</>}
+                : <><Sparkles size={14} /> {isSdqDescriptive ? "Refresh SDQ Record" : isDescriptiveOnly ? "Refresh Descriptive Summary" : summary ? "Regenerate Summary" : "Generate Summary"}</>}
             </Button>
 
             {/* System Scored tools */}
@@ -778,7 +802,7 @@ export default function ResponseViewer() {
                 <TrendingUp size={14} /> View Score
               </Button>
             )}
-            {isAutoScored && (
+            {isAutoScored && !isDescriptiveOnly && (
               <Button
                 variant="outline"
                 size="sm"
@@ -953,22 +977,87 @@ export default function ResponseViewer() {
         )}
 
         {isSdqDescriptive && data.sdqDescriptive && (
-          <section className="rounded-2xl border border-teal-200 bg-teal-50/70 p-6 print-page">
+          <section className="rounded-2xl border border-teal-200 bg-teal-50/70 p-6 print-page print-score-card">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-teal-950">SDQ descriptive response record</h2>
+                <h2 className="text-lg font-semibold text-teal-950">SDQ scoring and response record</h2>
                 <p className="mt-1 text-sm text-teal-900">
                   {data.sdqDescriptive.completeness.answered} of {data.sdqDescriptive.completeness.total} core responses recorded.
                   {data.sdqDescriptive.completeness.missing > 0 && ` ${data.sdqDescriptive.completeness.missing} are unanswered.`}
                 </p>
               </div>
               <span className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800">
-                Standardized scoring not verified
+                {data.sdqDescriptive.scoring.scoringState === "scored" ? "Calculated draft · review required" : "Descriptive review only"}
               </span>
             </div>
             <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-700">
               {data.sdqDescriptive.summary}
             </p>
+            {data.sdqDescriptive.scoring.scoringState === "scored" && (
+              <div className="mt-5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-semibold text-teal-950">SDQ scale scores</h3>
+                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                    Classification scheme
+                    <select
+                      className="rounded-md border border-teal-200 bg-white p-2 text-sm text-slate-800"
+                      value={sdqScheme}
+                      onChange={event => setSdqScheme(event.target.value as "four_band" | "three_band")}
+                    >
+                      <option value="four_band">UK four-band (2016)</option>
+                      <option value="three_band">UK original three-band</option>
+                    </select>
+                  </label>
+                </div>
+                <p className="text-xs leading-5 text-slate-600">
+                  {data.sdqDescriptive.scoring.referencePopulation ?? data.sdqDescriptive.scoring.classificationLimit}
+                  {" "}Age at recorded administration: {data.sdqDescriptive.scoring.ageAtAdministration ?? "unavailable"}.
+                  {sdqScheme === "three_band" && " “Normal”, “Borderline”, and “Abnormal” are historical screening-category names, not labels for the student."}
+                </p>
+                <div className="overflow-x-auto rounded-lg border border-teal-200 bg-white">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-teal-100/60 text-teal-950">
+                      <tr><th className="p-3">Scale</th><th className="p-3">Score</th><th className="p-3">Coverage</th><th className="p-3">Reference band</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-teal-100">
+                      {Object.entries(data.sdqDescriptive.scoring.scales).map(([name, scale]) => (
+                        <tr key={name}>
+                          <td className="p-3 font-medium">{name}</td>
+                          <td className="p-3">{scale.score === null ? "Unavailable" : `${scale.score} / 10`}</td>
+                          <td className="p-3">
+                            {scale.validAnswers} / 5
+                            {scale.prorated && scale.score !== null && <span className="block text-xs text-amber-700">Prorated · unrounded {scale.unroundedScore?.toFixed(3)}</span>}
+                          </td>
+                          <td className="p-3">{data.sdqDescriptive?.scoring.classificationSchemes[sdqScheme][name] ?? "Unavailable"}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-teal-50/60 font-semibold">
+                        <td className="p-3">Total Difficulties</td>
+                        <td className="p-3">{data.sdqDescriptive.scoring.totalDifficulties.score === null ? "Unavailable" : `${data.sdqDescriptive.scoring.totalDifficulties.score} / 40`}</td>
+                        <td className="p-3 text-xs font-normal">Four difficulty scales; excludes Prosocial and impact</td>
+                        <td className="p-3">{data.sdqDescriptive.scoring.classificationSchemes[sdqScheme]["Total Difficulties"] ?? "Unavailable"}</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-medium">Impact (separate)</td>
+                        <td className="p-3">{data.sdqDescriptive.scoring.impact.score === null ? "Unavailable" : `${data.sdqDescriptive.scoring.impact.score} / ${data.sdqDescriptive.scoring.impact.maximum}`}</td>
+                        <td className="p-3">{data.sdqDescriptive.scoring.impact.validComponents} / {data.sdqDescriptive.scoring.impact.requiredComponents} components</td>
+                        <td className="p-3">{data.sdqDescriptive.scoring.classificationSchemes[sdqScheme].Impact ?? "Unavailable"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs leading-5 text-slate-600">
+                  Higher Prosocial scores indicate more reported strengths; higher difficulty scores indicate more reported difficulties.
+                  Impact includes distress and interference only—not duration, burden, or perceived improvement. Missing impact components are not treated as zero.
+                </p>
+                <p className="text-xs text-slate-500">Scoring version: {data.sdqDescriptive.scoring.scoringVersion}. {data.sdqDescriptive.scoring.source}.</p>
+              </div>
+            )}
+            {data.sdqDescriptive.scoring.issues.length > 0 && (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-amber-900">
+                {data.sdqDescriptive.scoring.issues.map(issue => <li key={issue}>{issue}</li>)}
+              </ul>
+            )}
             {data.sdqDescriptive.formCompatibility === "item_set_unverified" && (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 The saved form does not contain the complete expected 25-item core set. Review the recorded items below; no totals or norm classifications are shown.
@@ -985,6 +1074,7 @@ export default function ResponseViewer() {
                     <div key={item.itemNumber} className="rounded-lg border border-teal-100 bg-white p-3 text-sm">
                       <p className="font-medium text-slate-800">Item {item.itemNumber}: {item.prompt}</p>
                       <p className="mt-1 text-slate-600">Recorded response: {item.response ?? "No response recorded"}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.interpretationNote}</p>
                     </div>
                   ))}
                 </div>

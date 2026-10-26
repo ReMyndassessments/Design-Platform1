@@ -112,7 +112,7 @@ const BATTERY_FILTER_MAP: Record<string, { label: string; ids: Set<string> }> = 
   basc3:      { label: "BASC-3 Descriptive Report", ids: new Set(["BASC3-PRS-A", "BASC3-TRS-A", "BASC3-SRP-A", "BASC3-PRS-C", "BASC3-TRS-C", "BASC3-SRP-C"]) },
   byi2:       { label: "BYI-2 Descriptive Report", ids: new Set(["BYI2"]) },
   brief2:     { label: "BRIEF-2 Dashboard",     ids: new Set(["BRIEF2"]) },
-  sdq:        { label: "SDQ Descriptive Review", ids: new Set(["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "SDQ-P4", "SDQ-T4", "SDQ-SR4", "SDQ-SR11"]) },
+  sdq:        { label: "SDQ Scoring & Review", ids: new Set(["SDQ-P", "SDQ-P11", "SDQ-T", "SDQ-T11", "SDQ-SR", "SDQ-SR18", "SDQ-P4", "SDQ-T4", "SDQ-SR4", "SDQ-SR11"]) },
   vanderbilt: { label: "Vanderbilt Dashboard",  ids: new Set(["VANDERBILT"]) },
   dyslexia:   { label: "Dyslexia Screening Tool Dashboard", ids: new Set(["DYSRISK"]) },
 };
@@ -1153,18 +1153,18 @@ export default function ScoringView() {
               <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft size={20} /></Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">SDQ Descriptive Review</h1>
+              <h1 className="text-2xl font-bold text-slate-900">SDQ Scoring & Review</h1>
               <p className="text-sm text-slate-500">Case: {studentName} · {today}</p>
             </div>
           </div>
         </div>
 
         <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
-          <h2 className="font-semibold">Responses are available for review; no unverified scores are shown</h2>
+          <h2 className="font-semibold">Review each respondent’s scores and original answers separately</h2>
           <p className="mt-2">
-            This report does not calculate SDQ scale totals or norm classifications until electronic-scoring authorization
-            and the applicable form edition, language, and scoring key are verified. Open each completed respondent form
-            to review the saved answers, including positively worded items.
+            Open a completed form to see its five scale scores, Total Difficulties, separate impact score, and eligible
+            UK reference bands. Scoring uses the saved administered form and verified English response key.
+            Records with incompatible forms or unverified language mappings remain descriptive; child norm bands are never applied to adults.
           </p>
         </section>
 
@@ -1198,7 +1198,7 @@ export default function ScoringView() {
                   </div>
                   {assignment.status === "completed" ? (
                     <Link href={`/cases/${caseId}/response/${assignment.id}`}>
-                      <Button variant="outline" size="sm">Review responses</Button>
+                      <Button variant="outline" size="sm">View scoring & responses</Button>
                     </Link>
                   ) : (
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">

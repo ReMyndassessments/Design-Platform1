@@ -25,7 +25,7 @@ type SdqQuestion = {
   type?: string;
   domain?: string;
   options?: string[];
-  rows?: Array<{ id: string; text?: string }>;
+  rows?: SdqScoringQuestion[];
 };
 
 function itemNumberFromId(id: string): number | null {
@@ -57,6 +57,7 @@ export function buildSdqDescriptiveResponse(input: {
   language?: string | null;
   dateOfBirth?: string | Date | null;
   administeredAt?: string | Date | null;
+  formSnapshotPresent?: boolean;
 }) {
   const scoring = scoreSdq({
     toolId: input.toolId,
@@ -65,6 +66,7 @@ export function buildSdqDescriptiveResponse(input: {
     language: input.language,
     dateOfBirth: input.dateOfBirth,
     administeredAt: input.administeredAt,
+    formSnapshotPresent: input.formSnapshotPresent,
   });
   const coreItems = input.questions
     .map(question => ({
@@ -85,7 +87,17 @@ export function buildSdqDescriptiveResponse(input: {
       prompt: item.question.textEnglish ?? item.question.text ?? "",
       response: item.response,
       state: item.response === null ? "missing" as const : "recorded" as const,
-      interpretationNote: "This is a positively worded item; preserve an endorsement as favorable evidence, not as a difficulty.",
+      interpretationNote: (() => {
+        const value = typeof item.response === "string" ? item.response.trim().toLowerCase() : "";
+        if (value === "certainly true") {
+          return item.itemNumber === 25
+            ? "The respondent endorses sustained attention and task completion as a strength."
+            : "The respondent endorses this positively worded strength.";
+        }
+        if (value === "somewhat true") return "This strength is partly endorsed; this answer alone does not establish severe impairment.";
+        if (value === "not true") return "This positively worded strength is not endorsed; preserve that meaning without inventing a different symptom.";
+        return "Preserve the recorded answer; do not infer a frequency or difficulty level from an unverified label or code.";
+      })(),
     }));
 
   const supplemental = input.questions
@@ -114,10 +126,25 @@ export function buildSdqDescriptiveResponse(input: {
       ? `Classification reference: ${scoring.referencePopulation}.`
       : scoring.classificationLimit,
   ].join("\n");
+  const reportText = [
+    summary,
+    `Scoring version: ${scoring.scoringVersion}. ${scoring.source}.`,
+    "This is a draft respondent-specific screening record requiring professional review, not a diagnosis.",
+    ...(scoring.scoringState === "scored" ? [
+      "Classification scheme: UK four-band (2016). No scores are pooled across respondents.",
+      ...Object.entries(scoring.scales).map(([name, scale]) =>
+        `${name}: ${scale.score === null ? "unavailable" : `${scale.score}/10`}; ${scale.validAnswers}/5 valid responses${scale.prorated ? "; prorated and rounded half-up" : ""}; reference band: ${scoring.classificationSchemes.four_band[name] ?? "withheld"}.`),
+      `Total Difficulties: ${scoring.totalDifficulties.score === null ? "unavailable" : `${scoring.totalDifficulties.score}/40`}; excludes Prosocial and impact; reference band: ${scoring.classificationSchemes.four_band["Total Difficulties"] ?? "withheld"}.`,
+      `Impact (separate): ${scoring.impact.score === null ? "unavailable" : `${scoring.impact.score}/${scoring.impact.maximum}`}; ${scoring.impact.validComponents}/${scoring.impact.requiredComponents} components; reference band: ${scoring.classificationSchemes.four_band.Impact ?? "withheld"}. Duration and burden are excluded. Missing components are not imputed as zero.`,
+    ] : []),
+    ...positivePhraseItems.filter(item => item.state === "recorded").map(item =>
+      `Positive item ${item.itemNumber}: ${item.response}. ${item.interpretationNote}`),
+    ...scoring.issues,
+  ].join("\n");
 
   return {
     reportingState: "descriptive_only" as const,
-    scoringEligibility: "not_verified" as const,
+    scoringEligibility: scoring.scoringState === "scored" ? "rule_supported" as const : "not_verified" as const,
     formCompatibility,
     completeness: {
       answered: answersRecorded,
@@ -139,5 +166,6 @@ export function buildSdqDescriptiveResponse(input: {
     supplemental,
     summary,
     scoring,
+    reportText,
   };
 }

@@ -1209,8 +1209,6 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         questions,
         answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
         language: responseRows[0].language,
-        dateOfBirth: caseRows[0]?.dob ?? null,
-        administeredAt: responseRows[0].submittedAt,
       })
     : null;
   const publisherDescriptive = isPublisherScored
@@ -1230,6 +1228,9 @@ router.get("/cases/:caseId/assignments/:assignmentId/response", authMiddleware, 
         questions,
         answers: (responseRows[0].answers ?? {}) as Record<string, unknown>,
         language: responseRows[0].language,
+        dateOfBirth: caseRows[0]?.dob ?? null,
+        administeredAt: responseRows[0].submittedAt,
+        formSnapshotPresent: !!snapshotQuestions?.length,
       })
     : null;
 
@@ -1294,7 +1295,8 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
 
   let summary: string;
   if (isSdqToolId(assignment.toolId)) {
-    const questions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot)
+    const savedQuestions = questionsFromAssignmentSnapshot(assignment.formItemsSnapshot);
+    const questions = savedQuestions
       ?? (toolRows[0]?.formItems as any[] | null)
       ?? [];
     summary = buildSdqDescriptiveResponse({
@@ -1304,6 +1306,7 @@ router.post("/cases/:caseId/assignments/:assignmentId/response/summary", authMid
       language: responseRows[0].language,
       dateOfBirth: caseRows[0]?.dob ?? null,
       administeredAt: responseRows[0].submittedAt,
+      formSnapshotPresent: !!savedQuestions?.length,
     }).summary;
     res.json({ summary });
     return;
