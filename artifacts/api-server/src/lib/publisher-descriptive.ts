@@ -1,3 +1,5 @@
+import { buildResponseBasedScreeningNarrative } from "./response-based-screening-narrative.js";
+
 export type PublisherScoredFamily = "BASC3" | "BYI2";
 
 export function publisherScoredFamily(toolId: string | null | undefined): PublisherScoredFamily | null {
@@ -149,13 +151,16 @@ export function buildPublisherDescriptiveRecord(input: {
   }
   if (missing > 0) provenanceIssues.push(`${missing} item responses are unanswered.`);
 
-  const totalText = questions.length > 0
-    ? `${answered} of ${questions.length} saved form items have recorded responses${missing > 0 ? `; ${missing} are unanswered` : ""}.`
-    : `${answered} saved response values are available; the original item set is not available.`;
-  const summary = [
-    `${family} descriptive response record. ${totalText}`,
-    "This report preserves the recorded labels or codes only; it does not calculate publisher scores, norms, percentiles, composites, validity findings, or clinical classifications.",
-  ].join(" ");
+  const summary = buildResponseBasedScreeningNarrative({
+    instrument: family,
+    answered,
+    total: questions.length > 0 ? questions.length : null,
+    items: items.map(item => ({
+      prompt: item.prompt,
+      response: item.response,
+      options: item.savedOptions,
+    })),
+  });
 
   return {
     family,

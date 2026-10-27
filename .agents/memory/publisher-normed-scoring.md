@@ -7,6 +7,12 @@ Do not calculate or present publisher-standardized scores unless the applicable 
 
 When authorized scoring materials or source results are unavailable, keep a respondent-separated descriptive record of exact saved labels/codes, show provenance and completeness separately, and block standardized interpretation. Preserve historical responses, existing score rows, and issued reports; do not silently rewrite them.
 
+ReMynd assessments are designed as non-diagnostic screening tools. A response-based narrative can still summarize exact answer patterns and offer neutral intervention-planning prompts without standardized scores, but it must not infer severity, diagnosis, or meaning from unverified numeric codes.
+
+**Why:** The user wants screening evidence to inform support planning; absence of norm-based scores should not suppress a careful narrative, while unsupported interpretations can mislead.
+
+**How to apply:** Keep narratives tied to recorded item wording and answer labels, identify unanswered or unmapped values, and frame next steps as questions for human review.
+
 Do not disable existing RAOS workflow features (including assignment, submission, or “View in English”) unless the user explicitly asks. Add safe parallel views or scoring guards without removing unrelated functionality, and keep translations separate from the original saved responses.
 
 For SDQ, public scoring instructions do not establish permission for electronic administration or scoring. Before calculating totals, impact scores, or norm bands, verify authorization plus the exact edition, language, age/respondent form, item key, and norm table. If these are unverified, preserve exact responses descriptively; do not infer scores, and keep impact, duration, and burden fields separate.

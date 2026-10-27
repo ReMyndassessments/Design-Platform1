@@ -1,3 +1,5 @@
+import { buildResponseBasedScreeningNarrative } from "./response-based-screening-narrative.js";
+
 export const BRIEF2_TOOL_IDS = ["BRIEF2-P", "BRIEF2-T", "BRIEF2-SR"] as const;
 
 export type Brief2ToolId = (typeof BRIEF2_TOOL_IDS)[number];
@@ -22,6 +24,7 @@ export interface Brief2DescriptiveItem {
   id: string;
   prompt: string;
   response: string | null;
+  options: string[];
   state: "answered" | "missing";
 }
 
@@ -80,6 +83,7 @@ export function buildBrief2DescriptiveResponse(input: {
         id: item.id,
         prompt: getItemText(item, input.language),
         response,
+        options: item.options ?? [],
         state: response === null ? "missing" : "answered",
       };
     });
@@ -97,14 +101,12 @@ export function buildBrief2DescriptiveResponse(input: {
     provenanceIssues.push(`This form contains ${items.length} response items; ${input.toolId} is expected to contain ${expectedItemCount}.`);
   }
   if (missing > 0) provenanceIssues.push(`${missing} item responses are missing.`);
-  const frequencyText = Object.entries(frequencyCounts)
-    .map(([label, count]) => `${label}: ${count}`)
-    .join("; ");
-  const summary = [
-    `Descriptive response record for ${input.toolId}: ${answered} of ${items.length} items have recorded responses${missing ? `; ${missing} are unanswered` : ""}.`,
-    frequencyText ? `Recorded response frequencies: ${frequencyText}.` : "No response frequencies are available.",
-    "This is a non-standardized description of this administration only. Norm-based scores, percentiles, validity findings, and composites are unavailable.",
-  ].join(" ");
+  const summary = buildResponseBasedScreeningNarrative({
+    instrument: `BRIEF-2 (${input.toolId})`,
+    answered,
+    total: items.length,
+    items,
+  });
 
   return {
     formId: input.toolId,

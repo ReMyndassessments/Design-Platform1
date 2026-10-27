@@ -1104,6 +1104,20 @@ export default function ScoringView() {
                     {admin.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
                   </ul>
                 )}
+                <section className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+                  <h3 className="text-sm font-semibold text-teal-950">Response-based screening narrative</h3>
+                  <div className="mt-2 space-y-2 text-sm leading-relaxed text-slate-700">
+                    {admin.summary.split("\n").map((line, index) => {
+                      const text = line.trim();
+                      if (!text) return <div key={index} className="h-1" />;
+                      if (text === text.toUpperCase() && text.length > 4) return null;
+                      if (text === "Response overview" || text === "Observed response patterns" || text === "Items sharing a recorded response (examples)" || text === "Example recorded item responses" || text === "Planning discussion") {
+                        return <p key={index} className="pt-2 font-medium text-slate-900">{text}</p>;
+                      }
+                      return <p key={index}>{text}</p>;
+                    })}
+                  </div>
+                </section>
                 {Object.keys(admin.frequencyCounts).length > 0 ? (
                   <div>
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recorded response frequencies</h3>
@@ -1313,6 +1327,20 @@ export default function ScoringView() {
                     {admin.report.provenanceIssues.map(issue => <li key={issue}>{issue}</li>)}
                   </ul>
                 )}
+                <section className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+                  <h3 className="text-sm font-semibold text-teal-950">Response-based screening narrative</h3>
+                  <div className="mt-2 space-y-2 text-sm leading-relaxed text-slate-700">
+                    {admin.report.summary.split("\n").map((line, index) => {
+                      const text = line.trim();
+                      if (!text) return <div key={index} className="h-1" />;
+                      if (text === text.toUpperCase() && text.length > 4) return null;
+                      if (text === "Response overview" || text === "Observed response patterns" || text === "Items sharing a recorded response (examples)" || text === "Example recorded item responses" || text === "Planning discussion") {
+                        return <p key={index} className="pt-2 font-medium text-slate-900">{text}</p>;
+                      }
+                      return <p key={index}>{text}</p>;
+                    })}
+                  </div>
+                </section>
                 {admin.report.responseFrequencyGroups.map((group, index) => (
                   <div key={`${index}-${group.savedOptions.join("|")}`} className="rounded-lg border bg-white p-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">

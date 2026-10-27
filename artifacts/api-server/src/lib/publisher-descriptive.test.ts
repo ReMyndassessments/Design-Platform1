@@ -20,7 +20,9 @@ test("BASC mixed response types stay in separate saved-option groups and numeric
   assert.equal(report.items[1]?.response, "Recorded code/value: 2");
   assert.equal(report.responseFrequencyGroups.length, 2);
   assert.equal(report.responseValidity, "not_available");
-  assert.match(report.summary, /does not calculate publisher scores/i);
+  assert.match(report.summary, /RESPONSE-BASED SCREENING NARRATIVE/);
+  assert.match(report.summary, /stored as a code\/value/i);
+  assert.match(report.summary, /does not calculate scores/i);
   assert.equal("normalizedScores" in report, false);
   assert.equal("domainScores" in report, false);
 });

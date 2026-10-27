@@ -22,7 +22,10 @@ test("BRIEF-2 parent report preserves actual response frequencies without severi
   assert.equal(report.reportingState, "descriptive_only");
   assert.equal(report.provenanceState, "legacy_unverified");
   assert.equal(report.responseValidity, "not_available");
-  assert.doesNotMatch(report.summary, /pervasive|often|severe|elevated|clinical dysfunction/i);
+  assert.match(report.summary, /RESPONSE-BASED SCREENING NARRATIVE/);
+  assert.match(report.summary, /“Sometimes” was selected for 1 item/);
+  assert.match(report.summary, /does not calculate scores/i);
+  assert.doesNotMatch(report.summary, /pervasive|severe|elevated|clinical dysfunction/i);
   assert.deepEqual(report.provenanceIssues, []);
   assert.equal("scores" in report, false);
 });
@@ -57,6 +60,7 @@ test("missing values stay distinct from labels and numeric codes are not inferre
   assert.deepEqual(report.frequencyCounts, { "Recorded code/value: 0": 1 });
   assert.equal(report.items[1]?.state, "missing");
   assert.equal(report.items[0]?.response, "Recorded code/value: 0");
+  assert.match(report.summary, /not assigned a response label/i);
 });
 
 test("mismatched or incomplete response records are blocked from standardized interpretation", () => {
