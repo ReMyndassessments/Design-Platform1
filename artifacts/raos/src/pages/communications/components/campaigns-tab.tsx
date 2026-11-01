@@ -12,10 +12,10 @@ function hasProviderReports(campaign: { provider: string; provider_campaign_id?:
 
 function reportExplanation(campaign: { provider: string; provider_campaign_id?: string | null }) {
   if (campaign.provider === "gmail") {
-    return "Gmail SMTP confirms acceptance for sending, not inbox delivery. Delivery, bounce, complaint and unsubscribe reports are unavailable for Gmail campaigns; a dash does not mean zero.";
+    return "Gmail confirms SMTP acceptance, not inbox delivery, and does not provide delivery, bounce or complaint reports. RAOS does track unsubscribes submitted through its own unsubscribe links.";
   }
   if (!hasProviderReports(campaign)) {
-    return "No provider reports are linked to this campaign. Preparing an EmailOctopus list or confirming a send does not import delivery results.";
+    return "No provider delivery reports are linked to this campaign. Preparing an EmailOctopus list or confirming a send does not import delivery results; RAOS-tracked unsubscribes are shown.";
   }
   return "EmailOctopus results reflect the latest synced provider report. “Reported sent” is not an inbox-delivery confirmation.";
 }
@@ -226,7 +226,7 @@ export function CampaignsTab() {
             </div>
             <div>
               <p className="text-[10px] uppercase text-slate-400 font-semibold mb-0.5">Unsubscribed</p>
-              <p className="text-sm font-medium text-amber-700">{hasProviderReports(c) ? c.unsubscribed_count || 0 : "—"}</p>
+              <p className="text-sm font-medium text-amber-700">{c.unsubscribed_count || 0}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase text-slate-400 font-semibold mb-0.5">Failed</p>
@@ -246,6 +246,11 @@ export function CampaignsTab() {
             </div>
           </div>
           <p className="mt-3 text-xs text-slate-500">{reportExplanation(c)}</p>
+          {Number(c.send_error_count || 0) > 0 && (
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              {c.send_error_count} recipient record{Number(c.send_error_count) === 1 ? "" : "s"} contain a send error. Open Details to see the saved provider response and current recipient status.
+            </p>
+          )}
           {c.status === "ready" && c.provider === "emailoctopus" && (
             <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-xs leading-relaxed text-violet-900">
               <strong>Audience ready in EmailOctopus.</strong> Create the broadcast using the newest timestamped “RAOS Campaign” list, send it from EmailOctopus, then return here and click <strong>Confirm Sent</strong>.
@@ -350,11 +355,11 @@ function CampaignDetailModal({ id, onClose }: { id: string; onClose: () => void 
                 )}
               </section>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
-                {(["queued", "sent", "delivered", "bounced", "complained", "unsubscribed", "failed"] as const).map(status => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
+                {(["queued", "sent", "delivered", "bounced", "complained", "unsubscribed", "failed", "send_errors"] as const).map(status => (
                   <div key={status} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                     <div className="text-[10px] font-semibold uppercase text-slate-400">{status === "delivered" && hasProviderReports(data.campaign) ? "Reported sent" : status}</div>
-                     <div className="text-lg font-bold text-slate-800">{(["delivered", "bounced", "complained", "unsubscribed"] as string[]).includes(status) && !hasProviderReports(data.campaign) ? "—" : data.summary?.[status] ?? 0}</div>
+                     <div className="text-[10px] font-semibold uppercase text-slate-400">{status === "delivered" && hasProviderReports(data.campaign) ? "Reported sent" : status === "send_errors" ? "Error records" : status}</div>
+                     <div className="text-lg font-bold text-slate-800">{(["delivered", "bounced", "complained"] as string[]).includes(status) && !hasProviderReports(data.campaign) ? "—" : data.summary?.[status] ?? 0}</div>
                   </div>
                 ))}
               </div>
