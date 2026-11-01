@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAssets } from "@/hooks/use-communications";
-import { Image as ImageIcon, Upload, File as FileIcon } from "lucide-react";
+import { Image as ImageIcon, Upload, File as FileIcon, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { customFetch } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,25 @@ export function AssetsTab() {
   const { data, isLoading } = useAssets();
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
   const [altText, setAltText] = useState("");
+
+  const handleDelete = async (asset: { id: string; name: string }) => {
+    const confirmed = window.confirm(
+      `Permanently delete "${asset.name}" from the asset library and storage? Existing drafts or emails that use this asset URL may stop displaying it.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingAssetId(asset.id);
+    try {
+      await customFetch(`/api/communications/assets/${encodeURIComponent(asset.id)}`, { method: "DELETE" });
+      await qc.invalidateQueries({ queryKey: ["communications-assets"] });
+    } catch (err: any) {
+      alert(err.message || "Could not delete this asset");
+    } finally {
+      setDeletingAssetId(null);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,7 +156,20 @@ export function AssetsTab() {
                 {a.alt_text && <p className="text-[10px] text-slate-500 truncate mt-0.5" title={a.alt_text}>{a.alt_text}</p>}
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
                   <p className="text-[10px] text-slate-400 uppercase">{(a.size / 1024).toFixed(1)} KB</p>
-                  <p className="text-[10px] text-slate-400">{format(new Date(a.created_at), "MMM d")}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-slate-400">{format(new Date(a.created_at), "MMM d")}</p>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(a)}
+                      disabled={deletingAssetId === a.id}
+                      aria-label={`Permanently delete ${a.name}`}
+                      title="Permanently delete asset"
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      <Trash2 size={12} />
+                      {deletingAssetId === a.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

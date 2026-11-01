@@ -7,7 +7,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { writeAudit } from "../lib/audit.js";
 import { prepareEmailOctopusAudience, getCommunicationsMailer, getEmailOctopusCampaignReport, getEmailOctopusListUnsubscribes, renderBrandedEmail, renderEmail, sanitizeEmailHtml, type CommunicationBrandSettings, type CommunicationsProvider, type EmailOctopusReportType } from "../lib/communications.js";
 import { collectPermanentlyFailedEmails, isCommunicationBlocked, isPermanentOperationalEmailFailure, isValidCommunicationEmail, resolveEligibleContacts, runWithCampaignLock, sendGmailGroup, sendGmailTest, type SourceContact } from "../lib/communications-safety.js";
-import { ObjectStorageService } from "../lib/objectStorage.js";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -785,6 +785,41 @@ router.post("/communications/assets", async(req,res): Promise<void> => {
   res.status(201).json({id,servingUrl:`/api/communications/assets/public/${id}`});
 });
 router.get("/communications/assets", async(_req,res)=>{const r=await db.execute(sql`SELECT id,object_path,name,size,content_type,alt_text,created_at FROM communication_assets ORDER BY created_at DESC`);res.json({assets:(r.rows as any[]).map(x=>({...x,serving_url:`/api/communications/assets/public/${x.id}`}))});});
+router.delete("/communications/assets/:id", async(req,res): Promise<void> => {
+  const found = await db.execute(sql`SELECT id,object_path,name FROM communication_assets WHERE id=${req.params.id} LIMIT 1`);
+  if (!found.rows.length) {
+    res.status(404).json({ error: "Asset not found" });
+    return;
+  }
+
+  const asset = found.rows[0] as { id: string; object_path: string; name: string };
+  if (!asset.object_path.startsWith("/objects/")) {
+    res.status(409).json({ error: "Asset storage path is invalid; it was not deleted" });
+    return;
+  }
+
+  try {
+    const objectFile = await objectStorage.getObjectEntityFile(asset.object_path);
+    await objectFile.delete();
+  } catch (err) {
+    const isAlreadyMissing = err instanceof ObjectNotFoundError ||
+      (typeof err === "object" && err !== null && "code" in err && Number((err as { code?: unknown }).code) === 404);
+    if (!isAlreadyMissing) {
+      logger.error({ err, assetId: asset.id }, "Communication asset storage deletion failed");
+      res.status(502).json({ error: "The stored file could not be deleted; the asset remains in the library" });
+      return;
+    }
+  }
+
+  await db.execute(sql`DELETE FROM communication_assets WHERE id=${asset.id}`);
+  await writeAudit({
+    eventType: "communications.asset.deleted",
+    actorId: req.userId,
+    actorRole: req.userRole,
+    metadata: { assetId: asset.id, name: asset.name },
+  });
+  res.json({ ok: true });
+});
 
 setInterval(() => { void (async () => { try { await ensureReady(); const due=await db.execute(sql`SELECT id FROM communication_campaigns WHERE status='scheduled' AND scheduled_at <= NOW()`); for(const c of due.rows as any[]) await deliver(c.id); } catch(err) { logger.error({err},"Communications schedule poll failed"); } })(); }, 60_000).unref();
 setInterval(() => { void (async () => { try { await ensureReady(); const campaigns=await db.execute(sql`SELECT * FROM communication_campaigns WHERE provider='emailoctopus' AND provider_campaign_id IS NOT NULL AND status='sent'`); for(const campaign of campaigns.rows as any[]) { try { await reconcileEmailOctopusCampaign(campaign); } catch(err) { logger.error({err,campaignId:campaign.id},"EmailOctopus report reconciliation failed"); } } } catch(err) { logger.error({err},"EmailOctopus report reconciliation failed"); } })(); }, 15 * 60_000).unref();
