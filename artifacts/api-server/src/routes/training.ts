@@ -56,6 +56,11 @@ function workshopList(reg: any): string {
   return ws.length ? ws.join("<br>") : "None selected";
 }
 
+async function isTrainingSeriesArchived(): Promise<boolean> {
+  const result = await db.execute(sql`SELECT is_archived FROM training_series_settings WHERE id = 1`);
+  return Boolean((result.rows[0] as any)?.is_archived);
+}
+
 async function sendTrainingConfirmation(reg: any): Promise<void> {
   const toEmail = reg.email;
   const firstName = reg.first_name;
@@ -206,17 +211,31 @@ function getTrainingWorkshopAvailability(now = new Date()) {
   ) as Record<string, boolean>;
 }
 
-router.get("/training/availability", (_req, res) => {
-  res.json({
-    timezone: "Asia/Hong_Kong",
-    cutoffLocalTime: "16:00",
-    workshops: getTrainingWorkshopAvailability(),
-  });
+router.get("/training/availability", async (_req, res): Promise<void> => {
+  try {
+    const archived = await isTrainingSeriesArchived();
+    const availability = getTrainingWorkshopAvailability();
+    res.json({
+      archived,
+      timezone: "Asia/Hong_Kong",
+      cutoffLocalTime: "16:00",
+      workshops: archived
+        ? Object.fromEntries(Object.keys(availability).map(key => [key, false]))
+        : availability,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to load training series availability");
+    res.status(500).json({ error: "Training series status is temporarily unavailable" });
+  }
 });
 
 // ── Public: Register ──────────────────────────────────────────────────────────
 router.post("/training/register", async (req, res) => {
   try {
+    if (await isTrainingSeriesArchived()) {
+      res.status(410).json({ error: "Registration for this series has ended." });
+      return;
+    }
     const {
       first_name, last_name, email, job_title, professional_role, professional_role_other,
       school_name, city, country, school_type, school_size,
@@ -353,6 +372,29 @@ router.post("/training/register", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Training registration failed");
     return res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+// ── Admin: Archive / restore the legacy training-series public page ──────────
+router.post("/training/series/archive", authMiddleware, requireAdmin, async (_req, res): Promise<void> => {
+  try {
+    await db.execute(sql`UPDATE training_series_settings
+      SET is_archived = TRUE, updated_at = NOW() WHERE id = 1`);
+    res.json({ ok: true, archived: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to archive training series page");
+    res.status(500).json({ error: "Could not archive the training series page" });
+  }
+});
+
+router.post("/training/series/restore", authMiddleware, requireAdmin, async (_req, res): Promise<void> => {
+  try {
+    await db.execute(sql`UPDATE training_series_settings
+      SET is_archived = FALSE, updated_at = NOW() WHERE id = 1`);
+    res.json({ ok: true, archived: false });
+  } catch (err) {
+    logger.error({ err }, "Failed to restore training series page");
+    res.status(500).json({ error: "Could not restore the training series page" });
   }
 });
 

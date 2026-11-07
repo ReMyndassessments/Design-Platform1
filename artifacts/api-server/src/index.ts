@@ -4725,6 +4725,14 @@ async function createTrainingTables() {
     )`);
     await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS training_registrations_email_idx ON training_registrations (email)`);
 
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS training_series_settings (
+      id              SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.execute(sql`INSERT INTO training_series_settings (id, is_archived)
+      VALUES (1, FALSE) ON CONFLICT (id) DO NOTHING`);
+
     await db.execute(sql`CREATE TABLE IF NOT EXISTS training_school_inquiries (
       id                TEXT PRIMARY KEY,
       contact_name      TEXT NOT NULL,

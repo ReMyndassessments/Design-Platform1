@@ -222,9 +222,26 @@ export default function TrainingPage() {
   const registerRef = useRef<HTMLDivElement>(null);
   const bringSeriesRef = useRef<HTMLDivElement>(null);
 
+  const [seriesPageState, setSeriesPageState] = useState<"loading" | "open" | "archived" | "error">("loading");
   const [submitted, setSubmitted] = useState(false);
   const [showBringSeries, setShowBringSeries] = useState(false);
   const [schoolInquirySubmitted, setSchoolInquirySubmitted] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/training/availability")
+      .then(async response => {
+        if (!response.ok) throw new Error("Unable to load series status.");
+        return response.json();
+      })
+      .then(data => {
+        if (active) setSeriesPageState(data.archived ? "archived" : "open");
+      })
+      .catch(() => {
+        if (active) setSeriesPageState("error");
+      });
+    return () => { active = false; };
+  }, []);
 
   const scrollToRegister = () => {
     registerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -236,6 +253,34 @@ export default function TrainingPage() {
       bringSeriesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
   };
+
+  if (seriesPageState === "loading") {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6 text-sm text-slate-500">Loading series information…</div>;
+  }
+  if (seriesPageState === "archived") {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-5 py-12">
+        <section className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">ReMynd Professional Learning</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">This workshop series has ended</h1>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-600">
+            Registration for the September–October 2026 series is closed. This page is being kept for people who scan an older flyer; no new registrations can be submitted.
+          </p>
+          <p className="mt-8 text-sm text-slate-400">ReMynd Assessment System Training Series</p>
+        </section>
+      </main>
+    );
+  }
+  if (seriesPageState === "error") {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-5 py-12">
+        <section className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900">Series information is temporarily unavailable</h1>
+          <p className="mt-3 text-slate-600">Please refresh this page in a moment. Registration is unavailable until the series status can be confirmed.</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">

@@ -6,7 +6,7 @@ import {
   ChevronDown, Filter, Mail, MailCheck, MailX, ExternalLink, BookOpen, Copy, Link,
   Plus, Calendar, Clock, MapPin, Monitor, Pencil, Trash2, Eye, ArrowLeft,
   Upload, DollarSign, QrCode, Award, Wifi, Loader2, AlertCircle, Check,
-  ChevronRight, RefreshCw, MoreHorizontal,
+  ChevronRight, RefreshCw, MoreHorizontal, Archive,
 } from "lucide-react";
 import { useI18n } from "../../lib/i18n";
 import { Link as WouterLink } from "wouter";
@@ -169,6 +169,18 @@ export default function TrainingRegistrationsPage() {
   });
   const stats = (statsData as any)?.stats ?? {};
 
+  const { data: seriesPageData } = useQuery({
+    queryKey: ["training-series-page-status"],
+    queryFn: () => customFetch("/api/training/availability"),
+    enabled: mainView === "series",
+  });
+  const seriesPageArchived = Boolean((seriesPageData as any)?.archived);
+  const seriesPageMutation = useMutation({
+    mutationFn: (archive: boolean) => customFetch(`/api/training/series/${archive ? "archive" : "restore"}`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["training-series-page-status"] }),
+    onError: (error: Error) => window.alert(error.message || "Could not update the series page."),
+  });
+
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (workshopFilter) params.set("workshop", workshopFilter);
@@ -322,6 +334,26 @@ export default function TrainingRegistrationsPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm font-bold text-slate-900">ReMynd Assessment System Training Series — September–October 2026</p>
             <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (seriesPageArchived) {
+                    if (window.confirm("Restore the public series page? The historical registration dates have passed, so this will restore the information page but will not reopen registration.")) {
+                      seriesPageMutation.mutate(false);
+                    }
+                  } else if (window.confirm("Archive the public series page? Anyone scanning an old flyer QR code will see a clear ended notice instead of the registration page. Existing registrations will be kept.")) {
+                    seriesPageMutation.mutate(true);
+                  }
+                }}
+                disabled={seriesPageMutation.isPending || !seriesPageData}
+                className={`flex items-center gap-1.5 text-xs rounded-xl px-3 py-2 transition-colors font-semibold disabled:opacity-50 ${
+                  seriesPageArchived
+                    ? "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
+                    : "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                }`}
+              >
+                {seriesPageArchived ? <RefreshCw size={12} /> : <Archive size={12} />}
+                {seriesPageMutation.isPending ? "Saving…" : seriesPageArchived ? "Restore Public Page" : "Archive Public Page"}
+              </button>
               <a href="/training" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-xs border border-slate-200 rounded-xl px-3 py-2 text-slate-600 hover:text-slate-900 hover:border-slate-400 transition-colors">
                 <ExternalLink size={12} /> View Public Page
